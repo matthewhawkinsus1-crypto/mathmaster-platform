@@ -126,8 +126,9 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
 
     await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'expired' })));
     await assertCleanClose(page);
-    // The closed card (student pass 3, RUN-6): "This question is closed after N tries."
-    await page.getByText(/question is closed after/i).first().waitFor();
+    // The closed card's verdict (QuestionEngine.jsx; "tries", D9, since
+    // student pass 3 Batch 1).
+    await page.getByText(/This question is closed after \d+ tr(?:y|ies)\./i).waitFor();
     await assertTappableContinuation(page, `${viewport.name}/${route}/expired`);
 
   // Start the assignment-lock scenario from a fresh QuestionEngine. The

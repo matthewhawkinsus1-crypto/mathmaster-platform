@@ -592,7 +592,11 @@ const RELATION = '&ineq=x%20%3E%204';
 const relation = async () => {
   await scenario('practice relation', async () => {
     const page = await open('practice', 'relation', RELATION);
-    check(await hasButton(page, 'Stuck? Show a hint'), 'practice relation: the number line still offers its hint');
+    // One ladder per question (student pass 3, HELP-10): the number line's
+    // rungs are in the platform's Hint panel, offered before the first try,
+    // not a second tap-through ladder of its own.
+    check(!(await hasButton(page, 'Stuck? Show a hint')), 'practice relation: the number line shows no ladder of its own');
+    check(await page.locator('[data-first-hint-offer]').getByRole('button', { name: 'Show a hint' }).count() === 1, 'practice relation: its hint is offered through the platform ladder');
     await graphRay(page, 'closed');
     check(/Not yet/.test(await bodyText(page)), 'practice relation: a wrong graph is still called out');
     check(await page.getByRole('button', { name: /^Submit/ }).count() === 0, 'practice relation: and Submit still waits for a right graph');
@@ -722,7 +726,10 @@ const threePlaneReveal = async () => {
 // may be anywhere in the document — visible text, aria-labels, live regions
 // or hidden nodes — while the item can still be answered, nor after a
 // submission whose outcome is held.
-const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up'];
+const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
+  // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
+  // rung, and the sentence beside every hint offer.
+  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking'];
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
   const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];

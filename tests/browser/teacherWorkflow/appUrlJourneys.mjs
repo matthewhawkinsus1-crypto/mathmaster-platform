@@ -234,6 +234,9 @@ const runStudentJourneys = async (viewport) => {
   // U8 — My Math Path's own tabs: Back onto /path/progress shows Progress.
   const activeMathPathTab = () => page.evaluate(() => [...document.querySelectorAll('nav button')]
     .find((button) => getComputedStyle(button).borderBottomColor === 'rgb(26, 115, 232)')?.textContent?.trim() || null);
+  // After a load, "Math Path" is on screen (the student nav) about a second
+  // before My Math Path's own tabs are drawn; read the tab once they are.
+  const mathPathTabsDrawn = () => page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().waitFor({ timeout: 60_000 });
   await page.goto(`${ORIGIN}/path?${asStudent}`);
   await ready(page, /Math Path/);
   await page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().click();
@@ -243,11 +246,13 @@ const runStudentJourneys = async (viewport) => {
   await ready(page, /Welcome, /);
   await page.goBack();
   await ready(page, /Math Path/);
+  await mathPathTabsDrawn();
   await page.waitForTimeout(500);
   expect(`U8 ${tag}`, pathOf(page) === '/path/progress', `Back went to ${pathOf(page)}`);
   expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `Back onto /path/progress shows ${await activeMathPathTab()}`);
   await page.reload();
   await ready(page, /Math Path/);
+  await mathPathTabsDrawn();
   await page.waitForTimeout(500);
   expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `reload of /path/progress shows ${await activeMathPathTab()}`);
 

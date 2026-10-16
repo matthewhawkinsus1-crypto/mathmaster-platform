@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { globSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const codeOf = (path) => read(path)
@@ -94,12 +95,19 @@ test('an unused hint block is one row, not a bordered box with a lecture', () =>
   assert.match(source, /Stuck\? Show a hint/);
 });
 
-test('the consequence of using a hint is still stated before it is used', () => {
+test('the consequence of using a hint is still stated before it is used', async () => {
   // Dropping the paragraph must not drop the one fact in it that a student
-  // needs before deciding: their teacher sees this.
+  // needs before deciding: their teacher sees this. Since student pass 3
+  // (HELP-17) it is the platform's one sentence, which also says what it does
+  // not cost — on the button and beside it while no hint is used.
+  const { HINT_COST_SENTENCE } = await import('../../src/platform/supports/hints/hintCopy.js');
+  assert.match(HINT_COST_SENTENCE, /never lower your score/);
+  assert.match(HINT_COST_SENTENCE, /Your teacher can see you used one\./);
   const source = codeOf('src/tools/shared/ToolShell.jsx');
-  assert.match(source, /title="Using a hint is recorded for your teacher\."/);
-  assert.match(source, /Recorded for your teacher/);
+  assert.match(source, /import \{ HINT_COST_SENTENCE \} from '\.\.\/\.\.\/platform\/supports\/hints\/hintCopy\.js';/);
+  const panel = region(source, 'export const HintPanel', '\n};', 'the tool hint panel');
+  assert.match(panel, /\n\s*title=\{HINT_COST_SENTENCE\}\n/);
+  assert.match(panel, /\{!used && <span data-hint-cost-note=""[^>]*>\{HINT_COST_SENTENCE\}<\/span>\}/);
 });
 
 test('revealing a hint still reports it for attempt scoring', () => {

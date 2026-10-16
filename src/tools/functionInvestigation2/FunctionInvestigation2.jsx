@@ -6,7 +6,7 @@ import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, SubmitText } from '../shared/ToolRuntimeContext';
+import { useOwnHintLadder, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import functionInvestigationGrader from '../../../functions/shared/serverGrading/tools/functionInvestigation2.mjs';
@@ -42,26 +42,31 @@ const MODE_STEPS = {
   compare: ['Find the dashed vertical line — that is the input both functions share.', 'Read each function’s height at that line.', 'Choose which is greater, then check.'],
 };
 
-const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) => {
+// THE RUNGS NAME THE MOVE, NEVER THE ANSWER (student pass 3, HELP-10). The
+// last rungs used to read the hidden parameters off the function ("h = 1 …
+// k = −2", "a = 2"), count the x-intercepts, or say "the answer is none":
+// the graph is all the student is given, and the values are what they find.
+// The signature is unchanged so every caller passes the same arguments.
+export const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) => {
   if (mode === 'domainRange') {
     return [
       'Domain is about x: can you slide all the way left and right along the graph without lifting your finger?',
       'Range is about y: what heights does the graph actually reach?',
-      `This is ${FUNCTION_FAMILY_LABELS[spec.type]}. Look for a value the graph never touches — that is what gets excluded, and it comes from h = ${spec.h} or k = ${spec.k}.`,
+      `This is ${FUNCTION_FAMILY_LABELS[spec.type]}. Look for a value the graph never touches — that is what gets excluded. It comes from how far the graph is shifted across or up and down.`,
     ];
   }
   if (mode === 'intercepts') {
     return [
       'An x-intercept has y = 0. A y-intercept has x = 0.',
       'Substitute 0 for y to find x-intercepts, and 0 for x to find the y-intercept.',
-      intercepts.x.length ? `There ${intercepts.x.length === 1 ? 'is 1 x-intercept' : `are ${intercepts.x.length} x-intercepts`} here.` : 'This graph never crosses the x-axis — the answer is none.',
+      'Count every place the graph meets the x-axis. If it never does, type none.',
     ];
   }
   if (mode === 'behavior') {
     return [
       'Read the graph left to right, like reading a sentence.',
       'A graph that turns around has a highest or lowest point; one that never turns is only increasing or only decreasing.',
-      `${FUNCTION_FAMILY_LABELS[spec.type]} with a = ${spec.a}: the sign of a tells you which way it opens or which direction it runs.`,
+      `For ${FUNCTION_FAMILY_LABELS[spec.type]}, the sign of a tells you which way it opens or which direction it runs — read it from the graph's shape.`,
     ];
   }
   if (mode === 'compare') {
@@ -74,7 +79,7 @@ const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) =
   return [
     `Every ${FUNCTION_FAMILY_LABELS[spec.type]} is organized around one defining feature: its ${features.anchor.label}.`,
     'Find that feature on the graph before typing anything — count gridlines across, then up or down.',
-    `The parameters give it away: h = ${spec.h} shifts it horizontally and k = ${spec.k} shifts it vertically.`,
+    'Its horizontal shift (h) and vertical shift (k) put that feature where it is: count gridlines from the origin to find them.',
   ];
 };
 
@@ -95,7 +100,9 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const [behavior, setBehavior] = usePersistentToolState('behavior', '');
   const [comparison, setComparison] = usePersistentToolState('comparison', '');
   const { feedback, submit } = useToolSubmission(onAction);
-  const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own: hints allowed, and no platform ladder to hand
+  // them to (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
 
   /*
    * UNIVERSAL UNDO, ON A TOOL THAT HAD NO UNDO AT ALL.
@@ -223,8 +230,9 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
     instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.features)[0] },
     task: { text: questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features },
     // The hints ARE this Help: published only where the activity allows them,
-    // so a DOL does not show a Help button over an empty drawer.
-    help: hintsAllowed ? {
+    // so a DOL does not show a Help button over an empty drawer — and only
+    // where the host has no hint ladder, which is otherwise the Help (HELP-10).
+    help: ownHintLadder ? {
       content: (
         <HintPanel
           hints={hintsForMode(mode, spec, features, domainRange, intercepts, compareX)}

@@ -216,7 +216,7 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
         <label>f(f⁻¹({displayNumber(y)})) =<input value={forwardAfterInverse} onChange={(event) => setForwardAfterInverse(event.target.value)} style={inputStyle} /></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check compositions</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Both compositions return the starting input, confirming the inverse relationship.' : 'True inverses undo each other: f⁻¹(f(x)) = x and f(f⁻¹(y)) = y on the valid domains.'}</ResultPill></div> : null}
-      <HintPanel hints={['A function and its inverse undo each other, so composing them should return the value you started with.', 'f⁻¹(f(x)) = x, and f(f⁻¹(y)) = y — as long as you stay inside each function’s domain.', 'If a composition does not return the starting value, check the domain: the inverse may not be defined there.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <HintPanel hints={['Work from the inside out: evaluate the inner function at the given input first.', 'Then apply the outer function to that result, staying inside each function’s domain.', 'If a composition does not return the starting value, check the domain: the inverse may not be defined there.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }

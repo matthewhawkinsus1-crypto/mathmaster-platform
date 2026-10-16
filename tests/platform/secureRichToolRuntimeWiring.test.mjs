@@ -176,8 +176,13 @@ test('QuestionEngine publishes a registry tool\'s live work under server grading
   const serverBranch = region(handler, 'if (serverGrading) {', 'return;\n    }', 'server branch');
   assert.match(serverBranch, /onResponseStateChangeRef\.current\?\.\(work \?\? null\)/);
   assert.doesNotMatch(serverBranch, /gradeRegistryToolWork|setAnswerState/);
-  // And the host's label reaches every registry tool.
-  assert.match(region(engine, '<ToolRuntimeProvider\n          showImmediateFeedback={showOutcomeFeedback && !serverGrading}\n          hintsAllowed={toolHintsAllowed}\n          onHintUsed={recordHintUse}\n          questionTerminal={locked}\n          attemptOutcome', '>', 'registry provider'), /submitLabel=\{hostSubmitLabel\}/);
+  // And the host's label reaches every registry tool: the provider of the
+  // registry mount (the one that carries the tool's attempt outcome), however
+  // many attributes it has.
+  const registryMount = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool mount');
+  const registryProvider = (registryMount.match(/<ToolRuntimeProvider\b[^>]*>/) || [''])[0];
+  assert.match(registryProvider, /\sattemptOutcome=\{toolAttemptOutcome\}/, 'this is the registry provider');
+  assert.match(registryProvider, /\ssubmitLabel=\{hostSubmitLabel\}/);
 });
 
 test('every certified registry tool names its final action through the runtime label', () => {
