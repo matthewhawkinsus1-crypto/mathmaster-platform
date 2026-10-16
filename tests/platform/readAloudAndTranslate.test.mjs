@@ -42,6 +42,8 @@ import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExa
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { PLATFORM_FAMILY_IDS, defaultFamilyVersion, getPlatformQuestionFamily } from '../../functions/shared/questionFamilyRegistry.mjs';
+import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -132,6 +134,12 @@ test('a matrix is read row by row, and "3 × 2" about dimensions is "3 by 2" (PR
   );
   assert.equal(speechTextFor('Matrix C has dimensions 3 × 2.'), 'Matrix C has dimensions 3 by 2.');
   assert.equal(speechTextFor('Find 3 × 2.'), 'Find 3 times 2.', 'arithmetic is still times');
+});
+
+test('a hyphen joining mathematics to a word is part of the word: "$x$-terms" is "x terms"', () => {
+  assert.equal(speechTextFor('Get the $x$-terms on one side, and the $y$-intercept is 4.'), 'Get the x terms on one side, and the y intercept is 4.');
+  assert.equal(speechTextFor('Solve $x$-3 = 4.'), 'Solve x minus 3 equals 4.', 'a minus before a number is still a minus');
+  assert.deepEqual(maskMath('The $x$-terms are both $3x$.').tokens, ['$x$', '$3x$'], 'the hyphen is not carried into a translation slot');
 });
 
 test('the labels other tools speak are unchanged where they had no price, defined function or matrix', () => {
@@ -347,6 +355,35 @@ test('the hints, back-up steps and worked examples of the real lessons translate
   assert.ok(tally['worked-example'].total > 100 && rate('worked-example') >= 0.95, JSON.stringify(tally['worked-example']));
   // A teacher's own words are not the pack's; they are not sent anywhere either.
   assert.ok(rate('hint-authored') < 0.1, JSON.stringify(tally['hint-authored']));
+});
+
+test('every platform question family\'s hints, back-up steps and worked examples translate, for every tool it serves', async () => {
+  const pack = await loadLanguagePack('es');
+  const missing = new Set();
+  let texts = 0;
+  PLATFORM_FAMILY_IDS.forEach((id) => {
+    const family = getPlatformQuestionFamily(id);
+    Object.keys(family.tools || {}).forEach((tool) => {
+      for (let index = 0; index < 8; index += 1) {
+        const { question } = resolveFamilyPreviewInstance({ questionId: `probe-${id}`, type: tool, questionFamily: { id, version: defaultFamilyVersion(id), tool } }, { index });
+        if (!question) continue;
+        const backUp = backUpStepFor(question);
+        const similar = buildSimilarWorkedExample(question);
+        [
+          ...buildQuestionHints(question).filter((hint) => hint.source !== 'authored').map((hint) => hint.text),
+          ...(backUp.source === 'authored' ? [] : [backUp.prompt, ...backUp.options.map((option) => `${option}.`)]),
+          ...(similar ? [similar.prompt, ...similar.steps, `Answer: ${similar.answer}`] : []),
+        ].forEach((text) => {
+          texts += 1;
+          const result = translateWithPack(text, pack);
+          result.sentences.filter((sentence) => !sentence.translated && !sentence.mathOnly).forEach((sentence) => missing.add(`${id}: ${sentence.source}`));
+          assert.ok(mathSurvives(text, result.text), `${text}\n→ ${result.text}`);
+        });
+      }
+    });
+  });
+  assert.ok(PLATFORM_FAMILY_IDS.length >= 12 && texts > 500, `${texts} texts`);
+  assert.deepEqual([...missing], [], 'a sentence a family generates has no Spanish yet');
 });
 
 test('when a text cannot be translated, the student is told why — never a dead button', async () => {

@@ -47,8 +47,10 @@ const oneLetterWordsFor = (language) => ONE_LETTER_WORDS[String(language || 'en'
 const AXIS_VOCABULARY = Object.freeze({
   es: {
     nouns: new Set(['eje', 'ejes', 'coordenada', 'coordenadas']),
-    of: new Set(['de']),
-    valueNouns: new Set(['valores']),
+    of: new Set(['de', 'en']),
+    // "valores de x" (x-values), "términos en x" (x-terms). Never the
+    // singular "valor de x": that is the value of the variable x.
+    valueNouns: new Set(['valores', 'término', 'términos']),
   },
 });
 
@@ -208,6 +210,16 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       return;
     }
     atom.kind = kind === 'word' ? 'text' : kind;
+  });
+
+  // 3a. A hyphen that joins mathematics to a word is part of the word, not a
+  //     minus: "$x$-terms", "$y$-intercept". Read as math it was spoken
+  //     "x minus terms" and carried into a translation as "x-".
+  atoms.forEach((atom, index) => {
+    if (atom.kind !== 'math' || !/^[-‐‑]$/.test(atom.value)) return;
+    const before = atoms[index - 1];
+    const after = atoms[index + 1];
+    if (before?.kind === 'math' && /^\$|\$$/.test(before.value) && after?.kind === 'text' && /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,}/.test(after.value)) atom.kind = 'text';
   });
 
   // 3b. Axis vocabulary is a word, not a variable. English writes it as one

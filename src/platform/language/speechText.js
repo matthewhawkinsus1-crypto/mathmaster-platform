@@ -361,7 +361,9 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
       // escaped price ("\\$4.50" outside a span) loses its backslash.
       const prose = /^\$\d/.test(segments[index + 1]?.value || '') ? segment.value.replace(/\\$/, '') : segment.value;
-      return prose.replace(/⁻¹/g, ` ${w.inverse}`);
+      // "$x$-terms" is "x terms": the hyphen joins a word to the math.
+      const joined = segments[index - 1]?.kind === 'math' ? prose.replace(/^[-‐‑](?=\p{L})/u, ' ') : prose;
+      return joined.replace(/⁻¹/g, ` ${w.inverse}`);
     })
     .join('')
     .replace(/\s+([,.;:?!])/g, '$1')
