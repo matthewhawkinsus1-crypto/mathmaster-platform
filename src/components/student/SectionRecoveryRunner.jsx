@@ -56,6 +56,7 @@ import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/
 import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { RECOVERY_ANSWER_SAVED_WHERE, describeSavedRecoveryAnswer } from '../../platform/recovery/recoveryAnswerDrafts.js';
 import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
+import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER } from '../../platform/recovery/recoveryPracticeAttempts.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -290,8 +291,12 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
 
   const question = item ? entry.questionsByIndex?.[item.storageIndex] : null;
   const fingerprint = item?.pin?.fingerprint || '';
-  const maximumAttempts = resolveQuestionMaximumAttempts({ question, activityPolicy: PRACTICE_POLICY });
+  // The answer is one graded submission, so the engine is told one try, step
+  // items included (recoveryPracticeAttempts.js). The step bookkeeping keeps
+  // the Practice policy's count, which no step spends.
+  const stepMaximumAttempts = resolveQuestionMaximumAttempts({ question, activityPolicy: PRACTICE_POLICY });
   const stepRecord = stepRecords[fingerprint] || null;
+  const maximumAttempts = RECOVERY_PRACTICE_ANSWERS;
 
   const recordOutcome = useCallback((result) => {
     nextDealtRef.current = dealtItem(result?.nextPracticeItem);
@@ -360,10 +365,10 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   // Rejected steps spend tries exactly as they do in ordinary Practice.
   const handleStepGrade = useCallback(async ({ stepGrade, countsAttempt, statePatch, supportUsage }) => {
     if (!fingerprint) return null;
-    const next = recordQuestionStep({ record: stepRecords[fingerprint], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts });
+    const next = recordQuestionStep({ record: stepRecords[fingerprint], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts });
     setStepRecords((current) => ({ ...current, [fingerprint]: next.record }));
     return next.result;
-  }, [fingerprint, maximumAttempts, stepRecords]);
+  }, [fingerprint, stepMaximumAttempts, stepRecords]);
 
   // Every try used before an answer was submitted: the item is recorded as
   // incorrect so Practice can continue. Never a free skip.
@@ -403,7 +408,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
     : stepRecord;
   return (
     <div style={shellStyle} data-recovery-runner="practice" data-recovery-section={entry.section}>
-      <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
+      <RecoveryHeader label={`${entry.label} practice`} subtitle={`Show what you know. ${RECOVERY_PRACTICE_ONE_ANSWER} Each fresh question counts once.`} onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
         <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))' }}>

@@ -818,7 +818,7 @@ const studentBuildInequalityFindings = ({ question, response, grading }) => {
 const sameEndpoint = (a, b) => a === b || near(a, b);
 
 /** One interval answer against the key: an inclusion error, a reversed ray, or nothing. */
-const intervalMistake = (built, expected) => {
+export const intervalMistake = (built, expected) => {
   if (built.length !== expected.length || !built.length) return null;
   const endpointsMatch = built.every((interval, index) => sameEndpoint(interval.min, expected[index].min) && sameEndpoint(interval.max, expected[index].max));
   if (endpointsMatch) {

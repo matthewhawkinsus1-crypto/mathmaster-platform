@@ -165,6 +165,10 @@ export const buildAttemptSupportPayload = ({
   isCorrect = false,
   questionFinalized = false,
   responsePayload = null,
+  // A display-only diagnosis of this miss ({ message }), from a classifier
+  // that read the server-held item (Corrections: correctionMissDiagnosis.mjs).
+  // Fixed student text; never the answer. Callers that pass none are unchanged.
+  diagnosis = null,
 } = {}) => {
   const bundle = support && typeof support === 'object' ? support : buildPrivateSupport({});
   const attemptsRemaining = Math.max(0, Number(attemptsAllowed || 0) - Number(attemptNumber || 0));
@@ -180,21 +184,29 @@ export const buildAttemptSupportPayload = ({
     };
   }
 
+  const diagnosed = text(diagnosis?.message);
+
   if (questionFinalized) {
+    // The review follows, so naming the error costs nothing; it says what to
+    // look for in the review.
+    const closing = 'That is the last attempt for this question. Read the review below — the next question uses the same idea.';
     return {
       feedback: {
         tone: 'closed',
-        message: 'That is the last attempt for this question. Read the review below — the next question uses the same idea.',
+        message: diagnosed ? `${diagnosed} ${closing}` : closing,
       },
       support: null,
       solutionReview: bundle.solutionReview,
     };
   }
 
-  // Still open. Specific first, generic only if the bank has nothing specific.
+  // Still open. Specific first, generic only if the bank has nothing specific:
+  // the item's own message for this answer, then the diagnosis, then the
+  // item's per-attempt feedback (the order missFeedback uses on assignments).
   const specific = matchMisconception(bundle, responsePayload);
   const authored = bundle.attemptFeedback[Math.min(Math.max(0, Number(attemptNumber) - 1), bundle.attemptFeedback.length - 1)];
   const message = specific
+    || diagnosed
     || authored
     || GENERIC_MISS[Math.min(Math.max(0, Number(attemptNumber) - 1), GENERIC_MISS.length - 1)];
 

@@ -5,7 +5,9 @@ import {
   issueTestCycleCorrectionQuestion,
   submitTestCycleCorrectionResponse,
 } from '../../services/testCycleService.js';
-import { correctionTargetTitle, describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
+import { correctionTargetMistakePattern, correctionTargetTitle, describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
+import { readCorrectionReflection, saveCorrectionReflection } from '../../platform/student/correctionReflection.js';
+import CorrectionReflectionStep from './CorrectionReflectionStep.jsx';
 
 /*
  * CORRECTIONS ARE TEACHING. THIS SCREEN IS NOT A SECURE EXAM.
@@ -74,6 +76,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   ) : null;
   const activeTarget = targets.find((target) => target.complete !== true) || null;
   const activeTitle = activeTarget ? correctionTargetTitle(activeTarget) : '';
+  const activePattern = activeTarget ? correctionTargetMistakePattern(activeTarget) : null;
   const [question, setQuestion] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
@@ -82,6 +85,23 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
   // Said once, when a whole skill is finished and the next one loads, so the
   // student sees it happen instead of the screen silently changing topic.
   const [announcement, setAnnouncement] = useState('');
+  // This skill's reflection, as this device remembers it (null: not yet).
+  const planId = corrections?.planId || '';
+  const [reflections, setReflections] = useState({});
+  const reflection = activeTarget?.correctionId
+    ? (reflections[activeTarget.correctionId] || readCorrectionReflection({ planId, correctionId: activeTarget.correctionId }))
+    : null;
+  // Asked at the START of a skill: one already under way (a correct answer
+  // recorded, perhaps on another device) goes straight to its question.
+  const askReflection = Boolean(activeTarget) && !reflection && Number(activeTarget.correctResponses || 0) === 0;
+  const finishReflection = (answer) => {
+    const saved = saveCorrectionReflection({ planId, correctionId: activeTarget.correctionId }, answer);
+    setReflections((current) => ({ ...current, [activeTarget.correctionId]: saved }));
+    // The step that had focus is gone; the skill's heading takes it.
+    setTimeout(() => {
+      if (typeof document !== 'undefined') document.querySelector('[data-test-cycle-corrections="working"] [data-corrections-heading]')?.focus();
+    }, 0);
+  };
 
   const loadQuestion = useCallback(async (correctionId) => {
     setBusy(true);
@@ -182,6 +202,13 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
             codes). A mistake pattern is mentioned only when one was recorded:
             inventing one would send them to remediate something nobody observed. */}
         <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{describeCorrectionTargetForStudent(activeTarget)}</p>
+        {/* The recorded pattern, named in the student message for its code. */}
+        {activePattern && (
+          <div data-corrections-pattern="" style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10, background: 'var(--mm-surface)', border: '1px solid var(--mm-primary-border)' }}>
+            <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)' }}>The mistake to watch for</div>
+            <p style={{ margin: '4px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{activePattern}</p>
+          </div>
+        )}
         <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           Show this skill correctly {activeTarget.requiredCorrectResponses} time
           {activeTarget.requiredCorrectResponses === 1 ? '' : 's'} to finish this correction
@@ -203,9 +230,17 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
       {announcement && <p role="status" style={{ margin: 0, color: 'var(--mm-success-text)', fontWeight: 800 }}>{announcement}</p>}
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
 
+      {askReflection && <CorrectionReflectionStep key={activeTarget.correctionId} target={activeTarget} onDone={finishReflection} />}
+      {reflection?.sentence && (
+        <p data-corrections-plan="" style={{ margin: 0, color: 'var(--mm-text)' }}>
+          <strong>Your plan:</strong> {reflection.sentence}
+        </p>
+      )}
+
       {/* The runtime draws its own card (a field item) or the tool's own
-          workspace (a Rich Tool item); a second card around it would nest. */}
-      <section aria-label="Practice question" style={{ minWidth: 0 }}>
+          workspace (a Rich Tool item); a second card around it would nest.
+          It waits behind the reflection, already loading. */}
+      {!askReflection && <section aria-label="Practice question" style={{ minWidth: 0 }}>
         {!question ? <p style={{ ...card, color: 'var(--mm-text-muted)' }}>Preparing a practice question…</p> : (
           <>
             <RichQuestionRuntime
@@ -238,7 +273,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
             )}
           </>
         )}
-      </section>
+      </section>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
