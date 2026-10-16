@@ -27,6 +27,7 @@
 import { MATCH_STATE, deriveMatchState, roomRoundState } from '../../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 
 export const CHALLENGE_STAGE = MATCH_STATE;
@@ -49,7 +50,7 @@ export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 // id because the student bundle does not carry the mode registry
 // (liveChallengeModes.mjs brings Solver Race and the rush catalog with it); a
 // test holds this set to the registry's question-set modes.
-const QUESTION_SET_MODES = new Set([RUSH_MODE_ID]);
+const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
 export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String(room?.challengeMode || ''));
 
 const integerOr = (value, fallback) => {

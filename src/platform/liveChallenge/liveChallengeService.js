@@ -32,6 +32,14 @@ export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
 
+// Graph the Line. The same shape: a student's place in the round and their
+// next items, and a batch of drawn lines, chosen options, typed equations and
+// skips — graded again on the server. The preview shows a teacher sample items
+// for a format and settings, and writes nothing.
+export const getLineGraphRound = call('getLineGraphRound');
+export const submitLineGraphAttempts = call('submitLineGraphAttempts');
+export const previewLineGraph = call('previewLineGraph');
+
 // Option B room experience. These remain server-authoritative: the browser
 // chooses a policy, but the server owns public aliases and speed-score scaling.
 export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');

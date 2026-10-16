@@ -27,9 +27,11 @@
  * registry and the teacher's setup screen carry it.
  */
 
-import { LINE_FORM, LINE_FORM_IDS, LINE_FORM_LABELS } from './lineGraphForms.mjs';
 import {
   DEFAULT_LINE_TRIES,
+  LINE_FORM,
+  LINE_FORM_IDS,
+  LINE_FORM_LABELS,
   LINE_GRAPH_FORMAT,
   LINE_GRAPH_FORMAT_IDS,
   LINE_ITEM_TYPE,

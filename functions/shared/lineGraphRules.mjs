@@ -59,6 +59,32 @@ export const isLineGraphMode = (modeId) => Object.hasOwn(FORMAT_BY_MODE, String(
 export const lineGraphFormatOfMode = (modeId) => FORMAT_BY_MODE[String(modeId || '')] || null;
 export const lineGraphModeOfFormat = (format) => MODE_BY_FORMAT[String(format || '')] || null;
 
+export const LINE_FORM = Object.freeze({
+  SLOPE_INTERCEPT: 'slopeIntercept',
+  STANDARD: 'standard',
+  POINT_SLOPE: 'pointSlope',
+});
+
+export const LINE_FORM_IDS = Object.freeze(Object.values(LINE_FORM));
+
+// Horizontal and vertical lines (y = k, x = h) are written on their own; a
+// vertical line has no slope-intercept or point-slope form at all.
+export const SPECIAL_FORM = 'special';
+
+export const LINE_FORM_LABELS = Object.freeze({
+  [LINE_FORM.SLOPE_INTERCEPT]: 'Slope-intercept form',
+  [LINE_FORM.STANDARD]: 'Standard form',
+  [LINE_FORM.POINT_SLOPE]: 'Point-slope form',
+  [SPECIAL_FORM]: 'Horizontal and vertical lines',
+});
+
+export const LINE_FORM_PATTERNS = Object.freeze({
+  [LINE_FORM.SLOPE_INTERCEPT]: 'y = mx + b',
+  [LINE_FORM.STANDARD]: 'Ax + By = C',
+  [LINE_FORM.POINT_SLOPE]: 'y − y₁ = m(x − x₁)',
+  [SPECIAL_FORM]: 'x = h, y = k',
+});
+
 export const LINE_ITEM_TYPE = Object.freeze({
   // An equation is shown; the student draws its line.
   GRAPH: 'graph',
@@ -111,11 +137,14 @@ export const LINE_LIMITS = Object.freeze({
   // of checks on a slow connection arrives as one batch, in order.
   batch: 12,
   // Recorded attempts on one item, in one round, and in a whole match. They
-  // bound the private record, which is ONE document (see
-  // graphFeatureRushRules.mjs: a receipt is under half a kilobyte).
+  // bound the private record, which is ONE document (Firestore: 1 MiB). The
+  // largest receipt this mode writes — a 40-character id, every typed box
+  // full — is about 600 bytes, so 1,200 of them stay under the rush's
+  // 800 KiB budget (tests/platform/lineGraphPlay.test.mjs measures it). An
+  // eight-round game uses a few hundred.
   perQuestion: 30,
   perRound: 400,
-  perMatch: 1_800,
+  perMatch: 1_200,
   // How long before its request arrived an attempt may claim to have happened.
   claimWindowMs: 8_000,
   // Questions a device may ask for at once.

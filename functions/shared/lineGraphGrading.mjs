@@ -89,6 +89,7 @@ const FORM_MESSAGES = Object.freeze({
   [BUILD_PROBLEM.UNREADABLE]: 'Fill in every box with a number — a whole number, a fraction like 2/3, or a decimal.',
   [BUILD_PROBLEM.WHOLE_NUMBERS]: 'Standard form uses whole numbers for A, B and C.',
   [BUILD_PROBLEM.NOT_A_LINE]: 'A and B cannot both be 0.',
+  [BUILD_PROBLEM.TOO_LARGE]: 'Those numbers are too large — check your boxes.',
 });
 
 /** The typed boxes of an item's form, trimmed and bounded; anything else is dropped. */

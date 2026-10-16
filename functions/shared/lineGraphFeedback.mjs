@@ -89,6 +89,32 @@ export const DIAGNOSIS_MISCONCEPTION = Object.freeze({
   [LINE_DIAGNOSIS.POINT_SWAPPED]: 'ordered-pair-reversed',
 });
 
+/*
+ * What a teacher's report calls each diagnosis. The structural ones say what
+ * was true of the line, never why — the work did not tell.
+ */
+export const DIAGNOSIS_LABELS = Object.freeze({
+  [LINE_DIAGNOSIS.SLOPE_SIGN]: 'Slope sign flipped',
+  [LINE_DIAGNOSIS.SLOPE_RECIPROCAL]: 'Rise and run swapped',
+  [LINE_DIAGNOSIS.INTERCEPT_SIGN]: 'y-intercept sign flipped',
+  [LINE_DIAGNOSIS.INTERCEPT_ON_X_AXIS]: 'b plotted on the x-axis',
+  [LINE_DIAGNOSIS.X_INTERCEPT_AS_B]: 'x-intercept read as b',
+  [LINE_DIAGNOSIS.SLOPE_INTERCEPT_SWAPPED]: 'Slope and y-intercept swapped',
+  [LINE_DIAGNOSIS.POINT_SIGN]: 'Point-slope: both signs flipped',
+  [LINE_DIAGNOSIS.POINT_SIGN_X]: 'Point-slope: x sign flipped',
+  [LINE_DIAGNOSIS.POINT_SIGN_Y]: 'Point-slope: y sign flipped',
+  [LINE_DIAGNOSIS.POINT_SWAPPED]: 'Point coordinates swapped',
+  [LINE_DIAGNOSIS.X_INTERCEPT_SIGN]: 'x-intercept sign flipped',
+  [LINE_DIAGNOSIS.Y_INTERCEPT_SIGN]: 'y-intercept sign flipped (standard form)',
+  [LINE_DIAGNOSIS.INTERCEPT_SIGNS]: 'Both intercept signs flipped',
+  [LINE_DIAGNOSIS.INTERCEPTS_SWAPPED]: 'x- and y-intercepts swapped',
+  [LINE_DIAGNOSIS.HORIZONTAL_VERTICAL]: 'Horizontal and vertical confused',
+  [LINE_DIAGNOSIS.SPECIAL_SIGN]: 'Sign of x = h or y = k flipped',
+  [LINE_DIAGNOSIS.RIGHT_SLOPE]: 'Right slope, wrong place',
+  [LINE_DIAGNOSIS.RIGHT_ANCHOR]: 'Right point, wrong slope',
+  [LINE_DIAGNOSIS.OFF_TRACK]: 'Other wrong lines',
+});
+
 const SPECIFIC = new Set([
   LINE_DIAGNOSIS.SLOPE_SIGN,
   LINE_DIAGNOSIS.SLOPE_RECIPROCAL,

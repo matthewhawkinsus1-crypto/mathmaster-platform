@@ -26,32 +26,11 @@
 
 import * as Q from './graphFeatureRational.mjs';
 import { lineFromCoefficients, lineFromPointSlope, lineFromSlopeIntercept } from './lineGraphMath.mjs';
+import { LINE_FORM, LINE_FORM_IDS, LINE_FORM_LABELS, LINE_FORM_PATTERNS, SPECIAL_FORM } from './lineGraphRules.mjs';
 
-export const LINE_FORM = Object.freeze({
-  SLOPE_INTERCEPT: 'slopeIntercept',
-  STANDARD: 'standard',
-  POINT_SLOPE: 'pointSlope',
-});
-
-export const LINE_FORM_IDS = Object.freeze(Object.values(LINE_FORM));
-
-// Horizontal and vertical lines (y = k, x = h) are written on their own; a
-// vertical line has no slope-intercept or point-slope form at all.
-export const SPECIAL_FORM = 'special';
-
-export const LINE_FORM_LABELS = Object.freeze({
-  [LINE_FORM.SLOPE_INTERCEPT]: 'Slope-intercept form',
-  [LINE_FORM.STANDARD]: 'Standard form',
-  [LINE_FORM.POINT_SLOPE]: 'Point-slope form',
-  [SPECIAL_FORM]: 'Horizontal and vertical lines',
-});
-
-export const LINE_FORM_PATTERNS = Object.freeze({
-  [LINE_FORM.SLOPE_INTERCEPT]: 'y = mx + b',
-  [LINE_FORM.STANDARD]: 'Ax + By = C',
-  [LINE_FORM.POINT_SLOPE]: 'y − y₁ = m(x − x₁)',
-  [SPECIAL_FORM]: 'x = h, y = k',
-});
+// The forms' names live with the shared rules (light enough for the mode
+// registry); re-exported here, where the forms are written.
+export { LINE_FORM, LINE_FORM_IDS, LINE_FORM_LABELS, LINE_FORM_PATTERNS, SPECIAL_FORM };
 
 export const TOKEN_KIND = Object.freeze({
   VAR: 'var',
@@ -373,6 +352,9 @@ export const BUILD_PROBLEM = Object.freeze({
   WHOLE_NUMBERS: 'wholeNumbers',
   // Standard form with A = B = 0 is not a line.
   NOT_A_LINE: 'notALine',
+  // Numbers too large to work with exactly (each box reads, but together
+  // they leave the exact integer range).
+  TOO_LARGE: 'tooLarge',
 });
 
 /**
@@ -389,16 +371,23 @@ export const lineFromBuildFields = (form, raw = {}) => {
     if (!value) return Object.freeze({ problem: BUILD_PROBLEM.UNREADABLE, field: field.id });
     values[field.id] = value;
   }
-  if (form === LINE_FORM.SLOPE_INTERCEPT) {
-    return Object.freeze({ line: lineFromSlopeIntercept(values.m, values.b), values: Object.freeze(values) });
+  if (form === LINE_FORM.STANDARD) {
+    const notWhole = fields.find((field) => values[field.id].d !== 1);
+    if (notWhole) return Object.freeze({ problem: BUILD_PROBLEM.WHOLE_NUMBERS, field: notWhole.id });
+    if (values.A.n === 0 && values.B.n === 0) return Object.freeze({ problem: BUILD_PROBLEM.NOT_A_LINE, field: 'A' });
   }
-  if (form === LINE_FORM.POINT_SLOPE) {
-    return Object.freeze({ line: lineFromPointSlope({ x: values.x1, y: values.y1 }, values.m), values: Object.freeze(values) });
+  // Each box is bounded, but their products need not be: arithmetic that
+  // would leave the exact range throws, and a typed answer must never crash
+  // the transaction that grades it.
+  let line;
+  try {
+    if (form === LINE_FORM.SLOPE_INTERCEPT) line = lineFromSlopeIntercept(values.m, values.b);
+    else if (form === LINE_FORM.POINT_SLOPE) line = lineFromPointSlope({ x: values.x1, y: values.y1 }, values.m);
+    else line = lineFromCoefficients(values.A, values.B, values.C);
+  } catch {
+    return Object.freeze({ problem: BUILD_PROBLEM.TOO_LARGE, field: null });
   }
-  const notWhole = fields.find((field) => values[field.id].d !== 1);
-  if (notWhole) return Object.freeze({ problem: BUILD_PROBLEM.WHOLE_NUMBERS, field: notWhole.id });
-  if (values.A.n === 0 && values.B.n === 0) return Object.freeze({ problem: BUILD_PROBLEM.NOT_A_LINE, field: 'A' });
-  return Object.freeze({ line: lineFromCoefficients(values.A, values.B, values.C), values: Object.freeze(values) });
+  return Object.freeze({ line, values: Object.freeze(values) });
 };
 
 /** The equation a filled template spells, written conventionally; null until every box reads. */

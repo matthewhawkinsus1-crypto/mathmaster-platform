@@ -12,11 +12,15 @@ way Graph Feature Rush is (`graph-feature-rush.md`): lifecycle, the room
 clock, receipts and idempotency, ranking, results and rewards are the
 engine's. This mode adds a question source, a way to answer, and screens.
 
-**Status.** Phase 1 — the pure foundation (exact line math, how equations are
+**Status.** Phase 1 (the pure foundation: exact line math, how equations are
 written and read, the generator, auto-check grading, hints, teacher settings,
-shared rules) — is built and tested. The modes are **not registered yet**:
-registering a mode before its planner and callables exist would let a room be
-created that nothing can play (§11). Phases 2–4 are below.
+shared rules) and Phase 2 (the server: the three modes registered, the
+planner, the attempt pipeline, the callables, the report) are built and
+tested — end to end on the Firestore emulator. **No screens yet** (Phase 3):
+the modes are registered with `teacherSelectable: false`, and
+`createLiveChallenge` launches a mode that is not teacher-selectable for the
+platform administrator only — a preview path for QA; every other teacher is
+refused, and the create panel does not offer the game.
 
 ---
 
@@ -106,9 +110,12 @@ it is still being made.**
   wrong line through other points) is the same answer — `repeated`, neither a
   miss nor credit (`answerKey` in `lineGraphGrading.mjs`).
 - **Out of tries** → the correct line is drawn dashed through its key points
-  for 1.8 s, the item counts as not completed (a forfeit receipt, recorded by
-  the server with the miss that reaches the limit — the rush's auto-skip), and
-  the next item appears.
+  for 1.8 s, the item counts as not completed, and the next item appears. The
+  server decides it: the miss that uses the last try is recorded as the item's
+  end (`forfeit`, `revealed`) — ONE receipt. (The rush records its
+  eighth-miss skip as a second receipt; with one to three tries that would
+  count each final miss twice, and a one-try game where 7 of 10 lines were
+  right would read 54% accurate instead of 70%.)
 - **Pause after repeated misses**: none after one; 1 s after a second in a
   row, a second more per further miss, at most 4 s (`lineLockoutMs`, the
   rush's tuning).
@@ -214,10 +221,30 @@ have no registry code yet.
 - A wrong attempt costs 1/20 of an item in the round's work score (the
   engine's question-set rule), the pause grows with repeated misses, and the
   try limit ends a stuck item: dragging points at random until the line turns
-  green never beats reading the equation. (Phase 2 runs the rush's bot
-  simulation against this mode to confirm it.)
-- Limits (`LINE_LIMITS`): 12 attempts a request, 30 an item, 400 a round, 1,800
-  a match; claimed times within 8 s of arrival; 16 characters a typed box.
+  green never beats reading the equation. Simulated 60-second Rush rounds
+  through the real pipeline (means over 12; `lineGraphPlay.test.mjs`):
+
+  | Player | Lines | Accuracy | Work score |
+  | --- | --- | --- | --- |
+  | careful (6 s a line, 10% slips, fixed next try) | 9.0 | 90% | 8.95 |
+  | slope guesser (right starting point, a common slope, 1.5 s a try) | 1.4 | 5% | 0.48 |
+  | sprayer (two random grid points, 1.2 s a try) | 0.0 | 0% | 0.00 |
+
+  With "until right" the guesser's growing pauses bring it to 0.40.
+- Limits (`LINE_LIMITS`): 12 attempts a request, 30 an item, 400 a round, 1,200
+  a match; claimed times within 8 s of arrival; 16 characters a typed box;
+  attempt ids up to 40 characters (a device sends a 36-character UUID). The
+  private record is one document: the largest receipt this mode can write is
+  measured by test and 1,200 of them stay under the rush's 800 KiB budget.
+- A typed equation whose boxes each read but together leave the exact integer
+  range is `form` ("too large"), never an exception inside the transaction.
+- **Bundles.** Registering the modes puts their settings module
+  (`lineGraphConfig.mjs`, with `lineGraphRules.mjs`) into the chunk that
+  carries the mode registry — the student Live Challenge chunk, which the
+  teacher console imports: +8.3 kB (+2.8 kB gzip), the same way the rush's
+  settings ship. The generator, the grading and the attempt pipeline reach no
+  browser yet; Phase 3's game screen will load grading lazily, as the rush
+  round does.
 
 ---
 
@@ -249,19 +276,33 @@ tries used, the mistakes students made (named only when unambiguous).
 
 ---
 
-## 9. Data (Phase 2)
+## 9. Data (built in Phase 2)
 
 | Where | What |
 | --- | --- |
-| `liveChallengeRooms/{room}` | `challengeMode`, `lineGraph: { config, generatorVersion }` — no seed |
-| `liveChallengePrivate/{room}` | `lineGraph: { seed, config, generatorVersion }` |
-| `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount` (§11), item type, form, variant, tier, the answer (two points, a choice id, the boxes), the diagnosis |
-| `…/players/{key}` (public row) | the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`) so the shared race board reads them; `lastRound` after a close |
-| `liveChallengeReports/{room}` | `lineGraph` report, keyed by mode |
+| `liveChallengeRooms/{room}` | `challengeMode`, `lineGraph: { config, generatorVersion }` — no seed; while a round is open, `currentQuestion` is a card (`kind: 'lineGraph'`, format, forms, item types, `roundQuestionCount`) — never an equation |
+| `liveChallengePrivate/{room}` | `lineGraph: { seed, config, generatorVersion }`; `questionIds` are placeholders (`lineGraph:round:N`) with no standard |
+| `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount`, `tier`, `reportTags: { form, itemType, variant }`, the answer (`points` [x₁, y₁, x₂, y₂], `choice`, or `fields`), and for a miss its `diagnosis` and `answerKey`; `forfeit` + `revealed` on the miss that used the last try |
+| `…/players/{key}` (public row) | score, accuracy and the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`), so the shared race board and presence read them; `lastRound` after a close. No student id, no answers |
+| `liveChallengeMatchResults/{room}` | each standing's `questionSetSummary` now also carries `byTag` (the mode's report tags) and `mistakes` (diagnosis counts) — empty for the rush |
+| `liveChallengeReports/{room}` | `lineGraph`: items completed and ended, accuracy, by form, by item type, by tier (hardest first), mistakes (most first, labelled), per student |
+
+**Engine changes Phase 2 made** (each additive; Graph Feature Rush is
+unchanged and its suites pass):
+
+- `questionSpecsFromReceipts` takes a round's length from its receipts'
+  `roundQuestionCount` when present — so a Sprint of five is finished after
+  five, and a round whose students all are is ready to close.
+- `questionSetMatchSummary` adds `byTag` and `mistakes`.
+- `liveChallengeQuestionPlanner` looks per-player sources up in one table
+  (`GENERATED_QUESTION_PLANNERS`); the report writer stores a question-set
+  report under its mode's key (`questionSetModeReport`); the classic-submit
+  refusal names the game ("Graph Feature Rush is played on its own game
+  screen…").
 
 ---
 
-## 10. Module map (Phase 1, built)
+## 10. Module map (built)
 
 | Module | Owns |
 | --- | --- |
@@ -272,15 +313,18 @@ tries used, the mistakes students made (named only when unambiguous).
 | `functions/shared/lineGraphGrading.mjs` | checking one answer (line, choice, boxes); `answerKey` |
 | `functions/shared/lineGraphConfig.mjs` | teacher settings, presets, round limits per format |
 | `functions/shared/lineGraphRules.mjs` | mode ids, attempt kinds, verdicts, limits, tries, pause, timings |
+| `functions/shared/lineGraphAttempts.mjs` | the submit transaction's body (`applyLineGraphAttempts`), round state from receipts, player totals, the report |
 | `functions/shared/seededRandom.mjs` | the integer-only seeded random source (moved verbatim from the rush generator, which re-exports it; its output is unchanged) |
+| `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER`, the preview gate in `createLiveChallenge`, `getLineGraphRound`, `submitLineGraphAttempts`, `previewLineGraph` |
+| `src/platform/liveChallenge/liveChallengeService.js` | the three callables for the screens (mirrored in the emulator bridge) |
 
 ---
 
 ## 11. Build plan and integration checklist
 
-**Phase 2 — engine and server.**
+**Phase 2 — engine and server. Done.**
 
-- [ ] **A round's length from its receipts.** A Sprint's pool is its length
+- [x] **A round's length from its receipts.** A Sprint's pool is its length
   (5–20), chosen per room, but `defineChallengeMode` fixes `questionsPerRound`
   per mode. Rather than thread room config through `roundQuestionSpecsFor`'s
   callers (`liveChallengeRoundCompletion`, `buildRoundResult`,
@@ -288,45 +332,47 @@ tries used, the mistakes students made (named only when unambiguous).
   attempt receipt and let `questionSpecsFromReceipts` take the smaller of it
   and the mode's pool — "rebuilt from the log alone", as target counts already
   are. A player with no receipts is unfinished either way.
-- [ ] Register `lineGraphClassic`, `lineGraphSprint`, `lineGraphRush` in
+- [x] Register `lineGraphClassic`, `lineGraphSprint`, `lineGraphRush` in
   `liveChallengeModes.mjs` (`teacherSelectable: false` until Phase 3 ships).
   `normalizeConfig` must return `questionStyle`, `solverRaceFocus` and
   `solverRaceDifficulty` (null is fine) — the room write has no
   `ignoreUndefinedProperties`.
-- [ ] The question planner: `liveChallengeQuestionPlanner` maps question
+- [x] The question planner: `liveChallengeQuestionPlanner` maps question
   sources to planners by hand (the rush's is outside
   `LIVE_CHALLENGE_QUESTION_PLANNERS`); add the line source. `plan` stores the
   seed privately and `{ config, generatorVersion }` publicly; `openRound`
   returns a card (never an equation); `swap` throws. Keep the planner block
   free of `.set(` / `.add(` (a test reads it).
-- [ ] `createLiveChallenge`: turn `LineGraphConfigError` into
-  `invalid-argument` beside `GraphFeatureRushConfigError`.
-- [ ] Callables: get a round's items (from the place in the round the receipts
+- [x] `createLiveChallenge`: turn `LineGraphConfigError` into
+  `invalid-argument` beside `GraphFeatureRushConfigError`; launch a mode that
+  is not teacher-selectable for the platform administrator only.
+- [x] Callables: get a round's items (from the place in the round the receipts
   say), submit attempts (one transaction: `applyLineGraphAttempts` — the rush's
   pipeline with line grading, tries/forfeit, `repeated`), preview items for
   practice. Exporting `onCall` from `functions/index.js` is enough for the
   inventory, release and access scripts. Never write `answeredRound` (it marks
   a player finished at once).
-- [ ] The report writer stores any question-set mode's report under the rush's
+- [x] The report writer stores any question-set mode's report under the rush's
   key: make it mode-keyed. The classic submit refuses per-player rooms with
   rush wording ("tapping graphs") — make it mode-neutral (the rush's
   integration test pins that text; update both).
-- [ ] **Mastery evidence**: `liveChallengeEvidence` counts a round correct
-  unless it is in `missedRounds`, which question-set rooms never write. Do
-  **not** give the line planner `alignmentKeys` until question-set outcomes
-  feed evidence correctly — otherwise every round played becomes "correct"
-  A.3C evidence.
-- [ ] Tests: the mode declarations; the attempt pipeline (replays, races,
+- [x] **Mastery evidence** held back: `liveChallengeEvidence` counts a round
+  correct unless it is in `missedRounds`, which question-set rooms never
+  write, so the line planner gives its rounds no `alignmentKeys` (the
+  integration test checks the private `roundStandards` are empty). Wiring
+  question-set outcomes into evidence is Phase 3 — otherwise every round
+  played would become "correct" A.3C evidence.
+- [x] Tests: the mode declarations; the attempt pipeline (replays, races,
   tries, forfeits, `repeated`, limits, claimed times); the bot fairness
   simulation; an emulator integration game through the callables.
 
 **Phase 3 — screens.**
 
 - [ ] The client has no registry and checks the rush's id by literal in the
-  student, shell, projector, teacher, replay and presence code. Add the line
-  modes to `challengeShellModel`'s `QUESTION_SET_MODES` (a test holds it to the
-  registry), and generalise the literal checks into one helper rather than
-  adding more.
+  student, shell, projector, teacher, replay and presence code. (Phase 2
+  added the line modes to `challengeShellModel`'s `QUESTION_SET_MODES`, which
+  a test holds to the registry.) Generalise the literal checks into one
+  helper rather than adding more.
 - [ ] Early close: `roundCloseDue` closes question-set rounds on the deadline
   only; Classic and Sprint rounds should also close when everyone is done
   (the server already agrees: `roundReadyToClose`), and the host hint must not
@@ -342,14 +388,17 @@ tries used, the mistakes students made (named only when unambiguous).
 - [ ] Classic reveal: a per-round solution for shared items (today the reveal
   is off for per-player modes), shown on the projector and the results card.
 - [ ] Declare the mode's misconception classifier in the registry, so
-  unambiguous diagnoses become evidence.
+  unambiguous diagnoses become evidence; and feed question-set round outcomes
+  into mastery evidence (then give the planner its rounds' standards: A.3C
+  for Graph it, A.2C for Name it).
+- [ ] The report screen (`report.lineGraph`), beside the rush's.
 
 **Phase 4 — certification.** Browser QA on phone, Chromebook and keyboard; 30-
 and 35-student launch runs; then `teacherSelectable: true`.
 
 ---
 
-## 12. Testing (Phase 1)
+## 12. Testing
 
 | File | Holds |
 | --- | --- |
@@ -358,11 +407,14 @@ and 35-student launch runs; then `teacherSelectable: true`.
 | `tests/platform/lineGraphGenerator.test.mjs` | every slot × 40 seeds valid with no fallback; the oracle on every equation and option; key points and grid points; difficulty; pinned items; the schedule's mix; same equations; Classic across rounds; no repeats |
 | `tests/platform/lineGraphGrading.test.mjs` | every pair of grid points of a right line; wrong lines; invalid gestures; show your method; choices; built equations (decimals, any point, any multiple); writing problems |
 | `tests/platform/lineGraphConfig.test.mjs` | defaults per format; validation; presets; round limits; pools; mode ids; tries; the pause |
+| `tests/platform/lineGraphPlay.test.mjs` | the attempt pipeline: a right answer completes once; a miss with its mistake; `repeated`; the last try ends the item in one receipt; tries 1/2/3/until right; one try for a choice; `method` and `form`; replays, late, early, malformed and mismatched attempts; skips; claimed times; record limits; a Sprint's length read back by the engine; the report; the receipt size budget; the fairness simulation |
+| `tests/platform/lineGraphEngine.test.mjs` | the three mode declarations; the format is the mode's; limits per format; a Sprint round ranked by `buildRoundResult` from pipeline receipts |
+| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | the preview gate; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round); previews |
 
 Each assertion that protects a behaviour was broken once on purpose and seen
 to fail (the sign convention, a wrong option marked right, the block mix,
 ambiguity, the method rule, the repeat rule, canonical signs, the random
-source).
+source; and through the emulator, the preview gate and the report's key).
 
 ---
 

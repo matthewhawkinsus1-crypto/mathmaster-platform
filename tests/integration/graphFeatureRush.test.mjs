@@ -287,7 +287,9 @@ test('a stale round token, a classic answer and a pacing change are refused or i
   assert.equal(stale?.code, 'failed-precondition');
   const classic = await failureOf(call('submitLiveChallengeResponse', student(A, { ...identity, submissionId: randomUUID(), responsePayload: {} })));
   assert.equal(classic?.code, 'failed-precondition');
-  assert.match(classic?.message || '', /tapping graphs/);
+  // Refused with a reason naming the game (the wording is mode-neutral now
+  // that more than one game plays on its own screen).
+  assert.match(classic?.message || '', /Graph Feature Rush is played on its own game screen/);
   const pacing = await call('updateLiveChallengePacing', teacher({ roomId: G1, roundClosingThreshold: 60 }));
   assert.equal(pacing.roundClosingThreshold, null);
   assert.equal((await roomOf(G1)).roundClosingThreshold, null);
