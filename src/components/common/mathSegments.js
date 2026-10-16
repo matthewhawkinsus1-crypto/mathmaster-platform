@@ -169,7 +169,10 @@ const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
 // prose.
 const SENTENCE_STOP_IN_DENOMINATOR = /^(\\frac\{[^{}]*\}\{[^{}]*\d)(\.+)\}$/;
 
-const SIMPLE_GROUPED_SLASH_FRACTION = /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)/g;
+// A number or a closing bracket touching the brackets is multiplying:
+// "6(3/2)" without them is "63/2", sixty-three halves, and "(2/3)(3/2)"
+// without the second pair is "2/33/2". Those brackets stay.
+const SIMPLE_GROUPED_SLASH_FRACTION = /(?<![\d.)])\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)(?![\d.])/g;
 
 // Plain-text authoring often wrapped a slash fraction in parentheses only to
 // keep the old one-line renderer from reading 2/3x as 2/(3x). Once the fraction
