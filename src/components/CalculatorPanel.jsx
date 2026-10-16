@@ -10,34 +10,11 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
+import { calculatorButtonsFor, calculatorResultAnnouncement } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
-const buttonSpec = (raw) => {
-  const value = String(raw ?? '');
-  if (value === 'C') return { label: 'C', action: 'clear' };
-  if (value === '=') return { label: '=', action: 'equals' };
-  if (value === '÷') return { label: '÷', action: 'fractionize' };
-  if (value === '×') return { label: '×', command: '\\times' };
-  if (value === '^') return { label: 'xʸ', command: '#@^{#?}' };
-  if (value === 'sin(') return { label: 'sin', command: '\\sin\\left(#0\\right)' };
-  if (value === 'cos(') return { label: 'cos', command: '\\cos\\left(#0\\right)' };
-  if (value === 'tan(') return { label: 'tan', command: '\\tan\\left(#0\\right)' };
-  if (value === 'sqrt(' || value === '√(') return { label: '√', command: '\\sqrt{#0}' };
-  if (value === 'log(') return { label: 'log', command: '\\log\\left(#0\\right)' };
-  if (value === 'ln(') return { label: 'ln', command: '\\ln\\left(#0\\right)' };
-  if (value === 'π') return { label: 'π', command: '\\pi' };
-  return { label: value === '-' ? '−' : value, command: value };
-};
-
-const calculatorButtonsForPolicy = (mode) => {
-  const specs = getCalculatorButtonsForMode(mode).map(buttonSpec);
-  const equalsIndex = specs.findIndex((button) => button.action === 'equals');
-  const fraction = { label: 'a⁄b', command: '\\frac{#0}{#?}' };
-  if (equalsIndex >= 0) specs.splice(equalsIndex, 0, fraction);
-  else specs.push(fraction);
-  return specs;
-};
+const calculatorButtonsForPolicy = (mode) => calculatorButtonsFor(getCalculatorButtonsForMode(mode));
 
 const expressionFromMathField = (mathField, fallback = '') => {
   try {
@@ -74,6 +51,12 @@ export const CalculatorPanel = ({
   // evaluateCalculatorExpressionExact). Shown only while the display still
   // holds that result, so any further typing hides it.
   const [exactResult, setExactResult] = useState(null);
+  // What "=" (or Enter) produced, said once in a polite region. The count makes
+  // the same answer twice in a row a new announcement.
+  const [resultAnnouncement, setResultAnnouncement] = useState({ text: '', count: 0 });
+  const announceResult = useCallback((outcome) => {
+    setResultAnnouncement((current) => ({ text: calculatorResultAnnouncement(outcome), count: current.count + 1 }));
+  }, []);
   const [panelPosition, setPanelPosition] = useState(null);
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
@@ -149,9 +132,11 @@ export const CalculatorPanel = ({
         mathField.value = result;
         setDisplay(result);
         setExactResult(evaluated.fraction ? { decimal: result, fraction: evaluated.fraction } : null);
+        announceResult({ decimal: result, fraction: evaluated.fraction });
       } catch {
         mathField.value = 'Error';
         setDisplay('Error');
+        announceResult({ error: true });
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
@@ -168,7 +153,7 @@ export const CalculatorPanel = ({
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [isOpen, estimateUnlocked, policy.mode]);
+  }, [isOpen, estimateUnlocked, policy.mode, announceResult]);
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
@@ -377,8 +362,10 @@ export const CalculatorPanel = ({
         const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
         setCalculatorValue(evaluated.decimal);
         setExactResult(evaluated.fraction ? { decimal: evaluated.decimal, fraction: evaluated.fraction } : null);
+        announceResult({ decimal: evaluated.decimal, fraction: evaluated.fraction });
       } catch {
         setCalculatorValue('Error');
+        announceResult({ error: true });
       }
       return;
     }
@@ -387,7 +374,7 @@ export const CalculatorPanel = ({
       return;
     }
     insertCalculatorCommand(button.command);
-  }, [display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
+  }, [announceResult, display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
 
   const startDrag = (event) => {
     // The ↕ Move button is still the grip it always was for a pointer: the
@@ -537,13 +524,13 @@ export const CalculatorPanel = ({
                 title="Move calculator: arrow keys, or Enter for the next corner"
                 onClick={moveToNextCorner}
                 onKeyDown={handleMoveKeyDown}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34, color: 'inherit', fontSize: 'inherit' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44, color: 'inherit', fontSize: 'inherit' }}
               >↕</button>
               {getCalculatorDrawerLabel(policy.mode)} CALCULATOR
             </span>
             <span id={moveHelpId} hidden>Arrow keys move the calculator. Enter moves it to the next corner.</span>
             <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{moveAnnouncement}</span>
-            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
+            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
             <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))' }}>
@@ -562,10 +549,14 @@ export const CalculatorPanel = ({
                 style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: 'calc(24 * var(--mm-px))', marginBottom: '12px' }}
               />
               {exactResult && exactResult.decimal === display ? (
-                <p data-calculator-exact="" role="status" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                // Shown; spoken by the result announcement below, with the decimal.
+                <p data-calculator-exact="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
                   Exact: {exactResult.fraction}
                 </p>
               ) : null}
+              <span data-calculator-result-announcement="" role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {resultAnnouncement.text ? `${resultAnnouncement.text}${resultAnnouncement.count % 2 ? '' : '\u00a0'}` : ''}
+              </span>
               {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
@@ -573,6 +564,7 @@ export const CalculatorPanel = ({
                     key={`${button.label}-${button.action || button.command}`}
                     type="button"
                     onClick={() => handleCalculatorButton(button)}
+                    aria-label={button.ariaLabel}
                     style={{
                       padding: '10px 5px',
                       minHeight: '42px',

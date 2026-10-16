@@ -45,6 +45,37 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.ok(await activeIs(page, OPENER), `${at}: Escape returns focus to the Calculator button`);
   assert.equal(await page.locator(OPENER).getAttribute('aria-expanded'), 'false', `${at}: the work bar knows it closed`);
 
+  // Pass 3, A11Y-6: every key has a spoken name, and the answer is announced.
+  await page.keyboard.press('Enter');
+  await page.locator(PANEL).waitFor();
+  await page.waitForFunction(() => document.activeElement?.matches?.('[data-calculator-expression]'));
+  const keyNames = await page.locator(`${PANEL} button`).evaluateAll((keys) => keys.map((key) => key.getAttribute('aria-label') || ''));
+  assert.ok(keyNames.length > 18 && keyNames.every(Boolean), `${at}: every calculator button has a name ${JSON.stringify(keyNames)}`);
+  for (const name of ['Clear', 'Equals', 'Insert exponent', 'Insert stacked fraction', 'Minus']) {
+    assert.ok(keyNames.includes(name), `${at}: a key is named "${name}"`);
+  }
+  const announcement = () => page.locator(`${PANEL} [data-calculator-result-announcement]`).textContent().then((text) => text.replace(/ /g, ' ').trim());
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('3.75*2');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((s) => /equals/.test(document.querySelector(s)?.textContent || ''), `${PANEL} [data-calculator-result-announcement]`);
+  assert.equal(await announcement(), 'equals 7.5, exactly 15 over 2', `${at}: Enter announces the answer and its fraction`);
+  assert.equal(await page.locator(`${PANEL} [data-calculator-result-announcement]`).getAttribute('role'), 'status');
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('2+3');
+  await page.locator(`${PANEL} button[aria-label="Equals"]`).click();
+  await page.waitForFunction((s) => document.querySelector(s)?.textContent?.trim() === 'equals 5' || document.querySelector(s)?.textContent?.replace(/ /g, '').trim() === 'equals 5', `${PANEL} [data-calculator-result-announcement]`);
+  for (const control of ['Close calculator', 'Move calculator']) {
+    const box = await page.locator(`${PANEL} [aria-label="${control}"]`).boundingBox();
+    assert.ok(box.width >= 44 && box.height >= 44, `${at}: ${control} is a 44px target (${box.width}×${box.height})`);
+  }
+  await page.keyboard.press('Escape');
+  await page.waitForFunction((s) => !document.querySelector(s), PANEL);
+  await page.locator(OPENER).focus();
+
   // ✕ by keyboard: same return.
   await page.keyboard.press('Enter');
   await page.locator(PANEL).waitFor();
