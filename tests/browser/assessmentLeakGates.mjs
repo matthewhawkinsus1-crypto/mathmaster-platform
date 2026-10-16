@@ -669,7 +669,7 @@ const constraintBuilder = async () => {
       const rows = await checklist(page);
       check(rows.length === 3 && rows.every((row) => row.startsWith('•')), `${role} constraint-builder: no constraint ticks while the model is built`, rows.join(' | '));
       if (role !== 'dol') return;
-      await button(page, 'Submit this model').click();
+      await button(page, SUBMIT).click();
       await settle(page, 800);
       const grade = await lastGrade(page);
       check(grade?.isCorrect === false && partsOf(grade)['y-intercept'] === false && grade.partialCreditPercent === 67, 'dol constraint-builder: the model is graded at submission, part by part', brief(grade));
@@ -681,7 +681,7 @@ const constraintBuilder = async () => {
     await setParameter(page, 'y-intercept b', 2);
     const rows = await checklist(page);
     check(rows.length === 3 && rows.every((row) => row.startsWith('•')), 'dol constraint-builder: a right model looks the same', rows.join(' | '));
-    await button(page, 'Submit this model').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true, 'dol constraint-builder: the right model is graded right', brief(grade));

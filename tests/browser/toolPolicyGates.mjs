@@ -68,7 +68,9 @@ const helpDrawerShows = (page, expected) => page.waitForFunction(
   { timeout: 8000 },
 ).then(() => true, () => false);
 const hintButtons = (page) => page.getByRole('button', { name: /Stuck\? Show a hint/ }).count();
-const mappingCheck = (page) => page.getByRole('button', { name: 'Check', exact: true });
+// The mapping's final action: on its own it spends a try and says "Submit —
+// …" (student pass 3, D9); as a composed question's step it is a free "Check".
+const mappingCheck = (page) => page.getByRole('button', { name: /^(Check$|Submit — )/ });
 const fill = async (page, label, value) => {
   await page.locator(`input[aria-label="${label}"]`).fill(value);
   await page.waitForTimeout(60);
@@ -80,7 +82,8 @@ const FACTORED = { a: 'Coefficient a in factored form', c: 'Zero c in factored f
 const stageCheck = (page, index) => page.getByRole('button', { name: 'Check this stage' }).nth(index);
 const GENERAL_CHECK = 1; // rate evidence, general form, factored form, graph, meaning
 const FACTORED_CHECK = 2;
-const submitBridge = (page) => page.getByRole('button', { name: 'Submit the bridge' });
+// The bridge's Submit says its cost (student pass 3, D9); its stage checks stay "Check".
+const submitBridge = (page) => page.getByRole('button', { name: /^Submit — / });
 
 {
   const page = await open('practice', 'bridge', (p) => p.locator(`input[aria-label="${GENERAL.m}"]`));
@@ -198,12 +201,12 @@ for (const role of ['practice', 'dol']) {
 
 // ----------------------------------------------------------- graphing (help)
 for (const role of ['practice', 'dol']) {
-  const page = await open(role, 'graphing', (p) => p.getByRole('button', { name: 'Check construction' }));
+  const page = await open(role, 'graphing', (p) => p.getByRole('button', { name: /^Submit — / }));
   // Graphing2 publishes its Work View capabilities from an effect: wait until
   // its Check construction action is on the Work View rail, so the Help drawer
   // below is the one it published (or chose not to).
   await page.waitForFunction(
-    () => [...document.querySelectorAll('aside[aria-label="Work View controls"]')].some((rail) => (rail.textContent || '').includes('Check construction')),
+    () => [...document.querySelectorAll('aside[aria-label="Work View controls"]')].some((rail) => /Submit — /.test(rail.textContent || '')),
     null,
     { timeout: 8000 },
   ).catch(() => failures.push(`${role} graphing: Graphing2 never published its Work View capabilities`));

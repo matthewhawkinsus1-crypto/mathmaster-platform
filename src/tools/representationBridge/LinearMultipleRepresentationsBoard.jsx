@@ -1859,7 +1859,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" onClick={() => setConfirmSubmit(false)} style={touchButton}>Keep working</button>
-                <button type="button" onClick={doSubmit} style={touchButton}><SubmitText>Submit anyway</SubmitText></button>
+                <button type="button" onClick={doSubmit} style={touchButton}>Submit anyway</button>
               </div>
             </div>
           ) : null}

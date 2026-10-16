@@ -66,7 +66,8 @@ const open = async (device, role, tool, prior = 0) => {
 const attemptWrong = async (page, tool) => {
   if (tool === 'board') {
     // Submit the board with its parts still empty; it asks first.
-    const submitBoard = page.getByRole('button', { name: 'Submit board' });
+    // The board's Submit says its cost (student pass 3, D9): "Submit — uses 1 of 3 tries".
+    const submitBoard = page.getByRole('button', { name: /^Submit — / }).first();
     await submitBoard.scrollIntoViewIfNeeded();
     await submitBoard.click();
     const anyway = page.getByRole('button', { name: 'Submit anyway' });
@@ -111,7 +112,7 @@ const outcomeState = (page) => page.evaluate((source) => {
   const pattern = new RegExp(source);
   const shell = document.querySelector('.mathmaster-tool-shell');
   const submit = shell?.querySelector('button[data-mm-enter-action="submit"], button[data-primary-answer-action="true"]')
-    || [...(shell?.querySelectorAll('button') || [])].find((button) => (button.textContent || '').trim() === 'Submit board')
+    || [...(shell?.querySelectorAll('button') || [])].find((button) => /^Submit — /.test((button.textContent || '').trim()))
     || document.querySelector('button.mathmaster-bar-submit');
   const visible = (element) => {
     const rect = element.getBoundingClientRect();
@@ -222,7 +223,8 @@ for (const device of ['chromebook', 'phone']) {
   words = await said();
   check(words === 'Plotted (1, 0). 2 of 2 points plotted.', `${device} graphing: the second point is counted`, words);
   // y = 0 is not 2x + y = 4: Check, and the coaching is said with the outcome.
-  const checkButton = page.locator('.mathmaster-tool-shell button', { hasText: /^Check/ }).first();
+  // The construction's final action: "Submit — uses 1 of 3 tries" (D9).
+  const checkButton = page.locator('.mathmaster-tool-shell button', { hasText: /^Submit — / }).first();
   await checkButton.scrollIntoViewIfNeeded();
   await checkButton.click();
   await waitForOutcome(page);
