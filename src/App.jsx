@@ -10967,6 +10967,12 @@ function App() {
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
           onPracticeSkill={practiseSkillFromResults}
+          // The student's Test Cycles with THEIR dates, so a Test whose session
+          // is not open yet is listed with when it is (PR-20).
+          testCycles={assignments.filter(isTestCycleAssignment).map((assignment) => {
+            const own = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+            return { assignment, dueAt: own.dueAt, lateDueAt: own.lateDueAt };
+          })}
           />
         </>,
       );

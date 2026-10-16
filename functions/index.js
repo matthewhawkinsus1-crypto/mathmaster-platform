@@ -18906,6 +18906,11 @@ function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
 exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
+  // A READ-ONLY LOOK, for Tests & Exams listing a Test whose session is not
+  // open yet: the same question-free card, but opening nothing (no stand-in
+  // Retest for a missed Test) and reading no Corrections. Only the card itself,
+  // opened by the student, does those.
+  const preview = request.data?.preview === true;
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
 
   const [gradeSnapshot, recordSnapshot] = await Promise.all([
@@ -18948,7 +18953,8 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
    * was stranded. Past the Review gate, with the home window not yet over and
    * the assessment open, opening their card opens their Retest.
    */
-  if (state.missedTest
+  if (!preview
+    && state.missedTest
     && state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST_READY
     && availability.open
     && schedule?.followUp?.state !== shared.schedule.WINDOW_STATE.CLOSED) {
@@ -18962,7 +18968,7 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   }
 
   let corrections = null;
-  const inCorrections = state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  const inCorrections = !preview && state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
   if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
@@ -18985,6 +18991,7 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   return {
     success: true,
     assignmentId,
+    ...(preview ? { preview: true } : {}),
     title: blueprint.title || assignment?.title || "Test Cycle",
     stage: state.stage,
     secure: state.secure,
