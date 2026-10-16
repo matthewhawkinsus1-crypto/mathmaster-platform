@@ -27,6 +27,20 @@
  * together use all three original equations, so "a different pair" is the
  * only rule needed to guarantee R1 and R2 are independent.
  *
+ * AN EQUATION WITH NO TERM IN THE CHOSEN VARIABLE (PR-23). It already has
+ * that variable eliminated, so it is brought down as it is — a round of its
+ * own, R = that equation, with nothing to scale or combine — the way the board
+ * solves x + z = 4, x + y = 3, y − z = 1 for y and z. Pairing it is refused
+ * (there is nothing to cancel). Every round the rules allow still leaves an
+ * equivalent system:
+ *   the variable in all three   two different pairs           (as before)
+ *   in two, Ei and Ej           the pair {Ei, Ej}, and Ek brought down
+ *   in one, Ei                  Ej and Ek brought down; Ei gives it back
+ *   in none                     refused: there is nothing to eliminate and no
+ *                               equation to back-substitute into
+ * Each original equation is used once, and one that holds the variable is
+ * always left for back-substitution.
+ *
  * This module is the round, as data, mirroring substitutionReduction.js: no
  * React, no algebra performed on the student's behalf. Every scaled term and
  * every combined term is the student's own typed result, checked against the
@@ -132,7 +146,54 @@ export const activeEliminationRoundKey = (state) => {
 
 export const chooseEliminationVariable = (state, system, variable) => {
   if (!system.variables.includes(variable)) return result(state);
+  if (!system.equations.some((equation) => equationMentionsVariable(equation.text, variable))) {
+    return result(state, { stage: 'variable', reason: 'variable-nowhere', variable });
+  }
   return result({ ...emptyEliminationState(), variable });
+};
+
+/**
+ * The equations that already have no term in the chosen variable: each can be
+ * brought down as it is, as one round's reduced equation (PR-23).
+ */
+export const eliminationCarryOptions = (state, system) => (
+  state.variable
+    ? system.equations
+      .filter((equation) => !equationMentionsVariable(equation.text, state.variable))
+      .map((equation) => ({ id: equation.id, equationIds: [equation.id], label: equation.label }))
+    : []
+);
+
+/**
+ * The student brings down an equation that has no term in the chosen variable
+ * as this round's reduced equation. Nothing is computed for them: the
+ * equation is theirs as written, restated in the two remaining variables.
+ * Refused when the equation does have the variable (it must be paired), or
+ * when the other round already brought it down.
+ */
+export const carryEliminationEquation = (state, system, roundKey, equationId) => {
+  if (!state.variable) return result(state);
+  const equation = equationById(system, equationId);
+  if (!equation) return result(state);
+  if (equationMentionsVariable(equation.text, state.variable)) {
+    return result(state, { stage: 'pair', reason: 'carry-has-variable', roundKey, equationId, variable: state.variable });
+  }
+  const otherKey = roundKey === 'round1' ? 'round2' : 'round1';
+  if (pairKey(state.rounds[otherKey]?.pair) === pairKey([equationId])) {
+    return result(state, { stage: 'pair', reason: 'carry-repeated', roundKey, equationId });
+  }
+  const form = linearEquationForm(equation.text, system.variables);
+  if (!form) return result(state);
+  const remaining = system.variables.filter((name) => name !== state.variable);
+  return result(setRound(state, roundKey, {
+    ...emptyRoundState(),
+    pair: [equationId],
+    carried: true,
+    combinedText: formatLinearForm({
+      coefficients: Object.fromEntries(remaining.map((name) => [name, form.coefficients[name] || 0])),
+      constant: form.constant,
+    }, remaining),
+  }));
 };
 
 /**
@@ -323,7 +384,7 @@ export const eliminationRoundEliminates = (state, system, roundKey) => {
 export const setEliminationOperation = (state, roundKey, operation) => {
   if (!['add', 'subtract'].includes(operation)) return result(state);
   const round = state.rounds[roundKey];
-  if (!round?.pair || !bothMultipliersApplied(round)) return result(state);
+  if (!round?.pair || round.carried || !bothMultipliersApplied(round)) return result(state);
   const next = clone(round);
   next.operation = operation;
   next.operationAttempts += 1;
@@ -340,7 +401,7 @@ export const setEliminationOperation = (state, roundKey, operation) => {
  */
 export const toggleEliminationCancellation = (state, system, roundKey, equationId) => {
   const round = state.rounds[roundKey];
-  if (!round?.pair?.includes(equationId)) return result(state);
+  if (!round?.pair?.includes(equationId) || round.carried) return result(state);
   if (!round.operation || !eliminationRoundEliminates(state, system, roundKey)) return result(state);
   const next = clone(round);
   next.cancelledEquations[equationId] = !next.cancelledEquations[equationId];
@@ -418,8 +479,10 @@ export const eliminationReducedSystem = (state, system) => {
 /** Only checked student rows can open a terminal branch. An identity from
  * one pair alone cannot establish consistency of the remaining equation. */
 export const eliminationOutcome = (state, system) => {
+  // A brought-down equation is an original, as written: a row as settled as
+  // a checked combination.
   const rows = ['round1', 'round2'].map((key) => state.rounds[key])
-    .filter((row) => row?.combinedText && row.combinationWork?.valid);
+    .filter((row) => row?.combinedText && (row.carried === true || row.combinationWork?.valid));
   // noVariableStatementType is the one reading of such a row; the shared
   // grader judges the statement a student submits with the same function.
   const statements = rows.map((row) => ({ text: row.combinedText, type: noVariableStatementType(row.combinedText, system.variables) }));
@@ -529,6 +592,7 @@ export const eliminationPhase = (state, system, { reducedSolution = null, requir
 export const eliminationRoundStage = (state, system, roundKey) => {
   const round = state.rounds[roundKey];
   if (!round?.pair) return 'pair';
+  if (round.carried) return round.combinedText ? 'done' : 'pair';
   if (!bothMultipliersApplied(round)) return 'multiplier';
   if (!round.operation || !eliminationRoundEliminates(state, system, roundKey)) return 'operation';
   if (!cancellationConfirmed(round)) return 'cancellation';
@@ -549,11 +613,18 @@ export const repairEliminationState = (stored, system) => {
   if (!stored || typeof stored !== 'object' || stored.version !== ELIMINATION_STATE_VERSION) return emptyEliminationState();
   const variable = stored.variable;
   if (!variable || !system.variables.includes(variable)) return emptyEliminationState();
-  let state = { ...emptyEliminationState(), variable };
+  const chosen = chooseEliminationVariable(emptyEliminationState(), system, variable);
+  if (chosen.feedback) return emptyEliminationState();
+  let state = chosen.state;
 
   for (const roundKey of ['round1', 'round2']) {
     const storedRound = stored.rounds?.[roundKey];
     const storedPair = Array.isArray(storedRound?.pair) ? storedRound.pair : null;
+    if (storedRound?.carried === true && storedPair?.length === 1) {
+      const carried = carryEliminationEquation(state, system, roundKey, storedPair[0]);
+      if (!carried.feedback) state = carried.state;
+      continue;
+    }
     if (!storedPair || storedPair.length !== 2) continue;
     const option = eliminationPairOptions(system).find((entry) => pairKey(entry.equationIds) === pairKey(storedPair));
     if (!option) continue;

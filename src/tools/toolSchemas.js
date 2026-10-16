@@ -230,7 +230,9 @@ export const validateToolQuestion = (question = {}) => {
       // non-unique 3×3 (#390) — never by filtering the uniqueness message out
       // by its wording: #390 reworded it, the filter stopped matching, and
       // every dependent/inconsistent three-plane question was refused (#392).
-      const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'elimination' });
+      // mode: 'spatial' — a plane may leave out a variable (PR-23's
+      // "every variable in some equation" rule is the algebraic workflow's).
+      const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'elimination', mode: 'spatial' });
       errors.push(...spatial.errors);
       if (String(question.spatialModel?.kind || '').trim().toLowerCase() !== 'threeplanes') {
         errors.push('systemsWorkspace spatial mode requires spatialModel.kind "threePlanes".');
