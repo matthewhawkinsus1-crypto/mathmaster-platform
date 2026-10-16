@@ -115,6 +115,16 @@ test('RUN-8: a DOL the teacher closed and one whose time ran out say which, and 
   assert.equal(closed.workable, false);
   const timeUp = describeSectionAccess({ role: 'dol', label: 'Exit ticket (DOL)', timedDol: true, nowValue: now, dolState: { enabled: true, status: 'ended', teacherClosed: false } });
   assert.equal(timeUp.short, 'Time is up');
+  // "Your work stays here" only when there is work to look over.
+  assert.equal(timeUp.reason, 'Time is up for Exit ticket (DOL). Ask your teacher if you missed it.');
+  const timeUpWithWork = describeSectionAccess({ role: 'dol', label: 'Exit ticket (DOL)', timedDol: true, hasWork: true, nowValue: now, dolState: { enabled: true, status: 'ended', teacherClosed: false } });
+  assert.equal(timeUpWithWork.reason, 'Time is up for Exit ticket (DOL). Your work stays here to look over.');
+  assert.equal(closed.reason, 'Your teacher closed Exit ticket (DOL). Ask your teacher if you missed it.');
+  const closedWithWork = describeSectionAccess({ role: 'dol', label: 'Exit ticket (DOL)', timedDol: true, hasWork: true, nowValue: now, dolState: { enabled: true, status: 'ended', teacherClosed: true } });
+  assert.match(closedWithWork.reason, /Your work stays here to look over\.$/);
+  const warmupClosed = (hasWork) => describeSectionAccess({ role: 'warmup', label: 'The Warm-Up', hasWork, nowValue: now, warmupState: { enabled: true, status: 'closed' } }).reason;
+  assert.equal(warmupClosed(false), 'The Warm-Up is closed for today. Ask your teacher if you missed it.');
+  assert.equal(warmupClosed(true), 'The Warm-Up is closed for today. Your work stays here to look over.');
 });
 
 test('RUN-8: Classwork the teacher closed stays viewable read-only; one never opened stays shut', () => {

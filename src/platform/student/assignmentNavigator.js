@@ -212,11 +212,17 @@ export const describeSectionAccess = ({
     return key ? locked(`Opens ${key}`, `${label} opens in class on ${key}.`) : locked('Opens in class', `${label} opens when your teacher starts it in class.`);
   };
 
+  // "Your work stays here" only when there is work: a student who never
+  // started a closed section is told where to turn instead.
+  const keptWork = (closedLine) => (hasWork
+    ? `${closedLine} Your work stays here to look over.`
+    : `${closedLine} Ask your teacher if you missed it.`);
+
   if (role === 'warmup' && warmupState?.enabled) {
     const status = warmupState.status;
     if (status === 'active') return open;
-    if (status === 'closed') return readOnly('Closed', `${label} is closed for today. Your work stays here to look over.`);
-    if (status === 'ended') return readOnly('Class ended', `Class has ended, so ${label} is closed. Your work stays here to look over.`);
+    if (status === 'closed') return readOnly('Closed', keptWork(`${label} is closed for today.`));
+    if (status === 'ended') return readOnly('Class ended', keptWork(`Class has ended, so ${label} is closed.`));
     if (status === 'waiting') return opensLater(warmupState.opensAt, 'Opens before class');
     if (status === 'notToday') return notToday(warmupState);
     return locked('Opens in class', `${label} opens when your class starts.`);
@@ -227,8 +233,8 @@ export const describeSectionAccess = ({
     if (status === 'active') return open;
     if (status === 'ended') {
       return dolState.teacherClosed
-        ? readOnly('Closed by your teacher', `Your teacher closed ${label}. Your work stays here to look over.`)
-        : readOnly('Time is up', `Time is up for ${label}. Your work stays here to look over.`);
+        ? readOnly('Closed by your teacher', keptWork(`Your teacher closed ${label}.`))
+        : readOnly('Time is up', keptWork(`Time is up for ${label}.`));
     }
     if (status === 'waiting' || status === 'beforeClass') return opensLater(dolState.opensAt, 'Opens near the end of class');
     if (status === 'notToday') return notToday(dolState);
