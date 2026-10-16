@@ -8878,7 +8878,7 @@ function App() {
           <span aria-hidden="true">⚡ </span>
           {running ? 'The Live Challenge is running now.' : 'Your teacher opened the Live Challenge lobby.'}
         </span>
-        <button type="button" onClick={() => setStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
+        <button type="button" onClick={() => setStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
           {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
         </button>
       </section>

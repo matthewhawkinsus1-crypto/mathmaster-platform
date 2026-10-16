@@ -1,6 +1,8 @@
 # Student pass 3, session C: getting around (Batches 5, 6 and 7, navigation half)
 
-Branch `claude/pass3-b5-getting-around`, on `claude/modest-pasteur-xzagn7` at `a7dddc7`. IDs are the summary table's
+Branch `claude/pass3-b5-getting-around`, on `claude/modest-pasteur-xzagn7` at `a7dddc7`, with the base merged in again at
+`4af446f` (a merge commit, no conflicts: Batch 4's hint ladder and Batch 8's update-loop fix); the gate below ran on the
+merged result. IDs are the summary table's
 in [the report](../qa/student-experience-pass-3.md) ("Getting around"); the evidence is in
 [01-navigation.md](../qa/student-experience-pass-3/01-navigation.md), which numbers the same findings differently. Nothing
 here re-grades anything, writes to production or deploys. No new Firestore path, no rules change.
@@ -58,7 +60,8 @@ memory) + 1 (lobby invite) + the rewritten contracts above.
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | ok |
-| `npm run test:platform` | GATE_PLATFORM |
+| `npm run audit:theme-colors` | passes (one `#fff` on the new lobby button was moved to `--mm-on-primary`) |
+| `npm run test:platform` | 11468 pass, 0 fail (merged branch) |
 | `node --test tests/tools/*.test.mjs` | 1643 pass, 0 fail |
 | `npm run lint` | exit 0; 470 warnings, the same count as the base |
 | `npm run build` | ok |
@@ -66,12 +69,22 @@ memory) + 1 (lobby invite) + the rewritten contracts above.
 | `npm run test:rules` | not run: no rules or collection change |
 | `test:authoring-v5` | not run: authoring and the compiler untouched |
 | Browser, component harnesses | `reviewMyWork`, `studentGradesRaise`, `studentResultUpNext`, `gradeCenterMobile`, `studentWhatChanged`: pass at 1366×768 and 390×844. `studentHomeToday`: fails only on console errors from the harness reaching for Firestore — **the same failure on the base commit** (not a CI driver) |
-| Browser, real App (one at a time) | GATE_BROWSER |
+| Browser, real App, teacherWorkflow harness (one at a time, merged branch) | `journeys`, `caseReviewJourneys`, `privateControlsJourneys`, `appUrlJourneys`, `studentScreenChange` (new, in CI's app-urls job), `prerequisiteEarlyJourneys`, `draftCrossDeviceJourneys`, `askMyTeacherJourneys`: all pass |
+| `npm run certify:accessibility` (axe, both sizes) | passes: 11 screens × 2 viewports, no new or increased violations; Home, Assignments, Grades now each have one main |
+| `myMathPathLandmarks`, `studentAccessibleNames`, `studentShellLargeText` (targets, s5, text) | pass |
+| `npm run certify:dark-mode` | passes (192 surfaces) |
+
+Three journeys asserted the old behaviour and were updated to the new one: `privateControlsJourneys` opens **More** on a
+phone before My Rewards (NAV-13); `appUrlJourneys` U10 reads the excused notice on the result page instead of a toast,
+and `prerequisiteEarlyJourneys` accepts the result page's "Finish the earlier lesson first" for a Classwork address
+(NAV-10). A first certification run failed only on the Live Challenge lobby; that was my harness (the teacherWorkflow
+Vite server still held port 5188, so the accessibility harness with its snapshot-metadata fake never started), not the
+code: with the right harness it passes.
 
 ## Deploying (not done)
 
 `node scripts/release-firebase.mjs` (plan mode) could not be run here: this session's permission layer refused it as a
-deploy command. From the diff (`git diff --name-only a7dddc7..HEAD`):
+deploy command. From this branch's own changes (`git diff --name-only a7dddc7` before the merge):
 
 - **Hosting**: yes (`src/**`, `index.html`).
 - **Functions**: only `loadMyReviewWork` (`functions/lib/reviewMyWork.js`: `details.retry` on two refusals). Optional and
