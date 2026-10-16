@@ -620,6 +620,31 @@ export const buildStudentDashboardModel = ({
  *   6. Nothing pressing — which is a real answer, and is said as one rather
  *      than left as an empty screen.
  */
+/** A live Warm-Up/DOL window's close, in ms, or null when it has none. */
+const liveWindowClosesAt = (state) => {
+  const value = state?.endsAt;
+  if (value === null || value === undefined) return null;
+  const ms = value instanceof Date ? value.getTime() : typeof value === 'number' ? value : Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+};
+
+/**
+ * "Closes at 2:45 PM" (today) or "Closes Thu, Oct 8, 2:45 PM" (another day):
+ * the line a timed card prints instead of the lesson's due date (NAV-12).
+ */
+export const describeClosesAt = (closesAt, {
+  nowValue = Date.now(),
+  formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+  formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+} = {}) => {
+  const ms = Number(closesAt);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const at = new Date(ms);
+  const now = new Date(Number(nowValue));
+  const sameDay = at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth() && at.getDate() === now.getDate();
+  return sameDay ? `Closes at ${formatTime(at)}` : `Closes ${formatDay(at)}`;
+};
+
 const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
   // The card prints a due date under the decision, and it has to be this
   // student's: an individualized (extra-time) due date lives on the lifecycle
@@ -643,9 +668,14 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       kind: 'dol',
       assignment: activeDol.assignment,
       dueAt: dueFor(activeDol.assignment, activeDol.lifecycle),
+      // NAV-12: when it closes, from the DOL window's own state — the
+      // student's, so an extended window is the one named — not the lesson's
+      // due date, which can be tomorrow while this closes in minutes.
+      closesAt: liveWindowClosesAt(activeDol.state),
       questionIndex: firstUnattempted ?? 0,
-      headline: 'Your exit ticket is open',
-      detail: 'It is timed, so do this one first.',
+      headline: 'Your exit ticket (DOL) is open',
+      // Which lesson: the separate DOL card that named it is not drawn.
+      detail: `${activeDol.assignment?.title || 'Your lesson'} — it is timed, so do this one first.`,
       actionLabel: 'Start the exit ticket',
       urgency: 'now',
     };
@@ -659,8 +689,9 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       dueAt: dueFor(activeWarmup.assignment, activeWarmup.lifecycle),
       // The first Warm-Up question still to do, never a finished one.
       questionIndex: firstOpenLiveQuestionIndex({ indices: activeWarmup.questionIndices, records: activeWarmup.records, section: 'warmup' }) ?? 0,
+      closesAt: liveWindowClosesAt(activeWarmup.state),
       headline: 'Warm-Up is open now',
-      detail: 'Start with the Warm-Up while its class timer is running.',
+      detail: `${activeWarmup.assignment?.title || 'Your lesson'} — start it while its class timer is running.`,
       actionLabel: 'Start Warm-Up',
       urgency: 'now',
     };

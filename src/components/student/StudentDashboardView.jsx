@@ -26,6 +26,7 @@ const TEST_CYCLE_TONE = {
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 import { questionAddressLabel } from '../../app/routes/questionAddress.js';
+import { whatChangedUpdatesLabel } from '../../platform/student/whatChangedModel.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -137,6 +138,9 @@ export default function StudentDashboardView({
   saveStatus = null,
   // The read-only "What changed" list, rendered after the assignment groups.
   whatChangedPanel = null,
+  // How many of its items are new: "2 updates →" under Do this next goes to
+  // the list (NAV-6). 0 draws nothing.
+  whatChangedUnseenCount = 0,
   // { count } ways to raise a grade (Recoveries, retests). The link opens
   // Grades through the shared onNavigate — Home owns no per-destination
   // props (studentGlobalNavigation.test.mjs).
@@ -446,6 +450,31 @@ export default function StudentDashboardView({
               ? { questionLabel: resumeQuestionLabel, gradeText: resumeGradeText }
               : null}
           />
+        )}
+
+        {/* NAV-6: what is new, one line under the next action; the list
+            itself stays below the work and is marked seen once it is read. */}
+        {whatChangedPanel && whatChangedUpdatesLabel(whatChangedUnseenCount) && (
+          <p style={{ margin: '-8px 0 16px', textAlign: 'left' }}>
+            <button
+              type="button"
+              data-what-changed-updates={whatChangedUnseenCount}
+              onClick={() => {
+                const heading = typeof document !== 'undefined' ? document.getElementById('mm-what-changed-heading') : null;
+                if (!heading) return;
+                try { heading.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { heading.scrollIntoView(); }
+                heading.focus({ preventScroll: true });
+              }}
+              style={{
+                appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                minHeight: 44, padding: '8px 12px', borderRadius: 10, cursor: 'pointer',
+                border: '2px solid var(--mm-primary-border)', background: 'var(--mm-surface)',
+                color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))',
+              }}
+            >
+              {whatChangedUpdatesLabel(whatChangedUnseenCount)} <span aria-hidden="true">→</span>
+            </button>
+          </p>
         )}
 
         {raiseCount > 0 && openGrades && (

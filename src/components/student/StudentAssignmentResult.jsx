@@ -5,7 +5,8 @@ import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js'
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
-import { RESULT_STEP, describeResultNextStep, tryAgainLabel } from '../../platform/student/studentResultNextStep.js';
+import { PRACTICE_SKILL_LABEL, RESULT_STEP, describeResultNextStep, resultTryAgainLabel } from '../../platform/student/studentResultNextStep.js';
+import { OPEN_NOTICE } from '../../platform/student/studentOpenGate.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
 /*
@@ -29,7 +30,7 @@ import { formatDateTime } from '../../assignmentLifecycle';
  * TRYING CLOSED WORK AGAIN IS AN ACTION, NOT AN ARRIVAL.
  *
  * The grade shown here is the frozen one, read from the canonical tracker. The
- * "Try it again — no credit" button starts a session against a SEPARATE
+ * "Try these questions again — no credit" button starts a session against a SEPARATE
  * practice tracker, which this screen never reads. That is why retrying cannot
  * move the number above it — not because the button is careful, but because
  * the two are different data and only one of them is a grade. (It is never
@@ -66,7 +67,17 @@ export default function StudentAssignmentResult({
   sectionLabel = null,
   supportPresentation = {},
   onReviewWork = null,
+  // "Try these questions again — no credit": reopens this assignment.
   onPractice = null,
+  // "Practice this skill": My Math Path on the skill it teaches, or null when
+  // it teaches none (NAV-8).
+  onPracticeSkill = null,
+  // Why a start landed here instead of opening (studentOpenGate.js:
+  // { kind, title, text }), shown where the page says what opens when.
+  notice = null,
+  // This assignment's "What changed" items (whatChangedModel.js), with a grade
+  // change's fixed reason: shown here and on Grades, never on Home (NAV-7).
+  changes = [],
   onViewAllGrades = null,
   onViewAllAssignments = null,
   onBackToHome = null,
@@ -103,10 +114,16 @@ export default function StudentAssignmentResult({
   // The label comes from the navigation model, which owns the rule that a Back
   // control names its destination rather than its direction.
   const back = resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin });
-  // "← Assignments" / "← Grades": the destination's name, as the global nav
-  // spells it.
+  // "← Home" / "← Assignments" / "← Grades": the destination's name, as the
+  // global nav spells it — and the handler that opens that same place (NAV-9).
   const backLabel = `← ${back?.navLabel || back?.shortLabel || 'Back'}`;
-  const onBackToOrigin = cameFromGrades ? onViewAllGrades : onViewAllAssignments;
+  const onBackToOrigin = back?.level === LEVEL.GRADES
+    ? onViewAllGrades
+    : back?.level === LEVEL.HOME
+      ? onBackToHome
+      : onViewAllAssignments;
+  // Paused or archived: nothing here opens, so nothing offers to (NAV-4).
+  const closedByTeacher = notice?.kind === OPEN_NOTICE.PAUSED || notice?.kind === OPEN_NOTICE.ARCHIVED;
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
@@ -193,6 +210,15 @@ export default function StudentAssignmentResult({
         </h1>
         <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{statusLine}</div>
 
+        {/* Why this opened here instead of the work (NAV-4, NAV-10): read
+            right after the title, for as long as the student needs. */}
+        {notice && (
+          <div data-result-notice={notice.kind} style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)' }}>
+            <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{notice.title}</h2>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{notice.text}</p>
+          </div>
+        )}
+
         <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
           <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
             {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
@@ -251,6 +277,20 @@ export default function StudentAssignmentResult({
               </li>
             ))}
           </ul>
+        )}
+
+        {Array.isArray(changes) && changes.length > 0 && (
+          <section aria-labelledby="result-what-changed-heading" data-result-what-changed style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
+            <h2 id="result-what-changed-heading" style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-text-strong)' }}>What changed</h2>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 4, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)' }}>
+              {changes.map((item) => (
+                <li key={item.key} style={{ overflowWrap: 'anywhere' }}>
+                  {item.text}
+                  {item.reasonText ? <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Reason: {item.reasonText}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         <GradeSectionBreakdown sections={entry.sections} />
@@ -330,9 +370,14 @@ export default function StudentAssignmentResult({
               Review My Work
             </button>
           )}
-          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && (
-            <button type="button" style={actionStyle(!step.offerHome && !step.upNext)} onClick={() => onPractice?.(entry.assignmentId)}>
-              {tryAgainLabel(sectionLabel)}
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && !closedByTeacher && (
+            <button type="button" data-result-try-again style={actionStyle(!step.offerHome && !step.upNext)} onClick={() => onPractice?.(entry.assignmentId)}>
+              {resultTryAgainLabel(sectionLabel)}
+            </button>
+          )}
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && onPracticeSkill && (
+            <button type="button" data-result-practice-skill style={actionStyle(false)} onClick={() => onPracticeSkill()}>
+              {PRACTICE_SKILL_LABEL}
             </button>
           )}
           {/* The other list. The Back control above already names the list the

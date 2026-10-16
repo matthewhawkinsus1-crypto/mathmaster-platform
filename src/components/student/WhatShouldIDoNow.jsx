@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatDateTime } from '../../assignmentLifecycle';
 import DOLCountdown from './DOLCountdown.jsx';
+import { describeClosesAt } from '../../studentDashboardModel.js';
 
 // The answer to the only question a student opens the app with.
 //
@@ -119,7 +120,14 @@ export default function WhatShouldIDoNow({
           for a student with an individualized due date. */}
       {/* Late work names the student's own last day (an extension included),
           never only a class due date that has already passed. */}
-      {nextAction.assignment && nextAction.lateLine ? (
+      {/* A timed Warm-Up or DOL says when IT closes, not the lesson's due
+          date — "Due Oct 17" under a four-minute countdown read as "tonight"
+          (NAV-12). */}
+      {nextAction.assignment && TIMED_KINDS.has(nextAction.kind) && describeClosesAt(nextAction.closesAt) ? (
+        <div data-next-action-closes style={{ marginTop: 6, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 900 }}>
+          {describeClosesAt(nextAction.closesAt)}
+        </div>
+      ) : nextAction.assignment && nextAction.lateLine ? (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>
           Late · {nextAction.lateLine}
         </div>

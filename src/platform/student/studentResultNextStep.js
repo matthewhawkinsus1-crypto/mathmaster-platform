@@ -40,6 +40,20 @@ export const tryAgainLabel = (sectionLabel = null) => (
   sectionLabel ? `Try ${sectionLabel} again — no credit` : TRY_AGAIN_LABEL
 );
 
+/*
+ * THE RESULT PAGE'S TWO WAYS TO PRACTISE (student pass 3, NAV-8).
+ *
+ * "Try it again — no credit" here used to open My Math Path skill practice,
+ * while the same words on Home, Assignments and Grades reopen the assignment.
+ * Now the result page names each: the assignment's own questions again, and —
+ * when the assignment teaches a Path skill — practice on that skill.
+ */
+export const RESULT_TRY_AGAIN_LABEL = 'Try these questions again — no credit';
+export const resultTryAgainLabel = (sectionLabel = null) => (
+  sectionLabel ? `Try these ${sectionLabel} questions again — no credit` : RESULT_TRY_AGAIN_LABEL
+);
+export const PRACTICE_SKILL_LABEL = 'Practice this skill';
+
 /**
  * One line per lesson section: "Warm-Up — done", "Classwork — 2 of 3 done",
  * "Practice — opens when your teacher starts it in class", "DOL — opens at

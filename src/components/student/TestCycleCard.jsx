@@ -136,7 +136,9 @@ const factStyle = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(
 // How often an open Test review asks whether it may still be shown.
 const TEST_REVIEW_RECHECK_MS = 30000;
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, lateDueAt = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+// `exitLabel`: the Back control's words, naming where it goes ("← Home");
+// App derives it from where the card was opened (NAV-9).
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, lateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -487,8 +489,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
           </button>
         )}
         {onExit && (
-          <button type="button" onClick={onExit} style={quietButtonStyle}>
-            Back
+          <button type="button" data-test-cycle-exit onClick={onExit} style={quietButtonStyle}>
+            {exitLabel}
           </button>
         )}
       </div>

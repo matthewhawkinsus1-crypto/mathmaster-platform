@@ -211,6 +211,8 @@ test('excused work opens its result page, never the graded workspace, whatever d
   const gate = start.indexOf("resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true");
   assert.ok(gate > 0, 'startAssignment checks the student\'s excusal');
   assert.ok(gate < start.indexOf('setActiveAssignmentId(assignmentId)'), 'before the workspace opens');
-  assert.match(start.slice(gate, gate + 400), /openStudentAssignmentResult\(assignmentId, \{ origin: 'assignments' \}\);\s*return;/);
+  // It lands on the result page, which says why (NAV-10: studentOpenGate.js).
+  assert.match(start.slice(gate, gate + 400), /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.EXCUSED \}\)\);\s*return;/);
+  assert.match(start, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
   assert.match(app, /^import \{ resolveStudentOverride \} from '\.\.\/functions\/shared\/studentAssignmentOverrides\.mjs';$/m);
 });

@@ -160,7 +160,9 @@ test('the visible Back control follows the same destination as browser Back', ()
   assert.equal(resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin: LEVEL.PATH_SESSION }).level, LEVEL.ASSIGNMENTS);
 
   assert.match(resultScreen, /resolveBack\(LEVEL\.ASSIGNMENT_RESULT, \{ origin \}\)/);
-  assert.match(resultScreen, /onBackToOrigin = cameFromGrades \? onViewAllGrades : onViewAllAssignments/);
+  // The handler is chosen by the same resolved level the label names (Home joined in NAV-9).
+  assert.match(resultScreen, /const onBackToOrigin = back\?\.level === LEVEL\.GRADES\s*\?\s*onViewAllGrades\s*:\s*back\?\.level === LEVEL\.HOME\s*\?\s*onBackToHome\s*:\s*onViewAllAssignments;/);
+  assert.equal(resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin: LEVEL.HOME }).level, LEVEL.HOME);
 
   const resultRender = region(app, '<StudentAssignmentResult', '/>', 'Assignment Result render');
   assert.match(resultRender, /origin=\{assignmentResultRoute\.origin/);

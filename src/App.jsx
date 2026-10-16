@@ -258,6 +258,8 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
+import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
+import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
 import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
@@ -269,7 +271,7 @@ import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.j
 import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
-  buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
+  buildWhatChanged, countUnseenWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
@@ -285,6 +287,7 @@ import {
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
+import { parseAppPath } from './app/routes/appUrl.js';
 import { readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
 import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
@@ -973,6 +976,9 @@ function App() {
   // Which Test Cycle the student has open. One id, because a student is in one
   // assessment at a time and the card asks the server for everything else.
   const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
+  // Where the Test Cycle card was opened from, so its Back names and opens
+  // that screen (NAV-9). Always a normalizeOrigin value.
+  const [activeTestCycleOrigin, setActiveTestCycleOrigin] = useState(NAV_LEVEL.ASSIGNMENTS);
   // What, on the student's live grade document, means "ask the server about
   // this Test Cycle again": its projection (stage, release, retest) and its
   // Review answers. A string, so an unrelated grade change does not refetch.
@@ -1070,8 +1076,12 @@ function App() {
     return {
       surface: 'dashboard',
       dashboardMode: studentDashboardMode || 'assignments',
+      // The test on screen and where it was opened from (NAV-9).
+      ...(studentDashboardMode === 'testCycle'
+        ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
+        : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -1186,6 +1196,22 @@ function App() {
       setAssignmentResultRoute(null);
       setActiveClassroomSectionKey(null);
       setActiveAssignmentId(null);
+      // Back onto a Test Cycle restores that test and its Back (NAV-9). An
+      // entry written before it carried the test falls back to the address
+      // (/test-cycle/<id>); with neither, Assignments rather than a blank card.
+      if (route.dashboardMode === 'testCycle') {
+        const fromAddress = parseAppPath(window.location.pathname)?.extras?.testCycleAssignmentId || null;
+        const testCycleId = route.testCycleAssignmentId || fromAddress;
+        if (!testCycleId) {
+          setActiveTestCycleAssignmentId(null);
+          setStudentDashboardMode('assignmentsCenter');
+          return;
+        }
+        setActiveTestCycleAssignmentId(testCycleId);
+        setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, route.origin));
+      } else {
+        setActiveTestCycleAssignmentId(null);
+      }
       setStudentDashboardMode(route.dashboardMode || 'assignments');
       if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
     };
@@ -5682,6 +5708,8 @@ function App() {
     const cycleStage = String(options.cycleStage || '').trim();
     if (isTestCycleAssignment(assignmentData) && !cycleStage) {
       setActiveTestCycleAssignmentId(assignmentId);
+      // Where its Back goes (NAV-9): the screen that opened it.
+      setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, options.origin));
       return openStudentDashboardMode('testCycle');
     }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
@@ -5690,17 +5718,41 @@ function App() {
       toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
     }
+    /*
+     * A START THAT CANNOT HAPPEN LANDS ON THE RESULT PAGE (NAV-4, NAV-10).
+     *
+     * Paused or archived by the teacher, an earlier lesson to finish first,
+     * not open yet, excused: the assignment's result page says so in its
+     * "what opens when" panel, where the student can read it for as long as
+     * they need — not in a toast that is gone in five seconds. Every path in
+     * comes through here: Home, Assignments, Grades, Ways to raise, a
+     * Classroom link, an address.
+     */
+    const resultOrigin = normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin);
+    const landOnResult = (notice) => openStudentAssignmentResult(assignmentId, { origin: resultOrigin, notice });
+    const closedByTeacher = user?.role === 'student' ? teacherClosedState(assignmentData) : null;
+    if (closedByTeacher) {
+      landOnResult(describeOpenNotice({ kind: closedByTeacher }));
+      return;
+    }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
     if (user?.role === 'student' && !access.open) {
-      const prerequisiteTitle = assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || 'the prerequisite notes/classwork assignment';
-      toastInfo('Finish the prerequisite first', `Complete ${prerequisiteTitle} first. This practice assignment also opens automatically at its scheduled release time.`);
+      landOnResult(describeOpenNotice({
+        kind: OPEN_NOTICE.PREREQUISITE,
+        prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
+        opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '',
+      }));
       return;
     }
     const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
       studentId: user?.role === 'student' ? user.id : undefined,
     });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
-      toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      if (user?.role === 'student') {
+        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '' }));
+      } else {
+        toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      }
       return;
     }
     // EXCUSED WORK IS NOT OPENED AS GRADED WORK. Home and Assignments leave
@@ -5709,8 +5761,7 @@ function App() {
     // Review/Practice buttons (returnToResult) are unchanged.
     if (user?.role === 'student' && !cycleStage && !lifecycle.isPracticeOnly && !options?.returnToResult
       && resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true) {
-      toastInfo('You are excused from this assignment', 'Your teacher excused you, so there is nothing to turn in. Its page has the details.');
-      openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+      landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.EXCUSED }));
       return;
     }
 
@@ -5838,7 +5889,7 @@ function App() {
       if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
         // No dead end: with nothing open this minute, show the assignment's
         // result page — its sections, what opens when, and what to do next.
-        openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+        openStudentAssignmentResult(assignmentId, { origin: resultOrigin });
         return;
       }
       if (actionableIndex === null) {
@@ -5952,6 +6003,14 @@ function App() {
     return openStudentDashboardMode('assignments');
   };
 
+  // A navigation level a Back control returns to (NAV-9).
+  const openStudentOriginLevel = (level) => {
+    if (level === NAV_LEVEL.HOME) return openStudentDashboardMode('assignments');
+    if (level === NAV_LEVEL.GRADES) return openStudentGradeCenter();
+    if (level === NAV_LEVEL.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
+    return openStudentAssignmentsCenter();
+  };
+
   const openStudentAssignmentResult = (assignmentId, options = {}) => {
     const id = String(assignmentId || '').trim();
     if (!id) return;
@@ -5961,10 +6020,14 @@ function App() {
       sectionKey,
       sectionLabel: options.sectionLabel || null,
       questionIndex: Number(options.questionIndex) || 0,
-      // Which list sent the student here, so the visible Back control returns
-      // to that list rather than guessing. Browser Back already does the right
-      // thing; this is what keeps the on-screen control agreeing with it.
-      origin: options.origin === 'grades' ? 'grades' : 'assignments',
+      // Which screen sent the student here (Home, Assignments or Grades), so
+      // the visible Back control names and returns to it rather than guessing.
+      // Browser Back already does the right thing; this keeps the on-screen
+      // control agreeing with it (NAV-9).
+      origin: normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin),
+      // Why a start landed here instead of opening (studentOpenGate.js), for
+      // the page's "what opens when" panel. Null for an ordinary visit.
+      notice: options.notice || null,
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
@@ -10394,7 +10457,7 @@ function App() {
     <WhatChangedList
       items={whatChangedItems}
       compact={compact}
-      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? 'assignments' : 'grades' })}
+      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? NAV_LEVEL.HOME : NAV_LEVEL.GRADES })}
       onMarkSeen={() => { if (user?.id) markWhatChangedSeen(user.id, Date.now()); }}
     />
   );
@@ -10964,8 +11027,8 @@ function App() {
             onNavigate={navigateStudent}
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
-            onPractice={(assignmentId) => startAssignment(assignmentId)}
-            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
+            onPractice={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.GRADES })}
+            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.GRADES })}
             // The Today rule per row: no Start on work that cannot be done
             // now, Open Recovery, and Start lands on the next question.
             // The Today rule per row: no Start on work that cannot be done
@@ -10976,8 +11039,9 @@ function App() {
               if (way.action === 'none') return undefined; // waiting: nothing to open
               if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
               if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
-              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0);
-              return startAssignment(way.assignmentId); // 'openTestCycle' (startAssignment opens the cycle card)
+              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0, { origin: NAV_LEVEL.GRADES });
+              // 'openTestCycle' (startAssignment opens the cycle card)
+              return startAssignment(way.assignmentId, 0, { origin: NAV_LEVEL.GRADES });
             }}
             whatChangedPanel={renderWhatChangedPanel(false)}
           />
@@ -11010,7 +11074,9 @@ function App() {
                 // ordinary runtime — restricted to the review questions.
                 onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
                 onPracticeSkill={practiseSkillFromResults}
-                onExit={openStudentAssignmentsCenter}
+                // Back names and opens the screen the card was opened from (NAV-9).
+                exitLabel={`← ${resolveBack(NAV_LEVEL.TEST_CYCLE, { origin: activeTestCycleOrigin })?.navLabel || 'Assignments'}`}
+                onExit={() => openStudentOriginLevel(activeTestCycleOrigin)}
               />
             </Suspense>
           </div>
@@ -11032,7 +11098,7 @@ function App() {
           onExit={() => setStudentDashboardMode('assignments')}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
-          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
+          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
           onPracticeSkill={practiseSkillFromResults}
           />
         </>,
@@ -11060,7 +11126,8 @@ function App() {
         dashboard={dashboard}
         // Never the student's support status: Home is read over shoulders.
         student={{ ...studentRecord, ...user }}
-        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
+        // From Home, Back on the result page says "← Home" and goes there (NAV-9).
+        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: NAV_LEVEL.HOME })}
         saveStatus={describeSaveStatus({
           persistenceStatus: studentPersistenceStatus,
           outboxDepth: studentOutboxDepth,
@@ -11068,10 +11135,11 @@ function App() {
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
+        whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}
         waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
-        onStartAssignment={startAssignment}
+        onStartAssignment={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.HOME })}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onNavigate={navigateStudent}
@@ -11139,6 +11207,14 @@ function App() {
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
+    // The skill this assignment teaches, for "Practice this skill" (NAV-8).
+    // A split Classroom post's section, a Test Cycle and an assignment with no
+    // Path skill have none.
+    const resultPathLaunch = resolveAssignmentPathLaunch({
+      assignment: recoveryAssignment,
+      questionIndex: assignmentResultRoute.questionIndex,
+      sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+    });
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
@@ -11167,29 +11243,27 @@ function App() {
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
           onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
-          onPractice={(assignmentId) => {
-            // "Practice This Skill" practises the skill: My Math Path opens on
-            // the TEKS this assignment teaches (assignmentPathLaunch.js). A
-            // split Classroom post's section practice, a Test Cycle and an
-            // assignment with no Path skill reopen the assignment as before.
-            const pathLaunch = resolveAssignmentPathLaunch({
-              assignment: assignments.find((item) => item.id === assignmentId),
-              questionIndex: assignmentResultRoute.questionIndex,
-              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-            });
-            if (pathLaunch) {
-              setPathLaunchTeks(pathLaunch.teksCode);
-              openStudentDashboardMode('mathPath');
-              return;
-            }
-            startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
-              // A split Classroom post practises its own section; a whole-assignment
-              // post practises the whole assignment. Keep the result route so the
-              // visible Back control returns here after practice.
-              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-              returnToResult: true,
-            });
-          }}
+          /*
+           * NAV-8: two things, two buttons. "Try these questions again — no
+           * credit" reopens THIS assignment (as the same words do on Home,
+           * Assignments and Grades); "Practice this skill" opens My Math Path
+           * on the TEKS it teaches (assignmentPathLaunch.js), and is offered
+           * only when there is one.
+           */
+          onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
+            // A split Classroom post practises its own section; a whole-assignment
+            // post practises the whole assignment. Keep the result route so the
+            // visible Back control returns here after practice.
+            sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+            returnToResult: true,
+            origin: assignmentResultRoute.origin,
+          })}
+          onPracticeSkill={resultPathLaunch ? () => {
+            setPathLaunchTeks(resultPathLaunch.teksCode);
+            openStudentDashboardMode('mathPath');
+          } : null}
+          notice={assignmentResultRoute.notice || null}
+          changes={whatChangedItems.filter((item) => item.assignmentId === assignmentResultRoute.assignmentId)}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
           // Decision 3: once the work is closed for this student and feedback

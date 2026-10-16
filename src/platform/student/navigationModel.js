@@ -33,6 +33,9 @@ export const LEVEL = Object.freeze({
   // from the Grade Center, which is why its Back is the one place in this model
   // that cannot be answered by the tree alone — see resolveBack.
   ASSIGNMENT_RESULT: 'assignmentResult',
+  // A Test Cycle's card. Opened from Home, Assignments, Grades or Tests &
+  // Exams, so like a result its Back follows where the student came from.
+  TEST_CYCLE: 'testCycle',
 
   // Grades branch
   GRADES: 'grades',
@@ -70,6 +73,7 @@ const PARENT = Object.freeze({
   // Assignments is the DEFAULT parent of a result, not the only one. A student
   // who reached it from Grades gets Grades back — see resolveBack's origin.
   [LEVEL.ASSIGNMENT_RESULT]: LEVEL.ASSIGNMENTS,
+  [LEVEL.TEST_CYCLE]: LEVEL.ASSIGNMENTS,
   [LEVEL.GRADES]: LEVEL.HOME,
   [LEVEL.REWARDS]: LEVEL.HOME,
 
@@ -101,6 +105,7 @@ export const LEVEL_LABEL = Object.freeze({
   [LEVEL.GRADES]: 'My grades',
   [LEVEL.REWARDS]: 'My rewards',
   [LEVEL.ASSIGNMENT_RESULT]: 'this result',
+  [LEVEL.TEST_CYCLE]: 'this test',
   [LEVEL.ASSIGNMENT]: 'this assignment',
   [LEVEL.ASSIGNMENT_QUESTION]: 'this question',
   [LEVEL.MATH_PATH]: 'My Math Path',
@@ -230,9 +235,22 @@ export const breadcrumb = (level) => {
  * the students who reach it. An origin that is not a real parent candidate is
  * ignored rather than trusted, so a stale history entry cannot invent a level.
  */
+// Home joined in student pass 3 (NAV-9): "See results" on Home said
+// "← Assignments" and went there, while browser Back went Home.
 const ORIGIN_CANDIDATES = Object.freeze({
-  [LEVEL.ASSIGNMENT_RESULT]: [LEVEL.ASSIGNMENTS, LEVEL.GRADES],
+  [LEVEL.ASSIGNMENT_RESULT]: [LEVEL.ASSIGNMENTS, LEVEL.GRADES, LEVEL.HOME],
+  [LEVEL.TEST_CYCLE]: [LEVEL.HOME, LEVEL.ASSIGNMENTS, LEVEL.GRADES, LEVEL.SECURE_EXAMS],
 });
+
+/**
+ * Where a screen with more than one parent was opened from, made safe: an
+ * origin the level does not accept becomes its default parent. App stores the
+ * result of this, never a raw value, so a stale entry cannot invent a level.
+ */
+export const normalizeOrigin = (level, origin) => {
+  const allowed = ORIGIN_CANDIDATES[level] || [];
+  return allowed.includes(origin) ? origin : parentOf(level);
+};
 
 export const resolveBack = (level, { origin = null } = {}) => {
   const allowed = ORIGIN_CANDIDATES[level] || [];

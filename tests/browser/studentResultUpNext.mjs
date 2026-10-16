@@ -260,7 +260,8 @@ for (const viewport of VIEWPORTS) {
 
   await scene('resultClosed', async (problems) => {
     const labels = await buttons(page);
-    expect(problems, labels.includes('Try DOL again — no credit'), `closed retry label: ${JSON.stringify(labels)}`);
+    // NAV-8: the result page says which questions it reopens.
+    expect(problems, labels.includes('Try these DOL questions again — no credit'), `closed retry label: ${JSON.stringify(labels)}`);
     expect(problems, !labels.some((label) => label.startsWith('Practice')), 'a "Practice…" button on closed work');
     expect(problems, (await textOf(page)).includes('not replayed'), 'without a review panel the honest copy stays');
   });
@@ -270,6 +271,26 @@ for (const viewport of VIEWPORTS) {
     expect(problems, text.includes('Your recorded answers'), 'review panel not rendered');
     expect(problems, !text.includes('not replayed'), '"not replayed" shown beside a review panel');
     expect(problems, !(await buttons(page)).includes('Review My Work'), 'Review My Work offered beside the panel');
+  });
+
+  // NAV-8 / NAV-9: two practices, named apart; Back from Home says Home.
+  await scene('resultClosedFromHome', async (problems) => {
+    const labels = await buttons(page);
+    expect(problems, labels[0] === '← Home', `Back from Home reads ${JSON.stringify(labels[0])}`);
+    expect(problems, labels.includes('Try these questions again — no credit') && labels.includes('Practice this skill'), `closed buttons: ${JSON.stringify(labels)}`);
+    expect(problems, await clickButton(page, 'Try these questions again — no credit') === 'ok', 'Try these questions again not clickable');
+    expect(problems, (await lastCall())?.type === 'practice', 'Try these questions again did not reopen the assignment');
+    expect(problems, await clickButton(page, 'Practice this skill') === 'ok', 'Practice this skill not clickable');
+    expect(problems, (await lastCall())?.type === 'practiceSkill', 'Practice this skill did not open skill practice');
+    expect(problems, await clickButton(page, '← Home') === 'ok', '← Home not clickable');
+    expect(problems, (await lastCall())?.type === 'home', '← Home did not go Home');
+  });
+
+  // NAV-4: the notice is on the page; nothing offers to reopen it.
+  await scene('resultPaused', async (problems) => {
+    const text = await textOf(page);
+    expect(problems, text.includes('Your teacher paused this — your work is saved.'), 'paused notice missing');
+    expect(problems, !(await buttons(page)).some((label) => /Try .*again/.test(label)), 'a paused lesson offered a retry');
   });
 
   await scene('resultExcused', async (problems) => {

@@ -9,12 +9,14 @@ import { readFileSync } from 'node:fs';
 import {
   WHAT_CHANGED_KIND,
   buildWhatChanged,
+  countUnseenWhatChanged,
   markWhatChangedSeen,
   readWhatChangedSeenAt,
   rememberWhatChangedFirstSeen,
   toMillis,
   untimedWhatChangedKeys,
   whatChangedSeenKey,
+  whatChangedUpdatesLabel,
 } from '../../src/platform/student/whatChangedModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -297,7 +299,8 @@ test('excused and reopened are untimed state items: listed last, never "new"', (
   });
   assert.deepEqual(kinds(items), ['released:a3', 'excused:a1', 'reopened:a2']);
   assert.equal(items[1].text, 'Lesson a1 is excused');
-  assert.equal(items[2].text, 'Lesson a2 was reopened');
+  // NAV-14: it says what changed — the lesson is open, and until when.
+  assert.match(items[2].text, /^Lesson a2 is open for you until \w{3}, Oct 2[12],/);
   assert.equal(items[1].at, null);
   assert.equal(items[1].unseen, false);
   assert.equal(items[2].unseen, false);
@@ -487,11 +490,66 @@ test('an empty list draws nothing when compact and "Nothing new" otherwise', () 
 });
 
 test('onMarkSeen is called once, after the list has been on screen', () => {
-  const effect = region(list, 'useEffect(() => {', '}, [list.length, onMarkSeen]);', 'the seen effect');
-  assert.match(effect, /if \(marked\.current \|\| !list\.length \|\| typeof onMarkSeen !== 'function'\) return;/);
-  assert.match(effect, /marked\.current = true;\s*onMarkSeen\(\);/);
+  // Since NAV-6 "on screen" means half of it in view (the test below); once
+  // is still once: the first mark sets the flag, and nothing marks twice.
+  const effect = region(list, 'useEffect(() => {', '}, [hasItems, canMark]);', 'the seen effect');
+  assert.match(effect, /if \(marked\.current \|\| !hasItems \|\| !canMark\) return undefined;/);
+  assert.match(effect, /const mark = \(\) => \{\s*if \(marked\.current\) return;\s*marked\.current = true;\s*onMarkSeenRef\.current\?\.\(\);/);
+  assert.match(list, /const canMark = typeof onMarkSeen === 'function';/);
 });
 
 test('the kinds are the six decision-6 events plus another DOL try', () => {
   assert.deepEqual(Object.values(WHAT_CHANGED_KIND).sort(), ['excused', 'extended', 'gradeChanged', 'moreAttempts', 'new', 'released', 'reopened', 'retest']);
+});
+
+/* ---- student pass 3: NAV-14, NAV-6, NAV-7 -------------------------------- */
+
+test('NAV-14: "reopened" is listed only while the student can still work the lesson, and never twice with an extension', () => {
+  const closed = lesson('a1', { dueAt: '2026-09-20', lateDueAt: '2026-09-25' });
+  assert.deepEqual(kinds(build({ assignments: [closed], controlsByAssignmentId: { a1: { reopened: true } } })), [],
+    'a reopened flag on closed work opens nothing, so it is not news');
+  const open = build({ assignments: [lesson('a2')], controlsByAssignmentId: { a2: { reopened: true } } });
+  assert.deepEqual(kinds(open), ['reopened:a2']);
+  assert.doesNotMatch(open[0].text, /was reopened/);
+  // With an extension, the extension's own line says it.
+  const both = build({
+    assignments: [closed],
+    controlsByAssignmentId: { a1: { reopened: true, lateDueAt: '2026-10-30T17:00:00Z', extension: { grantedAt: NOW - HOUR } } },
+  });
+  assert.deepEqual(kinds(both), ['extended:a1']);
+});
+
+test('NAV-6: Home counts what is new as "N updates"', () => {
+  assert.equal(countUnseenWhatChanged([{ unseen: true }, { unseen: false }, { unseen: true }]), 2);
+  assert.equal(countUnseenWhatChanged(null), 0);
+  assert.equal(whatChangedUpdatesLabel(0), null);
+  assert.equal(whatChangedUpdatesLabel(1), '1 update');
+  assert.equal(whatChangedUpdatesLabel(2), '2 updates');
+  const home = executableSource(readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8'));
+  const line = region(home, '{whatChangedPanel && whatChangedUpdatesLabel(whatChangedUnseenCount) && (', '</p>');
+  assert.match(line, /document\.getElementById\('mm-what-changed-heading'\)/);
+  assert.match(line, /heading\.focus\(/);
+  // Under Do this next, above the assignment groups.
+  assert.ok(home.indexOf('<WhatShouldIDoNow') < home.indexOf('data-what-changed-updates'));
+  assert.ok(home.indexOf('data-what-changed-updates') < home.indexOf('{whatChangedPanel}'));
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /whatChangedUnseenCount=\{countUnseenWhatChanged\(whatChangedItems\)\}/);
+});
+
+test('NAV-6 / NAV-7: the list is marked seen once half of it is on screen; Home never prints a reason', () => {
+  const list = executableSource(readFileSync(new URL('../../src/components/student/WhatChangedList.jsx', import.meta.url), 'utf8'));
+  const effect = region(list, 'useEffect(() => {', '}, [hasItems, canMark]);');
+  assert.match(effect, /new window\.IntersectionObserver\(/);
+  assert.match(effect, /entry\.isIntersecting && entry\.intersectionRatio >= 0\.5[\s\S]*?mark\(\);/);
+  // Not on mount: the only unconditional mark is the no-observer fallback.
+  assert.match(effect, /typeof window\.IntersectionObserver !== 'function'\) \{\s*mark\(\);/);
+  assert.match(list, /\{item\.reasonText && !compact && \(/);
+});
+
+test('NAV-7: the result page lists its own assignment\'s changes with their reasons', () => {
+  const page = executableSource(readFileSync(new URL('../../src/components/student/StudentAssignmentResult.jsx', import.meta.url), 'utf8'));
+  const block = region(page, '{Array.isArray(changes) && changes.length > 0 && (', '</section>');
+  assert.match(block, /\{item\.reasonText \? <span[^>]*>Reason: \{item\.reasonText\}<\/span> : null\}/);
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /changes=\{whatChangedItems\.filter\(\(item\) => item\.assignmentId === assignmentResultRoute\.assignmentId\)\}/);
 });

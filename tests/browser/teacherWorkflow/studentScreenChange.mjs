@@ -20,6 +20,8 @@
 //       sizes; on a phone "More" unfolds the rest and Escape folds them.
 //       Prints the heights and where the first assignment starts.
 //   S4  No screen scrolls sideways.
+//   S5  Home → "See results": the result page's Back reads "← Home" and goes
+//       Home (NAV-9), where browser Back would have gone.
 //
 // Exit code 1 on any finding.
 
@@ -165,6 +167,24 @@ for (const viewport of VIEWPORTS) {
     await page.goBack();
     const back = await settled(page, 'Assignments');
     checkScreen(`S2 ${tag} Back`, back, 'Assignments');
+  }
+
+  // S5 — a result opened from Home goes back to Home.
+  await pressDestination(page, 'Home', phone);
+  await settled(page, 'Home');
+  const finished = page.getByRole('button', { name: /Finished/ }).filter({ visible: true }).first();
+  if (expect(`S5 ${tag}`, await finished.count(), 'no Finished group on Home')) {
+    if ((await finished.getAttribute('aria-expanded')) === 'false') await finished.click();
+    const seeResults = page.getByRole('button', { name: 'See results' }).filter({ visible: true }).first();
+    if (expect(`S5 ${tag}`, await seeResults.count(), 'no See results on Home')) {
+      await seeResults.click();
+      await settled(page, 'Assignment result');
+      const back = page.locator('main button').filter({ hasText: /^← / }).first();
+      expect(`S5 ${tag}`, (await back.innerText()).trim() === '← Home', `the result page's Back reads "${(await back.innerText()).trim()}"`);
+      await back.click();
+      const home = await settled(page, 'Home');
+      checkScreen(`S5 ${tag} ← Home`, home, 'Home');
+    }
   }
 
   expect(`${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);

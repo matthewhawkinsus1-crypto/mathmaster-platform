@@ -22,6 +22,7 @@ import {
 import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { heldSectionRecoveries } from '../../../functions/shared/sectionRecoveryProjection.mjs';
 import { assignmentGradeOverrideFor } from '../grading/canonicalGradeProjection.js';
+import { teacherClosedNotice, teacherClosedState } from './studentOpenGate.js';
 
 /*
  * THE STUDENT GRADE CENTER, AS A MODEL.
@@ -635,6 +636,9 @@ export const buildStudentGradeCenter = ({
       ? prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue })
       : { open: true, reason: null };
     const locked = lifecycle.isScheduled || access?.open === false;
+    // Paused or archived by the teacher (NAV-4): the grade stays readable,
+    // nothing opens, and the row says so instead of offering Start.
+    const closedByTeacher = teacherClosedState(assignment);
 
     /*
      * A Test Cycle row shows the recorded assessment grade, not the tracker.
@@ -762,9 +766,12 @@ export const buildStudentGradeCenter = ({
       // The row's buttons (Start/Continue, View Results, Try it again — no
       // credit), decided once here.
       // A teacher-set grade offers results only: no work can change it.
-      actions: gradeOverride
-        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
-        : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
+      closedByTeacher,
+      actions: closedByTeacher
+        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null, waitText: teacherClosedNotice(assignment).text }
+        : gradeOverride
+          ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
+          : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
       // Each section's share of this assignment's grade, or null when the
       // shares would not add up to the grade shown.
       sectionShares: testCycle || gradeOverride ? null : sectionWeightShares({

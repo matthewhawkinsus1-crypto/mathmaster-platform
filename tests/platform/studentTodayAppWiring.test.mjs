@@ -95,10 +95,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
   // Filtered by the Today rule (review finding C / item 3).
   assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
-  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
+  // Started from Grades, so a start that cannot happen lands on a result page whose Back says Grades (NAV-9).
+  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\)\}/);
   assert.match(grades, /waysToRaise=\{studentWaysToRaiseNow\(\)\}/);
   assert.match(grades, /if \(way\.action === 'none'\) return undefined;/);
-  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0\);/);
+  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\);/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
   assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaiseNow\(\)\) \}\}/);

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import './uiKit.css';
 import Dialog from './Dialog.jsx';
+import { createToastTimer } from './toastTimer.js';
 
 /*
  * Replaces window.alert / window.confirm across the app.
@@ -17,7 +18,9 @@ import Dialog from './Dialog.jsx';
 
 const ToastContext = createContext(null);
 
-const DEFAULT_DURATIONS = { error: 10000, warning: 8000, success: 5000, info: 5000 };
+// Info is long enough to read twice (NAV-10). Every toast's clock also stops
+// while it is hovered or holds focus (toastTimer.js).
+const DEFAULT_DURATIONS = { error: 10000, warning: 10000, success: 5000, info: 10000 };
 
 // A double-click on a button that asks for confirmation opens the dialog with
 // its first press; its second press lands on the backdrop a moment later. That
@@ -39,10 +42,13 @@ export function ToastProvider({ children }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
     const timer = timersRef.current.get(id);
     if (timer) {
-      clearTimeout(timer);
+      timer.cancel();
       timersRef.current.delete(id);
     }
   }, []);
+
+  const pauseToast = useCallback((id, reason) => timersRef.current.get(id)?.pause(reason), []);
+  const resumeToast = useCallback((id, reason) => timersRef.current.get(id)?.resume(reason), []);
 
   const showToast = useCallback((options) => {
     const { tone = 'info', title = '', message = '', duration } = typeof options === 'string'
@@ -54,10 +60,13 @@ export function ToastProvider({ children }) {
 
     const ms = Number.isFinite(Number(duration)) ? Number(duration) : (DEFAULT_DURATIONS[tone] ?? 5000);
     if (ms > 0) {
-      const timer = setTimeout(() => {
-        setToasts((current) => current.filter((toast) => toast.id !== id));
-        timersRef.current.delete(id);
-      }, ms);
+      const timer = createToastTimer({
+        ms,
+        onExpire: () => {
+          setToasts((current) => current.filter((toast) => toast.id !== id));
+          timersRef.current.delete(id);
+        },
+      });
       timersRef.current.set(id, timer);
     }
     return id;
@@ -68,7 +77,7 @@ export function ToastProvider({ children }) {
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
-      timers.forEach((timer) => clearTimeout(timer));
+      timers.forEach((timer) => timer.cancel());
       timers.clear();
     };
   }, []);
@@ -117,12 +126,12 @@ export function ToastProvider({ children }) {
       <div className="mm-toast-viewport">
         <div aria-live="assertive" aria-atomic="false" style={{ display: 'contents' }}>
           {toasts.filter((toast) => toast.tone === 'error').map((toast) => (
-            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} />
+            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
           ))}
         </div>
         <div aria-live="polite" aria-atomic="false" style={{ display: 'contents' }}>
           {toasts.filter((toast) => toast.tone !== 'error').map((toast) => (
-            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} />
+            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
           ))}
         </div>
       </div>
@@ -186,9 +195,20 @@ export function ToastProvider({ children }) {
   );
 }
 
-function ToastRow({ toast, onDismiss }) {
+function ToastRow({ toast, onDismiss, onPause = null, onResume = null }) {
+  // A pointer resting on the toast, or focus inside it, holds it open.
   return (
-    <div className="mm-toast" data-tone={toast.tone}>
+    <div
+      className="mm-toast"
+      data-tone={toast.tone}
+      onMouseEnter={() => onPause?.(toast.id, 'hover')}
+      onMouseLeave={() => onResume?.(toast.id, 'hover')}
+      onFocus={() => onPause?.(toast.id, 'focus')}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        onResume?.(toast.id, 'focus');
+      }}
+    >
       <div className="mm-toast__body">
         {toast.title && <p className="mm-toast__title">{toast.title}</p>}
         {toast.message && <p className="mm-toast__message">{toast.message}</p>}

@@ -20,6 +20,7 @@ import StudentAssignmentsCenter from '../../src/components/student/StudentAssign
 import StudentAssignmentResult from '../../src/components/student/StudentAssignmentResult.jsx';
 import StudentGradeCenter from '../../src/components/student/StudentGradeCenter.jsx';
 import { NOW, buildScreens } from '../platform/fixtures/studentTodayScreens.mjs';
+import { describeOpenNotice } from '../../src/platform/student/studentOpenGate.js';
 
 const screens = buildScreens();
 window.__mmCalls = [];
@@ -83,6 +84,10 @@ const SCENES = {
     reviewPanel: <div data-test-review-panel style={{ padding: 12, border: '1px dashed var(--mm-border)' }}>Your recorded answers</div>,
   }),
   resultExcused: () => result('excused'),
+  // NAV-8 and NAV-9: opened from Home, a closed lesson that teaches a Path skill.
+  resultClosedFromHome: () => result('closed', { origin: 'home', onPracticeSkill: record('practiceSkill') }),
+  // NAV-4: a start on a paused lesson landed here.
+  resultPaused: () => result('closed', { origin: 'grades', onPracticeSkill: null, notice: describeOpenNotice({ kind: 'paused' }) }),
 };
 
 const listeners = new Set();
