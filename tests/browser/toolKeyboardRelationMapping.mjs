@@ -122,7 +122,7 @@ const typeAnswersAndCheck = async (page, at) => {
   await tabUntil(page, () => inBox(/^Range/), `${at}: the range box`);
   await page.keyboard.type('-1, 2, 3');
   assert.equal((await grades(page)).length, 0, `${at}: nothing graded before Check`);
-  await tabUntil(page, async () => (await activeName(page)) === 'Check', `${at}: the Check button`);
+  await tabUntil(page, async () => /^(Check$|Submit — )/.test(await activeName(page)), `${at}: the Check button`);
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.__KB_GRADES__.some((entry) => entry.kind === 'grade'), null, { timeout: 15000 });
   return grades(page);

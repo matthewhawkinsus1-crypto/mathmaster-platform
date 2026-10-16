@@ -128,7 +128,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 
     // Check, by keyboard: the tool graded, and the keyboard-built graph is right.
     const check = await tabTo(page, (el) => el.submit, "the tool's Check button");
-    assert.match(check.label, /Check|Record/);
+    assert.match(check.label, /Check|Record|Submit/);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => window.__KB_GRADES__.some((g) => g.kind === 'grade'), null, { timeout: 5000 });
     const keyboardGrades = await grades(page);

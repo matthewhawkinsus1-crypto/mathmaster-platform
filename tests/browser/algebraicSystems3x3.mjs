@@ -491,7 +491,7 @@ const runFull3x3 = async (context, scope) => {
   }))) { report.push(observed); await page.close(); return; }
 
   await step(page, journey, 'check my work', async () => {
-    await workflow(page).locator('button', { hasText: 'Check my work' }).click();
+    await workflow(page).locator('button', { hasText: /^Submit — / }).first().click();
     await settle(page, 800);
     observed.result = await page.locator('text=Correct').count();
     expect(journey, observed.result > 0, 'the completed 3×3 was not graded correct');

@@ -327,7 +327,7 @@ const journeyInProgress = async () => {
     await groupButton(b.page, index % 2).click();
     await cards(b.page).nth(index).click();
   }
-  await b.page.getByRole('button', { name: /Check groups/i }).click();
+  await b.page.getByRole('button', { name: /^Submit — / }).first().click();
   await b.page.waitForTimeout(2500 * SLOW_FACTOR);
   check((await attempts(b.page)) === 1, 'B: one submission recorded after the reopen', String(await attempts(b.page)));
   noErrors(b, 'after submitting');
@@ -339,7 +339,7 @@ const journeySubmitted = async () => {
   const a = await openDevice('A', { studentId: STUDENT_A });
   await openTodayWarmup(a.page);
   await sortCorrectly(a.page, STUDENT_A);
-  await a.page.getByRole('button', { name: /Check groups/i }).click();
+  await a.page.getByRole('button', { name: /^Submit — / }).first().click();
   await a.page.waitForTimeout(2500 * SLOW_FACTOR);
   const lockedBefore = await lockedNow(a.page);
   const stripBefore = await attemptStrip(a.page);
@@ -563,7 +563,7 @@ const moveFirstCardTo = async (page, slot) => {
   await cards(page).nth(0).click();
 };
 const checkGroups = async (page) => {
-  await page.getByRole('button', { name: /Check groups/i }).click();
+  await page.getByRole('button', { name: /^Submit — / }).first().click();
   await page.waitForTimeout(3000 * SLOW_FACTOR);
 };
 const serverRecord = (page, studentId) => page.evaluate(([student, assignment]) => {

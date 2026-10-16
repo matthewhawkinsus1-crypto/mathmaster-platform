@@ -165,7 +165,7 @@ const SCRIPTS = {
     await page.getByRole('spinbutton', { name: 'Correlation coefficient r' }).fill('1');
     await page.getByRole('combobox', { name: 'Direction' }).selectOption({ label: 'Positive' });
     await page.getByRole('combobox', { name: 'Strength' }).selectOption({ label: 'Strong' });
-    await btn(page, 'Check data model').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   regressionCalculator: async (page) => {
@@ -187,7 +187,7 @@ const SCRIPTS = {
 
     await page.getByRole('combobox', { name: 'Direction' }).selectOption({ label: 'Positive' });
     await page.getByRole('combobox', { name: 'Strength' }).selectOption({ label: 'Strong' });
-    await btn(page, 'Submit my regression').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   systemsWorkspace: async (page) => {
@@ -195,7 +195,7 @@ const SCRIPTS = {
       .selectOption({ label: 'Exactly one solution' });
     await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('2');
     await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('5');
-    await btn(page, 'Check system').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // x = 1, y = 2, z = 3. The RREF technology first (the work does not count
@@ -207,7 +207,7 @@ const SCRIPTS = {
     for (const [name, value] of [['x', 1], ['y', 2], ['z', 3]]) {
       await page.getByRole('spinbutton', { name, exact: true }).fill(String(value));
     }
-    await btn(page, 'Check matrix solution').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // (5, 1) is not in the region; (0, 2) is.
@@ -216,7 +216,7 @@ const SCRIPTS = {
       .getByRole('button', { name: 'No', exact: true }).click();
     await page.getByRole('spinbutton', { name: 'Your own feasible x', exact: true }).fill('0');
     await page.getByRole('spinbutton', { name: 'Your own feasible y', exact: true }).fill('2');
-    await btn(page, 'Check feasible region').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // y ≥ x through (0, 0) and (1, 1), solid, shaded above; y < -x + 4 through
@@ -234,7 +234,7 @@ const SCRIPTS = {
       await page.getByRole('group', { name: 'Boundary style', exact: true }).nth(index).getByRole('button', { name: style, exact: true }).click();
       await page.getByRole('group', { name: 'Shade', exact: true }).nth(index).getByRole('button', { name: shade, exact: true }).click();
     }
-    await btn(page, 'Check inequality graph').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // y = 2x + 1 through (0, 1) and (2, 5), plotted from the keyboard: the
@@ -245,7 +245,7 @@ const SCRIPTS = {
       for (const key of keys) await page.keyboard.press(key);
       await page.keyboard.press('Enter');
     }
-    await btn(page, 'Check construction').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // x - 6 = 9 → add 6 to both sides, cross out the zero pair, write 9 + 6 as 15.

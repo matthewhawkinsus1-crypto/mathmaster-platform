@@ -409,7 +409,7 @@ const JOURNEYS = {
       }
     }
     await shot(page, 'phone-table-sort-done');
-    await page.getByRole('button', { name: 'Check groups' }).tap();
+    await page.getByRole('button', { name: /^Submit — / }).first().tap();
     await settle(page, 800);
     const graded = (await grades(page)).find((grade) => grade.questionId === 'ux-rm-table');
     check(graded?.isCorrect === true, `a correct sort was not graded correct: ${JSON.stringify(graded)} (sets: ${question?.sets?.map((set) => set.id).join(', ')})`);
