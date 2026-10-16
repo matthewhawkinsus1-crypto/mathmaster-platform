@@ -136,7 +136,7 @@ const factStyle = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(
 // How often an open Test review asks whether it may still be shown.
 const TEST_REVIEW_RECHECK_MS = 30000;
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, lateDueAt = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -368,7 +368,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // open says until when (each from a tested helper in testCycleDiscovery.js).
   const reviewWaived = reviewWasWaived(card);
   const sitting = sittingFactsFor(card);
-  const due = testCycleDueFacts({ dueAt: card.dueAt, lateDueAt });
+  // The student's own due date when the app has it (extra time moves it), else the class's.
+  const due = testCycleDueFacts({ dueAt: dueAt || card.dueAt, lateDueAt });
   const scheduleBlocks = studentScheduleBlocks(card);
   const testSkills = testSkillsSection(card);
 
