@@ -31,7 +31,7 @@ Every other answer I tried was graded correctly. That covers fractions, decimals
 
 | Journey | Viewport | What the student did | Result |
 | --- | --- | --- | --- |
-| Whole lesson | 1366×768 | WU 1 → DOL 3 in order. At least one classic mistake per Matrix Lab view (list below). Hints 1–2 on CW 2 (hint 3 was offered after the second miss, not opened); Read aloud on WU 1, CW 3, CW 9 and PR 10; reloads mid-CW 2 and mid-CW 9; Undo ×4 and Reset on CW 9; switched away and back; worked CW 9 to completion inside Enlarge. | Every right answer graded right except WU 1's `8,050` (P0-1). Every wrong answer graded wrong. Findings below. |
+| Whole lesson | 1366×768 | WU 1 → DOL 3 in order. At least one classic mistake per Matrix Lab view (list below). Hint ×3 on CW 2 (hints 1–2 open after the first miss, hint 3 after the second); Read aloud on WU 1, CW 3, CW 9 and PR 10; reloads mid-CW 2 and mid-CW 9; Undo ×4 and Reset on CW 9; switched away and back; worked CW 9 to completion inside Enlarge. | Every right answer graded right except WU 1's `8,050` (P0-1). Every wrong answer graded wrong. Findings below. |
 | Warm-Up + Practice | 820×1180 touch | Every item tapped and typed to a correct Check (15 items). | All graded right. No sideways scroll, no page errors. Cells 64×44 px. |
 | Warm-Up + Practice | 390×844 touch | The same 15 items. | All graded right; no sideways scroll; no page errors. Check is reachable on every item. After the last value, Check sits under the work bar (P2-7). |
 | Spot check | 1920×1080 | WU 1, PR 5, PR 10 worked; CW 3, CW 5, DOL 2 layout only | No overflow; same findings as at 1366. |
@@ -288,6 +288,7 @@ Screenshots in `docs/qa/screenshots/matrices/`:
 - `laptop-cw1-transposed-taps-feedback.png`
 - `laptop-cw2-feedback-under-work-bar.png`
 - `laptop-cw2-hint2-gives-a-part.png`
+- `laptop-cw2-hint3-after-second-miss.png`
 - `laptop-cw3-predicted-4x5-grid.png`
 - `laptop-cw3-row-column-expansion.png`
 - `laptop-cw3-guided-notes.png`
