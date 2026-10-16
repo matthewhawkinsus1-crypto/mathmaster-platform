@@ -426,7 +426,8 @@ const courseJourney = async (context, device) => {
   const endpoint = page.getByPlaceholder('Exact endpoint, e.g. -13/8');
   await endpoint.fill('-3');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
-  await page.getByRole('button', { name: /Open/ }).first().click();
+  // Not "⤢ Open Work View", which also has "Open" in it.
+  await page.getByRole('button', { name: /Open/ }).filter({ hasNotText: 'Work View' }).first().click();
   await endpoint.fill('5');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
   const notation = page.locator('math-field').first();
