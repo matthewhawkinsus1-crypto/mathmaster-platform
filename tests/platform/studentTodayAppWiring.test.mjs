@@ -115,7 +115,9 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   assert.match(panel, /resultEntry\.frozen/);
   assert.match(panel, /!resultEntry\.isTestCycle/);
   assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
-  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} \/>/);
+  // The student's own profile rides along for Read aloud and Translate beside
+  // each worked solution (student pass 3, HELP-12).
+  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} studentProfile=\{user\.profile\} \/>/);
 });
 
 test('"Use a Practice Pass" is offered only to a student who holds one', () => {

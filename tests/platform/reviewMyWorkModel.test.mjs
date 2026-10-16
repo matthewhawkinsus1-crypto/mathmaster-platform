@@ -139,13 +139,18 @@ test('component: the model is built only from what load() returned, after it ret
 test('component: every solution renderer sits inside the supplement boundary', () => {
   const solution = region(code, 'function WorkedSolution', 'function ReviewQuestion');
   const boundary = region(solution, '<QuestionSupplementBoundary', '</QuestionSupplementBoundary>');
-  assert.match(boundary, /<ToolSolutionReview question=\{question\} \/>/);
-  assert.match(boundary, /<SolutionReview question=\{question\} \/>/);
-  assert.equal((code.match(/<SolutionReview\b/g) || []).length, 1);
-  assert.equal((code.match(/<ToolSolutionReview\b/g) || []).length, 1);
-  // The renderer is imported (the named content check rides the same import, QA round 2).
-  assert.match(component, /^import SolutionReview(, \{ legacySolutionReviewContent \})? from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
-  assert.match(component, /^import ToolSolutionReview from '\.\.\/\.\.\/tools\/shared\/ToolSolutionReview\.jsx';$/m);
+  // One renderer since student pass 3 (HELP-12): the closed question's own
+  // panel, for every question type and tool, with the unscored practice
+  // beside it — both inside the boundary, and nowhere else on the page.
+  assert.match(boundary, /<SolutionReviewPanel\s+question=\{question\}/);
+  assert.match(boundary, /<PracticeLikeThis question=\{question\}/);
+  assert.equal((code.match(/<SolutionReviewPanel\b/g) || []).length, 1);
+  assert.equal((code.match(/<PracticeLikeThis\b/g) || []).length, 1);
+  assert.doesNotMatch(code, /<SolutionReview\b|<ToolSolutionReview\b/, 'not the thin renderers it replaced');
+  // The renderers are imported (the content check rides the legacy import, QA round 2).
+  assert.match(component, /^import SolutionReviewPanel from '\.\.\/\.\.\/SolutionReviewPanel\.jsx';$/m);
+  assert.match(component, /^import \{ legacySolutionReviewContent \} from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
+  assert.match(component, /^import PracticeLikeThis from '\.\.\/\.\.\/platform\/supports\/workedExample\/PracticeLikeThis\.jsx';$/m);
   assert.match(component, /^import QuestionSupplementBoundary from '\.\.\/\.\.\/QuestionSupplementBoundary\.jsx';$/m);
 });
 
