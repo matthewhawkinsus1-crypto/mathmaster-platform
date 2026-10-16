@@ -35,8 +35,9 @@ test('it keeps its name, state and target for assistive technology', () => {
 });
 
 test('on a touch device the keypad and the "needed" keys belong to the active field only', () => {
-  assert.match(source, /const toolsVisible = isMobile \? showTools && fieldActive : showTools;/);
-  assert.match(source, /const requiredKeysVisible = isMobile && fieldActive;/);
+  // (Both also close with the question since student pass 3: questionTerminal.)
+  assert.match(source, /const toolsVisible = !questionTerminal && \(isMobile \? showTools && fieldActive : showTools\);/);
+  assert.match(source, /const requiredKeysVisible = !questionTerminal && isMobile && fieldActive;/);
   assert.match(render, /\{requiredKeysVisible && requiredTools\.length > 0 && \(/);
   assert.match(render, /\{toolsVisible && \(/);
   // Moving to another place to TYPE makes it inactive; its own keys and a

@@ -12,6 +12,7 @@ import {
   normalizeComposeOrder,
   normalizeFunctionOperations,
 } from './functionOperationsMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = {
   width: '100%',
@@ -145,7 +146,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
       </ToolGrid>
 
       <Panel title="Check your work">
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check all operations</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check all operations</SubmitText></button>
         {feedback ? (
           <div style={{ marginTop: 12 }}>
             <ResultPill ok={feedback.isCorrect}>

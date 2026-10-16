@@ -83,5 +83,9 @@ export const closedAttemptText = ({ maximumAttempts = 1, reviewAvailable = false
   const replacement = allowReplacement
     ? (reviewAvailable ? ' Review it, then request a new question to continue.' : ' Request a new question to continue.')
     : '';
-  return `That was the final allowed attempt (${maximumAttempts} total). This response is locked.${review}${replacement}`;
+  // One word for them, tries (D9); "attempt", "total" and "response" were the
+  // program's words.
+  const tries = Math.max(1, Math.floor(Number(maximumAttempts)) || 1);
+  const spent = tries === 1 ? 'That was your only try.' : `That was your last try (${tries} in all).`;
+  return `${spent} Your answer is locked.${review}${replacement}`;
 };

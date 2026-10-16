@@ -8,27 +8,31 @@ test('a later unfinished section comes first', () => {
   assert.deepEqual(resolveAssignmentHandoff({ nextIncompleteSection: { role: 'dol' }, nextIncompleteSectionLabel: 'DOL', upNext: { assignment: { id: 'b', title: 'B' } } }), { kind: 'section', label: 'DOL' });
 });
 
-test('with nothing left in this assignment, hand off to Up next', () => {
+// Student pass 3, RUN-12 (adopted 2026-10-16): finishing lands on this
+// assignment's results page, with Up next as its second action — the button no
+// longer opens the next lesson and skips the summary.
+test('with nothing left in this assignment, the results page — Up next rides along for it', () => {
   const upNext = { assignment: { id: 'b', title: 'Lesson 5' } };
-  assert.deepEqual(resolveAssignmentHandoff({ upNext }), { kind: 'upNext', label: 'Lesson 5', upNext });
+  assert.deepEqual(resolveAssignmentHandoff({ upNext }), { kind: 'results', label: 'your results', upNext });
 });
 
-test('with no Up next, go to the results page — never a finished section', () => {
-  assert.deepEqual(resolveAssignmentHandoff({}), { kind: 'results', label: 'your results' });
+test('with no Up next, the results page too — never a finished section', () => {
+  assert.deepEqual(resolveAssignmentHandoff({}), { kind: 'results', label: 'your results', upNext: null });
   assert.equal(resolveAssignmentHandoff({ student: false }), null);
 });
 
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 
-test('App offers only an INCOMPLETE later section, then Up next / results (with its imports)', () => {
+test('App offers only an INCOMPLETE later section, then the results (with its imports)', () => {
   const workspace = region(app, 'const nextAvailableIncompleteSection =', 'const returnsToAssignmentResult', 'section hand-off');
   // The fallback to an already-complete later section ("Continue to Practice"
   // with Practice done) is gone.
   assert.doesNotMatch(workspace, /laterNavigationSections\.find\(\(section\) => sectionNavigationTarget\(section\)\)/);
   assert.match(workspace, /resolveAssignmentHandoff\(\{/);
-  assert.match(workspace, /resolveUpNext\(\{\s*dashboard:\s*studentUpNextDashboard\(\)/);
+  // Up next is the results page's to offer (StudentAssignmentResult), not the button's.
+  assert.doesNotMatch(workspace, /resolveUpNext\(|startAssignment\(/);
+  assert.match(workspace, /: \(\) => openStudentAssignmentResult\(activeAssignmentId, \{ origin: 'assignments' \}\);/);
   assert.match(app, /import \{[^}]*\bresolveAssignmentHandoff\b[^}]*\} from '\.\/platform\/student\/assignmentHandoff\.js'/);
-  assert.match(app, /import \{[^}]*\bresolveUpNext\b[^}]*\} from '\.\/studentDashboardModel\.js'/);
   const engine = region(app, 'onContinueSection={', 'continueSectionLabel=', 'QuestionEngine hand-off prop');
   assert.match(engine, /assignmentHandoff/);
 });

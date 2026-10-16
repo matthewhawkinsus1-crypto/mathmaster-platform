@@ -16,6 +16,7 @@ import linearTableWorkbenchGrader, {
 } from '../../../functions/shared/serverGrading/tools/linearTableWorkbench.mjs';
 import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -447,7 +448,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           disabled={!readyToClassify || !classification}
           style={{ ...button, background: '#1a73e8', color: '#fff', border: 0 }}
         >
-          Check my work
+          <SubmitText>Check my work</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>

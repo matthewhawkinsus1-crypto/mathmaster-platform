@@ -47,7 +47,9 @@ const browser = await chromium.launch(launchOptions);
 // --- helpers ------------------------------------------------------------------
 
 // A button the student can see, by its accessible name (exact for a string).
-// A role locator skips the Work View rail's hidden "Submit Answer".
+// A role locator skips the Work View rail's hidden Submit.
+// The engine's Submit says its cost ("Submit — uses 1 of 3 tries", D9).
+const SUBMIT = /^Submit — /;
 const btn = (page, name) => page.getByRole('button', { name, exact: typeof name === 'string' });
 
 // MathLive fields are set through the element's own value API: what the
@@ -108,18 +110,18 @@ const SCRIPTS = {
     await balanceMove(page, 'Divide by', '2');
     await btn(page, '2, mark this factor for cancellation').first().click();
     await simplifySide(page, 'Right side', '4');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   system: async (page) => {
     await typeMathField(page, 'Solution to the system as an ordered pair', '(1,3)');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   multiAnswer: async (page) => {
     await typeMathField(page, 'Slope', '3');
     await typeMathField(page, 'y-intercept', '-2');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   relationMapping: async (page) => {
@@ -253,7 +255,7 @@ const SCRIPTS = {
     await balanceMove(page, 'Add', '6');
     await page.locator('[data-term-text="+ 6"][aria-label$="select to cancel"]').first().click();
     await simplifySide(page, 'Right side', '15');
-    await btn(page, 'Submit Solved Equation').click();
+    await btn(page, SUBMIT).click();
   },
 
   functionInvestigation: async (page) => {
@@ -315,7 +317,7 @@ const SCRIPTS = {
     await page.waitForTimeout(400);
     const analysis = page.getByRole('complementary').filter({ has: page.getByRole('heading', { name: 'Analysis Parts' }) });
     await setMathField(analysis.locator('math-field'), '(-\\infty, \\infty)');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 };
 

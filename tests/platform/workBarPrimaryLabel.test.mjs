@@ -67,8 +67,11 @@ test('Next and Continue show their first word and arrow on a phone, and keep the
     return parts ? { phone: `${parts[1]}${parts[3]}`, desktop: `${parts[1]}${parts[2]}${parts[3]}` } : { phone: label, desktop: label };
   };
   // The labels barContinueAction actually produces.
-  assert.match(engine, /\{ label: 'Next question →', onClick: onNextQuestion \}/);
-  assert.match(engine, /\{ label: `Continue to \$\{continueSectionLabel \|\| 'next section'\} →`, onClick: onContinueSection \}/);
+  assert.match(engine, /\{ kind: 'next', label: 'Next question →', onClick: onNextQuestion \}/);
+  assert.match(engine, /\{ kind: 'continue', label: `Continue to \$\{continueSectionLabel \|\| 'next section'\} →`, onClick: onContinueSection \}/);
+  // The way back to a skipped question has no arrow: on a phone it shows its
+  // own short words ("Back to Q1") instead (student pass 3, RUN-12).
+  assert.match(engine, /barContinueAction\.kind === 'back'\s*\/\/[^\n]*\n[^\n]*\n\s*\? <><span aria-hidden="true">← <\/span><span className="mathmaster-action-label-long">\{barContinueAction\.label\}<\/span><span className="mathmaster-action-label-short">/);
   assert.deepEqual(split('Next question →'), { phone: 'Next →', desktop: 'Next question →' });
   assert.deepEqual(split('Continue to Unit 2 Review →'), { phone: 'Continue →', desktop: 'Continue to Unit 2 Review →' });
   assert.deepEqual(split('Continue to next section →'), { phone: 'Continue →', desktop: 'Continue to next section →' });

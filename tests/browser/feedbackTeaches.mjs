@@ -66,7 +66,7 @@ const submit = async (page) => {
   await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
   await page.waitForTimeout(500);
 };
-const outcome = (page) => page.locator('[role="status"]').filter({ hasText: /Not quite|final allowed attempt|Correct!/ }).first();
+const outcome = (page) => page.locator('[role="status"]').filter({ hasText: /Not quite|That was your (?:last|only) try|Correct!/ }).first();
 // Scrolled to, it shows: its top is on screen, and at least 40px of it (or
 // all of it, if shorter) shows through the viewport and every scrolling or
 // clipping box around it. A box clipped to a strip still has a position on
@@ -116,7 +116,7 @@ for (const device of DEVICES) {
     await submit(page);
     const box = outcome(page);
     const text = await box.textContent();
-    check(/Not quite\. You have 2 attempts remaining/.test(text), `${device.name}: the attempt outcome is unchanged`, text);
+    check(/Not quite\. You have 2 tries left\./.test(text), `${device.name}: the attempt outcome is unchanged`, text);
     // Attempts left: a miss a generic check explains (here a sign flip)
     // shows nothing an ordinary miss does not (PR #462 review M6b; QA M1).
     check(await box.locator('[data-miss-feedback]').count() === 0, `${device.name}: no check-specific message while attempts are left`, await box.textContent());
@@ -133,7 +133,7 @@ for (const device of DEVICES) {
     await answer(page, '2');
     await submit(page);
     const closed = await outcome(page).textContent();
-    check(/final allowed attempt \(3 total\)\. This response is locked\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
+    check(/That was your last try \(3 in all\)\. Your answer is locked\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
     const review = page.locator('[aria-label="Worked solution"][data-worked-solution="present"]');
     check(await review.isVisible(), `${device.name}: the worked solution is shown`);
     check((await review.textContent()).includes('Change in y: 5 − 2 = 3.'), `${device.name}: from the authored solutionReview`);
@@ -157,7 +157,7 @@ for (const device of DEVICES) {
       shown[kind] = await page.locator('[role="status"], [aria-live]').evaluateAll((nodes) => nodes.map((node) => node.outerHTML).join('\n'));
       await context.close();
     }
-    check(/Not quite\. You have 2 attempts remaining/.test(shown.none), `${device.name}: the ordinary miss is the plain outcome`, shown.none);
+    check(/Not quite\. You have 2 tries left\./.test(shown.none), `${device.name}: the ordinary miss is the plain outcome`, shown.none);
     for (const kind of ['sign-flipped', 'reciprocal']) {
       check(shown[kind] === shown.none, `${device.name}: a ${kind} miss shows exactly what an ordinary miss shows`, shown[kind]);
     }

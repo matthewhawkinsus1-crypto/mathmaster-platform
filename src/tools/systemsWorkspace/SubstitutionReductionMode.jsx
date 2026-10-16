@@ -94,6 +94,7 @@ import {
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -629,7 +630,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
                 {readyToSubmit ? <AlgebraicOutcome questionData={questionData} solution={solution} onAction={onAction} /> : null}
-                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
+                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
                     <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>

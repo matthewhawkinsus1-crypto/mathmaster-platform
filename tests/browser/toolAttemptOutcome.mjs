@@ -49,7 +49,8 @@ const DEVICES = {
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
 const run = Date.now();
-const OUTCOME = /attempts? remaining on this version|final allowed attempt|Correct! This question is complete/;
+// The engine's words (student pass 3, D9): "tries", never "attempts … on this version".
+const OUTCOME = /You have \d tr(?:y|ies) left|That was your (?:last|only) try|Correct! This question is complete/;
 
 const open = async (device, role, tool, prior = 0) => {
   const context = await browser.newContext(DEVICES[device]);
@@ -150,12 +151,12 @@ const waitForOutcome = (page) => page.waitForFunction((source) => new RegExp(sou
 // ------------------------------------------------------------------ practice
 for (const device of ['chromebook', 'phone']) {
   const { context, page } = await open(device, 'practice', 'inverse');
-  for (const [attempt, left] of [[1, '2 attempts'], [2, '1 attempt']]) {
+  for (const [attempt, left] of [[1, '2 tries left.'], [2, '1 try left — your last one.']]) {
     await attemptWrong(page, 'inverse');
     await waitForOutcome(page);
     await page.waitForTimeout(300);
     const state = await outcomeState(page);
-    check(state.text.includes(`You have ${left} remaining on this version`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
+    check(state.text.includes(`You have ${left}`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
     check(state.inTool, `${device} practice inverse, wrong attempt ${attempt}: the outcome is in the tool's result area`, `in tool: ${state.inTool}`);
     check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, visible to ${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice inverse, wrong attempt ${attempt}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
@@ -164,7 +165,7 @@ for (const device of ['chromebook', 'phone']) {
     check(/Focus on: [^.]*Domain restriction/.test(state.text) && !/\b(fog|gof)\b|∘/.test(state.text),
       `${device} practice inverse, wrong attempt ${attempt}: "Focus on" names only the asked parts, readably`, state.text);
     // The tool's own words are said with the outcome (A11Y-1).
-    check(/remaining on this version\. (Neither composition|The arithmetic is right|The inverse value is off|\(g ∘ f\) is right|\(f ∘ g\) is right)/.test(state.liveText),
+    check(/tr(?:y|ies) left(?: — your last one)?\. (Neither composition|The arithmetic is right|The inverse value is off|\(g ∘ f\) is right|\(f ∘ g\) is right)/.test(state.liveText),
       `${device} practice inverse, wrong attempt ${attempt}: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
     // From the second miss the hint the platform has ready is offered here (HELP-7).
     check(state.hintOffer === (attempt >= 2), `${device} practice inverse, wrong attempt ${attempt}: the hint offer ${attempt >= 2 ? 'is' : 'is not yet'} in the tool`, `offer: ${state.hintOffer}`);
@@ -180,8 +181,8 @@ for (const device of ['chromebook', 'phone']) {
   await waitForOutcome(page);
   await page.waitForTimeout(300);
   const closed = await outcomeState(page);
-  check(/final allowed attempt \(3 total\)/.test(closed.text) && closed.count === 1 && closed.liveRegions === 1, `${device} practice inverse, final attempt: the engine's closing box, once`, `${closed.text} (${closed.count} shown, ${closed.liveRegions} live)`);
-  check(!/remaining on this version/.test(closed.pageText), `${device} practice inverse, final attempt: no stale "remaining" sentence is left in the tool`);
+  check(/That was your last try \(3 in all\)/.test(closed.text) && closed.count === 1 && closed.liveRegions === 1, `${device} practice inverse, final attempt: the engine's closing box, once`, `${closed.text} (${closed.count} shown, ${closed.liveRegions} live)`);
+  check(!/tr(?:y|ies) left/.test(closed.pageText), `${device} practice inverse, final attempt: no stale "remaining" sentence is left in the tool`);
   await context.close();
 }
 
@@ -192,7 +193,7 @@ for (const tool of ['investigation', 'regression', 'board']) {
     await waitForOutcome(page);
     await page.waitForTimeout(300);
     const state = await outcomeState(page);
-    check(state.text.includes('Not quite. You have 2 attempts remaining on this version') && state.inTool && state.onScreen,
+    check(state.text.includes('Not quite. You have 2 tries left.') && state.inTool && state.onScreen,
       `${device} practice ${tool}: the outcome is in the tool, on screen`, `${state.text} — in tool ${state.inTool}, ${state.belowCheck}px below Check, top ${state.top}/${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice ${tool}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
     if (tool === 'board') check(!/Focus on/.test(state.text), `${device} practice board: the parts to revisit are not listed twice`, state.text);
@@ -227,7 +228,7 @@ for (const device of ['chromebook', 'phone']) {
   await waitForOutcome(page);
   await page.waitForTimeout(300);
   const state = await outcomeState(page);
-  check(state.inTool && state.liveRegions === 1 && /remaining on this version\. \S/.test(state.liveText) && !/remaining on this version\.\s*$/.test(state.liveText),
+  check(state.inTool && state.liveRegions === 1 && /tr(?:y|ies) left(?: — your last one)?\. \S/.test(state.liveText) && !/tr(?:y|ies) left(?: — your last one)?\.\s*$/.test(state.liveText),
     `${device} graphing, a wrong line: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
   // A third plot starts the line again, and says which points went.
   await plane.focus();
@@ -274,7 +275,7 @@ for (const device of ['chromebook', 'phone']) {
   await waitForOutcome(page);
   await page.waitForTimeout(1500);
   const state = await outcomeState(page);
-  check(state.text.includes('You have 1 attempt remaining on this version') && state.inTool && state.count === 1,
+  check(state.text.includes('You have 1 try left — your last one.') && state.inTool && state.count === 1,
     'chromebook practice inverse, a question with an earlier attempt: the outcome arrives and stays', `${state.text || '(nothing)'} — ${state.count} shown`);
   await context.close();
 }
@@ -286,7 +287,7 @@ for (const tool of ['server', 'literal']) {
   await waitForOutcome(page);
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
-  check(/Not quite\. You have \d attempts? remaining on this version/.test(state.text) && !state.inTool && state.count === 1 && state.liveRegions === 1,
+  check(/Not quite\. You have \d tr(?:y|ies) left/.test(state.text) && !state.inTool && state.count === 1 && state.liveRegions === 1,
     `chromebook practice ${tool}: the engine's own box, once`, `${state.text || '(nothing)'} — in tool ${state.inTool}, ${state.count} shown, ${state.liveRegions} live`);
   if (tool === 'server') check(!state.verdictPill, 'chromebook practice server: the tool shows no verdict of its own');
   await context.close();

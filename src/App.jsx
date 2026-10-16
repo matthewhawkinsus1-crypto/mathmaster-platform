@@ -265,7 +265,7 @@ import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalG
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
-import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
+import { resolveAssignmentHandoff, resolveSkippedQuestion } from './platform/student/assignmentHandoff.js';
 import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
@@ -273,7 +273,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeSaveStatus } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -3099,6 +3099,16 @@ function App() {
     return result;
   };
 
+  // WHAT THE SAVE LINE IS ABOUT: a draft, or an answer the student sent
+  // (RUN-11, saveStatusModel.js). Derived during render so "Answer recorded"
+  // appears with the drain that recorded it, then committed.
+  const [studentSaveSubjectState, setStudentSaveSubject] = useState(initialSaveSubject);
+  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus });
+  useEffect(() => {
+    if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
+  }, [studentSaveSubject, studentSaveSubjectState]);
+  const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -9654,21 +9664,29 @@ function App() {
       ? resolveAssignmentHandoff({
         nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
         nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
-        upNext: !preview && user?.role === 'student' && !lifecycle.isPracticeOnly && !nextAvailableSectionTarget
-          ? resolveUpNext({ dashboard: studentUpNextDashboard(), assignmentId: activeAssignmentId })
-          : null,
         student: !preview && user?.role === 'student',
       })
       : null;
+    // Finishing lands on this assignment's results; its Up next card is the
+    // second action there (RUN-12, assignmentHandoff.js).
     const continueAfterSection = !assignmentHandoff
       ? null
       : assignmentHandoff.kind === 'section'
         ? () => changeQuestion(nextAvailableSectionTarget.index)
-        : assignmentHandoff.kind === 'upNext'
-          ? () => (assignmentHandoff.upNext.opensResult
-            ? openStudentAssignmentResult(assignmentHandoff.upNext.assignment.id, { origin: 'assignments' })
-            : startAssignment(assignmentHandoff.upNext.assignment.id, assignmentHandoff.upNext.questionIndex ?? 0))
-          : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
+        : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
+    // Nothing workable ahead and the section not done: the way back to the
+    // question that was skipped (RUN-12).
+    const skippedQuestion = !nextQuestionEntry && !currentNavigationSection?.complete
+      ? resolveSkippedQuestion({
+        entries: visibleQuestionEntries,
+        currentIndex: currentQuestionIndex,
+        currentRole: currentNavigationSection?.role,
+        isWorkable: entryIsWorkableNow,
+        isComplete: sectionQuestionIsComplete,
+        attemptCountOf: (index) => normalizeQuestionRecord(workingTracker?.[index]).attemptCount,
+        sectionLabelOf: (role) => (role === 'dol' ? 'Exit ticket (DOL)' : activitySectionMeta[role]?.label || ''),
+      })
+      : null;
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -10197,10 +10215,10 @@ function App() {
               familyContext={currentFamilyContext}
               onFamilyDelivery={preview ? null : handleFamilyDelivery}
               adaptation={currentAdaptation}
-              onGrade={handleGradeSubmit}
+              onGrade={(...args) => { markAnswerSent(); return handleGradeSubmit(...args); }}
               onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
               onSpotlightFrame={preview ? null : publishSpotlightWork}
-              onStepGrade={handleStepGrade}
+              onStepGrade={(...args) => { markAnswerSent(); return handleStepGrade(...args); }}
               onRequestNewQuestion={handleRequestNewQuestion}
               onLoadScratchpad={handleLoadScratchpad}
               onSaveScratchpad={handleSaveScratchpad}
@@ -10253,6 +10271,8 @@ function App() {
               sectionQuestionCount={currentSectionQuestionCount}
               onContinueSection={assignmentHandoff ? continueAfterSection : null}
               continueSectionLabel={assignmentHandoff?.label || ''}
+              onGoBackToQuestion={skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null}
+              goBackLabel={skippedQuestion?.label || ''}
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
@@ -10283,20 +10303,16 @@ function App() {
                 is now reachable only from a drain that left nothing owed, and
                 every other state names where the work actually is and whether
                 anything is still to come. */}
+            {/* Announced only when the work needs the student (offline, not
+                recorded, refused, not stored): a routine save is not a second
+                announcement of the result the question just gave. */}
             {!preview && studentPersistenceStatus !== 'idle' && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
-                {studentPersistenceStatus === 'capturing'
-                  ? 'Saving…'
-                  : studentPersistenceStatus === 'queued' || studentPersistenceStatus === 'syncing'
-                    ? `Syncing · ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} saved on this device. You may keep working.`
-                    : studentPersistenceStatus === 'offline'
-                      ? `Waiting for connection · ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} saved on this device.`
-                      : studentPersistenceStatus === 'needs-review'
-                        ? `Needs review · ${studentPendingGradeCount || studentOutboxDepth} saved item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} has not been recorded yet. You may keep working.`
-                      : studentPersistenceStatus === 'submitted'
-                        ? 'Recorded by MathMaster.'
-                        : studentPersistenceStatus === 'durable'
-                          ? 'Recorded by MathMaster.'
+              <p {...(['offline', 'needs-review', 'rejected', 'volatile'].includes(studentPersistenceStatus) ? { role: 'status', 'aria-live': 'polite' } : {})} data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                {/* A draft is "Draft saved"; only an answer the student sent
+                    is ever "Answer recorded", and only once the server has it
+                    (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
+                {studentSaveLine
+                  ? studentSaveLine
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
                             : 'Saved on this device only. MathMaster will finish saving when you are back online.'}

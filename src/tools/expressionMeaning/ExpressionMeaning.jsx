@@ -10,6 +10,7 @@ import expressionMeaningGrader, {
   expressionMeaningDimensionChecks,
   expressionMeaningWork,
 } from '../../../functions/shared/serverGrading/tools/expressionMeaning.mjs';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
@@ -183,7 +184,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
           disabled={!allComplete}
           style={{ ...button, background: allComplete ? '#1a73e8' : '#dadce0', color: allComplete ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          Submit meaning map
+          <SubmitText>Submit meaning map</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every connection is correct' : 'Some connections need another look'}</ResultPill> : null}
       </div>

@@ -9,7 +9,7 @@
 //
 //   practice  while attempts remain there is no verdict chip; the third miss
 //             closes the question and shows "Incorrect — review below" as a
-//             role="status" chip whose rectangle intersects no visible button
+//             chip whose rectangle intersects no visible button
 //             (the "⤢ Enlarge question" opener among them) and no heading
 //             ("Complete Each Part" among them).
 //   dol       a submitted DOL item never shows the chip (no outcome feedback).
@@ -63,7 +63,9 @@ const submit = async (page) => {
   await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
   await page.waitForTimeout(500);
 };
-const chip = (page) => page.locator('[role="status"]').filter({ hasText: /^(Incorrect|Almost)( — review below)?$/ });
+// Not a live region since student pass 3 (one announcement per result: the
+// closed card's verdict says it), so it is found by its class.
+const chip = (page) => page.locator('.mathmaster-closed-verdict').filter({ hasText: /^(Incorrect|Almost)( — review below)?$/ });
 
 // Every visible button and heading whose rectangle meets the chip's.
 //
@@ -129,7 +131,9 @@ for (const device of DEVICES) {
     const verdict = chip(page);
     check(await verdict.count() === 1 && await verdict.isVisible(), `${device.name}: the closed question shows its verdict chip`);
     check((await verdict.textContent()).trim() === 'Incorrect — review below', `${device.name}: worded "Incorrect — review below"`, (await verdict.textContent()).trim());
-    check(await verdict.getAttribute('aria-label') === 'Incorrect', `${device.name}: still labelled for a screen reader`);
+    // A screen reader hears the verdict once: from the closed card's region,
+    // not again from the chip.
+    check(await verdict.getAttribute('role') === null && await page.locator('[data-closed-question-card] [role="status"]').count() === 1, `${device.name}: the verdict is announced once, by the closed card`);
     // Centred in its scroller: the phone's sticky work bar (Undo, Reset,
     // Scratchpad) floats over whatever scrolls beneath it, chip or heading
     // alike — that is scrolling, not the chip's placement.

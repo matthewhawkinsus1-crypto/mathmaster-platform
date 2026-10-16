@@ -379,6 +379,9 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           // verdict is withheld: it is called that, not "Check". In a test the
           // student moves around in, it saves a draft, and says so.
           submitLabel={policy.secure ? (navigationMode ? 'Save answer' : 'Record answer') : null}
+          // Saving a draft in a test the student moves around in costs nothing:
+          // no "1 of 1 try left" over it (RUN-4).
+          showTriesCount={!navigationMode}
           serverGrading={serverGrading}
           onResponseStateChange={handleRawWork}
           assignmentLocked={Boolean(closed)}

@@ -27,7 +27,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
@@ -579,7 +579,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     ? apply(classifyEliminationOutcome(elimination, system, choice, kind))
                     : setSubsystemClassification({ identity: outcomeIdentity, choice, kind })}
                 /> : null}
-                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
+                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
                     <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>

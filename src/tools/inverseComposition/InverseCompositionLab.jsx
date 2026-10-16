@@ -19,7 +19,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import inverseCompositionGrader from '../../../functions/shared/serverGrading/tools/inverseCompositionLab.mjs';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid var(--mm-tint-border)', borderRadius:8, background:'var(--mm-surface)' };
@@ -181,7 +181,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
           <Field label={`Enter (g ∘ f)(${x})`}><input type="number" step="0.1" value={gofAnswer} onChange={(e)=>setGofAnswer(e.target.value)} style={inputStyle}/></Field>
           <p style={{fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
           {mode === 'composition' ? <>
-            <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check compositions</button>
+            <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}><SubmitText>Check compositions</SubmitText></button>
             {feedbackBlock}
             <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
           </> : null}
@@ -217,7 +217,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
               "No restriction needed" default answered. */}
           {f.type === 'quadratic' || asksRestriction ? <div style={{marginTop:14}}><Field label={f.type === 'quadratic' ? 'Which restriction makes the quadratic one-to-one?' : 'Does f need a restricted domain to have an inverse?'}><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
 
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}><SubmitText>Check function reasoning</SubmitText></button>
           {feedbackBlock}
           <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
         </Panel> : null}

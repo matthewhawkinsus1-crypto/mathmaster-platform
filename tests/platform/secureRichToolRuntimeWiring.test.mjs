@@ -133,7 +133,7 @@ test('the engine\'s disabled final action is readable in both themes ("Record an
   };
   const ratio = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
 
-  const submitButton = region(engine, 'className="mathmaster-bar-submit"', '</button>', 'bar submit');
+  const submitButton = region(engine, 'className={`mathmaster-bar-submit', '</button>', 'bar submit');
   const background = submitButton.match(/background: submitDisabled \? 'var\(--([\w-]+)\)'/);
   const color = submitButton.match(/color: submitDisabled \? 'var\(--([\w-]+)\)'/);
   assert.ok(background && color, 'the disabled state takes its colours from theme tokens');

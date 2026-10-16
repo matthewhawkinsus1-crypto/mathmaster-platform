@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
@@ -633,7 +633,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           disabled={!readyToSubmit}
           style={{ ...button, background: readyToSubmit ? '#1a73e8' : '#dadce0', color: readyToSubmit ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          Submit the bridge
+          <SubmitText>Submit the bridge</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>

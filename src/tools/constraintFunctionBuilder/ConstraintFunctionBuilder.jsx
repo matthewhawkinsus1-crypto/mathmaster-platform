@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import constraintFunctionGrader from '../../../functions/shared/serverGrading/tools/constraintFunctionBuilder.mjs';
@@ -209,7 +209,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
               cursor: hasEdited ? 'pointer' : 'not-allowed',
             }}
           >
-            Submit this model
+            <SubmitText>Submit this model</SubmitText>
           </button>
           {!hasEdited && (
             <div style={{ marginTop: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'center' }}>

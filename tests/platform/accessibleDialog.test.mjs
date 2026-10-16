@@ -203,10 +203,15 @@ test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a f
   // work area, already disabled and inert beneath it — so the support tray,
   // calculator and navigation stay reachable by Tab. It is a named region that
   // takes focus when it appears, and closes only by answering.
-  assert.equal(dialogTags(code).some((tag) => tag.includes('Productive struggle scaffold')), false, 'not a Dialog: it must not trap the page');
-  assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Productive struggle scaffold" data-scaffold=""/);
+  assert.equal(dialogTags(code).some((tag) => tag.includes('data-scaffold')), false, 'not a Dialog: it must not trap the page');
+  // A named region, named in the student's words — the heading it shows
+  // ("Let's back up"), not the program's "Productive struggle scaffold".
+  assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Let's back up" data-scaffold=""/);
   assert.match(code, /if \(!scaffoldRequired\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => scaffoldRef\.current\?\.querySelector\('button'\)\?\.focus\(/, 'focus moves to its first choice');
-  assert.match(code, /inert=\{locked \|\| scaffoldRequired/, 'the work beneath it is inert while it shows');
+  // The work area's inert gate is one value since student pass 3 (RUN-13):
+  // it includes the scaffold, and lifts only for a module that failed.
+  assert.match(code, /inert=\{workAreaClosed \? true : undefined\}/, 'the work beneath it is inert while it shows');
+  assert.match(code, /const workAreaClosed = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'the scaffold is part of that gate');
   // Review of #463: it opens from Work View's own Submit too, so it is drawn
   // above Work View (2147483000) and its calculator (2147483400).
   const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);

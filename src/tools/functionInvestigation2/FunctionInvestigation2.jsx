@@ -6,7 +6,7 @@ import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import functionInvestigationGrader from '../../../functions/shared/serverGrading/tools/functionInvestigation2.mjs';
@@ -306,7 +306,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
             </div>
             {features.verticalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Vertical asymptote x =<input type="number" inputMode="decimal" value={verticalAsymptote} onChange={(event) => setVerticalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
             {features.horizontalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Horizontal asymptote y =<input type="number" inputMode="decimal" value={horizontalAsymptote} onChange={(event) => setHorizontalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
-            <button data-mm-enter-action="submit" type="button" onClick={checkFeatures} style={{ ...buttonStyle, marginTop: 14 }}>Check features</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkFeatures} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check features</SubmitText></button>
           </> : null}
 
           {mode === 'domainRange' ? <>
@@ -316,21 +316,21 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
             <label style={{ display: 'block', marginTop: 12, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Range — the y-values this function produces
               <select value={rangeCode} onChange={(event) => setRangeCode(event.target.value)} style={inputStyle}><option value="">Choose…</option>{rangeChoices.map((code) => <option value={code} key={code}>{relationLabel(code, spec)}</option>)}</select>
             </label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkDomainRange} style={{ ...buttonStyle, marginTop: 14 }}>Check domain and range</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkDomainRange} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check domain and range</SubmitText></button>
           </> : null}
 
           {mode === 'intercepts' ? <>
             <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Separate multiple x-intercepts with commas. Type <strong>none</strong> when an intercept does not exist.</p>
             <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} aria-label="x-intercept values" /></label>
             <label style={{ display: 'block', marginTop: 12, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} aria-label="y-intercept value" /></label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}>Check intercepts</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check intercepts</SubmitText></button>
           </> : null}
 
           {mode === 'behavior' ? <>
             <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Which statement best describes this function?
               <select value={behavior} onChange={(event) => setBehavior(event.target.value)} style={inputStyle}><option value="">Choose…</option>{behaviorChoices.map((code) => <option value={code} key={code}>{behaviorLabel(code)}</option>)}</select>
             </label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkBehavior} style={{ ...buttonStyle, marginTop: 14 }}>Check behavior</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkBehavior} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check behavior</SubmitText></button>
           </> : null}
 
           {mode === 'compare' ? <>
@@ -342,7 +342,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
               <option value="equal">They are equal</option>
               <option value="undefined">At least one is undefined here</option>
             </select>
-            <button data-mm-enter-action="submit" type="button" onClick={checkComparison} style={{ ...buttonStyle, marginTop: 14 }}>Check comparison</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkComparison} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check comparison</SubmitText></button>
           </> : null}
 
           {feedback ? (
