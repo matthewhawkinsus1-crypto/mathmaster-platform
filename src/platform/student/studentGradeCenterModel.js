@@ -357,6 +357,23 @@ const formatPoints = (value) => {
 };
 
 /**
+ * The line under the big number when work is missing (student pass 3, NAV-2,
+ * decision D4). The number keeps its rule — missing work is not in this
+ * average — but the student reads the caveat where they read the number, not
+ * at the end of a folded panel: after the due date Google Classroom may post
+ * that work as 0. Null when nothing is missing.
+ */
+export const missingGradeWarning = (summary = {}) => {
+  const missing = Math.max(0, Math.floor(Number(summary?.missing) || 0));
+  if (!missing) return null;
+  return {
+    count: missing,
+    text: `${missing} missing — your Classroom grade may be lower`,
+    actionLabel: missing === 1 ? 'Show the missing assignment' : `Show the ${missing} missing assignments`,
+  };
+};
+
+/**
  * "How this grade is figured", in a student's words, from the summary's own
  * numbers. It explains summarizeGradeEntries; it never computes a second
  * grade — the percent it prints IS summary.score.

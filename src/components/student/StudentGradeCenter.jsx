@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EmptyState } from '../../ui/primitives';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
-import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath } from '../../platform/student/studentGradeCenterModel.js';
+import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath, missingGradeWarning } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
@@ -54,7 +54,9 @@ const actionButton = (primary) => ({
  * "No graded work yet" is printed in words rather than as 0%, for the same
  * reason the rows never invent a zero.
  */
-function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidden }) {
+function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidden, onShowMissing = null }) {
+  const missingWarning = missingGradeWarning(summary);
+  const chipStyle = { padding: '6px 10px', borderRadius: 999 };
   return (
     <section
       aria-label="Current marking period grade"
@@ -72,6 +74,14 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
             {hidden ? '•••' : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
           </div>
           <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
+          {/* D4 / NAV-2: the number leaves missing work out, and Classroom may
+              post it as 0 — so the caveat sits under the number, not in a
+              folded panel. Shown with the grade hidden too: it is a count. */}
+          {missingWarning && (
+            <p data-missing-warning style={{ margin: '8px 0 0', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-error-text)', overflowWrap: 'anywhere' }}>
+              {missingWarning.text}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -98,11 +108,31 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
           flexWrap: 'wrap', gap: 8, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)',
         }}
       >
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>{summary.graded} graded</li>
+        <li style={{ ...chipStyle, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>{summary.graded} graded</li>
         {/* Red only when something IS missing: "0 missing" is good news and
-            reads as neutral (job H). */}
-        <li data-missing-count={summary.missing} style={{ padding: '6px 10px', borderRadius: 999, ...(summary.missing > 0 ? { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' } : { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }) }}>{summary.missing} missing</li>
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{summary.pending} pending</li>
+            reads as neutral (job H). When something is missing the chip is a
+            button that opens this period and moves to the first missing row
+            (NAV-2). */}
+        {missingWarning && onShowMissing ? (
+          <li data-missing-count={summary.missing} style={{ display: 'flex' }}>
+            <button
+              type="button"
+              data-show-missing
+              aria-label={missingWarning.actionLabel}
+              onClick={() => onShowMissing()}
+              style={{
+                ...chipStyle, appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 900,
+                minHeight: MIN_TOUCH_TARGET_PX, border: '2px solid var(--mm-error-text)', cursor: 'pointer',
+                background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', textDecoration: 'underline',
+              }}
+            >
+              {summary.missing} missing <span aria-hidden="true">→</span>
+            </button>
+          </li>
+        ) : (
+          <li data-missing-count={summary.missing} style={{ ...chipStyle, ...(summary.missing > 0 ? { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' } : { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }) }}>{summary.missing} missing</li>
+        )}
+        <li style={{ ...chipStyle, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{summary.pending} pending</li>
       </ul>
 
       {!hidden && <GradeMath summary={summary} />}
@@ -217,7 +247,9 @@ function WaysToRaise({ ways, onWayAction }) {
   );
 }
 
-function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = null }) {
+function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = null, headingLevel = 3 }) {
+  const Title = `h${headingLevel}`;
+  const titleId = `grade-row-${String(entry.assignmentId || '').replace(/[^A-Za-z0-9_-]/g, '_')}`;
   const tone = TONE[entry.status] || TONE[GRADE_STATUS.NOT_STARTED];
   // Which buttons this row offers was decided by the model
   // (resolveGradeRowActions, narrowed by the one "Today" rule when App passes
@@ -231,6 +263,10 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
 
   return (
     <article
+      // Focus target for "N missing →" (NAV-2): focusing the row reads its title.
+      tabIndex={-1}
+      aria-labelledby={titleId}
+      data-grade-status={entry.status}
       style={{
         background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)',
         padding: 16, marginBottom: 12, textAlign: 'left', minWidth: 0,
@@ -238,7 +274,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</h3>
+          <Title id={titleId} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</Title>
           <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Due {formatDateTime(entry.dueAt)}
             {entry.frozen ? ` · Closed ${formatDateTime(entry.lateDueAt)}` : ''}
@@ -301,13 +337,36 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
   );
 }
 
-function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayByAssignment = null }) {
+/*
+ * A marking period. Its header is a disclosure button INSIDE a heading
+ * (NAV-15), so a screen reader's heading list finds every period. `revealMissing`
+ * counts presses of the summary's "N missing →": each opens the group and moves
+ * focus to its first missing row (NAV-2).
+ */
+function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayByAssignment = null, headingLevel = 2, revealMissing = 0 }) {
   const [open, setOpen] = useState(group.defaultOpen === true);
+  const bodyRef = useRef(null);
+  const focusMissing = useRef(false);
+  useEffect(() => {
+    if (!revealMissing) return;
+    focusMissing.current = true;
+    setOpen(true);
+  }, [revealMissing]);
+  useEffect(() => {
+    if (!open || !focusMissing.current) return;
+    focusMissing.current = false;
+    const row = bodyRef.current?.querySelector(`[data-grade-status="${GRADE_STATUS.MISSING}"]`);
+    if (!row) return;
+    row.focus({ preventScroll: true });
+    try { row.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { row.scrollIntoView(); }
+  }, [open, revealMissing]);
   if (!group.entries.length) return null;
 
+  const Heading = `h${headingLevel}`;
   const bodyId = `grade-period-${group.period.id}`;
   return (
     <section aria-labelledby={`${bodyId}-heading`} style={{ marginBottom: 18 }}>
+      <Heading style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
       <button
         type="button"
         id={`${bodyId}-heading`}
@@ -339,8 +398,9 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
           <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>CLOSED</span>
         )}
       </button>
+      </Heading>
       {open && (
-        <div id={bodyId}>
+        <div id={bodyId} ref={bodyRef}>
           {group.entries.map((entry) => (
             <GradeRow
               key={entry.assignmentId}
@@ -350,6 +410,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
               onPractice={onPractice}
               onStart={onStart}
               today={todayByAssignment?.[entry.assignmentId] || null}
+              headingLevel={Math.min(6, headingLevel + 1)}
             />
           ))}
         </div>
@@ -385,6 +446,7 @@ export default function StudentGradeCenter({
   onLogout = null,
 }) {
   const [hidden, setHidden] = useState(false);
+  const [missingRequest, setMissingRequest] = useState(0);
   const { periodGroups = [], currentPeriod, currentSummary, pastPeriodGroups = [], courseLabel } = gradeCenter || {};
   const currentGroup = periodGroups.find((group) => group.period.isCurrent) || null;
 
@@ -428,6 +490,7 @@ export default function StudentGradeCenter({
           summary={currentSummary || { score: null, graded: 0, missing: 0, pending: 0, excused: 0, closed: 0, inProgress: [], notCountedOther: 0 }}
           hidden={hidden}
           onToggleHidden={() => setHidden((current) => !current)}
+          onShowMissing={currentGroup ? () => setMissingRequest((count) => count + 1) : null}
         />
 
         {whatChangedPanel || null}
@@ -435,7 +498,7 @@ export default function StudentGradeCenter({
         <WaysToRaise ways={waysToRaise} onWayAction={onWayAction} />
 
         {currentGroup && (
-          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} todayByAssignment={todayByAssignment} />
+          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} todayByAssignment={todayByAssignment} headingLevel={2} revealMissing={missingRequest} />
         )}
 
         {pastPeriodGroups.length > 0 && (
@@ -450,6 +513,7 @@ export default function StudentGradeCenter({
                 onPractice={onPractice}
                 onStart={onStart}
                 todayByAssignment={todayByAssignment}
+                headingLevel={3}
               />
             ))}
           </>
