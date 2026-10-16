@@ -96,7 +96,8 @@ test('15 / 11. sign-out and a change of account drop the lessons and the previou
   ['studentClassAssignmentsRef', 'studentPriorWorkAssignmentsRef', 'teacherSharedAssignmentsRef'].forEach((ref) => {
     assert.match(clear, new RegExp(`${ref}\\.current = \\[\\];`));
   });
-  assert.match(clear, /studentViewerRef\.current = \{ studentId: null, profile: null \};/);
+  // Every field of the viewer is cleared (D7 added the timing profile).
+  assert.match(clear, /studentViewerRef\.current = \{ studentId: null, profile: null(?:, timingProfile: null)? \};/);
   assert.match(clear, /setAssignments\(\[\]\);/);
   const logout = region(code, 'const handleLogout = async () => {', 'await auth.signOut();', 'handleLogout');
   assert.match(logout, /setUser\(null\);[\s\S]*clearSignedInAssignments\(\);/, 'before signing out, not when the auth listener catches up');
@@ -137,7 +138,7 @@ test('a resume restored from the server is projected with the controls held when
 });
 
 test('the student\'s lessons are re-projected — not re-listened — when their controls or profile change', () => {
-  const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);', 're-projection');
+  const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);', 're-projection');
   assert.match(effect, /publishStudentAssignments\(\);[\s\S]*publishTeacherAssignments\(\);/);
   assert.doesNotMatch(effect, /subscribe|onSnapshot/);
   // The lesson listener follows who is signed in and their class, not every profile revision.

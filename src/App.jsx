@@ -86,7 +86,7 @@ import {
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile } from './platform/assignments/studentAssignmentControls.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
@@ -1966,7 +1966,8 @@ function App() {
   const lastPublishedRef = useRef(null);
   const publishStudentAssignments = () => {
     const { studentId, profile, timingProfile } = studentViewerRef.current;
-    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, timingProfile, studentControlsRef.current];
+    // The controls stay at index 4: URL arrival reads lastPublishedRef.current[4].
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current, timingProfile];
     if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
     lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
@@ -2054,7 +2055,7 @@ function App() {
     }
     // The publishers read refs; these are what change their answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);
+  }, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
@@ -4923,10 +4924,11 @@ function App() {
         // this student is working reaches their required items now, not at
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
+        setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // The DOL window's source (D7): the grade document's own `profile`
+        // field, updated on its own so nothing else about the user changes.
         const liveTimingProfile = snapshot.data()?.profile || null;
-        setUser((current) => (current && (!sameStudentProfile(current.profile, liveProfile) || JSON.stringify(current.timingProfile || null) !== JSON.stringify(liveTimingProfile))
-          ? { ...current, profile: liveProfile, timingProfile: liveTimingProfile }
-          : current));
+        setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;

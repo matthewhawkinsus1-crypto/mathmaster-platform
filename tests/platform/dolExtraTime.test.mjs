@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 
 import { getDOLState, getWarmupState, localDateKey, studentExtraTimeDolOpen } from '../../src/assignmentLifecycle.js';
 import { buildDolClose, buildDolExtension, buildDolWindowOpening } from '../../src/platform/assessment/assessmentRecovery.js';
-import { projectStudentAssignments } from '../../src/platform/assignments/studentAssignmentControls.js';
+import { projectStudentAssignments, sameTimingProfile } from '../../src/platform/assignments/studentAssignmentControls.js';
 import {
   STUDENT_TIMING_PROFILE_KEY,
   accommodatedSeconds,
@@ -448,6 +448,17 @@ test('device and server take the timing profile from the same field: the grade d
   assert.equal(projections.length, 3);
   projections.forEach((call) => assert.match(call, /timingProfile[,:]/, call));
   assert.doesNotMatch(app, /timingProfile: [^,\n]*\|\| studentData[,\s]/, 'never the whole document');
+  // The timing profile joins the projection's inputs WITHOUT moving the
+  // controls: URL arrival waits for lastPublishedRef.current[4] to be them.
+  const publish = region(app, 'const publishStudentAssignments = () => {', 'setAssignments(projectStudentAssignments({', 'publishStudentAssignments');
+  const inputs = publish.match(/const inputs = \[([^\]]*)\];/)?.[1].split(',').map((entry) => entry.trim()) || [];
+  assert.equal(inputs[4], 'studentControlsRef.current', `inputs: ${inputs.join(', ')}`);
+  assert.ok(inputs.includes('timingProfile'));
+  assert.match(app, /lastPublishedRef\.current\?\.\[4\] === studentAssignmentControls/);
+  // A change to the profile field alone re-projects.
+  assert.match(app, /\}, \[user\?\.role, user\?\.id, user\?\.profile, user\?\.timingProfile, studentAssignmentControls, teacherClassControls\]\);/);
+  assert.match(app, /setUser\(\(current\) => \(current && !sameTimingProfile\(current\.timingProfile, liveTimingProfile\) \? \{ \.\.\.current, timingProfile: liveTimingProfile \} : current\)\);/);
+  assert.match(app, /import \{ EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile \} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
 });
 
 test('extra time never runs past the student\'s own final cutoff, and never cuts into the class window', () => {
@@ -466,4 +477,13 @@ test('extra time never runs past the student\'s own final cutoff, and never cuts
   const [own] = projectStudentAssignments({ assignments: [extended], studentId: 'S1', profile: null, timingProfile: DISTRICT_DOUBLE_TIME });
   assert.equal(getDOLState({ assignment: own, schedule, classId: 'class-a', classPeriod: 'Period 1', nowValue: at(9, 26) }).endsAt.getTime(), at(9, 35).getTime());
   assert.equal(serverCloseFor(extended, at(9, 26), DISTRICT_DOUBLE_TIME).closesAtMs, at(9, 35).getTime());
+});
+
+test('the live timing profile is compared by content, not key order', () => {
+  assert.equal(sameTimingProfile({ accommodations: ['extra-time'], inclusionStatus: false }, { inclusionStatus: false, accommodations: ['extra-time'] }), true);
+  assert.equal(sameTimingProfile({ supportPlan: { windows: [{ a: 1, b: 2 }] } }, { supportPlan: { windows: [{ b: 2, a: 1 }] } }), true);
+  assert.equal(sameTimingProfile(null, undefined), true);
+  assert.equal(sameTimingProfile({ accommodations: ['extra-time'] }, { accommodations: [] }), false);
+  assert.equal(sameTimingProfile({ accommodations: ['a', 'b'] }, { accommodations: ['b', 'a'] }), false, 'array order is content');
+  assert.equal(sameTimingProfile(null, {}), false);
 });

@@ -153,6 +153,16 @@ export const privateOverrideFor = (controls, assignmentId) => {
  * removal of staff names from class-wide DOL data — is applied again here so a
  * caller can never skip either.
  */
+// The same stored profile, whatever order its keys arrive in.
+const stableJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+};
+export const sameTimingProfile = (left, right) => stableJson(left || null) === stableJson(right || null);
+
 // `timingProfile` is the grade document's own `profile` field — exactly what the
 // server's deadline readers use (gradeData.profile || null) — so the student's
 // DOL window (D7) on this device is the one the server enforces. It is kept
