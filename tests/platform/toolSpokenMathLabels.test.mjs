@@ -54,7 +54,7 @@ test('tidying only removes grouping a reader never sees', () => {
 
 // Every file whose controls name a math value.
 const ROOT = new URL('../../', import.meta.url).pathname;
-const filesIn = (dir) => readdirSync(join(ROOT, dir)).filter((name) => /\.jsx$/.test(name)).map((name) => join(dir, name));
+const filesIn = (dir) => readdirSync(join(ROOT, dir)).filter((name) => name.endsWith('.jsx')).map((name) => join(dir, name));
 const SCOPED_FILES = [
   ...filesIn('src/tools/systemsWorkspace'),
   ...filesIn('src/tools/matrixLab'),

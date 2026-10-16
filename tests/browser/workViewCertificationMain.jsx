@@ -20,7 +20,7 @@ function StudentCertificationShell() {
   useEffect(() => { listeners.add(setMounted); return () => listeners.delete(setMounted); }, []);
   if (!mounted) return <main data-stage4-idle="true">Waiting for certification scene</main>;
   const { toolId, spec, scene } = mounted;
-  const question = { id: `stage4-${toolId}${scene ? `-${scene}` : ''}`, questionId: `stage4-${toolId}${scene ? `-${scene}` : ''}`, type: toolId, prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId], ...(spec || {}) };
+  const question = { id: `stage4-${toolId}${scene ? `-${scene}` : ''}`, questionId: `stage4-${toolId}${scene ? `-${scene}` : ''}`, type: toolId, prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId], ...spec };
   return <div className="app-container" data-stage4-tool={toolId} data-stage4-scene={scene || undefined}>
     <section className="mathmaster-theme-certification-fixtures" aria-label="Theme control fixtures">
       <label>Text answer <input placeholder="Enter an answer" /></label>
