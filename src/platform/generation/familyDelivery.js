@@ -58,15 +58,41 @@ export const readLocalDeliveryPin = ({ studentId, slotKey, variant, store = stor
 };
 
 /**
- * Pin what was shown, once. An existing pin is never overwritten: the first
- * rendering is the one the student may already be working on.
+ * Pin what was shown, once. A pin this device can still use is never
+ * overwritten: the first rendering is the one the student may already be
+ * working on.
+ *
+ * Two pins ARE replaced, by the delivery that was actually shown in their
+ * place — the only question the student can now be working on:
+ *
+ *   - a stored pin this build cannot read (truncated, not JSON, a legacy
+ *     shape). readLocalDeliveryPin already treats it as no pin, so every
+ *     render fell back to the current allocation;
+ *   - a pin the question dropped (`devicePinDropped`: the rendered question
+ *     carries `familyPinNotice`, problemGenerator.js) — one the server would
+ *     refuse, or one that no longer replays.
+ *
+ * Kept, either one went on being dropped on every render, so the question
+ * followed whatever the allocation was at that moment: a provisional student
+ * seated by the teacher's app, or a seat map that had not loaded yet, swapped
+ * the numbers under a student who had started working (PR #430 review). Once
+ * replaced, the pin holds the shown question still. The student's work is
+ * untouched either way: drafts are keyed by question and variant, never by the
+ * instance (questionDraftStorage.js buildQuestionDraftKey).
  */
-export const writeLocalDeliveryPin = ({ studentId, delivery, store = storage() } = {}) => {
+export const writeLocalDeliveryPin = ({ studentId, delivery, store = storage(), devicePinDropped = false } = {}) => {
   const pin = normalizeDeliveryPin(delivery);
   if (!studentId || !pin || !pin.slot || !store) return false;
   const key = localDeliveryPinKey({ studentId, slotKey: pin.slot, variant: pin.variant });
   try {
-    if (store.getItem(key)) return false;
+    const raw = store.getItem(key);
+    if (raw) {
+      let existing = null;
+      try { existing = normalizeDeliveryPin(JSON.parse(raw)); } catch { existing = null; }
+      // Unreadable: replaced. Readable: kept, unless the question dropped it
+      // and showed a different instance.
+      if (existing && (!devicePinDropped || existing.fingerprint === pin.fingerprint)) return false;
+    }
     store.setItem(key, JSON.stringify(pin));
     return true;
   } catch {
@@ -125,6 +151,8 @@ const pinRefusalFor = ({ assignment, question, storageIndex, pin, studentId }) =
  * to its fingerprint fails); a refused device pin is dropped and named in
  * `devicePinRefused` (src/platform/generation/familyPinReplay.js).
  * Nothing here writes: the record and the device pin are read, never changed.
+ * The dropped device pin is replaced when the question that WAS shown is
+ * reported (writeLocalDeliveryPin, `devicePinDropped`).
  */
 export const buildStudentFamilyContext = ({
   assignment = null,

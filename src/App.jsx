@@ -6590,7 +6590,9 @@ function App() {
   const familyDeliveriesRef = useRef(new Map());
   const handleFamilyDelivery = useCallback((delivery, renderedQuestion) => {
     if (!delivery?.slot || user?.role !== 'student' || !user?.id || isTeacherPreview) return;
-    writeLocalDeliveryPin({ studentId: user.id, delivery });
+    // A device pin the question dropped (`familyPinNotice`) is replaced by
+    // what was shown instead, so the next render cannot swap it again.
+    writeLocalDeliveryPin({ studentId: user.id, delivery, devicePinDropped: Boolean(renderedQuestion?.familyPinNotice) });
     familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
 
