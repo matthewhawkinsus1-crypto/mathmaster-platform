@@ -168,13 +168,13 @@ On the final head, after the base merge (`c803501`) and the review fixes:
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | pass (re-run after the merge) |
-| `npm run test:platform` | F_PLATFORM |
-| `node --test tests/tools/*.test.mjs` | F_TOOLS |
-| `npm run lint` | F_LINT |
-| `npm run build` | F_BUILD |
-| `npm run build:firebase` (no tracked file rewritten) | F_BUILDFB |
-| `npm run test:rules` | F_RULES |
-| `npm run test:challenge-finish` (every `tests/integration/*.test.mjs` in parallel on one emulator, as CI runs them) | F_CF |
+| `npm run test:platform` | 11441/11441 pass |
+| `node --test tests/tools/*.test.mjs` | 1643 pass, 0 fail, 1 skipped (pre-existing skip) |
+| `npm run lint` | exit 0 (warnings only; none new in changed code) |
+| `npm run build` | pass |
+| `npm run build:firebase` (no tracked file rewritten) | pass; `git status` clean afterwards |
+| `npm run test:rules` | pass: 243/243 (`tests/firestore-rules.test.mjs`) and 218/218 (`tests/rules/*.test.mjs`, 17 of them in `assignmentPrivacyRules`) |
+| `npm run test:challenge-finish` (every `tests/integration/*.test.mjs` in parallel on one emulator, as CI runs them) | 445/445 pass (the review run was 444/445; the one failure was finding 1) |
 | `node scripts/release-firebase.mjs` (plan only) | plan printed (`--since a7dddc7`), no `--execute`. Targets: functions (the **whole fleet**, 25 groups, about 56 min, because `functions/index.js` changed), path-admin (it shares `functions/shared`), rules, Hosting, in the order functions → verify → path-admin → rules → Hosting |
 | teacherWorkflow journeys that open assignments as a student, one at a time (after the merge) | **all 9 pass**, no `Maximum update depth` anywhere: `recoveryHold` (no findings), `recoveryDraftCrossDevice` (no findings), `restoredDraftFocusRace`, `warmupReopen` (all passed), `appUrl` (all checks), `askMyTeacher` (58 checks), `draftCrossDevice`, `prerequisiteEarly`, `privateControls` (392 checks, 0 findings) |
 
