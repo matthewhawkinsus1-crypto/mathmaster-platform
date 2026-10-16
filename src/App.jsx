@@ -474,6 +474,7 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
 import SessionGate from './app/shell/SessionGate.jsx';
+import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -5279,14 +5280,65 @@ function App() {
   }, [user?.role, activeView]);
 
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
-  useDocumentTitle(pageTitleFor({
+  const documentTitle = pageTitleFor({
     signedIn: Boolean(user),
     role: user?.role || null,
     view: activeView,
     studentMode: studentDashboardMode,
     teacherTab,
     assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
-  }));
+  });
+  useDocumentTitle(documentTitle);
+
+  /*
+   * NAV-3: a student screen change moves focus to the new screen's heading
+   * and says its name once (app/shell/screenChange.js). Not on the first
+   * screen after sign-in; inside an assignment it only speaks.
+   */
+  const currentStudentScreenKey = studentScreenKey({
+    role: user?.role || null,
+    view: activeView,
+    mode: studentDashboardMode,
+    resultAssignmentId: assignmentResultRoute?.assignmentId || null,
+    testCycleAssignmentId: activeTestCycleAssignmentId,
+    assignmentId: activeAssignmentId,
+  });
+  const [studentScreenAnnouncement, setStudentScreenAnnouncement] = useState('');
+  const lastStudentScreenKeyRef = useRef(null);
+  // The change still being settled. A lazy screen can suspend the App and
+  // re-run this effect with the same key; the change is finished then, not
+  // dropped.
+  const pendingStudentScreenRef = useRef(null);
+  const documentTitleRef = useRef(documentTitle);
+  documentTitleRef.current = documentTitle;
+  useEffect(() => {
+    const previous = lastStudentScreenKeyRef.current;
+    lastStudentScreenKeyRef.current = currentStudentScreenKey;
+    if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
+    if (previous && previous !== currentStudentScreenKey) {
+      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      // Cleared first, so the same name said twice in a row is still spoken.
+      setStudentScreenAnnouncement('');
+    }
+    const pending = pendingStudentScreenRef.current;
+    if (!pending || pending.key !== currentStudentScreenKey) return undefined;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    let cancelled = false;
+    let timer = null;
+    const settle = () => {
+      if (cancelled) return;
+      // A lazy screen draws its heading a moment later: look for up to 2 s.
+      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
+      if (!focused && Date.now() - pending.startedAt < 2000) {
+        timer = window.setTimeout(settle, 100);
+        return;
+      }
+      if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
+      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
+    };
+    timer = window.setTimeout(settle, 50);
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  }, [currentStudentScreenKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -10350,9 +10402,20 @@ function App() {
   // This is the authenticated-student shell boundary. Keeping identity here,
   // outside every destination, makes it survive Focus View, compact/mobile
   // assignment controls, Live Challenge, and screens that omit global nav.
-  const renderStudentIdentityShell = (content, { preview = false } = {}) => (
+  //
+  // `main`: the screen has no main landmark of its own, so the shell wraps it
+  // in one (NAV-15) — Home, Assignments, Grades, Rewards, Live Challenge,
+  // Test Cycle and Recovery. Screens that draw their own <main> (the result
+  // page, My Math Path, Tests & Exams, the assignment) keep the empty anchor.
+  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
       <SkipToContent />
+      {/* NAV-3: the new screen's name, said once after a screen change. */}
+      {!preview && (
+        <div role="status" aria-live="polite" aria-atomic="true" data-screen-announcement className="mm-visually-hidden">
+          {studentScreenAnnouncement}
+        </div>
+      )}
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
@@ -10377,11 +10440,23 @@ function App() {
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
       {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{studentSpotlightMessage}</div>}
-      {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
-      <div id={MAIN_CONTENT_ID} tabIndex={-1} />
-      {content}
+      {main ? (
+        // The screen's main landmark; the skip link enters it at its h1.
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} data-student-screen-main>
+          {content}
+        </main>
+      ) : (
+        <>
+          {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
+          <div id={MAIN_CONTENT_ID} tabIndex={-1} />
+          {content}
+        </>
+      )}
     </div>
   );
+
+  // A student screen with no main landmark of its own (NAV-15).
+  const renderStudentScreen = (content) => renderStudentIdentityShell(content, { main: true });
 
   // The address the page opened at, opened once the account has loaded
   // (app/routes/useUrlArrival.js). Called after every action it hands on is
@@ -10777,7 +10852,7 @@ function App() {
 
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -10832,7 +10907,7 @@ function App() {
       );
     }
     if (studentDashboardMode === 'assignmentsCenter') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -10855,7 +10930,7 @@ function App() {
       );
     }
     if (studentDashboardMode === 'rewards') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -10878,7 +10953,7 @@ function App() {
       );
     }
     if (studentDashboardMode === 'grades') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -10912,11 +10987,12 @@ function App() {
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
       const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
       const activeTestCycleLateDueAt = activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null;
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
-          <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* The shell's <main> holds this screen (NAV-15). */}
+          <div style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
             <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
               <TestCycleCard
                 assignmentId={activeTestCycleAssignmentId}
@@ -10937,7 +11013,7 @@ function App() {
                 onExit={openStudentAssignmentsCenter}
               />
             </Suspense>
-          </main>
+          </div>
         </>,
       );
     }
@@ -10975,7 +11051,7 @@ function App() {
       dashboard,
       weeklyProgress: studentWeeklyPathProgress,
     });
-    return renderStudentIdentityShell(
+    return renderStudentScreen(
       <>
         {renderStudentPackUpBanner()}
         {/* No Warm-Up banner on Home: the next-action card (or its compact
@@ -11067,7 +11143,7 @@ function App() {
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
             mode={recoverySession.mode}

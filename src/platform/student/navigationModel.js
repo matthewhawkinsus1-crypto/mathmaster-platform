@@ -171,6 +171,31 @@ export const STUDENT_DESTINATION_LABEL = Object.freeze({
   [STUDENT_DESTINATION.SECURE_EXAMS]: 'Tests & Exams',
 });
 
+/*
+ * ON A PHONE, THREE PLACES AND "MORE" (student pass 3, NAV-13).
+ *
+ * Six signposts wrapped to three rows — about 150px — above every screen at
+ * 390px. The three a student opens most stay in the row; the rest fold
+ * behind one "More" button. The place the student is on is never folded
+ * away: if it is one of the "More" places it stays in the row too, so the row
+ * still answers "where am I?". Laptops and Chromebooks keep the full row.
+ */
+export const STUDENT_PHONE_PRIMARY = Object.freeze([
+  STUDENT_DESTINATION.HOME,
+  STUDENT_DESTINATION.ASSIGNMENTS,
+  STUDENT_DESTINATION.GRADES,
+]);
+
+export const phoneNavGroups = (current = null) => {
+  const more = STUDENT_DESTINATION_ORDER.filter((destination) => !STUDENT_PHONE_PRIMARY.includes(destination));
+  return {
+    primary: [...STUDENT_PHONE_PRIMARY],
+    // Folded behind "More" on a phone, the current place excepted.
+    folded: more.filter((destination) => destination !== current),
+    currentIsFolded: more.includes(current),
+  };
+};
+
 export const parentOf = (level) => PARENT[level] ?? null;
 
 /**

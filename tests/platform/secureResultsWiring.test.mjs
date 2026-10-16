@@ -297,7 +297,8 @@ test('a review opened from Corrections lies over them: the typed answer survives
   const focus = region(card, 'const returnFocusRef = useRef(null);', '}, [mode, card]);', 'return focus');
   assert.match(focus, /if \(returnTo === 'corrections'\) correctionsRef\.current\?\.querySelector\('\[data-corrections-heading\]'\)\?\.focus\(\);/);
   assert.match(focus, /else headingRef\.current\?\.focus\(\);/);
-  assert.match(card, /<h2 ref=\{headingRef\} tabIndex=\{-1\}/);
+  // The card's heading takes that focus (the screen's h1 since NAV-15).
+  assert.match(card, /<h[1-6] ref=\{headingRef\} tabIndex=\{-1\}/);
 });
 
 test('every review the card opens names skills the way the card does', () => {

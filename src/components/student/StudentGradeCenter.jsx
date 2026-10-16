@@ -366,7 +366,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
   const bodyId = `grade-period-${group.period.id}`;
   return (
     <section aria-labelledby={`${bodyId}-heading`} style={{ marginBottom: 18 }}>
-      <Heading style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
+      <Heading style={{ margin: 0, fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit', lineHeight: 'inherit', color: 'inherit' }}>
       <button
         type="button"
         id={`${bodyId}-heading`}
