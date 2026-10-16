@@ -13,6 +13,7 @@ import {
   typedFractionKeyStep,
   typedFractionValueStep,
 } from '../../src/platform/math/typedFractionEntry.js';
+import { gradeLiteralResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 
 // A stand-in for MathLive that is just good enough to say WHERE each key lands:
 // it tracks the latex of the expression and whether the caret is in the
@@ -88,6 +89,37 @@ test('a comma or a closing bracket ends the denominator of a coordinate', () => 
   assert.equal(typedFractionKeyStep({ phase: 'denominator', text: '2' }, { key: ')' }).leaveFraction, true);
 });
 
+test('an opening bracket after a number denominator is a factor: point-slope with a fractional slope (R-11)', () => {
+  // Typed y-2=-1/2(x-6) built y − 2 = −1/(2(x − 6)) — a different line.
+  assert.equal(simulate([...'y-2=-1/2(x-6)']), 'y-2=-\\frac{1}{2}(x-6)');
+  assert.equal(simulate([...'3/4(x+8)']), '\\frac{3}{4}(x+8)');
+  assert.equal(simulate([...'1/-2(x)']), '\\frac{1}{-2}(x)');
+  assert.deepEqual(typedFractionKeyStep({ phase: 'denominator', text: '2' }, { key: '(' }), { state: null, leaveFraction: true });
+  // The on-screen `(` key, pressed as a single character, agrees with typing.
+  assert.equal(typedFractionCommandStep({ phase: 'denominator', text: '2' }, '(').leaveFraction, true);
+});
+
+test('a bracket straight after the slash still builds a grouped denominator on purpose', () => {
+  assert.equal(simulate([...'1/(x-6)']), '\\frac{1}{(x-6)}');
+  assert.equal(simulate([...'y=3/(2x+1)']), 'y=\\frac{3}{(2x+1)}');
+  // A sign alone is not a number yet: 1/−(x+1) keeps the bracket inside.
+  assert.equal(simulate([...'1/-(x+1)']), '\\frac{1}{-(x+1)}');
+  // A denominator that is not a plain number is not finished either.
+  assert.equal(typedFractionKeyStep({ phase: 'denominator', text: '.' }, { key: '(' }).leaveFraction, false);
+});
+
+test('what the grader receives: the typed point-slope answer is marked right, the old build is not', () => {
+  const question = { type: 'literal', acceptedAnswers: ['y-2=-1/2(x-6)'], solveFor: 'y' };
+  const typed = simulate([...'y-2=-1/2(x-6)']);
+  assert.equal(gradeLiteralResponse(question, typed).isCorrect, true, typed);
+  // MathLive's smart fence serialises a typed `(` as \left( … \right).
+  const fenced = typed.replace('(', '\\left(').replace(/\)$/, '\\right)');
+  assert.equal(fenced, 'y-2=-\\frac{1}{2}\\left(x-6\\right)');
+  assert.equal(gradeLiteralResponse(question, fenced).isCorrect, true, fenced);
+  // The pre-fix build was a different expression, and graded as one.
+  assert.equal(gradeLiteralResponse(question, 'y-2=-\\frac{1}{2\\left(x-6\\right)}').isCorrect, false);
+});
+
 test('a second slash never leaves the fraction: MathLive cannot take a fraction as a numerator', () => {
   // Measured: leaving first turned 2/3/4 into 2/3 beside an EMPTY fraction.
   // Staying builds the whole (if nested) expression 2/(3/4), and the new
@@ -114,7 +146,10 @@ test('a slash with nothing before it leaves the caret in the numerator, which is
 
 test('an exponent, an arrow, Backspace or a shortcut ends the watch — the old behaviour is the fallback', () => {
   const watching = { phase: 'denominator', text: '2' };
-  for (const key of ['^', 'ArrowLeft', 'Backspace', 'Tab', 'Home', '(']) {
+  // `(` used to be in this list, which pinned the R-11 bug: 1/2(x−6) became
+  // 1/(2(x−6)). An opening bracket after a number denominator is a factor now
+  // (tested below); straight after the slash it still groups (tested above).
+  for (const key of ['^', 'ArrowLeft', 'Backspace', 'Tab', 'Home']) {
     assert.deepEqual(typedFractionKeyStep(watching, { key }), { state: null, leaveFraction: false }, key);
   }
   assert.deepEqual(typedFractionKeyStep(watching, { key: 'z', ctrlKey: true }), { state: null, leaveFraction: false });

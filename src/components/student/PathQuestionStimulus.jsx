@@ -2,6 +2,7 @@ import React from 'react';
 import MathText from '../common/MathText.jsx';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane.jsx';
 import { feasibleRegionPolygon } from '../../tools/systemsWorkspace/systemsMath.js';
+import { boundaryDash } from '../../platform/graph/verticalLineStyle.js';
 
 // The material a Path question gives the student to work FROM.
 //
@@ -111,12 +112,16 @@ function StimulusGraph({ graph, describeFeatures = null }) {
     .map((line, index) => (!line || line.vertical ? null : ({
       m:line.m,
       b:line.b,
-      dash:String(line.entry?.boundaryStyle || '') === 'dashed' ? '10 6' : undefined,
+      dash:boundaryDash({ boundaryStyle:line.entry?.boundaryStyle }),
       stroke:line.entry?.stroke,
       label:line.entry?.label || `Line ${index + 1}`,
     })))
     .filter(Boolean);
-  const verticalLines = resolvedLines.filter((line) => line?.vertical).map((line) => line.x);
+  // An authored vertical line is a boundary like any other line here, so it
+  // keeps its style: x = 5 of x ≤ 5 is solid, as the key and the legend say.
+  const verticalLines = resolvedLines
+    .filter((line) => line?.vertical)
+    .map((line) => ({ x:line.x, boundaryStyle:line.entry?.boundaryStyle, stroke:line.entry?.stroke }));
   const points = (Array.isArray(graph.points) ? graph.points : [])
     .map(graphPoint)
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));

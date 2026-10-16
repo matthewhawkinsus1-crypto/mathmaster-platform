@@ -55,6 +55,7 @@
  */
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
+import { verticalLineDrawings } from '../graph/verticalLineStyle.js';
 
 // Above this many resolution steps across the window the plane cannot draw a
 // minor grid (CoordinatePlane's MAX_MINOR_LINES), so the eye has only the major
@@ -332,7 +333,9 @@ const describeKinds = ({
 }) => {
   const lineCount = lines.filter((line) => Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b))).length;
   const curveCount = functions.filter((fn) => typeof fn === 'function').length;
-  const verticals = verticalLines.map(Number).filter(Number.isFinite).length;
+  const verticalDrawings = verticalLineDrawings(verticalLines);
+  const solidVerticals = verticalDrawings.filter((line) => !line.dash).length;
+  const verticals = verticalDrawings.length - solidVerticals;
   const horizontals = horizontalLines.map(Number).filter(Number.isFinite).length;
   const paths = polylines.map(rawPointList).filter((v) => v.length).length;
   const shaded = regions.map(rawPointList).filter((v) => v.length).length;
@@ -344,6 +347,7 @@ const describeKinds = ({
   if (lineCount) sentences.push(`${plural(lineCount, 'line')}.`);
   if (curveCount) sentences.push(curveCount > 1 ? `${plural(curveCount, 'curve')}, the first solid and the others dashed.` : '1 curve.');
   if (verticals) sentences.push(`${plural(verticals, 'dashed vertical line')}.`);
+  if (solidVerticals) sentences.push(`${plural(solidVerticals, 'solid vertical line')}.`);
   if (horizontals) sentences.push(`${plural(horizontals, 'dashed horizontal line')}.`);
   if (paths) sentences.push(`${plural(paths, 'connected path')}.`);
   if (shaded) sentences.push(`${plural(shaded, 'shaded region')}.`);
@@ -441,9 +445,10 @@ export function describeCoordinatePlane({
     curveEntries.forEach((entry) => sentences.push(entry.text));
   }
 
-  const verticals = list(verticalLines).map(Number).filter(Number.isFinite);
+  // Said the way it is drawn: a guide or a strict boundary dashed, an inclusive one solid.
+  const verticals = verticalLineDrawings(list(verticalLines));
   const horizontals = list(horizontalLines).map(Number).filter(Number.isFinite);
-  verticals.forEach((x) => sentences.push(`Dashed vertical line through ${readText(x, res.x)} on the x-axis.`));
+  verticals.forEach(({ x, dash }) => sentences.push(`${dash ? 'Dashed' : 'Solid'} vertical line through ${readText(x, res.x)} on the x-axis.`));
   horizontals.forEach((y) => sentences.push(`Dashed horizontal line through ${readText(y, res.y)} on the y-axis.`));
 
   const polyVertices = list(polylines).map(rawPointList).filter((v) => v.length);

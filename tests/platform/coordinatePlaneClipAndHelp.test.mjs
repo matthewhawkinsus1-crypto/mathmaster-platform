@@ -33,7 +33,9 @@ test('the plotting rectangle is a clip path with a url-safe id', () => {
 
 test('lines, curves, regions and polylines are drawn inside the clip', () => {
   const clipped = clipGroups.join('\n');
-  for (const drawing of ['regions.map(', 'verticalLines.map(', 'horizontalLines.map(', 'functions.map(', 'lines.map(', 'polylines.map(']) {
+  // Vertical lines are drawn from their drawings (a guide or a styled
+  // boundary, verticalLineStyle.js) — still one map over the prop, still clipped.
+  for (const drawing of ['regions.map(', 'verticalLineDrawings(verticalLines).map(', 'horizontalLines.map(', 'functions.map(', 'lines.map(', 'polylines.map(']) {
     assert.ok(clipped.includes(drawing), `${drawing} must be inside <g clipPath={plotClip}>`);
   }
 });

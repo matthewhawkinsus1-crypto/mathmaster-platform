@@ -374,7 +374,7 @@ export default function MathInput({
     const preventUnusedModes = (event) => {
       // A typed `/` builds the fraction the same characters mean as text:
       // once the denominator is a plain number, a letter, operator, relation,
-      // comma or closing bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
+      // comma or bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
       // not −2/(3x + 4) (PQ-040). Runs before MathLive inserts the key, like
       // the `=` rule below; anything it does not recognise changes nothing.
       const fractionStep = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
