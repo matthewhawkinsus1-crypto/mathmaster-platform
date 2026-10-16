@@ -118,3 +118,18 @@ test('the first load reaches mathjs only through the lazily built instances', ()
     .map((file) => path.relative(repo, file));
   assert.deepEqual(importers.filter((file) => !LAZY_MATHJS_INSTANCES.includes(file)), []);
 });
+
+// The worksheet and answer-key builders run when someone asks for a PDF, so
+// they load with it (src/platform/resources/pdfLoaders.js). App imported the
+// worksheet model statically, so every tool whose answer key it can print —
+// the Matrix Lab's whole model, 6 KB gzip — joined every student's first load.
+test('the worksheet and answer-key builders are not in the first load', () => {
+  for (const file of [
+    'src/platform/resources/assignmentWorksheetPdfModel.js',
+    'src/platform/resources/teacherAssignmentWorksheetExport.js',
+    'functions/shared/toolMath/matrixLab/matrixLabModel.mjs',
+  ]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+});

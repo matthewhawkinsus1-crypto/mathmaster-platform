@@ -1,4 +1,5 @@
 import { readDisplayMatrices } from '../math/displayMatrices.js';
+import { PRINT_OUTPUT_MODES } from './printOutputModes.js';
 import { matrixLabAnswerLines } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
 
 const clean = (value) => String(value ?? '').trim();
@@ -37,11 +38,7 @@ const directionsText = (question = {}) => clean(
   question.directions ?? question.instructions ?? question.taskDirections ?? '',
 );
 
-export const PRINT_OUTPUT_MODES = Object.freeze({
-  STUDENT: 'student',
-  TEACHER: 'teacher',
-  ANSWER_KEY: 'answerKey',
-});
+export { PRINT_OUTPUT_MODES };
 
 const OUTPUT_MODE_LABELS = Object.freeze({
   student: 'Printable Assignment',

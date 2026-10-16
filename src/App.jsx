@@ -417,14 +417,13 @@ import {
   blobToBase64,
   generateLessonNotesPdfBlob,
 } from './platform/resources/pdfLoaders.js';
-import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
-import { downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
+import { PRINT_OUTPUT_MODES } from './platform/resources/printOutputModes.js';
+import { buildAssignmentWorksheetModel, buildTeacherAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
   assignmentNeedsStudentForWorksheet,
-  buildTeacherAssignmentWorksheetModel,
   eligibleStudentsForTeacherWorksheet,
-} from './platform/resources/teacherAssignmentWorksheetExport.js';
+} from './platform/resources/teacherWorksheetEligibility.js';
 import {
   classroomPostingMode,
   mappedCourseIdsForAssignment,
@@ -5504,19 +5503,20 @@ function App() {
       });
     }
 
-    const model = buildAssignmentWorksheetModel({
-      assignment: assignmentData,
-      // A blank name line on the printout rather than a placeholder for a
-      // student with no name on file.
-      student: { displayName: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }), classPeriod: user.classPeriod },
-      entries: printableEntries,
-    });
-    if (!model.sections.some((section) => section.questions.length)) {
-      toastInfo('Nothing to export yet', 'No currently unlocked questions are available for the printable worksheet.');
-      return;
-    }
-
     try {
+      // The worksheet builder loads with the PDF (pdfLoaders.js), so a load
+      // failure lands in this catch like a failed render.
+      const model = await buildAssignmentWorksheetModel({
+        assignment: assignmentData,
+        // A blank name line on the printout rather than a placeholder for a
+        // student with no name on file.
+        student: { displayName: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }), classPeriod: user.classPeriod },
+        entries: printableEntries,
+      });
+      if (!model.sections.some((section) => section.questions.length)) {
+        toastInfo('Nothing to export yet', 'No currently unlocked questions are available for the printable worksheet.');
+        return;
+      }
       const result = await downloadAssignmentWorksheetPdf({ model });
       toastSuccess('PDF ready', `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported. Locked sections and answer data were not included.`);
     } catch (error) {
@@ -5548,7 +5548,7 @@ function App() {
               || selectedStudent.profile?.adaptiveInstruction,
           }
         : null;
-      const model = buildTeacherAssignmentWorksheetModel({
+      const model = await buildTeacherAssignmentWorksheetModel({
         assignment,
         student: selectedStudent,
         learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,

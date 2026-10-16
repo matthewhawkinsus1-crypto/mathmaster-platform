@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PRINT_OUTPUT_MODES } from '../../platform/resources/assignmentWorksheetPdfModel.js';
+import { PRINT_OUTPUT_MODES } from '../../platform/resources/printOutputModes.js';
 import Dialog from '../../ui/Dialog.jsx';
 import { compareStudentsByName, formatStudentLabel } from '../../platform/studentName.js';
 

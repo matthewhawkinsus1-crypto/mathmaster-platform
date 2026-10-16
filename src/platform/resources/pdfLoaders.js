@@ -19,3 +19,13 @@ export const blobToBase64 = async (...args) => (
 export const downloadAssignmentWorksheetPdf = async (...args) => (
   (await import('./assignmentWorksheetPdf.js')).downloadAssignmentWorksheetPdf(...args)
 );
+
+// The worksheet and answer-key builders. They read every tool's answer key
+// (the Matrix Lab's whole model among them), so they load with the PDF too.
+export const buildAssignmentWorksheetModel = async (...args) => (
+  (await import('./assignmentWorksheetPdfModel.js')).buildAssignmentWorksheetModel(...args)
+);
+
+export const buildTeacherAssignmentWorksheetModel = async (...args) => (
+  (await import('./teacherAssignmentWorksheetExport.js')).buildTeacherAssignmentWorksheetModel(...args)
+);
