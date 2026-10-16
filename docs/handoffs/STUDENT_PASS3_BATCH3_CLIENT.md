@@ -49,7 +49,7 @@ Running those journeys also found two real defects, both fixed here with unit ca
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,396 / 11,396 |
+| `npm run test:platform` | 11,397 / 11,397 |
 | `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (1 skipped) |
 | `npm run lint` / `build` / `build:firebase` | pass (no new warnings) |
 | `npm run test:rules` (emulator) | 248/248 and 200/200, incl. new cases: a document built by the real merge with per-answer times is accepted directly and in a transaction; a grade beside it or another student's id is refused |
