@@ -98,8 +98,20 @@ export const subscribeDraftSaveHealth = (listener) => {
 export const DRAFT_SAVE_PROBLEM_TEXT = Object.freeze({
   [DRAFT_SAVE_PROBLEM.DEVICE_FULL]: 'Your work is not being saved on this device: its storage is full. Keep this tab open so MathMaster can back it up, and tell your teacher.',
   [DRAFT_SAVE_PROBLEM.BACKUP_REFUSED]: 'Some of your work on this assignment can only be saved on this device, not backed up to MathMaster. Finish it on this device, and tell your teacher.',
-  [DRAFT_SAVE_PROBLEM.BACKUP_FULL]: 'This assignment has more unfinished work than MathMaster can back up, so your oldest unfinished work is saved on this device only. Finish it on this device.',
+  [DRAFT_SAVE_PROBLEM.BACKUP_FULL]: 'This assignment has more unfinished work than MathMaster can back up. Your oldest unfinished work is saved only on the device where you did it.',
 });
+
+/*
+ * One student's problems on one assignment. Draft keys name both
+ * (questionDraftStorage.js buildQuestionDraftKey); a problem on another
+ * assignment is not this screen's to report.
+ */
+export const draftSaveProblemsFor = ({ studentId, assignmentId } = {}) => {
+  if (!studentId || !assignmentId) return Object.fromEntries(KINDS.map((kind) => [kind, 0]));
+  const part = (value) => encodeURIComponent(String(value ?? ''));
+  const prefix = `mathmaster:draft:v2::${part(studentId)}:${part(assignmentId)}:`;
+  return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
+};
 
 export const describeDraftSaveProblems = (counts = snapshot()) => {
   const kind = KINDS.find((each) => Number(counts?.[each]) > 0);
