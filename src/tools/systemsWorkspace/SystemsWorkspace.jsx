@@ -131,7 +131,9 @@ function LinearMode({ questionData, onAction }) {
         hints={[
           'The solution of a system is the point that makes both equations true at once — on a graph, that is where the lines cross.',
           'Compare the slopes. Different slopes cross exactly once. Equal slopes are parallel: no solution, unless the intercepts also match, which makes them the same line.',
-          `Equation 1 has slope ${system.m1} and Equation 2 has slope ${system.m2}. ${Number(system.m1) === Number(system.m2) ? 'They are equal, so check the intercepts.' : 'They differ, so trace across to where the two lines meet and read both coordinates.'}`,
+          // Read the slopes and compare them yourself: a rung that said "they
+          // differ" or "they are equal" answered "how many solutions" (HELP-10).
+          'Read the slope of each equation, compare them, and use that rule to decide how many solutions there are. If there is exactly one, trace across to where the two lines meet and read both coordinates.',
         ]}
         onHintUsed={() => onAction?.('HINT_USED')}
       />

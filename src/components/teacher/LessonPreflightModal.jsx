@@ -1562,6 +1562,23 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding: it never turns the assignment
+          "Needs Review" (attemptFeedbackPreflight.js). */}
+      {preflightModel.attemptFeedback?.warnings?.length > 0 && (
+        <div data-attempt-feedback-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Feedback while students can still fix it</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These Practice questions have no attempt feedback. A student who misses can ask "What might have gone wrong?", but a sentence you write for the next try says more. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.attemptFeedback.warnings.length === 1 ? '1 question' : `${preflightModel.attemptFeedback.warnings.length} questions`}</summary>
+            <ul data-attempt-feedback-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.attemptFeedback.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {preflightModel.questionValues?.rows?.length > 0 && (
         <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>

@@ -24,7 +24,8 @@ import SolutionReviewPanel from './SolutionReviewPanel';
 import HintPanel from './platform/supports/hints/HintPanel.jsx';
 import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
-import { buildQuestionHints, hintRelease } from './platform/supports/hints/questionHints.js';
+import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
+import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
@@ -62,6 +63,7 @@ import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import { createAttemptOutcomeSlots } from './tools/shared/attemptOutcomeSlots.js';
+import { createToolHintChannel } from './tools/shared/toolHintChannel.js';
 import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
@@ -77,6 +79,8 @@ import Dialog from './ui/Dialog.jsx';
 const UNCHANGED_CONFIRM_Z_INDEX = 2147483450;
 // The element in the results region that carries a submit's result (RUN-1).
 const ATTEMPT_RESULT_FOCUS = Object.freeze({ [ATTEMPT_RESULT_FOCUS_ATTRIBUTE]: '' });
+// "Show a hint" and "See a similar problem worked", wherever they are offered.
+const HINT_OFFER_BUTTON_STYLE = Object.freeze({ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' });
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionResolutionBoundary, { QuestionResolutionFailure, questionFailureContext, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import QuestionSupplementBoundary from './QuestionSupplementBoundary';
@@ -298,6 +302,11 @@ function QuestionEngineBody({
   // useAskMyTeacher): 'hand' in class or 'question' outside it, the teacher's
   // "Seen" / "On my way", the question already left and how to send one.
   askTeacherContext = null,
+  // The sentence beside every hint offer, where a host's hint costs something
+  // the platform's does not: Recovery practice, where an item answered with
+  // help does not count toward unlocking (HELP-4). Null: "Hints never lower
+  // your score. Your teacher can see you used one." (hintCopy.js).
+  hintCostNote = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -544,6 +553,18 @@ function QuestionEngineBody({
   // has revealed, whether the panel is open, and the worked sibling problem.
   const [hintsRevealed, setHintsRevealed] = useState(restoredSupport.hintsRevealed);
   const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  // The hints the student read, as read (questionHints.js hintLadderView): a
+  // tool's rungs can change with its stage, and a hint already read must not.
+  const [revealedHintTexts, setRevealedHintTexts] = useState([]);
+  // ONE LADDER PER QUESTION (HELP-10): the registry tool's rungs, handed over
+  // by its HintPanels through ToolRuntimeContext (toolHintChannel.js).
+  const [toolHints, setToolHints] = useState([]);
+  const [toolHintChannel] = useState(() => createToolHintChannel((hints) => setToolHints(hints)));
+  // "WHAT MIGHT HAVE GONE WRONG?" (HELP-2, D2): the diagnosis of the latest
+  // miss, offered as a rung while the question is open — { attempt, hint,
+  // shown }. It outlives the first keystroke (like "Your last try") and is
+  // replaced by the next submit.
+  const [missRung, setMissRung] = useState(null);
   const [workedExampleUsed, setWorkedExampleUsed] = useState(restoredSupport.workedExampleUsed);
   const [similarOpen, setSimilarOpen] = useState(false);
   // The graded work behind the feedback on screen, kept beside it for the
@@ -674,6 +695,8 @@ function QuestionEngineBody({
     setCalculatorOpen(false);
     setHintUsed(restored.hintUsed);
     setHintsRevealed(restored.hintsRevealed);
+    setRevealedHintTexts([]);
+    setMissRung(null);
     setHintPanelOpen(false);
     setWorkedExampleUsed(restored.workedExampleUsed);
     setSimilarOpen(false);
@@ -1533,8 +1556,12 @@ function QuestionEngineBody({
    * counted as independent.
    */
   const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;
-  const questionHints = useMemo(() => (hintControlAllowed ? buildQuestionHints(processedQuestion) : []), [hintControlAllowed, processedQuestion]);
-  const hintState = hintRelease({ hints: questionHints, revealed: hintsRevealed, attemptCount: record.attemptCount, hintsAllowed: hintControlAllowed, closed: locked });
+  const questionHints = useMemo(() => (hintControlAllowed ? buildQuestionHints(processedQuestion, { toolHints }) : []), [hintControlAllowed, processedQuestion, toolHints]);
+  const hintLadder = hintLadderView({ ladder: questionHints, revealedTexts: revealedHintTexts, revealedCount: hintsRevealed });
+  const hintState = hintRelease({ hints: hintLadder.hints, revealed: hintLadder.revealed, attemptCount: record.attemptCount, hintsAllowed: hintControlAllowed, closed: locked });
+  // Where the platform carries the ladder, a registry tool hands its rungs to
+  // it instead of showing a second ladder (ToolShell HintPanel).
+  const toolHintPublisher = hintControlAllowed ? toolHintChannel.publish : null;
   const similarExample = useMemo(
     () => (hintControlAllowed ? buildSimilarWorkedExample(processedQuestion, { seed: Number(record.variantIndex) || 0 }) : null),
     [hintControlAllowed, processedQuestion, record.variantIndex],
@@ -1551,15 +1578,27 @@ function QuestionEngineBody({
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
   const revealNextHint = () => {
-    if (!hintState.canRevealNext) return;
+    if (!hintState.canRevealNext || !hintLadder.next) return;
+    const next = hintLadder.next;
+    setRevealedHintTexts(() => [...hintLadder.hints.slice(0, hintLadder.revealed), next]);
     setHintsRevealed((count) => count + 1);
     recordHintUse();
     setHintPanelOpen(true);
   };
+  // Offered from the Hint panel, and after a miss beside "Show a hint" (HELP-9):
+  // the example lives in the panel, so the panel opens with it.
   const openSimilarExample = () => {
     if (!similarExample) return;
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
+    setHintPanelOpen(true);
+  };
+  // The diagnosis rung, read on request: recorded exactly like a hint.
+  const showMissDiagnosis = () => {
+    if (!missRung || locked) return;
+    setMissRung((current) => (current ? { ...current, shown: true } : current));
+    recordHintUse();
+    setHintPanelOpen(true);
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
@@ -1574,8 +1613,8 @@ function QuestionEngineBody({
   const reportSupportedTextUse = (supportId, eventType) => reportSupportEvidence(supportId, eventType);
   const hintPanel = helpControlAvailable ? (
     <HintPanel
-      hints={questionHints}
-      revealed={hintsRevealed}
+      hints={hintLadder.hints}
+      revealed={hintLadder.revealed}
       release={hintState}
       onReveal={revealNextHint}
       similar={similarExample}
@@ -1585,6 +1624,8 @@ function QuestionEngineBody({
       readAloud={supportedTextReadAloud}
       translation={supportedTextTranslation}
       onSupportEvidence={reportSupportedTextUse}
+      costNote={hintCostNote}
+      diagnosis={missRung && !locked ? { shown: missRung.shown ? missRung.hint : null, onShow: showMissDiagnosis } : null}
     />
   ) : null;
   // The step-algebra solvers carry their own strategic hint: the same
@@ -1592,6 +1633,7 @@ function QuestionEngineBody({
   const stepAlgebraHintProps = {
     hintsAllowed: toolHintsAllowed,
     onHintUsed: recordHintUse,
+    hintCostNote,
   };
   // The algebra solvers are mounted here directly, not through the registry,
   // but the relation solver embeds a registry tool — its "graph your solution
@@ -1606,6 +1648,7 @@ function QuestionEngineBody({
       showImmediateFeedback={showOutcomeFeedback}
       hintsAllowed={toolHintsAllowed}
       onHintUsed={recordHintUse}
+      publishHints={toolHintPublisher}
       questionTerminal={locked}
       submitLabel={hostSubmitLabel}
       verdictsWithheld={!showOutcomeFeedback}
@@ -1619,6 +1662,8 @@ function QuestionEngineBody({
     // Reported exactly like a revealed hint, which is what discounts the
     // mastery weight through isMathematicallyIndependent.
     onSelfCheck: () => setHintUsed(true),
+    // ...and it says what that costs, in the words every hint offer uses.
+    hintCostNote,
     // The point check may name wrong points only where outcomes are shown at
     // once; on a DOL, quiz or test the submission is the check.
     revealPointCorrectness: showOutcomeFeedback,
@@ -1680,6 +1725,36 @@ function QuestionEngineBody({
     if (missDetail?.message) setFeedbackAssisted(true);
   }, [missDetail]);
 
+  // "WHAT MIGHT HAVE GONE WRONG?" (HELP-2, D2). The diagnosis the box holds
+  // back while the question is open — the generic checks run as if it had
+  // closed — offered as a rung of the hint ladder: only where hints are
+  // allowed (never a DOL, quiz or test, nor a server-graded host), only while
+  // outcome feedback for this item is open, only on request, and never when
+  // the box already says it (questionHints.js diagnosisHint).
+  const missRungOffer = useMemo(() => {
+    if (!hintControlAllowed || locked || !feedbackOpen) return null;
+    if (!feedback || feedback.isCorrect || feedback.blocked) return null;
+    if (!gradedForDisplay || gradedForDisplay.feedback !== feedback) return null;
+    const familyValues = displayFamilyValues({
+      template: runtimeQuestion,
+      delivered: processedQuestion,
+      assignmentId: familyAssignmentId,
+      storageIndex: familyStorageIndex,
+    });
+    const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues, attemptsLeft: false });
+    return diagnosisHint({ question: processedQuestion, diagnosis, alreadyShown: missDetail?.message || '' });
+  }, [hintControlAllowed, locked, feedbackOpen, feedback, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, missDetail]);
+  const missRungAttempt = feedback ? (Number(feedback.attemptCount) || record.attemptCount) : null;
+  useEffect(() => {
+    // Editing clears `feedback`; the rung stays until the next submit.
+    if (!feedback) return;
+    setMissRung((current) => {
+      if (!missRungOffer) return null;
+      if (current && current.attempt === missRungAttempt && current.hint.text === missRungOffer.text) return current;
+      return { attempt: missRungAttempt, hint: missRungOffer, shown: false };
+    });
+  }, [feedback, missRungOffer, missRungAttempt]);
+
   // THE ATTEMPT OUTCOME, WORDED ONCE. The box below the question and a
   // registry tool's result area show exactly the same words. A closed
   // question points at a worked solution only when there is one.
@@ -1709,6 +1784,19 @@ function QuestionEngineBody({
   // A hint offered after a miss, wherever the outcome is shown (HELP-7).
   const attemptHintOffered = Boolean(feedback && !feedback.isCorrect && !feedback.blocked
     && hintOfferedAfterMiss({ attemptNumber: Number(feedback.attemptCount) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }));
+  // "See a similar problem worked" beside it after a miss (HELP-9): the worked
+  // sibling the Hint panel offers, while the question is open.
+  const similarOffered = Boolean(similarExample && !similarOpen && !locked);
+  const attemptSimilarOffered = Boolean(similarOffered && feedback && feedback.isCorrect === false && !feedback.blocked);
+  // THE FIRST HINT, OFFERED OPENLY BEFORE THE FIRST TRY (D5). On Classwork and
+  // Practice hint 1 was already there on request, behind the 💡 icon; now it
+  // is offered in words, with what it costs. Offered, never shown: a reveal
+  // records help, so it waits for the student to ask.
+  const firstHintOffered = Boolean(
+    ['classwork', 'practice'].includes(resolvedActivityPolicy?.role)
+      && hintState.canRevealNext && hintLadder.revealed === 0 && !hintPanelOpen
+      && !feedback && !locked && !(Number(record.attemptCount) > 0),
+  );
   // With the words, what the box offers beside them (student pass 3, HELP-7):
   // Read aloud and Translate for the student entitled to them, and the hint.
   const toolAttemptOutcome = outcomeInTool ? {
@@ -1721,6 +1809,7 @@ function QuestionEngineBody({
     translation: supportedTextTranslation,
     onEvidence: reportSupportedTextUse,
     onShowHint: attemptHintOffered ? revealNextHint : null,
+    onShowSimilar: attemptSimilarOffered ? openSimilarExample : null,
   } : null;
 
   // The words of the miss box as shown, kept for "Your last try" (HELP-8).
@@ -1765,6 +1854,7 @@ function QuestionEngineBody({
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}
+          publishHints={toolHintPublisher}
           questionTerminal={locked}
           submitLabel={hostSubmitLabel}
           verdictsWithheld={!showOutcomeFeedback}
@@ -1798,6 +1888,7 @@ function QuestionEngineBody({
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}
+          publishHints={toolHintPublisher}
           questionTerminal={locked}
           attemptOutcome={toolAttemptOutcome}
           attemptOutcomeSlots={toolOutcomeSlots}
@@ -2417,8 +2508,15 @@ function QuestionEngineBody({
    * still cover only the tool). The element carrying the result is brought
    * into view once per submit (attemptResultsReveal.js).
    */
+  const previousMissHintOffered = Boolean(previousMiss && hintOfferedAfterMiss({ attemptNumber: Number(previousMiss.attempt) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }));
   const attemptResults = (
     <div ref={attemptResultsRef} className="mathmaster-attempt-results" data-attempt-results="">
+      {firstHintOffered && (
+        <p data-first-hint-offer="" style={{ margin: '14px auto 0', maxWidth: '700px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 600, lineHeight: 1.5 }}>
+          <span aria-hidden="true">💡 </span>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
+          <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
+        </p>
+      )}
       {sameIncorrectResponse && !isMultipart && !locked && (
         <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
       )}
@@ -2455,10 +2553,11 @@ function QuestionEngineBody({
           {attemptOutcomeFocus && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
           )}
-          {attemptHintOffered && (
+          {(attemptHintOffered || attemptSimilarOffered) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
-              A hint is ready if you want one.{' '}
-              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+              {attemptHintOffered ? <>A hint is ready if you want one.{' '}
+              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>
@@ -2475,10 +2574,11 @@ function QuestionEngineBody({
           {previousMiss.text}
           {previousMiss.specific ? <div style={{ marginTop: '6px' }}>{previousMiss.specific}</div> : null}
           {previousMiss.focus ? <div style={{ marginTop: '6px' }}>{previousMiss.focus}</div> : null}
-          {hintOfferedAfterMiss({ attemptNumber: Number(previousMiss.attempt) || record.attemptCount, hintsAvailable: hintState.canRevealNext, open: !locked }) && (
+          {(previousMissHintOffered || similarOffered) && (
             <div style={{ marginTop: '8px' }}>
-              A hint is ready if you want one.{' '}
-              <button type="button" onClick={revealNextHint} style={{ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+              {previousMissHintOffered ? <>A hint is ready if you want one.{' '}
+              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {similarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>

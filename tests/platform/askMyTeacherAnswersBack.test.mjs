@@ -47,7 +47,9 @@ import {
 } from '../../src/platform/supports/askTeacher.js';
 import {
   HELP_REQUEST_RESTORE_MS,
+  helpRequestAfterClose,
   helpRequestFields,
+  nextHand,
   nextHelpRequest,
   readStoredHelpRequest,
   restoreHelpRequest,
@@ -199,6 +201,28 @@ test('a reload does not lower the hand: this tab restores it for the same assign
   const broken = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } };
   assert.doesNotThrow(() => storeHelpRequest(broken, 'S1', hand));
   assert.equal(readStoredHelpRequest(broken, 'S1'), null);
+});
+
+test('a change to the hand that changes nothing keeps the same state, so App\'s close check cannot loop', () => {
+  // App.jsx lowers a hand when its question closes, from an effect that runs on
+  // most renders: setHelpRequest((current) => helpRequestAfterClose(current, …)).
+  // React skips an update only when the state is the same object; rebuilding
+  // it on every call looped ("Maximum update depth exceeded", every page).
+  const open = { 2: { status: 'attempted', attemptCount: 1 } };
+  const hand = { studentId: 'S1', assignmentId: 'A1', request: { assignmentId: 'A1', questionIndex: 2, at: 1 } };
+  assert.equal(nextHand(hand, (current) => helpRequestAfterClose(current, open, { askingAllowed: true })), hand, 'the hand stays up: same state');
+  assert.equal(nextHand(hand, hand.request), hand);
+  const none = { studentId: null, assignmentId: null, request: null };
+  assert.equal(nextHand(none, (current) => helpRequestAfterClose(current, open)), none, 'no hand (a teacher, Home): same state');
+  // A real change is a new state, with nothing else moved.
+  const lowered = nextHand(hand, (current) => helpRequestAfterClose(current, { 2: { status: 'correct' } }));
+  assert.notEqual(lowered, hand);
+  assert.deepEqual(lowered, { studentId: 'S1', assignmentId: 'A1', request: null });
+  const raised = nextHand(none, { assignmentId: 'A1', questionIndex: 0, at: 5 });
+  assert.deepEqual(raised.request, { assignmentId: 'A1', questionIndex: 0, at: 5 });
+  // The hook's setter is that step.
+  const hook = code('src/platform/supports/useAskMyTeacher.js');
+  assert.match(hook, /const setRequest = useCallback\(\(next\) => setHand\(\(current\) => nextHand\(current, next\)\), \[\]\);/);
 });
 
 test('the hook owns the hand: restored on entering an assignment, forgotten on leaving it, published only in class', () => {

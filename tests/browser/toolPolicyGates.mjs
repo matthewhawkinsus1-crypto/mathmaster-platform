@@ -23,11 +23,15 @@
 //             the submission is graded, and no verdict appears.
 //   help      the bridge's authored hint is in the Work View Help drawer on
 //             practice and absent on a DOL.
-//   mapping   "Stuck? Show a hint" on practice; absent on a DOL.
-//   composed  the mapping stage's hint and "Not yet" verdict on practice; both
-//             absent on a DOL.
-//   graphing  Graphing2's hint panel (inline and as Work View Help) on practice;
-//             absent on a DOL, where the drawer keeps the platform's directions.
+//   mapping   ONE LADDER (student pass 3, HELP-10): the tool's own "Stuck?
+//             Show a hint" is gone inside a question; on practice its rungs
+//             are in the platform's ladder, offered before the first try (D5);
+//             on a DOL there is no hint anywhere.
+//   composed  the mapping stage's rungs in the platform ladder and its "Not
+//             yet" verdict on practice; both absent on a DOL.
+//   graphing  Graphing2's rungs in the platform ladder, which is also its Work
+//             View Help, on practice; absent on a DOL, where the drawer keeps
+//             the platform's directions.
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -67,7 +71,20 @@ const helpDrawerShows = (page, expected) => page.waitForFunction(
   expected,
   { timeout: 8000 },
 ).then(() => true, () => false);
+// The tool's own ladder: inside a question there must be none (HELP-10).
 const hintButtons = (page) => page.getByRole('button', { name: /Stuck\? Show a hint/ }).count();
+// The platform's ladder, as a student meets it before the first try (D5):
+// the offer in words, and "Show a hint" opens hint 1 in the Hint panel.
+const firstHintOffer = (page) => page.locator('[data-first-hint-offer]');
+const platformHint = async (page) => {
+  await firstHintOffer(page).getByRole('button', { name: 'Show a hint' }).click();
+  await page.waitForTimeout(200);
+  return page.evaluate(() => [...document.querySelectorAll('[data-hint-panel] li[data-hint-source]')]
+    .map((item) => `${item.dataset.hintSource}: ${item.textContent}`).join('\n'));
+};
+// Where each rung of the platform ladder came from (the panel says, without
+// showing the rungs not yet revealed): the tool's rungs are "tool".
+const ladderSources = (page) => page.evaluate(() => document.querySelector('[data-hint-panel]')?.dataset.hintSources || '');
 const mappingCheck = (page) => page.getByRole('button', { name: 'Check', exact: true });
 const fill = async (page, label, value) => {
   await page.locator(`input[aria-label="${label}"]`).fill(value);
@@ -167,13 +184,15 @@ for (const role of ['practice', 'dol']) {
   // as its HintPanel.
   const page = await open(role, 'mapping', mappingCheck);
   const count = await hintButtons(page);
+  check(count === 0, `${role} mapping: the tool shows no ladder of its own`, `${count} tool hint button(s)`);
   if (role === 'practice') {
-    check(count >= 1, 'practice mapping: the hint panel is offered');
-    await page.getByRole('button', { name: /Stuck\? Show a hint/ }).first().click();
-    await page.waitForTimeout(150);
-    check(/Each ordered pair \(x, y\) is one arrow/.test(await bodyText(page)), 'practice mapping: a hint is revealed');
+    check(/Hints never lower your score\. Your teacher can see you used one\./.test(await firstHintOffer(page).textContent().catch(() => '')), 'practice mapping: the first hint is offered before the first try, with what it costs');
+    check(!/Each ordered pair \(x, y\) is one arrow/.test(await bodyText(page)), 'practice mapping: offered, not shown');
+    const revealed = await platformHint(page);
+    check(/^(family|authored|tool): /m.test(revealed), 'practice mapping: "Show a hint" opens hint 1 of the platform ladder', revealed);
+    check(/\btool\b/.test(await ladderSources(page)), 'practice mapping: Relation Mapping\'s rungs are in that ladder', await ladderSources(page));
   } else {
-    check(count === 0, 'DOL mapping: no hint is offered', `${count} hint button(s)`);
+    check(await firstHintOffer(page).count() === 0, 'DOL mapping: no hint is offered');
     check(!/Each ordered pair \(x, y\) is one arrow/.test(await bodyText(page)), 'DOL mapping: no hint text anywhere');
   }
   await page.close();
@@ -186,11 +205,14 @@ for (const role of ['practice', 'dol']) {
   await mappingCheck(page).first().click();
   await page.waitForTimeout(250);
   const text = await bodyText(page);
+  check(count === 0, `${role} composed: the mapping stage shows no ladder of its own`, `${count} tool hint button(s)`);
   if (role === 'practice') {
-    check(count >= 1, 'practice composed: the mapping stage offers its hint panel');
     check(/Not yet/.test(text) && /No arrows drawn yet/.test(text), 'practice composed: the mapping stage check is a verdict');
+    const revealed = await platformHint(page);
+    check(/^(family|authored|tool): /m.test(revealed), 'practice composed: "Show a hint" opens hint 1 of the platform ladder', revealed);
+    check(/\btool\b/.test(await ladderSources(page)), 'practice composed: the mapping stage\'s rungs are in that ladder', await ladderSources(page));
   } else {
-    check(count === 0, 'DOL composed: the mapping stage offers no hint', `${count} hint button(s)`);
+    check(await firstHintOffer(page).count() === 0, 'DOL composed: the mapping stage offers no hint');
     check(!/Not yet|No arrows drawn yet|Correct — the diagram/.test(text), 'DOL composed: the mapping stage check names no verdict');
   }
   await page.close();
@@ -209,9 +231,12 @@ for (const role of ['practice', 'dol']) {
   ).catch(() => failures.push(`${role} graphing: Graphing2 never published its Work View capabilities`));
   const count = await hintButtons(page);
   const drawers = await helpDrawers(page);
+  check(count === 0, `${role} graphing: the tool shows no ladder of its own, inline or in Work View Help`, `${count} tool hint button(s)`);
   if (role === 'practice') {
-    check(count >= 1, 'practice graphing: the hint panel is offered');
-    check(/Stuck\? Show a hint/.test(drawers), 'practice graphing: Work View Help is the hint panel');
+    check(/Hints never lower your score/.test(drawers) && !/Stuck\? Show a hint/.test(drawers), 'practice graphing: Work View Help is the platform\'s Hint panel', drawers.slice(0, 200));
+    const revealed = await platformHint(page);
+    check(/^(family|authored|tool): /m.test(revealed), 'practice graphing: "Show a hint" opens hint 1 of the platform ladder', revealed);
+    check(/\btool\b/.test(await ladderSources(page)), 'practice graphing: Graphing2\'s rungs are in that ladder', await ladderSources(page));
   } else {
     check(count === 0, 'DOL graphing: no hint is offered, inline or in Work View Help', `${count} hint button(s)`);
     check(/Use the task directions/.test(drawers), 'DOL graphing: Work View Help keeps the platform directions rather than an empty drawer', drawers.slice(0, 160));

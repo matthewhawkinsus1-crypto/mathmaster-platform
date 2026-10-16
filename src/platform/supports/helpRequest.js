@@ -103,3 +103,18 @@ export const restoreHelpRequest = (stored, { assignmentId = null, now = Date.now
   if (at > now + 60000 || now - at > HELP_REQUEST_RESTORE_MS) return null;
   return { assignmentId: stored.assignmentId, questionIndex: Number.isInteger(stored.questionIndex) ? stored.questionIndex : null, at };
 };
+
+/*
+ * A CHANGE THAT CHANGES NOTHING KEEPS THE SAME STATE.
+ *
+ * App.jsx runs `setHelpRequest((current) => helpRequestAfterClose(...))` after
+ * every render whose tracker changed, which is most of them; it returns
+ * `current` when the hand stays up. With a plain useState setter React bails
+ * out of that update. Wrapping the hand in an object that was rebuilt on every
+ * call turned each one into a new state, a new render and the effect again:
+ * "Maximum update depth exceeded" on every student and teacher page.
+ */
+export const nextHand = (current, next) => {
+  const request = typeof next === 'function' ? next(current.request) : next;
+  return Object.is(request, current.request) ? current : { ...current, request };
+};

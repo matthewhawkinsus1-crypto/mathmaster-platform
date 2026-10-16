@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useOwnHintLadder, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import constraintFunctionGrader from '../../../functions/shared/serverGrading/tools/constraintFunctionBuilder.mjs';
@@ -51,7 +51,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const [model, setModel] = usePersistentToolState('model', initial);
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
-  const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own: hints allowed, and no platform ladder to hand
+  // them to (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
   // The checklist reads the AUTHORED wording, exactly as the grader does: a
   // translated prompt never changes which constraints are checked.
   const effectiveConstraints = useMemo(
@@ -129,8 +131,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
     task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
     // The hints ARE this Help: published only where the activity allows them,
-    // so a DOL does not show a Help button over an empty drawer.
-    help: hintsAllowed ? {
+    // so a DOL does not show a Help button over an empty drawer — and only
+    // where the host has no hint ladder, which is otherwise the Help (HELP-10).
+    help: ownHintLadder ? {
       content: (
         <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
       ),

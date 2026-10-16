@@ -14,7 +14,9 @@ import { isMobileQuestionViewport } from '../../components/student/MobileViewpor
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
-import { useHintsAllowed, useToolRuntimeContext } from './ToolRuntimeContext';
+import { useHintsAllowed, useToolHintPublisher, useToolRuntimeContext } from './ToolRuntimeContext';
+import { publishableHints } from './toolHintChannel.js';
+import { HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
 import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWords, verdictWraps } from './verdictShape.js';
 import { SupportedTextActions } from '../../platform/supports/SupportedText.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
@@ -315,12 +317,25 @@ const HINT_OFFER_BUTTON_STYLE = {
   border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)',
   fontWeight: 800, cursor: 'pointer',
 };
-const OutcomeHintOffer = ({ onShowHint }) => (
-  <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: 8, fontWeight: 600 }}>
-    A hint is ready if you want one.{' '}
-    <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
-  </span>
-);
+// With the hint, the worked sibling problem (student pass 3, HELP-9): "See a
+// similar problem worked" opens the same example as the Hint panel's "Try a
+// similar one", recorded the same way. Either may be offered alone.
+const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null }) => {
+  const hint = typeof onShowHint === 'function';
+  const similar = typeof onShowSimilar === 'function';
+  if (!hint && !similar) return null;
+  return (
+    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: 8, fontWeight: 600 }}>
+      {/* Both offered: the two buttons say it, without the lead-in. The
+          sentence and a wrapped second button made the box taller than a
+          phone leaves under the task card, and its last line went under the
+          action bar (390x844). */}
+      {hint && !similar ? <>A hint is ready if you want one.{' '}</> : null}
+      {hint ? <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button> : null}
+      {similar ? <button type="button" data-similar-offer="" onClick={onShowSimilar} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+    </span>
+  );
+};
 const OutcomeTextActions = ({ outcome, text }) => (
   <SupportedTextActions
     text={text}
@@ -342,7 +357,7 @@ export const AttemptOutcomeWords = ({ outcome, toolWords = '', detail = '', sayT
       {toolWords && sayToolWords ? <span data-attempt-outcome-tool-words="" style={SR_ONLY_STYLE}>{` ${toolWords}`}</span> : null}
       {detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{detail}</span> : null}
       {readable ? <OutcomeTextActions outcome={outcome} text={readable} /> : null}
-      {typeof outcome.onShowHint === 'function' ? <OutcomeHintOffer onShowHint={outcome.onShowHint} /> : null}
+      <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} />
     </>
   );
 };
@@ -384,7 +399,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = nu
       <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
         {' '}{outcome.text}{detail ? ` ${detail}` : ''}
         {detail ? <OutcomeTextActions outcome={outcome} text={detail} /> : null}
-        {typeof outcome.onShowHint === 'function' ? <OutcomeHintOffer onShowHint={outcome.onShowHint} /> : null}
+        <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} />
       </span>
     ) : null;
   }
@@ -537,10 +552,26 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
 // a DOL. A line saying "hints are not available" on every question of an exit
 // ticket would be noise the student reads instead of the problem, and the
 // activity already states its own rules.
+//
+// ONE LADDER PER QUESTION (student pass 3, HELP-10). Inside a question whose
+// host carries the platform's hint ladder (QuestionEngine's 💡 Hint), this
+// panel shows nothing: it hands its rungs to that ladder (toolHintChannel.js),
+// where a further hint needs a further attempt and a rung that names the
+// answer is dropped. It used to be a second ladder beside it, tapped through
+// to the end with no attempt at all. Only where there is no platform ladder
+// (the tools lab, a server-graded host) does the tool show its own.
 export const HintPanel = ({ hints = [], onHintUsed }) => {
   const [revealed, setRevealed] = useState(0);
   const hintsAllowed = useHintsAllowed();
+  const publishHints = useToolHintPublisher();
+  const rungs = publishableHints(hints);
+  const rungsKey = JSON.stringify(rungs);
+  useEffect(() => {
+    if (!publishHints || !hintsAllowed) return undefined;
+    return publishHints(JSON.parse(rungsKey));
+  }, [publishHints, hintsAllowed, rungsKey]);
   if (!hintsAllowed || !hints.length) return null;
+  if (publishHints) return null;
   const revealNext = () => {
     setRevealed((current) => {
       const next = Math.min(hints.length, current + 1);
@@ -565,7 +596,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
           type="button"
           onClick={revealNext}
           disabled={revealed >= hints.length}
-          title="Using a hint is recorded for your teacher."
+          title={HINT_COST_SENTENCE}
           style={{
             minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
             background: revealed >= hints.length ? 'var(--mm-surface-control)' : 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)',
@@ -574,7 +605,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
         >
           {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
-        {!used && <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>}
+        {!used && <span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{HINT_COST_SENTENCE}</span>}
       </div>
       {used ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
