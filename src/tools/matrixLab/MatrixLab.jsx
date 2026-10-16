@@ -134,10 +134,10 @@ function LocateMode({ questionData, model, onAction }) {
                   onClick={() => active && place(active.id, i + 1, j + 1)}
                   disabled={!active}
                   aria-label={`Row ${i + 1}, column ${j + 1}: ${value}${chips.length ? `, chosen for ${chips.map((chip) => elementNotation(letter, chip.row, chip.col)).join(', ')}` : ''}`}
-                  style={{ ...buttonStyle, minWidth: 48, padding: '6px 8px', fontSize: 'calc(19 * var(--mm-px))', position: 'relative', background: chips.length ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', border: chips.length ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', cursor: active ? 'pointer' : 'default' }}
+                  style={{ ...buttonStyle, minWidth: 48, padding: '6px 8px', fontSize: 'calc(19 * var(--mm-px))', position: 'relative', background: chips.length ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', border: chips.length ? '2px solid var(--mm-primary)' : '1px solid var(--mm-tint-border)', cursor: active ? 'pointer' : 'default' }}
                 >
                   {String(value).replace(/-/g, '−')}
-                  {chips.length ? <span aria-hidden="true" style={{ position: 'absolute', top: -9, right: -6, background: '#1a73e8', color: '#fff', borderRadius: 8, padding: '0 5px', fontSize: 'calc(11 * var(--mm-px))' }}>{chips.map((chip) => elementNotation(letter, chip.row, chip.col)).join(' ')}</span> : null}
+                  {chips.length ? <span aria-hidden="true" style={{ position: 'absolute', top: -9, right: -6, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', borderRadius: 8, padding: '0 5px', fontSize: 'calc(11 * var(--mm-px))' }}>{chips.map((chip) => elementNotation(letter, chip.row, chip.col)).join(' ')}</span> : null}
                 </button>
               );
             }}

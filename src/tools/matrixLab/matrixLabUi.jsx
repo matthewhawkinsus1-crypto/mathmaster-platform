@@ -40,16 +40,16 @@ export const buttonStyle = {
 export const primaryStyle = (enabled = true) => ({
   ...buttonStyle,
   border: 0,
-  background: enabled ? '#1a73e8' : 'var(--mm-surface-control)',
-  color: enabled ? '#fff' : 'var(--mm-text-muted)',
+  background: enabled ? 'var(--mm-primary)' : 'var(--mm-surface-control)',
+  color: enabled ? 'var(--mm-on-primary)' : 'var(--mm-text-muted)',
   cursor: enabled ? 'pointer' : 'default',
 });
 
 export const choiceStyle = (selected) => ({
   ...buttonStyle,
-  background: selected ? '#1a73e8' : 'var(--mm-surface)',
-  color: selected ? '#fff' : 'var(--mm-text-strong)',
-  border: selected ? '1px solid #1a73e8' : buttonStyle.border,
+  background: selected ? 'var(--mm-primary)' : 'var(--mm-surface)',
+  color: selected ? 'var(--mm-on-primary)' : 'var(--mm-text-strong)',
+  border: selected ? '1px solid var(--mm-primary)' : buttonStyle.border,
 });
 
 /**
@@ -140,7 +140,7 @@ export function Step({ number, title, children, note = null }) {
   return (
     <section aria-label={`Step ${number}: ${title}`} style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 12, padding: '12px 14px', marginTop: 12, background: 'var(--mm-surface)' }}>
       <h3 style={{ margin: '0 0 8px', fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-primary-text)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '1.85em', height: '1.85em', borderRadius: '50%', background: '#1a73e8', color: '#fff', marginRight: 8, fontSize: 'calc(13 * var(--mm-px))', verticalAlign: 'middle' }}>{number}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '1.85em', height: '1.85em', borderRadius: '50%', background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', marginRight: 8, fontSize: 'calc(13 * var(--mm-px))', verticalAlign: 'middle' }}>{number}</span>
         {title}
       </h3>
       {note ? <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45 }}>{note}</p> : null}
