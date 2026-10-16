@@ -106,11 +106,15 @@ test('advanced workspace keeps term-specific placement with one compact contextu
   assert.doesNotMatch(src, /Placement is optional/);
 });
 
-test('advanced workspace keeps student-authored Rewrite Simplify instead of one-click auto simplification', () => {
+test('advanced workspace keeps student-authored Simplify instead of one-click auto simplification', () => {
   const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
-  assert.match(src, /Rewrite \/ Simplify/);
-  assert.match(src, /Type your equivalent expression/);
-  assert.match(src, /MathMaster only checks it/);
+  // The shared Simplify (job Q): the student types every result.
+  const panel = fs.readFileSync('src/platform/algebra/simplify/SimplifyPanel.jsx', 'utf8');
+  assert.match(src, />\s*Simplify\s*<\/button>/);
+  assert.match(src, /<SimplifyPanel/);
+  assert.match(panel, /Or type a simpler version of/);
+  assert.match(panel, /MathMaster checks your work; it never writes the result for you\./);
+  assert.doesNotMatch(src, /Rewrite \/ Simplify/);
   assert.doesNotMatch(src, />Simplify left</);
   assert.doesNotMatch(src, />Simplify right</);
   assert.doesNotMatch(src, />Simplify both</);

@@ -3,8 +3,9 @@
  *
  * MultiRelationAlgebraCore (Step Algebra's relation workspace) is where a
  * generated equation that can have no solution or every real number opens.
- * This driver operates its real controls — Distribute, Combine like terms,
- * Rewrite / Simplify, the + − × ÷ dock with its placement menu, pair
+ * This driver operates its real controls — Distribute, the one Simplify
+ * (like-term parts, a whole side typed simpler; student push Q), the + − × ÷
+ * dock with its placement menu, pair
  * cancellation, and the "No solution" / "All real numbers" conclusions — and
  * never touches the workspace's state directly.
  *
@@ -126,62 +127,63 @@ export const distributeAll = async (page, log = () => {}) => {
   }
 };
 
-/** Combine like terms through the panel: the chosen terms, and the single term the student types. */
-export const combineLikeTerms = async (page, labels, combined, log = () => {}) => {
-  const toggle = page.locator('button:visible').filter({ hasText: /^Combine like terms$/ }).first();
-  if (!(await page.locator('[aria-label$="select as a term to combine"]:visible').count())) {
+const simplifyToggle = (page) => page.locator('button.algebra-simplify-toggle:visible').first();
+
+const openSimplify = async (page) => {
+  const toggle = simplifyToggle(page);
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
     await toggle.click();
     await settle(page, 300);
   }
-  for (const label of labels) {
-    await page.locator(`[data-term-text="${label}"][aria-label$="select as a term to combine"]:visible`).first().click();
-    await settle(page, 150);
-  }
-  await setMathField(page, page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first(), combined);
-  await page.keyboard.press('Enter');
-  await settle(page, 700);
-  log(`combine ${labels.join(' & ')} -> ${combined}: ${await relationState(page)}`);
 };
 
-/** Rewrite one whole side as an equivalent expression the student types. */
-export const rewriteSide = async (page, side, value, log = () => {}) => {
-  const open = page.locator('math-field[aria-label^="Equivalent expression"]:visible');
-  if (!(await open.count())) {
-    await page.locator('button:visible').filter({ hasText: /^Rewrite \/ Simplify$/ }).first().click();
-    await settle(page, 300);
+/** Close Simplify if it is open: while it is, a tap on a term chooses a part, not a placement. */
+const closeInline = async (page) => {
+  const toggle = simplifyToggle(page);
+  if (await toggle.count() && (await toggle.getAttribute('aria-expanded')) === 'true' && await toggle.isEnabled()) {
+    await toggle.click();
+    await settle(page, 250);
   }
-  // While Rewrite is on, each side of the relation is one target: the span
-  // around its expression (a side that is a quotient has no term tokens).
-  const targets = page.locator('[data-algebra-route="relation"] span[style*="cursor: text"]');
-  await targets.nth(side === 'left' ? 0 : 1).click();
+};
+
+/**
+ * Combine like terms through Simplify: the like-term part on a side (its
+ * variable terms if it has them, else its constants), and the single term the
+ * student types for it.
+ */
+export const combineLikeTerms = async (page, side, variable, log = () => {}) => {
+  await openSimplify(page);
+  const region = side === 'left' ? '0' : '1';
+  const ids = await page.locator(`.mm-simplify-part[data-part-id^="${region}:likeTerms:"]:visible`).evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+  const texts = await termTexts(page, side);
+  const groups = ids.map((id) => ({ id, indices: id.split(':')[2].split('.').map(Number) }));
+  const chosen = groups.find((group) => group.indices.every((index) => termIsVariable(texts[index], variable))) || groups[0];
+  if (!chosen) throw new Error(`no like terms on the ${side} side: ${JSON.stringify(texts)}`);
+  const combined = chosen.indices.reduce((sum, index) => {
+    const value = linearParts(texts[index], variable);
+    return { a: math.add(sum.a, value.a), b: math.add(sum.b, value.b) };
+  }, { a: math.fraction(0), b: math.fraction(0) });
+  await page.locator(`.mm-simplify-part[data-part-id="${chosen.id}"]`).click();
   await settle(page, 300);
-  await setMathField(page, page.locator('math-field[aria-label^="Equivalent expression"]:visible').first(), value);
+  await setMathField(page, page.locator('.mm-simplify-box math-field:visible').first(), linearText(combined, variable));
+  await page.keyboard.press('Enter');
+  await settle(page, 700);
+  log(`combine ${chosen.indices.map((index) => texts[index]).join(' & ')} -> ${linearText(combined, variable)}: ${await relationState(page)}`);
+  await closeInline(page);
+};
+
+/** Type a simpler version of one whole side (Simplify's whole-side route). */
+export const rewriteSide = async (page, side, value, log = () => {}) => {
+  await openSimplify(page);
+  await page.locator('.mm-simplify-side-choice:visible', { hasText: `the ${side} side` }).first().click();
+  await settle(page, 300);
+  await setMathField(page, page.locator(`math-field[aria-label^="A simpler version of the ${side} side"]:visible`).first(), value);
   await page.keyboard.press('Enter');
   await settle(page, 700);
   log(`rewrite ${side} -> ${value}: ${await relationState(page)}`);
-  // Rewrite mode stays on after a rewrite (with or without its bar showing)
-  // and, while it is on, the workspace ignores placements. Close it, as a
-  // student closes the rewrite bar before the next move.
-  // (Once the equation is solved the workspace disables its tools: nothing
-  // to close then.)
-  const toggle = page.locator('button:visible').filter({ hasText: /^Rewrite \/ Simplify$/ }).first();
-  if (await toggle.count() && await toggle.isEnabled()) {
-    await toggle.click();
-    await settle(page, 300);
-  }
-};
-
-/** Close Combine like terms if it is open: its term tokens own clicks on the terms. (rewriteSide closes Rewrite itself.) */
-const closeInline = async (page) => {
-  const modes = [
-    { toggle: /^Combine like terms$/, open: '[aria-label$="select as a term to combine"]:visible' },
-  ];
-  for (const mode of modes) {
-    if (await page.locator(mode.open).count()) {
-      await page.locator('button:visible').filter({ hasText: mode.toggle }).first().click();
-      await settle(page, 250);
-    }
-  }
+  // As a student closes Simplify before the next move. (Once the equation is
+  // solved the workspace disables its tools: nothing to close then.)
+  await closeInline(page);
 };
 
 /** A balanced + − × ÷ placed on both sides (after the last term, or under each side), then committed. */
@@ -271,22 +273,10 @@ export const solveLinearInRelationWorkspace = async (page, { variable = 'x', log
     if (!parts) throw new Error(`the ${side} side is not linear: ${expression}`);
     const texts = await termTexts(page, side);
     if (texts.length <= 2 && !/\)\s*\(|\)\(/.test(expression)) continue;
-    const labels = await page.locator('[aria-label$="select as a term to combine"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
     const plain = !/\(/.test(expression);
     if (plain && texts.length === 3) {
       // Three plain terms: two of them are like terms. Combine them.
-      await page.locator('button:visible').filter({ hasText: /^Combine like terms$/ }).first().click();
-      await settle(page, 300);
-      const offered = await page.locator('[aria-label$="select as a term to combine"]:visible').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
-      const variableTerms = offered.filter((label) => termIsVariable(label, variable));
-      const constantTerms = offered.filter((label) => !termIsVariable(label, variable));
-      const chosen = variableTerms.length >= 2 ? variableTerms : constantTerms;
-      const combined = chosen.reduce((sum, label) => {
-        const value = linearParts(label, variable);
-        return { a: math.add(sum.a, value.a), b: math.add(sum.b, value.b) };
-      }, { a: math.fraction(0), b: math.fraction(0) });
-      await combineLikeTerms(page, chosen, linearText(combined, variable), log);
-      void labels;
+      await combineLikeTerms(page, side, variable, log);
       continue;
     }
     // Products left by the distribution: rewrite the side as a·x + b.

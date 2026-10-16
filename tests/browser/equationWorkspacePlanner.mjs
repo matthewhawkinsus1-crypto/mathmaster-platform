@@ -12,7 +12,9 @@ import { latexToExpression } from '../../src/algebraAstEngine.js';
 import {
   closeInlineModes,
   combineLikeTerms,
+  openSimplify,
   distribute,
+  removeParentheses,
   rewriteTerm,
   setMathField,
   settle,
@@ -168,8 +170,24 @@ const simplifyIfAsked = async (page, host, side, value, log) => {
 /** A group the workspace offers to distribute — a numeric product such as −6(−3) has none. */
 const offersDistribution = async (host) => (await host.locator('button.algebra-distribute-toggle, .algebra-inline-factor-token').count()) > 0;
 
+/**
+ * A substituted group, + (…) or − (…): the student removes the parentheses in
+ * Simplify (student push Q), every sign changing after a minus.
+ */
+const removeGroups = async (page, host, log) => {
+  for (let guard = 0; guard < 4; guard += 1) {
+    await openSimplify(page, host);
+    const ids = await host.locator('.mm-simplify-part[data-simplify-part="parentheses"]').evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+    if (!ids.length) break;
+    await removeParentheses(page, host, ids[0].split(':')[0], 'flip');
+    log(`remove parentheses: ${(await stateNow(host)) ?? '(closed)'}`);
+  }
+  await closeInlineModes(page, host);
+};
+
 export const solveLinearInEquationWorkspace = async (page, host, { variable = 'x', log = () => {} } = {}) => {
   await host.locator('[data-math-state]').first().waitFor({ timeout: 15000 });
+  if (/\(/.test((await sides(host))?.latex || '')) await removeGroups(page, host, log);
   if (/\(/.test((await sides(host))?.latex || '')) {
     if (await offersDistribution(host)) {
       await distribute(page, host);

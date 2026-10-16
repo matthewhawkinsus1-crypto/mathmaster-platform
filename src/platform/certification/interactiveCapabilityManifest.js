@@ -87,8 +87,9 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     expectedRoute: 'stepAlgebra',
     requires: 'combineLikeTerms',
     wiring: [
-      { file: 'src/StepByStepAlgebraCore.jsx', pattern: /from '\.\/algebraLikeTermsModel(\.js)?'/ },
-      { file: 'src/StepByStepAlgebraCore.jsx', pattern: /Enter the single term these selected terms combine to/ },
+      // Combining like terms is a part of the one Simplify control (student push Q).
+      { file: 'src/StepByStepAlgebraCore.jsx', pattern: /<SimplifyPanel/ },
+      { file: 'src/platform/algebra/simplify/simplifyEngine.js', pattern: /from '\.\.\/\.\.\/\.\.\/algebraLikeTermsModel\.js'/ },
     ],
     browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'combine-like-terms' },
   },
@@ -175,7 +176,7 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     expectedRoute: 'relation',
     requires: 'combineLikeTerms',
     wiring: [
-      { file: 'src/MultiRelationAlgebraCore.jsx', pattern: /<RelationLikeTermsPanel/ },
+      { file: 'src/MultiRelationAlgebraCore.jsx', pattern: /<SimplifyPanel/ },
       { file: 'src/algebraRelationStructureModel.js', pattern: /from '\.\/algebraLikeTermsModel\.js'/ },
     ],
     browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'inequality-like-terms' },

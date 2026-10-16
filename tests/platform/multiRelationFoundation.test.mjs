@@ -268,7 +268,7 @@ test('advanced solver opens Other operations by default on load and reset', () =
   // Open unless the host says otherwise, on load and on every reset alike.
   assert.match(src, /\n\s*otherOperationsOpenByDefault = true,/);
   assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(otherOperationsOpenByDefault\)/);
-  assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(otherOperationsOpenByDefault\);\s*setCompleteSquareOpen\(false\);/);
+  assert.match(src, /setSimplifyTool\(null\);\s*setStructurePanel\(null\);\s*setOtherOpen\(otherOperationsOpenByDefault\);\s*setCompleteSquareOpen\(false\);/);
   const resetStart = src.indexOf('const reset = () =>');
   const resetEnd = src.indexOf('const active =', resetStart);
   assert.ok(resetStart >= 0 && resetEnd > resetStart);
@@ -349,13 +349,13 @@ test('choosing a new algebra operation closes an open rewrite field', () => {
   const operationsEnd = src.indexOf('{operation && (', operationsStart);
   assert.ok(operationsStart >= 0 && operationsEnd > operationsStart);
   const operationButtons = src.slice(operationsStart, operationsEnd);
-  assert.match(operationButtons, /setRewriteOpen\(false\)/);
-  assert.match(operationButtons, /setRewriteValue\(''\)/);
+  // Simplify (job Q: what the rewrite field became) closes with it.
+  assert.match(operationButtons, /setSimplifyTool\(null\)/);
 
   const otherOperationStart = src.indexOf('const chooseOtherOperation = async');
   const otherOperationEnd = src.indexOf('const applyCompleteSquareValue', otherOperationStart);
   assert.ok(otherOperationStart >= 0 && otherOperationEnd > otherOperationStart);
-  assert.match(src.slice(otherOperationStart, otherOperationEnd), /setRewriteOpen\(false\)/);
+  assert.match(src.slice(otherOperationStart, otherOperationEnd), /setSimplifyTool\(null\)/);
 });
 
 test('split branches can stage placements simultaneously before one commit', () => {

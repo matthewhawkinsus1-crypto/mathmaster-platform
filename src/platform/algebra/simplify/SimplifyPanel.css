@@ -1,0 +1,180 @@
+/* The one Simplify control's panel (student push Q). Sizes follow the
+   student's text-size setting: calc(N * var(--mm-px)), never px fonts. */
+.mm-simplify-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--mm-primary-border);
+  border-radius: 12px;
+  background: var(--mm-surface-tint);
+  box-shadow: 0 2px 8px rgba(23, 78, 166, 0.06);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.mm-simplify-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+}
+
+.mm-simplify-panel-head > strong {
+  color: var(--mm-primary-text);
+  font-size: calc(14 * var(--mm-px));
+}
+
+.mm-simplify-panel-help {
+  flex: 1 1 220px;
+  color: var(--mm-text-muted);
+  font-size: calc(13 * var(--mm-px));
+  line-height: 1.35;
+}
+
+.mm-simplify-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--mm-tint-border);
+  background: var(--mm-surface);
+  color: var(--mm-text-muted);
+  font-size: calc(18 * var(--mm-px));
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mm-simplify-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mm-simplify-part {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.mm-simplify-part:focus-visible,
+.mm-simplify-side-choice:focus-visible,
+.mm-simplify-close:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.mm-simplify-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 2px solid #174ea6;
+  background: var(--mm-surface);
+  min-width: 0;
+}
+
+.mm-simplify-box-prompt {
+  color: var(--mm-text-strong);
+  font-size: calc(14 * var(--mm-px));
+  font-weight: 700;
+}
+
+.mm-simplify-box-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mm-simplify-signs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.mm-simplify-sign-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(18 * var(--mm-px));
+}
+
+.mm-simplify-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.mm-simplify-side-label {
+  color: var(--mm-text-muted);
+  font-size: calc(13 * var(--mm-px));
+  font-weight: 700;
+}
+
+.mm-simplify-side-choice {
+  min-height: 36px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--mm-tint-border);
+  background: var(--mm-surface);
+  color: var(--mm-text);
+  font-size: calc(12 * var(--mm-px));
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mm-simplify-side-choice[aria-pressed='true'] {
+  border: 2px solid #174ea6;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
+}
+
+.mm-simplify-side-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.mm-simplify-note {
+  margin: 0;
+  color: var(--mm-text-muted);
+  font-size: calc(11 * var(--mm-px));
+  line-height: 1.3;
+}
+
+/* The Rewrite menu under its button. */
+.algebra-rewrite-menu {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.algebra-rewrite-menu-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.algebra-rewrite-menu-list .algebra-structure-toggle {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--mm-primary-border);
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-rewrite-menu-list .algebra-structure-toggle[aria-pressed='true'] {
+  border: 2px solid #174ea6;
+  background: var(--mm-primary-soft);
+}

@@ -368,16 +368,17 @@ await journey('inequality-distribution', 'inequality-distribute', async (page, s
 
 await journey('inequality-like-terms', 'inequality-like-terms', async (page, step) => {
   check(await route(page) === 'relation', `route ${await route(page)}`);
-  step('open Combine like terms and choose 2x and 3x');
-  await visibleButton(page, /^Combine like terms$/).click();
+  // Combining like terms is a part of the one Simplify control (student push Q).
+  step('open Simplify and choose the like terms 2x and 3x');
+  await visibleButton(page, /^Simplify$/).click();
   await settle(page, 300);
-  // By source text: the chips' accessible names are spoken math.
-  await page.locator('button[data-term-text="2 x"][aria-label$="select as a term to combine"]:visible').first().click();
-  await page.locator('button[data-term-text="3 x"][aria-label$="select as a term to combine"]:visible').first().click();
-  await settle(page, 300);
-  const field = page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first();
+  const highlighted = await page.locator('.multi-relation-expression-region button[style*="dashed"]:visible').count();
+  check(highlighted >= 2, `2x and 3x are highlighted on the board (${highlighted})`);
+  await page.locator('.mm-simplify-part[data-simplify-part="likeTerms"]:visible').first().click();
+  await settle(page, 400);
+  const field = page.locator('.mm-simplify-box math-field:visible').first();
   const focused = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());
-  check(focused === 'math-field', `the answer box takes focus once two terms are chosen (${focused})`);
+  check(focused === 'math-field', `the answer box takes focus once the part is chosen (${focused})`);
   step('a wrong sum is refused');
   await setMathField(page, field, '6x');
   await page.keyboard.press('Enter');
@@ -388,7 +389,8 @@ await journey('inequality-like-terms', 'inequality-like-terms', async (page, ste
   await field.press('Enter');
   await settle(page, 700);
   const after = await state(page);
-  check(/^5\s*x\s*-\s*4\s*<=\s*11$/.test(after), `2x + 3x became 5x: ${after}`);
+  // Stored with its multiplication written out (5 * x), as engine terms are.
+  check(/^5\s*\*?\s*x\s*-\s*4\s*<=\s*11$/.test(after), `2x + 3x became 5x: ${after}`);
   return { after };
 });
 

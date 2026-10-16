@@ -836,7 +836,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  * tool header that already has the room. The relation workspace's toolbar
  * (an equation that may have no solution or every solution, an inequality,
  * an absolute value) starts in the same place: at 390px the button sat on
- * "Combine like terms".
+ * a tool button ("Combine like terms", now part of Simplify).
  */
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__rail,
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__navigator,
