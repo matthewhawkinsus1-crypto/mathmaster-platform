@@ -32,6 +32,56 @@ const replaceLatexFractions = (value) => {
   return text;
 };
 
+/*
+ * A BUILT FRACTION IS ONE FACTOR. MathLive writes \frac{6}{2} as `(6)/(2)`, so
+ * the fraction six-halves followed by (1 + 2) — 9 on the screen — reached
+ * mathjs as `(6)/(2)(1+2)`, where the implicit product binds first: 6/(2·3),
+ * 1. Typing `6/2(1+2)` builds exactly that since a bracket ends a typed
+ * fraction (typedFractionEntry.js), and `\frac{1}{2}\pi` was read as 1/(2π)
+ * already. Every `(…)/(…)` in MathLive's ASCII is a built fraction (a typed `/`
+ * always builds one, and ÷ is written `-:`), so each is wrapped once, and the
+ * calculator computes what it shows. Already-wrapped fractions are left alone.
+ */
+const matchingClose = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+const matchingOpen = (text, close) => {
+  let depth = 0;
+  for (let index = close; index >= 0; index -= 1) {
+    if (text[index] === ')') depth += 1;
+    else if (text[index] === '(') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+export const groupBuiltFractions = (ascii) => {
+  let text = String(ascii ?? '');
+  for (let guard = 0; guard < 64; guard += 1) {
+    let wrapped = false;
+    for (let index = 1; index < text.length - 1 && !wrapped; index += 1) {
+      if (text[index] !== '/' || text[index - 1] !== ')' || text[index + 1] !== '(') continue;
+      const open = matchingOpen(text, index - 1);
+      const close = matchingClose(text, index + 1);
+      if (open < 0 || close < 0) continue;
+      if (open > 0 && text[open - 1] === '(' && matchingClose(text, open - 1) === close + 1) continue;
+      text = `${text.slice(0, open)}(${text.slice(open, close + 1)})${text.slice(close + 1)}`;
+      wrapped = true;
+    }
+    if (!wrapped) break;
+  }
+  return text;
+};
+
 const prepareCalculatorExpression = (expression, mode = null) => {
   const raw = String(expression ?? '').trim();
   if (!raw || raw.length > 180) throw new Error('Enter a shorter calculation.');

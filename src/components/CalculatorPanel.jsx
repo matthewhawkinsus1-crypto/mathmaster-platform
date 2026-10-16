@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
-import { evaluateCalculatorExpressionExact } from '../platform/policies/calculatorExpression';
+import { evaluateCalculatorExpressionExact, groupBuiltFractions } from '../platform/policies/calculatorExpression';
 import {
   calculatorCornerPosition, clampCalculatorPosition, nextCalculatorCorner, nudgeCalculatorPosition, settleCalculatorPosition,
 } from './calculatorPanelGeometry.js';
@@ -42,7 +42,8 @@ const calculatorButtonsForPolicy = (mode) => {
 const expressionFromMathField = (mathField, fallback = '') => {
   try {
     const ascii = mathField?.getValue?.('ascii-math');
-    if (String(ascii ?? '').trim()) return String(ascii).trim();
+    // Each built fraction stays one factor (groupBuiltFractions).
+    if (String(ascii ?? '').trim()) return groupBuiltFractions(String(ascii).trim());
   } catch {
     // Fall through to the visible value if this MathLive build cannot emit ASCIIMath.
   }

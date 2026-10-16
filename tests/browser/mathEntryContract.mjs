@@ -45,6 +45,10 @@ const CALCULATOR_CASES = [
   ['6/3+1', '3'],
   ['1/2+1/4', '0.75'],
   ['8/(2+2)', '2'],
+  // The bracket ends the typed fraction, so the screen shows (6/2)(1 + 2), and
+  // the calculator computes what it shows (groupBuiltFractions), not 6/(2·3).
+  ['6/2(1+2)', '9'],
+  ['3/4(8)', '6'],
 ];
 
 const launch = { args: ['--no-sandbox'] };
