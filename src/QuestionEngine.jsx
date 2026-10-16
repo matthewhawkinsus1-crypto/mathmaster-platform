@@ -1003,13 +1003,26 @@ function QuestionEngineBody({
   useEffect(() => {
     const was = wasLockedRef.current;
     wasLockedRef.current = locked;
-    if (was !== false || !locked || assignmentLocked) return undefined;
-    return focusAuthority.request(() => {
-      const target = isExpired && showOutcomeFeedback && closedCardRef.current
-        ? closedCardRef.current
-        : continueButtonRef.current;
-      target?.focus?.({ preventScroll: true });
-    }, { since: 'now', channel: 'closed-question' });
+    if (was !== false || !locked || assignmentLocked || typeof window === 'undefined') return undefined;
+    // Two frames: the lock's own focus return (useFocusReturnAfterLock) puts
+    // focus back on the bar button the student pressed — the same element,
+    // now Next — a frame earlier. That is not the student's choice; a press
+    // or key since this point, or focus anywhere else, is.
+    const ticket = focusAuthority.ticket({ since: 'now', channel: 'closed-question' });
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        if (focusAuthority.generation !== ticket.generation || focusAuthority.interactions !== ticket.interactions) return;
+        const active = document.activeElement;
+        const ours = !active || active === document.body || active === continueButtonRef.current || active === submitButtonRef.current;
+        if (!ours) return;
+        const target = isExpired && showOutcomeFeedback && closedCardRef.current
+          ? closedCardRef.current
+          : continueButtonRef.current;
+        target?.focus?.({ preventScroll: true });
+      });
+    });
+    return () => { if (frame !== null) window.cancelAnimationFrame(frame); };
   }, [locked, assignmentLocked, isExpired, showOutcomeFeedback, focusAuthority]);
 
   const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({

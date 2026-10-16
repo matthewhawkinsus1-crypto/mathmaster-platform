@@ -344,8 +344,11 @@ test('Enter and focus after a closed question: the shortcut is live wherever its
   assert.match(shortcut, /const canAdvance = Boolean\(locked && nextAction && !scratchpadOpen && !unchangedConfirmOpen\);/, 'every locked question with a way on, not only a correct one');
   assert.match(shortcut, /if \(target\?\.closest\?\.\('input, button, a\[href\], select, textarea, math-field/, 'another control keeps its Enter');
   const focus = region(engine, 'const was = wasLockedRef.current;', '}, [locked, assignmentLocked', 'focus on lock');
-  assert.match(focus, /if \(was !== false \|\| !locked \|\| assignmentLocked\) return undefined;/, 'only on the change to closed');
+  assert.match(focus, /if \(was !== false \|\| !locked \|\| assignmentLocked \|\| typeof window === 'undefined'\) return undefined;/, 'only on the change to closed');
   assert.match(focus, /isExpired && showOutcomeFeedback && closedCardRef\.current\s*\? closedCardRef\.current\s*: continueButtonRef\.current;/);
+  // Not taken from the student: a press or key since, or focus they moved elsewhere, wins.
+  assert.match(focus, /if \(focusAuthority\.generation !== ticket\.generation \|\| focusAuthority\.interactions !== ticket\.interactions\) return;/);
+  assert.match(focus, /const ours = !active \|\| active === document\.body \|\| active === continueButtonRef\.current \|\| active === submitButtonRef\.current;\s*if \(!ours\) return;/);
   assert.match(engine, /<section ref=\{closedCardRef\} tabIndex=\{-1\} className="mathmaster-closed-question-card"/);
   assert.match(engine, /<button\s+ref=\{continueButtonRef\}\s+type="button"\s+className="mathmaster-bar-continue"/);
   // The way on is one rule for the bar, the shortcut and the cards.
