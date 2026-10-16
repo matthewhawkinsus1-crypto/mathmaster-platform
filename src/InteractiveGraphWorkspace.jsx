@@ -48,6 +48,8 @@ import {
 import graphWorkspaceGrader from '../functions/shared/serverGrading/tools/graphWorkspace.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
+import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
 // in one assignment do not have different-looking controls for the same act.
@@ -237,6 +239,11 @@ export default function InteractiveGraphWorkspace({
   // ends a stroke moved the selected point to where the stroke ended and threw
   // the stroke away.
   const strokeJustEndedRef = useRef(false);
+  // "Check Point Placements" / "Check Reflected Points" leave the page when they
+  // pass, and a keyboard student's focus went with them to <body>. It goes to
+  // "Connect my points" instead, the next thing to do (pass 3, TOOL-1, A11Y-2).
+  const connectButtonRef = useRef(null);
+  const connectFocusPendingRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [draggingTaskId, setDraggingTaskId] = useState(null);
@@ -584,8 +591,16 @@ export default function InteractiveGraphWorkspace({
       return;
     }
     analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
-    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them.');
+    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them, or press Connect my reflected points.');
+    connectFocusPendingRef.current = true;
   };
+
+  useEffect(() => {
+    if (!connectFocusPendingRef.current) return;
+    connectFocusPendingRef.current = false;
+    const active = typeof document === 'undefined' ? null : document.activeElement;
+    if (connectButtonRef.current && (!active || active === document.body || !active.isConnected)) connectButtonRef.current.focus();
+  }, [construction.pointsValidated, analysis.inversePointsValidated]);
 
   useEffect(() => {
     if (!feedback || feedback.isCorrect !== false || !Array.isArray(feedback.partGrades)) return;
@@ -883,11 +898,12 @@ export default function InteractiveGraphWorkspace({
     const correct = placementsMatchTasks(tasks, construction.placements, model.pointTolerance, functionSpec, construction.chosenXValues);
     if (correct) {
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
+      connectFocusPendingRef.current = true;
       // Only reachable where outcomes are shown (the check is not offered
       // otherwise); the wording is gated anyway so it can never leak.
       setPointFeedback(!revealPointCorrectness
         ? 'Your points are placed.'
-        : pointOnly ? 'All point placements are correct.' : 'All point placements are correct. The drawing layer is unlocked.');
+        : pointOnly ? 'All point placements are correct.' : 'All point placements are correct. Draw the curve through them, or press Connect my points.');
     } else {
       const incorrect = revealPointCorrectness ? pointParts.filter((part) => !part.isCorrect).map((part) => part.label) : [];
       const centerX = Number(functionSpec.h ?? 0);
@@ -952,56 +968,110 @@ export default function InteractiveGraphWorkspace({
      * points instead (constructionSketchThroughOwnPoints), and the grader
      * marks the curve against the function at submission, never here.
      */
-    const sketchCamera = {
-      xMin: Number(renderWindow.xMin),
-      xMax: Number(renderWindow.xMax),
-      yMin: Number(renderWindow.yMin),
-      yMax: Number(renderWindow.yMax),
-    };
+    const sketchCamera = currentSketchCamera();
 
     if (stage === 'analysis' && inverseReflectionEnabled) {
-      const completed = boundSketchStrokes([...(analysis.inverseStrokes || []), finished], SKETCH_LIMITS.inversePoints);
-      if (outcomesWithheld && !analysis.inversePointsValidated) {
-        // Through the student's own reflected points; judged at submission.
-        const passes = inverseSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, selections: analysis.selections });
-        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: passes }));
-        setDrawFeedback(passes
-          ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
-          : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.');
-        return;
-      }
-      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera }));
-      const matches = inverseSketchMatches(model, { strokes: completed, camera: sketchCamera });
-      if (matches) {
-        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: true }));
-        setDrawFeedback('The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.');
-      } else {
-        setDrawFeedback('The inverse line must pass through both reflected points. Clear the inverse sketch and try again.');
-      }
+      commitInverseStrokes(boundSketchStrokes([...(analysis.inverseStrokes || []), finished], SKETCH_LIMITS.inversePoints), sketchCamera);
       return;
     }
+    commitConstructionStrokes(boundSketchStrokes([...construction.strokes, finished], SKETCH_LIMITS.constructionPoints), sketchCamera);
+  };
 
-    const completed = boundSketchStrokes([...construction.strokes, finished], SKETCH_LIMITS.constructionPoints);
+  const currentSketchCamera = () => ({
+    xMin: Number(renderWindow.xMin),
+    xMax: Number(renderWindow.xMax),
+    yMin: Number(renderWindow.yMin),
+    yMax: Number(renderWindow.yMax),
+  });
+
+  /*
+   * WHAT A FINISHED SKETCH MEETS, HOWEVER IT WAS MADE.
+   *
+   * A stroke drawn by hand (endDrawing) and the stroke "Connect my points"
+   * builds (connectMyPoints) are checked by exactly the same code: the
+   * grader's own function, on bounded strokes, under the camera stored with
+   * them. Each returns the feedback it gave, so the keyboard route can also
+   * announce it.
+   */
+  const commitInverseStrokes = (completed, sketchCamera) => {
+    if (outcomesWithheld && !analysis.inversePointsValidated) {
+      // Through the student's own reflected points; judged at submission.
+      const passes = inverseSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, selections: analysis.selections });
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: passes }));
+      const message = passes
+        ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
+        : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.';
+      setDrawFeedback(message);
+      return message;
+    }
+    analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera }));
+    const matches = inverseSketchMatches(model, { strokes: completed, camera: sketchCamera });
+    if (matches) {
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: true }));
+      const message = 'The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.';
+      setDrawFeedback(message);
+      return message;
+    }
+    const message = 'The inverse line must pass through both reflected points. Clear the inverse sketch and try again.';
+    setDrawFeedback(message);
+    return message;
+  };
+
+  const commitConstructionStrokes = (completed, sketchCamera) => {
     constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera }));
     if (completed.length < requiredStrokeCount) {
-      setDrawFeedback(`Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`);
-      return;
+      const message = `Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`;
+      setDrawFeedback(message);
+      return message;
     }
     if (outcomesWithheld && !construction.pointsValidated) {
       // Through the student's own points; marked against the function by the
       // grader at submission, never here.
       const passes = constructionSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, placements: construction.placements });
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: passes }));
-      setDrawFeedback(passes
+      const message = passes
         ? `Your curve passes through your points. It is graded when you submit.${endpointRequirements.length ? ` Add the ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} at the ends of your curve.` : ''}`
-        : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.');
-      return;
+        : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.';
+      setDrawFeedback(message);
+      return message;
     }
     const matches = constructionSketchMatches(model, { strokes: completed, camera: sketchCamera, chosenXValues: construction.chosenXValues });
     if (matches) {
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: true }));
-      setDrawFeedback(endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.');
-    } else setDrawFeedback('The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.');
+      const message = endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.';
+      setDrawFeedback(message);
+      return message;
+    }
+    const message = 'The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.';
+    setDrawFeedback(message);
+    return message;
+  };
+
+  /*
+   * "CONNECT MY POINTS" (pass 3, TOOL-1). The curve, without a mouse or a
+   * finger: a smooth stroke through the student's OWN placed points
+   * (graphConnectPoints.js), replacing any partial sketch, then the very checks
+   * above. Wrong points give a curve through wrong points, which those checks
+   * treat exactly as they treat a wrong drawn curve. After it, the endpoint
+   * markers are placed as before: choose one, arrow keys on the plane, Enter.
+   */
+  const connectMyPoints = () => {
+    const sketchCamera = currentSketchCamera();
+    let message;
+    if (stage === 'analysis' && inverseReflectionEnabled) {
+      if (!inversePointsCommitted || analysis.inverseSnapped) return;
+      const strokes = connectPointsStrokes({ points: inversePointsToConnect(model, analysis.selections), camera: sketchCamera });
+      message = commitInverseStrokes(boundSketchStrokes(strokes, SKETCH_LIMITS.inversePoints), sketchCamera);
+    } else {
+      if (pointOnly || !pointsCommitted || construction.snapped) return;
+      const strokes = connectPointsStrokes({
+        points: constructionPointsToConnect(model, construction.placements),
+        camera: sketchCamera,
+        splitX: constructionBranchSplitX(model, construction.placements),
+      });
+      message = commitConstructionStrokes(boundSketchStrokes(strokes, SKETCH_LIMITS.constructionPoints), sketchCamera);
+    }
+    setKeyboardAnnouncement(message);
   };
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || (construction.snapped && !curveAcceptedOwnPoints));
@@ -1424,7 +1494,7 @@ export default function InteractiveGraphWorkspace({
         {stage === 'construct' ? (
           <>
             {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} Or press Connect my points.</p>}
             {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? 'var(--mm-primary-text)' : construction.snapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
@@ -1448,6 +1518,9 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
+                  // Its Enter places the point; the question's Enter contract
+                  // (QuestionEngine) must not take it as "next box" (TOOL-1).
+                  data-mm-enter-owner="true"
                   value={typedX}
                   onChange={(event) => setTypedX(event.target.value)}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
@@ -1459,6 +1532,9 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
+                  // Its Enter places the point; the question's Enter contract
+                  // (QuestionEngine) must not take it as "next box" (TOOL-1).
+                  data-mm-enter-owner="true"
                   value={typedY}
                   onChange={(event) => setTypedY(event.target.value)}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
@@ -1483,6 +1559,16 @@ export default function InteractiveGraphWorkspace({
             </div>
           )}
 
+          {/* The curve by keyboard (TOOL-1): through the student's own points,
+              checked like a drawn one. It stays, done, once the curve is in, so
+              the press that completes it does not throw focus to the page; the
+              end markers come next. */}
+          {stage === 'construct' && !pointOnly && pointsCommitted && (
+            <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="construction" enabled={!construction.snapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: construction.snapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.snapped ? '✓ Curve drawn' : 'Connect my points'}</FocusSafeButton>
+          )}
+          {stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
+            <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="inverse" enabled={!analysis.inverseSnapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: analysis.inverseSnapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>{analysis.inverseSnapped ? '✓ Inverse drawn' : 'Connect my reflected points'}</FocusSafeButton>
+          )}
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
             <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
