@@ -10,9 +10,11 @@
 //           render at 12 CSS px or more (they rendered at about 6-7 px); at
 //           1366x768 they keep their authored size.
 //   reach   with P1 at (0, 0) and P2 at (3, 0), a press about half a unit to the
-//           right of P2 — outside P2's snap cell, inside a finger's reach —
-//           picks P2 up: dragged to (1, 0) and lifted, P2 is there and P1 is
-//           kept. It used to plot a new point, which wiped the line.
+//           right of P2 — a missed drag, landing in the next cell — and a lift
+//           there leaves (0, 0) and (4, 0): the line is kept. It used to plot
+//           a third point, which wiped the line. (A press in another cell is a
+//           new point, not a pick-up: the Systems tool plots boundary points
+//           one cell apart — systemsWorkspaceStudio.)
 //   third   a deliberate third point far from both replaces the nearest point,
 //           so the line is never silently erased.
 // Exits non-zero on any failure.
@@ -69,7 +71,7 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
   await check(`${device}: two points plotted`, async () => assert.equal(await plotted(page), '(0, 0) and (3, 0)'));
 
   if (device === 'phone') {
-    await check(`${device}: a press just beside P2 picks P2 up instead of erasing the line`, async () => {
+    await check(`${device}: a missed drag beside P2 keeps the line`, async () => {
       // Centres through the svg's own transform: the dots' boxes include their stroke.
       const centres = await plane.evaluate((svg) => [...svg.querySelectorAll('circle[stroke="#fff"]')].map((circle) => {
         const point = svg.createSVGPoint();
@@ -82,16 +84,12 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
       const [p1, p2] = centres.sort((a, b) => a[0] - b[0]);
       const unit = (p2[0] - p1[0]) / 3;
       const at = [p2[0] + unit * 0.55, p2[1]];
-      assert.ok(unit * 0.55 < 22, `the press is within a finger's reach of P2 (${(unit * 0.55).toFixed(1)} px)`);
       assert.equal(await page.evaluate(([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest('svg[role="application"]')), at), true, 'the press lands on the plane');
       await page.mouse.move(at[0], at[1]);
       await page.mouse.down();
-      await page.mouse.move(p1[0] + unit, p1[1], { steps: 6 });
       await page.mouse.up();
       await page.waitForTimeout(250);
-      // Picked up, P2 goes where it was lifted. A new point there would have
-      // replaced the nearer P1 instead: "(1, 0) and (3, 0)".
-      assert.equal(await plotted(page), '(0, 0) and (1, 0)');
+      assert.equal(await plotted(page), '(0, 0) and (4, 0)');
     });
     await check(`${device}: a third point far from both replaces the nearest, the line stays`, async () => {
       await plane.focus();
@@ -99,7 +97,7 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
       await page.keyboard.press('Enter');
       await page.waitForTimeout(200);
       // The crosshair was left at (3, 0); now (3, 4). Nearest of (0, 0) and
-      // (1, 0) is (1, 0), which it replaces; (0, 0) stays.
+      // (4, 0) is (4, 0), which it replaces; (0, 0) stays.
       assert.equal(await plotted(page), '(0, 0) and (3, 4)');
     });
   }

@@ -411,9 +411,10 @@ export default function CoordinatePlane({
   // instead of dropping it to the page (A11Y-2).
   const resetViewAvailability = useFocusSafeDisabled(Boolean(view));
 
-  // `radius` in viewBox units: a finger gets about 22 CSS px (planeTouch.js,
-  // TOOL-11); the keyboard, which is exact, keeps the old 18.
-  const pointIndexNear = (graphPoint, radius = pickUpRadius(width, renderedWidth)) => {
+  // `radius` in viewBox units: a finger gets up to about 22 CSS px, never
+  // reaching the next snap cell (planeTouch.js, TOOL-11); the keyboard, which
+  // is exact, keeps the old 18.
+  const pointIndexNear = (graphPoint, radius = pickUpRadius(width, renderedWidth, Math.min(innerW / ((xMax - xMin) / minorStep), innerH / ((yMax - yMin) / minorStep)))) => {
     if (!canMovePoints || !graphPoint) return null;
     let best = null;
     let bestDistance = Infinity;

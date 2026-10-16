@@ -25,9 +25,16 @@ test('plane text grows on a narrow plane to the 12 px floor, and only there', ()
   assert.equal(planeFontSize(10, 560, 100), 22.5);
 });
 
-test('a finger reaches about 22 px around a point; the keyboard stays exact', () => {
-  assert.ok(Math.abs(pickUpRadius(560, 322) * (322 / 560) - PICK_UP_PX) < 1e-9, '22 CSS px on a phone');
-  assert.equal(pickUpRadius(560, 900), 18, 'never less than a full-size plane used');
+test('a finger reaches toward 22 px around a point, never into the next cell; the keyboard stays exact', () => {
+  // Big cells (a zoomed plane): the full 22 CSS px.
+  assert.ok(Math.abs(pickUpRadius(560, 322, 120) * (322 / 560) - PICK_UP_PX) < 1e-9, '22 CSS px on a phone');
+  // A -5..5 plane, 47.6-unit cells: capped at 45% of a cell.
+  assert.ok(Math.abs(pickUpRadius(560, 322, 47.6) - 0.45 * 47.6) < 1e-9);
+  // A -7..7 phone plane, 34-unit cells: the next cell is a new point (the
+  // Systems tool plots boundary points one cell apart), so 18 as before.
+  assert.equal(pickUpRadius(560, 322, 34), 18);
+  assert.ok(pickUpRadius(560, 322, 34) < 34, 'a press in the next cell never picks up its neighbour');
+  assert.equal(pickUpRadius(560, 900, 120), 18, 'never less than a full-size plane used');
   assert.equal(pickUpRadius(560, null), 18);
   assert.equal(KEYBOARD_PICK_UP_RADIUS, 18);
 });
