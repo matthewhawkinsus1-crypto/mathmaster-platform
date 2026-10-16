@@ -3,7 +3,7 @@
    "your only try"). Two short lines rather than one long one: a wide label
    wrapped the Chromebook action bar to two rows, and a phone's one-row bar
    leaves Submit about 80px beside six icon tools, so a phone shows the short
-   cost ("1 of 3 tries") and every wider screen the whole phrase. */
+   cost ("1 of 3") and every wider screen the whole phrase. */
 .mathmaster-bar-submit.has-try-cost {
   display: inline-flex;
   flex-direction: column;
@@ -20,7 +20,7 @@
 }
 
 /* The phone's words for an action whose full words do not fit its one-row
-   bar ("1 of 3 tries", "Back to Q1"); every wider screen shows the
+   bar ("1 of 3", "Back to Q1"); every wider screen shows the
    .mathmaster-action-label-long words instead. */
 .mathmaster-action-label-short {
   display: none;

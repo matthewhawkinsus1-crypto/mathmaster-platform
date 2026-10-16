@@ -33,7 +33,10 @@ const whole = (value, fallback = 0) => {
  * What one Submit costs right now.
  *   { kind: 'unlimited' | 'only' | 'last' | 'counted' | 'none',
  *     remaining, maximum, phrase, short }
- * `phrase` follows "Submit — "; `short` is the phone's second line.
+ * `phrase` follows "Submit — "; `short` is the phone's second line, under
+ * "Submit" in a one-row bar that leaves it ~80px at 344px wide: "1 of 3",
+ * "last try", "only try" — each a part of the whole phrase, which is the
+ * accessible name, so a student using speech input can say what they see.
  * 'none': nothing left to spend (the question is closed) — no cost to show.
  */
 export const submitTryCost = ({
@@ -51,8 +54,8 @@ export const submitTryCost = ({
   if (maximum === 1) return { kind: 'only', remaining, maximum, phrase: 'your only try', short: 'only try' };
   if (remaining === 1) return { kind: 'last', remaining, maximum, phrase: 'last try', short: 'last try' };
   return remaining >= maximum
-    ? { kind: 'counted', remaining, maximum, phrase: `uses 1 of ${maximum} tries`, short: `1 of ${maximum} tries` }
-    : { kind: 'counted', remaining, maximum, phrase: `uses 1 of ${remaining} tries left`, short: `1 of ${remaining} left` };
+    ? { kind: 'counted', remaining, maximum, phrase: `uses 1 of ${maximum} tries`, short: `1 of ${maximum}` }
+    : { kind: 'counted', remaining, maximum, phrase: `uses 1 of ${remaining} tries left`, short: `1 of ${remaining}` };
 };
 
 /** "Submit — <phrase>", or "Submit" when there is no cost to say. */

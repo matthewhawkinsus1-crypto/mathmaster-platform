@@ -50,7 +50,7 @@ const DEVICES = [
 const STATES = [
   // Submit over its cost (student pass 3, RUN-4): two short lines, the phone's
   // shorter cost under the verb.
-  { id: 'submit', selector: 'button.mathmaster-bar-submit', name: 'Submit — uses 1 of 3 tries', phoneText: 'Submit 1 of 3 tries', desktopText: 'Submit uses 1 of 3 tries', tools: 6 },
+  { id: 'submit', selector: 'button.mathmaster-bar-submit', name: 'Submit — uses 1 of 3 tries', phoneText: 'Submit 1 of 3', desktopText: 'Submit uses 1 of 3 tries', tools: 6 },
   { id: 'next', selector: 'button.mathmaster-bar-continue', name: 'Next question →', phoneText: 'Next →', tools: 5 },
   { id: 'section', selector: 'button.mathmaster-bar-continue', name: 'Continue to Unit 2 Review →', phoneText: 'Continue →', tools: 5 },
 ];

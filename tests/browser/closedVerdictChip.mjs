@@ -115,7 +115,9 @@ for (const device of DEVICES) {
   {
     const { page, context } = await open(device, 'q=multi&role=practice');
     const heading = page.locator('.mathmaster-multipart-heading');
-    check(await heading.isVisible() && /Complete Each Part/.test(await heading.textContent()), `${device.name}: the multi-part heading is shown`);
+    // One box: "Your answer", not "Complete Each Part" over a single box
+    // (student pass 3, RUN-16).
+    check(await heading.isVisible() && (await heading.textContent()).trim() === 'Your answer', `${device.name}: the answer heading is shown, in the student's words`, (await heading.textContent()).trim());
     const opener = page.getByRole('button', { name: /Enlarge question/ });
     check(await opener.isVisible(), `${device.name}: the Enlarge question opener is shown`);
 
@@ -143,7 +145,7 @@ for (const device of DEVICES) {
     check(hits.length === 0, `${device.name}: the chip intersects no button and no heading`, hits.join('; '));
     // The two named in the QA report, measured directly as well.
     const box = await verdict.boundingBox();
-    for (const [name, other] of [['Enlarge question', opener], ['Complete Each Part', heading]]) {
+    for (const [name, other] of [['Enlarge question', opener], ['the answer heading', heading]]) {
       const b = await other.boundingBox();
       const overlap = Boolean(box && b)
         && Math.min(box.x + box.width, b.x + b.width) - Math.max(box.x, b.x) > 0.5

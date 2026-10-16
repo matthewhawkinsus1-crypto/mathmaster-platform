@@ -70,9 +70,15 @@ test('a teacher\'s extra DOL tries are counted; tries that never run out cost no
   assert.deepEqual(labelsThrough(maximum), ['Submit — uses 1 of 2 tries', 'Submit — last try']);
   assert.equal(submitLabelForCost(submitTryCost({ maximumAttempts: 3, attemptCount: 9, attemptsDoNotExpire: true })), 'Submit', 'Live Challenge');
   assert.equal(submitTryCost({ maximumAttempts: 3, remainingAttempts: 0 }).kind, 'none');
+  // The phone's short words are part of the accessible name (label in name,
+  // WCAG 2.5.3): a student using speech input says what they see.
+  for (const [maximum, used] of [[3, 0], [3, 1], [3, 2], [1, 0], [5, 2]]) {
+    const cost = submitTryCost({ maximumAttempts: maximum, attemptCount: used });
+    assert.ok(submitLabelForCost(cost).includes(cost.short), `${cost.short} in ${submitLabelForCost(cost)}`);
+  }
   assert.equal(submitLabelForCost(submitTryCost({ maximumAttempts: 3, remainingAttempts: 0 })), 'Submit');
   // The phone's short words.
-  assert.deepEqual(['counted', 'last', 'only'].map((kind) => ({ counted: submitTryCost({ maximumAttempts: 3 }), last: submitTryCost({ maximumAttempts: 3, attemptCount: 2 }), only: submitTryCost({ maximumAttempts: 1 }) })[kind].short), ['1 of 3 tries', 'last try', 'only try']);
+  assert.deepEqual(['counted', 'last', 'only'].map((kind) => ({ counted: submitTryCost({ maximumAttempts: 3 }), last: submitTryCost({ maximumAttempts: 3, attemptCount: 2 }), only: submitTryCost({ maximumAttempts: 1 }) })[kind].short), ['1 of 3', 'last try', 'only try']);
 });
 
 test('secure tool items: the host names the action, and a navigation-mode save counts no tries', () => {
@@ -159,7 +165,7 @@ test('the action bar: Submit over its cost, the last try amber, one try said bef
   assert.equal(first.name, 'Submit — uses 1 of 3 tries');
   assert.equal(first.cost, 'counted');
   assert.doesNotMatch(first.className, /is-last-try/);
-  assert.match(first.inner, /<span class="mathmaster-submit-verb">Submit<\/span><span class="mathmaster-submit-cost" aria-hidden="true"><span class="mathmaster-action-label-long">uses 1 of 3 tries<\/span><span class="mathmaster-action-label-short">1 of 3 tries<\/span><\/span>/);
+  assert.match(first.inner, /<span class="mathmaster-submit-verb">Submit<\/span><span class="mathmaster-submit-cost" aria-hidden="true"><span class="mathmaster-action-label-long">uses 1 of 3 tries<\/span><span class="mathmaster-action-label-short">1 of 3<\/span><\/span>/);
 
   const lastRender = await renderEngine({ role: 'practice', record: { status: 'attempted', attemptCount: 2, totalAttempts: 2 } });
   const last = submitButton(lastRender.html);
