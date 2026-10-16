@@ -133,6 +133,8 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   }),
   openSortBoard: entry(['openSortBoard/OpenSortBoard.jsx'], {
     selectedId: 'Which card is picked up. Selection, not a placement.',
+    announcement: 'The polite screen-reader read-out of the last placement ("Graph C placed in Group 2 · Linear. 2 cards left to place."). Speech, not work.',
+    focusRequest: 'Where keyboard focus goes after a placement or a removed group (the next card, or a group heading). Consumed in the next effect; focus, never mathematics.',
   }),
   constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {

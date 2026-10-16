@@ -19,6 +19,7 @@ import {
 } from './regressionAddMenu.js';
 import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -446,8 +447,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 Delete All
               </button>
               <span className="regression-toolbar-spacer" />
-              <button type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo">↶</button>
-              <button type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo">↷</button>
+              <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo">↶</FocusSafeButton>
+              <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
             </>
@@ -488,8 +489,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 ) : null}
               </div>
               <span className="regression-toolbar-spacer" />
-              <button className="regression-tool-icon" type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo" title="Undo">↶</button>
-              <button className="regression-tool-icon" type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo" title="Redo">↷</button>
+              <FocusSafeButton className="regression-tool-icon" onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo" title="Undo">↶</FocusSafeButton>
+              <FocusSafeButton className="regression-tool-icon" onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo" title="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>

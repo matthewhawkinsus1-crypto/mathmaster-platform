@@ -5,6 +5,7 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import parabolaGeometryGrader from '../../../functions/shared/serverGrading/tools/parabolaGeometryLab.mjs';
@@ -42,6 +43,8 @@ function FeatureMode({questionData,feedback,submit,onAction}){
   const [focusX, setFocusX] = usePersistentToolState('focusX', ''); const [focusY, setFocusY] = usePersistentToolState('focusY', ''); const [directrix, setDirectrix] = usePersistentToolState('directrix', ''); const [latus, setLatus] = usePersistentToolState('latus', '');
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
+  // Universal Undo over these answers (TOOL-2, useFieldUndoHistory.js).
+  useFieldUndoHistory({questionData,fields:{focusX:[focusX,setFocusX],focusY:[focusY,setFocusY],directrix:[directrix,setDirectrix],latus:[latus,setLatus]}});
   const work={focusX,focusY,directrix,latus};
   useReportToolWork(work);
   const check=()=>{
@@ -57,6 +60,7 @@ function Equidistance({questionData,feedback,submit,onAction}){
   // "Is P on the parabola?" is unanswered until chosen (judgmentChoices.js); it
   // opened on "Yes". The shared grader reads unanswered as neither yes nor no.
   const [focusDistance, setFocusDistance] = usePersistentToolState('focusDistance', ''); const [directrixDistance, setDirectrixDistance] = usePersistentToolState('directrixDistance', ''); const [onCurve, setOnCurve] = usePersistentToolState('onCurve', UNANSWERED);
+  useFieldUndoHistory({questionData,fields:{focusDistance:[focusDistance,setFocusDistance],directrixDistance:[directrixDistance,setDirectrixDistance],onCurve:[onCurve,setOnCurve]}});
   const work={focusDistance,directrixDistance,onCurve};
   useReportToolWork(work);
   const check=()=>{
@@ -69,6 +73,7 @@ function Equidistance({questionData,feedback,submit,onAction}){
 function FromGeometry({questionData,feedback,submit,onAction}){
   const focus=questionData.focus || [2,3]; const directrix=questionData.directrix || {kind:'horizontal',value:-1};
   const [h, setH] = usePersistentToolState('h', ''); const [k, setK] = usePersistentToolState('k', ''); const [p, setP] = usePersistentToolState('p', '');
+  useFieldUndoHistory({questionData,fields:{h:[h,setH],k:[k,setK],p:[p,setP]}});
   const work={h,k,p};
   useReportToolWork(work);
   const check=()=>{
@@ -82,6 +87,7 @@ function EquationMode({questionData,feedback,submit,onAction}){
   const spec={h:Number(questionData.h??-2),k:Number(questionData.k??1),p:Number(questionData.p??1.5),orientation:questionData.orientation||'vertical'};
   // The opening direction is unanswered until chosen; it opened on "up".
   const [coefficient, setCoefficient] = usePersistentToolState('coefficient', ''); const [opening, setOpening] = usePersistentToolState('opening', UNANSWERED);
+  useFieldUndoHistory({questionData,fields:{coefficient:[coefficient,setCoefficient],opening:[opening,setOpening]}});
   const work={coefficient,opening};
   useReportToolWork(work);
   const check=()=>{

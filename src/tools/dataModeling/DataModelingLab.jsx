@@ -12,6 +12,7 @@ import {
 import useToolSubmission from '../shared/useToolSubmission';
 import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import dataModelingGrader from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
 import {
@@ -172,6 +173,36 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
   const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // Universal Undo over every answer in the lab (TOOL-2, useFieldUndoHistory.js):
+  // a stepper press, a choice, a typed value, or running regression (which
+  // writes the line and keeps the estimate) is one step. An Undo clears the
+  // verdict as an edit does.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      m: [m, setM],
+      b: [b, setB],
+      direction: [direction, setDirection],
+      strength: [strength, setStrength],
+      causation: [causation, setCausation],
+      modelChoice: [modelChoice, setModelChoice],
+      predictionX: [predictionX, setPredictionX],
+      predictionY: [predictionY, setPredictionY],
+      predictionType: [predictionType, setPredictionType],
+      correlationEntry: [correlationEntry, setCorrelationEntry],
+      regressionTechnologyRun: [regressionTechnologyRun, setRegressionTechnologyRun],
+      regressionEstimate: [regressionEstimate, setRegressionEstimate],
+      quadraticA: [quadraticA, setQuadraticA],
+      quadraticB: [quadraticB, setQuadraticB],
+      quadraticC: [quadraticC, setQuadraticC],
+      exponentialA: [exponentialA, setExponentialA],
+      exponentialBase: [exponentialBase, setExponentialBase],
+      squareRootA: [squareRootA, setSquareRootA],
+      squareRootH: [squareRootH, setSquareRootH],
+      squareRootK: [squareRootK, setSquareRootK],
+    },
+    onRestore: () => clearFeedback(),
+  });
   // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
   const submitActionLabel = useSubmitLabel('Check data model');
   // The lab's teaching notes (how to read r, what a residual plot should look

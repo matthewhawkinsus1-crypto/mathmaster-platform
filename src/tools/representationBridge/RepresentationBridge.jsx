@@ -24,6 +24,7 @@ import {
   resolveRequiredStages,
 } from './representationBridgeMath.js';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -622,8 +623,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       </div>
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={undo} disabled={!undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</button>
-        <button type="button" onClick={redo} disabled={!redoDepth} style={{ ...button }} aria-label="Redo">↷ Redo</button>
+        <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</FocusSafeButton>
+        <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} style={{ ...button }} aria-label="Redo">↷ Redo</FocusSafeButton>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="representation-bridge-submit"

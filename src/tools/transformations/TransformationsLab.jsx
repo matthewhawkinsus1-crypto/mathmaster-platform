@@ -18,6 +18,7 @@ import {
   studentTransformationSpec,
   transformedSourcePoints,
 } from './transformationsMath';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -354,7 +355,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               reached. Clear is not undo — it discards the whole construction in
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</button>
+            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</FocusSafeButton>
             <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
           <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>

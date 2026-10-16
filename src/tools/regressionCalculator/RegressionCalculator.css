@@ -169,6 +169,11 @@
 .regression-tool-icon:disabled {
   opacity:.28;
 }
+/* Undo/Redo after their last step, while focus is still on them
+   (FocusSafeButton): focusable, announced unavailable, does nothing. */
+.regression-tool-icon[aria-disabled="true"] {
+  cursor:not-allowed;
+}
 .regression-add {
   font-size:1.9rem;
   font-weight:400;

@@ -12,6 +12,8 @@ import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
+import { spokenMathLabel } from '../../platform/language/mathSpeechLabel.js';
 import representationMatchGrader from '../../../functions/shared/serverGrading/tools/representationMatch.mjs';
 import {
   buildLinearConnectionCards,
@@ -185,6 +187,24 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const [activeLineSlot, setActiveLineSlot] = useState(0);
   const [mismatchSelection, setMismatchSelection] = usePersistentToolState('linearMismatchSelection', '');
   const [correctionChoice, setCorrectionChoice] = usePersistentToolState('linearCorrectionChoice', '');
+
+  // Universal Undo over every answer in every mode (TOOL-2,
+  // useFieldUndoHistory.js): a card sorted or taken out, a choice, a row.
+  // Which group is being sorted into is a selection, not an answer.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      equation: [equation, setEquation],
+      table: [table, setTable],
+      context: [context, setContext],
+      mismatchKind: [mismatchKind, setMismatchKind],
+      badRow: [badRow, setBadRow],
+      graphId: [graphId, setGraphId],
+      linearAssignments: [linearAssignments, setLinearAssignments],
+      mismatchSelection: [mismatchSelection, setMismatchSelection],
+      correctionChoice: [correctionChoice, setCorrectionChoice],
+    },
+  });
 
   const toggleCardAssignment = (cardId) => {
     setLinearAssignments((current) => {
@@ -423,7 +443,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         data-card-kind={card.kind}
                         onClick={() => toggleCardAssignment(card.id)}
                         aria-pressed={assignedSlot === activeLineSlot}
-                        aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${describeLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        // Spoken, not program text (A11Y-3): "y equals negative 2 over 3 x
+                        // plus 4", which is also what a voice-control student says.
+                        aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${spokenMathLabel(describeLinearCard(card, { bounds: linearGraphBounds }))}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
                           border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',
