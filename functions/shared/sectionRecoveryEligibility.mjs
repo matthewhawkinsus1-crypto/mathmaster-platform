@@ -99,9 +99,9 @@ export const resolveOriginalOpportunity = ({
   nowValue = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
   // The student's pinned grades/{id}.profile. Individualized extra time moves
-  // only the assignment's own final cutoff (supportDeadline.mjs) — never a
-  // Warm-Up/DOL class window — and it moves it here exactly as it does for the
-  // deadline finalizer.
+  // the assignment's own final cutoff (supportDeadline.mjs) and this student's
+  // DOL window (decision D7; the Warm-Up stays class-timed), here exactly as
+  // for the deadline finalizer: Recovery waits until THEIR DOL has closed.
   studentProfile = null,
   // The student's private override (studentAssignmentOverrides), read by the
   // caller with its own authority: their individual extension moves the
@@ -135,7 +135,7 @@ export const resolveOriginalOpportunity = ({
     return { status: ORIGINAL_OPPORTUNITY.UPCOMING, reason: 'instruction-day-ahead', ...recoveryWindow };
   }
   if (instructionDateKey < todayKey) {
-    if (section === 'dol' && dolTeacherRecoveryActiveAt({ assignment, classId, at: now, timeZone })) {
+    if (section === 'dol' && dolTeacherRecoveryActiveAt({ assignment, classId, at: now, timeZone, studentProfile })) {
       return { status: ORIGINAL_OPPORTUNITY.OPEN, reason: 'teacher-dol-reopen-window', ...recoveryWindow };
     }
     return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: 'instruction-day-passed', ...recoveryWindow };

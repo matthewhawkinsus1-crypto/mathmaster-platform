@@ -5,6 +5,7 @@ import {
   studentAssignmentView,
 } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
+import { withStudentTimingProfile } from '../../../functions/shared/sectionDeadline.mjs';
 import { studentFacingDol } from './studentAssignmentScope.js';
 
 /*
@@ -156,9 +157,11 @@ export const projectStudentAssignments = ({ assignments = [], studentId = null, 
   const owner = clean(studentId);
   if (!owner) return [];
   const own = controlsForStudent(controls, owner);
-  return (assignments || []).filter((assignment) => assignment?.id).map((assignment) => withStudentSupportDates(
+  // The profile rides along in memory (withStudentTimingProfile) so the
+  // student's DOL window is their own, extra time included (decision D7).
+  return (assignments || []).filter((assignment) => assignment?.id).map((assignment) => withStudentTimingProfile(withStudentSupportDates(
     studentFacingDol(studentAssignmentView(assignment, { studentId: owner, privateOverride: privateOverrideFor(own, assignment.id) })),
     owner,
     profile,
-  ));
+  ), profile));
 };

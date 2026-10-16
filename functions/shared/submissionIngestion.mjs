@@ -897,6 +897,8 @@ export const buildIngestedAttempt = ({
         classId: gradeDocument?.classId || null,
         at: academicAt,
         timeZone,
+        // Their extra time stretches a teacher's reopen too (decision D7).
+        studentProfile: gradeDocument?.profile || null,
       }),
     })
     : null;

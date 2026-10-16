@@ -18,8 +18,10 @@ import {
 } from '../functions/shared/classSchedule.mjs';
 import {
   MANUALLY_CONTROLLABLE_SECTION_ROLES as SHARED_MANUAL_SECTION_ROLES,
+  dolExtendedTimeMultiplier,
   resolveDolInstructionDateKey,
   resolveDolWindow,
+  studentTimingProfileOf,
   resolveWarmupClose,
   resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
@@ -626,7 +628,15 @@ export const resolveDOLQuestionIndices = (assignment) => {
 
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
-export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
+// `studentProfile` is the student's pinned grades/{id}.profile. Left out, it
+// is the one the student's own projection injected (studentTimingProfileOf);
+// a teacher's copy carries none, so teacher controls see the class window.
+// With an extended-time accommodation the window is the STUDENT'S (decision
+// D7, sectionDeadline.mjs dolExtendedTimeMultiplier): `endsAt`,
+// `millisecondsRemaining` and `status` are theirs, and the added fields say so —
+// `classEndsAt` (the class's close), `extendedTime`, `extendedTimeMs`,
+// `extendedTimeMultiplier`. Without one every field is exactly as before.
+export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now(), studentProfile = undefined }) => {
   const hasAuthoredDOL = projectCurrentAssignmentContent(assignment).entries.some((entry) => (
     entry.logicalRole === ACTIVITY_ROLES.DOL
   ));
@@ -664,11 +674,13 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   // earlier without shortening it.
   // Shared with the Cloud Functions finalizer so the DOL cutoff the timer shows
   // is the one the deadline actually enforces.
+  const profile = studentProfile === undefined ? studentTimingProfileOf(assignment) : studentProfile;
   const sharedDol = resolveDolWindow({
     assignment,
     window: { startMs: window.start.getTime(), endMs: window.end.getTime() },
     classId,
     todayKey,
+    timeMultiplier: dolExtendedTimeMultiplier(profile, { nowValue: now.getTime() }),
   });
   const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery, teacherClosed, teacherClosedAtMs } = sharedDol;
   const regularEndsAt = new Date(sharedDol.regularEndsAtMs);
@@ -711,6 +723,10 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     canRecover,
     durationMinutes,
     closeMinutesBeforeEnd,
+    classEndsAt: new Date(sharedDol.classEndsAtMs),
+    extendedTime: sharedDol.extendedTime === true,
+    extendedTimeMs: sharedDol.extendedTimeMs,
+    extendedTimeMultiplier: sharedDol.extendedTimeMultiplier,
     millisecondsRemaining: status === 'active'
       ? Math.max(0, endsAt.getTime() - now.getTime())
       : status === 'waiting'

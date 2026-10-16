@@ -15,6 +15,8 @@ import { parseInstant, zonedDateKey } from './instructionalCalendar.mjs';
 import { resolvePeriodWindow } from './classSchedule.mjs';
 import { withStudentSupportDates } from './supportDeadline.mjs';
 import { resolveStudentDeadlines, resolveStudentOverride } from './studentAssignmentOverrides.mjs';
+import { resolveSupportEntitlements } from './supportEntitlements.mjs';
+import { planSupportEntry, resolveEffectiveSupportPlan } from './supportProfileModel.mjs';
 
 /** The school's wall clock. Warm-Up and DOL windows are defined in it. */
 export const SCHOOL_TIME_ZONE = 'America/Chicago';
@@ -92,6 +94,100 @@ export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = 
     : assignment;
   const override = studentId ? resolveStudentOverride({ assignment: withSupport, studentId, privateOverride }) : null;
   return resolveStudentDeadlines({ assignment, override, timeZone }).finalCloseAtMs;
+};
+
+/*
+ * EXTRA TIME ON THE EXIT TICKET (DOL) — decision D7 (2026-10-16).
+ *
+ * The DOL is graded, so a student's extended-time accommodation stretches
+ * THEIR exit-ticket window. The Warm-Up stays class-timed.
+ *
+ * WHICH STUDENTS. Exactly the ones a secure exam gives extended time to: the
+ * multiplier comes from the one entitlement resolver (supportEntitlements.mjs
+ * resolveSupportEntitlements, which functions/index.js
+ * secureExamTimeMultiplierFromProfile also reads) on the student's pinned
+ * `grades/{id}.profile`. So, as implemented there:
+ *   - a district (structured) profile's `extendedTimeMultiplier`, clamped 1–4;
+ *   - the teacher's "extra time" box, or inclusion status, means 1.5;
+ *   - an EXPIRED profile keeps applying (supportProfileModel.mjs); an
+ *     inactive one does not;
+ *   - an unreadable profile grants nothing extra and never throws.
+ * One narrowing the secure exam does not need: a versioned plan whose
+ * "extra time" entry is limited to activities that do not include the DOL
+ * ("Activities Extra time applies to" in the profile editor) does not stretch
+ * the DOL.
+ *
+ * HOW MUCH. The same arithmetic as a secure exam's time limit
+ * (functions/lib/secureExamNavigation.js accommodatedTimeLimitSeconds): the
+ * DOL's authored working time × the multiplier, rounded UP to a whole minute.
+ * The difference is added to the end of whichever class window is in force —
+ * the regular one, an early unlock, a teacher's reopen or "+5 min" — so extra
+ * time never shortens anything and a teacher who gives the class more time
+ * gives this student the same more. A teacher's "Close now" still ends the
+ * window for everyone (applyTeacherDolClose): it is an explicit decision, and
+ * the teacher's live view shows who still had extra time before they press it.
+ *
+ * A student without the accommodation gets the class window to the
+ * millisecond: multiplier 1 adds nothing.
+ */
+export const MAX_EXTENDED_TIME_MULTIPLIER = 4;
+const DOL_SUPPORT_ROLE = 'dol';
+const EXTRA_TIME_SUPPORT_ID = 'extra-time';
+
+export const dolExtendedTimeMultiplier = (studentProfile = null, { nowValue = Date.now(), timeZone = SCHOOL_TIME_ZONE } = {}) => {
+  if (!studentProfile || typeof studentProfile !== 'object' || Array.isArray(studentProfile)) return 1;
+  try {
+    const multiplier = Number(resolveSupportEntitlements(studentProfile, { nowValue }).extendedTimeMultiplier);
+    if (!Number.isFinite(multiplier) || multiplier <= 1) return 1;
+    const plan = resolveEffectiveSupportPlan(studentProfile, { nowValue, timeZone });
+    const entry = plan?.source === 'plan' ? planSupportEntry(plan, EXTRA_TIME_SUPPORT_ID) : null;
+    const roles = Array.isArray(entry?.appliesTo) ? entry.appliesTo.map((role) => String(role).trim().toLowerCase()) : [];
+    if (roles.length && !roles.includes(DOL_SUPPORT_ROLE)) return 1;
+    return Math.min(MAX_EXTENDED_TIME_MULTIPLIER, multiplier);
+  } catch {
+    return 1;
+  }
+};
+
+/*
+ * THE STUDENT'S DEVICE READS THE SAME PROFILE, INJECTED IN MEMORY.
+ *
+ * The student's own projection (src/platform/assignments/
+ * studentAssignmentControls.js projectStudentAssignments) attaches their
+ * pinned profile to each assignment it hands the screens, under this key, the
+ * way withStudentSupportDates attaches their individualized due dates. Every
+ * getDOLState call on the student's device then resolves THEIR window — the
+ * timer, the lock, Home, the client close — without each caller passing it.
+ * In memory only: students cannot write assignments, and a teacher's copy
+ * never carries it, so a teacher's class controls stay on the class window.
+ */
+export const STUDENT_TIMING_PROFILE_KEY = 'studentTimingProfile';
+
+export const withStudentTimingProfile = (assignment, profile) => (
+  assignment && profile && typeof profile === 'object' && !Array.isArray(profile)
+    ? { ...assignment, [STUDENT_TIMING_PROFILE_KEY]: profile }
+    : assignment
+);
+
+export const studentTimingProfileOf = (assignment) => {
+  const profile = assignment?.[STUDENT_TIMING_PROFILE_KEY];
+  return profile && typeof profile === 'object' && !Array.isArray(profile) ? profile : null;
+};
+
+/** A secure exam's accommodated time limit, in seconds (same rule, kept in parity by test). */
+export const accommodatedSeconds = (seconds, multiplier) => {
+  const base = Number(seconds);
+  if (!Number.isFinite(base) || base <= 0) return null;
+  const factor = Number(multiplier);
+  const safe = Number.isFinite(factor) ? Math.max(1, Math.min(MAX_EXTENDED_TIME_MULTIPLIER, factor)) : 1;
+  return Math.ceil((base * safe) / 60) * 60;
+};
+
+/** The extra milliseconds a multiplier adds to a DOL of `durationMinutes` working time. */
+export const dolExtraTimeMs = ({ durationMinutes, multiplier = 1 } = {}) => {
+  if (!(Number(multiplier) > 1)) return 0;
+  const baseSeconds = Math.max(1, Number(durationMinutes) || 10) * 60;
+  return Math.max(0, (accommodatedSeconds(baseSeconds, multiplier) - baseSeconds) * 1000);
 };
 
 /**
@@ -258,10 +354,29 @@ const applyTeacherDolClose = ({ resolved, assignment, classId, todayKey }) => {
  * it, so students get a real pack-up window. A teacher close (above) is
  * applied last, to whichever window is in force.
  */
-export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null } = {}) => {
+export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null, timeMultiplier = 1 } = {}) => {
   const resolved = resolveDolWindowBeforeTeacherClose({ assignment, window, classId, todayKey });
-  const { teacherActionAtMs: _teacherActionAtMs, ...withClose } = applyTeacherDolClose({ resolved, assignment, classId, todayKey });
-  return withClose;
+  const classWindow = applyTeacherDolClose({ resolved, assignment, classId, todayKey });
+  // One student's extra time (header above): added to the class's close, then
+  // subject to a teacher close like any window — "Close now" during the class
+  // window, or inside the student's extra minutes, ends theirs there too.
+  const extraMs = resolved.endsAtMs === null
+    ? 0
+    : dolExtraTimeMs({ durationMinutes: resolved.durationMinutes, multiplier: timeMultiplier });
+  const own = extraMs > 0
+    ? applyTeacherDolClose({ resolved: { ...resolved, endsAtMs: resolved.endsAtMs + extraMs }, assignment, classId, todayKey })
+    : classWindow;
+  const { teacherActionAtMs: _teacherActionAtMs, ...withClose } = own;
+  const extendedTimeMs = extraMs > 0 ? Math.max(0, own.endsAtMs - classWindow.endsAtMs) : 0;
+  return {
+    ...withClose,
+    // The class's own close, for the teacher's view and for "extra time" copy.
+    // Equal to endsAtMs for every student without extra time.
+    classEndsAtMs: classWindow.endsAtMs,
+    extendedTime: extendedTimeMs > 0,
+    extendedTimeMs,
+    extendedTimeMultiplier: extendedTimeMs > 0 ? Math.min(MAX_EXTENDED_TIME_MULTIPLIER, Number(timeMultiplier)) : 1,
+  };
 };
 
 const resolveDolWindowBeforeTeacherClose = ({ assignment, window, classId = null, todayKey = null } = {}) => {
@@ -355,13 +470,20 @@ export const dolTeacherRecoveryActiveAt = ({
   classId = null,
   at = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
+  // The student's pinned grades/{id}.profile: their extra time stretches a
+  // teacher's reopen window exactly as it stretches the regular one.
+  studentProfile = null,
 } = {}) => {
   if (!classId) return false;
   const recovery = scopedOverride({ byClassId: assignment?.dol?.recoveryByClassId, classId });
   const openedAtMs = overrideInstant(recovery, 'openedAt', timeZone);
-  const closesAtMs = overrideInstant(recovery, 'closesAt', timeZone);
-  if (openedAtMs === null || closesAtMs === null || closesAtMs <= openedAtMs) return false;
+  const classClosesAtMs = overrideInstant(recovery, 'closesAt', timeZone);
+  if (openedAtMs === null || classClosesAtMs === null || classClosesAtMs <= openedAtMs) return false;
   const occurrenceMs = parseInstant(at, { timeZone });
+  const closesAtMs = classClosesAtMs + dolExtraTimeMs({
+    durationMinutes: assignment?.dol?.minutesBeforeEnd || 10,
+    multiplier: dolExtendedTimeMultiplier(studentProfile, { nowValue: occurrenceMs ?? Date.now(), timeZone }),
+  });
   if (occurrenceMs === null || occurrenceMs < openedAtMs || occurrenceMs > closesAtMs) return false;
   const dateKey = overrideDateKey(recovery);
   return !dateKey || zonedDateKey(occurrenceMs, timeZone) === dateKey;
@@ -392,8 +514,10 @@ export const resolveAuthoritativeClose = ({
   nowValue = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
   studentId = null,
-  // The student's pinned grades/{id}.profile. Only the assignment's own final
-  // cutoff can move for extra time; Warm-Up / DOL class windows cannot.
+  // The student's pinned grades/{id}.profile. Extra time moves the
+  // assignment's own final cutoff (supportDeadline.mjs) and, by decision D7,
+  // this student's DOL window (dolExtendedTimeMultiplier). The Warm-Up stays
+  // class-timed.
   studentProfile = null,
   // The student's private override record (studentAssignmentOverrides),
   // read by the caller with its own authority. Same rule as extra time: it
@@ -428,7 +552,8 @@ export const resolveAuthoritativeClose = ({
       // assignment's own cutoff is the only close MathMaster can prove.
       return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', teacherTimerScheduled: false };
     }
-    const dol = resolveDolWindow({ assignment, window, classId, todayKey });
+    const timeMultiplier = dolExtendedTimeMultiplier(studentProfile, { nowValue, timeZone });
+    const dol = resolveDolWindow({ assignment, window, classId, todayKey, timeMultiplier });
     if (dol.endsAtMs) {
       return {
         closesAtMs: dol.endsAtMs,
@@ -436,6 +561,9 @@ export const resolveAuthoritativeClose = ({
         earlyUnlocked: dol.earlyUnlocked,
         teacherRecovery: dol.teacherRecovery === true,
         teacherClosed: dol.teacherClosed === true,
+        // This student's own extra time on top of the class's close (D7).
+        extendedTime: dol.extendedTime === true,
+        classClosesAtMs: dol.classEndsAtMs,
       };
     }
     return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', earlyUnlocked: false, teacherRecovery: false };

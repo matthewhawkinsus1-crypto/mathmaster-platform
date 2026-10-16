@@ -9449,7 +9449,7 @@ function App() {
     // The DOL's lock message, open notice and close receipt: a teacher's
     // "Close now" never reads as the timer, and "when time ends" only while it is open.
     const currentDolCopy = currentIsDOL && !preview
-      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome })
+      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome, extendedTime: dolState.extendedTime, endsAt: dolState.endsAt })
       : null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
