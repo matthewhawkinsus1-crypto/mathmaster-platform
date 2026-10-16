@@ -321,6 +321,39 @@ for (const scene of FOCUS_SCENES) {
   await page.close();
 }
 
+/*
+ * TOOL-9: the Regression Calculator says how to use it, and its zoom works, at
+ * a Chromebook and a phone.
+ */
+for (const device of ['desktop', 'phone']) {
+  if (ONLY && ONLY !== 'regressionCalculator') continue;
+  const page = await open('regressionCalculator', { device });
+  const key = `regressionCalculator how-to and zoom (${device})`;
+  try {
+    check(await page.getByText('How to do this (3 steps)').count() === 1, `${key}: the how-to has its steps`);
+    const ticks = () => page.locator('[data-regression-graph] svg text').allInnerTexts().then((list) => list.join(','));
+    const before = await ticks();
+    const zoomIn = page.locator('[data-regression-graph]').getByRole('button', { name: 'Zoom in' });
+    check(await zoomIn.isVisible(), `${key}: Zoom in is on screen`);
+    await zoomIn.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    check((await ticks()) !== before, `${key}: Zoom in changes the graph's axes`);
+    const reset = page.locator('[data-regression-graph]').getByRole('button', { name: 'Reset view' });
+    await reset.click();
+    await page.waitForTimeout(300);
+    check((await ticks()) === before, `${key}: Reset view puts the axes back`);
+    // This tool shows its Undo in its own toolbar (the work bar's is hidden
+    // beside it, RegressionCalculator.css); the same platform history.
+    const toolUndo = page.locator('.regression-toolbar button[aria-label="Undo"]').first();
+    const afterZoom = (await toolUndo.isEnabled()) && (await toolUndo.getAttribute('aria-disabled')) !== 'true' ? 'enabled' : 'disabled';
+    check(afterZoom === 'disabled', `${key}: zooming is not an edit: there is nothing to Undo`, afterZoom);
+  } catch (error) {
+    check(false, `${key}: scene ran`, String(error?.message || error).split('\n')[0]);
+  }
+  await page.close();
+}
+
 await browser.close();
 if (failures.length) {
   console.log(`\n${failures.length} failure(s):\n${failures.map((f) => `  - ${f}`).join('\n')}`);
