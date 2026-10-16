@@ -140,6 +140,14 @@ test('an answer removed later on one device stays removed; one only a copy holds
     b: { value: { b: '2' }, savedAt: at(40), fieldEditedAt: { b: at(40) } },
   });
   assert.deepEqual(untimed.value, { a: '1', b: '2' });
+  // The same edit time and one copy lacks the answer: never lost on the tie,
+  // even to a newer copy (a write-back that did not edit it).
+  const tie = mergeFieldRecordCopies({
+    kind: 'multi-answer',
+    a: { value: { m: '-2/3' }, savedAt: at(10), savedAtIsEdit: true, fieldEditedAt: { m: at(10) } },
+    b: { value: {}, savedAt: at(30), fieldEditedAt: { m: at(10) } },
+  });
+  assert.deepEqual(tie.value, { m: '-2/3' });
 });
 
 test('Step Algebra: work begun on a fresh device yields to saved work; its prompt answers do not', () => {
@@ -238,6 +246,27 @@ test('device: a fresh Chromebook\'s early touch is settled answer by answer when
   assert.deepEqual(p.envelope(MULTI).value, { a: '12', b: '9', c: 'x+1' });
   assert.equal(p.envelope(MULTI).fieldsFresh, undefined);
   assert.equal(p.questionDraftRestoreGeneration(), generation + 1, 'the question remounts to show it');
+});
+
+test('device: a draft begun after the server copy was read is not fresh', async () => {
+  const p = await page();
+  // The read lands first (the server had nothing), then the question mounts.
+  p.reconcileFieldRecordDrafts([], OWNER);
+  p.readQuestionDraft(MULTI, {});
+  p.input();
+  p.writeQuestionDraft(MULTI, { m: '-2/3' });
+  assert.equal(p.envelope(MULTI).fieldsFresh, undefined, 'it has seen the server copy: nothing to settle');
+  assert.equal(p.events.at(-1).fieldsFresh, undefined);
+  // So a newer clear saved on another device (no per-answer times) replaces it,
+  // by the ordinary rule, instead of yielding to it as to a fresh copy.
+  const cleared = readWorkspaceDraftEntries(serverDoc([{ key: MULTI, value: {}, savedAt: Date.now() + 5_000, savedAtIsEdit: true }]));
+  assert.ok(!p.reconcileFieldRecordDrafts(cleared, OWNER).keys.has(MULTI), 'left to the ordinary restore');
+  // Another assignment's read says nothing about this one.
+  const other = await page();
+  other.reconcileFieldRecordDrafts([], { ...OWNER, assignmentId: 'A-other' });
+  other.readQuestionDraft(MULTI, {});
+  other.writeQuestionDraft(MULTI, {});
+  assert.equal(other.envelope(MULTI).fieldsFresh, true);
 });
 
 test('device: an edit landing after a settle but before the remount keeps the answers it never saw', async () => {
