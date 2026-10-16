@@ -280,7 +280,12 @@ test('device: an edit landing after a settle but before the remount keeps the an
   p.input();
   p.writeQuestionDraft(MULTI, { b: '10' });
   assert.deepEqual(p.envelope(MULTI).value, { b: '10', a: '12', c: 'x+1' });
-  // An answer the page DID see and the student removed stays removed.
+  // Its write-back (the hooks write the same value again, not as an edit)
+  // still keeps them: the page has still not seen them (Batch 3 review, S4).
+  p.writeQuestionDraft(MULTI, { b: '10' }, { edit: false });
+  assert.deepEqual(p.envelope(MULTI).value, { b: '10', a: '12', c: 'x+1' });
+  // After the remount the page holds them; one it then removes stays removed.
+  assert.deepEqual(p.readQuestionDraft(MULTI, {}), { b: '10', a: '12', c: 'x+1' });
   p.input();
   p.writeQuestionDraft(MULTI, { b: '10', c: 'x+1' });
   assert.deepEqual(p.envelope(MULTI).value, { b: '10', c: 'x+1' });

@@ -420,17 +420,23 @@ const own = (record, key) => (record && Object.hasOwn(record, key) ? record[key]
 const setOwn = (record, key, value) => {
   Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true });
 };
-const timeOf = (times, group) => {
+/*
+ * An answer's time is its edit time — or, NEGATIVE, an upper bound: "edited at
+ * or before this", for an answer an older build saved without one
+ * (adoptedFieldEditedAt). `rawTimeOf` keeps the sign; `timeOf` is the moment.
+ */
+const rawTimeOf = (times, group) => {
   const time = Number(own(times, group));
-  return Number.isFinite(time) && time > 0 ? time : 0;
+  return Number.isFinite(time) && time !== 0 ? time : 0;
 };
+const timeOf = (times, group) => Math.abs(rawTimeOf(times, group));
 
-/** A plain `{ group: editTime }` map, dropping anything that is not a positive time. */
+/** A plain `{ group: editTime }` map (a negative time is an upper bound), dropping anything else. */
 export const normalizeFieldEditedAt = (value) => {
   if (!isFieldRecord(value)) return null;
   const out = {};
   Object.keys(value).forEach((group) => {
-    const time = timeOf(value, group);
+    const time = rawTimeOf(value, group);
     if (time) setOwn(out, group, time);
   });
   return out;
@@ -456,6 +462,12 @@ export const resetTimeOf = (copy) => Math.max(
  * the copy's time, when that time is an edit's. Without it the answers of such
  * a copy counted as never edited, and an older dated copy elsewhere won them
  * back. An unmarked copy's time may be an opening's: its answers stay undated.
+ *
+ * The copy's time is only an upper bound for each answer in it (it may have
+ * been typed long before the copy's last save), so it is stored negative: such
+ * an answer loses to the other copy's answer when the other copy was saved
+ * after that bound — the rule an older build applied to the whole record,
+ * applied per answer — and an answer only this copy holds is still kept.
  */
 export const adoptedFieldEditedAt = (kind, copy) => {
   const times = normalizeFieldEditedAt(copy?.fieldEditedAt);
@@ -466,7 +478,7 @@ export const adoptedFieldEditedAt = (kind, copy) => {
   if (!at) return null;
   const out = {};
   fieldRecordGroups(kind, copy.value).forEach((entry, group) => {
-    if (!emptyGroupSignature(kind, group, entry.signature)) setOwn(out, group, at);
+    if (!emptyGroupSignature(kind, group, entry.signature)) setOwn(out, group, -at);
   });
   return out;
 };
@@ -509,11 +521,39 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
   const aAt = Math.max(0, Number(a.savedAt) || 0);
   const bAt = Math.max(0, Number(b.savedAt) || 0);
   const submittedAt = Math.max(0, Number(canonicalAt) || 0);
-  if (submittedAt > 0 && (aAt <= submittedAt) !== (bAt <= submittedAt)) return null;
   const aRecord = isFieldRecord(a.value);
   const bRecord = isFieldRecord(b.value);
   const resetAt = Math.max(resetTimeOf(a), resetTimeOf(b));
   const resetMarker = resetAt > 0 ? { resetAt } : {};
+
+  // Either side of a submission: the later copy, whole — still without any
+  // answer the latest reset removed, and remembering that reset for every
+  // later merge.
+  if (submittedAt > 0 && (aAt <= submittedAt) !== (bAt <= submittedAt)) {
+    const later = aAt > bAt ? a : b;
+    const laterTimes = normalizeFieldEditedAt(later.fieldEditedAt);
+    const cut = resetTimeOf(later) >= resetAt ? 0 : resetAt;
+    let value = later.value;
+    let fieldEditedAt = laterTimes;
+    if (cut && isFieldRecord(later.value) && laterTimes) {
+      value = {};
+      fieldEditedAt = {};
+      fieldRecordGroups(kind, later.value).forEach((entry, group) => {
+        const time = rawTimeOf(laterTimes, group);
+        if (Math.abs(time) <= cut) return;
+        entry.fields.forEach((field) => setOwn(value, field, own(later.value, field)));
+        setOwn(fieldEditedAt, group, time);
+      });
+    }
+    return {
+      value,
+      savedAt: Math.max(aAt, bAt),
+      savedAtIsEdit: later.savedAtIsEdit === true,
+      fieldEditedAt,
+      fieldsFresh: false,
+      ...resetMarker,
+    };
+  }
 
   // A reset (null) and a record dated after it: only answers edited after the
   // reset survive it — unless the record was begun on that reset, when all of
@@ -528,8 +568,8 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
     const kept = {};
     const keptTimes = {};
     fieldRecordGroups(kind, record.value).forEach((entry, group) => {
-      const time = timeOf(recordTimes, group);
-      if (cut && time <= cut) return;
+      const time = rawTimeOf(recordTimes, group);
+      if (cut && Math.abs(time) <= cut) return;
       entry.fields.forEach((field) => setOwn(kept, field, own(record.value, field)));
       if (time) setOwn(keptTimes, group, time);
     });
@@ -566,18 +606,31 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
   const value = {};
   const fieldEditedAt = {};
   new Set([...aGroups.keys(), ...bGroups.keys(), ...Object.keys(aGroupTimes), ...Object.keys(bGroupTimes)]).forEach((group) => {
-    let ta = timeOf(aGroupTimes, group);
-    let tb = timeOf(bGroupTimes, group);
+    let rawA = rawTimeOf(aGroupTimes, group);
+    let rawB = rawTimeOf(bGroupTimes, group);
     let inA = aGroups.has(group);
     let inB = bGroups.has(group);
-    if (aCut && ta <= aCut) { ta = 0; inA = false; }
-    if (bCut && tb <= bCut) { tb = 0; inB = false; }
+    if (aCut && Math.abs(rawA) <= aCut) { rawA = 0; inA = false; }
+    if (bCut && Math.abs(rawB) <= bCut) { rawB = 0; inB = false; }
+    const ta = Math.abs(rawA);
+    const tb = Math.abs(rawB);
+    // An upper bound against the other copy: that answer was edited after the
+    // bound, or its copy was saved after it — then it is the newer one.
+    const aBounded = rawA < 0;
+    const bBounded = rawB < 0;
+    const boundedWinner = () => {
+      if (!(inA && inB) || (!aBounded && !bBounded)) return null;
+      if (aBounded && bBounded) return ta === tb ? null : (ta > tb ? 'a' : 'b');
+      if (aBounded) return tb > ta || bAt > ta ? 'b' : 'a';
+      return ta > tb || aAt > tb ? 'a' : 'b';
+    };
     let winner;
     if (!inA && !inB) winner = ta >= tb ? 'a' : 'b';
     // A copy that lacks the answer and never removed it has nothing to say about it.
     else if (inA && !inB && !tb) winner = 'a';
     else if (inB && !inA && !ta) winner = 'b';
     else if (isCoupledGroup(kind, group) && aFresh !== bFresh && (aFresh ? (inB && tb > 0) : (inA && ta > 0))) winner = aFresh ? 'b' : 'a';
+    else if (boundedWinner()) winner = boundedWinner();
     else if (ta !== tb) winner = ta > tb ? 'a' : 'b';
     // The same edit time, and one copy lacks the answer: that copy was written
     // without editing it (a write-back), so the answer is kept.
@@ -591,8 +644,9 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
       const groups = winner === 'a' ? aGroups : bGroups;
       groups.get(group).fields.forEach((field) => setOwn(value, field, own(source, field)));
     }
-    const time = Math.max(ta, tb);
-    if (time > 0) setOwn(fieldEditedAt, group, time);
+    // The winner's time, an upper bound staying one; with no bound, the later.
+    const time = aBounded || bBounded ? ((winner === 'a' ? rawA : rawB) || (winner === 'a' ? rawB : rawA)) : Math.max(ta, tb);
+    if (time) setOwn(fieldEditedAt, group, time);
   });
   const newer = aAt === bAt ? (prefer === 'a' ? a : b) : (aAt > bAt ? a : b);
   return {
