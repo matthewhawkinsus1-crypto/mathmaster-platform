@@ -211,12 +211,14 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     keyboardHelpVisible: 'Whether the plane has keyboard focus, which shows the keyboard plotting help.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
     insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',
+    plotAnnouncement: 'What the last plot did, said once in the live region ("Plotted (3, -2).", student pass 3 A11Y-1). Gone when the crosshair moves; the points themselves are the tool\'s.',
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
     wrapped: 'Whether a verdict pill wraps at its current width, which sets its corner radius (PQ-032). Measured layout.',
     slot: 'This verdict area\'s token in the question\'s attempt-outcome registry (PQ-022). Which slot shows an outcome is presentation; the outcome itself is the engine\'s grading result.',
     taskCards: 'How many TaskCards opened their fold with this tool\'s description (PQ-023), which decides whether the header still offers "About this tool". Layout.',
+    insideLiveRegion: 'Whether this outcome slot sits inside a verdict area that is itself a live region, measured after mount, so the tool\'s words are not said twice (student pass 3, A11Y-1). Layout.',
   }),
   'shared/useToolSubmission.js': Object.freeze({
     feedback: 'The verdict for the last submission. A grading result, never a draft.',
