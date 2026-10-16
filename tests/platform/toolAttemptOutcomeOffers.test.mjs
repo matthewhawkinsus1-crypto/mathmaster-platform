@@ -136,6 +136,9 @@ test('after a miss, the box and the tool offer the worked sibling beside the hin
     const render = (outcome) => renderToStaticMarkup(React.createElement(AttemptOutcomeWords, { outcome, toolWords: COACHING, detail: outcome.detail }));
     const both = render({ ...MISS, onShowHint: () => {}, onShowSimilar: () => {} });
     assert.match(both, /Show a hint<\/button><button type="button" data-similar-offer=""[^>]*>See a similar problem worked<\/button>/);
+    // Both offered: the two buttons, without the lead-in sentence, so the box
+    // still fits a phone under the task card (tests/browser/toolAttemptOutcome.mjs).
+    assert.doesNotMatch(both, /A hint is ready/);
     const similarOnly = render({ ...MISS, onShowSimilar: () => {} });
     assert.match(similarOnly, />See a similar problem worked<\/button>/);
     assert.doesNotMatch(similarOnly, /A hint is ready/, 'the sibling alone does not promise a hint');

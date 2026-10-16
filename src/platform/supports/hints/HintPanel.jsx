@@ -83,7 +83,7 @@ export default function HintPanel({
     </ol>
   );
   return (
-    <section aria-label="Hints" data-hint-panel="" style={{ textAlign: 'left', color: 'var(--mm-text)', display: 'grid', gap: 12 }}>
+    <section aria-label="Hints" data-hint-panel="" data-hint-sources={hints.map((hint) => hint.source || '').join(' ')} style={{ textAlign: 'left', color: 'var(--mm-text)', display: 'grid', gap: 12 }}>
       {shown.length ? (
         <>
           {folded.length ? (
