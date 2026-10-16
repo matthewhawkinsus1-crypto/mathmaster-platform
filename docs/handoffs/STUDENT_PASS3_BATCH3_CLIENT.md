@@ -11,7 +11,7 @@ re-grades, writes to production or deploys.
 | Item | What a student saw | What changed | Proof |
 | --- | --- | --- | --- |
 | Device pins (PR #430 review) | A device pin the server would refuse, or that no longer replays, was dropped for the render but never replaced (`writeLocalDeliveryPin` refused to overwrite any pin). Every later render dropped it again and followed the allocation of the moment, so seating a provisional student swapped the numbers mid-question. An unreadable stored pin did the same. | The shown delivery replaces a dropped (`familyPinNotice`) or unreadable pin; a usable pin is still never overwritten (`src/platform/generation/familyDelivery.js`, `App.jsx` `handleFamilyDelivery`). Drafts are keyed by question and variant, so the student's work stays put. | `familyDevicePinReplacement` (3 mutations); `tests/browser/familyPinContainment.mjs` (77 checks) |
-| Fresh Chromebook / two devices (PR #458 follow-up) | One early touch on a fresh Chromebook overwrote saved multi-answer, Step Algebra and composed answers; two devices editing different steps of a composed question kept one device's record. | `…:multi-answer`, `…:step-algebra` and `…:workflow-responses` carry per-answer edit times (`fieldEditedAt`) and `fieldsFresh` while begun from nothing, in the device envelope and the server entry (`fieldEditedAtJson`). The server merge and the device (`reconcileFieldRecordDrafts`, on the server read) merge answer by answer: the later edit wins; an answer only one copy holds is kept (also on an edit-time tie); Step Algebra's equation-and-steps work is taken whole and yields to saved work when begun on a fresh device; a tap that commits nothing dates no work; a reset keeps only answers edited after it; an edit landing between a settle and its remount keeps the answers the page never saw. (`functions/shared/workspaceDraftSchema.mjs`, `src/questionDraftStorage.js`, `workspaceDraftSync.js`, `App.jsx`) | `fieldRecordDraftMerge` (23 mutations), `fieldRecordReviewRegressions` (21 mutations); real App: `tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs`; `npm run test:draft-persistence` |
+| Fresh Chromebook / two devices (PR #458 follow-up) | One early touch on a fresh Chromebook overwrote saved multi-answer, Step Algebra and composed answers; two devices editing different steps of a composed question kept one device's record. | `…:multi-answer`, `…:step-algebra` and `…:workflow-responses` carry per-answer edit times (`fieldEditedAt`) and `fieldsFresh` while begun from nothing, in the device envelope and the server entry (`fieldEditedAtJson`). The server merge and the device (`reconcileFieldRecordDrafts`, on the server read) merge answer by answer: the later edit wins; an answer only one copy holds is kept (also on an edit-time tie); Step Algebra's equation-and-steps work is taken whole and yields to saved work when begun on a fresh device; a tap that commits nothing dates no work; a reset keeps only answers edited after it; an edit landing between a settle and its remount keeps the answers the page never saw. (`functions/shared/workspaceDraftSchema.mjs`, `src/questionDraftStorage.js`, `workspaceDraftSync.js`, `App.jsx`) | `fieldRecordDraftMerge` (23 mutations), `fieldRecordReviewRegressions` (32 mutations); real App: `tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs`; `npm run test:draft-persistence` |
 | Stale fields (PR #458 review) | A fresh device's edit pulled fields of an older attempt into the new one. | Both settles (tool workspaces and field records) skip server entries at or before the question's last submitted attempt (`canonicalSavedAt`, the restore's own reader). | `fieldRecordDraftMerge` (canonical cases) |
 | Silent save failures (PR #458) | Storage full, a record the backup refuses, or a backup past its caps (120 drafts / 400 KB): a console line only. | `src/platform/persistence/draftSaveHealth.js` keeps each problem per draft key; the draft write, the sync's guard and the merge's `droppedKeys` report it and it clears when that draft saves again. The assignment screen shows one plain `role="alert"` sentence for this student and assignment. Guards and caps unchanged (an older build would truncate a larger document). | `draftSaveFailureNotice` (11 mutations) |
 | RUN-3 | When the device could not queue an answer: "Correct!", the question locked, Submit gone, "Saved on this device only", and a toast asking for Submit again. | `handleGradeSubmit` returns `SUBMISSION_NOT_QUEUED` (`src/platform/student/submissionNotQueued.js`) instead of `null`: blocked feedback, no verdict, no attempt; the question stays open with Submit. The engine stops at it before freezing composed step verdicts or a tool's outcome slot; a resubmit is not "the same answer again". `volatile` has its own save line ("Not saved · …"). | `submitNotQueued` (7 mutations); `tests/browser/submitNotQueued.mjs` (real engine, 1366×768 and 390×844, 21 checks) |
@@ -66,11 +66,26 @@ second save, the hooks' second write deleting unseen merged answers, and the R2b
 a guard. Known and not addressed (predates this branch): edit times come from each device's clock, so a device whose
 clock runs fast keeps an earlier answer over a later one.
 
+### Second review (of `6108d2c..1efd1e7`)
+
+The second review found no blocker. It showed that the single-device path behaves exactly as `37ec6ce` does:
+across 28 scripted runs (7 sessions × 4 writers), what the question shows and what the server holds were
+identical. It found one should-fix and four notes. Fixed in `af3c1f8`; five new cases in the same regression file
+fail on `1efd1e7`; 11 mutations, all caught.
+
+| Finding | What went wrong | Resolution |
+| --- | --- | --- |
+| S4: merged answers lost from the screen | The hooks write each change twice: the setter's edit, then the effect's write-back. The page's view was set from the value *written*, which included answers kept for it from behind its back. So the write-back removed them, and after a settle plus a keystroke before the remount the question showed, and Submit sent, only this device's boxes. | Fixed: the view is the page's own value, so the write-back keeps them as well. |
+| Note 1: an older build saving any question drops `resetAt` from every entry | The base merge rewrites every entry with the fields it knows. A stale tab can then bring back an answer Start over removed. | **Documented, not fixed.** A fix that survives older builds would have to carry the reset inside `valueJson`, which those builds read and show as an answer field. This only happens while bundles from before this release are still open. The app offers a reload on a new build but never forces one (`buildFreshness.js`). Deploy guidance: release outside class time, and have teachers ask students to reload. |
+| Note 2: dating an older build's answers at its save cut both ways | An answer typed offline long before the copy's last save won over a newer answer from another Chromebook. | Fixed: adopted times are upper bounds, stored negative ("at or before"). Such an answer loses to the other copy's answer when that copy was saved, or that answer edited, after the bound. An answer only the old copy holds is still kept, so neither answer is lost (the base build loses the old copy's other answers here). |
+| Note 3: "the later copy, whole" across a submission forgot the reset | The submission boundary handed the merge to the whole-copy branch, which did not carry `resetAt`. | Fixed: the boundary applies the latest reset's cut to the later copy and carries `resetAt` and `canonicalAt` forward. |
+| Note 4: the device settle read the submission time only from its own grade records | A submission made on another device that hadn't reached this one's records was missed. | Fixed: the settle uses the later of the device's record and the `canonicalAt` the server entry carries. |
+
 ## Checks
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,413 / 11,413 (after the review fixes) |
+| `npm run test:platform` | 11,418 / 11,418 (after both reviews' fixes) |
 | `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (1 skipped) |
 | `npm run lint` / `build` / `build:firebase` | pass (no new warnings) |
 | `npm run test:rules` (emulator) | 248/248 and 200/200, incl. new cases: a document built by the real merge with per-answer times is accepted directly and in a transaction; a grade beside it or another student's id is refused |
@@ -92,8 +107,9 @@ node scripts/release-firebase.mjs            # the plan
 FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 ```
 
-During rollout, an older build that saves the same document drops the per-answer fields; those entries then merge
-by the ordinary rule, as before this batch.
+During rollout, an older build that saves the same document drops the per-answer fields (and every entry's
+`resetAt`); those entries then merge by the ordinary rule, as before this batch. Release outside class time and ask
+teachers to have students reload, so the window in which old and new bundles share a document is short.
 
 ## Left for later
 
@@ -101,4 +117,5 @@ by the ordinary rule, as before this batch.
   stays in the draft and the toast says to submit it again, but the solver is not told. Not in this item's scope.
 - Step Algebra's prompt answers merge as one group, not per prompt.
 - Edit times are device clocks: a device whose clock runs fast wins an answer it edited earlier (pre-existing).
+- Rollout window: while bundles from before this release are open, a save from one drops every entry's `resetAt` (review note 1, above).
 - The 120-draft / 400 KB caps are unchanged: past them the oldest drafts stay device-only, now with a notice.
