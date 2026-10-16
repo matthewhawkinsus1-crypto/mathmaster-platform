@@ -36,7 +36,10 @@ test('m13: the DOL reminder is not shown while the student is on that DOL', () =
 test('R2-m4: a closed DOL says who closed it, and only an open one promises "when time ends"', () => {
   assert.match(imports, /import \{ describeDolClose \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
   const workspace = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', '// The read-only "What changed" list', 'the assignment workspace');
-  assert.match(workspace, /const currentDolCopy = currentIsDOL && !preview\s*\? describeDolClose\(\{ status: dolState\.status, teacherClosed: dolState\.teacherClosed, outcome: currentCheckpointOutcome \}\)\s*: null;/);
+  // The copy is the DOL state's: who closed it and the server's receipt. (D7
+  // added the student's own extra-time close to the same call; any further
+  // arguments are allowed, these three are required.)
+  assert.match(workspace, /const currentDolCopy = currentIsDOL && !preview\s*\? describeDolClose\(\{ status: dolState\.status, teacherClosed: dolState\.teacherClosed, outcome: currentCheckpointOutcome(?:, [^}]*)? \}\)\s*: null;/);
   assert.ok(workspace.indexOf('const currentCheckpointOutcome =') < workspace.indexOf('const currentDolCopy ='), 'the receipt is read before the copy');
   // The lock message: the same condition, the wording from the copy module.
   assert.match(workspace, /assignmentLockedMessage=\{!preview && currentIsDOL && dolState\.status === 'ended'\s*\? currentDolCopy\.lockMessage/);
@@ -68,7 +71,8 @@ test('R2-m4: the copy the workspace now shows for each DOL state', () => {
   // receipt line until the server's receipt exists (asserted above).
   assert.doesNotMatch(describeDolClose({ status: 'ended', outcome: null }).closeReceipt, /submitted/);
   // Another day: nothing pending, so the workspace keeps the earlier receipt.
-  assert.deepEqual(describeDolClose({ status: 'notToday', outcome: 'auto-submitted' }), { state: 'not-open', lockMessage: '', openNotice: '', closeReceipt: '' });
+  // extraTimeNotice (D7): the student's own extra-time close, only while open.
+  assert.deepEqual(describeDolClose({ status: 'notToday', outcome: 'auto-submitted' }), { state: 'not-open', lockMessage: '', openNotice: '', closeReceipt: '', extraTimeNotice: '' });
 });
 
 /*

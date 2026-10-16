@@ -15,6 +15,7 @@
  */
 import { getDOLState } from '../../assignmentLifecycle.js';
 import { dolExtendedTimeMultiplier } from '../../../functions/shared/sectionDeadline.mjs';
+import { formatStudentLabel } from '../studentName.js';
 
 const OPEN_FOR_CLASS = new Set(['active', 'ended']);
 
@@ -49,7 +50,7 @@ export const dolExtraTimeForClass = ({
       if (state.status !== 'active') return null;
       return {
         studentId: String(student.id || student.studentId || ''),
-        name: String(student.displayName || student.name || student.id || student.studentId || ''),
+        name: formatStudentLabel(student, { lastFirst: false }),
         endsAt: state.endsAt,
       };
     })
