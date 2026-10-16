@@ -29,6 +29,7 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -817,6 +818,12 @@ function App() {
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // Unfinished work this device could not save, or the backup could not take
+  // (draftSaveHealth.js). Bumped on every change; the line below reads it.
+  const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
+  useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
+  // A shared Chromebook: the next student never inherits this one's notice.
+  useEffect(() => () => { clearDraftSaveProblems(); }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
@@ -10274,6 +10281,18 @@ function App() {
                             : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
               </p>
             )}
+            {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
+                Storage full, a record the backup refuses, or a backup at its
+                caps: the student is told where the work is and what to do,
+                in one plain sentence, until it is saved again. */}
+            {!preview && draftSaveHealthVersion >= 0 && (() => {
+              const problem = describeDraftSaveProblems(draftSaveProblemsFor({ studentId: user?.id, assignmentId: activeAssignmentId }));
+              return problem ? (
+                <p role="alert" data-draft-save-problem={problem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
+                  {problem.text}
+                </p>
+              ) : null;
+            })()}
             {!preview && studentReportingError && (
               <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
