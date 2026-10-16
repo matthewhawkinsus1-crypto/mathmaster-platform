@@ -48,6 +48,14 @@ Proof: `recoveryPracticeAttempts`; `sectionRecovery` (the practice step-bookkeep
   `recordQuestionStep({ …, maximumAttempts })` in Practice. The behaviour — rejected steps spend tries with the
   Practice policy's limits — holds; it now reads `maximumAttempts: stepMaximumAttempts` and asserts that
   `stepMaximumAttempts` is the Practice policy's resolution. Mutation-checked.
+- `testCycleServerWiring`, "a student is never handed the families or seeds…": its region ran from
+  `studentVisibleCorrectionPlan` to the next export, so it took in the new server-side helper that reads
+  `privateGrading` to diagnose a miss. The behaviour (the student payload carries no families, seeds or private
+  grading) holds; the region is now the function itself. Mutation-checked (adding `privateGrading` or
+  `practiceFamilyIds` to the payload goes red).
+- `secureRichToolRuntimeWiring`, "no second field renderer": the corrections screen must not render answer
+  fields itself. The reflection's radios are not answer fields, but rather than weaken the check the step lives in
+  its own component (`CorrectionReflectionStep.jsx`), so the screen still renders no input.
 - `tests/browser/testCycleLifecycleQa.mjs` now answers the reflection on the first skill (checks 2–3 options, a frame
   with a blank and no number, the plan line) and skips it on the others.
 
@@ -56,6 +64,22 @@ Proof: `recoveryPracticeAttempts`; `sectionRecovery` (the practice step-bookkeep
 Every new assertion was broken once against the code: HELP-19 5/5, HELP-13 (a) 4/4, (b) 14 (four first survived — two
 were dead guards, removed; two got biting cases), (c) 15 (one survivor, given a case). Each now goes red.
 
+## Checks
+
+| Check | Result |
+| --- | --- |
+| `npm ci`, `npm --prefix functions ci` | ok |
+| `npm run test:platform` | 11,378 of 11,378 (the first run had 2 failures — the two contracts rewritten above) |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | ok (no tracked file rewritten) |
+| `npm run test:rules` | ok (200 + rules script) |
+| `npm run test:test-cycle-certification` | 35 pass |
+| `npm run test:test-cycle-lifecycle` | 71 checks, 0 findings — incl. the reflection (2–3 choices, frame with a blank, plan line) |
+| `npm run test:test-cycle-device` | 12 of 12 device/stage combinations |
+| `tests/browser/familyPinContainment.mjs` (Recovery assessment/practice) | 77 checks, 0 findings |
+| `tests/browser/hostAccessibility.mjs` (Recovery assessment host) | all checks passed |
+| Recovery practice in Chromium (temporary harness, not committed) | non-step item: "1 of 1 try left" and "One answer per practice question." (base `37ec6ce`: "3 of 3 tries left"); step item: "3 of 3 tries left" kept |
+
 ## Deploying (not done)
 
 ```bash
@@ -63,8 +87,9 @@ node scripts/release-firebase.mjs --since 37ec6ce   # the plan for this branch a
 node scripts/release-firebase.mjs --execute         # deploy (asks for the project id)
 ```
 
-Cloud Functions: `getStudentTestCycle` (the student plan now carries the code) and
-`submitTestCycleCorrectionResponse` (the diagnosis). `functions/shared/pathSolutionSupport.mjs` and
-`misconceptionClassifiers.mjs` also changed (an optional parameter; an added `export`) — behaviour for every other
-caller is unchanged, but the planner will list the functions that load them; ship what it lists. No Firestore rules
-change. Hosting: the corrections screen and the Recovery runner. Never a raw `firebase deploy --only hosting…`.
+The functions whose behaviour changes are `getStudentTestCycle` (the student plan carries the code) and
+`submitTestCycleCorrectionResponse` (the diagnosis). Because `functions/index.js` and `functions/shared` changed, the
+planner (`--since 37ec6ce`) ships the whole default-codebase fleet (25 groups of 8, `platformBuildInfo` last and
+verified), then `functions:path-admin` (it loads the changed shared modules), then Hosting through the wrapper. Every
+other caller of `pathSolutionSupport.mjs` passes no diagnosis and is unchanged; `misconceptionClassifiers.mjs` only
+gained an `export`. **No Firestore rules change** and no index. Never a raw `firebase deploy --only hosting…`.
