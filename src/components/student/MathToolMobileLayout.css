@@ -767,21 +767,14 @@
   }
 }
 
-/* When a graph is the reference panel and the response controls are in the
-   next panel, keep the graph visible while the student scrolls to the answer.
-   This avoids the phone-only "look at graph -> scroll -> type -> scroll back"
-   loop without freezing tools that are not graph-based. */
-@media (max-width: 768px) and (orientation: portrait) {
-  .mathmaster-question-container.mode-portrait
-    .math-tool-workspace
-    .mathmaster-tool-split
-    > .mathmaster-tool-panel:first-child:has(svg[role="application"], canvas) {
-    position: sticky;
-    top: -1px;
-    z-index: 7;
-    max-height: 46dvh;
-    overflow: auto;
-    background: var(--mm-surface);
-    box-shadow: 0 5px 12px rgba(32, 33, 36, 0.1);
-  }
-}
+/* A GRAPH PANEL IS NOT PINNED IN THE PHONE COLUMN.
+   It used to be sticky at 46dvh so the graph stayed in view while the student
+   scrolled to the answer below it. But in portrait the workspace is what is
+   left after the prompt and the action bar — 346px on a 390x844 phone — and
+   46dvh is 388px: the pinned graph covered the whole workspace at every scroll
+   position, so the panel after it could never be reached. On every Graphing
+   item that panel holds "Check construction" (Oct 15, 2026, Algebra I M2 T2;
+   docs/qa/algebra1-m2t2-student-walkthrough.md, P0-1). The graph now scrolls
+   with its controls, as it already does inside Work View (WorkViewShell.css),
+   and Enlarge gives a student who wants it large the whole screen.
+   tests/browser/phoneToolPanelReach.mjs taps the panel's controls by touch. */

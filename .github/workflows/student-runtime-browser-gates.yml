@@ -74,6 +74,9 @@ on:
       - "tests/browser/errorRecovery*"
       - "tests/browser/duplicateTabs.mjs"
       - "tests/browser/graphPointCheck*"
+      - "tests/browser/phoneToolPanelReach*"
+      - "tests/browser/algebra1Module2Topic2*"
+      - "teacher-import-jsons/algebra1-module2-topic2/**"
       - "tests/browser/undoTyping*"
       - "tests/browser/composedOutcomePolicy*"
       - "tests/browser/toolPolicyGates*"
@@ -152,6 +155,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphPointCheck.mjs
+      - name: On a phone every graph tool control can be reached by touch
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/phoneToolPanelReach.mjs
       - name: Undo groups typing and agrees with the math field
         if: always()
         env:
