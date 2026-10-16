@@ -27,6 +27,12 @@ const SCENE_CAPABILITY_OVERRIDES = Object.freeze({
     'undo', 'fitView', 'panZoom', 'pointEditing',
     'instruction', 'task', 'help', 'primaryActions', 'secondaryActions',
   ]),
+  // Its Undo is the platform history (useMathUndoHistory) shown in the
+  // calculator's own toolbar; RegressionCalculator.css hides the shell's copy
+  // beside it on purpose, so this scene does not count a shell Undo. The
+  // toolbar Undo is proven by tests/browser/regressionCalculatorPhone.mjs and
+  // toolFocusAndUndo.mjs.
+  regressionCalculator: Object.freeze(WORK_VIEW_INVENTORY.regressionCalculator.capabilities.filter((capability) => capability !== 'undo')),
 });
 
 export const WORK_VIEW_CERTIFICATION = Object.freeze(Object.fromEntries(
