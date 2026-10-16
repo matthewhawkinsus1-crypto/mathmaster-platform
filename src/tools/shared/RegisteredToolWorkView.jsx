@@ -3,7 +3,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
-import { useHintsAllowed, useHintUseReporter } from './ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useToolHintPublisher } from './ToolRuntimeContext';
 import { HintPanel } from './ToolShell';
 
 // Sentence case for the rail labels: `numericControls` used to read
@@ -40,6 +40,10 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   const mobile = useMobileInteractionMode();
   const hintsAllowed = useHintsAllowed();
   const reportHintUse = useHintUseReporter();
+  // Inside a question with the platform's hint ladder, that ladder is this
+  // Work View's Help (QuestionEngine publishes it to the shell) and it already
+  // holds the question's authored hints (student pass 3, HELP-10).
+  const platformLadder = Boolean(useToolHintPublisher());
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -64,8 +68,12 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
     ? <HintPanel hints={authoredHints} onHintUsed={() => reportHintUse?.()} />
     : 'Use the directions and controls in this workspace to complete the current mathematical task. Your work stays in place when you open or close Work View.';
 
+  // A Help of this wrapper's own would replace the platform's ladder in the
+  // shell (a tool's capability wins over the platform's), so it declares none
+  // there: one ladder per question, not a third copy of the authored hints.
   const capabilities = Object.fromEntries(inventory.capabilities
     .filter((key) => !['primaryActions', 'secondaryActions', 'undo', 'fitView', 'panZoom'].includes(key))
+    .filter((key) => !(platformLadder && key === 'help'))
     .map((key) => [key, capabilityDescriptor(key, { taskText, helpText })]));
 
   return (

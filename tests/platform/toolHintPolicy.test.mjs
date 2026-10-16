@@ -43,6 +43,12 @@ test('the activities that withhold help are the ones this gate exists for', () =
   });
 });
 
+test('a tool shows a ladder of its own only where hints are allowed and the host has no ladder', () => {
+  const context = code('src/tools/shared/ToolRuntimeContext.jsx');
+  const own = region(context, 'export const useOwnHintLadder = () => {', '};', 'useOwnHintLadder');
+  assert.match(own, /return runtime\.hintsAllowed !== false && !runtime\.publishHints;/);
+});
+
 test('the runtime context carries hintsAllowed, allowed unless a provider says false', () => {
   const context = code('src/tools/shared/ToolRuntimeContext.jsx');
   const defaults = region(context, 'const DEFAULT_RUNTIME', '};', 'the default runtime');
@@ -119,11 +125,14 @@ for (const file of [
   test(`${path.basename(file)} publishes its hints-only Work View Help only where hints are allowed`, () => {
     const source = code(file);
     // Other runtime hooks may come from the same import (the constraint
-    // builder also reads whether outcomes are shown); this one must.
-    assert.match(source, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
-    assert.match(source, /\n\s*const hintsAllowed = useHintsAllowed\(\);/);
+    // builder also reads whether outcomes are shown); this one must. Since
+    // student pass 3 (HELP-10) the gate is useOwnHintLadder — hints allowed
+    // AND no platform ladder to hand them to (pinned with the context below);
+    // inside a question that ladder is the Help instead.
+    assert.match(source, /import \{[^}]*\buseOwnHintLadder\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
+    assert.match(source, /\n\s*const ownHintLadder = useOwnHintLadder\(\);/);
     const capabilities = region(source, 'const workspaceCapabilities', 'return (', 'the Work View capabilities');
-    assert.match(capabilities, /\n\s*help: hintsAllowed \? \{/);
+    assert.match(capabilities, /\n\s*help: ownHintLadder \? \{/);
     assert.match(capabilities, /\} : null,/);
   });
 }
@@ -214,7 +223,10 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
     .map((match) => engine.slice(match.index, engine.indexOf('/>', match.index)));
   assert.ok(mounts.length >= 4, `found ${mounts.length} solver mounts`);
   mounts.forEach((mount) => assert.match(mount, /\{\.\.\.stepAlgebraHintProps\}/, mount.slice(0, 60)));
-  assert.match(engine, /const stepAlgebraHintProps = \{\s*hintsAllowed: toolHintsAllowed,\s*onHintUsed: recordHintUse,\s*\};/);
+  // (It also carries what a hint costs, in the host's words — HELP-17.)
+  const solverProps = region(engine, 'const stepAlgebraHintProps = {', '};', 'the solver hint props');
+  assert.match(solverProps, /\n\s*hintsAllowed: toolHintsAllowed,\n/);
+  assert.match(solverProps, /\n\s*onHintUsed: recordHintUse,\n/);
   assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
   const orchestrator = code('src/LinearInterceptsOrchestrator.jsx');
   const inner = region(orchestrator, '<StepByStepAlgebraCore', '/>', 'the intercept solver');
