@@ -50,7 +50,9 @@ test('the engine locks only on a verdict, so this result leaves the question ope
   assert.match(engine, /const locked = Boolean\(isCorrect \|\| isExpired \|\| assignmentLocked\);/);
   // Blocked feedback is told in its own alert, and the outcome box stays away.
   assert.match(engine, /\{feedback\?\.blocked && \(\s*<div role="alert"[^>]*>\s*\{feedback\.message\}/);
-  assert.match(engine, /\{feedback && !feedback\.blocked && showOutcomeFeedback && !outcomeInTool && !isExpired && \(/);
+  // The outcome box never shows blocked feedback. (Batch 1's closed card adds
+  // `&& !isExpired` to this line on the integration branch; main has no closed card.)
+  assert.match(engine, /\{feedback && !feedback\.blocked && showOutcomeFeedback && !outcomeInTool(?: && !isExpired)? && \(/);
 });
 
 test('App.jsx: a failed queue returns "not submitted", never null', () => {
