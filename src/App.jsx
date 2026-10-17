@@ -10934,6 +10934,9 @@ function App() {
                 // until when — for an extended student, until their date.
                 dueAt={activeTestCycleDates?.dueAt || null}
                 lateDueAt={activeTestCycleDates?.lateDueAt || null}
+                // Corrections and the Retest close at the class's date unless
+                // the server's home window says otherwise.
+                classLateDueAt={activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the

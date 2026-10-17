@@ -546,3 +546,25 @@ export const testCycleDueFacts = ({ dueAt = null, lateDueAt = null, now = Date.n
   const lateOpen = Number.isFinite(late) && late > due && now > due && now <= late;
   return { dueAt: new Date(due).toISOString(), finalLateDueAt: lateOpen ? new Date(late).toISOString() : null };
 };
+
+/**
+ * The card's dates, for the stage the student is at.
+ *
+ * Ahead of the Test, THIS student's own dates (an attendance extension or
+ * extra time, from getAssignmentLifecycle). In Corrections and the Retest —
+ * and for a student who missed the Test — the server closes them at the
+ * home-window close it enforces (resolveFollowUpWindow), which does not follow
+ * an individual extension; so the card says that close, or the class's final
+ * date when no home window is enforced, and never a later date the server
+ * would refuse. (Whether the home window should follow the student's own date
+ * is an open policy question: docs/handoffs/STUDENT_PASS3_TEST_CYCLE_DATES.md.)
+ */
+export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
+  const stage = clean(card?.stage);
+  const followUp = card?.schedule?.missedTest === true || [S.CORRECTIONS, S.RETEST_READY, S.RETEST].includes(stage);
+  const enforced = card?.schedule?.followUp?.enforced === true;
+  const late = !followUp
+    ? lateDueAt
+    : enforced ? (card.schedule.followUp.closesAt ?? null) : classLateDueAt;
+  return testCycleDueFacts({ dueAt: dueAt || card?.dueAt || null, lateDueAt: late, now });
+};
