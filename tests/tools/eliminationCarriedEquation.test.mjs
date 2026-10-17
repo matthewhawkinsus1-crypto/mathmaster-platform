@@ -154,28 +154,46 @@ test('rows that each hold one different variable: y = 2, z = 3 is the 2×2 solve
   assert.equal(eliminationSeparatedReduction(chooseX(unit.sys), unit.sys), null);
 });
 
-test('a variable written in no equation: refused when chosen, and refused at authoring for the algebraic workspace only', () => {
+test('a variable written in no equation: refused when chosen; a warning at authoring for the algebraic workspace', () => {
   const equations = ['x = 1', 'y = 2', 'x + y = 3'];
   const sys = system(equations);
   const refused = chooseEliminationVariable(emptyEliminationState(), sys, 'z');
   assert.equal(refused.feedback.reason, 'variable-nowhere');
   assert.equal(refused.state.variable, null);
   assert.equal(repairEliminationState({ ...emptyEliminationState(), variable: 'z' }, sys).variable, null);
+  // Written as 0z it is still nowhere.
+  assert.equal(chooseEliminationVariable(emptyEliminationState(), system(['x + 0z = 1', 'y = 2', 'x + y = 3']), 'z').feedback.reason, 'variable-nowhere');
 
+  // A WARNING, not an error: such a system works by elimination today (the
+  // integrator's x + y = 3, 2x + 2y = 6, x − y = 1 reaches 0 = 0), and an error
+  // blocked reusing saved assignments.
   for (const method of ['elimination', 'substitution', 'studentChoice']) {
-    const { errors } = validateAlgebraicSystemAuthoring({ equations, variables: XYZ, method });
-    assert.equal(errors.length, 1, method);
-    assert.match(errors[0], /z appears in none of the three equations/);
+    const { warnings } = validateAlgebraicSystemAuthoring({ equations, variables: XYZ, method });
+    assert.equal(warnings.length, 1, method);
+    assert.match(warnings[0], /z has a zero coefficient in all three equations/);
   }
-  const base = { type: 'systemsWorkspace', prompt: 'Solve.', equations, variables: XYZ };
-  assert.equal(validateToolQuestion({ ...base, mode: 'algebraic', method: 'elimination' }).isValid, false);
+  const works = ['x + y = 3', '2x + 2y = 6', 'x - y = 1'];
+  assert.deepEqual(validateAlgebraicSystemAuthoring({ equations: works, variables: XYZ, method: 'elimination' }).errors, []);
+  const base = { type: 'systemsWorkspace', prompt: 'Solve.', variables: XYZ };
+  const elimination = validateToolQuestion({ ...base, equations: works, mode: 'algebraic', method: 'elimination' });
+  assert.equal(elimination.isValid, true);
+  assert.ok(elimination.warnings.some((warning) => /z has a zero coefficient/.test(warning)));
+  assert.match(validateAlgebraicSystemAuthoring({ equations: ['x + 0z = 1', 'y = 2', 'x + y = 3'], variables: XYZ, method: 'elimination' }).warnings[0] || '', /z has a zero coefficient/, '0z is read by its coefficient');
+  // An authored mode 'spatial' that renders this workspace (solveSystem) is
+  // validated as the algebraic system it is.
+  const routedAlgebraic = validateToolQuestion({ ...base, equations: works, mode: 'spatial', studentActions: ['solveSystem'], method: 'elimination' });
+  assert.ok(routedAlgebraic.warnings.some((warning) => /z has a zero coefficient/.test(warning)), JSON.stringify(routedAlgebraic));
   // Three planes may leave out a variable (vertical planes) — including a
-  // three-plane model authored with no mode, which resolves to spatial.
-  for (const spatialQuestion of [{ ...base, mode: 'spatial', spatialModel: { kind: 'threePlanes' } }, { ...base, studentActions: ['connectRepresentations'], spatialModel: { kind: 'threePlanes' } }]) {
-    assert.deepEqual(validateToolQuestion(spatialQuestion).errors, [], JSON.stringify(spatialQuestion.mode));
+  // three-plane model authored with no mode, which resolves to spatial: no
+  // error and nothing reported.
+  for (const spatialQuestion of [{ ...base, equations, mode: 'spatial', spatialModel: { kind: 'threePlanes' } }, { ...base, equations, studentActions: ['connectRepresentations'], spatialModel: { kind: 'threePlanes' } }]) {
+    const result = validateToolQuestion(spatialQuestion);
+    assert.deepEqual(result.errors, [], JSON.stringify(spatialQuestion.mode));
+    assert.ok(!result.warnings.some((warning) => /zero coefficient/.test(warning)), JSON.stringify(spatialQuestion.mode));
   }
   // Missing from SOME equations is fine: elimination brings those down.
-  assert.deepEqual(validateAlgebraicSystemAuthoring({ equations: ['2x + 2z = 2', '5x + 3y = 4', '3y - 4z = 4'], variables: XYZ, method: 'elimination' }).errors, []);
+  const cyclic = validateAlgebraicSystemAuthoring({ equations: ['2x + 2z = 2', '5x + 3y = 4', '3y - 4z = 4'], variables: XYZ, method: 'elimination' });
+  assert.deepEqual([cyclic.errors, cyclic.warnings], [[], []]);
 });
 
 test('the elimination screen offers bringing an equation down and draws the round it makes', () => {

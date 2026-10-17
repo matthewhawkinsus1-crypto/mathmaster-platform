@@ -962,16 +962,20 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
   }
   if (dimension === 3) {
-    // A variable written in no equation is not an unknown of this system (it
-    // is free whatever the others are), and elimination has nothing to remove
-    // and nowhere to back-substitute it (PR-23). An equation missing SOME
-    // variable is fine: elimination brings it down as it is. A three-plane
-    // exploration (validated here as elimination) may draw such planes.
-    if (!errors.length && questionData.mode !== 'spatial') {
+    // A variable with a zero coefficient in every equation (absent, or 0z) is
+    // free whatever the others are, so the system is never unique. It still
+    // works: elimination of another variable classifies it, and a student who
+    // picks this one is asked to choose another. So it is a WARNING, not an
+    // error — an error blocked reusing saved assignments that work (PR-23
+    // review). An equation missing SOME variable is fine: elimination brings
+    // it down as it is. (A three-plane exploration may draw such planes: its
+    // validation forwards only errors.)
+    if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
-      const nowhere = trimmed.filter((name) => !rawEquations.some((equation) => equationMentionsVariable(equation, name)));
+      const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));
+      const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
       if (nowhere.length) {
-        errors.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'appears' : 'appear'} in none of the three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} not ${nowhere.length === 1 ? 'an unknown' : 'unknowns'} of this system. Write every variable in at least one equation, or use a 2×2 system.`);
+        warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
       }
     }
     if (!errors.length) {

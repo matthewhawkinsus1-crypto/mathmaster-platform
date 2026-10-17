@@ -146,7 +146,8 @@ export const activeEliminationRoundKey = (state) => {
 
 export const chooseEliminationVariable = (state, system, variable) => {
   if (!system.variables.includes(variable)) return result(state);
-  if (!system.equations.some((equation) => equationMentionsVariable(equation.text, variable))) {
+  // Nowhere = a zero coefficient in every equation (absent, or written 0z).
+  if (!system.equations.some((equation) => Math.abs(linearEquationForm(equation.text, system.variables)?.coefficients?.[variable] || 0) > EPS)) {
     return result(state, { stage: 'variable', reason: 'variable-nowhere', variable });
   }
   return result({ ...emptyEliminationState(), variable });
