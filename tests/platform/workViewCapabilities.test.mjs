@@ -148,3 +148,30 @@ test('QuestionEngine registers Universal Undo beside the tool call site', async 
   assert.match(provider, /secondaryActions:/);
   assert.match(provider, /\{renderModule\(\)\}/);
 });
+
+// R-10 (integrator review B1): on an activity that withholds the method, a
+// tool's own Help is usually the method ("Use inverse operations in reverse
+// order"). The platform Help says so, and the tool's Help stays out of the
+// drawer unless the tool marks it controls-only (a solver's work history).
+test('a tool Help is withheld where the platform Help withholds the method, unless it is controls-only', () => {
+  const dol = { help: { text: 'ASK ONLY', authoritative: true, withholdsMethod: true } };
+  const method = mergeWorkViewCapabilities(dol, { help: { content: 'Use inverse operations in reverse order.' } });
+  assert.equal(method.help.text, 'ASK ONLY');
+  assert.equal(method.toolHelp, undefined);
+  const history = mergeWorkViewCapabilities(dol, { help: { content: 'WORK HISTORY', controlsOnly: true } });
+  assert.equal(history.toolHelp.content, 'WORK HISTORY');
+  // Practice keeps it, below the platform's.
+  const practice = mergeWorkViewCapabilities({ help: { content: 'LADDER', authoritative: true, withholdsMethod: false } }, { help: { content: 'BRIDGE' } });
+  assert.equal(practice.toolHelp.content, 'BRIDGE');
+  // A Help with nothing to show still carries the rule (a contentless
+  // platform Help on a withheld activity).
+  assert.equal(mergeWorkViewCapabilities({ help: { authoritative: true, withholdsMethod: true } }, { help: { content: 'METHOD' } }).toolHelp, undefined);
+});
+
+// Integrator review N1: a composed question with fewer than four stages mounts
+// every stage, and each stage's TaskCard publishes its directions.
+test('two stages\' directions are both kept, in order', () => {
+  const merged = mergeWorkViewCapabilities({ directions: { content: 'MAPPING STEPS' } }, { directions: { content: 'NUMBER LINE STEPS' } });
+  assert.deepEqual(merged.directions.content.props.children, ['MAPPING STEPS', 'NUMBER LINE STEPS']);
+  assert.equal(mergeWorkViewCapabilities({}, { directions: { content: 'ONE' } }).directions.content, 'ONE');
+});
