@@ -705,7 +705,8 @@ function ProjectorSolution({ solution, state }) {
       )}
       {review.headline && <MathText as="div" style={{ color: '#fff', fontWeight: 1000, fontSize: 'clamp(calc(22 * var(--mm-px)), calc(3.4vh * var(--mm-text-scale, 1)), calc(32 * var(--mm-px)))', lineHeight: 1.25 }}>{review.headline}</MathText>}
       {steps.length > 0 && (
-        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(2.7vh * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', lineHeight: 1.35 }}>
+        // Steps read down a numbered left edge; the page around them is centred.
+        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(2.7vh * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', lineHeight: 1.35, textAlign: 'left' }}>
           {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
         </ol>
       )}

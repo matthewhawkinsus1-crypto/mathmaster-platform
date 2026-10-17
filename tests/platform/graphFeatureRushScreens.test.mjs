@@ -203,6 +203,20 @@ test('the rush round: refs for the tap handler, one clock anchor, a persisted qu
   assert.match(resume, /setConnection\('retrying'\);[\s\S]*await wait\(delay\);/, 'anything else is sent again');
 });
 
+// The graph is focused when play begins (so a keyboard is ready at once). The
+// page's :focus-visible ring would then stay on through every tap of a mouse
+// or a finger; the graph draws its own ring, for the keyboard only.
+test('the rush graph draws its own keyboard ring, and a tap takes it away', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const svg = region(graph, '<svg', '>\n', 'the graph');
+  assert.match(svg, /data-focus-ring="own"/);
+  assert.match(svg, /outline: cursorVisible \? '3px solid var\(--mm-focus\)' : 'none'/);
+  assert.match(svg, /onFocus=\{\(\) => setCursorVisible\(lastModality === 'keyboard'\)\}/, 'a keyboard student sees it on arrival');
+  assert.match(region(graph, 'const handlePointerDown = (event) => {', '\n  };', 'pointer down'), /setCursorVisible\(false\);/);
+  const css = read('../../src/index.css');
+  assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /:not\(\[data-focus-ring="own"\]\):focus-visible \{/);
+});
+
 /* --------------------------- the teacher's screens ------------------------- */
 
 test('the teacher console offers the rush and creates it with its own settings', () => {
