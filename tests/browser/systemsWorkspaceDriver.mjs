@@ -201,7 +201,7 @@ export const solveEmbedded = async (page, variable, log = () => {}) => {
 };
 
 export const checkMyWork = async (page, log = () => {}) => {
-  await page.locator('button:visible', { hasText: 'Check my work' }).first().click();
+  await page.locator('button:visible', { hasText: /^(Check my work|Submit — )/ }).first().click();
   await settle(page, 1500);
   log('checked');
 };
