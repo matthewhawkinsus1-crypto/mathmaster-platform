@@ -16,6 +16,7 @@ import {
   eliminationPhase,
   eliminationReducedSystem,
   eliminationRoundStage,
+  eliminationSeparatedReduction,
   emptyEliminationState,
   repairEliminationState,
   setEliminationCombinationTerm,
@@ -126,6 +127,33 @@ test('a brought-down equation is a settled row: a pair that cancels to 0 = 0 plu
   assert.equal(eliminationOutcome(state, sys)?.type, 'infinite');
 });
 
+test('rows that each hold one different variable: y = 2, z = 3 is the 2×2 solved; 2y = 4, z = 3 has no 2×2 to run', () => {
+  // Integrator review: {y = 2, z = 3} offered Substitution and Elimination,
+  // and neither could do anything with it.
+  const bringBothDown = (equations) => {
+    const sys = system(equations);
+    let state = chooseX(sys);
+    state = carryEliminationEquation(state, sys, 'round1', 'E2').state;
+    state = carryEliminationEquation(state, sys, 'round2', 'E3').state;
+    return { sys, state };
+  };
+  const unit = bringBothDown(['x + y + z = 6', 'y = 2', 'z = 3']);
+  assert.deepEqual(eliminationSeparatedReduction(unit.state, unit.sys), { solution: { y: 2, z: 3 } });
+  // With that as the 2×2's solution the work goes on to back-substitution.
+  assert.equal(eliminationPhase(unit.state, unit.sys, { reducedSolution: { y: 2, z: 3 } }), 'back-substitute');
+  const scaled = bringBothDown(['x + y + z = 6', '2y = 4', 'z = 3']);
+  assert.deepEqual(eliminationSeparatedReduction(scaled.state, scaled.sys), { solution: null }, 'nothing computed for the student');
+  // Any row with two variables is an ordinary 2×2.
+  const ordinary = bringBothDown(['x + y + z = 6', 'y + z = 5', 'z = 3']);
+  assert.equal(eliminationSeparatedReduction(ordinary.state, ordinary.sys), null);
+  // So is the same variable twice: y = 2 and y = 2 leave z free, which is the
+  // 2×2's own dependent outcome to find.
+  const same = bringBothDown(['x + y + z = 6', 'y = 2', 'y = 2']);
+  assert.equal(eliminationSeparatedReduction(same.state, same.sys), null);
+  // One round only: no reduced system yet.
+  assert.equal(eliminationSeparatedReduction(chooseX(unit.sys), unit.sys), null);
+});
+
 test('a variable written in no equation: refused when chosen, and refused at authoring for the algebraic workspace only', () => {
   const equations = ['x = 1', 'y = 2', 'x + y = 3'];
   const sys = system(equations);
@@ -158,6 +186,9 @@ test('the elimination screen offers bringing an equation down and draws the roun
   assert.match(choice, /carryOptions\.map\(\(option\) => \([\s\S]*?onClick=\{\(\) => apply\(carryEliminationEquation\(elimination, system, roundKey, option\.id\)\)\}/);
   const board = region(mode, 'function EliminationRoundBoard(', 'const [idA, idB] = round.pair;', 'round board');
   assert.match(board, /if \(round\.carried\) return <EliminationCarriedRound /);
+  // The separated 2×2: its rows are the solution, or the student is pointed back.
+  assert.match(mode, /const reducedSolution = separated \? separated\.solution : \(subsystemState\?\.solution \|\| null\);/);
+  assert.match(mode, /\{reduced && !separated \? \(\s*<div className="mathmaster-reduction-subsystem"/, 'no 2×2 workflow is offered on separated rows');
   const feedback = region(mode, 'const feedbackText = ', '\n};', 'feedback text');
   for (const reason of ['variable:variable-nowhere', 'pair:carry-repeated', 'pair:carry-has-variable']) {
     assert.match(feedback, new RegExp(`case '${reason}':\\s*return `), reason);

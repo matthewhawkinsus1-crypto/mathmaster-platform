@@ -476,6 +476,32 @@ export const eliminationReducedSystem = (state, system) => {
   };
 };
 
+/**
+ * A reduced 2×2 whose rows each hold ONE variable, a different one (y = 2 and
+ * z = 3, after bringing down two such equations): there is nothing to
+ * substitute or eliminate between them, so the 2×2 workflow cannot run on it.
+ * When both rows already read `variable = value`, they ARE the 2×2's solution
+ * — nothing is computed for the student — and the work goes straight to
+ * back-substitution. Otherwise (2y = 4) `solution` is null: the screen says
+ * so and points the student back. Null when the rows are not separated.
+ */
+export const eliminationSeparatedReduction = (state, system) => {
+  const reduced = eliminationReducedSystem(state, system);
+  if (!reduced) return null;
+  const solution = {};
+  let solved = true;
+  for (const equation of reduced.equations) {
+    const form = linearEquationForm(equation.text, reduced.variables);
+    if (!form) return null;
+    const present = reduced.variables.filter((name) => Math.abs(form.coefficients[name] || 0) > EPS);
+    if (present.length !== 1 || Object.prototype.hasOwnProperty.call(solution, present[0])) return null;
+    const coefficient = form.coefficients[present[0]];
+    if (Math.abs(coefficient - 1) > EPS) solved = false;
+    solution[present[0]] = form.constant / coefficient;
+  }
+  return { solution: solved ? solution : null };
+};
+
 /** Only checked student rows can open a terminal branch. An identity from
  * one pair alone cannot establish consistency of the remaining equation. */
 export const eliminationOutcome = (state, system) => {

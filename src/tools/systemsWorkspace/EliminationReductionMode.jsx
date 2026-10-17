@@ -65,6 +65,7 @@ import {
   eliminationPairOptions,
   eliminationPhase,
   eliminationReducedSystem,
+  eliminationSeparatedReduction,
   eliminationRoundEliminates,
   eliminationRoundStage,
   eliminationScaleEditorOpen,
@@ -231,7 +232,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (!scopeContext?.draftKey || !subsystemScope) return null;
     return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope), reduced?.variables);
   }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope, reduced?.variables]);
-  const reducedSolution = subsystemState?.solution || null;
+  // Rows that each hold one different variable leave the 2×2 workflow nothing
+  // to do: when they read y = 2, z = 3 they are its solution; otherwise the
+  // student is pointed back (PR-23 review).
+  const separated = useMemo(() => eliminationSeparatedReduction(elimination, system), [elimination, system]);
+  const reducedSolution = separated ? separated.solution : (subsystemState?.solution || null);
 
   const activeRound = activeEliminationRoundKey(elimination);
   const variable = elimination.variable;
@@ -350,8 +355,9 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     { id: 'variable', label: 'Eliminate', complete: Boolean(variable), summary: variable || '' },
     // R₁ and R₂ are written out in their own round boards and pinned in the
     // reference column; a third copy as trail chips only added noise (#361).
-    { id: 'round1', label: 'First pair', complete: Boolean(elimination.rounds.round1.combinedText) },
-    { id: 'round2', label: 'Second pair', complete: Boolean(elimination.rounds.round2.combinedText) },
+    // A brought-down equation is no pair (PR-23).
+    { id: 'round1', label: elimination.rounds.round1.carried ? 'R₁ brought down' : 'First pair', complete: Boolean(elimination.rounds.round1.combinedText) },
+    { id: 'round2', label: elimination.rounds.round2.carried ? 'R₂ brought down' : 'Second pair', complete: Boolean(elimination.rounds.round2.combinedText) },
     {
       id: 'subsystem',
       label: 'Solve 2×2',
@@ -516,7 +522,16 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     next thing on screen, but it stays one click from view: the
                     student's elimination and Step Algebra work inside it is
                     part of this problem's written record (#361). */}
-                {reduced && reducedSolution && phase !== 'subsystem' ? (
+                {separated ? (
+                  <div className="mathmaster-reduction-subsystem-solved" data-separated={separated.solution ? 'solved' : 'stuck'} role={separated.solution ? undefined : 'status'}>
+                    <span>
+                      {separated.solution
+                        ? <><strong>Reduced 2×2:</strong>{' '}{`${Object.keys(separated.solution).map((name) => `${name} = ${exactNumberText(separated.solution[name])}`).join(' and ')} — each row already gives one value, so there is nothing to solve. Back-substitute them.`}</>
+                        : `${lineageName('R1')} and ${lineageName('R2')} each hold a different single variable, so there is nothing to substitute or eliminate between them. Use Undo to go back and eliminate a different variable.`}
+                    </span>
+                  </div>
+                ) : null}
+                {!separated && reduced && reducedSolution && phase !== 'subsystem' ? (
                   <div className="mathmaster-reduction-subsystem-solved">
                     <span>
                       <strong>Reduced 2×2 solved:</strong>{' '}
@@ -527,7 +542,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     </button>
                   </div>
                 ) : null}
-                {reduced ? (
+                {reduced && !separated ? (
                   <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !subsystemState?.outcome && !(reducedSolution && showSolvedSubsystem)}>
                     <div className="mathmaster-reduction-subsystem-heading">
                       <strong>Reduced subsystem</strong>
