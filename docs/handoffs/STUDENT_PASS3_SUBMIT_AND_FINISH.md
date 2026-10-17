@@ -153,6 +153,35 @@ Checked with `git merge-tree` (nothing written):
   `useOwnHintLadder` from hints **and** `SubmitText` from here); `tests/browser/toolPolicyGates.mjs` (keep hints' new
   checks and this branch's `/^Submit — /` names).
 
+## Review fixes (after ae456fb)
+
+Each fix is its own commit; the sections above already describe the result.
+
+| Finding | Fix (commit) | Proof |
+| --- | --- | --- |
+| **Blocker:** `moduleFailed` was held for the mount, so after "Start this question fresh" (boundary remount) or My Math Path's next item (same engine, no key) a closed question stayed editable. | The failure is held for the module that failed: `failedModuleKey` is compared with that module's boundary key plus question id (`8deb971`; the contract that read the key inline follows it, `22237df`). | `tests/browser/moduleRecoveryLock.mjs` (new; a probe tool that throws on demand): fresh start on an expired and on a correct question closes again; the unkeyed engine's next item is live. Both sizes. `submitAndFinish`, `pausedWorkRefresh` |
+| An answer was marked sent before the enqueue, so a failed enqueue still read as an answer; the subject leaked across assignments and students. | `markAnswerSent()` runs only after the enqueue succeeds; the subject resets per assignment and student (`923093d`). | `submitAndFinish` (App wiring and state sequences) |
+| After a reload a queued answer was called a draft. | Owed grades (`pendingGradeCount`) and a reloaded grade-bearing action make it an answer (`923093d`). | `submitAndFinish`; `submitAndFinishJourneys` (reload: still "answer", Submit still counts the right tries) |
+| The save line's live region mounted with its text, so changes could go unannounced. | One always-mounted `role="status"` span; only its text changes (`3b64b7b`). | `submitAndFinish`; `submitAndFinishJourneys` (region silent on a draft) |
+| Enter on a locked question swallowed `<summary>` and ARIA widgets. | `closedQuestionEnter.js` decides who owns Enter (`6225140`). | `submitAndFinish` (guard driven with fake elements); `tests/browser/closedQuestionEnter.mjs` (new) |
+| question-family-cases CI: drivers looked for "Check my work". | Accept the Submit label; one `finalAction` helper for the day-2 journeys (`1b3bd23`). | `questionFamilyCases.mjs`: all 36 journeys |
+| Notes: cost on a closed question's tool button; phone "← Back to Q1" failed label-in-name; GraphScenarioMatch said "use Submit Answer". | No cost while closed; "← Go back"; "use **Submit** below" (`5925ba3`). | `submitAndFinish`, `workBarPrimaryLabel`, `submitAndFinishJourneys` |
+
+**Mutation checks, rerun on the final tree:** 78 scripted (the 64 above plus 14 for the review fixes), **77 red**; the
+one green is the closed-card order explained below. A first run of the review mutations was not trustworthy: a staging
+slip had duplicated the module-key declarations in the working copy, so every rendered test failed to compile. It never
+reached a pushed commit, and the rerun above is on the fixed tree.
+
+**Left as notes, not changed here:**
+- The modeling lab's own final action does not show a try cost (it reports through its own rail); worth a look in the
+  tools sweep.
+- RegressionCalculator may announce a result twice (its own status line plus the engine's outcome); not confirmed with
+  a screen reader.
+- Batch 3's volatile wording can still be announced alongside the outcome and the save line (three voices) once that
+  branch lands; the save line's region already stays silent for "volatile", so Batch 3 only needs to keep it that way.
+- Pre-existing: `handleResponseCheckpoint` can leave the line at "capturing" until the next drain; a held-feedback DOL
+  with tries granted by the teacher was not walked in the browser.
+
 ## Mutation checks
 
 Every new assertion and every rewritten contract was broken once against the code
