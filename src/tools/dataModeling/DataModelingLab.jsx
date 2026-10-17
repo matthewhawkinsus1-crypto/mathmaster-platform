@@ -312,7 +312,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
-      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} />
+      {/* The secure lists were written to say what to do, never how to judge
+          it, so they are shown where the method is withheld (R-10). A mode
+          with no secure list falls back to its teaching steps, which are not. */}
+      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} stepsAreControls={!teachingNotes && Boolean(SECURE_MODE_STEPS[mode])} />
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane

@@ -173,7 +173,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
         steps={[
           'Pick an operation and a number for the move you want to make.',
           'Apply it. Repeat until the equation reads x = a number.',
-          'Press Check solution when x is by itself.',
+          'When x is by itself, submit your solution.',
         ]}
         note="Every operation is applied to both sides at once — that is what keeps the equation true."
       />
