@@ -32,6 +32,7 @@ import { resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject } from '../../src/platform/student/saveStatusModel.js';
 import { resolveAssignmentHandoff, resolveSkippedQuestion } from '../../src/platform/student/assignmentHandoff.js';
+import { closedQuestionEnterAction } from '../../src/platform/interaction/closedQuestionEnter.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const code = (path) => executableSource(read(path));
@@ -368,7 +369,7 @@ test('Enter and focus after a closed question: the shortcut is live wherever its
   const engine = code('src/QuestionEngine.jsx');
   const shortcut = region(engine, 'const nextAction = closedQuestionWayOn?.onClick || null;', '}, [locked, closedQuestionWayOn', 'the Enter shortcut');
   assert.match(shortcut, /const canAdvance = Boolean\(locked && nextAction && !scratchpadOpen && !unchangedConfirmOpen\);/, 'every locked question with a way on, not only a correct one');
-  assert.match(shortcut, /if \(target\?\.closest\?\.\('input, button, a\[href\], select, textarea, math-field/, 'another control keeps its Enter');
+  assert.match(shortcut, /if \(closedQuestionEnterAction\(event\.target\) !== 'advance'\) return;/, 'another control keeps its Enter');
   const focus = region(engine, 'const was = wasLockedRef.current;', '}, [locked, assignmentLocked', 'focus on lock');
   assert.match(focus, /if \(was !== false \|\| !locked \|\| assignmentLocked \|\| typeof window === 'undefined'\) return undefined;/, 'only on the change to closed');
   assert.match(focus, /isExpired && showOutcomeFeedback && closedCardRef\.current\s*\? closedCardRef\.current\s*: continueButtonRef\.current;/);
@@ -437,6 +438,65 @@ test('the math keypad closes with the question, and stays for the practice besid
   assert.match(region(engine, 'const practiceLikeThis = practiceOffered ? (', ') : null;', 'the practice'), /<QuestionLifecycleProvider terminal=\{false\}>\s*<PracticeLikeThis/);
 });
 
+/* A minimal element for closedQuestionEnterAction: closest() over the simple
+ * selectors it uses — tag, .class, [attr], [attr="v"], tag[attr], and
+ * [attr]:not([attr="v"]) — walking up the parents, as the DOM does. */
+const matchesSimple = (element, selector) => {
+  const not = selector.match(/^(.*):not\((.*)\)$/);
+  if (not) return matchesSimple(element, not[1]) && !matchesSimple(element, not[2]);
+  const parts = selector.match(/^([a-z-]*)((?:\.[\w-]+)*)((?:\[[^\]]+\])*)$/);
+  if (!parts) return false;
+  const [, tag, classes, attrs] = parts;
+  if (tag && element.tag !== tag) return false;
+  for (const name of classes.split('.').filter(Boolean)) if (!(element.className || '').split(' ').includes(name)) return false;
+  for (const [, name, value] of attrs.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)) {
+    if (!(name in (element.attrs || {}))) return false;
+    if (value !== undefined && String(element.attrs[name]) !== value) return false;
+  }
+  return true;
+};
+const el = (tag, { className = '', attrs = {}, parent = null } = {}) => {
+  const node = { tag, className, attrs, parent };
+  node.closest = (selector) => {
+    const alternatives = selector.split(',').map((part) => part.trim());
+    for (let current = node; current; current = current.parent) if (alternatives.some((alt) => matchesSimple(current, alt))) return current;
+    return null;
+  };
+  return node;
+};
+
+test('Enter on a closed question goes on only from the page or plain content; every control keeps its own Enter', () => {
+  const card = el('section', { className: 'mathmaster-closed-question-card', attrs: { tabindex: '-1' } });
+  const solution = el('p', { parent: el('div', { parent: card }) });
+  assert.equal(closedQuestionEnterAction(el('body')), 'advance', 'the page');
+  assert.equal(closedQuestionEnterAction(card), 'advance', 'the closed card focus lands on');
+  assert.equal(closedQuestionEnterAction(solution), 'advance', 'the worked solution\'s text');
+  const kept = {
+    'a focused button (Request New Question)': el('button', { parent: card }),
+    'a <summary> ("See why it works", "The hint you read")': el('summary', { parent: el('details', { parent: card }) }),
+    'text inside a <summary>': el('span', { parent: el('summary') }),
+    'a practice box': el('input', { parent: card }),
+    'a math field': el('math-field'),
+    'a select': el('select'),
+    'a link': el('a', { attrs: { href: '#x' } }),
+    'a tab': el('div', { attrs: { role: 'tab' } }),
+    'a radio': el('span', { attrs: { role: 'radio' } }),
+    'an option': el('li', { attrs: { role: 'option' } }),
+    'a checkbox widget': el('div', { attrs: { role: 'checkbox' } }),
+    'a slider': el('div', { attrs: { role: 'slider' } }),
+    'an element put in the Tab order': el('div', { attrs: { tabindex: '0' } }),
+    'a field that owns Enter': el('div', { attrs: { 'data-mm-enter-owner': 'field' } }),
+    'contenteditable': el('div', { attrs: { contenteditable: 'true' } }),
+  };
+  for (const [name, target] of Object.entries(kept)) assert.equal(closedQuestionEnterAction(target), 'control', name);
+  for (const className of ['mathmaster-bar-continue', 'mathmaster-success-next-question', 'mathmaster-section-completion-continue', 'mathmaster-go-back-question']) {
+    assert.equal(closedQuestionEnterAction(el('button', { className })), 'own', `${className}: its own click goes on, once`);
+    assert.equal(closedQuestionEnterAction(el('span', { parent: el('button', { className }) })), 'own');
+  }
+  // An <a> with no href is not a link; a tabindex of -1 is focus-only.
+  assert.equal(closedQuestionEnterAction(el('a')), 'advance');
+  assert.equal(closedQuestionEnterAction(el('div', { attrs: { tabindex: '-1' } })), 'advance');
+});
 
 test('a closed question names no cost on its tool\'s inert button', () => {
   const engine = code('src/QuestionEngine.jsx');

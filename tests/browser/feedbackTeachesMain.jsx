@@ -141,6 +141,9 @@ function Harness() {
             window.__mmAnswers = (delivered?.answerFields || []).map((field) => String(field.answer ?? ''));
           }}
           onAskTeacher={(requested) => { window.__mmHelp.push(requested); setHelp(requested); }}
+          // ?next=1: a way on, as App.jsx gives a question with one after it
+          // (tests/browser/closedQuestionEnter.mjs counts the presses).
+          onNextQuestion={params.get('next') === '1' ? () => { window.__mmAdvanced = (window.__mmAdvanced || 0) + 1; } : null}
           helpRequested={help}
         />
       </main>

@@ -31,6 +31,7 @@ import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import './components/student/SubmitCost.css';
+import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
 import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
@@ -83,8 +84,6 @@ const UNCHANGED_CONFIRM_Z_INDEX = 2147483450;
 const ATTEMPT_RESULT_FOCUS = Object.freeze({ [ATTEMPT_RESULT_FOCUS_ATTRIBUTE]: '' });
 // Read by a screen reader, not shown.
 const VISUALLY_HIDDEN = Object.freeze({ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' });
-// The controls that take a closed question onward (bar, cards).
-const WAY_ON_SELECTOR = '.mathmaster-bar-continue, .mathmaster-success-next-question, .mathmaster-section-completion-continue, .mathmaster-go-back-question';
 // "Show a hint" and "See a similar problem worked", wherever they are offered.
 const HINT_OFFER_BUTTON_STYLE = Object.freeze({ marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' });
 import QuestionModuleBoundary from './QuestionModuleBoundary';
@@ -1016,9 +1015,9 @@ function QuestionEngineBody({
     if (!canAdvance || typeof window === 'undefined') return undefined;
     const handleAdvanceShortcut = (event) => {
       if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
-      const target = event.target;
-      if (target?.closest?.(WAY_ON_SELECTOR)) return; // its own click does it
-      if (target?.closest?.('input, button, a[href], select, textarea, math-field, [contenteditable="true"], [role="button"], [role="textbox"], [data-mm-enter-owner]')) return;
+      // The way on's own click does it; a control keeps its Enter
+      // (closedQuestionEnter.js).
+      if (closedQuestionEnterAction(event.target) !== 'advance') return;
       event.preventDefault();
       event.stopPropagation();
       nextAction();
