@@ -74,7 +74,7 @@ const open = async (role, tool, grading = '') => {
 };
 const taskCardSummary = (page) => page.locator('.mathmaster-tool-task-card button[aria-expanded]').first().innerText().catch(() => '');
 const openWorkView = async (page) => {
-  await page.getByRole('button', { name: /Enlarge question/ }).first().click();
+  await page.getByRole('button', { name: /Enlarge question|Open Work View/ }).first().click();
   await page.locator('.mathmaster-work-view-header').first().waitFor({ state: 'visible', timeout: 8000 });
 };
 const helpDrawer = (page) => page.locator('section[aria-label="Help and instructions"][data-open="true"]');

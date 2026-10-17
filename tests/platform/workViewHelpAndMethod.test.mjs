@@ -191,3 +191,53 @@ test('TOOL-3: the Help drawer is the directions, then the platform Help, then th
   const engine = code('src/QuestionEngine.jsx');
   assert.match(engine, /\? \{ \.\.\.workspaceActions\.help, authoritative: true, withholdsMethod: methodWithheldHere \}/);
 });
+
+// Integrator round 2: withholding the method must not leave a tool that
+// cannot be worked. Linear Table Workbench and the Representation Bridge's
+// table stage said "tap two rows" only in withheld text, and the Regression
+// Calculator had no operating text at all. Each tool rendered whole (Vite
+// SSR) under a DOL's runtime and under practice's.
+const renderTool = async (load, path, questionData, runtime) => {
+  const { ToolRuntimeProvider } = await load('/src/tools/shared/ToolRuntimeContext.jsx');
+  const Tool = (await load(path)).default;
+  return renderToStaticMarkup(React.createElement(ToolRuntimeProvider, runtime, React.createElement(Tool, { questionData })));
+};
+const PRACTICE = { hintsAllowed: true, verdictsWithheld: false };
+const TABLE = { type: 'linearTableWorkbench', mode: 'constantRate', rows: [[1, 5], [2, 8], [3, 11], [4, 14]], requiredComparisons: 3, prompt: 'Is the rate constant?' };
+
+test('round 2: Linear Table Workbench keeps how to work the table on a DOL, not the method', async () => {
+  await withVite(async (load) => {
+    assert.match(await renderTool(load, '/src/tools/linearTableWorkbench/LinearTableWorkbench.jsx', TABLE, PRACTICE), /How to do this \(5 steps\)/);
+    assert.match(await renderTool(load, '/src/tools/linearTableWorkbench/LinearTableWorkbench.jsx', TABLE, DOL), /How to do this \(3 steps\)/);
+  });
+  const source = code('src/tools/linearTableWorkbench/LinearTableWorkbench.jsx');
+  assert.match(source, /stepsAreControls=\{methodWithheld\}\s*steps=\{methodWithheld \? \[\s*'Tap two rows to form an interval\.'/);
+});
+
+test('round 2: the Representation Bridge keeps how to work its panels on a DOL', async () => {
+  await withVite(async (load) => {
+    const question = { type: 'representationBridge', mode: 'linear', prompt: 'Connect the representations.', source: { kind: 'table', rows: [{ x: 0, y: -20 }, { x: 2, y: -10 }, { x: 4, y: 0 }, { x: 6, y: 10 }] } };
+    assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, PRACTICE), /How to do this \(5 steps\)/);
+    assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, DOL), /How to do this \(2 steps\)/);
+  });
+  assert.match(code('src/tools/representationBridge/RepresentationBridge.jsx'), /steps=\{methodWithheld \? \[\s*'Table: tap two rows to form an interval/);
+});
+
+test('round 2: the Regression Calculator says how to work it, on every activity', async () => {
+  await withVite(async (load) => {
+    const question = { type: 'regressionCalculator', questionId: 'r', prompt: 'Run the regression.', sourceData: [{ x: 1, y: 2 }, { x: 2, y: 4.5 }, { x: 3, y: 5 }, { x: 4, y: 8 }] };
+    for (const runtime of [PRACTICE, DOL]) {
+      assert.match(await renderTool(load, '/src/tools/regressionCalculator/RegressionCalculator.jsx', question, runtime), /How to do this \(3 steps\)/);
+    }
+  });
+  assert.match(code('src/tools/regressionCalculator/RegressionCalculator.jsx'), /stepsAreControls\s*steps=\{\[\s*'Press \+ \(Add Item\), choose table/);
+});
+
+test('round 2: Complex Plane rotation does not state the rotation rule on a DOL', async () => {
+  const RULE = 'One multiplication by i is a 90° counterclockwise rotation.';
+  await withVite(async (load) => {
+    const question = { type: 'complexPlaneLab', mode: 'rotation', prompt: 'Multiply by i.', z: { re: 3, im: 1 }, quarterTurns: 1 };
+    assert.ok((await renderTool(load, '/src/tools/complexPlane/ComplexPlaneLab.jsx', question, PRACTICE)).includes(RULE));
+    assert.ok(!(await renderTool(load, '/src/tools/complexPlane/ComplexPlaneLab.jsx', question, DOL)).includes(RULE));
+  });
+});
