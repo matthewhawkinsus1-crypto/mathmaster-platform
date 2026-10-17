@@ -10,6 +10,7 @@ import {
   vertexCoverage,
 } from '../../functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { vertexCoverageMessage } from '../../src/tools/systemsWorkspace/inequalityFormat.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 /*
@@ -73,6 +74,34 @@ test('vertexCoverage states the grader\'s "every vertex found" rule', () => {
   assert.equal(vertexCoverage(corners, all).complete, true);
 });
 
+test('the browser rule and the grader agree at the 0.15 tolerance, on both sides of it', () => {
+  // A second copy of the grader's rule must not drift: a mark 0.149 or exactly
+  // 0.15 from a corner finds it, 0.151 does not.
+  const all = corners.map(judged);
+  for (const [offset, finds] of [[0.149, true], [0.15, true], [0.151, false]]) {
+    const vertices = [{ ...all[0], x: all[0].x + offset }, ...all.slice(1)];
+    const coverage = vertexCoverage(corners, vertices);
+    assert.equal(coverage.complete, finds, `coverage at ${offset}`);
+    assert.equal(coverage.missing, finds ? 0 : 1, `missing at ${offset}`);
+    assert.equal(verticesPart(vertices).isCorrect, finds, `grader at ${offset}`);
+  }
+});
+
+test('the coverage line says what is actually wrong', () => {
+  const all = corners.map(judged);
+  const say = (vertices, letters = []) => vertexCoverageMessage(vertexCoverage(corners, vertices), letters);
+  assert.equal(say(all), null, 'nothing to say once every corner is marked');
+  assert.match(say(all.slice(0, 2)), /^You have found 2 of the 3 corners of the solution region\./);
+  // Every corner marked plus a mark that is none (integrator review: this
+  // used to claim two marks shared a corner).
+  assert.equal(say([...all, { x: 2, y: 6, includedAnswer: 'no' }], ['D']), 'Vertex D is not a corner of the solution region. Remove it.');
+  assert.equal(say([...all, { x: 2, y: 6, includedAnswer: 'no' }, { x: 5, y: 5, includedAnswer: 'no' }], ['D', 'E']), 'Vertex D and Vertex E are not corners of the solution region. Remove them.');
+  assert.equal(say([...all, { ...all[0], x: all[0].x + 0.05 }]), 'Two of your marks are on the same corner. Remove the extra mark.');
+  // One corner: singular. No corner at all: nothing to mark.
+  assert.match(vertexCoverageMessage(vertexCoverage([corners[0]], [])), /of the 1 corner of/);
+  assert.equal(vertexCoverageMessage(vertexCoverage([], [{ x: 1, y: 1 }]), ['A']), 'This solution region has no corners, so there is nothing to mark. Remove your mark.');
+});
+
 test('the vertices step is done only with full coverage where outcomes are shown, and says what is missing', () => {
   const stepDone = region(studentBuild, 'const verticesStepDone = ', 'const vertexCoverageReport', 'verticesStepDone');
   assert.match(stepDone, /reports\.every\(\(report\) => report\.done\)/);
@@ -84,6 +113,9 @@ test('the vertices step is done only with full coverage where outcomes are shown
 
   const report = region(studentBuild, 'const vertexCoverageReport = ', 'const reasoningDone', 'vertexCoverageReport');
   assert.match(report, /if \(!verticesChecked \|\| !buildGate\.verdictsShown\) return null;/, 'a count is a verdict: never on a DOL, quiz or test');
-  assert.match(report, /You have found \$\{found\} of the \$\{coverage\.total\} corners/);
+  // Its words are vertexCoverageMessage's (tested above), from the coverage and
+  // the letters of the marks near no corner.
+  assert.match(report, /vertexCoverageMessage\(vertexCoverage\(workingVertices, vertices\), offCornerLetters\)/);
+  assert.match(report, /vertexIncludedExpected\(vertex\) == null \? String\.fromCharCode\(65 \+ index\)/);
   assert.match(studentBuild, /<StepFeedback tone=\{vertexCoverageReport\(\)\?\.tone\}>\{vertexCoverageReport\(\)\?\.text\}<\/StepFeedback>/);
 });

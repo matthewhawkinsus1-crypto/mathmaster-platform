@@ -36,7 +36,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
-import { formatInequality, formatModelingConstraint, formatPoint } from './inequalityFormat.js';
+import { formatInequality, formatModelingConstraint, formatPoint, vertexCoverageMessage } from './inequalityFormat.js';
 import {
   STEP_LABELS,
   buildFlowPlan,
@@ -414,16 +414,12 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     && (!buildGate.verdictsShown || vertexCoverage(workingVertices, vertices).complete);
   const vertexCoverageReport = () => {
     if (!verticesChecked || !buildGate.verdictsShown) return null;
-    const coverage = vertexCoverage(workingVertices, vertices);
-    if (coverage.complete) return null;
-    if (coverage.missing > 0) {
-      const found = coverage.total - coverage.missing;
-      return {
-        tone: 'revise',
-        text: `You have found ${found} of the ${coverage.total} corners of the solution region. Tap each other place where two boundary lines meet at a corner of the region.`,
-      };
-    }
-    return { tone: 'revise', text: 'More than one of your marks is on the same corner. Remove the extra mark.' };
+    // The letters VertexList shows, for the marks near no corner.
+    const offCornerLetters = vertices
+      .map((vertex, index) => (vertexIncludedExpected(vertex) == null ? String.fromCharCode(65 + index) : null))
+      .filter(Boolean);
+    const text = vertexCoverageMessage(vertexCoverage(workingVertices, vertices), offCornerLetters);
+    return text ? { tone: 'revise', text } : null;
   };
   const reasoningDone = (phase) => {
     if (phase === 'classify') return Boolean(classificationReport()?.done);
