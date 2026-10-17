@@ -35,7 +35,9 @@ test('an active 3×3 substitution solver gets the full width; the originals beco
   assert.match(rule('.mathmaster-reduction-layout.has-active-solver'), /grid-template-columns:\s*minmax\(0, 1fr\);/, 'one column while solving');
   const strip = rule('.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-reference');
   assert.match(strip, /position:\s*static;/, 'the strip scrolls with the work instead of sticking over it');
-  assert.match(strip, /grid-template-columns:\s*repeat\(auto-fit,/, 'the equations sit side by side');
+  // In em, so a track grows with the text; whether each equation shows whole
+  // is measured in a browser (algebraicSystems3x3.mjs, strip-fit-*).
+  assert.match(strip, /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, \d+(\.\d+)?em\), 1fr\)\);/, 'the equations sit side by side in text-sized tracks');
   // The class is set exactly while the embedded solver is open.
   const source = read('src/tools/systemsWorkspace/SubstitutionReductionMode.jsx');
   assert.match(source, /className=\{`mathmaster-reduction-layout\$\{embeddedSolverActive \? ' has-active-solver' : ''\}`\}/);

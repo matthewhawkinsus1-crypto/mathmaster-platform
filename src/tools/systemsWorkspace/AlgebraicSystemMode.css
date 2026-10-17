@@ -694,9 +694,14 @@
   gap: 10px;
 }
 
+/* Tracks sized in em, not px: the headings span every track, so auto-fit
+   never collapses the empty ones, and 200px tracks cut the equations short
+   (five 203px tracks at 1366×768; at 125% text every right side was lost).
+   16em keeps three whole one-line equations side by side at 100%, two at
+   125%, one at 200%. */
 .mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-reference {
   position: static;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16em), 1fr));
   gap: 6px 10px;
 }
 
