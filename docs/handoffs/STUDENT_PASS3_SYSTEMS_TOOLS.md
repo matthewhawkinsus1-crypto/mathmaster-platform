@@ -8,12 +8,16 @@ any change.
 
 | Item | Commits | Grading changed? |
 | --- | --- | --- |
-| PR-22 inequality vertices step | `a025ba6`, review fixes `c76e375` | No. The shared grader is untouched. |
-| PR-23 3×3 elimination with a missing variable | `7239575`, review fixes `9cea58f`, `e1094ef` | No. The 3×3 grader never reads elimination rounds. |
-| Q-24 3×3 substitution side column | `e8f127c`, review fix `41a9581` | No. CSS only. |
+| PR-22 inequality vertices step | `a025ba6`, review fixes `c76e375`, `b5bb80c` | No. The shared grader is untouched. |
+| PR-23 3×3 elimination with a missing variable | `7239575`, review fixes `9cea58f`, `e1094ef`, `294f67c` | No. The 3×3 grader never reads elimination rounds. |
+| Q-24 3×3 substitution side column | `e8f127c`, review fixes `41a9581`, `bada2e1` | No. CSS only. |
 
-The integrator's review of `d59d34e` found one blocker and four should-fixes.
-All five are fixed. Each section below says what changed in answer to it.
+The integrator reviewed the branch twice:
+- Round 1, on `d59d34e`: one blocker and four should-fixes.
+- Round 2, on `56854c7`: confirmed those fixes and found one small should-fix
+  and three notes.
+
+All of them are fixed or written up below.
 
 ## PR-22 — the vertices step said "done" before every corner was marked
 
@@ -46,6 +50,12 @@ a mark within 0.15, and exactly as many marks as corners.
     twice.
   - In a region with no corners: "This solution region has no corners, so
     there is nothing to mark."
+  - Round 2: with one corner still to find, the line says "Tap the place
+    where two boundary lines meet at the corner you have not marked yet"
+    (it said "each other place").
+  - Round 2: repeats are counted. Three marks on one corner gives "2 of your
+    marks repeat corners you already marked. Remove the extra marks."
+    (it said "Two of your marks").
 - On a DOL, quiz or test nothing changes. There the step is recorded once
   every mark is answered, which is what the final check counts as complete. A
   count of corners would be a verdict.
@@ -170,6 +180,15 @@ warning (not an error).** Why:
   - As an error, it blocked reuse/duplicate of saved assignments
     (`prepareStoredAssignmentForReuse`), Pre-Flight, import and publish.
   - Students are already protected by the runtime guard.
+  - **Teachers do not see the warning.** Import, Pre-Flight and publish read
+    only the tool validator's errors. My earlier claim that it "gets a
+    Pre-Flight warning" was wrong; see owner decision 2.
+- Round 2: every elimination rule now reads the coefficient, through one
+  helper, `equationHoldsVariable`. That covers pairing (`variable-absent`),
+  bringing down, `carry-has-variable` and the back-substitution destinations.
+  - Before this, `x + y + z = 6, y + 0z = 2, z = 3`, eliminating z, stranded at
+    round 2: Equation 2 could be neither brought down nor cancelled.
+  - Placing known values still follows the variables as written.
   - `toolSchemas.js` is back to its base text. Spatial validation forwards only
     errors, so no exemption is needed. An authored `mode: 'spatial'` that routes
     to this workspace (`solveSystem`) is checked like any algebraic system.
@@ -208,8 +227,11 @@ warning (not an error).** Why:
     2×2.
   - The screen wiring.
 - I mutation-checked every behaviour; each turns the suite red. That covers
-  the bring-down rules (9), separated rows (3), and the authoring and runtime
-  rules (4).
+  the bring-down rules (9), separated rows (3), the authoring and runtime
+  rules (4), and the coefficient reads (4).
+- Round 2 test: `y + 0z = 2` with z eliminated. Equation 2 is offered to bring
+  down, pairing it is refused, the back-substitution destinations are E1 and
+  E3, the round completes into {x + y = 3, y = 2}, and repair round-trips.
 - In a browser (a temporary harness, not committed):
   - Triangular system, eliminate x: pairing Equation 1 and Equation 2 shows the
     new line. "Bring down Equation 2" and then "Bring down Equation 3" draw R₁
@@ -249,6 +271,12 @@ Examples:
 The tracks are now 16em: three whole equations at 100%, two at 125%, and one at
 200%. The solver width is unchanged.
 
+**Round 2 fix.** At 110% text, while R₁ was simplified, the card's name took a
+fixed share of the card and R₁ lost its "= 9" (204px of math in a 190px box).
+A strip card is now a wrapping row: the name and the equation sit on one line
+when they fit, and the equation takes its own full-width line when they
+don't.
+
 **Measured (Playwright, same scene):**
 
 | | 1366×768 before | 1366×768 after | 390×844 before | 390×844 after |
@@ -272,8 +300,12 @@ lower, under a 74px strip.
   the browser. A strip card fails if any box in it is narrower than what it
   holds (the 1px visually hidden spoken text is excluded).
   - New strip-fit journeys open the shipped Day 2 PR-1 and Day 1 PR-2 systems
-    with Isolate x open. They run at 1366×768 with 100% and 125% browser text
-    (set through CDP, checked by the root font size) and at 390×844.
+    with Isolate x open. They run at 1366×768 with 100%, 110% and 125%
+    browser text (set through CDP, checked by the root font size) and at
+    390×844.
+  - On a laptop they also check while R₁ is simplified, at all three text
+    sizes. On the round-1 card they report the 110% clip; now they report
+    none.
   - The full journey checks again while R₁ is standardized.
 - With the old 200px tracks these report the reviewer's findings: Equation 3
   at 100%, all three originals at 125%, and R₁. With 16em they report none,
@@ -321,16 +353,23 @@ collections changed.
 1. **Functions with this Hosting release, or not.** Behaviour is identical
    either way. Shipping Hosting alone leaves `platformBuildInfo` reporting the
    previous commit until the next functions release.
-2. **The authoring rule is a warning, not a refusal.** A 3×3 algebraic system
-   in which a variable has a zero coefficient everywhere gets a Pre-Flight
-   warning; nothing is blocked. In the workspace:
+2. **The authoring rule is a warning that teachers do not see.** For a 3×3
+   algebraic system in which a variable has a zero coefficient everywhere,
+   `validateAlgebraicSystemAuthoring` returns a warning. Import, Pre-Flight and
+   publish read only errors, so nothing is shown and nothing is blocked. In
+   the workspace:
    - Picking that variable shows "z is not in any of the three equations …
      Choose another variable".
    - Every other variable proceeds as before, using brought-down rounds where
      needed.
 
-   If you would rather refuse such content outright, that is a one-line change.
-   It would block reuse of any saved assignment that has one.
+   Options:
+   - Show it: add a finding to `auditQuestionToolContract`, the Pre-Flight
+     tool-contract warnings. That marks the assignment "Needs Review", which
+     would nag a teacher who wrote such a dependent system on purpose (Day 2
+     classification).
+   - Refuse it: a one-line change, but it blocks reuse of saved assignments.
+   - Leave it as is: my recommendation. Students are protected at runtime.
 3. **PR-22 on a DOL, quiz or test** keeps "recorded once every mark is
    answered". The alternative, holding the step until every corner is marked,
    would tell the student how many corners there are, which is a verdict.
@@ -345,8 +384,16 @@ collections changed.
 - **Existing gap, not touched (the integrator confirmed it):** in a region
   with no corners the vertices step cannot be completed, because Check vertices
   is disabled with no marks. Submit is not gated by it, and the grader accepts
-  zero marks. If the student marks a point, the line now says the region has
-  no corners.
+  zero marks. If the student marks a point, the line says the region has no
+  corners. Once the mark is removed, the step still cannot show done.
+- **The stuck banner on an all-diagonal-and-scaled system**
+  (`2x = 2, 3y = 6, 4z = 12`): every variable choice leaves two separated
+  scaled rows. "Use Undo… eliminate a different variable" therefore cannot
+  help. This is unrealistic as content, and the base is stuck there too.
+- **Existing phone clipping, not touched:** at 390×844 the strip uses the
+  older phone rules, and those clip at 200% text (Day 2 PR-1 Equations 1 and 3).
+  The R₁ card clips at 125%. The base behaves the same. The phone rules are
+  outside Q-24.
 - **Shared files touched** outside the systems directories: none (toolSchemas.js
   is back to base). Test files and the 3×3 browser harness gained
   questions and journeys. Nothing in CoordinatePlane or the tool keyboard/Undo
