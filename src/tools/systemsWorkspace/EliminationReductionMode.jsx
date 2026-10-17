@@ -34,6 +34,7 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import { planePairs } from './spatialFeedback.js';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
   MathDragToken,
@@ -894,7 +895,7 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
               expression={`${name} = ${exactNumberText(reducedSolution[name])}`}
               label="Solved value"
               onArm={() => setArmedToken({ kind: 'back', variable: name })}
-              ariaLabel={`Pick up solved value ${exactNumberText(reducedSolution[name])} for ${name}`}
+              ariaLabel={`Pick up solved value ${spokenMathValue(exactNumberText(reducedSolution[name]))} for ${name}`}
             />
           ))}
         </div>

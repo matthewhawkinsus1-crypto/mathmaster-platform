@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatStandardEquation } from './linearInterceptsMath.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 // The zero-substitution stage shared by the legacy stepAlgebra2 compatibility
 // shell (LinearIntercepts.jsx) and the consolidated LinearInterceptsOrchestrator
@@ -58,7 +59,11 @@ export function InteractiveStandardEquation({ standard, placedVariable, zeroArme
   const bNegative = B < 0;
   return (
     <div
-      aria-label={`Equation ${formatStandardEquation(standard)}`}
+      // A group named by the equation in words. Not role="img": that hides its
+      // descendants, and the two substitution targets inside are the step's
+      // only controls (pass 3 review).
+      role="group"
+      aria-label={`Equation ${spokenMathValue(formatStandardEquation(standard))}`}
       style={{
         display: 'flex',
         alignItems: 'center',

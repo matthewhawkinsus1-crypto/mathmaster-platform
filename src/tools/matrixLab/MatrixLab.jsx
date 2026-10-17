@@ -16,6 +16,7 @@ import {
   readMatrixLabQuestion,
 } from './matrixLabMath.js';
 import MatrixCalculator from './MatrixCalculator.jsx';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import {
   CellInput, CheckRow, DimensionsInput, MatrixInput, Step, Symbol, SystemDisplay, VariableMatrix, YesNo,
   buttonStyle, choiceStyle, resizeCells, setCell,
@@ -133,7 +134,7 @@ function LocateMode({ questionData, model, onAction }) {
                   type="button"
                   onClick={() => active && place(active.id, i + 1, j + 1)}
                   disabled={!active}
-                  aria-label={`Row ${i + 1}, column ${j + 1}: ${value}${chips.length ? `, chosen for ${chips.map((chip) => elementNotation(letter, chip.row, chip.col)).join(', ')}` : ''}`}
+                  aria-label={`Row ${i + 1}, column ${j + 1}: ${spokenMathValue(String(value ?? ''))}${chips.length ? `, chosen for ${chips.map((chip) => elementNotation(letter, chip.row, chip.col)).join(', ')}` : ''}`}
                   style={{ ...buttonStyle, minWidth: 48, padding: '6px 8px', fontSize: 'calc(19 * var(--mm-px))', position: 'relative', background: chips.length ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', border: chips.length ? '2px solid var(--mm-primary)' : '1px solid var(--mm-tint-border)', cursor: active ? 'pointer' : 'default' }}
                 >
                   {String(value).replace(/-/g, '−')}

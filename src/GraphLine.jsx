@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
@@ -7,9 +7,11 @@ import useUndoHistory from './useUndoHistory';
 import graphingGrader from '../functions/shared/serverGrading/tools/graphing.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
 export default function GraphLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { m, b, prompt, equationLatex, showEquation = true, showGraph = false } = question;
+  const idBase = useId();
   const history = useUndoHistory({ slope: '', intercept: '' }, 60, draftKey ? `${draftKey}:line` : null);
   const { slope, intercept } = history.value;
   const generatedEquation = `y = ${m}x ${b >= 0 ? '+' : '-'} ${Math.abs(b)}`;
@@ -47,7 +49,9 @@ export default function GraphLine({ question, onStateChange, onUndoStateChange, 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '30px' }}>
         {[['slope', 'Slope', 'm', slope], ['intercept', 'Y-Intercept', 'b', intercept]].map(([id, label, symbol, value]) => {
           const partGrade = grade(id);
-          return <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><label style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--mm-text-muted)' }}>{label} (<MathDisplay value={symbol} inline />)</label><input type="number" value={value} onChange={(event) => history.setValue((current) => ({ ...current, [id]: event.target.value }))} style={{ textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', padding: '10px', border: `2px solid ${partGrade ? (partGrade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '6px', width: '80px', outline: 'none', background: partGrade && !partGrade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} /></div>;
+          // The label names its input, and a graded entry says right or wrong
+          // in words beside the border colour (GradedEntryMark).
+          return <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><label htmlFor={`${idBase}-${id}`} style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--mm-text-muted)' }}>{label} (<MathDisplay value={symbol} inline />)</label><input id={`${idBase}-${id}`} {...gradedEntryInputProps(partGrade, `${idBase}-${id}-mark`)} type="number" value={value} onChange={(event) => history.setValue((current) => ({ ...current, [id]: event.target.value }))} style={{ textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', padding: '10px', border: `2px solid ${partGrade ? (partGrade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '6px', width: '80px', outline: 'none', background: partGrade && !partGrade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} /><GradedEntryMark grade={partGrade} id={`${idBase}-${id}-mark`} /></div>;
         })}
       </div>
     </div>

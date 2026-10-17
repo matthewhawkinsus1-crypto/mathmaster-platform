@@ -42,7 +42,7 @@
   display: inline-block;
   width: 22px;
   height: 0;
-  border-top: 2.5px dashed #202124;
+  border-top: 2.5px dashed var(--mm-text-strong);
 }
 
 .mathmaster-threeplane-choice-field {
@@ -165,8 +165,8 @@
 }
 
 .mathmaster-threeplane-plane-label {
-  fill: #202124;
-  stroke: #fff;
+  fill: var(--mm-text-strong);
+  stroke: var(--mm-surface-sunken);
   stroke-width: 4px;
   paint-order: stroke;
   font-size: calc(14 * var(--mm-px));

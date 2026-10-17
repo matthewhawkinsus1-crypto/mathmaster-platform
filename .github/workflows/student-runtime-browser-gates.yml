@@ -53,6 +53,12 @@ name: Student Runtime Browser Gates
 #                       part, and its keyboard route offers only what is there;
 #                       a function graph and its inverse are finished by
 #                       keyboard alone with "Connect my points" (TOOL-1)
+#   planePhoneReach     on a phone the plane's text renders at 12 px or more, a
+#                       press beside a point picks it up, and a third point keeps
+#                       the line (pass 3, TOOL-11)
+#   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
+#                       targets keep keyboard focus when they disable themselves
+#                       (pass 3, A11Y-2)
 #   stagedQuestion      every step of a staged graph question, reached as a
 #                       student reaches it on six screens: its question and its
 #                       answer control on screen together, a plane big enough
@@ -99,6 +105,8 @@ on:
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
+      - "tests/browser/planePhoneReach*"
+      - "tests/browser/focusSafeToolControls*"
       - "tests/browser/composedDraftRestore*"
       - "tests/browser/draftEditTime.mjs"
       - "tests/browser/fractionTemplateGrading*"
@@ -242,6 +250,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphKeyboardRoute.mjs
+      - name: On a phone, plane text is readable and a missed drag keeps the line
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planePhoneReach.mjs
+      - name: Self-disabling tool controls keep keyboard focus
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/focusSafeToolControls.mjs
       - name: A composed question with a graph step survives a Chromebook swap
         if: always()
         env:

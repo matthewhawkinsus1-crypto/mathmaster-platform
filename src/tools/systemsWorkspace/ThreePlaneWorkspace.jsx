@@ -393,7 +393,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             <g role="img" aria-label="Interactive 3D view of the three planes. Drag to rotate.">
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                <path d="M0,0 L7,3.5 L0,7 z" fill="#5f6368" />
+                <path d="M0,0 L7,3.5 L0,7 z" style={{ fill: 'var(--mm-graph-axis)' }} />
               </marker>
             </defs>
             {cubeFrame.map((edge) => (
@@ -409,7 +409,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 <line
                   x1={toScreen(axis.from, scale, [0, 0])[0]} y1={toScreen(axis.from, scale, [0, 0])[1]}
                   x2={toScreen(axis.to, scale, [0, 0])[0]} y2={toScreen(axis.to, scale, [0, 0])[1]}
-                  stroke="#5f6368" strokeWidth={1.5}
+                  // Theme tokens through style: the fixed greys were 1.7:1 on
+                  // the dark model (A11Y-4).
+                  style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth={1.5}
                   markerEnd="url(#mathmaster-threeplane-axis-arrow)"
                 />
                 <text
@@ -417,7 +419,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   // the edge and its name was drawn off the model (#361).
                   x={clampLabel(toScreen(axis.to, scale, [0, 0])[0], 14)}
                   y={clampLabel(toScreen(axis.to, scale, [0, 0])[1] + (axis.to[1] > 0 ? AXIS_LABEL_OFFSET : -AXIS_LABEL_OFFSET / 2), 18)}
-                  fontSize={16} fontWeight={700} fill="#3c4043" textAnchor="middle"
+                  fontSize={16} fontWeight={700} textAnchor="middle"
+                  data-axis-name=""
+                  style={{ fill: 'var(--mm-graph-label)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
                 >
                   {axis.name}
                 </text>
@@ -427,8 +431,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
               cx={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[0]}
               cy={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[1]}
               r={3.5}
-              fill="#202124"
-              stroke="#fff"
+              style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }}
               strokeWidth={1.5}
             />
             {orderedPolygons.map((plane) => {
@@ -463,12 +466,15 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 key={line.key}
                 x1={toScreen(line.from, scale, [0, 0])[0]} y1={toScreen(line.from, scale, [0, 0])[1]}
                 x2={toScreen(line.to, scale, [0, 0])[0]} y2={toScreen(line.to, scale, [0, 0])[1]}
-                stroke="#202124" strokeWidth={2.5} strokeDasharray="6 4"
+                data-intersection-line=""
+                // The legend promises these: drawn in the strongest text
+                // colour, which the dark theme turns light (#202124 vanished).
+                style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth={2.5} strokeDasharray="6 4"
               />
             ))}
             {solutionMarker ? (
               <g>
-                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} fill="#202124" stroke="#fff" strokeWidth={2} />
+                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} />
                 {/* The coordinates sit on the point itself, so the ordered
                     triple and the place in space are read together. */}
                 <text
@@ -476,10 +482,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   y={clampLabel(toScreen(solutionMarker, scale, [0, 0])[1] - 10, 18)}
                   fontSize={15}
                   fontWeight={800}
-                  fill="#202124"
-                  stroke="#fff"
-                  strokeWidth={4}
-                  paintOrder="stroke"
+                  style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
                 >
                   {orderedTripleText(shownSolution, variables)}
                 </text>

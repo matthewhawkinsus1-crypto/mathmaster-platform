@@ -242,5 +242,54 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   console.log(`ok ${at}: plot reached by Tab, plotted/removed by keys, announced positions only, graded; pointer parity; wrong plot graded wrong`);
 }
 
+// Pass 3, TOOL-10: the mapping diagram's arrows can be reviewed and removed
+// without sight. Arrows drawn by keyboard are named on their nodes, listed in
+// words with a Remove each, and every press is said; removing one keeps focus
+// in the list, and the last removal lands on Clear arrows, not the page.
+for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  const at = `${viewport.width}x${viewport.height}`;
+  const { page, errors } = await open(viewport);
+  const node = (kind, value) => page.locator(`[data-${kind}-node="${value}"]`);
+  const status = () => page.locator('[data-mapping-status]').textContent().then((text) => text.trim());
+  const draw = async (x, y) => {
+    await node('domain', x).focus();
+    await page.keyboard.press('Enter');
+    await node('range', y).focus();
+    await page.keyboard.press('Enter');
+  };
+  await draw(-2, 3);
+  assert.equal(await status(), 'Arrow drawn from -2 to 3. 1 arrow drawn.', `${at}: drawing is said`);
+  await draw(1, 2);
+  assert.equal(await node('domain', -2).getAttribute('aria-label'), 'Domain value -2, maps to 3', `${at}: a domain node names its arrow`);
+  assert.equal(await node('range', 2).getAttribute('aria-label'), 'Range value 2, from 1', `${at}: a range node names where its arrow comes from`);
+  assert.equal(await node('domain', 3).getAttribute('aria-label'), 'Domain value 3, no arrow yet');
+  assert.equal(await page.locator('svg[aria-label="Mapping diagram"]').getAttribute('role'), 'group', `${at}: the diagram is a group of controls`);
+  const removes = page.locator('[data-mapping-arrows] button');
+  assert.deepEqual(await removes.evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label'))), ['Remove the arrow -2 to 3', 'Remove the arrow 1 to 2']);
+  assert.deepEqual(await removes.evaluateAll((buttons) => buttons.map((button) => button.textContent.trim())), ['-2 → 3 ×', '1 → 2 ×'], `${at}: the arrows are listed in words`);
+  await removes.first().focus();
+  // A double-press takes one arrow, not two: the next Remove slides under focus.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelectorAll('[data-mapping-arrows] button').length === 1);
+  await page.waitForTimeout(450);
+  assert.equal(await removes.count(), 1, `${at}: a double-press removed only one arrow`);
+  assert.equal(await status(), 'Arrow from -2 to 3 removed. 1 arrow drawn.', `${at}: removing is said`);
+  assert.equal(await activeName(page), 'Remove the arrow 1 to 2', `${at}: focus moves to the arrow now in its place`);
+  assert.equal(await node('domain', -2).getAttribute('aria-label'), 'Domain value -2, no arrow yet');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => !document.querySelector('[data-mapping-arrows]'));
+  assert.equal(await activeName(page), 'Domain value -2, no arrow yet', `${at}: the last removal leaves focus on the diagram, where the next arrow starts, not the page`);
+  await draw(3, -1);
+  await page.locator('button:has-text("Clear arrows")').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await status(), 'All arrows cleared.');
+  assert.equal(await activeName(page), 'Clear arrows', `${at}: Clear arrows keeps focus when it runs out of arrows`);
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-disabled')), 'true', `${at}: and says it has nothing left to clear`);
+  assert.deepEqual(errors, [], `${at}: no page errors (arrows)`);
+  await page.close();
+  console.log(`ok ${at}: mapping arrows named, listed, removable one by one, said; focus kept`);
+}
+
 await browser.close();
 console.log('toolKeyboardRelationMapping: all assertions passed');

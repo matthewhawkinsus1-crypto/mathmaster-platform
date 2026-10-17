@@ -16,6 +16,7 @@
  */
 import React from 'react';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import { MathDragToken, VariableDropEquation } from './AlgebraicSystemMode.jsx';
 import { substituteIntoEquation, substitutedEquationLatex } from './algebraicSystemsEngine.js';
@@ -58,7 +59,7 @@ export default function OriginalEquationsVerification({
             expression={`${name} = ${display(name)}`}
             label="Solved value"
             onArm={() => setArmedToken({ kind: 'verification', variable: name })}
-            ariaLabel={`Pick up solved value ${display(name)} for ${name}`}
+            ariaLabel={`Pick up solved value ${spokenMathValue(display(name))} for ${name}`}
           />
         ))}
       </div>

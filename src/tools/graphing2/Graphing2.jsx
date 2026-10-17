@@ -11,7 +11,11 @@ import { useHintsAllowed, useHostSubmitLabel, useOwnHintLadder, useSubmitLabel }
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
-import { formatLine, lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
+import { placePoint } from './placePoint.js';
+import MathDisplay from '../../MathDisplay';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
 
@@ -89,7 +93,7 @@ const targetPrompt = (questionData, target) => {
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${questionData.standard?.A}x + ${questionData.standard?.B}y = ${questionData.standard?.C}.`;
   if (mode === 'verticalHorizontal') return `Graph ${questionData.orientation === 'vertical' ? 'x = ' : 'y = '}${questionData.value}.`;
-  return `Graph ${formatLine(target)}.`;
+  return `Graph ${lineReadoutText(target) || 'the line'}.`;
 };
 
 // Whole-number snapping unless the line genuinely lives between the gridlines.
@@ -216,7 +220,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
   const plot = (point) => {
     clearFeedback();
-    setPoints((current) => (current.length >= requiredPointCount ? [point] : [...current, point]));
+    // A point past the last replaces the nearest one; it no longer restarts the line (placePoint.js).
+    setPoints((current) => placePoint(current, point, requiredPointCount));
   };
 
   /*
@@ -277,9 +282,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
   });
 
   const clear = () => { setPoints([]); clearFeedback(); };
+  // Start over empties the construction and so disables itself: it keeps the
+  // focus it had instead of dropping it to the page (A11Y-2).
+  const startOverAvailability = useFocusSafeDisabled(points.length > 0);
 
   const plottedPoints = [
-    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc' })),
+    // Given points are squares and the student's are dots, so "given" and
+    // "yours" never rest on purple vs blue alone (A11Y-4); each is labelled too.
+    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc', shape: 'square' })),
     ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
@@ -328,7 +338,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const constructionIncomplete = !constructionReadyToCheck(points, questionData);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
-    equationInput: { label: studentLine && showLineReadout ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
+    equationInput: { label: studentLine && showLineReadout ? `Your line: ${lineReadoutText(studentLine)}` : 'Your line', studentState: true },
     instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel) },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
@@ -404,9 +414,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {verticalStudentLine}
           </CoordinatePlane>
           {givenPoints.length ? (
-            <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0 }}>
-              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#8a3ffc', marginRight: 6 }} />
-              Purple points are given to you. Blue points are yours.
+            <p data-graphing-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#8a3ffc', marginRight: 6, verticalAlign: 'middle' }} />Purple squares labelled “given” are given to you.</span>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Blue dots labelled P1, P2 are yours.</span>
             </p>
           ) : null}
         </Panel>
@@ -418,7 +428,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {showLineReadout ? (
               <>
                 <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Your line</dt>
-                <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
+                {/* Typeset, in exact fractions: "y = ⅔x + 2", never "y = 0.66666667x + 2" or "y = 1x + 0" (TOOL-7). */}
+                <dd data-line-readout={studentLine ? lineReadoutText(studentLine) : ''} style={{ margin: 0, fontWeight: 700 }}>{studentLine ? <MathDisplay value={lineReadoutLatex(studentLine)} format="latex" inline /> : 'Plot two different points'}</dd>
               </>
             ) : null}
           </dl>
@@ -432,7 +443,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
                 point back, and unlike the local button it keeps working after a
                 point has been dragged. Start over is not undo — it discards
                 both points at once — so it stays. */}
-            <button className="mm-button-neutral" type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
+            <button className="mm-button-neutral" type="button" onClick={() => { if (points.length) clear(); }} {...startOverAvailability} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>
           </div>

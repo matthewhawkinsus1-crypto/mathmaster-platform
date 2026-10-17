@@ -64,7 +64,13 @@ test('a term already showing the applied factor cannot be re-clicked to place it
     source.indexOf("className=\"algebra-distribution-tool\""),
     source.indexOf('{rewriteOpen && ('),
   );
-  assert.match(panelRegion, /disabled=\{disabled \|\| placed \|\| !distributionState\.armed\}/);
+  // Since pass 3 (A11Y-2) the target is a FocusSafeButton: unavailable once
+  // placed (it keeps focus instead of being natively disabled), and a press
+  // on an unavailable one does nothing.
+  assert.match(panelRegion, /<FocusSafeButton[^>]*?available=\{!disabled && !placed && distributionState\.armed\}/);
+  const button = source.slice(source.indexOf('function FocusSafeButton('), source.indexOf('const factorNeedsDot'));
+  assert.match(button, /const availability = useFocusSafeDisabled\(available\);/);
+  assert.match(button, /onClick=\{\(event\) => \{ if \(available\) onClick\?\.\(event\); \}\}/, 'an unavailable target ignores the press');
 });
 
 // Mutation guard: prove the countsAttempt assertion above is not vacuous —

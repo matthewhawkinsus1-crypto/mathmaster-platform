@@ -38,6 +38,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import AlgebraicSystemMode, {
@@ -714,7 +715,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
               expression={`${name} = ${exactNumberText(reducedSolution[name])}`}
               label="Solved value"
               onArm={() => setArmedToken({ kind: 'back', variable: name })}
-              ariaLabel={`Pick up solved value ${exactNumberText(reducedSolution[name])} for ${name}`}
+              ariaLabel={`Pick up solved value ${spokenMathValue(exactNumberText(reducedSolution[name]))} for ${name}`}
             />
           ))}
         </div>

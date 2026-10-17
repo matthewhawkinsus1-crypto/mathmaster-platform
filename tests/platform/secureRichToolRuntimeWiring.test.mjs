@@ -214,7 +214,8 @@ test('Graphing\'s "Your line" readout is a self-check, withheld where help is', 
   const graphing = read('src/tools/graphing2/Graphing2.jsx');
   assert.match(graphing, /const showLineReadout = hintsAllowed;/);
   assert.match(graphing, /\{showLineReadout \? \(\s*<>\s*<dt[^>]*>Your line<\/dt>/);
-  assert.match(graphing, /label: studentLine && showLineReadout \? `Your line: \$\{formatLine\(studentLine\)\}` : 'Your line'/);
+  // Pass 3 (TOOL-7): the readout is written by lineReadoutText; still gated the same way.
+  assert.match(graphing, /label: studentLine && showLineReadout \? `Your line: \$\{lineReadoutText\(studentLine\)\}` : 'Your line'/);
 });
 
 test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is', () => {
