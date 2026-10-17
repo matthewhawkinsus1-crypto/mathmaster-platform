@@ -95,6 +95,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task="For every listed expression, decide what unit it is measured in, what it means in context, and what mathematical role it plays."
+        stepsAreControls
         steps={[
           'Tap an expression in the matrix to open it.',
           'Choose its Unit, its Contextual Meaning, and its Mathematical Role.',

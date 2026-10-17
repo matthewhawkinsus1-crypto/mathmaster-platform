@@ -115,4 +115,16 @@ export const useOwnHintLadder = () => {
   return runtime.hintsAllowed !== false && !runtime.publishHints;
 };
 
+// WHETHER THE TOOL MAY SHOW ITS METHOD (student pass 3, R-10).
+//
+// A TaskCard's "How to do this" steps are the method the item measures —
+// Matrix Lab's exit ticket listed the singular-matrix decision rule. Where the
+// activity withholds hints or verdicts (a DOL, quiz or test, a section
+// recovery), the method is withheld with them: only directions that say how
+// to work the controls stay. Defaults to shown outside a provider.
+export const useMethodWithheld = () => {
+  const runtime = useContext(ToolRuntimeContext);
+  return runtime.hintsAllowed === false || runtime.verdictsWithheld === true;
+};
+
 export default ToolRuntimeContext;

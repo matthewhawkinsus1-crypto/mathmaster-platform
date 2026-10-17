@@ -745,7 +745,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     badge={modeLabel}
     workspaceWidth={(mode === 'algebraic' || mode === 'spatial') ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
   >
-    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
+    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} stepsAreControls={taskKey === 'inequalitiesConstruct'} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>

@@ -7,7 +7,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useHostSubmitLabel, useOwnHintLadder, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useOwnHintLadder, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
@@ -217,6 +217,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
   const anchorNote = anchorInstruction(mode, policy);
+  // The snap step is worked out from the answer line, so "the nearest 0.5"
+  // tells a student the slope or intercept is not whole. Said plainly where
+  // the activity withholds the method (R-10); the anchor note is a grading
+  // requirement and stays.
+  const methodWithheld = useMethodWithheld();
 
   const plot = (point) => {
     clearFeedback();
@@ -359,6 +364,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={targetPrompt(normalizedQuestion, target)}
+        stepsAreControls
         steps={[
           'Click the grid to plot a point. A crosshair shows the exact coordinate before you click.',
           requiredPointCount > 2
@@ -367,9 +373,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
           `Press ${checkLabel} when all ${requiredPointCount} points are where you want them.`,
         ]}
         note={[
-          snapStep === 1
-            ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
-            : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`,
+          methodWithheld
+            ? 'Points snap to the grid as you place them.'
+            : snapStep === 1
+              ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
+              : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`,
           anchorNote,
         ].filter(Boolean).join(' ')}
       />

@@ -6,6 +6,10 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   'primaryActions', 'secondaryActions',
   // The student's Support tools (language tools), as a header drawer.
   'supports',
+  // The Help drawer's other two parts (student pass 3, TOOL-3): the tool's
+  // description and "How to do this" steps, which Work View hides with the
+  // TaskCard, and a tool's own help kept below the platform's.
+  'directions', 'toolHelp',
 ]);
 
 const WorkViewCapabilityContext = createContext(Object.freeze({}));
@@ -28,9 +32,24 @@ export function normalizeWorkViewCapabilities(value = {}) {
   return normalized;
 }
 
+// Two stages of one composed question each publish their TaskCard's
+// directions (both are mounted below four stages): the drawer shows both, in
+// publisher order, rather than whichever merged last.
+const mergedDirections = (base, local) => {
+  if (!base || !local) return local || base;
+  return { content: React.createElement(React.Fragment, null, base.content || base.text, local.content || local.text) };
+};
+
 export function mergeWorkViewCapabilities(platform, tool) {
   const base = normalizeWorkViewCapabilities(platform);
   const local = normalizeWorkViewCapabilities(tool);
+  // An authoritative platform Help that says the activity withholds the method
+  // (a DOL, quiz or test: QuestionEngine sets `withholdsMethod`) keeps a
+  // tool's own Help out of the drawer — Step Algebra's "Use inverse operations
+  // in reverse order" is the method. Fail closed: only Help the tool marks
+  // `controlsOnly` stays (student pass 3, R-10).
+  const withholdsMethod = Boolean(base.help?.authoritative && base.help?.withholdsMethod);
+  const shownToolHelp = (help) => (help && (!withholdsMethod || help.controlsOnly) ? help : undefined);
   return {
     ...base,
     ...local,
@@ -39,6 +58,14 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // question shell, normal composition still applies and the more local task
     // may override a parent/descendant fallback.
     task: base.task?.authoritative ? base.task : (local.task || base.task),
+    // THE PLATFORM'S HELP IS NEVER REPLACED (student pass 3, TOOL-3). It holds
+    // the hint ladder and "Ask my teacher" — or, on a DOL, the Ask-only panel.
+    // A tool's Help used to win here, so a registry tool's generic sentence
+    // took Ask away. Under an authoritative platform Help the tool's own goes
+    // to `toolHelp`, which the drawer shows after it.
+    help: base.help?.authoritative ? base.help : (local.help || base.help),
+    toolHelp: shownToolHelp(base.help?.authoritative ? (local.help || local.toolHelp || base.toolHelp) : (local.toolHelp || base.toolHelp)),
+    directions: mergedDirections(base.directions, local.directions),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],
     secondaryActions: [...(base.secondaryActions || []), ...(local.secondaryActions || [])],
   };
