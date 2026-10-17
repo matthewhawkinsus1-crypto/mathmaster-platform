@@ -83,6 +83,28 @@ I kept `endedBeforeSet` rather than dropping it. Its failure mode is reversible:
   Then: that student is in Corrections and is issued a Correction question; the absent student is missed and gets the Retest; the teacher row is `closed`, not flagged, and never says "no student missed it"; and the bulk action keeps the class. A wiring contract covers the banner.
 - **Mutation checks**, each confirmed red: the `ranAndClosed` guard (unit and L), the follow-up `stranded` guard, keeping `at` on re-save, the bulk keep (L), and `needsNewDay` (L and contract).
 
+### Review round 2 (integrator, at d10b30e)
+
+The blocker was verified fixed. Two should-fixes, both in `4114ff8`:
+
+1. **Teacher words after re-resolution.** A stranded day can be one the class really sat that no longer resolves: a rotation change, a renamed or cleared period, or old data whose `at` was rewritten. The panel claimed that day "passed before the bell schedule gave this class's times" and flagged the class, even a finished one.
+   - It now counts each class's sittings from the records it already reads (`classSittingsOf`): started, and still waiting (Test ahead, not missed).
+   - **If anyone started:** the teacher reads "*N* students did not sit it", and only those students are offered the set-a-day action.
+   - **If nobody started:** the original stranded text stays.
+   - `needsNewDay` (`classNeedsNewTestDay`) flags a class only while somebody is still waiting, so a finished class is not flagged.
+   - The panel banner no longer claims the day had no class time.
+2. **What a waiting student reads.** Since a stranded day no longer holds the home window, a student whose Test was still ahead read "Corrections and Retest: open now…" next to "Waiting for a new Test day". The public schedule now carries `stranded`, and `studentScheduleBlocks` shows that student the Test block only. Whoever sat the Test still sees the home window.
+
+A review note, also fixed: a finished cycle's card no longer says "Late work is still open".
+
+**Not built, as the reviewer asked:** a structural fix (follow-up below). The right shape: on the first `startSecureExamSession` inside a class-period window, record the resolved times (create-if-absent, in a server-only doc). Then let `resolveClassWindows` use them for a past day whose live resolution fails.
+
+**Proof:**
+- Unit cases for the wording (several, one, none waiting; nobody started; a student never sees the counts), the flag, the view (stranded vs not, a student who sat), and finished-stage dates.
+- Source contracts for the counts and the `stranded` flag.
+- Emulator scenario **L** extended: after one student sat and the class's window stops resolving, the teacher reads "1 student did not sit it" with the class flagged, the student who sat is still in Corrections, and the absent student sees "Waiting for a new Test day".
+- **Mutation checks**, all confirmed red: the started branch (unit and L), the waiting condition of the flag, the view guard, the finished-stage branch, and the waiting count.
+
 ## PR-19: the card used the class's late date, not the student's
 
 **Reproduced on the base.** `src/App.jsx` passed
@@ -156,7 +178,22 @@ shows a subset of it.
   - the row ignoring the student's dates;
   - the row ignoring `hasSecureSession`.
 
-## Gate (head `874c230`, the reviewed fixes)
+## Gate, round 2 (head `4114ff8`)
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11444 / 11444 |
+| `node --test tests/tools/*.test.mjs` | 1643 pass, 0 fail, 1 skipped (the same shallow-clone skip as the base) |
+| `npm run lint` | exit 0, 0 errors; 468 warnings, the same count as the base |
+| `npm run build` / `npm run build:firebase` | ok; no tracked file rewritten |
+| `npm run test:rules` | 243 / 243 and 209 / 209 |
+| `npm run test:test-cycle-certification` | 38 / 38 (L extended) |
+| Emulator: `testCycleSecureWorkflow` / `testCycleLifecycleSecurity` / `testCycleReviewProgress` / `secureExamNavigation` | 15 / 15, 21 / 21, 4 / 4, 25 / 25 |
+| Browser: `testCycleSecureWorkflowQa` / `testCycleDevice` | 170 passed, 0 findings / all 12 device × stage combinations |
+
+The other browser drivers were not re-run this round; their results are in the table below.
+
+## Gate, round 1 (head `874c230`, the reviewed fixes)
 
 | Check | Result |
 | --- | --- |
@@ -209,7 +246,7 @@ No rules or index changes.
    - **Never started it:** if their class reads as stranded, they go back to "Waiting for a new Test day". Their record keeps `retest { assigned, withoutOriginal }`. Tests & Exams still lists that "— Retest" session with "Open in Assignments", which leads to the card saying the Test is waiting. The panel flags the class.
    - **When the teacher sets a new day:** if the student starts the original Test, the stand-in is retired, as before. If they miss the new day, they get that same Retest.
    - **Count them first.** Run the read-only script below from the repository root against production with read credentials. It only calls `.get()`. It was checked against a seeded emulator. It lists each class with an unresolved window, whether that class also has a real window, its new state, and its students: never started, stand-in Retest unstarted / started, in Corrections.
-5. **`endedBeforeSet` on old data.** A day the class really sat, but which an older server re-saved after the meeting (rewriting `at`), reads as "set too late". Students who sat it are unaffected and go on to Corrections. Students who never started it wait for a new day instead of being marked missed, and the panel flags the class. I kept this because it can be undone (the teacher sets a day). Dropping it would mark the bug's real victims missed instead (a capped Retest). That is a one-line change in `resolveClassWindows`, if the owner prefers it.
+5. **`endedBeforeSet` on old data.** (Round 2: where anyone in the class started, the teacher is no longer told the day was set too late; see Review round 2.) A day the class really sat, but which an older server re-saved after the meeting (rewriting `at`), reads as "set too late". Students who sat it are unaffected and go on to Corrections. Students who never started it wait for a new day instead of being marked missed, and the panel flags the class. I kept this because it can be undone (the teacher sets a day). Dropping it would mark the bug's real victims missed instead (a capped Retest). That is a one-line change in `resolveClassWindows`, if the owner prefers it.
 
 ```js
 // READ-ONLY. Lists Test Cycles whose class windows the new rules read as
@@ -259,6 +296,11 @@ console.log(`${assignments.size} assignment(s) with a Test window; ${rows.length
 ```
 
 ## Not done
+
+- **Follow-up (structural, not on this branch):** record a class-period window's resolved times on the first Test start inside it (create-if-absent, in a server-only doc), and let `resolveClassWindows` use them for a past day that no longer resolves. With that, a day the class sat stays a real closed window, so absent students would be marked missed instead of waiting.
+- Review notes, no change made:
+  - **Keeping the first `at`.** An undesignated day re-saved after its would-be period, then designated later, reads closed and missed. The base does the same. It belongs to owner decision 1.
+  - **The bulk "keep" check.** After a snow day that was not entered on the bell schedule, the window still counts as opened, so the bulk action refuses and points the teacher to each class's row. That is a usability cost only.
 
 - `TestCycleCard` still has its own inline delivery sentence. `testCycleDeliveryText` in `assignedTestCyclesModel.js` is the same words as a helper. Switch the card to it once session C's card change lands, to avoid a conflict now.
 - Tests & Exams makes one preview call per candidate cycle. Batching would need a new callable, which brings its own invoker grant (AGENTS.md); not worth it for the usual zero or one call.
