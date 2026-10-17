@@ -109,16 +109,17 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
 
   // A tool with no TaskCard still describes itself in Work View's Help: on a
   // phone Work View hides this header, "About this tool" with it (TOOL-3).
-  const aboutDirections = useMemo(() => (subtitle && taskCards === 0 ? {
+  const methodWithheld = useMethodWithheld();
+  const aboutDirections = useMemo(() => (subtitle && !methodWithheld && taskCards === 0 ? {
     directions: {
       content: (
-        <div className="mathmaster-tool-task-about">
-          <p style={{ margin: 0, fontWeight: 800, color: 'var(--mm-text-strong)' }}>About this tool</p>
+        <details className="mathmaster-tool-task-about">
+          <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)' }}>About this tool</summary>
           <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{subtitle}</p>
-        </div>
+        </details>
       ),
     },
-  } : null), [subtitle, taskCards]);
+  } : null), [subtitle, methodWithheld, taskCards]);
   usePublishWorkViewCapabilities(`tool-shell-about-${useId()}`, aboutDirections);
 
   useEffect(() => {
@@ -186,7 +187,8 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
           {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 'calc(11 * var(--mm-px))' }}>{badge}</span> : null}
-          {subtitle ? (
+          {/* Withheld on an assessment with the rest of the method (R-10, TaskCard). */}
+          {subtitle && !methodWithheld ? (
             // `display: contents` keeps the fold itself the header's flex item.
             // Merged into the TaskCard's "How to do this", it is hidden by
             // App.css everywhere except Work View.
@@ -521,57 +523,85 @@ const TaskSupport = ({ description, badge, taskText, showsDirections, steps, not
 // THE STEPS ARE THE METHOD, AND AN ASSESSMENT WITHHOLDS THE METHOD (student
 // pass 3, R-10). Matrix Lab's exit ticket listed the rule that decides "no
 // solution" from "infinitely many" — the thing the item measures. Where the
-// activity withholds hints or verdicts (useMethodWithheld) the steps and the
-// note are left out, here and in Work View's Help. A tool whose steps only say
-// how to work its controls ("Click the grid to plot a point") passes
-// `stepsAreControls` and keeps them everywhere; the directions sentence and
-// the tool's description are never method and always stay.
-export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null, stepsAreControls = false }) => {
-  const methodWithheld = useMethodWithheld();
+// activity withholds hints or verdicts (useMethodWithheld) the card is cut
+// back to the authored prompt, here and in Work View's Help:
+//   - the steps and the note go, unless the tool passes `stepsAreControls`
+//     (they only say how to work its controls: "Click the grid to plot a
+//     point");
+//   - the tool's directions sentence goes with them, kept only beside
+//     controls-only steps;
+//   - the tool's description always goes. Tool-written descriptions name the
+//     method more often than not ("Use the Factor Theorem…", "Derive a linear
+//     inverse by swapping x and y…", "…X = A⁻¹B"), and the authored prompt
+//     and the tool's name still say what the item is. Withholding them all
+//     fails closed: a description written tomorrow cannot leak.
+// One pure function decides, and both the card and Work View's Help draw from
+// what it returns, so the two can never show different things.
+export const taskCardSupport = ({ task, steps = [], note = null, question = null, stepsAreControls = false, methodWithheld = false, description = null, badge = null }) => {
   const showMethod = stepsAreControls || !methodWithheld;
-  const shownSteps = showMethod ? steps : [];
-  const shownNote = showMethod ? note : null;
+  const shownSteps = showMethod ? steps.map(String) : [];
+  const shownNote = showMethod && note ? String(note) : null;
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
-  // The fold's remembered open/closed state stays keyed on the directions and
-  // steps alone, so a student who had opened them still finds them open.
-  const supportKey = stepsKey || contentKey([taskText, ...shownSteps, shownNote || ''].filter(Boolean).join('|'));
-  // PQ-023: the tool's one-line description opens the fold, and the shell's
-  // header stops offering it separately once this card has said it took it.
-  const shell = useContext(ToolShellContext);
-  const registerTaskCard = shell?.registerTaskCard;
-  useLayoutEffect(() => (registerTaskCard ? registerTaskCard() : undefined), [registerTaskCard]);
-  const description = shell?.description || null;
-  const badge = shell?.badge || null;
-  const showsDirections = Boolean(taskText && (!authoredPrompt || promptDiffers));
-  const hasSupport = Boolean(description || showsDirections || shownSteps.length || shownNote);
+  const showsDirections = Boolean(showMethod && taskText && (!authoredPrompt || promptDiffers));
+  const shownDescription = methodWithheld ? null : (description || null);
+  const hasSupport = Boolean(shownDescription || showsDirections || shownSteps.length || shownNote);
   // Named for what is inside: the steps when there are steps, otherwise the
   // directions, otherwise only the description of the tool.
   const summary = shownSteps.length
     ? `How to do this (${shownSteps.length} step${shownSteps.length === 1 ? '' : 's'})`
     : showsDirections || shownNote ? 'How to do this' : 'About this tool';
+  return {
+    authoredPrompt,
+    promptDiffers,
+    taskText,
+    showsDirections,
+    description: shownDescription,
+    badge: shownDescription ? badge || null : null,
+    steps: shownSteps,
+    note: shownNote,
+    hasSupport,
+    summary,
+  };
+};
 
-  // The same support, handed up to Work View's Help. Keyed on the text so a
+// WHAT THE CARD HANDS TO WORK VIEW'S HELP (TOOL-3): the same support, folded
+// under the same summary, so the hint panel and "Ask my teacher" below it
+// stay on a phone's first screen of the drawer.
+export const TaskCardDirections = ({ support }) => (support?.hasSupport ? (
+  <details className="mathmaster-tool-task-support" data-task-card-directions="">
+    <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{support.summary}</summary>
+    <div style={{ marginTop: 6 }}>
+      <TaskSupport description={support.description} badge={support.badge} taskText={support.taskText} showsDirections={support.showsDirections} steps={support.steps} note={support.note} />
+    </div>
+  </details>
+) : null);
+
+export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null, stepsAreControls = false }) => {
+  const methodWithheld = useMethodWithheld();
+  // PQ-023: the tool's one-line description opens the fold, and the shell's
+  // header stops offering it separately once this card has said it took it.
+  const shell = useContext(ToolShellContext);
+  const registerTaskCard = shell?.registerTaskCard;
+  useLayoutEffect(() => (registerTaskCard ? registerTaskCard() : undefined), [registerTaskCard]);
+  const support = taskCardSupport({ task, steps, note, question, stepsAreControls, methodWithheld, description: shell?.description, badge: shell?.badge });
+  const { authoredPrompt, promptDiffers, taskText, showsDirections, description, badge, hasSupport, summary } = support;
+  const shownSteps = support.steps;
+  const shownNote = support.note;
+  // The fold's remembered open/closed state stays keyed on the directions and
+  // steps alone, so a student who had opened them still finds them open.
+  const supportKey = stepsKey || contentKey([taskText, ...shownSteps, shownNote || ''].filter(Boolean).join('|'));
+
+  // The same support, handed up to Work View's Help. Keyed on its text so a
   // re-render of the tool does not publish again.
-  const supportText = JSON.stringify([summary, description, badge, showsDirections ? taskText : '', ...shownSteps.map(String), shownNote ? String(shownNote) : '']);
+  const supportText = JSON.stringify(support);
   const workViewDirections = useMemo(() => {
-    if (!hasSupport) return null;
-    const [, , , directionsText, ...rest] = JSON.parse(supportText);
-    const noteText = rest.pop();
-    return {
-      directions: {
-        content: (
-          <div className="mathmaster-tool-task-support">
-            <p style={{ margin: '0 0 6px', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{summary}</p>
-            <TaskSupport description={description} badge={badge} taskText={directionsText} showsDirections={Boolean(directionsText)} steps={rest} note={noteText || null} />
-          </div>
-        ),
-      },
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSupport, supportText]);
+    const published = JSON.parse(supportText);
+    return published.hasSupport ? { directions: { content: <TaskCardDirections support={published} /> } } : null;
+  }, [supportText]);
   usePublishWorkViewCapabilities(`task-card-${useId()}`, workViewDirections);
+  if (!authoredPrompt && !hasSupport) return null;
 
   return (
     <div className="mathmaster-tool-task-card" style={{

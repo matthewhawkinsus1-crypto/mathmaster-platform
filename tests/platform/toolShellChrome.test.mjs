@@ -71,7 +71,11 @@ test('the steps fold and start folded, so the tool is what opens', () => {
   // The count is named, so a student who has not opened them knows what is inside
   // — the count of the steps the card actually shows (R-10 withholds them on
   // an assessment, and the summary must not promise steps that are not there).
-  assert.match(taskCard, /const summary = shownSteps\.length\s*\?\s*`How to do this \(\$\{shownSteps\.length\} step/);
+  // Worked out by taskCardSupport, the one decision the card and Work View
+  // Help both draw from (R-10).
+  const support = source.slice(source.indexOf('export const taskCardSupport'), source.indexOf('export const TaskCardDirections'));
+  assert.match(support, /const summary = shownSteps\.length\s*\?\s*`How to do this \(\$\{shownSteps\.length\} step/);
+  assert.match(taskCard, /const support = taskCardSupport\(/);
   assert.match(fold, /<TaskSupport [^>]*steps=\{shownSteps\}/);
 });
 
@@ -146,7 +150,8 @@ test('the tool description opens the steps fold, and the header offers it only w
   // A TaskCard says it took it, and opens its fold with it, ahead of the steps.
   const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
   assert.match(taskCard, /useLayoutEffect\(\(\) => \(registerTaskCard \? registerTaskCard\(\) : undefined\), \[registerTaskCard\]\);/);
-  assert.match(taskCard, /const hasSupport = Boolean\(description \|\|/);
+  const decision = source.slice(source.indexOf('export const taskCardSupport'), source.indexOf('export const TaskCardDirections'));
+  assert.match(decision, /const hasSupport = Boolean\(shownDescription \|\|/);
   const fold = taskCard.slice(taskCard.indexOf('<QuietDisclosure'), taskCard.indexOf('</QuietDisclosure>'));
   assert.match(fold, /<TaskSupport description=\{description\}/);
   const support = source.slice(source.indexOf('const TaskSupport'), source.indexOf('export const TaskCard'));

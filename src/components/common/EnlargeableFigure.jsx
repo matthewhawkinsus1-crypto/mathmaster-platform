@@ -412,11 +412,14 @@ export default function EnlargeableFigure({
   const directionsHelp = helpPart(registeredCapabilities.directions);
   const platformHelp = helpPart(registeredCapabilities.help);
   const toolHelp = helpPart(registeredCapabilities.toolHelp);
+  // Each part is a labelled group, so a screen reader can tell them apart.
+  // The directions arrive folded (TaskCardDirections), which keeps "Show a
+  // hint" and "Ask my teacher" on a phone's first screen of the drawer.
   const help = directionsHelp || platformHelp || toolHelp ? (
     <>
-      {directionsHelp ? <div data-work-view-directions="">{typeof directionsHelp === 'string' ? <MathText>{directionsHelp}</MathText> : directionsHelp}</div> : null}
-      {platformHelp}
-      {toolHelp ? <div data-work-view-tool-help="">{toolHelp}</div> : null}
+      {directionsHelp ? <div role="group" aria-label="How to do this" data-work-view-directions="">{typeof directionsHelp === 'string' ? <MathText>{directionsHelp}</MathText> : directionsHelp}</div> : null}
+      {platformHelp ? <div role="group" aria-label="Hints and help" data-work-view-platform-help="">{platformHelp}</div> : null}
+      {toolHelp ? <div role="group" aria-label="This tool's help" data-work-view-tool-help="">{toolHelp}</div> : null}
     </>
   ) : null;
   const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
