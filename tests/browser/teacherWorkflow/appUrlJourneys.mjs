@@ -172,6 +172,10 @@ const runStudentJourneys = async (viewport) => {
   await record(/Welcome, /);
   await page.getByRole('button', { name: /^Continue$/ }).filter({ visible: true }).first().click();
   await record(QUESTION);
+  // The navigator starts compact (pass 3); its question numbers are behind
+  // "Show progress".
+  const progress = page.locator('.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button');
+  if (await progress.count()) await progress.first().click();
   await page.locator('[title^="Classwork Question 1"]').filter({ visible: true }).first().click();
   await record(/[Qq]uestion 1 of 2/);
   await page.locator('[title^="Classwork Question 2"]').filter({ visible: true }).first().click();

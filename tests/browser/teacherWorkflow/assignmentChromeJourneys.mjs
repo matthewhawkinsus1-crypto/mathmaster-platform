@@ -25,7 +25,9 @@
 //               focusable, says when it opens, and pressing it shows why (RUN-8).
 //   warmupWarnings  with "Show progress" open, the Warm-Up's time and its
 //               2:00 warning are still in the navigator.
-//   dolTimer    an open Exit ticket (DOL) warns at 2:00 and 0:30 in an
+//   dolTimer    an open Exit ticket (DOL) warns a student without extra time
+//               at 2:00 and 0:30 (a student with extra time is counted
+//               against their own close, decision D7) in an
 //               assertive region, shows seconds in its last minute and says
 //               unfinished answers are not turned in (RUN-10).
 //
@@ -39,6 +41,8 @@ const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const STUDENT = '910002';
+// A classmate in the same class with no extra time (fixture: no profile).
+const NO_EXTRA_TIME = '910003';
 const LESSON = 'a-today';
 const CLASS_IDS = ['c-alg2-p3', 'c-lab-p3'];
 const CHROMEBOOK = { name: 'Chromebook 1366×768', viewport: { width: 1366, height: 768 } };
@@ -60,11 +64,11 @@ const wanted = (name) => !ONLY || ONLY.includes(name);
  * Signs the student in on a fresh school, applies `prepare` to the harness
  * database (before the lesson opens), and opens today's lesson.
  */
-const openLesson = async (device, { params = {}, prepare = null, prepareArgs = {}, button = /^(Continue|Resume Question|Start)/, group = null } = {}) => {
+const openLesson = async (device, { params = {}, prepare = null, prepareArgs = {}, button = /^(Continue|Resume Question|Start)/, group = null, student = STUDENT } = {}) => {
   const context = await newSchoolContext(browser, { viewport: device.viewport, isMobile: device.isMobile, hasTouch: device.hasTouch });
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device.name}: page error ${error.message}`));
-  const search = new URLSearchParams({ reset: '1', as: 'student', studentId: STUDENT, questions: 'real', ...params });
+  const search = new URLSearchParams({ reset: '1', as: 'student', studentId: student, questions: 'real', ...params });
   await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
   await page.waitForTimeout(800);
@@ -357,7 +361,10 @@ if (wanted('dolTimer')) {
         },
       });
     };
-    const { context, page } = await openLesson(device, { prepare: openDolFor, prepareArgs: { seconds: 126 } });
+    // 910003 has no extra time: their exit ticket closes with the class's.
+    // (910002 has extra time — decision D7 gives them their own, later close;
+    // see the extra-time check below.)
+    const { context, page } = await openLesson(device, { prepare: openDolFor, prepareArgs: { seconds: 126 }, student: NO_EXTRA_TIME });
     const alertText = () => page.evaluate(() => [...document.querySelectorAll('[data-section-time-left] [role="alert"]')].map((region) => region.textContent).join(' | '));
     const pill = () => page.locator('.mathmaster-unified-nav-alert [data-section-time-left]').first().innerText().catch(() => '');
     check(/Exit ticket \(DOL\) open · 2 min/.test(await pill()), `${device.name}: the DOL pill shows the time left`, await pill());
@@ -371,6 +378,30 @@ if (wanted('dolTimer')) {
     check(/· 0:[0-3]\d/.test(await pill()), `${device.name}: seconds in the last minute`, await pill());
     if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/dol-${device === PHONE ? 'phone' : 'chromebook'}.png` });
     await context.close();
+
+    // A student with extra time is counted down, and warned, against THEIR
+    // close. Where the app says it ("Your exit ticket closes at H:MM — extra
+    // time.", decision D7), the pill must agree with that time.
+    const extended = await openLesson(device, { prepare: openDolFor, prepareArgs: { seconds: 126 } });
+    const extendedPill = await extended.page.locator('.mathmaster-unified-nav-alert [data-section-time-left]').first().innerText().catch(() => '');
+    const closeLine = await extended.page.evaluate(() => {
+      const match = document.body.innerText.match(/Your exit ticket closes at (\d{1,2}):(\d{2}) — extra time\./);
+      if (!match) return null;
+      const close = new Date();
+      let hours = Number(match[1]);
+      // The page's clock decides AM/PM: the close is the next H:MM after now.
+      close.setHours(hours, Number(match[2]), 0, 0);
+      while (close.getTime() < Date.now() - 60_000) { hours += 12; close.setHours(hours, Number(match[2]), 0, 0); }
+      return { text: match[0], minutesLeft: (close.getTime() - Date.now()) / 60_000 };
+    });
+    if (closeLine) {
+      const pillMinutes = Number((extendedPill.match(/· (\d+) min/) || [])[1]);
+      check(Number.isFinite(pillMinutes) && Math.abs(pillMinutes - closeLine.minutesLeft) <= 1.5,
+        `${device.name}: with extra time, the DOL pill counts to the student's own close`, `${extendedPill.split('\n')[0]} vs "${closeLine.text}"`);
+    } else {
+      console.log(`note ${device.name}: no extra-time close line on this build (decision D7 not merged); the pill reads ${extendedPill.split('\n')[0]}`);
+    }
+    await extended.context.close();
   }
 }
 
