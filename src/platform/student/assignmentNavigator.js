@@ -184,6 +184,13 @@ export const SECTION_ACCESS = Object.freeze({
 
 const defaultFormatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const defaultFormatDay = (date) => date.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+// A class day with no time: "Mon, Oct 19".
+const defaultFormatDate = (date) => date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+// An instruction date key ("2026-10-19") as that local day, or null.
+const dayFromKey = (key) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+};
 const toDate = (value) => {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(typeof value?.toMillis === 'function' ? value.toMillis() : value);
@@ -220,6 +227,7 @@ export const describeSectionAccess = ({
   nowValue = Date.now(),
   formatTime = defaultFormatTime,
   formatDay = defaultFormatDay,
+  formatDate = defaultFormatDate,
 } = {}) => {
   const open = { state: SECTION_ACCESS.OPEN, viewable: true, workable: true, short: '', reason: '' };
   if (unrestricted) return open;
@@ -239,11 +247,16 @@ export const describeSectionAccess = ({
       ? locked(`Opens ${at}`, `${label} opens at ${at}.`)
       : locked(fallback, `${label} ${fallback.charAt(0).toLowerCase()}${fallback.slice(1)}.`);
   };
+  // A class day, never the stored key ("2026-10-19"): "Mon, Oct 19". Today's
+  // own day (its window not open yet) is simply "in class".
   const notToday = (state) => {
-    const key = String(state?.instructionDateKey || '');
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (key && key < today) return locked('Closed', `${label} was open in class on ${key}. It is closed now.`);
-    return key ? locked(`Opens ${key}`, `${label} opens in class on ${key}.`) : locked('Opens in class', `${label} opens when your teacher starts it in class.`);
+    const day = dayFromKey(state?.instructionDateKey);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (!day || day.getTime() === today.getTime()) {
+      return locked('Opens in class', `${label} opens when your teacher starts it in class.`);
+    }
+    if (day < today) return locked('Closed', `${label} was open in class on ${formatDate(day)}. It is closed now.`);
+    return locked(`Opens ${formatDate(day)}`, `${label} opens in class on ${formatDate(day)}.`);
   };
 
   // "Your work stays here" only when there is work: a student who never

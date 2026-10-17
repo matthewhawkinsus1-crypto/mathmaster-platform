@@ -204,6 +204,23 @@ test('RUN-8: a Warm-Up closed for the period is read-only; one before class says
   assert.equal(describeSectionAccess({ role: 'warmup', label: 'Warm-Up', nowValue: now, warmupState: { enabled: true, status: 'active' } }).state, SECTION_ACCESS.OPEN);
 });
 
+test('a section on another class day names the day, never the stored key', () => {
+  const formatDate = (date) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
+  const dol = (instructionDateKey) => describeSectionAccess({ role: 'dol', label: 'the Exit ticket (DOL)', timedDol: true, nowValue: now, formatDate, dolState: { enabled: true, status: 'notToday', instructionDateKey } });
+  // now is Wed Oct 14, 2026.
+  const future = dol('2026-10-19');
+  assert.equal(future.short, 'Opens Mon 10/19');
+  assert.equal(future.reason, 'The Exit ticket (DOL) opens in class on Mon 10/19.');
+  const past = dol('2026-10-12');
+  assert.equal(past.short, 'Closed');
+  assert.equal(past.reason, 'The Exit ticket (DOL) was open in class on Mon 10/12. It is closed now.');
+  const today = dol('2026-10-14');
+  assert.equal(today.short, 'Opens in class');
+  for (const access of [future, past, today]) assert.doesNotMatch(`${access.short} ${access.reason}`, /\d{4}-\d{2}-\d{2}/);
+  // The default wording is a day too.
+  assert.match(describeSectionAccess({ role: 'warmup', label: 'the Warm-Up', nowValue: now, warmupState: { enabled: true, status: 'notToday', instructionDateKey: '2026-10-19' } }).short, /^Opens \w{3}, Oct 19$/);
+});
+
 test('a preview and post-deadline practice open everything', () => {
   const access = describeSectionAccess({ role: 'dol', timedDol: true, unrestricted: true, dolState: { enabled: true, status: 'waiting' } });
   assert.equal(access.state, SECTION_ACCESS.OPEN);
