@@ -514,8 +514,9 @@ function QuestionEngineBody({
   // How many times this question's module has been restarted from a fresh
   // workspace after it failed to render (QuestionModuleBoundary). Once.
   const [moduleRecoveries, setModuleRecoveries] = useState(0);
-  // Whether the question's module failed to render (QuestionModuleBoundary).
-  const [moduleFailed, setModuleFailed] = useState(false);
+  // Which module failed to render (QuestionModuleBoundary): the boundary key
+  // and question it failed under. See `moduleFailed` below.
+  const [failedModuleKey, setFailedModuleKey] = useState(null);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
   const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
@@ -928,6 +929,15 @@ function QuestionEngineBody({
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
   // The work area is read-only while the question is closed or waiting —
+  // THE FAILURE BELONGS TO THE MODULE THAT FAILED, NOT TO THE MOUNT. "Start
+  // this question fresh" remounts the boundary under a new key, and My Math
+  // Path swaps the question under one engine with no key at all; either way
+  // the next module is a different one and starts not-failed. A flag held for
+  // the mount left a closed question editable after a fresh start (review of
+  // Batch 5).
+  const moduleBoundaryKey = `${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`;
+  const moduleFailureKey = `${moduleBoundaryKey}|${question?.questionId ?? question?.id ?? ''}`;
+  const moduleFailed = failedModuleKey !== null && failedModuleKey === moduleFailureKey;
   // except when its module failed: then it holds only the failure panel.
   const workAreaClosed = !moduleFailed && Boolean(locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
   // The attempt strip at the top of the question states the lock reason where
@@ -3049,9 +3059,11 @@ function QuestionEngineBody({
               only stops the mouse. */}
           <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaClosed ? true : undefined} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
             <QuestionModuleBoundary
-              key={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
+              key={moduleBoundaryKey}
               questionType={processedQuestion?.type}
-              resetKey={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
+              // The question too: an engine reused for the next item (My Math
+              // Path) clears a failure the last item left in this boundary.
+              resetKey={moduleFailureKey}
               context={{
                 assignmentId,
                 questionId: processedQuestion?.questionId ?? processedQuestion?.id ?? null,
@@ -3066,7 +3078,7 @@ function QuestionEngineBody({
                 pinRef: failureContext.pinRef,
               }}
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
-              onFailureChange={setModuleFailed}
+              onFailureChange={(failed) => setFailedModuleKey(failed ? moduleFailureKey : null)}
             >
               {renderModule()}
             </QuestionModuleBoundary>

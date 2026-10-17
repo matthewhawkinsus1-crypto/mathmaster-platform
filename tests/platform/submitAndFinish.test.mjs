@@ -380,7 +380,12 @@ test('"Start this question fresh" works on a closed question, asks first, and sh
   assert.match(engine, /const workAreaClosed = !moduleFailed && Boolean\(locked \|\| scaffoldRequired \|\| contextScaffoldRequired \|\| submitting \|\| pausedByAnotherTab\);/);
   assert.match(engine, /<fieldset disabled=\{workAreaClosed\}/);
   assert.match(engine, /inert=\{workAreaClosed \? true : undefined\}/);
-  assert.match(engine, /onFailureChange=\{setModuleFailed\}/);
+  // The failure is the failed module's (boundary key and question), not the mount's.
+  assert.match(engine, /const moduleFailed = failedModuleKey !== null && failedModuleKey === moduleFailureKey;/);
+  assert.match(engine, /onFailureChange=\{\(failed\) => setFailedModuleKey\(failed \? moduleFailureKey : null\)\}/);
+  assert.match(engine, /resetKey=\{moduleFailureKey\}/);
+  // The paths the product takes (a remount under a new key; the next item
+  // under an unkeyed engine) are driven in tests/browser/moduleRecoveryLock.mjs.
   const recover = region(engine, 'const handleRecoverQuestionModule = async () => {', '\n  };', 'recovery');
   assert.ok(recover.indexOf('await confirmAction(') < recover.indexOf('quarantineQuestionDraftFamily('), 'asked before anything is set aside');
   assert.match(recover, /if \(!proceed\) return;/);
