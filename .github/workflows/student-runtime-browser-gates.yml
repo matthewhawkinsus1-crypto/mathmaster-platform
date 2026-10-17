@@ -62,6 +62,12 @@ name: Student Runtime Browser Gates
 #                       Family version, a Path-style template) is graded by one
 #                       rule for every student: lowest terms or the key's own
 #                       form, never the fraction the question showed (B-57)
+#   moduleRecoveryLock  a closed question stays closed after its module fails:
+#                       "Start this question fresh" can be pressed, and the
+#                       fresh module, or the next item under one engine (My
+#                       Math Path's mount, items with no id), closes again
+#   closedQuestionEnter on a closed question Enter goes on only from the page:
+#                       a summary, a button or an ARIA widget keeps its Enter
 
 on:
   pull_request:
@@ -93,6 +99,9 @@ on:
       - "tests/browser/composedDraftRestore*"
       - "tests/browser/draftEditTime.mjs"
       - "tests/browser/fractionTemplateGrading*"
+      - "tests/browser/moduleRecoveryLock*"
+      - "tests/browser/closedQuestionEnter*"
+      - "tests/browser/feedbackTeaches*"
       - "tests/browser/draftPersistence*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
@@ -245,6 +254,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/fractionTemplateGrading.mjs
+      - name: A closed question stays closed after its module fails
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/moduleRecoveryLock.mjs
+      - name: Enter on a closed question goes on only from the page
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/closedQuestionEnter.mjs
       - name: A production build serves the math fonts
         if: always()
         env:
