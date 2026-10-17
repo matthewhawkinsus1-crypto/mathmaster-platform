@@ -12,9 +12,16 @@ const typedNumber = (text) => {
   return Number.isFinite(value) ? value : null;
 };
 
-/** The point the two boxes name, or null while either is empty or not a number. */
-export const typedCoordinate = (typedX, typedY) => {
-  const x = typedNumber(typedX);
+/*
+ * A point card that states its x ("Plot the point where x = 2") needs only y:
+ * the x is the card's whatever is typed (withStatedTaskX), so an empty x box is
+ * that x, not missing. `statedX` is null for any other target.
+ */
+const finiteOrNull = (value) => (value === null || value === undefined || String(value).trim() === '' || !Number.isFinite(Number(value)) ? null : Number(value));
+
+/** The point the two boxes name, or null while one it needs is empty or not a number. */
+export const typedCoordinate = (typedX, typedY, { statedX = null } = {}) => {
+  const x = typedNumber(typedX) ?? finiteOrNull(statedX);
   const y = typedNumber(typedY);
   return x === null || y === null ? null : [x, y];
 };
@@ -23,8 +30,8 @@ export const typedCoordinate = (typedX, typedY) => {
  * What Enter in one of the boxes does: move on to the other box while it is
  * empty, otherwise place the point.
  */
-export const typedEntryEnterAction = ({ box, typedX, typedY }) => {
+export const typedEntryEnterAction = ({ box, typedX, typedY, statedX = null }) => {
   if (box === 'x' && typedNumber(typedY) === null) return 'focus-y';
-  if (box === 'y' && typedNumber(typedX) === null) return 'focus-x';
+  if (box === 'y' && typedNumber(typedX) === null && finiteOrNull(statedX) === null) return 'focus-x';
   return 'place';
 };

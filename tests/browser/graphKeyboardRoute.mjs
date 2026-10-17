@@ -272,6 +272,13 @@ for (const role of ['practice', 'dol']) {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(200);
     check(/^Placed Plot the point where x = 0 at \(0, 1\)\.$/.test(await announcement(page)), 'typed entry: then Enter in y places (0, 1)', `"${await announcement(page)}"`);
+    // A card that states its x needs only y: Enter in y with x empty places it.
+    await enterOn(page, page.getByRole('button', { name: /^Plot the point where x = 2/ }));
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).focus();
+    await page.keyboard.type('5');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(/^Placed Plot the point where x = 2 at \(2, 5\)\.$/.test(await announcement(page)), 'typed entry: a card that states its x is placed from y alone', `"${await announcement(page)}"`);
     await page.close();
   }
 

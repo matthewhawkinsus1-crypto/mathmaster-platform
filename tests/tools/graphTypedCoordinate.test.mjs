@@ -25,3 +25,11 @@ test('Enter moves to the empty box, and places once both are filled', () => {
   assert.equal(typedEntryEnterAction({ box: 'x', typedX: '3', typedY: '4' }), 'place');
   assert.equal(typedEntryEnterAction({ box: 'y', typedX: '3', typedY: '4' }), 'place');
 });
+
+test('a card that states its x needs only y: an empty x is the card\'s x', () => {
+  assert.deepEqual(typedCoordinate('', '5', { statedX: 2 }), [2, 5]);
+  assert.equal(typedCoordinate('', '', { statedX: 2 }), null, 'y is still needed');
+  assert.equal(typedCoordinate('', '5', { statedX: null }), null, 'with no stated x, an empty x is missing');
+  assert.equal(typedEntryEnterAction({ box: 'y', typedX: '', typedY: '5', statedX: 2 }), 'place');
+  assert.equal(typedEntryEnterAction({ box: 'y', typedX: '', typedY: '5' }), 'focus-x');
+});

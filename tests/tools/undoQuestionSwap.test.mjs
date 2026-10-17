@@ -79,11 +79,11 @@ const harness = (useUndo) => {
   return { tool, engine, Engine };
 };
 
-const viaFieldHook = ({ questionData, choice, setChoice, value, setValue }) => useFieldUndoHistory({
+const useViaFieldHook = ({ questionData, choice, setChoice, value, setValue }) => useFieldUndoHistory({
   questionData,
   fields: { value: [value, setValue], factorChoice: [choice, setChoice] },
 });
-const viaMathHook = ({ questionData, choice, setChoice, value, setValue }) => {
+const useViaMathHook = ({ questionData, choice, setChoice, value, setValue }) => {
   const state = useMemo(() => ({ value, choice }), [value, choice]);
   return useMathUndoHistory({
     state,
@@ -93,7 +93,7 @@ const viaMathHook = ({ questionData, choice, setChoice, value, setValue }) => {
   });
 };
 
-for (const [name, useUndo] of [['useFieldUndoHistory', viaFieldHook], ['useMathUndoHistory directly', viaMathHook]]) {
+for (const [name, useUndo] of [["useFieldUndoHistory", useViaFieldHook], ["useMathUndoHistory directly", useViaMathHook]]) {
   test(`${name}: the next question under a mounted tool opens with nothing to undo, and Undo never writes the previous answer into it`, async () => {
     store.clear();
     const { tool, engine, Engine } = harness(useUndo);

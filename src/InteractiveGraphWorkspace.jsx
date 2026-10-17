@@ -695,8 +695,14 @@ export default function InteractiveGraphWorkspace({
   const typedXRef = useRef(null);
   const typedYRef = useRef(null);
   // An empty box is not 0 (graphTypedCoordinate.js).
+  // The x a selected point card states, which the student need not type.
+  const typedStatedX = () => {
+    if (stage !== 'construct' || pointsLocked || !activeTaskId || (construction.snapped && activeMarker)) return null;
+    const task = tasks.find((item) => item.id === activeTaskId);
+    return taskStatesX(task) ? Number(task.x) : null;
+  };
   const placeTypedCoordinate = () => {
-    const point = typedCoordinate(typedX, typedY);
+    const point = typedCoordinate(typedX, typedY, { statedX: typedStatedX() });
     if (!point) {
       setKeyboardAnnouncement('Enter a number for both x and y.');
       return;
@@ -706,7 +712,7 @@ export default function InteractiveGraphWorkspace({
   const handleTypedEnter = (event, box) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    const action = typedEntryEnterAction({ box, typedX, typedY });
+    const action = typedEntryEnterAction({ box, typedX, typedY, statedX: typedStatedX() });
     if (action === 'focus-y') typedYRef.current?.focus();
     else if (action === 'focus-x') typedXRef.current?.focus();
     else placeTypedCoordinate();
