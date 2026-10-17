@@ -78,25 +78,30 @@ Every new or rewritten assertion was broken once in the code and seen red, then 
 
 ## Gate
 
-On the second merge (`1fc1506`), run one at a time with nothing else running.
+On `b17f6d1` and later (the review fixes, on the second base merge `1fc1506`), run one at a time with nothing
+else running.
 
-| Check | Result |
-| --- | --- |
-| `npm run test:platform` | 11,447 / 11,447 |
-| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (one not counted as a pass, as on the base) |
-| `npm run test:authoring-v5` | 686 / 686 (nothing in authoring or the compiler changed) |
-| `npm run lint` | exit 0 (warnings only; none in lines this branch added) |
-| `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
-| `npm run audit:theme-colors` | pass |
-| Browser drivers (41): the student-runtime gate (incl. the new `planePhoneReach`, `focusSafeToolControls`), `mathSpeech`, `graphDescription`, `accessiblePrimitives`, `calculatorKeyboard`, `studentAccessibleNames`, the five `toolKeyboard*`, `closedVerdictChip`, `workBarPrimaryLabel`, `dolCloseCopy`, `unchangedConfirmWorkView`, `algebraicSubstitutionHandoff`, `algebraicSystems3x3`, `workViewMatrix`, `captureToolResponses`, `studentUxPlatform` | all 41 pass |
-| `npm run certify:dark-mode` | pass: Part 1, the new Part 1B (12 plotted-scene runs), Part 2 (192 surfaces, 4 viewports, light and dark) |
-| `npm run certify:accessibility` | no new, increased or reduced violations on any screen; **fails** because `secure-exam/start` (desktop and phone) cannot be reached in 180 s. The same failure on the base `8e51f65` alone (`ONLY=secure-exam`, same servers): not this branch. |
-| `tests/browser/hostAccessibility.mjs` | **fails** at `scene=recovery` (the page never reaches network idle in 60 s); the same failure on the base `4af446f` alone: not this branch. |
+| Check | Setup | Result |
+| --- | --- | --- |
+| `npm run test:platform` | — | 11,449 / 11,449 |
+| `node --test tests/tools/*.test.mjs` | — | 1,643 pass, 0 fail (one not counted as a pass, as on the base) |
+| `npm run test:authoring-v5` | — | 686 / 686 (nothing in authoring or the compiler changed) |
+| `npm run lint` | — | exit 0 (warnings only; none in lines this branch added) |
+| `npm run build`, `npm run build:firebase` | — | pass; no tracked file rewritten |
+| `npm run audit:theme-colors` | — | pass |
+| Browser drivers (41): the student-runtime gate (incl. the new `planePhoneReach`, `focusSafeToolControls`), `mathSpeech`, `graphDescription`, `accessiblePrimitives`, `calculatorKeyboard`, `studentAccessibleNames`, the five `toolKeyboard*`, `closedVerdictChip`, `workBarPrimaryLabel`, `dolCloseCopy`, `unchangedConfirmWorkView`, `algebraicSubstitutionHandoff`, `algebraicSystems3x3`, `workViewMatrix`, `captureToolResponses`, `studentUxPlatform` | `npx vite --host 127.0.0.1 --port 5199`; app harness on 5188 | all 41 pass |
+| `npm run certify:dark-mode` | the same | pass: Part 1, Part 1B (plotted scenes, now with the mapping node rings), Part 2 (192 surfaces, 4 viewports, light and dark) |
+| `npm run certify:accessibility` | as CI: `npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort` and `TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs` | pass: 11 screens × 2 viewports, no new or increased violations |
+| `tests/browser/hostAccessibility.mjs` | as CI (the emulator server above) | pass |
+
+A correction: an earlier version of this table said `certify:accessibility` (secure-exam start) and
+`hostAccessibility` (the recovery scene) failed on the base too. Both were run on the plain dev server, not CI's
+emulator server; served as CI serves them, both pass on this branch, and the integrator saw both pass on the base.
 
 On the first merge the gate found one real regression of this branch, fixed in `90720c0`: a finger's wider pick-up
-radius took a tap one cell from a Systems boundary point as a move of that point instead of a second point. Three
-drivers that read the old raw names were updated (`algebraicSubstitutionHandoff`, `algebraicSystems3x3`,
-`captureToolResponses`).
+radius took a tap one cell from a Systems boundary point as a move of that point instead of a second point (the
+radius itself was later removed, below). Three drivers that read the old raw names were updated
+(`algebraicSubstitutionHandoff`, `algebraicSystems3x3`, `captureToolResponses`).
 
 ## Deploying (not done)
 
@@ -167,8 +172,6 @@ Ship with the wave's other Hosting changes through `node scripts/release-firebas
 - Point dots stay 6 units on a phone (about 3.5 px radius); only text scales.
 - The legacy NumberLine's selected point (TOOL-4) and RelationMapping's own plot (its keyboard sentence still hides on
   blur; it sits below its controls, so no press is lost there).
-- The two base failures in the gate (`secure-exam/start` in `certify:accessibility`, `hostAccessibility`'s recovery
-  scene) are left to the base's owners.
 - Part 1B's limits: a mark is measured against the last opaque shape under it, so the 3D intersection lines are
   measured against the model's background, not the translucent planes they cross (they pass on an estimate over
   the planes too); the mapping diagram's column ellipses are not measured (decorative: the node rings, which are
