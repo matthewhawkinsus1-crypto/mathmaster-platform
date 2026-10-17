@@ -117,6 +117,11 @@ export const TestCycleWindowsPanel = ({ schedule, busy, unopenedCount = 0, onCha
         </p>
       )}
 
+      {!anytime && schedule.classes.some((entry) => entry.test?.needsNewDay) && (
+        <p role="status" data-test-window-needs-day="" style={{ ...fact, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontWeight: 700 }}>
+          Needs a new Test day: {schedule.classes.filter((entry) => entry.test?.needsNewDay).map((entry) => entry.name).join(', ')}. Its Test day had no class time, so students who have not started cannot start until you set a new day or reopen the window.
+        </p>
+      )}
       {schedule.classes.length > 1 && !anytime && (
         <div style={formRow}>
           <label style={field}>First Test day for every class

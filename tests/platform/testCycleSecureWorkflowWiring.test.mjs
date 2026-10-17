@@ -361,3 +361,17 @@ test('the teacher panel shows the times, the Review as a grade, who is assigned,
   assert.match(controls, /manageAssignmentLifecycle\(\{ assignmentId, action: 'delete', \.\.\.confirmation \}\)/);
   assert.match(controls, /manageAssignmentLifecycle\(\{ assignmentId, action: archive \? 'archive' : 'unarchive' \}\)/);
 });
+
+/*
+ * A CLASS WHOSE TEST DAY HAD NO CLASS TIME IS FLAGGED (PR-21 review). Its
+ * students cannot start until the teacher sets a new day, so the panel says
+ * which classes need one, from the server's `needsNewDay` (a stranded status).
+ */
+test('the windows panel names the classes that need a new Test day', () => {
+  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
+  assert.match(schedule, /needsNewDay: test\.stranded === true,/);
+  const panel = region(management, 'export const TestCycleWindowsPanel = (', '{schedule.classes.length > 1 && !anytime && (', 'windows panel');
+  assert.match(panel, /\{!anytime && schedule\.classes\.some\(\(entry\) => entry\.test\?\.needsNewDay\) && \(/);
+  assert.match(panel, /Needs a new Test day: \{schedule\.classes\.filter\(\(entry\) => entry\.test\?\.needsNewDay\)\.map\(\(entry\) => entry\.name\)\.join\(', '\)\}/);
+});

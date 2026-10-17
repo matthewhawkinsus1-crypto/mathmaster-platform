@@ -19842,6 +19842,9 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         opensAt: test.opensAt ?? null,
         closesAt: test.closesAt ?? null,
         workFromHome: test.workFromHome === true,
+        // The Test day passed without class time (or was set after the class
+        // met): nobody can start the Test until the teacher sets a new day.
+        needsNewDay: test.stranded === true,
         ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher" }),
       },
       followUp: {
@@ -25115,6 +25118,16 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
     for (const classId of audienceClassIds) {
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
+      // A class whose window has already opened (it sat the Test, or is
+      // sitting it) is kept: moving it would put its Corrections back behind a
+      // new window and un-miss its absent students. Its own row moves it.
+      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
+        .filter((window) => window.resolved && window.opensAt <= now)
+        .sort((left, right) => right.opensAt - left.opensAt)[0];
+      if (ran) {
+        notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
+        continue;
+      }
       const first = classPeriod
         ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;
@@ -25125,7 +25138,11 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
         notes.push(`${classPeriod || classId}: no meeting found on the bell schedule from that day, so no window was set.`);
       }
     }
-    if (!chosen.length) throw new HttpsError("failed-precondition", "None of this Test's classes meets on the bell schedule from that day.");
+    if (!chosen.length) {
+      throw new HttpsError("failed-precondition", notes.some((note) => note.includes(": kept — "))
+        ? `No class was moved. ${notes.join(" ")}`
+        : "None of this Test's classes meets on the bell schedule from that day.");
+    }
     audit = { action, fromDateKey, classDays: chosen };
     edit = (current) => chosen.reduce(
       (next, entry) => sched.withClassTestDay(next, { ...entry, by: actor, at: now, replace: true }),
