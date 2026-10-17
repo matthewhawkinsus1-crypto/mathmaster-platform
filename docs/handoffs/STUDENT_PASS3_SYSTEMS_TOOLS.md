@@ -311,19 +311,19 @@ lower, under a 74px strip.
   at 100%, all three originals at 125%, and R₁. With 16em they report none,
   and the solver stays 1020px wide. The driver passes all 14 journeys.
 
-## Gate (run on `51cd51c`, after the review fixes)
+## Gate (run on `2609681`, after the round-2 review fixes)
 
 | Check | Result |
 | --- | --- |
 | `npm run test:platform` | 11427 / 11427 pass |
-| `node --test tests/tools/*.test.mjs` | 1653 pass, 0 fail, 1 skipped (the merge-base provenance check: shallow clone, environmental) |
+| `node --test tests/tools/*.test.mjs` | 1654 pass, 0 fail, 1 skipped (the merge-base provenance check: shallow clone, environmental) |
 | `npm run test:authoring-v5` | 686 / 686 pass |
 | `npm run lint` | exit 0. Only existing warnings, none in touched files |
 | `npm run build` | ok |
 | `npm run build:firebase` | ok. No tracked file rewritten (`git status` clean) |
 | `assessmentLeakGates.mjs` (vite) | pass |
 | `systemsWorkspaceStudio.mjs` (vite) | pass |
-| `algebraicSystems3x3.mjs` (vite) | 14 journeys pass, including the 6 new strip-fit journeys |
+| `algebraicSystems3x3.mjs` (vite) | 19 journeys pass, including the 11 strip-fit journeys (110% text and the R₁-simplify state included) |
 | `algebraicSubstitutionHandoff.mjs` (vite) | 9 journeys pass |
 | `day2NonuniqueJourneys.mjs` (vite) | 6 / 6 pass |
 | `workViewMatrix.mjs --write` (vite) | pass, 0 findings. The fixture changed only in `generatedAt`, so I restored it |
