@@ -138,8 +138,11 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   played. The room records `endedBy: "hostAway"` (readable by the class).
   Otherwise results wait for the teacher, as before.
 
-`enabled: false` on the same switch turns the whole sweep off — the first step
-of a rollback (`docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md`).
+On the same switch, `enabled` set to anything but the boolean `true` (`false`,
+`"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run
+logs that it did nothing. That is the first step of a rollback
+(`docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md`). The switch is read
+at the start of every run and again inside each finish's transaction.
 
 The sweep reads only rooms whose private state is due (`serverSweepDueAt`, set
 when a round opens and closes, cleared at the finish): one single-field range
@@ -415,7 +418,8 @@ game stops calibrating.
 
 - **Who can join**: the class roster at create time (`createLiveChallenge`
   invites each student; nobody else can join a room) — and a student added
-  to the class while its game is in the lobby or running
+  to the class while its game is in the lobby or running (and active in the
+  last 12 hours)
   (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
   `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
   their screen follows at once, and the late-join rule below. A student whose

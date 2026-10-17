@@ -54,7 +54,7 @@ export const HOST_HEARD_WRITE_INTERVAL_MS = 60_000;
 export const SERVER_RECHECK_MS = 30_000;
 // A room whose sweep failed waits this long before the next try, so one bad
 // room cannot take every run's slots.
-export const SERVER_FAILURE_BACKOFF_MS = 15 * 60_000;
+export const SERVER_FAILURE_BACKOFF_MS = 5 * 60_000;
 // A room whose due time could not even be moved waits this long.
 export const SERVER_RESCHEDULE_FAILURE_BACKOFF_MS = 15 * 60_000;
 // Rooms handled per run. The scheduler runs every minute.
@@ -65,17 +65,22 @@ export const SERVER_SWEEP_LIMIT = 25;
  * by every run). A rollback turns the sweep off here first — it does not
  * depend on deleting the scheduled function.
  *
- *   enabled               false: the run does nothing at all. Default true.
- *   finishAbandonedGames  true: abandoned results are ended (End Game).
- *                         Default FALSE: the owner decides
+ *   enabled               anything but the boolean true — false, "false", 0,
+ *                         null, "off" — turns the run off entirely. Only a
+ *                         missing field (or document) means the default, on.
+ *                         It fails CLOSED: a console's "Add field" defaults to
+ *                         a string, and a rollback must not silently not take.
+ *   finishAbandonedGames  only the boolean true: abandoned results are ended
+ *                         (End Game). Default FALSE: the owner decides
  *                         (docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md).
+ *                         Read again inside each finish's transaction.
  */
 export const SWEEP_SETTINGS_COLLECTION = 'platformFlags';
 export const SWEEP_SETTINGS_FLAG = 'liveChallengeServerSweep';
 
 /** The switch as stored (or absent): what this run may do. */
 export const sweepSettingsFrom = (stored = null) => Object.freeze({
-  enabled: stored?.enabled !== false,
+  enabled: stored && Object.prototype.hasOwnProperty.call(stored, 'enabled') ? stored.enabled === true : true,
   finishAbandonedGames: stored?.finishAbandonedGames === true,
 });
 

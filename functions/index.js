@@ -11196,10 +11196,10 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
  * who played it, so a late player changes nobody's earlier rounds.
  *
  * Never takes a student out of another game: an invite to a different room
- * that is still live is left alone. Only a game created in the last 12 hours.
+ * that is still live is left alone. Only a game active in the last 12 hours.
  * Never fails the roster change.
  */
-// A game older than this is not "on" for a newly enrolled student.
+// A game idle longer than this is not "on" for a newly enrolled student.
 const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 async function inviteStudentToClassLiveChallenge(db, studentId) {
@@ -11229,9 +11229,14 @@ async function inviteStudentToClassLiveChallenge(db, studentId) {
     const room = roomSnapshot.data() || {};
     const student = latestGrade.data() || {};
     if (!live(room.status) || room.teacherEmail !== teacherEmail) return { invited: false, reason: "no_game" };
-    // Today's game, not a lobby left open since yesterday.
-    const createdMs = toDate(room.createdAt)?.getTime() ?? 0;
-    if (Date.now() - createdMs > LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS) return { invited: false, reason: "stale_game" };
+    // Today's game, not a lobby left open since yesterday: measured from the
+    // room's latest activity — its round's start, its last change — so a game
+    // created last night and started this morning is today's.
+    const activeMs = Math.max(
+      ...[room.createdAt, room.updatedAt, room.startsAt, room.roundStartedAt, room.roundClosedAt]
+        .map((value) => toDate(value)?.getTime() ?? 0),
+    );
+    if (Date.now() - activeMs > LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS) return { invited: false, reason: "stale_game" };
     // The same membership rule as loadChallengeRoster.
     const inClass = room.classId
       ? String(student.classId || "") === String(room.classId)
@@ -12952,8 +12957,9 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
  * and writes its result; any later or concurrent call finds it terminal and
  * only resumes outstanding effects.
  *
- * `stillWanted`, when given, is asked inside the transaction, with the room
- * and private state as it read them, whether this finish should still happen
+ * `stillWanted`, when given, is asked inside the transaction (it may read
+ * more through the transaction it is handed), with the room and private
+ * state as it read them, whether this finish should still happen
  * (the server's finish of an abandoned game: not if the teacher opened a
  * round or was heard since). No: nothing is written, `{ skipped: true }`.
  * `endedBy` is recorded on the room ("hostAway": the server ended it).
@@ -12981,7 +12987,7 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status, 
     const plan = lifecycle.planLifecycleCommand({ command, room: currentRoom });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
-    if (stillWanted && !stillWanted({ room: currentRoom, privateState: privateSnapshot.exists ? privateSnapshot.data() || {} : {} })) {
+    if (stillWanted && !(await stillWanted({ transaction, room: currentRoom, privateState: privateSnapshot.exists ? privateSnapshot.data() || {} : {} }))) {
       return { skipped: true };
     }
     const pointsHere = Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId);
@@ -13461,23 +13467,26 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
   const plan = serverSweep.planServerSweep({ room, privateState, nowMs, settings });
   const seenDueMs = toDate(privateState.serverSweepDueAt)?.getTime() ?? null;
   // Moves this room's due time only if nothing (a close, an opening, another
-  // run) has moved it since this run read it.
-  // A move that fails pushes the room back instead, so a room that cannot be
-  // written never holds the batch every minute.
-  const reschedule = (nextDueMs) => db.runTransaction(async (transaction) => {
+  // run) has moved it since this run read it. A move that fails pushes the
+  // room back instead — still only if the document is exactly as this run's
+  // query read it — so a room that cannot be written never holds the batch
+  // every minute, and a fresh due time an opening just set is never lost.
+  // Resolves to the outcome this run reports.
+  const reschedule = (nextDueMs, outcome) => db.runTransaction(async (transaction) => {
     const latest = await transaction.get(privateDoc.ref);
     if (!latest.exists) return;
     if ((toDate(latest.data()?.serverSweepDueAt)?.getTime() ?? null) !== seenDueMs) return;
     transaction.update(privateDoc.ref, { serverSweepDueAt: liveChallengeSweepDate(nextDueMs) });
-  }).catch(async (error) => {
+  }).then(() => outcome, async (error) => {
     logger.error("liveChallenge.serverSweep.rescheduleFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
     await privateDoc.ref.update({
       serverSweepDueAt: liveChallengeSweepDate(nowMs + serverSweep.SERVER_RESCHEDULE_FAILURE_BACKOFF_MS),
-    }).catch(() => {});
+    }, { lastUpdateTime: privateDoc.updateTime }).catch(() => {});
+    return "backedOff";
   });
 
-  if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null).then(() => "cleared");
-  if (plan.action === serverSweep.SWEEP_ACTION.RESCHEDULE) return reschedule(plan.nextDueMs).then(() => "rescheduled");
+  if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null, "cleared");
+  if (plan.action === serverSweep.SWEEP_ACTION.RESCHEDULE) return reschedule(plan.nextDueMs, "rescheduled");
   try {
     if (plan.action === serverSweep.SWEEP_ACTION.CLOSE) {
       const closed = await closeLiveChallengeRoundForRoom(db, { roomRef, expected: plan.expected });
@@ -13491,14 +13500,23 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
       room,
       command: lifecycle.LIFECYCLE_COMMAND.FINISH,
       status: lifecycle.SESSION_STATUS.FINISHED,
-      stillWanted: ({ room: latestRoom, privateState: latestPrivate }) => serverSweep.stillAbandoned({
-        room: latestRoom, privateState: latestPrivate, expected: plan.expected, nowMs: Date.now(), settings,
-      }),
+      // The switch is read again here, in the finish's own transaction: a
+      // flip during a long run is honoured by the very next finish.
+      stillWanted: async ({ transaction, room: latestRoom, privateState: latestPrivate }) => {
+        const latestSwitch = await transaction.get(liveChallengeSweepSwitchRef(db, serverSweep));
+        return serverSweep.stillAbandoned({
+          room: latestRoom,
+          privateState: latestPrivate,
+          expected: plan.expected,
+          nowMs: Date.now(),
+          settings: serverSweep.sweepSettingsFrom(latestSwitch.exists ? latestSwitch.data() : null),
+        });
+      },
       endedBy: "hostAway",
     });
     if (finished.skipped) {
       // The teacher came back (or moved on): look again after the window.
-      await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS);
+      await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS, "kept");
       return "kept";
     }
     if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
@@ -13510,17 +13528,24 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
     if (!stillRunning) {
       logger.error("liveChallenge.serverSweep.failed", { roomId: roomRef.id, action: plan.action, message: error?.message || String(error) });
     }
-    await reschedule(nowMs + (stillRunning ? serverSweep.SERVER_RECHECK_MS : serverSweep.SERVER_FAILURE_BACKOFF_MS)).catch(() => {});
+    await reschedule(nowMs + (stillRunning ? serverSweep.SERVER_RECHECK_MS : serverSweep.SERVER_FAILURE_BACKOFF_MS), null);
     return stillRunning ? "stillRunning" : "failed";
   }
 }
 
+const liveChallengeSweepSwitchRef = (db, serverSweep) => db
+  .collection(serverSweep.SWEEP_SETTINGS_COLLECTION)
+  .doc(serverSweep.SWEEP_SETTINGS_FLAG);
+
 async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() }) {
   const { serverSweep } = await liveChallengeEngine();
-  // The switch, read on every run: off, the run does nothing.
-  const switchSnapshot = await db.collection(serverSweep.SWEEP_SETTINGS_COLLECTION).doc(serverSweep.SWEEP_SETTINGS_FLAG).get();
+  // The switch, read on every run: off, the run does nothing (and says so).
+  const switchSnapshot = await liveChallengeSweepSwitchRef(db, serverSweep).get();
   const settings = serverSweep.sweepSettingsFrom(switchSnapshot.exists ? switchSnapshot.data() : null);
-  if (!settings.enabled) return { scanned: 0, disabled: true, outcomes: {} };
+  if (!settings.enabled) {
+    logger.info("liveChallenge.serverSweep.disabled", { flag: `${serverSweep.SWEEP_SETTINGS_COLLECTION}/${serverSweep.SWEEP_SETTINGS_FLAG}` });
+    return { scanned: 0, disabled: true, outcomes: {} };
+  }
   // One single-field range: no composite index, and an idle minute is one read.
   // Only the two fields the sweep reads: never a room's questions or solutions.
   const due = await db.collection(LIVE_CHALLENGE_PRIVATE)

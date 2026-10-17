@@ -5,7 +5,9 @@ at `6accda1`. Evidence: `docs/qa/student-experience-pass-3/06-open-items-qa-docs
 rows Q-23 and Q-58, and `docs/architecture/live-challenge-shell.md` §14. Nothing
 was deployed. Every test ran against the emulators only.
 
-**Revision 2** addresses the integrator's review of `777b952`. It adds a kill
+**Revision 3** addresses the integrator's round-2 review of `bc78055` (see
+"Round-2 review of bc78055" at the end). **Revision 2** addresses the
+integrator's review of `777b952`. It adds a kill
 switch, makes ending abandoned games off by default, refuses to end a game
 whose host was never heard or that writes a grade, gives a safe deploy and
 rollback order, and adds the tests the review asked for (see "Review of
@@ -33,10 +35,16 @@ teacher came back. If the teacher never came back, the game never finished.
 - **The switch.** `platformFlags/liveChallengeServerSweep` is read on every
   run. The rules already make `platformFlags` server-written only, and a rules
   test now covers this document. It has two fields:
-  - `enabled` (default **true**). When false, the run does nothing: no query
-    and no writes. This is a rollback's first step.
+  - `enabled` (default **true** when the field is absent). It fails
+    **closed**: any value but the boolean `true` (`false`, `"false"`, `0`,
+    `null`, `"off"`) turns the run off, with no query and no writes, and the
+    run logs `liveChallenge.serverSweep.disabled`. This is a rollback's first
+    step. The Firebase console's Add-field dialog defaults to a string, and a
+    string still takes.
   - `finishAbandonedGames` (default **false**; only a real `true` turns it on).
-    Ending abandoned games is the owner's decision (decision 1).
+    Ending abandoned games is the owner's decision (decision 1). It is read at
+    the start of each run **and again inside each finish's transaction**, so
+    a flip during a run (up to 300 s) is honoured by the very next finish.
 - **Closing an overdue round** (on by default; this is the student-facing
   fix). An open round 10 s past its deadline (`SERVER_CLOSE_GRACE_MS`) is
   closed by **the console's own close**. `closeLiveChallengeRound`'s
@@ -80,8 +88,11 @@ teacher came back. If the teacher never came back, the game never finished.
     student listens to.
   - Idle cost is about 43k reads and 43k invocations a month, plus one Cloud
     Scheduler job, plus the switch read (one more read a minute).
-  - A room that fails backs off 15 minutes, including when its due time itself
-    cannot be moved.
+  - A transient close or finish failure is retried after 5 minutes. A room
+    whose due time cannot even be moved backs off 15 minutes, as a
+    compare-and-set against the version this run's query read, so a fresh due
+    time an opening just set is never overwritten; the run reports that room
+    as `backedOff`.
 - **What a student sees.** Results arrive within about 70 s at worst instead
   of whenever the teacher returns. With the finish off (the default), the
   results then wait for the teacher, as today. With a console open nothing
@@ -111,11 +122,13 @@ it):
 - the heartbeat memo releases after a minute;
 - **unheard results and Warm-Up results are left to the teacher**;
 - **the switch**: with no document, closing is on and ending is off;
-  `enabled: false` scans and writes nothing;
+  `enabled: "false"` (a string) scans and writes nothing; **a switch flipped
+  off between the sweep's decision and its finish transaction stops that
+  finish** (gated);
 - a finished game is dropped from the sweep without being touched.
 
 Unit and wiring tests are in `tests/platform/liveChallengeServerSweep.test.mjs`
-(11 tests). Rules are in `tests/rules/liveChallengeServerSweepRules.test.mjs`:
+(11 tests; the switch's fail-closed values are among them). Rules are in `tests/rules/liveChallengeServerSweepRules.test.mjs`:
 no teacher, root admin, student or anonymous user can read `liveChallengePrivate`,
 run the sweep's range query, forge a heartbeat or move a due time; the switch
 is readable when signed in and writable by no client.
@@ -132,8 +145,10 @@ audit) and after `createStudentAccount`'s commit. Through the teacher's
 active-room pointer, in one transaction, it acts only for a room that is:
 
 - in its lobby or running;
-- **created in the last 12 hours** (a lobby left open since yesterday invites
-  nobody);
+- **active in the last 12 hours**, measured from the latest of its creation,
+  last change, round start and round close: a lobby left open since yesterday
+  invites nobody, but a game created last night and started this morning is
+  today's;
 - in the student's class, by `loadChallengeRoster`'s membership rule.
 
 For such a room it writes the next seat and code name, an invite (`running`
@@ -153,7 +168,8 @@ client change, and it needs Hosting.**
 - another live game is kept;
 - no game means no invite;
 - **a teacher's other class: not pulled into this class's game**;
-- **a stale lobby: no invite**.
+- **a stale lobby: no invite**;
+- **a game created 13 h ago and started now: invited `running`**.
 
 Wiring for the three hooks and for the roster deps is covered by the unit and
 shell-wiring tests.
@@ -174,6 +190,10 @@ shell-wiring tests.
 | Stale-lobby bound removed | emulator "stale lobby" |
 | Rules: `liveChallengePrivate` readable by teachers / `platformFlags` writable by root | rules suite tests 1 / 2 |
 | Console roster deps without `invitedCount` | shell wiring |
+| Switch fails open again (`!== false`) (round 2, fix 1) | emulator "the switch"; unit 1 |
+| Switch not re-read in the finish transaction (fix 2) | emulator "switch turned off while a run is under way"; unit 9 |
+| Invite bound from `createdAt` only / removed (fix 3) | emulator "created last night, started this morning" / "stale lobby" |
+| The disabled run's log line removed | unit 9 |
 | Earlier: heartbeat ignored, CLEAR no-op, other live invite overwritten, heartbeat ownership, `eligibleCount` not bumped, close not idempotent, close sets no due, hook removed, grace and paused boundaries, heartbeat interval | as in revision 1 |
 
 ## Gate (at the head this report names)
@@ -185,7 +205,7 @@ shell-wiring tests.
 | `npm run build` | pass |
 | `npm run build:firebase` | pass; no tracked file rewritten |
 | `npm run test:rules` | pass (243/243; 211/211 node rules tests, incl. the new suite) |
-| `npm run test:challenge-finish` (all of `tests/integration/*.test.mjs`) | 462 / 462 pass (new suite: 19) |
+| `npm run test:challenge-finish` (all of `tests/integration/*.test.mjs`) | GATE_FINISH |
 | `npm run test:live-challenge-launch:emulator` | 10 / 10 pass |
 | `test:live-challenge-teaching-browser` (alone) | 58 / 58 checks |
 | `test:live-challenge-projector-privacy-browser` (alone) | 86 checks, no findings |
@@ -222,9 +242,12 @@ Firebase console.
 
 **Rollback**, in this order:
 
-1. Set `platformFlags/liveChallengeServerSweep` `{ enabled: false }` (takes
-   effect on the next minute's run), **or** pause or delete the Cloud Scheduler
-   job for `closeOverdueLiveChallengeRounds`.
+1. Set `platformFlags/liveChallengeServerSweep` `enabled` to `false` (any
+   value but the boolean `true` works, a string included). It takes effect on
+   the next run (within a minute; a finish already under way re-reads it in
+   its own transaction), and the logs show `liveChallenge.serverSweep.disabled`.
+   **Or** pause or delete the Cloud Scheduler job for
+   `closeOverdueLiveChallengeRounds`.
 2. Then redeploy the old callables by name. The generated rollback ("redeploy
    previous code by name") does not delete the new scheduled function. The
    switch is what stops it.
@@ -299,3 +322,24 @@ Firebase console.
   - `endedBy` visibility stated;
   - stale lobbies bounded at 12 h;
   - the `liveChallengePrivate` rules test added.
+
+## Round-2 review of bc78055: what changed in revision 3
+
+1. **The switch fails closed.** Only the boolean `true` (or an absent field)
+   leaves the sweep on; `"false"`, `0`, `null` and `"off"` turn it off. A
+   disabled run logs one line.
+2. **The finish re-reads the switch inside its own transaction** (one extra
+   read per finish), so a flip during a long run stops the next finish. The
+   docs now say exactly that.
+3. **The late-invite bound counts from the room's latest activity** (created,
+   changed, round started or closed), not from creation alone.
+
+Notes taken:
+- The backoff fallback is a compare-and-set (`lastUpdateTime` of the query's
+  read) and reports `backedOff`.
+- A transient close failure waits 5 minutes again; only a room whose due time
+  cannot be moved waits 15.
+
+Notes left as they are: `maxInstances: 1` makes a Scheduler call that lands
+during a long run get a 429 (log noise only). The console roster re-read is
+one callable fetch per change of the invited count.

@@ -39,6 +39,12 @@ test('the switch: the sweep is on and ending abandoned games is off unless the o
   assert.ok(SWEEP_SETTINGS_FLAG);
   assert.deepEqual({ ...sweepSettingsFrom(null) }, { enabled: true, finishAbandonedGames: false });
   assert.deepEqual({ ...sweepSettingsFrom({ enabled: false }) }, { enabled: false, finishAbandonedGames: false });
+  // It fails CLOSED: a rollback typed into a console as a string still takes.
+  for (const value of ['false', 'off', 0, null, 'true', 1]) {
+    assert.equal(sweepSettingsFrom({ enabled: value }).enabled, false, `enabled: ${JSON.stringify(value)} turns the sweep off`);
+  }
+  assert.equal(sweepSettingsFrom({ enabled: true }).enabled, true);
+  assert.equal(sweepSettingsFrom({ finishAbandonedGames: true }).enabled, true, 'a document without the field keeps the default');
   assert.deepEqual({ ...sweepSettingsFrom({ finishAbandonedGames: 'yes' }) }, { enabled: true, finishAbandonedGames: false }, 'only a real true turns it on');
   // Longer than a class talking a round through, or a laptop's nap.
   assert.ok(HOST_AWAY_FINISH_MS >= 30 * 60_000);
@@ -157,15 +163,20 @@ test("the scheduled sweep is private, runs every minute, and uses the console's 
   // The switch is read on every run, before anything else.
   const switchRead = query.indexOf('serverSweep.sweepSettingsFrom(');
   assert.ok(switchRead !== -1 && switchRead < query.indexOf('.where("serverSweepDueAt"'), 'the switch is read first');
-  assert.match(query, /if \(!settings\.enabled\) return \{ scanned: 0, disabled: true, outcomes: \{\} \};/);
+  // Off: one log line, then nothing.
+  assert.match(query, /if \(!settings\.enabled\) \{\s*logger\.info\("liveChallenge\.serverSweep\.disabled"[^\n]*\n\s*return \{ scanned: 0, disabled: true, outcomes: \{\} \};/);
   assert.match(room, /serverSweep\.planServerSweep\(\{ room, privateState, nowMs, settings \}\)/);
-  assert.match(room, /nowMs: Date\.now\(\), settings,/, 'the re-check uses the real now and the switch');
+  // The re-check reads the switch again, in the finish's own transaction, at the real now.
+  const switchRecheck = region(room, 'stillWanted: async ({ transaction,', '\n      },', 'the re-check');
+  assert.match(switchRecheck, /await transaction\.get\(liveChallengeSweepSwitchRef\(db, serverSweep\)\)/);
+  assert.match(switchRecheck, /nowMs: Date\.now\(\),/);
+  assert.match(switchRecheck, /settings: serverSweep\.sweepSettingsFrom\(latestSwitch\.exists \? latestSwitch\.data\(\) : null\),/);
   // The host's command is the same function.
   const callable = region(index, 'exports.closeLiveChallengeRound = onCall(', '\n});', 'the close callable');
   assert.match(callable, /return closeLiveChallengeRoundForRoom\(db, \{/);
   // The finish honours the re-check before it writes anything.
   const finalize = region(index, 'async function finalizeLiveChallengeMatch(', 'exports.joinLiveChallenge', 'finalize');
-  const recheck = finalize.indexOf('if (stillWanted && !stillWanted(');
+  const recheck = finalize.indexOf('if (stillWanted && !(await stillWanted({ transaction,');
   assert.ok(recheck !== -1 && recheck < finalize.indexOf('applyLiveChallengeMatchFinalization(transaction'), 'checked before the finish is applied');
 });
 

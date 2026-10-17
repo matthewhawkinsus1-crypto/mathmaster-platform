@@ -437,8 +437,9 @@ test('the switch: ending abandoned games is off unless set, and off turns the wh
     await resultsAbandonedLongAgo(roomId);
     assert.equal((await runSweep()).outcomes[roomId], 'cleared', 'ending abandoned results is off by default');
     assert.equal((await roomOf(roomId)).status, 'running');
-    // enabled: false — a rollback's first step. Nothing is read or written.
-    await switchRef.set({ enabled: false, finishAbandonedGames: true });
+    // enabled: "false" (typed into a console as a string) — a rollback's first
+    // step still takes. Nothing is read or written.
+    await switchRef.set({ enabled: 'false', finishAbandonedGames: true });
     await resultsAbandonedLongAgo(roomId);
     const off = await runSweep();
     assert.equal(off.disabled, true);
@@ -560,9 +561,42 @@ test("a teacher's other class: a student added there is not pulled into this cla
 test('a lobby left open since yesterday invites nobody', async () => {
   const klass = await seedClass('late-stale');
   const { roomId } = await create(klass);
-  await roomRef(roomId).update({ createdAt: Timestamp.fromMillis(Date.now() - 13 * 60 * 60 * 1000) });
+  const yesterday = Timestamp.fromMillis(Date.now() - 13 * 60 * 60 * 1000);
+  await roomRef(roomId).update({ createdAt: yesterday, updatedAt: yesterday });
   const late = await lateStudent('stale');
   await call('setStudentClass', rootRequest({ studentId: late, classId: klass.classId }));
   assert.equal(await inviteOf(late), null);
   await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('a game created last night and started this morning is today\'s: a student added now is invited', async () => {
+  const klass = await seedClass('late-overnight');
+  const { roomId } = await create(klass);
+  await roomRef(roomId).update({ createdAt: Timestamp.fromMillis(Date.now() - 13 * 60 * 60 * 1000) });
+  await call('joinLiveChallenge', studentRequest(klass.students[0], { roomId }));
+  await call('startLiveChallenge', klass.as({ roomId }));
+  const late = await lateStudent('overnight');
+  await call('setStudentClass', rootRequest({ studentId: late, classId: klass.classId }));
+  assert.equal((await inviteOf(late))?.roomId, roomId);
+  assert.equal((await inviteOf(late)).status, 'running');
+  await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('the switch turned off while a run is under way stops the very next finish', async () => {
+  const klass = await seedClass('switch-mid-run');
+  const roomId = await roundZeroPlayed(klass);
+  await call('closeLiveChallengeRound', klass.as({ roomId, force: true }));
+  await resultsAbandonedLongAgo(roomId);
+  // The run read the switch on; the owner turns the finish off before this
+  // room's finish transaction.
+  const gate = beforeNextTransaction(() => switchRef.set({ enabled: true, finishAbandonedGames: false }));
+  try {
+    const run = await runSweep();
+    assert.equal(gate.fired, true);
+    assert.equal(run.outcomes[roomId], 'kept', 'the finish read the switch in its own transaction');
+    assert.equal((await roomOf(roomId)).status, 'running');
+  } finally {
+    await switchRef.set({ enabled: true, finishAbandonedGames: true });
+  }
+  await call('finishLiveChallenge', klass.as({ roomId }));
 });
