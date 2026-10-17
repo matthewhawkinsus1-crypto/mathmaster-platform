@@ -161,8 +161,14 @@ const run = async (viewport) => {
   expect(`P2 ${tag}`, isLocked(warmup), `Warm-Up Q1 is not locked: ${JSON.stringify(warmup)}`);
   expect(`P2 ${tag}`, isLocked(dol), `the DOL is not locked: ${JSON.stringify(dol)}`);
   await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${MET}`);
-  await shown(page, /Welcome, |[Qq]uestion \d+ of \d+|RESULT SO FAR/).waitFor({ timeout: 60_000 });
-  await page.waitForTimeout(1500);
+  // Ready means the address has been opened: a question (or the result page)
+  // is on screen. "Welcome, " is Home's flash while the app loads, and
+  // "Question n of N" is the navigator, which can paint before its question;
+  // asserting the address 1.5 s after either raced the redirect on a loaded
+  // machine (both builds open the address about 1.5 s after Home's flash).
+  await page.locator('.mathmaster-question-stage math-field').first()
+    .or(shown(page, RESULT)).first().waitFor({ timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(800);
   expect(`P2 ${tag}`, pathOf(page) !== `/assignments/${LESSON}/dol/1`, 'the DOL question\'s address opened the DOL early');
   const beforeDol = (await receiptsFor(page, MET, LESSON)).length;
   expect(`P2 ${tag}`, !/DOL(?: \/ Exit Ticket)?, question 1/i.test(await bodyText(page)), 'the DOL question is on screen');
