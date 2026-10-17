@@ -1154,7 +1154,7 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
   const late = await notMissed('a day stored after its meeting ended');
   assert.equal(late.schedule.test.state, 'upcoming');
   assert.equal(late.schedule.test.headline, 'Waiting for a new Test day');
-  assert.match(late.schedule.test.detail, /had already ended when it was set as the Test day, so you have not missed it/);
+  assert.match(late.schedule.test.detail, /had already ended when it was set as the Test day\. Your teacher will set a new Test day\./);
   const lateStart = await refusal(fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: late.examSessionId })));
   assert.equal(lateStart?.code, 'failed-precondition');
   assert.match(lateStart.message, /waiting for a new Test day/);

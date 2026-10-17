@@ -21,7 +21,7 @@ import {
   resolveTestCycleStage,
   studentMissedOriginalTest,
 } from '../../functions/shared/testCycleStages.mjs';
-import { resolveStudentTestCycleSchedule, withClassTestDay, withFollowUpClose, withStudentTestWindow } from '../../functions/shared/testCycleAvailability.mjs';
+import { resolveStudentTestCycleSchedule, withClassCustomWindow, withClassTestDay, withFollowUpClose, withStudentTestWindow } from '../../functions/shared/testCycleAvailability.mjs';
 import { zonedInstant } from '../../functions/shared/instructionalCalendar.mjs';
 
 const TZ = 'America/Chicago';
@@ -261,4 +261,31 @@ test('a Test day set after the meeting ended, or never given times, does not put
   const nextWeek = scheduleAt(at(19, 9), { config: undesignated });
   assert.equal(studentMissedOriginalTest({ record: student, schedule: nextWeek }), false);
   assert.equal(resolve(student, REVIEW_DONE, at(19, 9), { config: undesignated }).canEnter, false, 'not opened early either');
+});
+
+/*
+ * ...AND A STRANDED DAY NEVER BLOCKS A STUDENT WHO SAT THE TEST. The teacher's
+ * fix for a stranded day is a reopen (or another day); once that has run,
+ * whoever sat it is in Corrections or the Retest and whoever did not missed it
+ * — exactly as without the stranded day. And when a day the class sat stops
+ * resolving later, the students who sat it still go on.
+ */
+test('a stranded day beside a reopen that ran: who sat it goes on, who did not missed it', () => {
+  const satAndFailed = record({ test: { examSessionId: 't2', state: 'released', rawScore: 40 }, corrections: { planId: 'p2', required: true, total: 3, completedTargets: 1 } });
+  const readyForRetest = record({ test: { examSessionId: 't3', state: 'released', rawScore: 40 }, corrections: { planId: 'p3', required: true, complete: true, total: 3, completedTargets: 3 }, retest: { examSessionId: 'r3', state: 'assigned' } });
+  const never = record({ test: assigned });
+  const stranded = withClassTestDay(null, { classId: 'c3', dateKey: '2026-10-16', at: at(14, 9) });
+  const reopened = { lateDueAt: '2026-10-30', testAvailability: withClassCustomWindow(stranded, { classId: 'c3', opensAt: at(19, 10, 15), closesAt: at(19, 11, 5), at: at(19, 8) }) };
+  const afterReopen = at(19, 13);
+  const corrections = resolve(satAndFailed, REVIEW_DONE, afterReopen, { config: reopened });
+  assert.deepEqual([corrections.stage, corrections.canEnter], [STAGE.CORRECTIONS, true]);
+  const retest = resolve(readyForRetest, REVIEW_DONE, afterReopen, { config: reopened });
+  assert.deepEqual([retest.stage, retest.canEnter], [STAGE.RETEST, true]);
+  assert.equal(resolve(never, REVIEW_DONE, afterReopen, { config: reopened }).missedTest, true);
+
+  // The stranded day alone: the student who never started waits, the ones who sat go on.
+  const alone = { lateDueAt: '2026-10-30', testAvailability: stranded };
+  assert.deepEqual(summary(resolve(never, REVIEW_DONE, afterReopen, { config: alone })).slice(0, 2), [STAGE.TEST, false]);
+  assert.equal(resolve(satAndFailed, REVIEW_DONE, afterReopen, { config: alone }).canEnter, true);
+  assert.equal(resolve(readyForRetest, REVIEW_DONE, afterReopen, { config: alone }).canEnter, true);
 });

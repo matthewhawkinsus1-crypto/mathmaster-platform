@@ -411,13 +411,20 @@ export const resolveTestWindowStatus = ({
 
   // A window the bell schedule never gave times for — its day passed while
   // undesignated, the class stopped meeting that day, or it was set after the
-  // meeting ended — was never open to anyone, so it is never "missed": the
-  // Test stays enforced (it cannot be started) and waits for a new day, and
-  // nobody is moved to a Retest because of it.
+  // meeting ended — was never open to anyone, so on its own it is never
+  // "missed": the Test stays enforced (it cannot be started) and waits for a
+  // new day, and nobody is moved to a Retest because of it.
+  //
+  // But only ON ITS OWN. When a real window has opened and closed — a reopen
+  // between two times, another day that did resolve, one student's make-up —
+  // that window is what the class had, and the Test is closed exactly as if
+  // the stranded day were not there. Otherwise a teacher who fixed a stranded
+  // day by reopening it would leave everyone who sat the reopen waiting.
+  const ranAndClosed = windows.filter((window) => window.resolved && window.closesAt <= at);
   const stranded = windows
     .filter((window) => !window.resolved)
     .sort((left, right) => String(left.dateKey || '').localeCompare(String(right.dateKey || '')));
-  if (stranded.length) {
+  if (stranded.length && !ranAndClosed.length) {
     const last = stranded[stranded.length - 1];
     return {
       state: WINDOW_STATE.UPCOMING,
@@ -438,7 +445,8 @@ export const resolveTestWindowStatus = ({
     state: WINDOW_STATE.CLOSED,
     enforced: true,
     opensAt: null,
-    closesAt: Math.max(...windows.map((window) => window.closesAt)),
+    // The windows that actually ran: a stranded day's midnight is not a close.
+    closesAt: Math.max(...(ranAndClosed.length ? ranAndClosed : windows).map((window) => window.closesAt)),
     windows,
     workFromHome: false,
   };
@@ -495,7 +503,11 @@ export const resolveFollowUpWindow = ({
   }
 
   const opensAt = testEnforced && testStatus.state === WINDOW_STATE.CLOSED ? testStatus.closesAt : null;
-  const waitingOnTest = testEnforced && testStatus.state !== WINDOW_STATE.CLOSED;
+  // A stranded Test (a day that never got times) is not a window still to
+  // come, so it never holds this one shut: a student who did sit the Test —
+  // a window that was real when they sat it, a make-up — goes on to
+  // Corrections and the Retest. Nobody who has not sat it has either.
+  const waitingOnTest = testEnforced && testStatus.state !== WINDOW_STATE.CLOSED && testStatus.stranded !== true;
   let state = WINDOW_STATE.OPEN;
   if (waitingOnTest) state = WINDOW_STATE.UPCOMING;
   else if (closesAt !== null && at >= closesAt) state = WINDOW_STATE.CLOSED;
@@ -620,12 +632,14 @@ export const describeTestWindow = (status, { timeZone = null, audience = 'studen
       const why = status.pendingReason === 'endedBeforeSet'
         ? `${day}'s class had already ended when it was set as the Test day`
         : `${day} passed before the bell schedule gave this class's times for it`;
+      // Said as it is: no claim about who sat or missed it (a window can stop
+      // resolving after a class sat it — a rotation change, a renamed period).
       return {
         state,
         headline: 'Waiting for a new Test day',
         detail: audience === 'teacher'
-          ? `${why}, so no student missed it. Set a new Test day, or reopen the window between two times.`
-          : `${why}, so you have not missed it. Your teacher will set a new Test day.`,
+          ? `${why}. Students who have not started the Test cannot start it until you set a new Test day or reopen the window between two times.`
+          : `${why}. Your teacher will set a new Test day.`,
         home,
       };
     }
@@ -751,8 +765,15 @@ export const withClassTestDay = (raw, { classId, dateKey, by = null, at = null, 
   const normalized = normalizeTestAvailability(raw);
   const id = clean(classId);
   if (!id || !isDateKey(dateKey)) throw new Error('A class and a YYYY-MM-DD date are required.');
-  const window = normalizeWindow({ id: `day-${clean(dateKey)}`, mode: TEST_WINDOW_MODE.CLASS_PERIOD, dateKey, by, at });
-  const existing = replace ? [] : list(normalized.classWindows[id]).filter((entry) => entry.id !== window.id);
+  const current = list(normalized.classWindows[id]);
+  // Saving the same day again keeps when it was first set: `at` is what tells
+  // a day set in time from one set after its class had already met
+  // (resolveClassWindows' `endedBeforeSet`), so a re-save must not move it.
+  const same = current.find((entry) => entry.id === `day-${clean(dateKey)}` && entry.mode === TEST_WINDOW_MODE.CLASS_PERIOD);
+  const window = normalizeWindow({
+    id: `day-${clean(dateKey)}`, mode: TEST_WINDOW_MODE.CLASS_PERIOD, dateKey, by: same?.by ?? by, at: same?.at ?? at,
+  });
+  const existing = replace ? [] : current.filter((entry) => entry.id !== window.id);
   return storedShape({
     ...normalized,
     policy: TEST_AVAILABILITY_POLICY.CLASS_TIME,
