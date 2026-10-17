@@ -167,6 +167,18 @@ Each fix is its own commit; the sections above already describe the result.
 | question-family-cases CI: drivers looked for "Check my work". | Accept the Submit label; one `finalAction` helper for the day-2 journeys (`1b3bd23`). | `questionFamilyCases.mjs`: all 36 journeys |
 | Notes: cost on a closed question's tool button; phone "← Back to Q1" failed label-in-name; GraphScenarioMatch said "use Submit Answer". | No cost while closed; "← Go back"; "use **Submit** below" (`5925ba3`). | `submitAndFinish`, `workBarPrimaryLabel`, `submitAndFinishJourneys` |
 
+**Gate, rerun on the final tree (after `22237df`):**
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | **11,446 / 11,446**. The first rerun found one contract the blocker fix broke (`pausedWorkRefresh` read the module key inline); fixed in `22237df` |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | pass |
+| `npm run certify:accessibility` | passed, 11 screens × 2 viewports, served as CI serves it (5199 with `tests/browser/emulator/vite.config.mjs`, 5188 with `tests/browser/accessibilityAppHarness.vite.config.mjs`). Served with the teacher-workflow config instead, the live-challenge lobby cannot open ("reading 'fromCache'"): a serving difference, not a failure |
+| `npm run certify:dark-mode` | passed, 192 surfaces |
+| Browser drivers | all pass: moduleRecoveryLock (new), closedQuestionEnter (new), feedbackTeaches, workBarPrimaryLabel, workViewTerminalTransition, closedVerdictChip, afterLastMiss, dolCloseCopy, errorRecovery, renderStability, duplicateTabs, studentAccessibleNames, toolPolicyGates, toolAttemptOutcome, systemsWorkspaceStudio, algebraicSystems3x3, studentUxPlatform, hostAccessibility (emulator config), questionFamilyCases (36 journeys) |
+| Teacher-harness journeys | all pass: submitAndFinishJourneys, journeys, draftCrossDeviceJourneys, recoveryHoldJourneys, restoredDraftFocusRaceJourneys, warmupReopenJourneys |
+
 **Mutation checks, rerun on the final tree:** 78 scripted (the 64 above plus 14 for the review fixes), **77 red**; the
 one green is the closed-card order explained below. A first run of the review mutations was not trustworthy: a staging
 slip had duplicated the module-key declarations in the working copy, so every rendered test failed to compile. It never
