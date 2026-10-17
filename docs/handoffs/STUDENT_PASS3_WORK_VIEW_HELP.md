@@ -75,6 +75,24 @@ hints-off ignored; publication ignores the decision; directions replaced instead
 Systems flags removed; work history not `controlsOnly`; snap note exact — 14 red in the node suite. The Systems flag was first green (its contract only allowed the prop), then pinned and seen red. In the
 browser driver: directions unfolded in the drawer, the B2 sentence restored, tool method Help on a DOL — 3 of 3 red.
 
+## Review round 2 (integrator review of `f6d6100`)
+
+The integrator found every round-1 finding fixed and no new leak path, and asked for three changes.
+
+| Finding | What a student saw | What changed | Proof |
+| --- | --- | --- | --- |
+| 1 · integration | On the integration branch QuestionEngine's opener is "Open Work View" (session A); `workViewHelpReach` timed out on "Enlarge question". | `workViewHelpReach` and `toolPolicyGates` match `/Enlarge question\|Open Work View/`. No other new or changed driver uses that locator. | both drivers pass on this branch |
+| 2 · operability | DOL/quiz/test: Linear Table Workbench (and the Representation Bridge's table stage) never said rows are tapped in pairs, and classifying stays locked until the intervals are recorded; the Regression Calculator showed a blank calculator with no operating text. | Where the method is withheld the workbench and the bridge pass a controls-only list (`stepsAreControls={methodWithheld}`): "Tap two rows to form an interval.", "Enter Δx, Δy and Δy/Δx for that interval, then record it.", "Record N different intervals; …". The calculator always has one (Add Item → table, Add Regression, read and submit; it never names a model). | `workViewHelpAndMethod`: each tool rendered whole through Vite SSR on practice and on a DOL (5 → 3 steps; bridge 5 → 2; calculator 3 on both) |
+| 3 · rule in the body | Complex Plane rotation on a DOL: "One multiplication by i is a 90° counterclockwise rotation." | Withheld where the method is. | SSR render: present on practice, absent on a DOL |
+
+Round-2 mutations (each seen red, restored): the workbench, bridge and calculator flags dropped; the workbench's
+method list shown on a DOL; the rotation rule ungated — 5 of 5 red.
+
+Owner notes (left as they are, as the integrator suggested): `RepresentationBridge.jsx:514/:542` ("a is the rate,
+c is the zero/x-intercept"; "Plot the x-intercept… then a second point using the slope") and
+`RepresentationMatch.jsx:521`'s "Representation reasoning" fold are body text that may name the method on an
+assessment; neither was changed.
+
 ## Source contracts rewritten (SOURCE_CONTRACT_PLAYBOOK)
 
 | Test | Protected behaviour | Old pin | New assertion |
@@ -163,7 +181,8 @@ Hosting only (browser code). No functions, rules or indexes.
 - Tool files (sessions D, E): one `stepsAreControls` line each in Graphing2, IntervalNumberLine, RelationMapping,
   OpenSortBoard, StepAlgebra2, ExpressionMeaning; the same prop in DataModelingLab and SystemsWorkspace;
   TransformationsLab: import, one hook call, three gates; Graphing2: the snap note; StepAlgebra2 and OpenSortBoard:
-  step wording (N3).
+  step wording (N3); LinearTableWorkbench, RepresentationBridge, RegressionCalculator: a controls-only step list;
+  ComplexPlaneLab: one gated line.
 - `.github/workflows/student-runtime-browser-gates.yml`: the new driver, its path trigger and comment line.
 
 ## Not done
@@ -172,3 +191,4 @@ Hosting only (browser code). No functions, rules or indexes.
   was the one found).
 - Mixed step lists were not split (decision 1).
 - Tool subtitles were not reworded (decision 2); practice still shows them.
+- The two Representation Bridge lines and the Representation Match fold in the round-2 owner notes.
