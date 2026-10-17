@@ -169,6 +169,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={`Solve ${formatEquation(original)} for x.`}
+        stepsAreControls
         steps={[
           'Pick an operation and a number for the move you want to make.',
           'Apply it. Repeat until the equation reads x = a number.',

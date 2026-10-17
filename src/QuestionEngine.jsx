@@ -2814,12 +2814,14 @@ function QuestionEngineBody({
       <WorkViewCapabilityProvider capabilities={{
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
-        help: workspaceActions.help || {
+        // Authoritative: a tool's Help goes below it, never in its place
+        // (student pass 3, TOOL-3; workViewCapabilities.js).
+        help: { ...(workspaceActions.help || {
           label: 'Help',
           text: locked
             ? 'This question is closed. Your work stays in place when you open or close Work View.'
             : 'Hints are not part of this activity. Use the task directions and the controls in this workspace; your work stays in place when you open or close Work View.',
-        },
+        }), authoritative: true },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         // The same Support tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).

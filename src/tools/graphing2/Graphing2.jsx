@@ -349,6 +349,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={targetPrompt(normalizedQuestion, target)}
+        stepsAreControls
         steps={[
           'Click the grid to plot a point. A crosshair shows the exact coordinate before you click.',
           requiredPointCount > 2

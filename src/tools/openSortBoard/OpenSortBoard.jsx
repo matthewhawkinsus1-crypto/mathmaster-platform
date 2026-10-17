@@ -174,6 +174,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         task={controlled
           ? 'Place every card into one of the provided categories. Each card has one correct destination.'
           : 'Sort every card into at least two groups. Name your groups and explain the mathematical feature that makes each group belong together.'}
+        stepsAreControls
         steps={controlled ? [
           'Read or inspect one card.',
           'Tap the category that best describes it.',

@@ -17,7 +17,33 @@ test('the registry covers every platform Work View capability', () => {
     // The student's Support tools, as a header drawer (a render function, so
     // the tray mounts only while the drawer is open).
     'supports',
+    // The Help drawer's first and third parts (student pass 3, TOOL-3): the
+    // TaskCard's description and steps, and a tool's own Help kept below the
+    // platform's.
+    'directions', 'toolHelp',
   ]);
+});
+
+// STUDENT PASS 3, TOOL-3: the platform's Help (the hint ladder and "Ask my
+// teacher", or the Ask-only panel on a DOL) is never replaced by a tool's.
+test('an authoritative platform Help keeps its place and a tool Help goes below it', () => {
+  const platform = { help: { content: 'PLATFORM ASK', authoritative: true } };
+  const published = mergeWorkViewCapabilities(platform, { help: { content: 'TOOL GENERIC' }, directions: { content: 'STEPS' } });
+  assert.equal(published.help.content, 'PLATFORM ASK');
+  assert.equal(published.toolHelp.content, 'TOOL GENERIC');
+  assert.equal(published.directions.content, 'STEPS');
+  // A further layer (the shell's own capabilities) cannot take it either.
+  const local = mergeWorkViewCapabilities(published, { help: { content: 'LOCAL' } });
+  assert.equal(local.help.content, 'PLATFORM ASK');
+  assert.equal(local.toolHelp.content, 'LOCAL');
+  // With no tool Help, the one published earlier stays.
+  assert.equal(mergeWorkViewCapabilities(published, {}).toolHelp.content, 'TOOL GENERIC');
+});
+
+test('outside a question a tool Help is the Help, as before', () => {
+  const merged = mergeWorkViewCapabilities({ help: { content: 'FALLBACK' } }, { help: { content: 'TOOL' } });
+  assert.equal(merged.help.content, 'TOOL');
+  assert.equal(merged.toolHelp, undefined);
 });
 
 test('Task and Help behave as mutually exclusive toggle drawers', () => {

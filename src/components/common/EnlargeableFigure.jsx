@@ -404,7 +404,21 @@ export default function EnlargeableFigure({
   const presentation = useMemo(() => ({ enlarged, shortHeight }), [enlarged, shortHeight]);
 
   const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
-  const help = registeredCapabilities.help?.content || registeredCapabilities.help?.text;
+  // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
+  // description and steps (its TaskCard, which Work View hides), then the
+  // platform's Help — the hint ladder and "Ask my teacher", never replaced —
+  // then the tool's own. On a phone this drawer is the only way to them.
+  const helpPart = (capability) => capability?.content || capability?.text || null;
+  const directionsHelp = helpPart(registeredCapabilities.directions);
+  const platformHelp = helpPart(registeredCapabilities.help);
+  const toolHelp = helpPart(registeredCapabilities.toolHelp);
+  const help = directionsHelp || platformHelp || toolHelp ? (
+    <>
+      {directionsHelp ? <div data-work-view-directions="">{typeof directionsHelp === 'string' ? <MathText>{directionsHelp}</MathText> : directionsHelp}</div> : null}
+      {platformHelp}
+      {toolHelp ? <div data-work-view-tool-help="">{toolHelp}</div> : null}
+    </>
+  ) : null;
   const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
   // Task, Help and the current instruction have their own places in the shell,
   // and anything with an `onAction` becomes a button below. What is left is the
@@ -424,7 +438,7 @@ export default function EnlargeableFigure({
   // tray inside is its own group, "Support tools".
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
-    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
+    .filter((name) => !['task', 'help', 'directions', 'toolHelp', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
     .filter((name) => !shellActionNames.includes(name));
   const shellActions = [
     registeredCapabilities.undo,

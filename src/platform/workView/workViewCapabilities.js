@@ -6,6 +6,10 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   'primaryActions', 'secondaryActions',
   // The student's Support tools (language tools), as a header drawer.
   'supports',
+  // The Help drawer's other two parts (student pass 3, TOOL-3): the tool's
+  // description and "How to do this" steps, which Work View hides with the
+  // TaskCard, and a tool's own help kept below the platform's.
+  'directions', 'toolHelp',
 ]);
 
 const WorkViewCapabilityContext = createContext(Object.freeze({}));
@@ -39,6 +43,13 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // question shell, normal composition still applies and the more local task
     // may override a parent/descendant fallback.
     task: base.task?.authoritative ? base.task : (local.task || base.task),
+    // THE PLATFORM'S HELP IS NEVER REPLACED (student pass 3, TOOL-3). It holds
+    // the hint ladder and "Ask my teacher" — or, on a DOL, the Ask-only panel.
+    // A tool's Help used to win here, so a registry tool's generic sentence
+    // took Ask away. Under an authoritative platform Help the tool's own goes
+    // to `toolHelp`, which the drawer shows after it.
+    help: base.help?.authoritative ? base.help : (local.help || base.help),
+    toolHelp: base.help?.authoritative ? (local.help || local.toolHelp || base.toolHelp) : (local.toolHelp || base.toolHelp),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],
     secondaryActions: [...(base.secondaryActions || []), ...(local.secondaryActions || [])],
   };

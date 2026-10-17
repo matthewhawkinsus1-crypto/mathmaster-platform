@@ -8,6 +8,7 @@ import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
 import {
@@ -67,6 +68,9 @@ const parameterFields = (values, setters, keys) => (
 
 export default function TransformationsLab({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
+  // The bridge and each mode's first step are the mapping rule the item
+  // measures: withheld where the activity withholds hints or verdicts (R-10).
+  const methodWithheld = useMethodWithheld();
   const mode = questionData.mode || 'match';
   // The same reading of the question the shared grader marks against: the
   // graph drawn here is, by construction, the graph the server grades.
@@ -258,9 +262,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     equationInput: ['match', 'identify'].includes(mode)
       ? { label: 'y = a · f(b(x − h)) + k', studentState: true }
       : null,
-    instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
+    instruction: methodWithheld ? null : { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
     task: { text: questionData.prompt || questionData.task || MODE_TASKS[mode] || MODE_TASKS.match },
-    help: {
+    help: methodWithheld ? null : {
       content: (
         <>
           <TransformationBridge />
@@ -386,11 +390,13 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      <div className="mathmaster-work-view-secondary">
-        <Panel title="Transformation bridge" collapsible>
-          <TransformationBridge />
-        </Panel>
-      </div>
+      {methodWithheld ? null : (
+        <div className="mathmaster-work-view-secondary">
+          <Panel title="Transformation bridge" collapsible>
+            <TransformationBridge />
+          </Panel>
+        </div>
+      )}
     </ToolSplit>
     </EnlargeableFigure>
   </ToolShell>;
