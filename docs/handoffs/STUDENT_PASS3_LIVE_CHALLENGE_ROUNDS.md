@@ -205,7 +205,7 @@ shell-wiring tests.
 | `npm run build` | pass |
 | `npm run build:firebase` | pass; no tracked file rewritten |
 | `npm run test:rules` | pass (243/243; 211/211 node rules tests, incl. the new suite) |
-| `npm run test:challenge-finish` (all of `tests/integration/*.test.mjs`) | GATE_FINISH |
+| `npm run test:challenge-finish` (all of `tests/integration/*.test.mjs`) | 464 / 464 pass (new suite: 21) |
 | `npm run test:live-challenge-launch:emulator` | 10 / 10 pass |
 | `test:live-challenge-teaching-browser` (alone) | 58 / 58 checks |
 | `test:live-challenge-projector-privacy-browser` (alone) | 86 checks, no findings |
