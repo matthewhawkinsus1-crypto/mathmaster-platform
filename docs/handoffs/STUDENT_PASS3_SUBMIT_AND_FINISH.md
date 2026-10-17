@@ -113,13 +113,34 @@ now deliberately moves to Next or the closed card), plus a check that focus is o
 waited for "response is closed after", a sentence Batch 1 replaced — it was not in the base commit either
 (`git grep` on `a7dddc7`), so that step failed on the base too.
 
+## Merged with the updated base (after the first push)
+
+At the launching session's request, `origin/claude/modest-pasteur-xzagn7` (6accda1, including 8e51f65: Batch 4's hint
+ladder, the fix for Ask my teacher's "Maximum update depth exceeded" loop, and the workViewTerminalTransition wait) was
+merged into this branch (merge commit `578cc84`). Conflicts, each resolved keeping both sides: `ToolRuntimeContext.jsx`
+(`publishHints` and `submitCost`), the imports of `ConstraintFunctionBuilder.jsx` and `FunctionInvestigation2.jsx`
+(`useOwnHintLadder` and `SubmitText`), QuestionEngine's constants (`HINT_OFFER_BUTTON_STYLE` beside `VISUALLY_HIDDEN` and
+`WAY_ON_SELECTOR`), `toolPolicyGates.mjs` (the ladder checks and the Submit-named mapping action), and
+`workViewTerminalTransition.mjs` (the base's wait for the closed sentence). The gate was rerun on the merged tree:
+
+| Check (merged tree) | Result |
+| --- | --- |
+| `test:platform` | 11,444 / 11,444 |
+| `tests/tools` | 1,643 pass, 0 fail |
+| lint, build, build:firebase | pass; no tracked file rewritten |
+| `certify:accessibility`, `certify:dark-mode` | both pass |
+| The 43 student / tool browser drivers listed below | all pass except **hostAccessibility**, which times out loading `?scene=recovery` ("networkidle" never reached). It fails identically on the base alone (6accda1 served from its own worktree), so it came in with the base — likely Batch 4's Recovery changes — not with this merge |
+| Teacher-harness journeys + `submitAndFinishJourneys` | 15 of 16 pass. The Recovery, focus-race and Warm-Up journeys that tripped on the update-depth loop before now pass. **enduranceJourneys** still stops at a "Back to Dashboard" button that does not exist on the base either (checked on 6accda1 too) |
+
+The gate table below is from before the merge (base `a7dddc7`), kept for the record.
+
 ## Merging beside the parallel branches
 
 Checked with `git merge-tree` (nothing written):
 
 - **Batch 3 persistence** (`claude/pass3-b3-persistence-client`): merges with **no conflict**, the volatile save line
   included.
-- **Batch 4 hints** (`claude/pass3-b4-hints`, on the older base `37ec6ce`): it conflicts with this branch's base already
+- **Batch 4 hints**: now merged through the base (above). Before that, on the older base `37ec6ce`, it conflicted with this branch's base already
   (QuestionEngine, SectionRecoveryRunner, Pre-Flight, HintPanel). This branch adds four small ones, each "both sides
   added": `ToolRuntimeContext.jsx` (hints adds `publishHints`, this adds `submitCost` — keep both fields, both provider
   props and both hooks); the import lines of `ConstraintFunctionBuilder.jsx` and `FunctionInvestigation2.jsx` (keep
