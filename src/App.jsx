@@ -470,7 +470,6 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
-import { subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
@@ -4589,6 +4588,9 @@ function App() {
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
+  // The store is loaded on demand: imported here, it rode in every student's
+  // first load (scripts/check-first-load-budget.mjs). A teacher who leaves the
+  // tab before it arrives never subscribes.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
     if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
@@ -4596,7 +4598,16 @@ function App() {
       return undefined;
     }
     if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+    let stopped = false;
+    let release = null;
+    import('./platform/teacher/parentContactStore.js')
+      .then(({ subscribeParentContacts }) => {
+        if (stopped) return;
+        const unsubscribe = subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+        release = () => unsubscribe();
+      })
+      .catch((error) => console.error('Parent contact history failed:', error));
+    return () => { stopped = true; release?.(); };
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => {
