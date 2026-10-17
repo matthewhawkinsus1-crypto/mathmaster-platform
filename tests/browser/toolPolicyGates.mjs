@@ -134,9 +134,11 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
 
 {
   const page = await open('dol', 'bridge', (p) => p.locator(`input[aria-label="${GENERAL.m}"]`));
-  // The bridge's Work View wrapper has published its Help (its own generic
-  // directions) — and they are not the authored hint.
-  check(await helpDrawerShows(page, 'Use the directions and controls in this workspace'), 'DOL bridge: the Work View Help drawer holds the tool\'s directions', await helpDrawers(page));
+  // The drawer holds the tool's directions (its TaskCard's, published since
+  // student pass 3 TOOL-3) beside the platform's Help — and not the authored
+  // hint.
+  check(await helpDrawerShows(page, 'Build the same linear relationship across every representation'), 'DOL bridge: the Work View Help drawer holds the tool\'s directions', await helpDrawers(page));
+  check(/Hints are not part of this activity/.test(await helpDrawers(page)), 'DOL bridge: the platform Help is in the drawer, not replaced', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'DOL bridge: the authored hint is NOT in the Work View Help drawer', await helpDrawers(page));
   await fill(page, GENERAL.m, '5');
   await fill(page, GENERAL.b, '-19');
