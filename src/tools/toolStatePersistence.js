@@ -211,7 +211,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
     keyboardHelpVisible: 'Whether the keyboard plotting help is shown: from the plane’s first keyboard focus until the question changes.',
-    renderedWidth: 'How wide the plane is drawn, measured, so its text and finger pick-up radius stay readable and reachable on a phone (pass 3, TOOL-11). Layout.',
+    renderedWidth: 'How wide the plane is drawn, measured, so its text stays readable on a phone (pass 3, TOOL-11). Layout.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
     insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',
     plotAnnouncement: 'What the last plot did, said once in the live region ("Plotted (3, -2).", student pass 3 A11Y-1). Gone when the crosshair moves; the points themselves are the tool\'s.',

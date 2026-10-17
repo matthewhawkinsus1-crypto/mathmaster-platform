@@ -43,7 +43,11 @@ test('tidying only removes grouping a reader never sees', () => {
   // A lone term in brackets, and brackets around the whole value.
   assert.equal(tidyMathForSpeech('-(3)'), '-3');
   assert.equal(tidyMathForSpeech('x = (4)'), 'x = 4');
-  assert.equal(tidyMathForSpeech('((12-3x)/(2))'), '(12-3x)/2');
+  assert.equal(tidyMathForSpeech('((12-3x)/(2))'), '(12-3x)/(2)');
+  // A group after / or ^ keeps its brackets: 2/(3x) is 2 over 3x, not (2/3)x.
+  assert.equal(tidyMathForSpeech('2/(3x)'), '2/(3x)');
+  assert.equal(tidyMathForSpeech('2^(3)'), '2^(3)');
+  assert.equal(spokenMathValue('2/(3x)'), 'the fraction 2 over 3x end fraction');
   // Brackets that carry meaning stay: a product, a quantity, a group of a sum.
   assert.equal(tidyMathForSpeech('2(3)'), '2(3)');
   assert.equal(tidyMathForSpeech('(2)3'), '(2)3');

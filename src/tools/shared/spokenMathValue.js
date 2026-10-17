@@ -36,8 +36,10 @@ const wrapsWhole = (text) => {
 };
 
 // "(3)", "(2 y)", "(x)", "(0.5)": one unsigned term. Only where removing the
-// brackets cannot join it to a neighbour: "2(3)" and "(2)3" keep them.
-const LONE_TERM_GROUP = /(^|[^0-9A-Za-z.)])\(\s*((?:\d+(?:\.\d+)?|\.\d+)?\s*[A-Za-z]?)\s*\)(?![0-9.(])/;
+// brackets cannot join it to a neighbour or change what it belongs to: "2(3)"
+// and "(2)3" keep them, and so does a group after / or ^ — "2/(3x)" is 2 over
+// 3x, never (2/3)x.
+const LONE_TERM_GROUP = /(^|[^0-9A-Za-z.)/^])\(\s*((?:\d+(?:\.\d+)?|\.\d+)?\s*[A-Za-z]?)\s*\)(?![0-9.(^])/;
 
 export const tidyMathForSpeech = (value) => {
   let text = String(value ?? '').replace(/~/g, ' ').replace(/\s+/g, ' ').trim();

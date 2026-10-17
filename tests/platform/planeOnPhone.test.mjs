@@ -1,13 +1,13 @@
 /*
  * TOOL-11 (pass 3): on a phone, plane text is readable and a missed drag keeps
- * the line. The browser half (rendered sizes at 390 px, a press beside P2
+ * the line (Graphing replaces the nearest point; a press is snapped to the grid
+ * before any pick-up check, so a wider pick-up radius would change nothing). The browser half (rendered sizes at 390 px, a press beside P2
  * picking it up, a third point keeping the line) is tests/browser/
  * planePhoneReach.mjs.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MIN_PLANE_TEXT_PX, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
-import { KEYBOARD_PICK_UP_RADIUS, PICK_UP_PX, pickUpRadius } from '../../src/tools/shared/planeTouch.js';
 import { placePoint } from '../../src/tools/graphing2/placePoint.js';
 
 test('plane text grows on a narrow plane to the 12 px floor, and only there', () => {
@@ -23,20 +23,6 @@ test('plane text grows on a narrow plane to the 12 px floor, and only there', ()
   assert.equal(planeFontSize(11, 560, null), 11);
   // Never more than 2.25 times its size on a very small plane.
   assert.equal(planeFontSize(10, 560, 100), 22.5);
-});
-
-test('a finger reaches toward 22 px around a point, never into the next cell; the keyboard stays exact', () => {
-  // Big cells (a zoomed plane): the full 22 CSS px.
-  assert.ok(Math.abs(pickUpRadius(560, 322, 120) * (322 / 560) - PICK_UP_PX) < 1e-9, '22 CSS px on a phone');
-  // A -5..5 plane, 47.6-unit cells: capped at 45% of a cell.
-  assert.ok(Math.abs(pickUpRadius(560, 322, 47.6) - 0.45 * 47.6) < 1e-9);
-  // A -7..7 phone plane, 34-unit cells: the next cell is a new point (the
-  // Systems tool plots boundary points one cell apart), so 18 as before.
-  assert.equal(pickUpRadius(560, 322, 34), 18);
-  assert.ok(pickUpRadius(560, 322, 34) < 34, 'a press in the next cell never picks up its neighbour');
-  assert.equal(pickUpRadius(560, 900, 120), 18, 'never less than a full-size plane used');
-  assert.equal(pickUpRadius(560, null), 18);
-  assert.equal(KEYBOARD_PICK_UP_RADIUS, 18);
 });
 
 test('a point past the last replaces the nearest one instead of restarting the line', () => {

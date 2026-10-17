@@ -189,7 +189,8 @@ const PLOTTED_SCENES = [
       }
       await page.waitForFunction(() => document.querySelectorAll('[data-mapping-arrows] button').length === 2);
     },
-    marks: 'svg[aria-label="Mapping diagram"] line',
+    // The arrows, and the node rings (controls: their outline is what shows them).
+    marks: 'svg[aria-label="Mapping diagram"] line, [data-domain-node] circle, [data-range-node] circle',
     async expect(root) {
       assert.equal(await root.locator('svg[aria-label="Mapping diagram"] line').count(), 2, 'both arrows are drawn');
     },
@@ -244,7 +245,8 @@ const measurePlotted = (root, marksSelector) => {
   const marks = [...root.querySelectorAll(marksSelector)].filter(visible);
   for (const mark of marks) {
     const style = getComputedStyle(mark);
-    const colour = mark.tagName === 'line' ? style.stroke : style.fill;
+    // Lines and node rings are seen by their stroke; points and squares by their fill.
+    const colour = mark.tagName === 'line' || mark.closest('[data-domain-node], [data-range-node]') ? style.stroke : style.fill;
     const box = mark.getBoundingClientRect();
     const backdrop = backdropAt(mark, box.left + box.width / 2, box.top + box.height / 2);
     const value = ratio(colour, backdrop);

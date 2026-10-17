@@ -254,7 +254,13 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     target?.focus?.();
     setArrowFocusIndex(null);
   }, [arrowFocusIndex, arrows]);
+  // The next arrow's Remove slides under focus, so a double-press or a held
+  // Enter would take two arrows: a second removal within 400 ms is ignored.
+  const lastRemovalRef = useRef(0);
   const removeArrowAt = (x, y, index) => {
+    const now = Date.now();
+    if (now - lastRemovalRef.current < 400) return;
+    lastRemovalRef.current = now;
     toggleArrow(x, y);
     setArrowFocusIndex(index);
   };

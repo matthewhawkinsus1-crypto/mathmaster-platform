@@ -15,6 +15,7 @@ import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../plat
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
+import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -78,6 +79,44 @@ const writeDismissed = (key) => {
     // A browser refusing storage simply asks again next time.
   }
 };
+
+// One control in the Work View rail. An action that runs out of things to do
+// on its own press (Start over, Fit View) keeps keyboard focus instead of
+// dropping it to the top of the page (pass 3, A11Y-2; useFocusSafeDisabled),
+// and a press while it is unavailable does nothing.
+function WorkViewActionButton({ action, primary, onInvoke }) {
+  const availability = useFocusSafeDisabled(!action.disabled);
+  return (
+    <button
+      type="button"
+      // Named so the browser gate can find the registered controls and
+      // measure them. A capability that registered but rendered off the
+      // bottom of a phone is not a control the student has.
+      data-work-view-action={action.id || action.label}
+      className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
+      data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
+      // Fit, pan and zoom move the camera and nothing else. Marked in
+      // the DOM so the state-integrity gate can press them and assert
+      // that the mathematics and the Undo depth are unchanged.
+      data-camera-only={action.cameraOnly ? 'true' : undefined}
+      data-action-emphasis={primary ? 'primary' : undefined}
+      {...availability}
+      onClick={() => { if (!action.disabled) onInvoke(action); }}
+      title={action.title}
+      // A phone row fits four controls only with short labels ("Reset"
+      // for "Reset Question"); the full label stays the accessible name.
+      aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
+      >
+      {action.icon ? <>{action.icon}{' '}</> : null}
+      {action.shortLabel ? (
+        <>
+          <span className="mathmaster-work-view-action-full">{action.label}</span>
+          <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
+        </>
+      ) : action.label}
+    </button>
+  );
+}
 
 export default function EnlargeableFigure({
   children,
@@ -610,35 +649,12 @@ export default function EnlargeableFigure({
         {figure}
         <aside ref={actionsRef} className="mathmaster-work-view-actions" aria-label="Work View controls">
           {shellActions.map((action, index) => (
-            <button
+            <WorkViewActionButton
               key={action.id || `${action.label}-${index}`}
-              type="button"
-              // Named so the browser gate can find the registered controls and
-              // measure them. A capability that registered but rendered off the
-              // bottom of a phone is not a control the student has.
-              data-work-view-action={action.id || action.label}
-              className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
-              data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
-              // Fit, pan and zoom move the camera and nothing else. Marked in
-              // the DOM so the state-integrity gate can press them and assert
-              // that the mathematics and the Undo depth are unchanged.
-              data-camera-only={action.cameraOnly ? 'true' : undefined}
-              data-action-emphasis={primaryShellActions.has(action) ? 'primary' : undefined}
-              onClick={() => invokeAction(action)}
-              disabled={action.disabled}
-              title={action.title}
-              // A phone row fits four controls only with short labels ("Reset"
-              // for "Reset Question"); the full label stays the accessible name.
-              aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
-            >
-              {action.icon ? <>{action.icon}{' '}</> : null}
-              {action.shortLabel ? (
-                <>
-                  <span className="mathmaster-work-view-action-full">{action.label}</span>
-                  <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
-                </>
-              ) : action.label}
-            </button>
+              action={action}
+              primary={primaryShellActions.has(action)}
+              onInvoke={invokeAction}
+            />
           ))}
           {/* A CAPTION, NOT MORE BUTTONS. Each of these used to be its own grey
               chip under the real actions, and "Pan and zoom" or "Plot and edit

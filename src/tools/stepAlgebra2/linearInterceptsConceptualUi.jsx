@@ -59,8 +59,10 @@ export function InteractiveStandardEquation({ standard, placedVariable, zeroArme
   const bNegative = B < 0;
   return (
     <div
-      // One spoken equation in words; the coloured pieces inside are presentation.
-      role="img"
+      // A group named by the equation in words. Not role="img": that hides its
+      // descendants, and the two substitution targets inside are the step's
+      // only controls (pass 3 review).
+      role="group"
       aria-label={`Equation ${spokenMathValue(formatStandardEquation(standard))}`}
       style={{
         display: 'flex',

@@ -260,8 +260,12 @@ test('running linear regression makes its line the student\'s model and keeps th
 test('the Work View rail renders the finishing action as the primary one', () => {
   const figure = source('src/components/common/EnlargeableFigure.jsx');
   assert.match(figure, /const primaryShellActions = new Set\(registeredCapabilities\.primaryActions \|\| \[\]\)/);
-  assert.match(figure, /data-action-emphasis=\{primaryShellActions\.has\(action\) \? 'primary' : undefined\}/);
-  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\) \{[^}]*background: var\(--mm-primary\)/);
+  // Since pass 3 (A11Y-2) each rail control is a WorkViewActionButton, told
+  // whether it is primary; an unavailable one (disabled, or aria-disabled while
+  // it keeps focus) is not drawn as primary.
+  assert.match(figure, /primary=\{primaryShellActions\.has\(action\)\}/);
+  assert.match(region(figure, 'function WorkViewActionButton(', '\n}\n', 'rail button'), /data-action-emphasis=\{primary \? 'primary' : undefined\}/);
+  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\)(?::not\(\[aria-disabled="true"\]\))? \{[^}]*background: var\(--mm-primary\)/);
 });
 
 test('the shared confirm dialog stacks above Work View and its phone keypad', () => {

@@ -73,6 +73,32 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await keptFocus(page, reset, 'Reset view');
   });
 
+  // The Work View rail's own Start over (Graphing opens in Work View by default
+  // on a Chromebook): the same focus-safe rule as the inline button.
+  if (viewport.width >= 1050) {
+    await check(`${at} graphing2 Work View: the rail's Start over keeps focus`, async () => {
+      await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphing2`, { waitUntil: 'networkidle', timeout: 90000 });
+      if (await page.evaluate(() => document.documentElement.getAttribute('data-work-view-open')) !== 'true') {
+        await page.locator('button:has-text("Enlarge")').first().click();
+        await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
+      }
+      const dialogPlane = page.locator('[aria-modal="true"] svg.mathmaster-responsive-canvas[role="application"]').first();
+      await dialogPlane.focus();
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('Enter');
+      const railStartOver = page.locator('[aria-modal="true"] [data-work-view-action="start-over"]').first();
+      await page.waitForFunction(() => {
+        const button = document.querySelector('[aria-modal="true"] [data-work-view-action="start-over"]');
+        return button && !button.disabled && button.getAttribute('aria-disabled') !== 'true';
+      });
+      await railStartOver.focus();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(200);
+      await keptFocus(page, railStartOver, "the rail's Start over");
+    });
+  }
+
   // Step Algebra 2's balance solver: Start over after one move.
   await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=stepAlgebra2`, { waitUntil: 'networkidle', timeout: 90000 });
   await check(`${at} stepAlgebra2: Start over keeps focus when the history empties`, async () => {

@@ -79,3 +79,22 @@ test('GraphLine names its boxes and marks a wrong slope in words', async () => {
     for (const id of [slope.label, intercept.label]) assert.match(markup, new RegExp(`<label for="${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
   });
 });
+
+// The marks say right or wrong in words and set aria-invalid, so they must
+// reach the graders only where outcomes are shown: never on a DOL, quiz or
+// test before release (pass 3 review). QuestionEngine is their only host that
+// passes grades (WorkflowRunner's table passes no feedback).
+test('the marks reach the legacy graders only where outcome feedback is shown', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { executableSource, region } = await import('./helpers/sourceContract.mjs');
+  const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
+  const props = region(engine, 'const commonModuleProps = {', '\n  };', 'commonModuleProps');
+  assert.match(props, /\n\s*feedback: showOutcomeFeedback \? feedback : null,/, 'held feedback never reaches a grader');
+  assert.doesNotMatch(props, /\n\s*feedback,/);
+  assert.match(engine, /const showOutcomeFeedback = resolvedActivityPolicy\?\.feedback === 'immediate' \|\| feedbackReleased === true;/);
+  assert.match(engine, /return <GraphLine \{\.\.\.commonModuleProps\} \/>;/);
+  assert.match(engine, /return <TableGrader \{\.\.\.commonModuleProps\} \/>;/);
+  const workflow = executableSource(readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'));
+  const table = region(workflow, '<TableGrader', '/>', 'workflow table');
+  assert.doesNotMatch(table, /\bfeedback=/, 'a workflow table shows no marks');
+});

@@ -268,8 +268,12 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   assert.deepEqual(await removes.evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label'))), ['Remove the arrow -2 to 3', 'Remove the arrow 1 to 2']);
   assert.deepEqual(await removes.evaluateAll((buttons) => buttons.map((button) => button.textContent.trim())), ['-2 → 3 ×', '1 → 2 ×'], `${at}: the arrows are listed in words`);
   await removes.first().focus();
+  // A double-press takes one arrow, not two: the next Remove slides under focus.
+  await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.querySelectorAll('[data-mapping-arrows] button').length === 1);
+  await page.waitForTimeout(450);
+  assert.equal(await removes.count(), 1, `${at}: a double-press removed only one arrow`);
   assert.equal(await status(), 'Arrow from -2 to 3 removed. 1 arrow drawn.', `${at}: removing is said`);
   assert.equal(await activeName(page), 'Remove the arrow 1 to 2', `${at}: focus moves to the arrow now in its place`);
   assert.equal(await node('domain', -2).getAttribute('aria-label'), 'Domain value -2, no arrow yet');

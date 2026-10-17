@@ -111,7 +111,9 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       </div>
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '14px' }}>
         {graded.gradedHere
-          ? 'After you submit, each entry is marked ✓ Correct or ✗ Check this, so you can focus on the ones to check.'
+          // Not every activity shows results after a submit (an exit ticket holds
+          // them), so the note says when the marks appear, not that they will.
+          ? 'When results are shown, each entry is marked ✓ Correct or ✗ Check this, so you can focus on the ones to check.'
           : question.checkedAgainstStudentFunction === false
             // A table in a multi-step question that is not built from the
             // student's own function: there is no "function you wrote".
