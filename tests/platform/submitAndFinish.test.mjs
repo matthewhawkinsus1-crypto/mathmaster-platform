@@ -259,8 +259,15 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   const saveLine = region(app, '{!preview && studentPersistenceStatus !== \'idle\' && (', '</p>', 'the save line');
   assert.match(saveLine, /\{studentSaveLine\s*\? studentSaveLine\s*: studentPersistenceStatus === 'rejected'/);
   assert.doesNotMatch(saveLine, /Recorded by MathMaster|Syncing ·/);
-  // A routine save is not a second announcement of the result.
-  assert.match(saveLine, /\['offline', 'needs-review', 'rejected', 'volatile'\]\.includes\(studentPersistenceStatus\) \? \{ role: 'status', 'aria-live': 'polite' \} : \{\}/);
+  // A routine save is not a second announcement of the result: the shown line
+  // is not a live region; one always-mounted region says only what needs the
+  // student, and only its words change.
+  assert.doesNotMatch(saveLine, /role=|aria-live/);
+  const region2 = region(app, '{!preview && (\n              <span role="status" aria-live="polite" data-save-line-announcement=""', '</span>', 'the save announcement');
+  assert.match(region2, /\{studentSaveLineAnnouncement\}/);
+  const said = region(app, 'const studentSaveLineAnnouncement = ', ";\n", 'what is said');
+  assert.match(said, /\['offline', 'needs-review'\]\.includes\(studentPersistenceStatus\) \? studentSaveLine \|\| '' : ''/);
+  assert.doesNotMatch(said, /volatile/, 'not stored: the question and a toast say it already');
 });
 
 /* ------------------------------------------------------------- RUN-12 */

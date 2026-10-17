@@ -3109,6 +3109,10 @@ function App() {
     if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
   }, [studentSaveSubject, studentSaveSubjectState]);
   const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  // What the save line says aloud: only when the student must act.
+  const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
+    ? 'This change was not accepted because the assignment is no longer available.'
+    : ['offline', 'needs-review'].includes(studentPersistenceStatus) ? studentSaveLine || '' : '';
   const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
   // The line is about this student's work in this assignment: it starts over
   // when either changes.
@@ -10316,11 +10320,19 @@ function App() {
                 is now reachable only from a drain that left nothing owed, and
                 every other state names where the work actually is and whether
                 anything is still to come. */}
-            {/* Announced only when the work needs the student (offline, not
-                recorded, refused, not stored): a routine save is not a second
-                announcement of the result the question just gave. */}
+            {/* ANNOUNCED ONLY WHEN THE WORK NEEDS THE STUDENT: offline, not
+                recorded, refused. A routine save is not a second announcement
+                of the result the question just gave. The region is always
+                mounted and only its words change — a live region that appears
+                with its text is often not read at all. "Not stored" is said
+                by the question and a toast already. */}
+            {!preview && (
+              <span role="status" aria-live="polite" data-save-line-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {studentSaveLineAnnouncement}
+              </span>
+            )}
             {!preview && studentPersistenceStatus !== 'idle' && (
-              <p {...(['offline', 'needs-review', 'rejected', 'volatile'].includes(studentPersistenceStatus) ? { role: 'status', 'aria-live': 'polite' } : {})} data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+              <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 {/* A draft is "Draft saved"; only an answer the student sent
                     is ever "Answer recorded", and only once the server has it
                     (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
