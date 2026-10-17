@@ -18,9 +18,9 @@
 //                      or a full reload at every checkpoint #341 lists
 //   preview-negated    Teacher Preview: isolating y puts -(…) into E2; the
 //                      group must stay whole with the -1 offered to distribute
-//   strip-fit-*        Q-24: with a solver open, every original equation in
-//                      the strip above it shows whole (1366×768 at 100% and
-//                      125% text, and 390×844)
+//   strip-fit-*        Q-24: with a solver open, every equation in the strip
+//                      above it shows whole (1366×768 at 100%, 110% and 125%
+//                      text with Isolate x and with R₁ simplifying; 390×844)
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -721,9 +721,17 @@ await context.close();
 // whole — at 1366×768 with 100% and 125% browser text, and on a phone.
 if (wanted('strip-fit')) {
   const rootFonts = {};
-  for (const [name, viewport, textScale] of [['laptop', { width: 1366, height: 768 }, 1], ['laptop-125', { width: 1366, height: 768 }, 1.25], ['phone', { width: 390, height: 844 }, 1]]) {
+  const settings = [
+    ['laptop', { width: 1366, height: 768 }, 1],
+    ['laptop-110', { width: 1366, height: 768 }, 1.1],
+    ['laptop-125', { width: 1366, height: 768 }, 1.25],
+    ['phone', { width: 390, height: 844 }, 1],
+  ];
+  for (const [name, viewport, textScale] of settings) {
     const scaled = await browser.newContext({ viewport });
-    for (const q of [3, 4]) {
+    // Q4 and Q5 with Isolate x open; on a laptop also Q1 while R₁ is
+    // simplified — R₁ = 2(−y − z + 6) − y + 3z = 9 is the widest card.
+    for (const q of viewport.width > 1000 ? [3, 4, 0] : [3, 4]) {
       // A page per question: the browser text size did not survive a second
       // navigation of the same page.
       const page = await scaled.newPage();
@@ -732,9 +740,17 @@ if (wanted('strip-fit')) {
         await cdp.send('Page.setFontSizes', { fontSizes: { standard: Math.round(16 * textScale), fixed: Math.round(13 * textScale) } });
       }
       const journey = `strip-fit-${name}-q${q}`;
-      await step(page, journey, 'isolate x in Equation 1', async () => {
+      await step(page, journey, q === 0 ? 'simplify R₁' : 'isolate x in Equation 1', async () => {
         await open(page, { scope: 'student', q });
-        await page.locator('button[aria-label="Isolate x in Equation 1"]').click();
+        if (q === 0) {
+          await isolateXInEquationOne(page, journey);
+          await useFormAsToken(page);
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 2: choose where"] [data-variable="x"]'));
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 3: choose where"] [data-variable="x"]'));
+          await page.locator('button', { hasText: 'Simplify R₁' }).click();
+        } else {
+          await page.locator('button[aria-label="Isolate x in Equation 1"]').click();
+        }
         await solver(page).waitFor({ timeout: 15000 });
         await settle(page, 400);
         // The app's own root size differs by width; 125% text must scale the laptop's.

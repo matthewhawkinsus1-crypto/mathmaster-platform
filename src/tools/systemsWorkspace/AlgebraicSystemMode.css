@@ -709,13 +709,21 @@
   grid-column: 1 / -1;
 }
 
-/* Each equation on one line with its name, as on a phone. */
+/* Each equation on one line with its name when both fit; otherwise the
+   equation wraps under its name with the card's whole width. A fixed share
+   for the name cut a long derived equation short (R₁ at 110% text). */
 .mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-equation-card {
-  grid-template-columns: fit-content(42%) minmax(0, 1fr);
-  align-items: center;
-  column-gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
   padding: 5px 9px;
   text-align: left;
+}
+
+.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-equation-card > :last-child {
+  flex: 1 0 auto;
+  max-width: 100%;
 }
 
 .mathmaster-reduction-reference,
