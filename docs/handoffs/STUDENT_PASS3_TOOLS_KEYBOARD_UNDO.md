@@ -146,6 +146,50 @@ are those of the detail file [04-tools-and-accessibility.md](../qa/student-exper
     - Zoom in changes the axes, and Reset view puts them back;
     - the toolbar Undo stays unavailable throughout.
 
+## Fixes from the independent review (head `11d8a2b` → this head)
+
+The integrator's review found one blocker and two should-fixes. All are fixed and pinned.
+
+- **BLOCKER — My Math Path: Undo handed the next question the previous question's answers.**
+  - Why: PathSessionPlayer keeps one QuestionEngine mounted and swaps the question under it.
+    `usePersistentToolState` re-read the new question's draft in an effect, one render after Universal Undo had
+    re-baselined on the old answers. That late re-read was recorded as an edit, so the next item opened blank with
+    ↶ Undo enabled, and one press wrote the previous item's answers into it and its draft. This predates the branch
+    (the older direct `useMathUndoHistory` tools had it too), but the ten new tools widened the exposure.
+  - Fix: the key-change re-read now happens during render (React's adjust-state-while-rendering pattern) in
+    `src/tools/shared/usePersistentToolState.js`. That fixes every tool, old and new. This is a shared file; Batch 3
+    may touch the same hook.
+  - Proof:
+    - `tests/tools/undoQuestionSwap.test.mjs` renders real React in node through QuestionEngine's own Undo wiring,
+      for both hooks. The next item opens with nothing to undo, an Undo press gives it nothing and writes nothing to
+      its draft, its own edit undoes back to its own blank start, and the first item comes back intact.
+    - `toolFocusAndUndo.mjs` has a new swap step, through the real QuestionEngine with `?swap=1`, for Data Modeling,
+      Polynomial Workshop and Open Sort.
+    - Mutation checks: the old effect-based re-read fails both unit cases and the browser step, and `resetKey: null`
+      fails the field-hook case.
+- **Enter in the typed x box placed the point at y = 0.**
+  - Why: `Number('')` is 0.
+  - Fix (`src/graphTypedCoordinate.js`):
+    - An empty box is missing, not 0.
+    - Enter moves on to the empty box, and places once both hold a number.
+    - A card that states its x ("Plot the point where x = 2") needs only y. My first version of this fix refused that
+      case; `stagedQuestion` caught it, and it is fixed.
+  - Pinned by unit tests and three `graphKeyboardRoute` checks.
+- **Undo while a submission is grading, or in a tab paused by another.**
+  - Fix: the work-bar and Work View Undo now share one rule, `undoUnavailable = locked || submitting ||
+    pausedByAnotherTab`, the same conditions Reset and Submit already check.
+  - Pinned in `workViewStage3D`, mutation-checked.
+  - Not covered: the in-tool Undo/Redo buttons that predate this branch (Linear Table Workbench, Representation
+    Bridge, Regression Calculator, Expression Meaning, Matrix Lab) call the same history directly and do not read this
+    rule. Left as they were.
+- **Notes from the review:**
+  - A secure item's draft family is sent without the local Undo history (`withoutPersistedUndo` at both send sites in
+    `RichQuestionRuntime.jsx`, two lines in Session B's file). Pinned in `tests/tools/persistedUndoNotSent.test.mjs`.
+  - Newly pinned:
+    - a rational is split at the student's center, never at the true one;
+    - a press on an unavailable FocusSafeButton does nothing (the derivation lab's Apply, in the browser).
+  - `useFieldUndoHistory`'s comment now says what happens to a verdict: an Undo does what that tool's own edits do.
+
 ## Rewritten contracts (playbook)
 
 | Test | Pinned | Now asserts |
@@ -155,6 +199,9 @@ are those of the detail file [04-tools-and-accessibility.md](../qa/student-exper
 | `representationMatchStudentUx` | aria-label = raw `describeLinearCard(...)` | the names are spoken, and the line-card button's label goes through `spokenMathLabel` |
 | `workViewCertificationManifest` | (data) | the Regression Calculator scene does not count a shell Undo: its Undo is the platform history in its own toolbar, and RegressionCalculator.css hides the shell copy on purpose |
 | `studentUxPlatform` sort | program-text plan pattern | spoken-math pattern |
+| `secureExamNavigationWiring`, `secureRichToolRuntimeWiring` (review fix) | `workspaceDrafts: readQuestionDraftFamily(draftKey)` | the item's draft family is sent, less the Undo history (`withoutPersistedUndo(...)`) |
+| `solverWorkspaceModes` (review fix) | `onClick: () => undoController?.onUndo?.()` | inside the Work View Undo action, the press reaches the assignment's controller |
+| `toolDraftPersistence` "initializers before a draft-key change" (review fix) | the key-change restore is a `useEffect` after the initializer | the key-change restore (now `if (renderedKey !== key)`, during render) comes after the current initializer is assigned |
 
 ## Mutation checks (each broke the code once and turned red, then was restored)
 
@@ -184,19 +231,25 @@ are those of the detail file [04-tools-and-accessibility.md](../qa/student-exper
 
 ## Gate (on the merged result, base `8e51f65`)
 
-After the second merge I reran the node gate, the builds, and `studentUxPlatform`, `assessmentLeakGates`,
-`workViewMatrix`, `toolFocusAndUndo`, `graphKeyboardRoute` and `workViewCertification`; all pass. The other rows are
-from the run on `c803501`, and the second merge did not touch their files.
+After the review fixes I reran on the final head:
+
+- the node gate and both builds;
+- `npm run test:draft-persistence`, because the fixes change how every tool reads its draft;
+- the drivers: `toolFocusAndUndo`, `graphKeyboardRoute`, `graphPointCheck`, `composedDraftRestore`, `composedOutcomePolicy`, `clickMapLetterbox`, `stagedQuestion`, `studentUxPlatform`, `workViewMatrix`, `assessmentLeakGates`, `undoTyping`, and (on `aab7974`) `draftEditTime`, `warmupReopenDraft`, `staleTabRecord`, `duplicateTabs`, `captureToolResponses`, `linearMultipleRepresentations`, the five tool keyboard drivers, `toolPolicyGates`, `workViewCertification`.
+
+All pass. The certification rows (accessibility, dark mode) and the five tool keyboard drivers are from the run on
+`c803501`; the review fixes do not change what they measure.
 
 | Check | Result |
 | --- | --- |
 | `npm ci`, `npm --prefix functions ci` | ok |
 | `npm run test:platform` | 11,429 / 11,429 |
-| `node --test tests/tools/*.test.mjs` | 1,662 pass, 0 fail, 1 skipped |
+| `node --test tests/tools/*.test.mjs` | 1,670 pass, 0 fail, 1 skipped |
+| `npm run test:draft-persistence` | pass |
 | `npm run test:authoring-v5` | not run: authoring and the compiler are untouched |
 | `npm run lint` | 0 errors (warnings only, none new from this branch) |
 | `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
-| `toolFocusAndUndo` (new, in CI), `graphKeyboardRoute` (41 checks) | pass |
+| `toolFocusAndUndo` (new, in CI), `graphKeyboardRoute` (44 checks) | pass |
 | `undoTyping`, `workViewMatrix` | pass |
 | `workViewCertification` | pass (24 tools × 8 devices, 0 findings). The first full run had one finding (complexPlaneLab iphone-portrait: "Work View opener is blocked: click timeout"), and the rerun passed with no source change in between. Treat it as a flake to watch. |
 | `toolKeyboardDataModelingAndSystemsCss`, `toolKeyboardRegression`, `toolKeyboardRelationMapping`, `toolKeyboardNumberLine`, `toolKeyboardThreePlane` | pass |
@@ -228,6 +281,12 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting   # or the release 
    keeps focus where the student is.
 4. **The Regression Calculator's zoom is now the plane's row of controls under the graph.** They are not in the corner
    where the drawings were.
+5. **"Connect my points" is offered to every student, not only to keyboard users.** On an exit ticket (DOL) the curve
+   part therefore follows from the points: right points connected give a right curve. The reviewer checked 18
+   function setups (quadratic, absolute value, cubic, cube root, square root, exponential, logarithmic, rational,
+   linear), and every one passes both the practice snap and the hidden DOL curve check. If the curve should stay a
+   separate demonstration of skill on assessments, Connect could be limited to practice, or to students with a
+   keyboard-access accommodation. That is a policy call, so I left it open.
 
 ## Not done / for other sessions
 
