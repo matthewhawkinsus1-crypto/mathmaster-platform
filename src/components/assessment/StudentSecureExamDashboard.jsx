@@ -63,11 +63,16 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
       const waiting = testCyclesWithoutSession({ assignments: (testCycles || []).map((entry) => entry.assignment), sessions: listed });
       // One that cannot be described (not assigned after all, deleted) is left
       // off rather than shown as an error: the Assignments page still has it.
+      // One whose record has a session the capped list did not show gets no
+      // row either (assignedTestCycleRow reads `hasSecureSession`).
       const looks = await Promise.allSettled(waiting.map((assignment) => getStudentTestCycle({ assignmentId: assignment.id, preview: true })));
       setAssignedTests(waiting.map((assignment, index) => {
         if (looks[index].status !== 'fulfilled') return null;
         const own = (testCycles || []).find((entry) => entry.assignment?.id === assignment.id) || {};
-        return assignedTestCycleRow({ card: looks[index].value, assignment, dueAt: own.dueAt || null, lateDueAt: own.lateDueAt || null });
+        return assignedTestCycleRow({
+          card: looks[index].value, assignment, dueAt: own.dueAt || null, lateDueAt: own.lateDueAt || null,
+          classLateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
+        });
       }).filter(Boolean));
     } catch (loadError) { setError(loadError.message || 'Could not load your tests.'); }
     finally { setLoading(false); }

@@ -1226,6 +1226,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   assert.equal(listed.sessions.filter((session) => session.courseTest?.assignmentId === ASSIGNMENT).length, 0);
   const look = await preview();
   assert.equal(look.preview, true);
+  assert.equal(look.hasSecureSession, false, 'from the record: no session yet');
   assert.equal(look.canEnter, false);
   assert.equal(look.schedule.test.state, 'upcoming');
   assert.match(look.schedule.test.headline, /^Opens .* 12:00 AM C[DS]T$/);
@@ -1244,6 +1245,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   await db.collection('assignments').doc(ASSIGNMENT).update({ testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: dayKey(-1) }) });
   const missed = await preview();
   assert.equal(missed.schedule.missedTest, true);
+  assert.equal(missed.hasSecureSession, true, 'the Test session now exists, so Tests & Exams lists it, not a row');
   assert.equal((await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId ?? null, null, 'no Retest opened by a look');
   const sessionsBefore = (await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get()).size;
   // ...and the card itself still does, exactly as before.

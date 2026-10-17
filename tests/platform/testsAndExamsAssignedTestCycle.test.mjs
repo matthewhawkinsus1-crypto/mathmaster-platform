@@ -36,6 +36,7 @@ const lesson = { id: 'lesson', title: 'Lesson' };
 const previewCard = {
   success: true,
   preview: true,
+  hasSecureSession: false,
   assignmentId: 'u3',
   title: 'Unit 3 Test',
   stage: 'test',
@@ -77,6 +78,9 @@ test('the row says when, where, how long and when it is due — in the card\'s w
   assert.equal(row.delivery, 'Test is not timed. 12 questions.');
   assert.equal(row.dueAt, '2026-10-22T04:59:59.999Z');
   assert.equal(row.finalLateDueAt, null);
+  // The record has a session the capped list did not show: no row. Nor without an answer.
+  assert.equal(assignedTestCycleRow({ card: { ...previewCard, hasSecureSession: true } }), null);
+  assert.equal(assignedTestCycleRow({ card: { ...previewCard, hasSecureSession: undefined } }), null);
   // No class-time window set: nothing to announce, and the card's detail is said instead.
   const unset = assignedTestCycleRow({ card: { ...previewCard, schedule: { ...previewCard.schedule, test: { ...previewCard.schedule.test, state: 'unset' } } } });
   assert.equal(unset.when, null);
@@ -94,6 +98,13 @@ test('the row uses THIS student\'s dates: an extended student is told late work 
   const own = getAssignmentLifecycle(assignment, now, { studentId: 'S1' });
   const row = assignedTestCycleRow({ card: { ...previewCard, dueAt: assignment.dueAt }, assignment, dueAt: own.dueAt, lateDueAt: own.lateDueAt, now });
   assert.equal(row.finalLateDueAt, '2026-10-14T04:59:59.999Z');
+});
+
+test('a missed student\'s row says the close the server enforces, not a later date of their own', () => {
+  const now = Date.parse('2026-10-10T17:00:00Z');
+  const missed = { ...previewCard, stage: 'retestReady', dueAt: '2026-10-06T04:59:59.999Z', schedule: { ...previewCard.schedule, missedTest: true, followUp: { ...previewCard.schedule.followUp, state: 'open', enforced: true, closesAt: Date.parse('2026-10-11T04:59:59.999Z') } } };
+  const row = assignedTestCycleRow({ card: missed, lateDueAt: new Date('2026-10-14T04:59:59.999Z'), classLateDueAt: '2026-10-09T04:59:59.999Z', now });
+  assert.equal(row.finalLateDueAt, '2026-10-11T04:59:59.999Z');
 });
 
 test('the length is the card\'s: timed with extended time, and a Retest is not given the Test\'s count', () => {
@@ -129,6 +140,8 @@ test('the service and the server carry `preview`, and the server opens nothing f
   // The stand-in Retest for a missed Test is opened only by the card itself.
   assert.match(handler, /if \(!preview\s*&& state\.missedTest\s*&& state\.stage === shared\.stages\.TEST_CYCLE_STAGE\.RETEST_READY/);
   assert.match(handler, /const inCorrections = !preview && state\.stage === shared\.stages\.TEST_CYCLE_STAGE\.CORRECTIONS/);
+  // Whether a session exists comes from the record, not the capped session list.
+  assert.match(handler, /\.\.\.\(preview \? \{ preview: true, hasSecureSession: Boolean\(record\.test\.examSessionId \|\| record\.retest\.examSessionId\) \} : \{\}\)/);
 });
 
 test('App hands Tests & Exams the student\'s own Test Cycles with their own dates', () => {

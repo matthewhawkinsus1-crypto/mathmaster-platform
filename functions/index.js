@@ -18991,7 +18991,10 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   return {
     success: true,
     assignmentId,
-    ...(preview ? { preview: true } : {}),
+    // A look also says whether this student has ANY secure session for the
+    // cycle, from their record — the complete answer, where the session list
+    // (capped, unordered) may not be.
+    ...(preview ? { preview: true, hasSecureSession: Boolean(record.test.examSessionId || record.retest.examSessionId) } : {}),
     title: blueprint.title || assignment?.title || "Test Cycle",
     stage: state.stage,
     secure: state.secure,
