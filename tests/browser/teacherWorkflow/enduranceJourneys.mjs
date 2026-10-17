@@ -203,7 +203,9 @@ const studentJourney = async () => {
       await settle(page, 400);
     }
 
-    await page.getByRole('button', { name: /Back to Dashboard/ }).first().click();
+    // The way out of the lesson: the header's "← Back to Home" or the nav's
+    // "←" (named "Back to dashboard"), whichever this screen shows.
+    await page.getByRole('button', { name: /^(← )?Back to (dashboard|home)$/i }).filter({ visible: true }).first().click();
     await settle(page, 1200);
     await editOtherAssignments(page, round, 1);
     samples.push(await measure(page, cdp));
