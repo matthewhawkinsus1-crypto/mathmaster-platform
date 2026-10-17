@@ -93,9 +93,19 @@ dropped; Graphing2 loses `stepsAreControls` — 11 of 11 red. The new browser dr
 
 ## Gate
 
-Round-1 results first; round-2 (after the review fixes) replaces this table — see the top of the section.
+Round 2, after the review fixes (head of this branch). One driver at a time; same servers as round 1.
 
-_Round-2 browser drivers are running; the next commit fills this table._
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,439 pass, 0 fail |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (1,644 tests) |
+| `npm run lint` | exit 0; no warning in a touched file |
+| `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten |
+| `workViewHelpReach` (390×844) | 42 checks pass; the three browser mutations above each red |
+| `toolPolicyGates` | 50 pass after one more rewrite: B3 removed the tool's directions from a DOL drawer, so the check now asserts the platform Help is there and none of the tool's directions or description (red with directions/description restored) |
+| Student runtime gates (the other 22, as in round 1, incl. phoneToolPanelReach, assessmentLeakGates, studentUxPlatform, algebraicSubstitutionHandoff) | all pass |
+| `workViewMatrix`, `workViewCertification` | pass |
+| teacherWorkflow `journeys`, `appUrlJourneys` (5188) | pass |
 
 Round 1, at `5a3358b`. Run on this branch, one driver at a time (plain `npx vite --host 127.0.0.1 --port 5199 --strictPort`,
 `AUDIT_ORIGIN=http://127.0.0.1:5199`; teacherWorkflow harness on 5188).
