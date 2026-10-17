@@ -25,7 +25,15 @@ adapt the batch to main, which has no Batch 1 closed card:
 | `f57a547` | `tests/browser/submitNotQueued.mjs` finds the engine's alert where main renders it, and still where Batch 1 does. |
 
 No product code differs from the reviewed Batch 3 branches except that import
-line.
+line and one change for the student first-load budget (CI's "Student
+first-load budget" step, `scripts/check-first-load-budget.mjs`). Batch 3's
+per-answer drafts add 4.0 KB gzip to what a student downloads before Home, and
+`main` stood only 1.3 KB under its limit (1,030.1 KB of 1,031.4 KB). App's
+teacher-only parent-contact listener imported its store statically, which put
+the store in every student's first load; it now imports it on demand when a
+teacher opens the tabs that stream it, and a teacher who leaves before it
+arrives never subscribes. The student's first load is 1,031.0 KB, within the
+limit. Teachers see no difference: the teacher workspace loads the same store.
 
 ## Gate on this commit
 
@@ -38,11 +46,12 @@ line.
 | `test:rules`, `test:challenge-finish`, `test:canonical-persistence`, `test:secure-exam-auto-finalize` | pass (201, 441, 35 and 11 cases) |
 | `test:draft-persistence` | every family passes navigate, reload, reopen and backup |
 | Browser drivers: durableOutboxRecovery, draftEditTime, composedDraftRestore, duplicateTabs, staleTabRecord, toolDraftSyncSweep, warmupReopenDraft, familyPinContainment, submitNotQueued | all pass |
+| Real App, one at a time: draftCrossDeviceJourneys, restoredDraftFocusRaceJourneys, recoveryDraftCrossDeviceJourneys | 42, 164 and 100 checks, all pass |
+| `node scripts/check-first-load-budget.mjs` (after `npm run build`) | studentHome 1,031.0 KB, within its 1,031.4 KB limit |
 
 `npm run test:durable-outbox` skips here (its launcher looks for Playwright in
 `node_modules`); the file it runs, `tests/browser/durableOutboxRecovery.mjs`,
 ran as a driver above with Chromium and passed.
-| Real App, one at a time: draftCrossDeviceJourneys, restoredDraftFocusRaceJourneys, recoveryDraftCrossDeviceJourneys | 42, 164 and 100 checks, all pass |
 
 `recoveryDraftCrossDeviceJourneys` reports one pre-existing console note (the
 draft sync declining to store an oversized Recovery entry); the same note is
