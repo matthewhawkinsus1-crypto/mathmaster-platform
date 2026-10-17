@@ -149,7 +149,10 @@ export const vertexCoverageMessage = (coverage, offCornerLetters = []) => {
   }
   if (coverage.missing > 0) {
     const found = coverage.total - coverage.missing;
-    return `You have found ${found} of the ${coverage.total} ${coverage.total === 1 ? 'corner' : 'corners'} of the solution region. Tap each other place where two boundary lines meet at a corner of the region.`;
+    const next = coverage.missing === 1
+      ? 'Tap the place where two boundary lines meet at the corner you have not marked yet.'
+      : 'Tap each place where two boundary lines meet at a corner you have not marked yet.';
+    return `You have found ${found} of the ${coverage.total} ${coverage.total === 1 ? 'corner' : 'corners'} of the solution region. ${next}`;
   }
   // Every corner is marked and something else is too: a mark that is no
   // corner, else a corner marked twice.
@@ -158,5 +161,10 @@ export const vertexCoverageMessage = (coverage, offCornerLetters = []) => {
     const named = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
     return `${named} ${names.length === 1 ? 'is not a corner' : 'are not corners'} of the solution region. Remove ${names.length === 1 ? 'it' : 'them'}.`;
   }
-  return 'Two of your marks are on the same corner. Remove the extra mark.';
+  // Every mark is near a corner and every corner is marked: the rest are
+  // repeats, counted.
+  const extra = coverage.marked - coverage.total;
+  return extra === 1
+    ? 'Two of your marks are on the same corner. Remove the extra mark.'
+    : `${extra} of your marks repeat corners you already marked. Remove the extra marks.`;
 };

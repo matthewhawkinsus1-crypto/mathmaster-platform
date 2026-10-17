@@ -97,6 +97,11 @@ test('the coverage line says what is actually wrong', () => {
   assert.equal(say([...all, { x: 2, y: 6, includedAnswer: 'no' }], ['D']), 'Vertex D is not a corner of the solution region. Remove it.');
   assert.equal(say([...all, { x: 2, y: 6, includedAnswer: 'no' }, { x: 5, y: 5, includedAnswer: 'no' }], ['D', 'E']), 'Vertex D and Vertex E are not corners of the solution region. Remove them.');
   assert.equal(say([...all, { ...all[0], x: all[0].x + 0.05 }]), 'Two of your marks are on the same corner. Remove the extra mark.');
+  // Three marks on one corner: the repeats are counted, not called "two".
+  assert.equal(say([...all, { ...all[0], x: all[0].x + 0.05 }, { ...all[0], y: all[0].y + 0.05 }]), '2 of your marks repeat corners you already marked. Remove the extra marks.');
+  // One corner left: "the place", not "each other place".
+  assert.match(say(all.slice(0, 2)), /Tap the place where two boundary lines meet at the corner you have not marked yet\.$/);
+  assert.match(say(all.slice(0, 1)), /Tap each place where two boundary lines meet at a corner you have not marked yet\.$/);
   // One corner: singular. No corner at all: nothing to mark.
   assert.match(vertexCoverageMessage(vertexCoverage([corners[0]], [])), /of the 1 corner of/);
   assert.equal(vertexCoverageMessage(vertexCoverage([], [{ x: 1, y: 1 }]), ['A']), 'This solution region has no corners, so there is nothing to mark. Remove your mark.');
