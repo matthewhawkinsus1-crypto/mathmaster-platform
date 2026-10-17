@@ -69,7 +69,7 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
   const target = region(app, 'const sectionNavigationTarget = (section) => sectionLandingEntry({', 'currentIndex: currentQuestionIndex,', 'the tab target');
   assert.match(target, /viewable: entryIsAvailable\(entry\),/);
   assert.match(app, /if \(entryIsAvailable\(visibleQuestionEntries\[position\]\)\) return visibleQuestionEntries\[position\];/);
-  assert.equal([...nav.matchAll(/<option key=\{entry\.index\} value=\{entry\.index\} disabled=\{!entryIsAvailable\(entry\)\}>/g)].length, 2, 'both question lists disable a locked question');
+  assert.equal([...nav.matchAll(/<option key=\{entry\.index\} value=\{entry\.index\} disabled=\{!entryIsAvailable\(entry\)\} data-locked=\{entryIsAvailable\(entry\) \? undefined : 'true'\}>/g)].length, 2, 'both question lists disable a locked question, and mark it for drivers');
   // Pressing a locked tab puts its reason on screen, in a status line.
   assert.match(nav, /setSectionLockNote\(\{ assignmentId: activeAssignmentId, role: section\.role, text: access\.reason \}\)/);
   assert.match(nav, /<p className="mathmaster-section-lock-note" role="status">/);

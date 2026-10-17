@@ -98,13 +98,16 @@ const receiptsFor = (page, studentId, assignmentId) => page.evaluate(({ studentI
 const recordFor = (page, studentId, assignmentId, questionIndex) => page.evaluate(({ studentId, assignmentId, questionIndex }) => (
   window.__mmHarnessStore.get(`grades/${studentId}`)?.gradesByAssignment?.[assignmentId]?.[String(questionIndex)] || null
 ), { studentId, assignmentId, questionIndex });
-// The workspace's question chooser: "Warm-Up Q1 · locked" (disabled), "Classwork Q1", …
+// The workspace's question chooser: "Warm-Up Q1 · Opens Mon, Oct 19" (disabled,
+// data-locked, with its reason after the dot), "Classwork Q1", … Since pass 3
+// the DOL reads "Exit ticket (DOL) Q1" and a locked question names why, not
+// "locked".
 const chooserOption = async (page, label) => page.evaluate((label) => {
   const option = [...document.querySelectorAll('select[aria-label="Choose a question"] option')]
     .find((entry) => entry.textContent.trim().startsWith(label));
-  return option ? { text: option.textContent.trim(), disabled: option.disabled } : null;
+  return option ? { text: option.textContent.trim(), disabled: option.disabled, locked: option.dataset.locked === 'true' } : null;
 }, label);
-const isLocked = (option) => Boolean(option?.disabled && /locked/i.test(option.text));
+const isLocked = (option) => Boolean(option?.disabled && option.locked && /·\s*\S/.test(option.text));
 // Not simulated by the harness (fakeFunctions.js): a projection repair the
 // student's Home asks for. Nothing in these journeys depends on it.
 const NOT_SIMULATED = new Set(['reconcileAssignmentActivityProjection']);
@@ -154,7 +157,7 @@ const run = async (viewport) => {
 
   // P2 — met: the timed sections stay closed.
   const warmup = await chooserOption(page, 'Warm-Up Q1');
-  const dol = await chooserOption(page, 'DOL');
+  const dol = await chooserOption(page, 'Exit ticket (DOL)');
   expect(`P2 ${tag}`, isLocked(warmup), `Warm-Up Q1 is not locked: ${JSON.stringify(warmup)}`);
   expect(`P2 ${tag}`, isLocked(dol), `the DOL is not locked: ${JSON.stringify(dol)}`);
   await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${MET}`);

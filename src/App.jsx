@@ -10193,7 +10193,7 @@ function App() {
                       onChange={(event) => changeQuestion(Number(event.target.value))}
                     >
                       {visibleQuestionEntries.map((entry) => (
-                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
                       ))}
                     </select>
                     <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
@@ -10289,7 +10289,7 @@ function App() {
                   onChange={(event) => changeQuestion(Number(event.target.value))}
                 >
                   {visibleQuestionEntries.map((entry) => (
-                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
                   ))}
                 </select>
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
