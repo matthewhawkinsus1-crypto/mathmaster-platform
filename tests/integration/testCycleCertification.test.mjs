@@ -1366,4 +1366,21 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
   const kept = await refusal(fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'setTestDayForClasses', fromDateKey: today })));
   assert.equal(kept?.code, 'failed-precondition');
   assert.match(kept.message, /No class was moved\. .*kept — its Test window already opened/);
+
+  // Round 2: the class's real window stops resolving (here: the reopen is
+  // gone, leaving only the day stored too late). Somebody sat it, so the
+  // teacher is not told the day never ran — only who still has not sat it.
+  // The absent student's stand-in Retest was never started, so they wait.
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() }),
+  });
+  const reread = await classRow();
+  assert.equal(reread.test.headline, '1 student did not sit it');
+  assert.doesNotMatch(reread.test.detail, /had already ended|passed before/);
+  assert.equal(reread.test.needsNewDay, true);
+  const stillCorrections = await cardOf(SAT);
+  assert.deepEqual([stillCorrections.stage, stillCorrections.canEnter], ['corrections', true], 'the student who sat it is not held back');
+  const waiting = await cardOf(ABSENT);
+  assert.equal(waiting.schedule.test.stranded, true);
+  assert.equal(waiting.schedule.test.headline, 'Waiting for a new Test day');
 });

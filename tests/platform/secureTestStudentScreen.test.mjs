@@ -151,6 +151,10 @@ test('an extended student\'s card says late work is still open, until THEIR date
   assert.equal(facts('corrections', { followUp: { enforced: true, closesAt: homeClose } }), new Date(homeClose).toISOString());
   assert.equal(facts('retest', { followUp: { enforced: false } }), null, 'no home window: the class date, which has passed');
   assert.equal(facts('review', { missedTest: true, followUp: { enforced: true, closesAt: homeClose } }), new Date(homeClose).toISOString(), 'missed the Test');
+  // Finished: no late work is left open, whatever the dates say.
+  for (const stage of ['passed', 'complete', 'retestClosed', 'retestSubmitted']) {
+    assert.equal(facts(stage, { missedTest: true, followUp: { enforced: true, closesAt: homeClose } }), null, stage);
+  }
   // A classmate without the extension keeps the class's date.
   assert.equal(getAssignmentLifecycle(assignment, afterClassLate, { studentId: 'S2' }).lateDueAt.getTime(), classLate);
 });

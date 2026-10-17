@@ -16,6 +16,7 @@ import {
   WINDOW_STATE,
   defaultFollowUpClose,
   describeFollowUpWindow,
+  classNeedsNewTestDay,
   describeTestWindow,
   followUpRefusal,
   formatSchoolDateTime,
@@ -457,4 +458,34 @@ test('a stored value survives a round trip, and junk in it is dropped rather tha
   });
   assert.equal(status.state, WINDOW_STATE.OPEN);
   assert.equal(resolveFollowUpWindow({ assignment: assignment(stored), availability: stored, testStatus: status, now: at(2026, 10, 14, 10, 30), timeZone: TZ }).closesAt, 999);
+});
+
+/*
+ * THE TEACHER IS TOLD ONLY WHAT IS KNOWN (PR-21 review, round 2). A stranded
+ * day can be one the class really sat that no longer resolves. When anyone in
+ * the class started the Test, the panel does not say the day passed before the
+ * bell schedule had times, and asks for a new day only for those still waiting;
+ * a class nobody is waiting in is not flagged.
+ */
+test('a stranded class where somebody sat the Test is described from its sittings, and flagged only while somebody waits', () => {
+  const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
+  const renamed = { ...bell, daySchedules: { ...bell.daySchedules, A: { periods: { '3rd Period': { enabled: true, start: '10:15', end: '11:05' } } } } };
+  const status = resolveStudentTestCycleSchedule({ assignment: sat, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 14, 9), timeZone: TZ }).test;
+  assert.equal(status.stranded, true);
+  const two = describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 20, waiting: 2 } });
+  assert.equal(two.headline, '2 students did not sit it');
+  assert.match(two.detail, /^The bell schedule no longer gives this class's Test day times\. The 2 students who have not started cannot start until you set a new Test day/);
+  assert.doesNotMatch(`${two.headline} ${two.detail}`, /passed before|had already ended|Waiting for a new Test day/);
+  assert.equal(describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 1, waiting: 1 } }).headline, '1 student did not sit it');
+  const none = describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 22, waiting: 0 } });
+  assert.match(none.detail, /Nobody here is waiting to start the Test/);
+  // Nobody started: the day really never ran, and the teacher is told so.
+  assert.equal(describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 0, waiting: 22 } }).headline, 'Waiting for a new Test day');
+  // A student is never given the class's numbers.
+  assert.equal(describeTestWindow(status, { timeZone: TZ, classSittings: { started: 20, waiting: 2 } }).headline, 'Waiting for a new Test day');
+
+  assert.equal(classNeedsNewTestDay(status, { started: 20, waiting: 2 }), true);
+  assert.equal(classNeedsNewTestDay(status, { started: 22, waiting: 0 }), false, 'everyone sat it or moved on: not flagged');
+  assert.equal(classNeedsNewTestDay(status, null), false, 'no records: nobody waiting');
+  assert.equal(classNeedsNewTestDay({ ...status, stranded: undefined }, { started: 0, waiting: 5 }), false);
 });

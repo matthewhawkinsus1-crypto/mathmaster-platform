@@ -370,8 +370,47 @@ test('the teacher panel shows the times, the Review as a grade, who is assigned,
 test('the windows panel names the classes that need a new Test day', () => {
   const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
-  assert.match(schedule, /needsNewDay: test\.stranded === true,/);
+  assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(/);
   const panel = region(management, 'export const TestCycleWindowsPanel = (', '{schedule.classes.length > 1 && !anytime && (', 'windows panel');
   assert.match(panel, /\{!anytime && schedule\.classes\.some\(\(entry\) => entry\.test\?\.needsNewDay\) && \(/);
   assert.match(panel, /Needs a new Test day: \{schedule\.classes\.filter\(\(entry\) => entry\.test\?\.needsNewDay\)\.map\(\(entry\) => entry\.name\)\.join\(', '\)\}/);
+});
+
+/*
+ * A STUDENT WAITING FOR A NEW TEST DAY IS NOT TOLD CORRECTIONS ARE OPEN (PR-21
+ * review, round 2). A stranded day no longer holds the home window shut, for
+ * whoever did sit the Test — but to a student whose Test is still ahead,
+ * "Corrections and Retest: open now" beside "Waiting for a new Test day" says
+ * something is open that is not. Their card shows the Test block only.
+ */
+test('while a student\'s Test is ahead and its day is stranded, their card shows no home window', () => {
+  const schedule = {
+    missedTest: false,
+    test: { state: 'upcoming', stranded: true, headline: 'Waiting for a new Test day', detail: 'Your teacher will set a new Test day.' },
+    followUp: { state: 'open', enforced: true, headline: 'Open now until Fri, Oct 30, 11:59 PM CDT', detail: 'Closes …' },
+  };
+  for (const stage of ['review', 'test']) {
+    assert.deepEqual(studentScheduleBlocks({ stage, schedule }).map((block) => block.id), ['test'], stage);
+  }
+  // Whoever did sit it still reads when Corrections and the Retest close.
+  assert.deepEqual(studentScheduleBlocks({ stage: 'corrections', schedule }).map((block) => block.id), ['followUp']);
+  // Not stranded: the Test ahead still says what happens if they are absent.
+  const normal = { ...schedule, test: { ...schedule.test, stranded: undefined, headline: 'Opens Mon …' }, followUp: { ...schedule.followUp, state: 'upcoming' } };
+  assert.deepEqual(studentScheduleBlocks({ stage: 'test', schedule: normal }).map((block) => block.id), ['test', 'followUp']);
+  // The server sends the flag the view reads.
+  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const part = region(server, 'function publicTestCycleSchedule(', 'async function resolveSecureTestBlueprint(', 'publicTestCycleSchedule');
+  assert.match(part, /\.\.\.\(status\.stranded === true \? \{ stranded: true \} : \{\}\),/);
+});
+
+test('the windows panel is told each class\'s sittings, so a stranded class is flagged and worded from them', () => {
+  const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
+  assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(test, classSittings\.get\(classId\)\),/);
+  assert.match(schedule, /describeTestWindow\(test, \{ timeZone, audience: "teacher", classSittings: classSittings\.get\(classId\) \|\| null \}\)/);
+  assert.match(server, /testSchedule: await teacherTestCycleSchedule\(db, shared, \{ assignment, policy, classSizes, bell, now, classSittings: classSittingsOf\(shared, rows\) \}\),/);
+  const counts = region(server, 'function classSittingsOf(shared, rows) {', '\n}\n', 'classSittingsOf');
+  assert.match(counts, /const classId = row\.sitsWithClassId \|\| row\.classId;/);
+  assert.match(counts, /if \(!notStarted\.includes\(row\.test\?\.state \|\| shared\.record\.SESSION_STATE\.NONE\)\) entry\.started \+= 1;/);
+  assert.match(counts, /else if \(!row\.missedTest && \[stages\.REVIEW, stages\.TEST\]\.includes\(row\.stage\)\) entry\.waiting \+= 1;/);
 });

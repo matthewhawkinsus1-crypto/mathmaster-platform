@@ -581,6 +581,16 @@ export const formatSchoolRange = (opensAt, closesAt, timeZone = null) => {
     : `${formatSchoolDateTime(opensAt, timeZone)} – ${formatSchoolDateTime(closesAt, timeZone)}`;
 };
 
+/**
+ * Does this class need the teacher to set a new Test day? Only when its Test
+ * is stranded AND somebody is still waiting to start it: a finished cycle, or
+ * one where every student has sat it or moved on, is not flagged.
+ * `classSittings` is { started, waiting } counted from the class's records.
+ */
+export const classNeedsNewTestDay = (status, classSittings = null) => (
+  status?.stranded === true && Number(classSittings?.waiting) > 0
+);
+
 const PENDING_REASON = Object.freeze({
   dayTypeNotSet: 'the A/B day for that date has not been set yet',
   noClassThatDay: 'the bell schedule has no period for this class on that date',
@@ -592,7 +602,7 @@ const PENDING_REASON = Object.freeze({
  * The original Test's window, as the two sentences both screens show: when it
  * opens and closes, and whether it may be taken from home.
  */
-export const describeTestWindow = (status, { timeZone = null, audience = 'student' } = {}) => {
+export const describeTestWindow = (status, { timeZone = null, audience = 'student', classSittings = null } = {}) => {
   const state = status?.state || WINDOW_STATE.UNSET;
   const whose = audience === 'teacher' ? 'Students' : 'You';
   if (state === WINDOW_STATE.UNSET) {
@@ -627,6 +637,23 @@ export const describeTestWindow = (status, { timeZone = null, audience = 'studen
     };
   }
   if (state === WINDOW_STATE.UPCOMING) {
+    if (status.stranded && audience === 'teacher' && Number(classSittings?.started) > 0) {
+      // Somebody in this class started the Test, so its day DID happen: the
+      // bell schedule just cannot say when any more (a rotation change, a
+      // renamed or cleared period, an older server's re-save). Say only what
+      // is known, and what is left to do for whoever has not sat it.
+      const waiting = Math.max(0, Number(classSittings?.waiting) || 0);
+      return {
+        state,
+        headline: waiting
+          ? `${waiting} student${waiting === 1 ? '' : 's'} did not sit it`
+          : 'Everyone has sat it or moved on',
+        detail: waiting
+          ? `The bell schedule no longer gives this class's Test day times. ${waiting === 1 ? 'The student who has' : `The ${waiting} students who have`} not started cannot start until you set a new Test day or reopen the window between two times.`
+          : 'The bell schedule no longer gives this class\'s Test day times. Nobody here is waiting to start the Test.',
+        home,
+      };
+    }
     if (status.stranded) {
       const day = formatSchoolDate(status.dateKey, timeZone) || 'The Test day';
       const why = status.pendingReason === 'endedBeforeSet'

@@ -17925,6 +17925,8 @@ function publicTestCycleSchedule(shared, schedule, { audience = "student", misse
     opensAt: status.opensAt ?? null,
     closesAt: status.closesAt ?? null,
     workFromHome: status.workFromHome === true,
+    // The Test day never got class time and waits for a new one.
+    ...(status.stranded === true ? { stranded: true } : {}),
     // A student who missed the Test has a Retest and no Corrections.
     ...describe(status, { timeZone, audience, retestOnly: missedTest === true }),
   });
@@ -19817,7 +19819,27 @@ async function loadTestCycleRoster(db, { assignment, assignmentId, recordsByStud
  * times read from the bell schedule, whether students may work from home, and
  * the next days the class sits — so a Test day is picked, never typed.
  */
-async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now() }) {
+/**
+ * Per class (the one whose windows each student follows): how many have
+ * started the Test, and how many are still waiting to start it — Test ahead,
+ * not missed. What the windows panel needs to say a stranded day honestly.
+ */
+function classSittingsOf(shared, rows) {
+  const stages = shared.stages.TEST_CYCLE_STAGE;
+  const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+  const byClass = new Map();
+  rows.forEach((row) => {
+    const classId = row.sitsWithClassId || row.classId;
+    if (!classId) return;
+    const entry = byClass.get(classId) || { started: 0, waiting: 0 };
+    if (!notStarted.includes(row.test?.state || shared.record.SESSION_STATE.NONE)) entry.started += 1;
+    else if (!row.missedTest && [stages.REVIEW, stages.TEST].includes(row.stage)) entry.waiting += 1;
+    byClass.set(classId, entry);
+  });
+  return byClass;
+}
+
+async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
   if (policy.externalAssessment) return null;
   const timeZone = shared.timeZone;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -19846,9 +19868,12 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         closesAt: test.closesAt ?? null,
         workFromHome: test.workFromHome === true,
         // The Test day passed without class time (or was set after the class
-        // met): nobody can start the Test until the teacher sets a new day.
-        needsNewDay: test.stranded === true,
-        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher" }),
+        // met, or no longer resolves): somebody is still waiting to start it,
+        // and cannot until the teacher sets a new day. A finished class is not
+        // flagged, and one where anybody started is not told the day never
+        // happened (classSittingsOf).
+        needsNewDay: shared.schedule.classNeedsNewTestDay(test, classSittings.get(classId)),
+        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null }),
       },
       followUp: {
         state: followUp.state,
@@ -20076,7 +20101,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
-    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now }),
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
     // Who this Test is for: its classes, anyone added on their own, and the
     // record of every addition.
     audience: {

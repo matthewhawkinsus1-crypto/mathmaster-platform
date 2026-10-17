@@ -561,6 +561,10 @@ export const testCycleDueFacts = ({ dueAt = null, lateDueAt = null, now = Date.n
  */
 export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
   const stage = clean(card?.stage);
+  // Finished: there is no late work left to be open.
+  if ([S.PASSED, S.COMPLETE, S.RETEST_CLOSED, S.RETEST_SUBMITTED].includes(stage)) {
+    return testCycleDueFacts({ dueAt: dueAt || card?.dueAt || null, lateDueAt: null, now });
+  }
   const followUp = card?.schedule?.missedTest === true || [S.CORRECTIONS, S.RETEST_READY, S.RETEST].includes(stage);
   const enforced = card?.schedule?.followUp?.enforced === true;
   const late = !followUp
