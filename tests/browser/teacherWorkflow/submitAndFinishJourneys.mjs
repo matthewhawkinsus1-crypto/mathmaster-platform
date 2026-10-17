@@ -104,6 +104,19 @@ for (const device of DEVICES) {
   check(/Not quite\. You have 2 tries left\./.test(outcome) && !/attempt|version/i.test(outcome), `${device.name}: the outcome says "tries", not "attempts on this version"`, outcome.slice(0, 160));
   const afterAnswer = await saveLine(page);
   check(/answer/i.test(afterAnswer) && !/Recorded|Syncing/.test(afterAnswer), `${device.name}: the save line speaks of the answer, and never "Recorded" before the server has it`, afterAnswer);
+  // One always-mounted announcement region, silent for a routine save.
+  const announced = await page.locator('[data-save-line-announcement]').evaluateAll((nodes) => nodes.map((node) => node.textContent));
+  check(announced.length === 1 && announced[0] === '', `${device.name}: the save line's live region is mounted and silent for a routine save`, JSON.stringify(announced));
+  // A reload: the answer still queued on this device is still an answer
+  // (the harness does not deliver it).
+  await page.reload({ waitUntil: 'networkidle' });
+  await settle(page, 2500);
+  await page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first().click();
+  await page.locator('math-field').first().waitFor({ timeout: 20000 });
+  await settle(page, 1500);
+  const afterReload = await saveLine(page);
+  check(/Answer saved on this device|Answer recorded/.test(afterReload), `${device.name}: after a reload the queued answer is still called an answer`, afterReload);
+  check(await submitName(page) === 'Submit — uses 1 of 2 tries left', `${device.name}: and the try it spent still counts`, await submitName(page));
 
   await answerAll(page, ['2/3']);
   await submit(page);
@@ -159,7 +172,7 @@ for (const device of DEVICES) {
   check(await card.count() === 1, `${device.name}: and a card says so where Next would be`);
   if (device.isMobile) {
     const shown = (await page.locator('button.mathmaster-bar-continue:visible').first().innerText()).replace(/\s+/g, ' ').trim();
-    check(shown === '← Back to Q1', `${device.name}: the phone bar shows its short words`, shown);
+    check(shown === '← Go back', `${device.name}: the phone bar shows its short words, the start of its name`, shown);
   }
   await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-skipped.png`) });
   if (await back.count()) await back.click();

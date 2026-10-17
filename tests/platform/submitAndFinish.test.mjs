@@ -129,7 +129,7 @@ test('a registry tool\'s final action says Submit and its cost where it spends a
   // is told the cost; a composed question's stages and the solver's stage are not.
   const engine = code('src/QuestionEngine.jsx');
   const standalone = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool provider');
-  assert.match(standalone, /submitCost=\{tryCost\.phrase \|\| null\}/);
+  assert.match(standalone, /submitCost=\{!locked && tryCost\.phrase \? tryCost\.phrase : null\}/);
   assert.doesNotMatch(region(engine, 'if (isComposed) {', '</ToolRuntimeProvider>', 'the composed provider'), /submitCost/);
   assert.doesNotMatch(region(engine, 'const withSolverRuntime', '</ToolRuntimeProvider>', 'the solver provider'), /submitCost/);
 });
@@ -341,7 +341,7 @@ test('nothing ahead and a question skipped: the bar and a card offer the way bac
   });
   const text = decode(html);
   assert.match(text, /class="mathmaster-bar-continue" data-way-on="back" aria-label="Go back to Practice Q1 \(not answered\)"/);
-  assert.match(text, /<span class="mathmaster-action-label-short">Back to Q1<\/span>/, 'the phone\'s short words');
+  assert.match(text, /<span class="mathmaster-action-label-short">Go back<\/span>/, 'the phone\'s short words: the start of its name (label in name)');
   assert.match(text, /class="mathmaster-go-back-question"[\s\S]*?Go back to Practice Q1 \(not answered\)[\s\S]*?Shortcut: press Enter again to continue\./);
   // With a Next, no way back is offered.
   const withNext = await renderEngine({ role: 'practice', record: { status: 'correct', attemptCount: 1 }, props: { ...closedProps, onNextQuestion: () => {}, onGoBackToQuestion: () => {}, goBackLabel: label } });
@@ -437,3 +437,9 @@ test('the math keypad closes with the question, and stays for the practice besid
   assert.match(region(engine, 'const practiceLikeThis = practiceOffered ? (', ') : null;', 'the practice'), /<QuestionLifecycleProvider terminal=\{false\}>\s*<PracticeLikeThis/);
 });
 
+
+test('a closed question names no cost on its tool\'s inert button', () => {
+  const engine = code('src/QuestionEngine.jsx');
+  const standalone = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool provider');
+  assert.match(standalone, /submitCost=\{!locked && tryCost\.phrase \? tryCost\.phrase : null\}/);
+});

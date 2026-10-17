@@ -928,7 +928,6 @@ function QuestionEngineBody({
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
-  // The work area is read-only while the question is closed or waiting —
   // THE FAILURE BELONGS TO THE MODULE THAT FAILED, NOT TO THE MOUNT. "Start
   // this question fresh" remounts the boundary under a new key, and My Math
   // Path swaps the question under one engine with no key at all; either way
@@ -938,6 +937,7 @@ function QuestionEngineBody({
   const moduleBoundaryKey = `${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`;
   const moduleFailureKey = `${moduleBoundaryKey}|${question?.questionId ?? question?.id ?? ''}`;
   const moduleFailed = failedModuleKey !== null && failedModuleKey === moduleFailureKey;
+  // The work area is read-only while the question is closed or waiting —
   // except when its module failed: then it holds only the failure panel.
   const workAreaClosed = !moduleFailed && Boolean(locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
   // The attempt strip at the top of the question states the lock reason where
@@ -1995,7 +1995,8 @@ function QuestionEngineBody({
           submitLabel={hostSubmitLabel}
           // The tool's own final action records an attempt here: it says
           // Submit and what that costs (RUN-4, D9).
-          submitCost={tryCost.phrase || null}
+          // A closed question spends nothing: its inert button names no cost.
+          submitCost={!locked && tryCost.phrase ? tryCost.phrase : null}
           verdictsWithheld={!showOutcomeFeedback}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
@@ -3177,8 +3178,9 @@ function QuestionEngineBody({
         >
           {barContinueAction.kind === 'back'
             // "Go back to Practice Q1 (not answered)" is too long for the
-            // phone's one-row bar: there it reads "← Back to Q1".
-            ? <><span aria-hidden="true">← </span><span className="mathmaster-action-label-long">{barContinueAction.label}</span><span className="mathmaster-action-label-short">{`Back to ${(barContinueAction.label.match(/\bQ\d+\b/) || ['the question'])[0]}`}</span></>
+            // phone's one-row bar: there it reads "← Go back", the start of
+            // its accessible name (label in name, WCAG 2.5.3).
+            ? <><span aria-hidden="true">← </span><span className="mathmaster-action-label-long">{barContinueAction.label}</span><span className="mathmaster-action-label-short">Go back</span></>
             : barActionLabel(barContinueAction.label)}
         </button>
         ) : null}

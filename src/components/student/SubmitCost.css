@@ -20,7 +20,7 @@
 }
 
 /* The phone's words for an action whose full words do not fit its one-row
-   bar ("1 of 3", "Back to Q1"); every wider screen shows the
+   bar ("1 of 3", "Go back"); every wider screen shows the
    .mathmaster-action-label-long words instead. */
 .mathmaster-action-label-short {
   display: none;
