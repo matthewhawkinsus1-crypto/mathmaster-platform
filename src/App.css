@@ -1894,6 +1894,17 @@
   }
 }
 
+/* A toast never covers the action bar: on the assignment screen it rises
+   above the bar's actual top (--mm-action-bar-clearance, published by App
+   from where the bar is), not only by the bar's height, which assumed the bar
+   was stuck to the bottom of the screen. Phones (≤640px) place toasts at the
+   top instead (uiKit.css). */
+@media (min-width: 641px) {
+  body:has(.mathmaster-assignment-screen) .mm-toast-viewport {
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--mm-action-bar-clearance, var(--mm-action-bar-height, 0px)));
+  }
+}
+
 /* The unified navigator is taller than the old one-row rail, so selected
    questions should land below it when changeQuestion scrolls the stage. */
 .mathmaster-question-stage {
