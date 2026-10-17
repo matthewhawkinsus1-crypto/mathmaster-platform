@@ -79,7 +79,8 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await check(`${at} graphing2 Work View: the rail's Start over keeps focus`, async () => {
       await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphing2`, { waitUntil: 'networkidle', timeout: 90000 });
       if (await page.evaluate(() => document.documentElement.getAttribute('data-work-view-open')) !== 'true') {
-        await page.locator('button:has-text("Enlarge")').first().click();
+        // "Open Work View" since the assignment chrome (pass 3); "Enlarge" before.
+        await page.locator('button:has-text("Open Work View"), button:has-text("Enlarge")').first().click();
         await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
       }
       const dialogPlane = page.locator('[aria-modal="true"] svg.mathmaster-responsive-canvas[role="application"]').first();
