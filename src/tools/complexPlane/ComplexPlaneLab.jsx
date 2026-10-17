@@ -4,7 +4,7 @@ import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useMethodWithheld, useRevealAnswers } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import complexPlaneGrader from '../../../functions/shared/serverGrading/tools/complexPlaneLab.mjs';
@@ -187,6 +187,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
 }
 
 function Rotation({ questionData, feedback, submit, onAction }) {
+  const methodWithheld = useMethodWithheld();
   const z = toComplex(questionData.z || { re: 3, im: 1 });
   const quarterTurns = Number(questionData.quarterTurns ?? 1);
   const expected = rotateByPowerOfI(z, quarterTurns);
@@ -205,7 +206,8 @@ function Rotation({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `i^${quarterTurns}z`, color: '#8a3ffc', isAnswer: true }]} title="Before and after rotation" />
       <Panel title={`Multiply by i^${quarterTurns}`}>
         <p><strong>Starting point:</strong> {formatComplex(z)}</p>
-        <p style={{ color: 'var(--mm-text-muted)' }}>Powers of i cycle every four turns. One multiplication by i is a 90° counterclockwise rotation.</p>
+        {/* The rule the item measures: withheld where the method is (R-10). */}
+        {methodWithheld ? null : <p style={{ color: 'var(--mm-text-muted)' }}>Powers of i cycle every four turns. One multiplication by i is a 90° counterclockwise rotation.</p>}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Result real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Result imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>Net rotation<select value={rotation} onChange={(event) => setRotation(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="0">No net rotation</option><option value="1">90° counterclockwise</option><option value="2">180°</option><option value="3">90° clockwise</option></select></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check rotation</button>
