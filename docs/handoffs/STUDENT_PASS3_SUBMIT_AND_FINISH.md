@@ -174,6 +174,9 @@ Each fix is its own commit; the sections above already describe the result.
 | My Math Path as it really mounts (no `generationKey`, a `{status, attemptCount}` record, questions with no id, the reset version back to 0 per item) gave every item the same failure key: after item 1 was started fresh, item 2 never closed; moving on without a fresh start left item 2 behind item 1's panel. | `questionModuleFailureKey.js`: boundary key, question id and **draft key** (`path-${questionInstanceId}`), also the boundary's `resetKey`. The failure is held with the question object it happened on and counts only for it; recovery clears it. Not cleared in the new-question effect: a module that throws as it first mounts reports during the commit, before that effect, and would lose its panel (`64691d1`). | Unit test on the key (collapsing it to a constant, or dropping the draft key, goes red); `moduleRecoveryLock.mjs` gains the PathSessionPlayer mount, started fresh and moving on, both sizes (red without the draft key) |
 | The new browser proofs ran in no CI workflow. | `moduleRecoveryLock` and `closedQuestionEnter` in Student Runtime Browser Gates; `submitAndFinishJourneys` in its own job in Student and Teacher Journeys; `paths:` triggers for each (`c1c2c00`). | the workflow contracts (74 pass) |
 
+Gate after round 2 (`c1c2c00`): `test:platform` **11,447 / 11,447**, `npm run build` and lint pass; moduleRecoveryLock,
+closedQuestionEnter, feedbackTeaches, renderStability, errorRecovery and workViewTerminalTransition pass.
+
 With Batch 3 (pass3-b3-persistence-client), a submit that could not be queued is announced twice, both by Batch 3 (its
 `role="alert"` "Not submitted…" and its polite toast); the save line's region stays silent, as it should. The
 integrator is raising it with Batch 3.
