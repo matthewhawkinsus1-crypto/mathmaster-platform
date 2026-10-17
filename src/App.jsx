@@ -11446,7 +11446,14 @@ function App() {
     }
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
       const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
-      const activeTestCycleLateDueAt = activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null;
+      // THIS student's dates, not the class's: an attendance extension or an
+      // individualized extra-time deadline (injected in memory by
+      // projectStudentAssignments) moves them, and getAssignmentLifecycle
+      // resolves them with resolveStudentDeadlines, the precedence the
+      // server's assignmentFinalCloseAt uses.
+      const activeTestCycleDates = activeTestCycleAssignment
+        ? getAssignmentLifecycle(activeTestCycleAssignment, Date.now(), { studentId: user.id })
+        : null;
       return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
@@ -11458,9 +11465,14 @@ function App() {
                 assignmentId={activeTestCycleAssignmentId}
                 studentId={user.id}
                 studentProfile={user.profile}
-                // The class's final late date, so a card opened after the
-                // regular due date says the work is still open and until when.
-                lateDueAt={activeTestCycleLateDueAt}
+                // The student's own due and final late dates, so a card opened
+                // after the regular due date says the work is still open and
+                // until when — for an extended student, until their date.
+                dueAt={activeTestCycleDates?.dueAt || null}
+                lateDueAt={activeTestCycleDates?.lateDueAt || null}
+                // Corrections and the Retest close at the class's date unless
+                // the server's home window says otherwise.
+                classLateDueAt={activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the
@@ -11496,6 +11508,12 @@ function App() {
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
           onPracticeSkill={practiseSkillFromResults}
+          // The student's Test Cycles with THEIR dates, so a Test whose session
+          // is not open yet is listed with when it is (PR-20).
+          testCycles={assignments.filter(isTestCycleAssignment).map((assignment) => {
+            const own = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+            return { assignment, dueAt: own.dueAt, lateDueAt: own.lateDueAt };
+          })}
           />
         </>,
       );

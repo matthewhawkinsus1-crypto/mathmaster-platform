@@ -1049,3 +1049,338 @@ test('the published assignment document carries no secure answer material', asyn
     assert.equal(roles.includes(forbidden), false, `a ${forbidden} section would ship its key to the browser`);
   }
 });
+
+/* ======================================================================== */
+/* J. A Test day nobody could sit is never "missed" (PR-21)                  */
+/* ======================================================================== */
+
+/*
+ * One teacher action used to mark a whole class as having missed the Test:
+ * setting the Test day to today after the class had already met (the window
+ * was closed the moment it was stored), or setting a day the bell schedule
+ * never gave times for (it closed at that day's midnight). Either moved every
+ * student to a Retest. Its own assignment, class and student, so nothing here
+ * changes what the scenarios above found.
+ */
+test('J: a Test day is never scheduled into a meeting that has ended, and an unresolved day is never missed', async (t) => {
+  const { zonedDateKey, zonedInstant } = await import('../../functions/shared/instructionalCalendar.mjs');
+  const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
+  const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
+  const DAY = 86400000;
+  const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+  const today = dayKey(0);
+  const [year, month, day] = today.split('-').map(Number);
+  // Today's meeting is 00:00–00:01 school time, so it has ended — unless this
+  // runs in that first two minutes after midnight, when it is not yet true.
+  if (Date.now() < zonedInstant({ year, month, day, hour: 0, minute: 2 }, SCHOOL_TIME_ZONE)) {
+    t.skip('it is just after midnight in the school zone: today\'s meeting has not ended yet');
+    return;
+  }
+  const ASSIGNMENT = `${CERT_PREFIX}pr21`;
+  const CLASS = 'cert-pr21-class';
+  const PERIOD = 'CERT PR21 Period';
+  const STUDENT = 'CERT_PR21_STUDENT';
+  const cleanup = async () => {
+    const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
+    await Promise.allSettled([
+      db.collection('assignments').doc(ASSIGNMENT).delete(),
+      db.collection('classes').doc(CLASS).delete(),
+      db.collection('grades').doc(STUDENT).delete(),
+      db.collection('testCycleRecords').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
+      db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
+      db.collection('settings').doc('classSchedule').delete(),
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+    ]);
+  };
+  t.after(cleanup);
+
+  await db.collection('classes').doc(CLASS).set({
+    name: 'Certification PR21', course: 'algebra1', courseLevel: 'standard', period: PERIOD, teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  await db.collection('grades').doc(STUDENT).set({
+    displayName: 'Pr Twentyone Learner', classId: CLASS, classPeriod: PERIOD, assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  await db.collection('assignments').doc(ASSIGNMENT).set({ ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT });
+  await db.collection('settings').doc('classSchedule').set({
+    version: 2,
+    daySchedules: {},
+    weeklyDayTypes: {},
+    modifiedSchedules: {
+      [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } },
+      [dayKey(1)]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } },
+    },
+  });
+  const opened = await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }));
+  assert.equal(opened.createdSessions, 1);
+  const availability = (data) => fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, ...data }));
+  const notMissed = async (label, { gated = true } = {}) => {
+    const card = await fns.getStudentTestCycle.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT }));
+    assert.equal(card.stage, 'test', label);
+    if (gated) assert.equal(card.canEnter, false, `${label}: not opened early either`);
+    assert.notEqual(card.missedTest, true, label);
+    assert.equal(card.schedule.missedTest, false, label);
+    const record = await readRecord(ASSIGNMENT, STUDENT);
+    assert.equal(record.retest.examSessionId ?? null, null, `${label}: no Retest was opened in the Test's place`);
+    assert.notEqual(record.retest.withoutOriginal, true, label);
+    return card;
+  };
+
+  // 1. Today, after the class met: refused, with when it meets next.
+  const ended = await refusal(availability({ action: 'setClassTestDay', classId: CLASS, dateKey: today }));
+  assert.equal(ended?.code, 'failed-precondition');
+  assert.match(ended.message, /already met today .*It next meets: .*12:00 AM C[DS]T – 11:59 PM C[DS]T/);
+  assert.equal((await db.collection('assignments').doc(ASSIGNMENT).get()).data().testAvailability, undefined, 'nothing was stored');
+  // No window at all is the "unset" cycle it was before: nothing enforced.
+  assert.equal((await notMissed('after the refusal', { gated: false })).schedule.test.state, 'unset');
+
+  // 2. "Every class from today" skips today's ended meeting for tomorrow's.
+  const all = await availability({ action: 'setTestDayForClasses', fromDateKey: today });
+  assert.match(all.notes.join(' '), /12:00 AM C[DS]T – 11:59 PM C[DS]T/);
+  const stored = (await db.collection('assignments').doc(ASSIGNMENT).get()).data().testAvailability;
+  assert.deepEqual(stored.classWindows[CLASS].map((entry) => entry.dateKey), [dayKey(1)]);
+  const upcoming = await notMissed('a day set for tomorrow');
+  assert.equal(upcoming.schedule.test.state, 'upcoming');
+  // The teacher is offered tomorrow, not today.
+  const table = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT }));
+  const entry = table.testSchedule.classes.find((row) => row.classId === CLASS);
+  assert.equal(entry.upcomingDays[0].dateKey, dayKey(1));
+
+  // 3. A day stored after its meeting ended (an older server wrote it): it
+  // waits for a new day instead of closing on the class.
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() }),
+  });
+  const late = await notMissed('a day stored after its meeting ended');
+  assert.equal(late.schedule.test.state, 'upcoming');
+  assert.equal(late.schedule.test.headline, 'Waiting for a new Test day');
+  assert.match(late.schedule.test.detail, /had already ended when it was set as the Test day\. Your teacher will set a new Test day\./);
+  const lateStart = await refusal(fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: late.examSessionId })));
+  assert.equal(lateStart?.code, 'failed-precondition');
+  assert.match(lateStart.message, /waiting for a new Test day/);
+
+  // 4. A day the bell schedule never gave times for, after its midnight.
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: dayKey(-2) }),
+  });
+  const passed = await notMissed('a day that passed without times');
+  assert.equal(passed.schedule.test.headline, 'Waiting for a new Test day');
+  assert.match(passed.schedule.test.detail, /passed before the bell schedule gave this class's times for it/);
+  const row = (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT }))).rows.find((entry) => entry.studentId === STUDENT);
+  assert.notEqual(row.bucket, 'missedTest');
+  assert.notEqual(row.missedTest, true);
+});
+
+/* ======================================================================== */
+/* K. Tests & Exams can describe a Test before its session exists (PR-20)    */
+/* ======================================================================== */
+
+/*
+ * Tests & Exams lists a Test Cycle with no secure session from a READ-ONLY
+ * look at the card (getStudentTestCycle `preview`). That look must say when
+ * the Test is and how long it is — and open nothing: no record, no session,
+ * and no stand-in Retest for a student whose window has closed. Only the card,
+ * opened by the student, does that.
+ */
+test('K: a preview of a Test whose session is not open describes it and opens nothing', async (t) => {
+  const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
+  const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
+  const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
+  const DAY = 86400000;
+  const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+  const ASSIGNMENT = `${CERT_PREFIX}pr20`;
+  const CLASS = 'cert-pr20-class';
+  const PERIOD = 'CERT PR20 Period';
+  const STUDENT = 'CERT_PR20_STUDENT';
+  const recordRef = db.collection('testCycleRecords').doc(`${ASSIGNMENT}__${STUDENT}`);
+  t.after(async () => {
+    const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
+    await Promise.allSettled([
+      db.collection('assignments').doc(ASSIGNMENT).delete(),
+      db.collection('classes').doc(CLASS).delete(),
+      db.collection('grades').doc(STUDENT).delete(),
+      recordRef.delete(),
+      db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
+      db.collection('settings').doc('classSchedule').delete(),
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+    ]);
+  });
+
+  await db.collection('classes').doc(CLASS).set({
+    name: 'Certification PR20', course: 'algebra1', courseLevel: 'standard', period: PERIOD, teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  await db.collection('grades').doc(STUDENT).set({
+    displayName: 'Pr Twenty Learner', classId: CLASS, classPeriod: PERIOD, assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  await db.collection('assignments').doc(ASSIGNMENT).set({ ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT });
+  await db.collection('settings').doc('classSchedule').set({
+    version: 2, daySchedules: {}, weeklyDayTypes: {},
+    modifiedSchedules: Object.fromEntries([-1, 1].map((offset) => [dayKey(offset), { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } }])),
+  });
+  const preview = () => fns.getStudentTestCycle.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT, preview: true }));
+
+  // Assigned, Test day tomorrow, no session opened: the list has nothing for it.
+  await fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'setClassTestDay', classId: CLASS, dateKey: dayKey(1) }));
+  const listed = await fns.listStudentSecureExamSessions.run(studentRequest(STUDENT, {}));
+  assert.equal(listed.sessions.filter((session) => session.courseTest?.assignmentId === ASSIGNMENT).length, 0);
+  const look = await preview();
+  assert.equal(look.preview, true);
+  assert.equal(look.hasSecureSession, false, 'from the record: no session yet');
+  assert.equal(look.canEnter, false);
+  assert.equal(look.schedule.test.state, 'upcoming');
+  assert.match(look.schedule.test.headline, /^Opens .* 12:00 AM C[DS]T$/);
+  assert.match(look.schedule.test.home, /taken in class/);
+  // How long: the card's own delivery facts (this blueprint is timed).
+  assert.equal(look.delivery.timed, true);
+  assert.ok(look.delivery.timeLimitMinutes > 0);
+  assert.equal(look.delivery.questionCount, CERT_TOTAL_QUESTIONS);
+  assert.equal(look.examSessionId, null);
+  assert.equal(JSON.stringify(look).includes('privateGrading'), false);
+  assert.equal((await recordRef.get()).exists, false, 'a look writes no record');
+
+  // The window closed yesterday and the student never started: the CARD would
+  // open a stand-in Retest. The preview must not.
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }));
+  await db.collection('assignments').doc(ASSIGNMENT).update({ testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: dayKey(-1) }) });
+  const missed = await preview();
+  assert.equal(missed.schedule.missedTest, true);
+  assert.equal(missed.hasSecureSession, true, 'the Test session now exists, so Tests & Exams lists it, not a row');
+  assert.equal((await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId ?? null, null, 'no Retest opened by a look');
+  const sessionsBefore = (await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get()).size;
+  // ...and the card itself still does, exactly as before.
+  const card = await fns.getStudentTestCycle.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT }));
+  assert.equal(card.stage, 'retest');
+  assert.ok((await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId);
+  assert.equal((await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get()).size, sessionsBefore + 1);
+});
+
+/* ======================================================================== */
+/* L. A stranded day never hides a window that ran (PR-21 review)            */
+/* ======================================================================== */
+
+/*
+ * Old-bug data (a Test day stored after its class had met) that the teacher
+ * fixed the way the panel offers: "Open between two times". Once that reopen
+ * has run, the class is exactly where it would be without the stranded day —
+ * the student who sat it does Corrections, the student who did not missed it
+ * and gets the Retest — and the teacher is not told nobody missed it. And the
+ * bulk "first meeting from today" keeps the class, since its window ran.
+ */
+test('L: a reopen of a stranded day runs like any window: who sat it does Corrections, who did not is missed', async (t) => {
+  const { zonedDateKey, zonedInstant } = await import('../../functions/shared/instructionalCalendar.mjs');
+  const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
+  const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
+  const today = zonedDateKey(Date.now(), SCHOOL_TIME_ZONE);
+  const [year, month, day] = today.split('-').map(Number);
+  if (Date.now() < zonedInstant({ year, month, day, hour: 0, minute: 2 }, SCHOOL_TIME_ZONE)) {
+    t.skip('it is just after midnight in the school zone: today\'s meeting has not ended yet');
+    return;
+  }
+  const ASSIGNMENT = `${CERT_PREFIX}pr21l`;
+  const CLASS = 'cert-pr21l-class';
+  const PERIOD = 'CERT PR21L Period';
+  const SAT = 'CERT_PR21L_SAT';
+  const ABSENT = 'CERT_PR21L_ABSENT';
+  t.after(async () => {
+    const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
+    await Promise.allSettled([
+      db.collection('assignments').doc(ASSIGNMENT).delete(),
+      db.collection('classes').doc(CLASS).delete(),
+      db.collection('settings').doc('classSchedule').delete(),
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+      ...[SAT, ABSENT].flatMap((studentId) => [
+        db.collection('grades').doc(studentId).delete(),
+        db.collection('testCycleRecords').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+        db.collection('testCycleCorrectionPlans').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+        db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+      ]),
+    ]);
+  });
+
+  await db.collection('classes').doc(CLASS).set({
+    name: 'Certification PR21L', course: 'algebra1', courseLevel: 'standard', period: PERIOD, teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  for (const studentId of [SAT, ABSENT]) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('grades').doc(studentId).set({
+      displayName: studentId === SAT ? 'Sat Twentyone Learner' : 'Absent Twentyone Learner', classId: CLASS, classPeriod: PERIOD,
+      assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+      gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    });
+  }
+  await db.collection('settings').doc('classSchedule').set({
+    version: 2, daySchedules: {}, weeklyDayTypes: {},
+    modifiedSchedules: { [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } } },
+  });
+  // Old-bug data: today's day, stored after its class had met.
+  await db.collection('assignments').doc(ASSIGNMENT).set({
+    ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT,
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() }),
+  });
+  assert.equal((await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }))).createdSessions, 2);
+  const cardOf = (studentId) => fns.getStudentTestCycle.run(studentRequest(studentId, { assignmentId: ASSIGNMENT }));
+  const classRow = async () => (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT })))
+    .testSchedule.classes.find((entry) => entry.classId === CLASS);
+
+  const stranded = await classRow();
+  assert.equal(stranded.test.needsNewDay, true, 'the teacher is told this class needs a new day');
+  assert.doesNotMatch(`${stranded.test.headline} ${stranded.test.detail}`, /missed/);
+
+  // The teacher reopens it between two times, as the panel offers.
+  const closesAt = Date.now() + 45000;
+  await fns.updateTestCycleAvailability.run(teacherRequest({
+    assignmentId: ASSIGNMENT, action: 'reopenClassWindow', classId: CLASS, opensAt: Date.now() - 60000, closesAt,
+  }));
+  const satCard = await cardOf(SAT);
+  assert.deepEqual([satCard.stage, satCard.canEnter], ['test', true]);
+  await sit({ studentId: SAT, examSessionId: satCard.examSessionId, correctCount: 0, total: CERT_TOTAL_QUESTIONS });
+  await fns.finalizeSecureExam.run(studentRequest(SAT, { examSessionId: satCard.examSessionId }));
+  await releaseFeedback(satCard.examSessionId);
+
+  // Wait for the reopen to close.
+  while (Date.now() <= closesAt + 500) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => { setTimeout(resolve, 1000); });
+  }
+
+  const corrections = await cardOf(SAT);
+  assert.deepEqual([corrections.stage, corrections.canEnter], ['corrections', true], 'the student who sat it does Corrections');
+  assert.ok(corrections.corrections?.targets?.length > 0);
+  const issued = await fns.issueTestCycleCorrectionQuestion.run(studentRequest(SAT, {
+    assignmentId: ASSIGNMENT, correctionId: corrections.corrections.targets[0].correctionId,
+  }));
+  assert.ok(issued.questionInstance, 'and the server issues them a Correction');
+
+  const absent = await cardOf(ABSENT);
+  assert.equal(absent.schedule.missedTest, true, 'the student who did not sit it missed it');
+  assert.equal(absent.stage, 'retest');
+  assert.ok((await readRecord(ASSIGNMENT, ABSENT)).retest.examSessionId, 'and gets the Retest');
+
+  const closed = await classRow();
+  assert.equal(closed.test.state, 'closed');
+  assert.equal(closed.test.needsNewDay, false);
+  assert.doesNotMatch(`${closed.test.headline} ${closed.test.detail}`, /no student missed it/);
+
+  // "Each class's first meeting from today" keeps a class whose window ran.
+  const kept = await refusal(fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'setTestDayForClasses', fromDateKey: today })));
+  assert.equal(kept?.code, 'failed-precondition');
+  assert.match(kept.message, /No class was moved\. .*kept — its Test window already opened/);
+
+  // Round 2: the class's real window stops resolving (here: the reopen is
+  // gone, leaving only the day stored too late). Somebody sat it, so the
+  // teacher is not told the day never ran — only who still has not sat it.
+  // The absent student's stand-in Retest was never started, so they wait.
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() }),
+  });
+  const reread = await classRow();
+  assert.equal(reread.test.headline, '1 student did not sit it');
+  assert.doesNotMatch(reread.test.detail, /had already ended|passed before/);
+  assert.equal(reread.test.needsNewDay, true);
+  const stillCorrections = await cardOf(SAT);
+  assert.deepEqual([stillCorrections.stage, stillCorrections.canEnter], ['corrections', true], 'the student who sat it is not held back');
+  const waiting = await cardOf(ABSENT);
+  assert.equal(waiting.schedule.test.stranded, true);
+  assert.equal(waiting.schedule.test.headline, 'Waiting for a new Test day');
+});

@@ -18018,6 +18018,8 @@ function publicTestCycleSchedule(shared, schedule, { audience = "student", misse
     opensAt: status.opensAt ?? null,
     closesAt: status.closesAt ?? null,
     workFromHome: status.workFromHome === true,
+    // The Test day never got class time and waits for a new one.
+    ...(status.stranded === true ? { stranded: true } : {}),
     // A student who missed the Test has a Retest and no Corrections.
     ...describe(status, { timeZone, audience, retestOnly: missedTest === true }),
   });
@@ -18999,6 +19001,11 @@ function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
 exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
+  // A READ-ONLY LOOK, for Tests & Exams listing a Test whose session is not
+  // open yet: the same question-free card, but opening nothing (no stand-in
+  // Retest for a missed Test) and reading no Corrections. Only the card itself,
+  // opened by the student, does those.
+  const preview = request.data?.preview === true;
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
 
   const [gradeSnapshot, recordSnapshot] = await Promise.all([
@@ -19041,7 +19048,8 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
    * was stranded. Past the Review gate, with the home window not yet over and
    * the assessment open, opening their card opens their Retest.
    */
-  if (state.missedTest
+  if (!preview
+    && state.missedTest
     && state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST_READY
     && availability.open
     && schedule?.followUp?.state !== shared.schedule.WINDOW_STATE.CLOSED) {
@@ -19055,7 +19063,7 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   }
 
   let corrections = null;
-  const inCorrections = state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  const inCorrections = !preview && state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
   if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
@@ -19078,6 +19086,10 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   return {
     success: true,
     assignmentId,
+    // A look also says whether this student has ANY secure session for the
+    // cycle, from their record — the complete answer, where the session list
+    // (capped, unordered) may not be.
+    ...(preview ? { preview: true, hasSecureSession: Boolean(record.test.examSessionId || record.retest.examSessionId) } : {}),
     title: blueprint.title || assignment?.title || "Test Cycle",
     stage: state.stage,
     secure: state.secure,
@@ -19900,7 +19912,27 @@ async function loadTestCycleRoster(db, { assignment, assignmentId, recordsByStud
  * times read from the bell schedule, whether students may work from home, and
  * the next days the class sits — so a Test day is picked, never typed.
  */
-async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now() }) {
+/**
+ * Per class (the one whose windows each student follows): how many have
+ * started the Test, and how many are still waiting to start it — Test ahead,
+ * not missed. What the windows panel needs to say a stranded day honestly.
+ */
+function classSittingsOf(shared, rows) {
+  const stages = shared.stages.TEST_CYCLE_STAGE;
+  const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+  const byClass = new Map();
+  rows.forEach((row) => {
+    const classId = row.sitsWithClassId || row.classId;
+    if (!classId) return;
+    const entry = byClass.get(classId) || { started: 0, waiting: 0 };
+    if (!notStarted.includes(row.test?.state || shared.record.SESSION_STATE.NONE)) entry.started += 1;
+    else if (!row.missedTest && [stages.REVIEW, stages.TEST].includes(row.stage)) entry.waiting += 1;
+    byClass.set(classId, entry);
+  });
+  return byClass;
+}
+
+async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
   if (policy.externalAssessment) return null;
   const timeZone = shared.timeZone;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -19916,7 +19948,7 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
     const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
     const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
     const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
-    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone });
+    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
     return {
       classId,
       name: String(classRecord.name || classRecord.period || classId).slice(0, 160),
@@ -19928,7 +19960,13 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         opensAt: test.opensAt ?? null,
         closesAt: test.closesAt ?? null,
         workFromHome: test.workFromHome === true,
-        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher" }),
+        // The Test day passed without class time (or was set after the class
+        // met, or no longer resolves): somebody is still waiting to start it,
+        // and cannot until the teacher sets a new day. A finished class is not
+        // flagged, and one where anybody started is not told the day never
+        // happened (classSittingsOf).
+        needsNewDay: shared.schedule.classNeedsNewTestDay(test, classSittings.get(classId)),
+        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null }),
       },
       followUp: {
         state: followUp.state,
@@ -19949,7 +19987,9 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         extended: window.extended === true,
         label: window.resolved
           ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
-          : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+          : window.reason === "endedBeforeSet"
+            ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
+            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
       })),
       // The next days this class sits, straight from the bell schedule.
       upcomingDays: upcoming.days.map((day) => ({
@@ -20154,7 +20194,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
-    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now }),
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
     // Who this Test is for: its classes, anyone added on their own, and the
     // record of every addition.
     audience: {
@@ -25165,13 +25205,25 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       throw new HttpsError("failed-precondition", "This class has no period, so the bell schedule cannot say when it meets. Set the class's period, or reopen the window between two times instead.");
     }
     const day = sched.resolveClassPeriodDay({ schedule: bell, classPeriod, dateKey, timeZone });
+    const nextMeetings = () => sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone, now }).days
+      .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
     if (!day.resolved && !day.pending) {
-      const next = sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone }).days
-        .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
+      const next = nextMeetings();
       throw new HttpsError(
         "failed-precondition",
         `${classPeriod} does not meet on ${sched.formatSchoolDate(dateKey, timeZone)} according to the bell schedule.${next.length ? ` It next meets: ${next.join("; ")}.` : ""}`,
         { reason: day.reason },
+      );
+    }
+    // Today's period after its bell: a window that is already closed would mark
+    // every student in the class as having missed the Test and move them to a
+    // Retest. Refuse it, and say when the class meets next.
+    if (day.resolved && day.closesAt <= now) {
+      const next = nextMeetings();
+      throw new HttpsError(
+        "failed-precondition",
+        `${classPeriod} already met today (${sched.formatSchoolRange(day.opensAt, day.closesAt, timeZone)}), so that class time has ended.${next.length ? ` It next meets: ${next.join("; ")}.` : ""} To give the Test today anyway, reopen the window between two times.`,
+        { reason: "meetingEnded" },
       );
     }
     notes.push(day.resolved
@@ -25187,8 +25239,18 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
     for (const classId of audienceClassIds) {
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
+      // A class whose window has already opened (it sat the Test, or is
+      // sitting it) is kept: moving it would put its Corrections back behind a
+      // new window and un-miss its absent students. Its own row moves it.
+      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
+        .filter((window) => window.resolved && window.opensAt <= now)
+        .sort((left, right) => right.opensAt - left.opensAt)[0];
+      if (ran) {
+        notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
+        continue;
+      }
       const first = classPeriod
-        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone }).days[0]
+        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;
       if (first) {
         chosen.push({ classId, dateKey: first.dateKey });
@@ -25197,7 +25259,11 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
         notes.push(`${classPeriod || classId}: no meeting found on the bell schedule from that day, so no window was set.`);
       }
     }
-    if (!chosen.length) throw new HttpsError("failed-precondition", "None of this Test's classes meets on the bell schedule from that day.");
+    if (!chosen.length) {
+      throw new HttpsError("failed-precondition", notes.some((note) => note.includes(": kept — "))
+        ? `No class was moved. ${notes.join(" ")}`
+        : "None of this Test's classes meets on the bell schedule from that day.");
+    }
     audit = { action, fromDateKey, classDays: chosen };
     edit = (current) => chosen.reduce(
       (next, entry) => sched.withClassTestDay(next, { ...entry, by: actor, at: now, replace: true }),
