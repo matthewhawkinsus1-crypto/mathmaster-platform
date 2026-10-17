@@ -73,9 +73,11 @@ export const describeSaveStatus = ({
  * had never submitted — easy to read as "my answer was recorded".
  *
  * The status alone cannot tell the two apart, so the line also knows its
- * SUBJECT: 'answer' from the moment the student submits (or a step or a new
- * question is sent) until the queue next drains with nothing owed; 'draft'
- * otherwise — navigation progress and response checkpoints. "Answer recorded"
+ * SUBJECT: 'answer' from the moment a submitted answer or step is in the
+ * device queue (or a drain reports answers still owed, as after a reload)
+ * until the queue next drains with nothing owed; 'draft' otherwise —
+ * navigation progress and response checkpoints. A no-credit practice submit
+ * queues nothing and is not an answer sent. "Answer recorded"
  * is reachable only from a drain that left nothing owed after an answer was
  * sent, so nothing is ever called recorded before the server has it.
  *
@@ -99,6 +101,9 @@ export const nextSaveSubject = (state = initialSaveSubject(), event = {}) => {
   if (event?.type === 'answer-sent') return current.pendingAnswer ? current : { ...current, pendingAnswer: true };
   if (event?.type !== 'status') return current;
   const status = String(event.status || 'idle');
+  // Answers the last drain left in the queue (a reload, an offline device)
+  // are answers, whoever queued them.
+  if (count(event.pendingGradeCount) > 0 && !current.pendingAnswer) return { ...current, pendingAnswer: true };
   if (status === current.status) return current;
   if (status === 'durable' || status === 'submitted') {
     return { pendingAnswer: false, lastRecorded: current.pendingAnswer ? SAVE_SUBJECT.ANSWER : SAVE_SUBJECT.DRAFT, status };
@@ -116,11 +121,13 @@ export const describeRuntimeSaveLine = ({
   pendingGradeCount = 0,
 } = {}) => {
   const status = String(persistenceStatus || 'idle');
-  const answer = Boolean(subject?.pendingAnswer);
+  const answer = Boolean(subject?.pendingAnswer) || count(pendingGradeCount) > 0;
   const owed = count(pendingGradeCount) || count(outboxDepth);
   switch (status) {
     case 'capturing':
-      return answer ? 'Saving your answer…' : 'Saving your draft…';
+      // An answer is marked once it is queued, so before that this cannot
+      // tell which it is.
+      return answer ? 'Saving your answer…' : 'Saving…';
     case 'queued':
     case 'syncing':
       return answer

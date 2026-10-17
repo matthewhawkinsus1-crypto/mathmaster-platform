@@ -197,7 +197,8 @@ const line = (subject, status, extra = {}) => describeRuntimeSaveLine({ persiste
 
 test('the save line: moving between questions saves a draft, and only a sent answer is ever recorded', () => {
   const navigated = run(['capturing', 'queued', 'durable']);
-  assert.equal(line(run(['capturing']), 'capturing'), 'Saving your draft…');
+  // Before it is queued a save cannot tell what it is; an answer is marked once queued.
+  assert.equal(line(run(['capturing']), 'capturing'), 'Saving…');
   assert.equal(line(run(['capturing', 'queued']), 'queued'), 'Draft saved on this device. You may keep working.');
   assert.equal(line(navigated, 'durable'), 'Draft saved.', 'not "Recorded by MathMaster" beside an unsubmitted draft');
 
@@ -225,6 +226,14 @@ test('the save line: moving between questions saves a draft, and only a sent ans
   assert.equal(line(initialSaveSubject(), 'needs-review', { pendingGradeCount: 1 }), 'Needs review · 1 saved item has not been recorded yet. You may keep working.');
   assert.equal(line(initialSaveSubject(), 'needs-review', { outboxDepth: 3 }), 'Needs review · 3 saved items have not been recorded yet. You may keep working.');
   // Batch 3 words these; this model does not.
+  // Answers a drain reports still owed are answers — after a reload, offline —
+  // and are called recorded once delivered (review of Batch 5).
+  const reloaded = run([{ type: 'status', status: 'queued', pendingGradeCount: 2 }]);
+  assert.equal(line(reloaded, 'queued', { pendingGradeCount: 2 }), 'Answer saved on this device · sending it to MathMaster. You may keep working.');
+  assert.equal(line(initialSaveSubject(), 'syncing', { pendingGradeCount: 1 }), 'Answer saved on this device · sending it to MathMaster. You may keep working.');
+  assert.equal(line(run(['durable'], reloaded), 'durable'), 'Answer recorded by MathMaster.');
+  // A no-credit practice submit queues nothing: the next move is a draft.
+  assert.equal(line(run(['capturing', 'queued', 'durable']), 'durable'), 'Draft saved.');
   assert.equal(line(initialSaveSubject(), 'volatile'), null);
   assert.equal(line(initialSaveSubject(), 'rejected'), null);
 });
@@ -232,11 +241,21 @@ test('the save line: moving between questions saves a draft, and only a sent ans
 test('App wires the save line: the model it imports, an answer marked as sent on submit, the line from the model', () => {
   const app = code('src/App.jsx');
   assert.match(app, /import \{ describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject \} from '\.\/platform\/student\/saveStatusModel\.js';/);
-  assert.match(app, /const studentSaveSubject = nextSaveSubject\(studentSaveSubjectState, \{ type: 'status', status: studentPersistenceStatus \}\);/);
+  assert.match(app, /const studentSaveSubject = nextSaveSubject\(studentSaveSubjectState, \{ type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount \}\);/);
   assert.match(app, /const studentSaveLine = describeRuntimeSaveLine\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject,/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
-  assert.match(mount, /onGrade=\{\(\.\.\.args\) => \{ markAnswerSent\(\); return handleGradeSubmit\(\.\.\.args\); \}\}/);
-  assert.match(mount, /onStepGrade=\{\(\.\.\.args\) => \{ markAnswerSent\(\); return handleStepGrade\(\.\.\.args\); \}\}/);
+  // An answer is marked as sent only once it is in the device queue — the
+  // submit and step paths, right after their enqueue — never by pressing
+  // Submit (a no-credit practice submit queues nothing).
+  assert.match(mount, /onGrade=\{handleGradeSubmit\}/);
+  assert.match(mount, /onStepGrade=\{handleStepGrade\}/);
+  const queuedAnswer = region(app, "kind: 'ordinarySubmission'", '} catch (error) {', 'the answer enqueue');
+  assert.match(queuedAnswer, /\}\)\);\s*(\/\/[^\n]*\n\s*)*markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
+  const queuedStep = region(app, "kind: 'stepSubmission'", '} catch (error) {', 'the step enqueue');
+  assert.match(queuedStep, /markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
+  assert.match(app, /if \(actions\.some\(isGradeBearingAction\)\) markAnswerSent\(\);\s*setStudentPersistenceStatus\('queued'\);/, 'after a reload, a queued answer is an answer');
+  assert.match(app, /import \{[^}]*\bisGradeBearingAction\b[^}]*\} from '\.\/platform\/performance\/durableActionOutbox\.js';/);
+  assert.match(app, /useEffect\(\(\) => \{\s*setStudentSaveSubject\(initialSaveSubject\(\)\);\s*\}, \[activeAssignmentId, user\?\.id\]\);/, 'per assignment and student');
   const saveLine = region(app, '{!preview && studentPersistenceStatus !== \'idle\' && (', '</p>', 'the save line');
   assert.match(saveLine, /\{studentSaveLine\s*\? studentSaveLine\s*: studentPersistenceStatus === 'rejected'/);
   assert.doesNotMatch(saveLine, /Recorded by MathMaster|Syncing ·/);
@@ -410,3 +429,4 @@ test('the math keypad closes with the question, and stays for the practice besid
   const engine = code('src/QuestionEngine.jsx');
   assert.match(region(engine, 'const practiceLikeThis = practiceOffered ? (', ') : null;', 'the practice'), /<QuestionLifecycleProvider terminal=\{false\}>\s*<PracticeLikeThis/);
 });
+

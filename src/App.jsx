@@ -192,6 +192,7 @@ import {
   createDurableAction,
   drainDurableActions,
   enqueueDurableAction,
+  isGradeBearingAction,
   listDurableActions,
   overlayDurableActionsOnGrades,
   resendRetiredReviewWork,
@@ -3103,12 +3104,17 @@ function App() {
   // (RUN-11, saveStatusModel.js). Derived during render so "Answer recorded"
   // appears with the drain that recorded it, then committed.
   const [studentSaveSubjectState, setStudentSaveSubject] = useState(initialSaveSubject);
-  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus });
+  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount });
   useEffect(() => {
     if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
   }, [studentSaveSubject, studentSaveSubjectState]);
   const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
   const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
+  // The line is about this student's work in this assignment: it starts over
+  // when either changes.
+  useEffect(() => {
+    setStudentSaveSubject(initialSaveSubject());
+  }, [activeAssignmentId, user?.id]);
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -3961,6 +3967,8 @@ function App() {
       if (cancelled) return;
       setStudentOutboxDepth(actions.length);
       if (actions.length) {
+        // After a reload, an answer still in the queue is still an answer.
+        if (actions.some(isGradeBearingAction)) markAnswerSent();
         setStudentPersistenceStatus('queued');
         // A reload must restore the same visible score state immediately even
         // before Wi-Fi returns. The server remains canonical; this is only the
@@ -6933,6 +6941,10 @@ function App() {
           evidenceEvent,
         },
       }));
+      // An answer is on its way only once it is in the device queue: a
+      // no-credit practice submit or one that could not be stored is not
+      // (RUN-11, saveStatusModel.js).
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
@@ -7084,6 +7096,7 @@ function App() {
           hasDolGrade: false,
         },
       }));
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
@@ -10215,10 +10228,10 @@ function App() {
               familyContext={currentFamilyContext}
               onFamilyDelivery={preview ? null : handleFamilyDelivery}
               adaptation={currentAdaptation}
-              onGrade={(...args) => { markAnswerSent(); return handleGradeSubmit(...args); }}
+              onGrade={handleGradeSubmit}
               onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
               onSpotlightFrame={preview ? null : publishSpotlightWork}
-              onStepGrade={(...args) => { markAnswerSent(); return handleStepGrade(...args); }}
+              onStepGrade={handleStepGrade}
               onRequestNewQuestion={handleRequestNewQuestion}
               onLoadScratchpad={handleLoadScratchpad}
               onSaveScratchpad={handleSaveScratchpad}
