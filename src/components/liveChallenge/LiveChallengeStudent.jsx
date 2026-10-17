@@ -4,12 +4,11 @@ import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, personalRoundClock, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
@@ -44,6 +43,9 @@ import {
 // rush room — and fetched while the lobby waits, so Round 1 opens at once.
 const loadGraphFeatureRushRound = () => import('./GraphFeatureRushRound.jsx');
 const GraphFeatureRushRound = lazy(loadGraphFeatureRushRound);
+// So does Graph the Line, for its rooms only.
+const loadLineGraphRound = () => import('./LineGraphRound.jsx');
+const LineGraphRound = lazy(loadLineGraphRound);
 
 function useMonotonicNow(active = true) {
   const [now, setNow] = useState(() => performance.now());
@@ -633,7 +635,7 @@ export function ChallengeRound({
  * the projector shows, and a refresh or a reconnect reads it back unchanged.
  * (It never waits on the standings listener, which a rush pauses during play.)
  */
-function StudentRoundResults({ room, stage, playerKey, alias, ownSummary, guidance, presentation, rushRound = false }) {
+function StudentRoundResults({ room, stage, playerKey, alias, ownSummary, guidance, presentation, rushRound = false, lineRound = false }) {
   const roundIndex = Number(room.currentRound) || 0;
   const summary = useRoundSummary(room.roomId, roundIndex, true);
   const previousSummary = usePreviousRoundSummary(room.roomId, roundIndex, true);
@@ -660,6 +662,7 @@ function StudentRoundResults({ room, stage, playerKey, alias, ownSummary, guidan
       presentation={presentation}
       guidance={guidance}
       rushRound={rushRound}
+      lineRound={lineRound}
       solutionSlot={<RoundSolutionPanel state={solutionState} solution={solution} />}
       // Classmates' rows follow the projector's rule (publicStandingsRows):
       // never a place tied with the last, never one classmate left unnamed.
@@ -774,8 +777,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   clockOffsetRef.current = clock.offsetMs;
   // A join the server refused for this room is not retried on every snapshot.
   const joinRefusedForRef = useRef(null);
-  // A join that succeeded is not repeated either: while a rush round is open
-  // the standings listener is paused, so "am I on the board?" cannot be asked.
+  // A join that succeeded is not repeated either: while a question-set round
+  // is open the standings listener is paused, so "am I on the board?" cannot
+  // be asked.
   const joinedRoomRef = useRef(null);
   const sessionId = useMemo(() => challengeSessionId(), []);
   const launchDiagnosticsRef = useRef({ roomId: null, milestones: {}, reported: {} });
@@ -917,15 +921,24 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return () => { stopped = true; window.clearTimeout(timer); };
   }, [roomId, calibrating, sessionId]);
 
-  // GRAPH FEATURE RUSH. While a rush round is open the round screen shows the
-  // student's own count (each of their taps changes their own row), and no
+  // A QUESTION-SET GAME (Graph Feature Rush, Graph the Line) plays on its own
+  // full-screen surface. While its round is open that screen shows the
+  // student's own count (each of their answers changes their own row), and no
   // standings are published; both standings listeners pause, and the standings
   // return — exact — when the round closes.
-  const rushRoom = room?.challengeMode === RUSH_MODE_ID;
-  const rushRoundOpen = rushRoom && room?.status === 'running' && room?.roundState !== 'closed';
+  const questionSetGame = questionSetGameOf(room);
+  const questionSetRoom = questionSetGame !== null;
+  const rushRoom = questionSetGame === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  const lineRoom = questionSetGame === QUESTION_SET_GAME.LINE_GRAPH;
+  const questionSetRoundOpen = questionSetRoom && room?.status === 'running' && room?.roundState !== 'closed';
+  const rushRoundOpen = rushRoom && questionSetRoundOpen;
+  const lineRoundOpen = lineRoom && questionSetRoundOpen;
   useEffect(() => {
     if (rushRoom) loadGraphFeatureRushRound().catch(() => {});
   }, [rushRoom]);
+  useEffect(() => {
+    if (lineRoom) loadLineGraphRound().catch(() => {});
+  }, [lineRoom]);
 
   // What is held while a listener is paused is from before the round: it stops
   // counting as current the moment the pause begins, so nothing shows it as
@@ -933,23 +946,23 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   useEffect(() => {
     setSelfFresh(false);
     if (!roomId || !playerKey) { setSelfRow(null); return undefined; }
-    if (rushRoundOpen) return undefined;
+    if (questionSetRoundOpen) return undefined;
     return watchLiveChallengePlayer(roomId, playerKey, (row) => {
       setSelfRow(row);
       setSelfFresh(true);
     }, (watchError) => setError(watchError?.message || 'Could not load your Live Challenge score.'));
-  }, [roomId, playerKey, rushRoundOpen]);
+  }, [roomId, playerKey, questionSetRoundOpen]);
   useEffect(() => {
     setProjectionFresh(false);
     if (!roomId) { setProjection(null); return undefined; }
-    if (rushRoundOpen) return undefined;
+    if (questionSetRoundOpen) return undefined;
     return watchLiveChallengeStandings(roomId, (snapshot) => {
       setProjection(snapshot);
       setProjectionFresh(true);
     }, (watchError) => setError(watchError?.message || 'Could not load Live Challenge standings.'));
-  }, [roomId, rushRoundOpen]);
+  }, [roomId, questionSetRoundOpen]);
   // Their own place changes only when a round closes or the match ends, so
-  // this listener stays open through a rush round as well.
+  // this listener stays open through a question-set round as well.
   useEffect(() => {
     setSummaryFresh(false);
     if (!roomId || !studentId) { setOwnSummary(null); return undefined; }
@@ -986,7 +999,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // only. The student's own place is their summary's.
   const standings = useMemo(() => standingsFromProjection(projection, { roomId }), [projection, roomId]);
   const ownFinal = useMemo(() => summaryFinal(ownSummary, { roomId }), [ownSummary, roomId]);
-  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: rushRoom }), [scoringStrategyId, rushRoom]);
+  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
 
   // A FINISHED ROOM WITHOUT ITS FINAL SNAPSHOT, OR WITHOUT THIS STUDENT'S OWN
   // FINAL PLACE (it finished before either existed, or its final snapshot
@@ -1224,7 +1237,19 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </Suspense>
         )}
 
-        {!rushRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady && (
+        {lineRoundOpen && room.currentQuestion && clockReady && (
+          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your grid…</h2></section>}>
+            <LineGraphRound
+              key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
+              room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
+              alias={invite.alias}
+              onExit={onExit}
+              exitLabel="Exit"
+            />
+          </Suspense>
+        )}
+
+        {!questionSetRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady && (
           <ChallengeRound
             key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
             room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
@@ -1245,7 +1270,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         )}
 
         {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
-          <StudentRoundResults room={room} stage={stage} playerKey={playerKey} alias={invite.alias} ownSummary={ownSummary} guidance={guidance} presentation={presentation} rushRound={rushRoom} />
+          <StudentRoundResults room={room} stage={stage} playerKey={playerKey} alias={invite.alias} ownSummary={ownSummary} guidance={guidance} presentation={presentation} rushRound={rushRoom} lineRound={lineRoom} />
         )}
 
         {room.status === 'finished' && (
@@ -1259,6 +1284,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               rows={finalRows}
               selfKey={playerKey}
               rush={rushRoom}
+              lines={lineRoom}
               rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId, { offered: rewardSummaryLines(room.rewardSummary) }) : null}
               loading={finalLoading}
               // A Warm-Up game's accuracy is the student's Warm-Up grade.

@@ -39,7 +39,7 @@ import { calibrateChallengeClock, acceptChallengeSnapshot, challengePhaseAt } fr
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { CHALLENGE_STAGE, challengeClock } from '../../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, challengeClock, roomRunsQuestionSets } from '../../../src/platform/liveChallenge/challengeShellModel.js';
 import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../../../src/platform/liveChallenge/challengeAnswerRefusal.js';
 import { timestampToMillis } from '../../../functions/shared/liveChallengeTimer.mjs';
 import { studentConnectionState } from '../../../src/platform/liveChallenge/challengePresenceModel.js';
@@ -361,12 +361,12 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     return board;
   };
 
-  // The standings listener pauses while a rush round is open (as the screen does).
+  // The standings listener pauses while a question-set round is open (as the screen does).
   let playersListenerFor = null;
   const rowSignatures = new Map();
   const syncPlayersListener = () => {
-    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
-    const wanted = device.roomId && !rushRoundOpen && profile.standingsClient !== 'off' ? device.roomId : null;
+    const questionSetRoundOpen = roomRunsQuestionSets(device.room) && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wanted = device.roomId && !questionSetRoundOpen && profile.standingsClient !== 'off' ? device.roomId : null;
     if (wanted === playersListenerFor) return;
     device.stops.players?.();
     device.stops.players = null;
@@ -451,8 +451,8 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
   };
   const syncStandingsListeners = () => {
     if (profile.standingsClient === 'legacy' || profile.standingsClient === 'off') { syncPlayersListener(); return; }
-    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
-    const wantedRoom = device.roomId && !rushRoundOpen ? device.roomId : null;
+    const questionSetRoundOpen = roomRunsQuestionSets(device.room) && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wantedRoom = device.roomId && !questionSetRoundOpen ? device.roomId : null;
     const wantedSelf = wantedRoom && myKey() ? `${wantedRoom}/${myKey()}` : null;
     if (wantedRoom !== standingsFor) {
       device.stops.standings?.();

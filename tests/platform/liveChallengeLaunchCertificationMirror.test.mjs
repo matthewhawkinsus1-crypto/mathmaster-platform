@@ -118,14 +118,19 @@ test('both listen to their own row and the standings snapshot, and never to the 
   assert.match(mirror, /standingsClient: 'projection'/, "the device's default is the screen's way");
 });
 
-test('both pause both standings listeners while a rush round is open', () => {
-  const pause = /rushRoundOpen = [\w?.]*(?:challengeMode|rushRoom)[^;]*roundState !== 'closed'/;
-  assert.match(screenRoot, /const rushRoundOpen = rushRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
-  assert.match(region(screenRoot, 'useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
-  assert.match(region(screenRoot, 'useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
+// A question-set round (Graph Feature Rush, Graph the Line) pauses them; both
+// decide which rooms those are with the same helper.
+test('both pause both standings listeners while a question-set round is open', () => {
+  assert.match(screenRoot, /const questionSetRoom = questionSetGame !== null;/);
+  assert.match(screenRoot, /const questionSetGame = questionSetGameOf\(room\);/);
+  assert.match(screenRoot, /const questionSetRoundOpen = questionSetRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, questionSetRoundOpen]);'), /if \(questionSetRoundOpen\) return undefined;/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, questionSetRoundOpen]);'), /if \(questionSetRoundOpen\) return undefined;/);
+  const pause = /const questionSetRoundOpen = roomRunsQuestionSets\(device\.room\) && device\.room\?\.status === 'running' && device\.room\?\.roundState !== 'closed';/;
   const listeners = region(mirror, 'const syncStandingsListeners = () => {', 'const alreadyJoined');
   assert.match(listeners, pause);
-  assert.match(listeners, /const wantedRoom = device\.roomId && !rushRoundOpen \? device\.roomId : null;/);
+  assert.match(listeners, /const wantedRoom = device\.roomId && !questionSetRoundOpen \? device\.roomId : null;/);
+  assert.match(region(mirror, 'const syncPlayersListener = () => {', 'device.stops.players?.();'), pause);
 });
 
 test('both know their answer is on the server from their own row, never from the snapshot', () => {

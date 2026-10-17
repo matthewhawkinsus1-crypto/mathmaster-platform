@@ -10797,7 +10797,7 @@ async function lineGraphModules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10813,9 +10813,12 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
       import("./shared/liveChallengePlayerSummary.mjs"),
+      // A Graph the Line round the class graphed together is published by the
+      // same reveal as a shared question, with the class's own mistake added.
+      import("./shared/lineGraphReveal.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal,
     };
   }
   return liveChallengeEngineModules;
@@ -11141,11 +11144,32 @@ const lineGraphRoundPrompt = (format, itemCount) => {
   return "Graph as many lines as you can";
 };
 
+/*
+ * A CLASSIC GAME THE CLASS PLAYS TOGETHER (`sameEquations`, Classic's
+ * default): every student's item in a round is the same line, so the round
+ * has a solution to show at its close (lineGraphReveal.mjs). The shared item
+ * is the generator's for any student; '*' names none.
+ */
+const lineGraphSharesRounds = (config = {}) => config.format === "classic" && config.sameEquations === true;
+const sharedLineItem = (generator, { seed, config, roundIndex }) => generator.generateLineQuestion({
+  seed, studentKey: "*", roundIndex, questionIndex: 0, config,
+});
+
 const LINE_GRAPH_PLANNER = Object.freeze({
   async plan({ modeConfig, roundCount }) {
     const { generator } = await lineGraphModules();
+    const { lineReveal } = await liveChallengeEngine();
     const config = modeConfig.lineGraph;
     const generatorVersion = generator.LINE_GRAPH_GENERATOR_VERSION;
+    // The seed never leaves the server: it is what makes a student's items
+    // theirs and reproducible.
+    const seed = crypto.randomUUID();
+    // A shared round's line is held back while a later round asks the same
+    // line (the reveal's rule for every shared question), so the schedule's
+    // lines are known from the start — privately.
+    const sharedLineKeys = lineGraphSharesRounds(config)
+      ? Array.from({ length: roundCount }, (_, roundIndex) => lineReveal.lineRevealKey(sharedLineItem(generator, { seed, config, roundIndex })))
+      : null;
     return {
       candidateCount: roundCount,
       selected: Array.from({ length: roundCount }, (_, index) => ({
@@ -11153,9 +11177,7 @@ const LINE_GRAPH_PLANNER = Object.freeze({
       })),
       roundQuestions: null,
       seed: null,
-      // The seed never leaves the server: it is what makes a student's items
-      // theirs and reproducible.
-      privateFields: { lineGraph: { seed: crypto.randomUUID(), config, generatorVersion } },
+      privateFields: { lineGraph: { seed, config, generatorVersion, ...(sharedLineKeys ? { sharedLineKeys } : {}) } },
       roomFields: { lineGraph: { config, generatorVersion } },
     };
   },
@@ -11165,9 +11187,17 @@ const LINE_GRAPH_PLANNER = Object.freeze({
   async openRound({ room, privateState, roundIndex, mode, engine }) {
     const questionId = privateState.questionIds?.[roundIndex];
     if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
-    const { config: configRules } = await lineGraphModules();
+    const { config: configRules, generator } = await lineGraphModules();
     const config = privateState.lineGraph?.config || room.lineGraph?.config || {};
     const itemCount = Math.min(configRules.lineRoundQuestionCount(config.format, config), mode.questionSpecs.length);
+    // The round's shared line, captured privately like a bank question's
+    // solution (published only once nobody can answer it).
+    const lineState = privateState.lineGraph || {};
+    const shared = lineGraphSharesRounds(config) && lineState.seed
+      && Number(lineState.generatorVersion) === generator.LINE_GRAPH_GENERATOR_VERSION;
+    const solution = shared
+      ? engine.lineReveal.lineRoundSolutionRecord(sharedLineItem(generator, { seed: lineState.seed, config, roundIndex }))
+      : null;
     return {
       roundIndex,
       questionId,
@@ -11183,6 +11213,7 @@ const LINE_GRAPH_PLANNER = Object.freeze({
         teksCode: null,
       },
       roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      solution,
     };
   },
 });
@@ -12456,8 +12487,23 @@ function liveChallengeSecondChancePossible(room = {}, mode = {}) {
  */
 function liveChallengeRevealableRounds({ challenge, engine, room, privateState, players, closedThrough, finished = false }) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  // A per-player round (Graph Feature Rush) has no shared question to solve.
-  if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) return [];
+  // A per-player round (Graph Feature Rush) has no shared question to solve —
+  // unless the class played it together: a Graph the Line Classic round with
+  // the same line for everyone, published at its close (no Second Chance in
+  // these modes), held while a later round asks the same line.
+  if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    const sharedLineKeys = privateState.lineGraph?.sharedLineKeys;
+    if (!Array.isArray(sharedLineKeys)) return [];
+    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+    return engine.solutionReveal.revealableRounds({
+      closedThrough,
+      scheduledRoundCount: sharedLineKeys.length,
+      secondChancePossible: false,
+      replayOf: {},
+      finished,
+      questionKeys: sharedLineKeys.map((key) => (key ? [key] : null)),
+    }).filter((round) => round <= reached);
+  }
   const questionIds = Array.isArray(privateState.questionIds) ? privateState.questionIds : [];
   const scheduledRoundCount = Number(privateState.scheduledRoundCount) || questionIds.length;
   // The same condition planNextLiveChallengeRound replays under, so a room
@@ -12480,18 +12526,25 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   return rounds.filter((round) => round <= reached);
 }
 
-/** Publish the newly revealable rounds' solutions inside the caller's transaction. */
-function applyLiveChallengeSolutionReveals(transaction, { engine, roomRef, room, privateState, rounds, nowMs }) {
+/**
+ * Publish the newly revealable rounds' solutions inside the caller's
+ * transaction. `players` are the private player records: a Graph the Line
+ * round the class played together publishes what the class drew most often
+ * (counts only), now that nobody can answer it.
+ */
+function applyLiveChallengeSolutionReveals(transaction, { engine, roomRef, room, privateState, rounds, nowMs, players = [] }) {
   const already = Array.isArray(room.revealedSolutionRounds) ? room.revealedSolutionRounds : [];
   const fresh = engine.solutionReveal.newlyRevealedRounds(rounds, already);
   if (!fresh.length) return already;
   const secondChanceOf = privateState.secondChanceOf || {};
   fresh.forEach((round) => {
     const original = secondChanceOf[String(round)];
+    const stored = privateState.roundSolutions?.[String(round)] || null;
+    const record = stored?.lineGraph ? engine.lineReveal.withClassLineFacts({ record: stored, players, roundIndex: round }) : stored;
     transaction.set(roomRef.collection(engine.solutionReveal.SOLUTIONS_COLLECTION).doc(String(round)), {
       ...engine.solutionReveal.publicSolutionDocument({
         roundIndex: round,
-        record: privateState.roundSolutions?.[String(round)] || null,
+        record,
         originalRoundIndex: original === undefined ? null : original,
         revealedAtMs: nowMs,
       }),
@@ -12643,6 +12696,7 @@ function applyLiveChallengeMatchFinalization(transaction, {
         challenge: null, engine, room, privateState, players, closedThrough: Number(room.currentRound), finished: true,
       }),
       nowMs,
+      players,
     });
   }
   // The final standings and podium every screen shows ARE the match result's:
@@ -13328,6 +13382,7 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
         challenge, engine, room: currentRoom, privateState, players: roundPlayers, closedThrough: plan.roundIndex,
       }),
       nowMs,
+      players: roundPlayers,
     });
     // Every screen's standings, exact as of the close.
     writeExactStandingsProjection(transaction, {
@@ -13475,6 +13530,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         challenge, engine, room: currentRoom, privateState: next.privateState, players: roundPlayers, closedThrough: plan.roundIndex,
       }),
       nowMs,
+      players: roundPlayers,
     });
     // The drafted question is reused unless the transaction saw a different
     // next round (a late answer changed which question the class missed most).
@@ -14743,7 +14799,10 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
       }, { merge: true });
       // The player's own public row: the board's numbers and the host's
       // "racing now" signal, in the race fields the rush's board already
-      // reads. No student id, no answers.
+      // reads — and whether they have worked through the whole round, which
+      // the host's early close of a Classic or Sprint round counts (the
+      // server's close guard reads the same receipts). No student id, no
+      // answers.
       transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
         score: totals.score,
         rawScore: totals.rawScore,
@@ -14752,6 +14811,7 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
         matchAccuracy: totals.matchAccuracy,
         rushRound: roundIndex,
         rushRoundCompleted: applied.state.questionsCorrect,
+        rushRoundFinished: applied.state.finished === true,
         rushActiveAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -14781,9 +14841,10 @@ exports.previewLineGraph = onCall(async (request) => {
   }
   // A fresh seed every time: the teacher sees what a student might get, and
   // nothing is written anywhere. A Classic game's items run across rounds.
+  // Up to a whole Sprint (its longest set), so practice plays the real length.
   const seed = crypto.randomUUID();
   const classic = format === rules.LINE_GRAPH_FORMAT.CLASSIC;
-  const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
+  const count = Math.max(1, Math.min(configRules.LINE_SPRINT_MAX_POOL, Math.floor(Number(request.data?.count) || 12)));
   const questions = Array.from({ length: count }, (_, index) => generator.publicLineQuestion(generator.generateLineQuestion({
     seed,
     studentKey: "preview",

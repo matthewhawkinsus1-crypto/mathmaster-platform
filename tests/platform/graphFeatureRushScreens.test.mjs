@@ -10,7 +10,7 @@ import { RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
-import { CHALLENGE_STAGE, HOST_COMMAND, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, questionSetGameOf, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 
 /*
@@ -117,24 +117,34 @@ test('the student screen plays a rush on its own surface, loaded only for a rush
   assert.match(student, /const loadGraphFeatureRushRound = \(\) => import\('\.\/GraphFeatureRushRound\.jsx'\);/);
   assert.match(student, /const GraphFeatureRushRound = lazy\(loadGraphFeatureRushRound\);/);
   assert.match(region(student, 'useEffect(() => {\n    if (rushRoom)', '}, [rushRoom]);', 'rush preload'), /loadGraphFeatureRushRound\(\)/);
-  // An open rush round renders the rush; the classic round never renders for a rush room.
+  // An open rush round renders the rush; the classic round never renders for
+  // a rush room — nor for any room whose game has its own surface (the
+  // client's one helper decides which rooms those are).
   const rushRender = region(student, '{rushRoundOpen && room.currentQuestion', '</Suspense>', 'rush round render');
   assert.match(rushRender, /<GraphFeatureRushRound\b/);
   assert.match(rushRender, /serverNowAtRender: Date\.now\(\) \+ clock\.offsetMs/, 'the round is timed on the calibrated clock');
-  assert.match(student, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
+  assert.match(student, /const questionSetGame = questionSetGameOf\(room\);/);
+  assert.match(student, /const rushRoom = questionSetGame === QUESTION_SET_GAME\.GRAPH_FEATURE_RUSH;/);
+  assert.match(student, /const rushRoundOpen = rushRoom && questionSetRoundOpen;/);
+  assert.match(student, /const questionSetRoom = questionSetGame !== null;/);
+  assert.match(student, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
+  assert.equal(questionSetGameOf({ challengeMode: RUSH_MODE_ID }), QUESTION_SET_GAME.GRAPH_FEATURE_RUSH);
+  assert.equal(questionSetGameOf({ challengeMode: 'standard' }), null);
 });
 
 test('the class\'s taps do not wake every student\'s screen during a rush round', () => {
   const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
   // Both of a student's standings listeners — their own row (each of their
   // own taps changes it) and the class's standings snapshot — are paused while
-  // a rush round is open, and resumed (fresh) when it closes.
+  // a rush round (any question-set round) is open, and resumed (fresh) when it
+  // closes.
+  assert.match(student, /const questionSetRoundOpen = questionSetRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
   const listeners = [
-    ['own row', region(student, '  useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);', 'own-row listener'), 'watchLiveChallengePlayer(', 'SelfFresh'],
-    ['snapshot', region(student, '  useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);', 'standings snapshot listener'), 'watchLiveChallengeStandings(', 'ProjectionFresh'],
+    ['own row', region(student, '  useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, questionSetRoundOpen]);', 'own-row listener'), 'watchLiveChallengePlayer(', 'SelfFresh'],
+    ['snapshot', region(student, '  useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, questionSetRoundOpen]);', 'standings snapshot listener'), 'watchLiveChallengeStandings(', 'ProjectionFresh'],
   ];
   for (const [name, listener, subscribe, fresh] of listeners) {
-    const pause = listener.indexOf('if (rushRoundOpen) return undefined;');
+    const pause = listener.indexOf('if (questionSetRoundOpen) return undefined;');
     assert.ok(pause > 0 && pause < listener.indexOf(subscribe), `${name}: the pause comes before the subscription`);
     assert.match(listener, new RegExp(`set${fresh}\\(false\\)[\\s\\S]*set${fresh}\\(true\\)`));
     // What is held stops counting as current the moment the pause begins.
@@ -199,13 +209,17 @@ test('the teacher console offers the rush and creates it with its own settings',
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
   assert.match(teacher, /<option value=\{RUSH_MODE_ID\}>Graph Feature Rush<\/option>/);
   assert.match(teacher, /const GraphFeatureRushSetup = lazy\(\(\) => import\('\.\/GraphFeatureRushSetup\.jsx'\)\);/);
-  const create = region(teacher, 'if (rushMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'rush create');
+  // The rush and Graph the Line share the create path of a game with its own
+  // settings (the console has two creates: these games', and the bank's).
+  const create = region(teacher, 'if (rushMode || lineMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
+  assert.match(teacher, /const rushProblem = rushMode \? rushConfigProblem\(rushSetup\) : null;/);
   assert.match(create, /if \(rushProblem\) throw new Error\(rushProblem\);/, 'an impossible game is not sent');
-  assert.match(create, /rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
+  assert.match(create, /rushMode\s*\?\s*rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
   // The Rewards choice is shown for every game type, the rush included.
-  assert.match(teacher, /\{!rushMode && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
+  assert.match(teacher, /const ownSettingsGame = rushMode \|\| lineMode;/);
+  assert.match(teacher, /\{!ownSettingsGame && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
   assert.doesNotMatch(executableSource(create), /assignmentId/, 'a rush is never linked to a Warm-Up');
-  assert.match(teacher, /\{!rushMode && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
+  assert.match(teacher, /\{!ownSettingsGame && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
 });
 
 test('a rush round closes itself after its deadline, and moves on only once closed', () => {

@@ -8,8 +8,11 @@
 // class the same one); a line is checked the moment it is drawn and recorded
 // once however a batch is retried; three misses end an item; a refresh
 // resumes where the student was; a Sprint round is ready to close when
-// everyone has worked through it, and the engine ranks it; the finished match
-// writes the report by form, item type and mistake.
+// everyone has worked through it (and each student's public row says when
+// they have), and the engine ranks it; the finished match writes the report
+// by form, item type and mistake; a Classic round the class graphed together
+// publishes its line and the class's most common mistake — only once it has
+// closed; and extended time never holds a round no answer can reach.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,6 +42,7 @@ const CLASSES = {
   sprint: { id: 'line-class-sprint', size: 3, teacher: ROOT_ADMIN_EMAIL },
   classic: { id: 'line-class-classic', size: 3, teacher: ROOT_ADMIN_EMAIL },
   regular: { id: 'line-class-regular', size: 2, teacher: TEACHER },
+  extended: { id: 'line-class-extended', size: 2, teacher: ROOT_ADMIN_EMAIL },
 };
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].id}-s${index + 1}`);
 
@@ -74,6 +78,8 @@ for (const key of Object.keys(CLASSES)) {
   const batch = db.batch();
   studentsOf(key).forEach((studentId, index) => batch.set(db.collection('grades').doc(studentId), {
     assignedTeacherEmail: CLASSES[key].teacher, classId: CLASSES[key].id, classPeriod: CLASSES[key].id, firstName: `Line${index + 1}`, lastName: 'Student',
+    // The extended-time class's second student has extra time on their plan (1.5×).
+    ...(key === 'extended' && index === 1 ? { profile: { accommodations: ['extra-time'] } } : {}),
   }));
   // eslint-disable-next-line no-await-in-loop
   await batch.commit();
@@ -215,6 +221,7 @@ test('a student works through the Sprint; past the end nothing is taken', async 
   const row = await publicRow(S, A);
   assert.equal(row.rushRound, 0);
   assert.equal(row.rushRoundCompleted, 5, "the race board's count");
+  assert.equal(row.rushRoundFinished, true, 'the host counts A as finished: the round may close early');
   assert.ok(!('submissionReceipts' in row) && !('studentId' in row), 'no answers or ids on the public row');
 });
 
@@ -226,6 +233,7 @@ test('three wrong lines end an item, and a refresh resumes on the next one', asy
     outcomes.push(await submit(S, B, [wrongLine(questions[0], n)]));
   }
   assert.deepEqual(outcomes.map((outcome) => outcome.verdicts[0].revealed), [false, false, true]);
+  assert.equal((await publicRow(S, B)).rushRoundFinished, false, 'one item done is not the round');
   // A refresh: where does B stand?
   const resumed = await fetchItems(S, B);
   assert.equal(resumed.state.cursor, 1);
@@ -309,9 +317,44 @@ test('a Classic round: everyone gets the same equation, and the round is done wh
   const rushCallable = await failureOf(call('getGraphFeatureRushRound', student(classicRoster[0], { roomId, roundIndex: 0 })));
   assert.equal(rushCallable?.code, 'failed-precondition');
 
+  // Two students draw the same wrong line first; the class then gets it.
+  const item = fetched[0].questions[0];
+  const sharedMistake = wrongLine(item, 0);
+  await submit(roomId, classicRoster[0], [sharedMistake]);
+  await submit(roomId, classicRoster[1], [{ ...sharedMistake, attemptId: randomUUID() }]);
+  // While anyone can still answer, nothing about the line is public.
+  assert.equal((await roomRef(roomId).collection('solutions').doc('0').get()).exists, false);
+  assert.deepEqual((await roomOf(roomId)).revealedSolutionRounds, []);
   await Promise.all(classicRoster.map((studentId, index) => submit(roomId, studentId, [rightAttempt(fetched[index].questions[0])])));
   await call('closeLiveChallengeRound', administrator({ roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion }));
   assert.equal((await roomOf(roomId)).roundState, 'closed');
+
+  // THE REVEAL: published in the commit that closed the round.
+  assert.deepEqual((await roomOf(roomId)).revealedSolutionRounds, [0]);
+  const solution = (await roomRef(roomId).collection('solutions').doc('0').get()).data();
+  assert.equal(solution.available, true);
+  assert.equal(solution.solutionReview.answerSummary, item.equation.text);
+  assert.ok(solution.solutionReview.reasoning.length >= 2, 'how to graph it');
+  assert.deepEqual(solution.lineGraph.line, item.line);
+  assert.equal(solution.lineGraph.equation.text, item.equation.text);
+  assert.deepEqual(solution.lineGraph.class, {
+    answered: 3,
+    correct: 3,
+    firstTry: 1,
+    mistake: { ...solution.lineGraph.class.mistake, students: 2 },
+  });
+  const [p, q] = sharedMistake.points;
+  const drawn = solution.lineGraph.class.mistake.line;
+  assert.ok([p, q].every((point) => drawn.a * point.x + drawn.b * point.y === drawn.c), 'the class\'s wrong line is the one they drew');
+  assert.match(solution.solutionReview.commonError, /^2 students drew /);
+  const published = JSON.stringify(solution);
+  for (const studentId of classicRoster) {
+    // eslint-disable-next-line no-await-in-loop
+    const { playerKey } = await privatePlayer(roomId, studentId);
+    assert.ok(!published.includes(studentId) && !published.includes(playerKey), 'the reveal names no student');
+  }
+  const secret = (await privateRef(roomId).get()).data();
+  assert.equal(secret.lineGraph.sharedLineKeys.length, 3, 'the schedule\'s lines, privately, for the same-line hold');
   // The next round is the next item of the shared schedule.
   await call('advanceLiveChallenge', administrator({ roomId, expectedRoundIndex: 0, expectedRoundVersion: identity.roundVersion }));
   await waitForRoundStart(roomId);
@@ -320,6 +363,36 @@ test('a Classic round: everyone gets the same equation, and the round is done wh
   assert.notDeepEqual(next.questions[0].line, fetched[0].questions[0].line);
   const finished = await call('finishLiveChallenge', administrator({ roomId }));
   assert.equal(finished.status, 'finished');
+});
+
+/* ===== GAME 3: extended time never holds a round no answer can reach ===== */
+
+test('a student with extended time does not hold a Graph the Line round past the class\'s deadline', async () => {
+  const [onTime, extra] = studentsOf('extended');
+  const created = await createLine('extended', 'lineGraphClassic', { itemTypes: ['graph'] }, { roundCount: 3, roundSeconds: 20 });
+  const roomId = created.roomId;
+  await Promise.all([onTime, extra].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
+  // Extended time is a synchronized round's: the join gives a question-set
+  // game none, so the close guard has nobody's personal deadline to wait for.
+  assert.equal((await privatePlayer(roomId, extra)).timeMultiplier, 1, 'no extra time in a question-set round');
+  await call('startLiveChallenge', administrator({ roomId }));
+  await waitForRoundStart(roomId);
+  const { questions } = await fetchItems(roomId, onTime);
+  await submit(roomId, onTime, [rightAttempt(questions[0])]);
+  const room = await roomOf(roomId);
+  assert.equal(room.extendedTimeInPlay, false, 'a question-set round has no extended time to announce');
+  // Past the class's deadline and the arrival grace — inside what the
+  // student's plan would give them in a question round — the round closes
+  // without force: the submit callable takes nobody's answer now.
+  await sleep(Math.max(0, room.endsAt.toMillis() - Date.now() + 1_500));
+  const late = await failureOf(submit(roomId, extra, [rightAttempt((await fetchItems(roomId, extra)).questions[0] || questions[0])]));
+  assert.ok(late, 'the extra student\'s answer after the class\'s deadline is refused');
+  const identity = await identityOf(roomId);
+  await call('closeLiveChallengeRound', administrator({ roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion }));
+  const closed = await roomOf(roomId);
+  assert.equal(closed.roundState, 'closed');
+  assert.notEqual(closed.extendedTimeInPlay, true, 'and the room never says someone has extra time');
+  await call('finishLiveChallenge', administrator({ roomId }));
 });
 
 /* ================================ preview ================================ */

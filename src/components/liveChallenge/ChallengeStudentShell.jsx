@@ -1,4 +1,5 @@
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { LINE_GRAPH_FORMAT, lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
+import { QUESTION_SET_GAME, questionSetGameOf } from '../../platform/liveChallenge/challengeShellModel.js';
 import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } from '../../platform/liveChallenge/challengeRecapModel.js';
 import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
@@ -50,9 +51,25 @@ export function StudentGuidance({ guidance, compact = false }) {
   );
 }
 
+// What a Graph the Line game asks, by format, in the student's words.
+const LINE_LOBBY_WORDS = Object.freeze({
+  [LINE_GRAPH_FORMAT.CLASSIC]: 'Graph the Line — one line a round, the whole class together',
+  [LINE_GRAPH_FORMAT.SPRINT]: 'Graph the Line Sprint — a set of lines in a row',
+  [LINE_GRAPH_FORMAT.RUSH]: 'Graph the Line Rush — as many lines as you can',
+});
+
+/** What the game is, in one line, for the lobby. */
+export const lobbyGameWords = (room = {}) => {
+  const game = questionSetGameOf(room);
+  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) return 'Graph Feature Rush — tap the features on your own graphs';
+  if (game === QUESTION_SET_GAME.LINE_GRAPH) return LINE_LOBBY_WORDS[lineGraphFormatOfMode(room?.challengeMode)] || 'Graph the Line';
+  return room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge';
+};
+
 /** The lobby: who you are, who is here, what the game is, and that the teacher starts it. */
 export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0 }) {
-  const rush = room?.challengeMode === RUSH_MODE_ID;
+  // A question-set round lasts exactly its time; a classic one is fitted to its question.
+  const rush = questionSetGameOf(room) !== null;
   const rewards = rewardSummaryLines(room?.rewardSummary);
   const rounds = Number(room?.roundCount) || 0;
   return (
@@ -65,7 +82,7 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
       </div>
       <p style={{ margin: '18px 0 0', color: '#e8f0fe', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))' }}>Waiting for your teacher to start. Keep this screen open.</p>
       <p style={{ margin: '8px 0 0', color: '#c3d2ea' }}>
-        {rush ? 'Graph Feature Rush — tap the features on your own graphs' : room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge'}
+        {lobbyGameWords(room)}
         {rounds ? ` · ${rounds} round${rounds === 1 ? '' : 's'}` : ''}
         {room?.timingMode === 'pace' ? ' · Pace Race' : room?.roundSeconds ? ` · ${rush ? '' : 'about '}${room.roundSeconds}s each` : ''}
       </p>
@@ -87,7 +104,7 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
 // (liveChallengeProjectorModel.publicStandingsRows): the top few, never a
 // place tied with the class's last, never one classmate left unnamed. A
 // student's own row is always shown.
-export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false, solutionSlot = null, room = null }) {
+export function StudentRoundResultsCard({ view, presentation, guidance, rushRound = false, lineRound = false, solutionSlot = null, room = null }) {
   if (!view) {
     return (
       <section aria-live="polite" style={card}>
@@ -99,21 +116,24 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
   const self = view.self;
   const standing = view.selfStanding;
   const participated = Boolean(self?.participated);
-  // In a rush every joined student has their own graphs: one who never
-  // completed one is told so in graphs, not "no answer".
+  // In a rush (and in Graph the Line) every joined student has their own
+  // items: one who never completed one is told so in graphs or lines, not
+  // "no answer".
+  const ownItems = rushRound || lineRound;
+  const unit = lineRound ? 'line' : 'graph';
   const completed = self ? (self.completed ?? 0) : null;
-  const headline = rushRound && self && !participated
-    ? 'No graphs completed this round.'
+  const headline = ownItems && self && !participated
+    ? `No ${unit}s completed this round.`
     : roundPlacementSentence(self, view.fieldSize);
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <section aria-live="polite" data-mm-student-results={participated ? 'played' : 'none'} style={card}>
         <div style={eyebrow}>{guidance?.headline || 'Round results'}</div>
         <div style={{ marginTop: 10, fontSize: 'clamp(calc(22 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>{headline}</div>
-        {self && (participated || rushRound) && (
+        {self && (participated || ownItems) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
-            {rushRound || self.completed !== null
-              ? <Stat value={completed} label={completed === 1 ? 'graph completed' : 'graphs completed'} />
+            {ownItems || self.completed !== null
+              ? <Stat value={completed} label={completed === 1 ? `${unit} completed` : `${unit}s completed`} />
               : <Stat value={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? '✓' : '✗') : `+${self.roundPoints.toLocaleString()}`} label={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? 'correct' : 'not correct') : 'points this round'} />}
             {participated && self.accuracyPercent !== null && <Stat value={`${self.accuracyPercent}%`} label="accuracy" />}
             {participated && <Stat value={self.place.short === '—' ? '—' : self.place.ordinal} label={`of ${view.fieldSize} this round`} />}
@@ -136,6 +156,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
           </div>
         )}
         {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs to earn points.</p>}
+        {self && !participated && lineRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Graph the lines on your grid to earn points.</p>}
         {guidance?.detail && <p style={{ margin: '14px 0 0', color: '#c3d2ea' }}>{guidance.detail}</p>}
       </section>
       {solutionSlot}
@@ -175,16 +196,19 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
 // `headline` is the server's word, from this student's own summary, that
 // their place may lead the card (finalPlaceIsHeadline: a podium finish that
 // does not tie the class's last place). Absent means no.
-export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null, headline = false }) {
+export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, lines = false, loading = false, warmup = false, highlights = [], fullStandings = false, room = null, lastRank = null, headline = false }) {
   const podium = Boolean(selfRow) && headline === true;
   // "Only you see this" is said only when no class-wide board shows the row.
   const placeIsPrivate = Boolean(selfRow) && finalPlaceIsPrivate({ rank: selfRow.rank, fullStandings });
   const placeWords = selfRow && selfRow.rank !== null
     ? `${selfRow.tied ? `tied for ${ordinal(selfRow.rank)}` : ordinal(selfRow.rank)} of ${totalPlayers}`
     : null;
+  let unit = null;
+  if (rush) unit = 'graph';
+  else if (lines) unit = 'line';
   const didLine = selfRow
     ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.strategyId !== 'correctCount'
-      ? ` · ${selfRow.correctCount} ${rush ? (selfRow.correctCount === 1 ? 'graph' : 'graphs') : 'correct'}`
+      ? ` · ${selfRow.correctCount} ${unit ? (selfRow.correctCount === 1 ? unit : `${unit}s`) : 'correct'}`
       : ''}`
     : '';
   return (

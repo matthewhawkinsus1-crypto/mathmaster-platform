@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
 import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { LineGraphHostStatus, LineGraphReport, lineSettingsLine } from './LineGraphHost.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
 import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, HostSolutionPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
@@ -15,6 +16,7 @@ import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../funct
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import {
   EXTENDED_TIME_HOST_HINT,
@@ -25,12 +27,17 @@ import {
 import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import { LINE_GRAPH_GAME, defaultLineSetup, lineCreateRequest, lineSetupProblem } from '../../platform/liveChallenge/lineGraphSetupModel.js';
+import { raceRoundFinished } from '../../platform/liveChallenge/rushStandingsModel.js';
 import {
   CHALLENGE_STAGE,
   HOST_COMMAND,
+  QUESTION_SET_GAME,
   cueRemainingMs,
   hostPrimaryAction,
+  questionSetGameOf,
   roundCloseDue,
+  roomRoundsEndOnTheClock,
   roomRunsQuestionSets,
   stageHasOpenRound,
 } from '../../platform/liveChallenge/challengeShellModel.js';
@@ -77,6 +84,9 @@ const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Alge
 // teacher chooses the rush; a classic game's console carries neither.
 const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
 const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
+// Graph the Line's the same way: loaded only when a teacher chooses it.
+const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
+const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
 
 const speedPreset = (value) => [0, 10, 20, 35].includes(Number(value)) ? String(Number(value)) : 'custom';
 
@@ -125,7 +135,7 @@ function ChallengeReport({ report }) {
           {/* A game ended early says so: "3 of 10 rounds played", never "10 rounds". */}
           {Number.isInteger(report.playedRoundCount) && report.playedRoundCount < report.scheduledRoundCount
             ? <><strong>{report.playedRoundCount}</strong> of {report.scheduledRoundCount} rounds played</>
-            : <><strong>{report.scheduledRoundCount}</strong> rounds</>}
+            : <><strong>{report.scheduledRoundCount}</strong> {report.scheduledRoundCount === 1 ? 'round' : 'rounds'}</>}
           {report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}
         </span>
       </div>
@@ -156,6 +166,7 @@ function ChallengeReport({ report }) {
         </div>
       )}
       {report.graphFeatureRush && <RushReport report={report} />}
+      {report.lineGraph && <LineGraphReport report={report} />}
       {report.neverJoined?.length > 0 && (
         <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
           <strong>Did not join:</strong> {report.neverJoined.length} student{report.neverJoined.length === 1 ? '' : 's'}. A student can be absent, on paper, or have lost their connection — this is a roster fact, not a finding.
@@ -301,6 +312,7 @@ export default function LiveChallengeTeacher({
   const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
+  const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
@@ -368,8 +380,10 @@ export default function LiveChallengeTeacher({
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
   useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
-  // A different course starts from that course's rush preset.
+  // A different course starts from that course's rush preset (and its Graph
+  // the Line preset, in the format already chosen).
   useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
+  useEffect(() => { setLineSetup((current) => defaultLineSetup(courseId, current.format)); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -498,17 +512,32 @@ export default function LiveChallengeTeacher({
   );
   const joinedCount = leaderboard.length;
   const rushMode = challengeMode === RUSH_MODE_ID;
+  // Graph the Line is in preview (its modes are not teacher-selectable): the
+  // create panel offers it to the platform administrator, the one teacher
+  // createLiveChallenge's preview gate lets launch it.
+  const lineGraphOffered = isRootAdminEmail(signedInEmail);
+  const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;
+  // A game with its own settings: no Warm-Up link, no bank question style,
+  // no speed setting — and its own setup panel.
+  const ownSettingsGame = rushMode || lineMode;
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
-  const rushRoom = room?.challengeMode === RUSH_MODE_ID;
+  const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
+  const questionSetGame = questionSetGameOf(room);
+  const rushRoom = questionSetGame === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  const lineRoom = questionSetGame === QUESTION_SET_GAME.LINE_GRAPH;
   const questionSetRoom = roomRunsQuestionSets(room);
+  const roundsEndOnTheClock = roomRoundsEndOnTheClock(room);
   const currentRound = Number(room?.currentRound);
   const roundOpen = stageHasOpenRound(stage);
   // Who has finished the current round. A classic round: they answered it. A
-  // question-set round is every player's own work against the clock, so it
-  // finishes on the deadline.
-  const finishedKeys = useMemo(() => new Set(roundOpen && !questionSetRoom
-    ? players.filter((player) => player?.joined !== false && Number(player.answeredRound) === currentRound).map((player) => String(player.playerKey))
-    : []), [players, roundOpen, questionSetRoom, currentRound]);
+  // question-set round is every player's own work: a Classic or Sprint round
+  // of Graph the Line is finished by working through it (their public row
+  // says so); a rush, played against the clock, finishes only at its deadline.
+  const finishedKeys = useMemo(() => new Set(roundOpen && !roundsEndOnTheClock
+    ? players.filter((player) => player?.joined !== false && (questionSetRoom
+      ? raceRoundFinished(player, currentRound)
+      : Number(player.answeredRound) === currentRound)).map((player) => String(player.playerKey))
+    : []), [players, roundOpen, roundsEndOnTheClock, questionSetRoom, currentRound]);
   const answeredCount = finishedKeys.size;
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
   const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
@@ -625,10 +654,12 @@ export default function LiveChallengeTeacher({
     audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
     creatingRef.current = true;
     const result = await run('create', async () => {
-      if (rushMode) {
-        // Graph Feature Rush: no Warm-Up link, no bank question style, no
-        // speed setting — the mode's own settings, validated again by the server.
+      if (rushMode || lineMode) {
+        // Graph Feature Rush and Graph the Line: no Warm-Up link, no bank
+        // question style, no speed setting — the game's own settings,
+        // validated again by the server.
         if (rushProblem) throw new Error(rushProblem);
+        if (lineProblem) throw new Error(lineProblem);
         let created;
         try {
           created = await createLiveChallenge({
@@ -636,9 +667,11 @@ export default function LiveChallengeTeacher({
             classPeriod,
             courseId,
             // The same Rewards choice as every Live Challenge.
-            ...rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) }),
+            ...(rushMode
+              ? rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
+              : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
             standingsDisplay,
-            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Graph Feature Rush`,
+            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Graph the Line'}`,
           });
         } catch (error) {
           const activeRoomId = error?.details?.roomId;
@@ -744,7 +777,7 @@ export default function LiveChallengeTeacher({
   // open host screens all send the close: the first closes it, the rest are
   // told it is already closed.
   const roundKey = room && roundOpen ? `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}` : '';
-  const everyoneFinished = roundOpen && !questionSetRoom && joinedCount > 0 && answeredCount >= joinedCount;
+  const everyoneFinished = roundOpen && !roundsEndOnTheClock && joinedCount > 0 && answeredCount >= joinedCount;
   const [allFinishedSince, setAllFinishedSince] = useState({ key: '', at: null });
   useEffect(() => {
     if (!everyoneFinished || !roundKey) return;
@@ -924,6 +957,13 @@ export default function LiveChallengeTeacher({
         </Suspense>
       );
     }
+    if (dryRunOpen && lineMode) {
+      return (
+        <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
+          <LineGraphPractice setup={lineSetup} onClose={() => setDryRunOpen(false)} />
+        </Suspense>
+      );
+    }
     if (dryRunOpen) {
       return (
         <div style={{ display: 'grid', gap: 18 }}>
@@ -967,7 +1007,7 @@ export default function LiveChallengeTeacher({
                   {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
                 </select>
               </label>
-              {!rushMode && <label style={{ fontWeight: 800 }}>Run as a Warm-Up
+              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Run as a Warm-Up
                 <select value={warmupAssignmentId} onChange={(event) => setWarmupAssignmentId(event.target.value)} style={field}>
                   <option value="">No — students join from their dashboard</option>
                   {warmupAssignmentOptions.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>)}
@@ -984,7 +1024,7 @@ export default function LiveChallengeTeacher({
                   recorded on the assignment; the challenge score is not.
                 </span>
               </label>}
-              {!rushMode && warmupAssignmentId && (
+              {!ownSettingsGame && warmupAssignmentId && (
                 <label style={{ fontWeight: 800 }}>Warm-Up delivery
                   <select value={warmupDeliveryMode} disabled={busy === 'saveWarmupDelivery'} onChange={(event) => changeWarmupDeliveryMode(event.target.value)} style={field}>
                     <option value="liveChallenge">Live Challenge — use game as Warm-Up</option>
@@ -1000,8 +1040,10 @@ export default function LiveChallengeTeacher({
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
+                  {lineGraphOffered && <option value={LINE_GRAPH_GAME}>Graph the Line (preview)</option>}
                 </select>
                 {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn. In preview: only you can launch it.</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
@@ -1043,7 +1085,12 @@ export default function LiveChallengeTeacher({
                   <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
                 </Suspense>
               )}
-              {!rushMode && <>
+              {lineMode && (
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph the Line settings…</p>}>
+                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                </Suspense>
+              )}
+              {!ownSettingsGame && <>
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
                 <select
@@ -1093,7 +1140,7 @@ export default function LiveChallengeTeacher({
                   ? 'Every player the screen has room for, last place included. Each student still sees their own place on their device.'
                   : 'Nobody is shown in last place: the class sees the top 5, and each student sees their own place on their device.'}</span>
               </label>
-              {!rushMode && <label style={{ fontWeight: 800 }}>Speed influence
+              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
                   const value = event.target.value;
                   if (value !== 'custom') setSpeedInfluencePercent(Number(value));
@@ -1107,15 +1154,15 @@ export default function LiveChallengeTeacher({
                 </select>
                 {speedPreset(speedInfluencePercent) === 'custom' && <input type="number" min="0" max="50" value={speedInfluencePercent} onChange={(event) => setSpeedInfluencePercent(Math.max(0, Math.min(50, Number(event.target.value) || 0)))} style={field} />}
               </label>}
-              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Live Challenge'}`} style={field} /></label>
+              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
-          {!rushMode && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
+          {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
           <ChallengeRewardSettings choice={rewardChoice} onChange={setRewardChoice} />
-          {!rushMode && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
-          {rushMode ? (
+          {!ownSettingsGame && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
+          {ownSettingsGame ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-              <button type="button" disabled={!classId || busy === 'create' || Boolean(rushProblem)} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || rushProblem ? .55 : 1 }}>{busy === 'create' ? 'Creating lobby…' : 'Create Lobby'}</button>
+              <button type="button" disabled={!classId || busy === 'create' || Boolean(rushProblem || lineProblem)} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || rushProblem || lineProblem ? .55 : 1 }}>{busy === 'create' ? 'Creating lobby…' : 'Create Lobby'}</button>
             </div>
           ) : (
             <>
@@ -1192,7 +1239,7 @@ export default function LiveChallengeTeacher({
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <StagePill stage={stage} />
-            <span style={{ color: 'var(--mm-text-muted)', fontWeight: 800 }}>{gameLabel} · {room.classPeriod} · {courseLabel(room.courseId)}{!rushRoom && room.standardCode && room.standardCode !== 'mixed' ? ` · ${room.standardCode}` : ''}</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontWeight: 800 }}>{gameLabel} · {room.classPeriod} · {courseLabel(room.courseId)}{!questionSetRoom && room.standardCode && room.standardCode !== 'mixed' ? ` · ${room.standardCode}` : ''}</span>
           </div>
           <h2 style={{ margin: '6px 0 0', fontSize: 'calc(26 * var(--mm-px))', lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
         </div>
@@ -1220,9 +1267,9 @@ export default function LiveChallengeTeacher({
             <div style={{ color: 'var(--mm-primary-text)', lineHeight: 1.5 }}>
               <strong>How students join:</strong> students in {room.className || room.classPeriod || 'this class'} see a Live Challenge card on their MathMaster dashboard — no code to type.{room.assignmentId ? ' Students who open the linked assignment during its Warm-Up are taken straight in.' : ''}
             </div>
-            {rushRoom
-              ? <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>
-              : <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
+            {rushRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>}
+            {lineRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph the Line · {lineSettingsLine(room)}</div>}
+            {!questionSetRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-text)' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
             <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} />
           </section>
@@ -1233,7 +1280,7 @@ export default function LiveChallengeTeacher({
 
       {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && (
         <>
-          {!rushRoom && stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
+          {!questionSetRoom && stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
             <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 800 }}>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}</span>
               <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
@@ -1248,9 +1295,9 @@ export default function LiveChallengeTeacher({
               <ChallengeCountdown clock={clock} look="console" title={clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`} />
             </section>
           )}
-          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (rushRoom
-            ? <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />
-            : <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />)}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && rushRoom && <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && lineRoom && <LineGraphHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} finishedCount={answeredCount} closing={busy === 'close'} />}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && !questionSetRoom && <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />}
           {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
             <>
               {solutionState && <HostSolutionPanel solution={roundSolution} state={solutionState} />}
@@ -1263,9 +1310,9 @@ export default function LiveChallengeTeacher({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
             {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
               <section style={panel}>
-                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
-                {rushRoom
-                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} />
+                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : lineRoom ? 'Live race · lines right this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
+                {questionSetRoom
+                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} label={lineRoom ? 'Lines right this round' : undefined} />
                   : <Leaderboard rows={leaderboard} presentation={presentation} limit={12} />}
               </section>
             )}

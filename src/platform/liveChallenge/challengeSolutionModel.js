@@ -1,3 +1,5 @@
+import { roomRunsQuestionSets } from './challengeShellModel.js';
+
 /*
  * WHAT A SCREEN SAYS ABOUT A ROUND'S WORKED SOLUTION.
  *
@@ -10,14 +12,12 @@
  */
 
 export const SOLUTION_STATE = Object.freeze({
-  NONE: 'none', // no shared question (a Graph Feature Rush round), or not closed yet
+  NONE: 'none', // no shared question (a Graph Feature Rush round, a Graph the Line Sprint), or not closed yet
   HELD: 'held', // closed, but a Second Chance replay of it may still come
   LOADING: 'loading',
   READY: 'ready', // published with an authored review
   UNAVAILABLE: 'unavailable', // published, but the question carries no worked solution
 });
-
-const rushRoom = (room) => room?.challengeMode === 'graphFeatureRush';
 
 /** Whether the server has published this round's solution. */
 export const solutionRevealed = (room = {}, roundIndex) => (
@@ -35,8 +35,12 @@ export const solutionRevealed = (room = {}, roundIndex) => (
  * @param {boolean} [input.roundClosed]  whether this round has closed (results or later)
  */
 export const roundSolutionState = ({ room = {}, roundIndex, solution, roundClosed = true } = {}) => {
-  if (!room || rushRoom(room) || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return SOLUTION_STATE.NONE;
+  if (!room || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return SOLUTION_STATE.NONE;
   if (!solutionRevealed(room, roundIndex)) {
+    // A question-set round is never held for a Second Chance: its line is
+    // published at its close (a Graph the Line Classic round the class graphed
+    // together) or there is none to publish (each student had their own).
+    if (roomRunsQuestionSets(room)) return SOLUTION_STATE.NONE;
     if (!roundClosed || !Array.isArray(room?.revealedSolutionRounds)) return SOLUTION_STATE.NONE;
     return SOLUTION_STATE.HELD;
   }

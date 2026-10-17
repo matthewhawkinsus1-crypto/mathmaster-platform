@@ -14,13 +14,18 @@ engine's. This mode adds a question source, a way to answer, and screens.
 
 **Status.** Phase 1 (the pure foundation: exact line math, how equations are
 written and read, the generator, auto-check grading, hints, teacher settings,
-shared rules) and Phase 2 (the server: the three modes registered, the
-planner, the attempt pipeline, the callables, the report) are built and
-tested — end to end on the Firestore emulator. **No screens yet** (Phase 3):
-the modes are registered with `teacherSelectable: false`, and
-`createLiveChallenge` launches a mode that is not teacher-selectable for the
-platform administrator only — a preview path for QA; every other teacher is
-refused, and the create panel does not offer the game.
+shared rules), Phase 2 (the server: the three modes registered, the planner,
+the attempt pipeline, the callables, the report) and Phase 3 (the screens:
+the student's round, the teacher's setup and "Try it yourself first", the
+host's race and report, the projector, the Classic reveal, early close) are
+built and tested — the server end to end on the Firestore emulator, the
+screens in real browsers against the real handlers
+(`tests/browser/lineGraphGame.mjs`). **Still a preview** until Phase 4
+certifies it: the modes are registered with `teacherSelectable: false`;
+`createLiveChallenge` launches them for the platform administrator only, and
+only the administrator's console offers "Graph the Line (preview)". Every
+other teacher sees nothing new. **Mastery evidence is deliberately not
+written yet** (§11, with the reason).
 
 ---
 
@@ -97,9 +102,11 @@ not the scale.
 The single rule: **an answer is checked when it is complete, and never while
 it is still being made.**
 
-- **Placing a point** (Phase 3 screen): press on the grid → a point follows the
-  finger, snapped to the nearest grid point, its coordinates shown *above* the
-  finger → let go to place it. Precision without a Submit button.
+- **Placing a point**: press on the grid → a point follows the finger,
+  snapped to the nearest grid point, its coordinates shown *above* the finger
+  (higher for a finger than a pen or a cursor; beside it, against the top
+  edge, when there is no room above — never under the hand) → let go to place
+  it. Precision without a Submit button.
 - **The line is checked** when the second point is let go — and again each
   time a point that was dragged is let go. Never mid-drag.
 - **Right** → the line turns green, a 450 ms flash, the next item.
@@ -205,9 +212,10 @@ the equation ("(x − 4) means x = 4") — that is reading the prompt.
 Diagnoses with the same meaning as a registered misconception code
 (`DIAGNOSIS_MISCONCEPTION`: slope sign, run over rise, slope/intercept
 swapped, intercepts swapped, ordered pair reversed) are mapped, **for later**:
-a code becomes evidence only from a classifier declared in the registry
-(Phase 3). Intercept sign, point-slope sign and horizontal/vertical confusion
-have no registry code yet.
+a code becomes evidence only from a classifier declared in the registry,
+which ships with mastery evidence (§11). Intercept sign, point-slope sign and
+horizontal/vertical confusion have no registry code yet. Today diagnoses
+reach the hint, the teacher's report and the Classic reveal's label.
 
 ---
 
@@ -242,37 +250,87 @@ have no registry code yet.
   (`lineGraphConfig.mjs`, with `lineGraphRules.mjs`) into the chunk that
   carries the mode registry — the student Live Challenge chunk, which the
   teacher console imports: +8.3 kB (+2.8 kB gzip), the same way the rush's
-  settings ship. The generator, the grading and the attempt pipeline reach no
-  browser yet; Phase 3's game screen will load grading lazily, as the rush
-  round does.
+  settings ship. Phase 3 loads the rest only where it is used, and no line
+  drawing loads up front on any screen. Measured against Phase 2's build
+  (each screen's chunk plus everything it loads eagerly): a student's Live
+  Challenge screen +3.5 kB (+1.5 kB gzip); the teacher's console +20.9 kB
+  (+6.0 kB gzip — the setup model, host status, report and wiring). Lazy, for
+  a line room only: the student's round 65.1 kB (21.1 kB gzip) with the
+  shared grid 9.5 kB (4.0 kB); a revealed line 3.1 kB (1.5 kB) plus the grid,
+  only when a Classic round has one (`RevealedLine`); the setup panel 10.9 kB
+  (3.3 kB) and practice 9.8 kB (4.0 kB), only when the teacher picks the
+  game. The generator reaches no browser at all (a test holds that).
 
 ---
 
-## 8. Screens (Phase 3)
+## 8. Screens (built in Phase 3)
 
-**Student.** A full-screen surface below the identity bar (the rush's
-`.mm-rush-shell` contract): the prompt and equation, the grid as the largest
-square that fits, Start over and Skip (Sprint, Rush) in the same place on every
-item, the clock, the count. Feedback: green line + flash; red line + hint;
-dashed reveal. Optional slope helper ("up 2, right 3") while placing the
-second point. Streak counter (display only). Keyboard: arrows move a crosshair
-on the grid, Enter places/picks up/drops a point, Escape cancels; coordinates
-and the line's state are announced. Colour is never the only signal (✓/✗,
-dashed reveal). Reduced motion turns off the flash and slide.
+**Student** (`LineGraphRound.jsx`, lazily loaded). A full-screen surface below
+the identity bar (the rush's `.mm-rush-shell` contract): the equation (or the
+line to name), the grid as the largest square that fits, Start over and Skip
+(Sprint, Rush) in the same place on every item, the clock, the count and a
+streak (display only). Feedback: a green line, ✓ and a flash; a red line, ✗
+and the hint, with the tries left; after the last try the answer dashed
+through its key points. The ✓ or ✗ sits on the line where it covers neither
+point nor either point's coordinates (`verdictBadgeSpot`); colour is never the
+only signal. The slope helper ("up 2, right 3") shows between the points when
+the teacher turns it on. Keyboard: arrows move a crosshair (Shift: five),
+Enter places, picks up and drops a point, Escape puts a held point back;
+coordinates and outcomes are announced. The grid draws its own keyboard ring,
+shown only after keyboard use (`data-focus-ring="own"` keeps the page's
+`:focus-visible` ring, which a focus given in code would leave on through
+every press, off it). Reduced motion turns off the flash and slide. Time,
+network and storage are the rush round's: one clock anchor
+(`monotonicRoundOrigin`), the input gate read from refs, attempts queued in
+localStorage and sent gathered, the server's counts taken when they differ.
+The standings listener pauses while a question-set round is open.
 
-**Teacher setup.** "Graph the Line" in Create a challenge: format, preset,
-item types, forms, special lines, difficulty, Name-it style, tries, Sprint
-length, same equations, show your method, slope helper, rounds, time, scoring,
-Rewards (the shared `ChallengeRewardSettings`), and "Try it yourself first".
+**Teacher setup** (`LineGraphSetup.jsx`, lazy). "Graph the Line (preview)" in
+Create a challenge — offered to the platform administrator only while the
+modes are not teacher-selectable. Format cards, presets, item types, Name-it
+style, forms and special lines, difficulty, tries, Sprint length, same
+equations, show your method, slope helper, rounds, time, scoring, the shared
+Rewards choice; the server's own words when a setting makes the game
+impossible (Create is disabled). The model (`lineGraphSetupModel.js`) keeps a
+preset named only while the settings still match it, and a Sprint's suggested
+time following its length until the teacher sets one. **Try it yourself
+first** (`LineGraphPractice.jsx`, lazy) plays sample items from
+`previewLineGraph` on the student's own screen, checked on the device by the
+server's attempt pipeline; nothing is sent or recorded. A Classic practice is
+its first six lines in a row. **Play Again** carries every setting.
 
-**Host and projector.** Countdown, then the live race (items completed — never
-an equation's line). Between Classic rounds with shared equations: the
-correct line and the class's most common mistake ("7 drew a slope of 3/2"),
-anonymised, published only after the round closes (the solution-reveal rule:
-never public while anyone can still answer).
+**Host** (`LineGraphHost.jsx`). The room's settings in one line; during a
+round, the race board (the rush's, with each student's lines right and, in
+Classic and Sprint, "✓ done") and how many have finished. Never an equation
+during a round: each student may have their own, and the projector is for the
+whole room.
 
-**Report.** Items completed, accuracy and time per item by form and item type,
-tries used, the mistakes students made (named only when unambiguous).
+**Early close.** Classic and Sprint rounds close when every joined student has
+finished — the host sees it from each public row's `rushRoundFinished`, and
+the server's close guard agrees from the receipts (`roundReadyToClose`), so
+no force is needed. Rush rounds, like Graph Feature Rush's, end on the clock
+(`roomRoundsEndOnTheClock`). The host's hint says which.
+
+**Projector.** Countdown, then the race (`LineRunningView`) — never an item
+while the round can be answered.
+
+**Classic reveal** (`lineGraphReveal.mjs`, `LineRevealGraph.jsx`). In a
+Classic game with the same equations (its default), the round's line is
+captured privately when the round opens. When the round closes — on the same
+three paths, and under the same hold rule, as every shared question's worked
+solution (`liveChallengeSolutionReveal.mjs`) — the server publishes it with
+the class's facts from the receipts: how many answered, how many got it (and
+on the first try), and the wrong line or option most students gave, dashed —
+**only when at least two gave it**, as a count, never a name. The projector,
+the teacher's console and each student's results card draw the same graph.
+
+**Report** (`LineGraphReport`). After the game: lines right, accuracy and
+tries by form, item type and difficulty; the class's mistakes, most first,
+labelled only when the diagnosis is unambiguous; each student's line.
+
+**Generalised mode checks.** The client asks `challengeShellModel.js` —
+`questionSetGameOf`, `roomRunsQuestionSets`, `roomRoundsEndOnTheClock` —
+instead of comparing the rush's id; a test holds those sets to the registry.
 
 ---
 
@@ -283,7 +341,9 @@ tries used, the mistakes students made (named only when unambiguous).
 | `liveChallengeRooms/{room}` | `challengeMode`, `lineGraph: { config, generatorVersion }` — no seed; while a round is open, `currentQuestion` is a card (`kind: 'lineGraph'`, format, forms, item types, `roundQuestionCount`) — never an equation |
 | `liveChallengePrivate/{room}` | `lineGraph: { seed, config, generatorVersion }`; `questionIds` are placeholders (`lineGraph:round:N`) with no standard |
 | `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount`, `tier`, `reportTags: { form, itemType, variant }`, the answer (`points` [x₁, y₁, x₂, y₂], `choice`, or `fields`), and for a miss its `diagnosis` and `answerKey`; `forfeit` + `revealed` on the miss that used the last try |
-| `…/players/{key}` (public row) | score, accuracy and the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`), so the shared race board and presence read them; `lastRound` after a close. No student id, no answers |
+| `…/players/{key}` (public row) | score, accuracy and the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`, and since Phase 3 `rushRoundFinished`: this round's items are all done), so the shared race board, early close and presence read them; `lastRound` after a close. No student id, no answers |
+| `liveChallengePrivate/{room}` (Phase 3) | a Classic game with the same equations: `roundSolutions[round]`, its line's worked solution, captured when the round opens; the plan's `sharedLineKeys`, which hold a round's reveal while a later round asks the same line |
+| `liveChallengeRooms/{room}/solutions/{round}` (Phase 3) | after the round closes: the worked solution with `lineGraph` (the line, key points, equation tokens, options) and `class: { answered, correct, firstTry, mistake }` — counts only; `revealedSolutionRounds` on the room lists it |
 | `liveChallengeMatchResults/{room}` | each standing's `questionSetSummary` now also carries `byTag` (the mode's report tags) and `mistakes` (diagnosis counts) — empty for the rush |
 | `liveChallengeReports/{room}` | `lineGraph`: items completed and ended, accuracy, by form, by item type, by tier (hardest first), mistakes (most first, labelled), per student |
 
@@ -315,8 +375,16 @@ unchanged and its suites pass):
 | `functions/shared/lineGraphRules.mjs` | mode ids, attempt kinds, verdicts, limits, tries, pause, timings |
 | `functions/shared/lineGraphAttempts.mjs` | the submit transaction's body (`applyLineGraphAttempts`), round state from receipts, player totals, the report |
 | `functions/shared/seededRandom.mjs` | the integer-only seeded random source (moved verbatim from the rush generator, which re-exports it; its output is unchanged) |
-| `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER`, the preview gate in `createLiveChallenge`, `getLineGraphRound`, `submitLineGraphAttempts`, `previewLineGraph` |
+| `functions/shared/lineGraphReveal.mjs` | a shared Classic round's worked solution, and the class's facts added at its close |
+| `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER` (with the shared round's solution), the preview gate in `createLiveChallenge`, `getLineGraphRound`, `submitLineGraphAttempts` (writes `rushRoundFinished`), `previewLineGraph`, the reveal's class facts |
 | `src/platform/liveChallenge/liveChallengeService.js` | the three callables for the screens (mirrored in the emulator bridge) |
+| `src/platform/liveChallenge/lineGraphModel.js` | the grid as geometry: unit space, snapping, the line edge to edge, the draft reducer (press, drag, release), the keyboard, where labels and the ✓/✗ float |
+| `src/platform/liveChallenge/lineGraphSession.js` | a student's round on the device: verdicts (the server's grading), tries, pauses, the queue, the server's word |
+| `src/platform/liveChallenge/lineGraphSetupModel.js` | the teacher's setup, presets and formats, and the create request |
+| `src/platform/liveChallenge/challengeShellModel.js` | which rooms run question sets and which end on the clock (`QUESTION_SET_GAME`) |
+| `src/components/liveChallenge/LineGraphRound.jsx`, `LineGraphCanvas.jsx`, `LineGridLayer.jsx`, `LineEquation.jsx` | the student's round, the grid, its grid lines, an equation's tokens |
+| `src/components/liveChallenge/LineGraphSetup.jsx`, `LineGraphPractice.jsx`, `LineGraphHost.jsx`, `LineRevealGraph.jsx` | the teacher's setup and practice, host status and report, the revealed line |
+| `src/components/liveChallenge/RevealedLine.jsx` | the revealed line, loaded on first use: every room's results can show one, only a Classic line game has one |
 
 ---
 
@@ -366,35 +434,48 @@ unchanged and its suites pass):
   tries, forfeits, `repeated`, limits, claimed times); the bot fairness
   simulation; an emulator integration game through the callables.
 
-**Phase 3 — screens.**
+**Phase 3 — screens. Done.**
 
-- [ ] The client has no registry and checks the rush's id by literal in the
-  student, shell, projector, teacher, replay and presence code. (Phase 2
-  added the line modes to `challengeShellModel`'s `QUESTION_SET_MODES`, which
-  a test holds to the registry.) Generalise the literal checks into one
-  helper rather than adding more.
-- [ ] Early close: `roundCloseDue` closes question-set rounds on the deadline
-  only; Classic and Sprint rounds should also close when everyone is done
-  (the server already agrees: `roundReadyToClose`), and the host hint must not
-  say "until time runs out" for them.
-- [ ] The create panel: generalise the rush's create branch — a test requires
-  exactly two `createLiveChallenge({` calls there, each with
-  `standingsDisplay`.
-- [ ] The student surface: new pointer code (the rush's graph handles
-  `pointerdown` only); the rush's clock, countdown, queue, storage and
-  reconciliation patterns (`rushSession.js`, `GraphFeatureRushRound.jsx`);
-  `touchAction: none` (the assignment plane's `pan-y` lets a vertical drag
-  scroll the page and cancel a placement). Lazily loaded, like the rush round.
-- [ ] Classic reveal: a per-round solution for shared items (today the reveal
-  is off for per-player modes), shown on the projector and the results card.
-- [ ] Declare the mode's misconception classifier in the registry, so
-  unambiguous diagnoses become evidence; and feed question-set round outcomes
-  into mastery evidence (then give the planner its rounds' standards: A.3C
-  for Graph it, A.2C for Name it).
-- [ ] The report screen (`report.lineGraph`), beside the rush's.
+- [x] The client's literal checks of the rush's id generalised into
+  `challengeShellModel.js` (`QUESTION_SET_GAME`, `questionSetGameOf`,
+  `roomRunsQuestionSets`, `roomRoundsEndOnTheClock`); the student, shell,
+  projector, teacher, replay and solution code ask it.
+- [x] Early close for Classic and Sprint: `roundCloseDue` closes them when
+  every joined student's row says `rushRoundFinished` (the server's guard
+  agrees from the receipts); Rush rounds end on the clock; the host's hint
+  says which.
+- [x] The create panel: the rush's create branch serves both games, still
+  exactly two `createLiveChallenge({` calls, each with `standingsDisplay`.
+- [x] The student surface: new pointer code with capture and
+  `touchAction: none`; the rush's clock, countdown, queue, storage and
+  reconciliation patterns; lazily loaded.
+- [x] Classic reveal: a per-round solution for shared items, published at the
+  close with the class's facts; on the projector, the console and the results
+  card.
+- [x] The report screen (`report.lineGraph`), beside the rush's.
+- [ ] **Mastery evidence — deferred, on purpose.** Turning it on now would
+  write wrong evidence about real students. `liveChallengeEvidence.mjs` counts
+  a ROUND as one answer to one bank question, and stamps every record "One
+  attempt, no hints" and `isMathematicallyIndependent: true`. A line round is
+  up to 150 items, each with a hint after a miss and up to three (or
+  unlimited) tries; mixed Graph it and Name it items share a round, so one
+  standard per round (`roundStandards`) cannot say which is A.3C and which
+  A.2C; and question-set rooms never write the `answeredRounds` /
+  `missedRounds` the builder reads. Doing it right needs: an item's FIRST try
+  as the independent answer (later tries are supported by a hint), counted
+  per item type into the match summary at the close; an evidence builder over
+  those counts with its own conditions text and support usage; per-item-type
+  standards (A.3C Graph it, A.2C Name it); and the misconception classifier
+  declared in the registry so unambiguous diagnoses become misconception
+  evidence. Until then the planner gives line rounds no standards, so a line
+  game writes no evidence at all (the integration test checks
+  `roundStandards` stays empty). It ships as its own reviewed change after
+  certification.
 
-**Phase 4 — certification.** Browser QA on phone, Chromebook and keyboard; 30-
-and 35-student launch runs; then `teacherSelectable: true`.
+**Phase 4 — certification.** 30- and 35-student launch runs; then
+`teacherSelectable: true`. (Phase 3 already played every format in real
+browsers — phone, iPad, Chromebook, mouse, finger and keyboard — against the
+real handlers: `tests/browser/lineGraphGame.mjs`.)
 
 ---
 
@@ -409,12 +490,24 @@ and 35-student launch runs; then `teacherSelectable: true`.
 | `tests/platform/lineGraphConfig.test.mjs` | defaults per format; validation; presets; round limits; pools; mode ids; tries; the pause |
 | `tests/platform/lineGraphPlay.test.mjs` | the attempt pipeline: a right answer completes once; a miss with its mistake; `repeated`; the last try ends the item in one receipt; tries 1/2/3/until right; one try for a choice; `method` and `form`; replays, late, early, malformed and mismatched attempts; skips; claimed times; record limits; a Sprint's length read back by the engine; the report; the receipt size budget; the fairness simulation |
 | `tests/platform/lineGraphEngine.test.mjs` | the three mode declarations; the format is the mode's; limits per format; a Sprint round ranked by `buildRoundResult` from pipeline receipts |
-| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | the preview gate; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round); previews |
+| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | the preview gate; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); extended time (a question-set room plays at ×1 and closes at its deadline); previews |
+| `tests/platform/lineGraphScreenModels.test.mjs` | the grid's geometry and gestures (checked only on a release that completes or changes a line); where the held label and the ✓/✗ float; the keyboard; the device session — tries, pauses, reveals, method, naming, skips, the queue, the server's word — and its verdicts replayed through the server's pipeline over random rounds; shown answers read back by the oracle |
+| `tests/platform/lineGraphReveal.test.mjs` | every slot's worked solution is the item's own line, every point a step names on it; the class's facts (distinct students, skips, who left); a mistake shown only when two students made it; the published document names no student; a line held while a later round asks it |
+| `tests/platform/lineGraphScreens.test.mjs` | the setup model against the server's validation; formats and presets; which rooms end on the clock; who has finished; Play Again; source contracts for the student, round, canvas, teacher, projector and server wiring |
+| `tests/browser/lineGraphGame.mjs` (QA, not CI) | whole games in Chromium against the real handlers on the emulator: setup and practice; a Sprint with a mouse and a finger (a hint and a fix by dragging, the label beside the finger, three misses, early close, results, the report); a Classic round's reveal on phones and the projector; built equations and the keyboard |
 
 Each assertion that protects a behaviour was broken once on purpose and seen
 to fail (the sign convention, a wrong option marked right, the block mix,
 ambiguity, the method rule, the repeat rule, canonical signs, the random
 source; and through the emulator, the preview gate and the report's key).
+Phase 3's were too: a check on press or mid-drag, the label under the finger
+or on the wrong side, the ✓/✗ a third of the way along or blind to labels,
+the page's focus ring, counting a mistake per attempt instead of per student,
+a mistake shown for one student, the reveal's method headline, Classic and
+Sprint ending only on the clock (and Rush closing early), the create branch
+and the student's question-set flags. That nothing is public while a round
+can be answered is checked through the emulator and in the browser, not by
+mutation.
 
 ---
 
