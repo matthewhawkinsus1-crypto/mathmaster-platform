@@ -12,13 +12,17 @@ const preflight = fs.readFileSync('src/platform/preflight/assignmentV5PreflightM
 // Overview, which every size of navigator can open; "Grade so far", never
 // "if submitted now" (there is no assignment-level submit).
 test('Overview shows the live grade and attempted-work accuracy, in student words', () => {
-  const grade = region(app, 'className="mathmaster-overview-grade"', '</section>', 'Overview\'s grade lines');
+  // One set of words, shown in Overview (wide screens) and the phone chip's panel.
+  const grade = region(app, 'const gradeSoFarLine = preview', 'const assignmentChipShown', 'the grade lines');
   assert.match(grade, /`Grade so far: \$\{recordedGrade\}%`/);
   assert.match(grade, /gradeSplit\.attempted > 0/);
-  assert.match(grade, /\{gradeSplit\.creditOnAttempted\}% on what you have answered/);
+  assert.match(grade, /\$\{gradeSplit\.creditOnAttempted\}% on what you have answered/);
   // Held feedback hides the score; post-deadline practice names the set grade.
   assert.match(grade, /assignmentFeedbackHeld\s*\?\s*'Your score shows after your teacher releases it'/);
   assert.match(grade, /lifecycle\.isPracticeOnly\s*\?\s*`Your grade: \$\{recordedGrade\}% · set when the assignment closed`/);
+  const overview = region(app, 'className="mathmaster-overview-grade"', '</section>', 'Overview\'s grade');
+  assert.match(overview, /\{gradeSoFarLine\}/);
+  assert.match(overview, /\{gradeDetailLine && <span/);
   assert.doesNotMatch(executableSource(app), /if submitted now/i);
   // Overview is reachable from the compact navigator too: its button is not
   // inside the expanded-only branch.

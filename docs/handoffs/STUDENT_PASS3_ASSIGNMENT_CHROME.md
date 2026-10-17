@@ -32,11 +32,25 @@ navigator speaks — the number strip, its spoken names, the section tabs, the d
 | NAV-5 | A phone hid every status line (late, no credit, Live Challenge). | One status chip in the phone's navigator row names the most urgent ("⚡ Join the challenge", "Exit ticket (DOL) open", "Warm-Up open", "Late · closes Oct 19, 2026, 11:59 PM", "No credit · practice", "+1" for more); pressing it (`aria-expanded`) opens the full lines with their actions. Hidden on wider screens, which keep the banners. | browser `statusChip` |
 | RUN-16 (chrome) | "ON-TIME ACCESS", "CLASSWORK · PERSONALIZED VERSIONS", "Current grade 17% if submitted now". | No badge when on time; the version chip shows in a teacher preview only; "Grade so far" in Overview. The navigator and dropdown call the DOL "Exit ticket (DOL)". | `assignmentChromeWiring`, `assignmentStudentProgressUi` |
 
+### After the integrator's review of `6955c74` (commit `6678c25`)
+
+| Finding | What changed | Proof |
+| --- | --- | --- |
+| 1. Warm-Up warnings vanished while "Show progress" was open (the timer was in the compact row only; on a phone nothing else showed the time) | The Warm-Up's `SectionTimeLeft` is in the navigator's top row in both states. Found while proving it: a warning first seen already past its mark was erased by React's development double mount (an effect cleared it on mount, after the once-per-window warning was taken). A warning now belongs to its window (`windowKey`) and is never cleared on mount. | browser `warmupWarnings` (phone, Warm-Up closing in under 2 min, progress shown: pill and "Less than 2 minutes left on the Warm-Up…"); `assignmentChromeWiring` |
+| 2. On a portrait phone, Support tools (a teacher's materials) were only behind "Show progress" | The phone's chip is always there for a student: a status when there is one, otherwise **More ▾** in the row. Its panel holds the status lines, **"Grade so far"** (the same words as Overview — this is where a phone student sees the grade; Overview is hidden on phones as before) and **Support tools**. `studentSupportTools.test.mjs`'s premise rewritten: the panel is behind the always-present chip, and the chip shows wherever the header is hidden. | browser `phoneRow` (More 44px, "Grade so far", Support tools); `studentSupportTools` (rewritten), `assignmentChromeWiring` |
+| 3. A question out of tries that offers "Request New Question" read "Closed · no tries left", counted as done, and tabs skipped it | New state **`newQuestion`**: "Out of tries · new question available" / "out of tries, a new question is available" — amber like "try again", not done, a tab lands on it. Input: `resolveQuestionReplacementAllowed` for the entry, exactly as the question decides it; a closed section and held feedback still win. | `assignmentNavigator`; `assignmentChromeWiring`. Not shown in the browser: the harness's questions are not personalized blueprints, so none offers a replacement |
+| 4. Nothing pinned "a locked section never opens" (mutations A and B stayed green) | Contracts: `entryIsAvailable` is exactly `sectionAccessFor(entry).viewable`; the section tab calls `changeQuestion` once, for its landing question, else shows the reason; the tab target, Previous/Next and both question lists ask the same gate. | Mutations A (locked tab opens `entries[0]`) and B (`viewable \|\| role !== 'dol'`) both red across all of `tests/platform` |
+| 5. Status chip 36px, lock note's × 32px | Both 44px. | browser `phoneRow` (More, ×) and `statusChip` |
+| Integrity: a DOL with a teacher's extra try (feedback `afterAssignmentSubmit`) said "needs another try · 1 try left" while the question withheld its outcome | `outcomeWithheld` (model) is the question's own rule: withheld unless `immediate`, released (teacher release or post-deadline practice), or — for `afterAssignmentSubmit` — the question is finished. The navigator masks every such question as "Submitted · feedback later". | `assignmentNavigator` (the extra-try DOL both ways), `assignmentChromeWiring` |
+| Notes | Teacher-closed Classwork says "Your work stays here" only with work. Section names are lower-case mid-sentence ("Time is up for the Exit ticket (DOL).", "Your teacher closed the Classwork."); the model capitalises a sentence that starts with one. Another lesson's open Warm-Up is a chip line ("Go to that Warm-Up"), since a phone hides the banner that offered it. The phone's "Q1 of 2" is not in the status region's spoken text (the long form is hidden on phones); the question announcer still says "Classwork, question 1 of 2" on every change — left as is. | `assignmentNavigator`, `assignmentChromeWiring` |
+
+Contracts rewritten for these: `studentSupportTools` (premise), `assignmentStudentProgressUi` (the grade words are one const shown in Overview and the chip's panel), and three Warm-Up banner contracts (`studentJourneyDol2Final`, `synthesis3x3StudentExperience`, `studentTodayAppWiring`) whose filter now lives in `studentActiveWarmup` (the banner and the chip share it) — each also asserts the banner renders that helper's answer. 14 more mutations, all red (the two above plus: Warm-Up timer only when compact; chip only with a status; Support tools not in the panel; replacement not passed; DOL outcome not masked, in the model and in App; new question read as closed or counted done; sentences not capitalised; "work stays" without work; a warning cleared on mount; the chip not in short landscape).
+
 ### Room to work, measured (real App, `questions=real`, Classwork Q1)
 
 | | Before (`a7dddc7`) | After |
 | --- | --- | --- |
-| 1366×768: sticky chrome (navigator + task card) ends at | y=301 | **y=227** |
+| 1366×768: sticky chrome (navigator + task card) ends at | y=301 | **y=227** (y=213 on the final merge, with Batch 4's task card) |
 | 1366×768: room between the chrome and the action bar | 402px | **476px** |
 | 390×844: navigator height | 179px | **53px** |
 | 390×844: work area | y=410–783, **373px (44%)** | y=284–783, **499px (59%)** |
@@ -92,7 +106,15 @@ Next 44×30), the alert never set (`dolTimer`: no 2:00 and 0:30 warnings).
 
 ## Gate
 
-All on the final merge `dbf2a55`, one browser driver at a time, no edits in flight.
+All on the final merge `dbf2a55`, one browser driver at a time, no edits in flight. Re-run after the review fixes
+(`6678c25`): `test:platform` 11,457 / 11,457; tools 1,644 pass, 0 fail; lint, build, build:firebase (clean tree),
+theme audit pass; first load 1,040.2 KB (as below: the base is over budget); browser: assignmentChromeJourneys (all
+journeys, incl. `warmupWarnings`), studentUxPlatform, assessmentLeakGates, feedbackTeaches, toolAttemptOutcome,
+closedVerdictChip, stagedQuestion, workViewTerminalTransition, supportEvidenceJourneys, certify:accessibility,
+studentShellLargeText (both checks), hostAccessibility, certify:dark-mode — all pass. (One dark-mode run at 23:50 UTC
+failed on the base's "PACK UP & RETURN TECHNOLOGY" banner contrast: that driver runs on the real clock, so near midnight
+UTC the fixture clamps the period to end at 23:55 and the pack-up banner shows; re-run at 23:56 UTC, it passes. The
+banner and the driver are untouched here; noted for whoever owns darkModeCertification's scenes.)
 
 | Check | Result |
 | --- | --- |
@@ -146,7 +168,7 @@ Never a raw `firebase deploy --only hosting…`.
 2. **Warnings under "hide countdowns".** A student whose support setting hides countdowns still gets the 2:00 and
    0:30 warnings (said once each; missing one loses work); only the ticking numbers are hidden. The secure test
    already forced its timer visible in the last five minutes.
-3. **Expanding is sticky until Focus view.** The navigator no longer folds itself when the page scrolls; a student
+3. **Expanding is sticky until Focus view.** (The Warm-Up's time and warnings now show in both states.) The navigator no longer folds itself when the page scrolls; a student
    who opens "Show progress" keeps it until they press "Focus view" or open another assignment.
 4. **The Warm-Up toast inside the lesson.** It no longer fires while the student is in that lesson (any section);
    outside it, it still reminds every two minutes.
