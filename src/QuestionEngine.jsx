@@ -32,6 +32,7 @@ import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/
 import { missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
+import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
 import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
@@ -515,7 +516,7 @@ function QuestionEngineBody({
   const [moduleRecoveries, setModuleRecoveries] = useState(0);
   // Which module failed to render (QuestionModuleBoundary): the boundary key
   // and question it failed under. See `moduleFailed` below.
-  const [failedModuleKey, setFailedModuleKey] = useState(null);
+  const [failedModule, setFailedModule] = useState(null);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
   const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
@@ -932,10 +933,15 @@ function QuestionEngineBody({
   // Path swaps the question under one engine with no key at all; either way
   // the next module is a different one and starts not-failed. A flag held for
   // the mount left a closed question editable after a fresh start (review of
-  // Batch 5).
+  // Batch 5). The draft key tells My Math Path's items apart: they share every
+  // other part (questionModuleFailureKey.js).
   const moduleBoundaryKey = `${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`;
-  const moduleFailureKey = `${moduleBoundaryKey}|${question?.questionId ?? question?.id ?? ''}`;
-  const moduleFailed = failedModuleKey !== null && failedModuleKey === moduleFailureKey;
+  const moduleFailureKey = questionModuleFailureKey({ boundaryKey: moduleBoundaryKey, questionId: question?.questionId ?? question?.id, draftKey });
+  // Held with the question it failed on, too: a failure recorded for another
+  // question never counts, even if a host gives two items the same key. (Not
+  // cleared in the new-question effect: a module that throws as it first mounts
+  // reports during the commit, before that effect, and would lose its panel.)
+  const moduleFailed = failedModule !== null && failedModule.key === moduleFailureKey && failedModule.question === processedQuestion;
   // The work area is read-only while the question is closed or waiting —
   // except when its module failed: then it holds only the failure panel.
   const workAreaClosed = !moduleFailed && Boolean(locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
@@ -1558,6 +1564,7 @@ function QuestionEngineBody({
     setBaseUndoController(null);
     setUndoController(null);
     setModuleRecoveries((current) => current + 1);
+    setFailedModule(null);
     setQuestionResetVersion((current) => current + 1);
   };
 
@@ -3078,7 +3085,7 @@ function QuestionEngineBody({
                 pinRef: failureContext.pinRef,
               }}
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
-              onFailureChange={(failed) => setFailedModuleKey(failed ? moduleFailureKey : null)}
+              onFailureChange={(failed) => setFailedModule(failed ? { key: moduleFailureKey, question: processedQuestion } : null)}
             >
               {renderModule()}
             </QuestionModuleBoundary>

@@ -73,6 +73,48 @@ for (const [name, viewport] of [['chromebook', { width: 1366, height: 768 }], ['
   state = await workArea(page);
   check(state.probe && !state.disabled && !state.inert, `${name} path: an open item is live`, JSON.stringify(state));
   await page.close();
+
+  // My Math Path as PathSessionPlayer really mounts it (see the harness): every
+  // item shares generationKey, variantIndex and question id (none), and the
+  // engine sets the reset version back to 0 for each new item. Item 1 fails and
+  // is started fresh; item 2 must still close when it is answered (review of
+  // Batch 5, round 2).
+  const player = await open(viewport, 'scene=pathPlayer');
+  state = await workArea(player);
+  check(state.panel && !state.disabled, `${name} path player: item 1's failure panel can be used`, JSON.stringify(state));
+  await player.evaluate(() => { window.__mmCrash = false; });
+  await player.getByRole('button', { name: 'Start this question fresh' }).click();
+  await player.getByRole('button', { name: 'Start fresh' }).click();
+  await player.locator('[data-probe-tool]').waitFor();
+  await player.waitForTimeout(300);
+  await player.evaluate(() => window.__mmSetStatus('correct'));
+  await player.waitForTimeout(300);
+  state = await workArea(player);
+  check(state.probe && state.disabled && state.inert, `${name} path player: item 1, started fresh and answered, closes`, JSON.stringify(state));
+  await player.evaluate(() => window.__mmNextItem({ status: 'unattempted' }));
+  await player.waitForTimeout(400);
+  state = await workArea(player);
+  check(state.probe && !state.disabled && !state.inert, `${name} path player: item 2 opens live`, JSON.stringify(state));
+  await player.evaluate(() => window.__mmSetStatus('correct'));
+  await player.waitForTimeout(300);
+  state = await workArea(player);
+  check(state.probe && state.disabled && state.inert, `${name} path player: item 2, answered, closes (item 1's failure did not carry over)`, JSON.stringify(state));
+  await player.close();
+
+  // The same mount, but the student moves on WITHOUT starting item 1 fresh:
+  // its failure is still recorded when item 2 arrives under the same key.
+  const onward = await open(viewport, 'scene=pathPlayer');
+  state = await workArea(onward);
+  check(state.panel && !state.disabled, `${name} path player, moving on: item 1's failure panel can be used`, JSON.stringify(state));
+  await onward.evaluate(() => { window.__mmCrash = false; window.__mmNextItem({ status: 'unattempted' }); });
+  const itemTwoShown = await onward.locator('[data-probe-tool]').waitFor({ timeout: 5000 }).then(() => true, () => false);
+  check(itemTwoShown, `${name} path player, moving on: item 2 shows its own module, not item 1's failure panel`);
+  await onward.waitForTimeout(300);
+  await onward.evaluate(() => window.__mmSetStatus('correct'));
+  await onward.waitForTimeout(300);
+  state = await workArea(onward);
+  check(state.probe && state.disabled && state.inert, `${name} path player, moving on: item 2, answered, closes`, JSON.stringify(state));
+  await onward.close();
 }
 
 await browser.close();

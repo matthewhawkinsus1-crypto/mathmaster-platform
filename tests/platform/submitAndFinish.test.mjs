@@ -33,6 +33,7 @@ import { closedAttemptText } from '../../src/platform/supports/feedback/attemptF
 import { describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject } from '../../src/platform/student/saveStatusModel.js';
 import { resolveAssignmentHandoff, resolveSkippedQuestion } from '../../src/platform/student/assignmentHandoff.js';
 import { closedQuestionEnterAction } from '../../src/platform/interaction/closedQuestionEnter.js';
+import { questionModuleFailureKey } from '../../src/platform/runtime/questionModuleFailureKey.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const code = (path) => executableSource(read(path));
@@ -407,16 +408,34 @@ test('"Start this question fresh" works on a closed question, asks first, and sh
   assert.match(engine, /const workAreaClosed = !moduleFailed && Boolean\(locked \|\| scaffoldRequired \|\| contextScaffoldRequired \|\| submitting \|\| pausedByAnotherTab\);/);
   assert.match(engine, /<fieldset disabled=\{workAreaClosed\}/);
   assert.match(engine, /inert=\{workAreaClosed \? true : undefined\}/);
-  // The failure is the failed module's (boundary key and question), not the mount's.
-  assert.match(engine, /const moduleFailed = failedModuleKey !== null && failedModuleKey === moduleFailureKey;/);
-  assert.match(engine, /onFailureChange=\{\(failed\) => setFailedModuleKey\(failed \? moduleFailureKey : null\)\}/);
+  // The failure is the failed module's (its key and its question), not the mount's.
+  assert.match(engine, /const moduleFailureKey = questionModuleFailureKey\(\{ boundaryKey: moduleBoundaryKey, questionId: question\?\.questionId \?\? question\?\.id, draftKey \}\);/);
+  assert.match(engine, /const moduleFailed = failedModule !== null && failedModule\.key === moduleFailureKey && failedModule\.question === processedQuestion;/);
+  assert.match(engine, /onFailureChange=\{\(failed\) => setFailedModule\(failed \? \{ key: moduleFailureKey, question: processedQuestion \} : null\)\}/);
   assert.match(engine, /resetKey=\{moduleFailureKey\}/);
   // The paths the product takes (a remount under a new key; the next item
   // under an unkeyed engine) are driven in tests/browser/moduleRecoveryLock.mjs.
   const recover = region(engine, 'const handleRecoverQuestionModule = async () => {', '\n  };', 'recovery');
   assert.ok(recover.indexOf('await confirmAction(') < recover.indexOf('quarantineQuestionDraftFamily('), 'asked before anything is set aside');
   assert.match(recover, /if \(!proceed\) return;/);
+  assert.ok(recover.indexOf('setFailedModule(null)') !== -1 && recover.indexOf('setFailedModule(null)') < recover.indexOf('setQuestionResetVersion('), 'recovery clears the failure before the module remounts');
   assert.doesNotMatch(recover, /attemptCount|onGrade|setRecord/, 'the tries are untouched');
+});
+
+test('each module has its own failure key, also where My Math Path gives items nothing else to tell them apart', () => {
+  // PathSessionPlayer.jsx: no generationKey, a record without variantIndex, a
+  // question with no id, and the reset version back to 0 for each item. Only
+  // the draft key (`path-${questionInstanceId}`) differs.
+  const pathBoundary = 'undefined|undefined|reset-0';
+  const item1 = questionModuleFailureKey({ boundaryKey: pathBoundary, questionId: undefined, draftKey: 'path-qi-1' });
+  const item2 = questionModuleFailureKey({ boundaryKey: pathBoundary, questionId: undefined, draftKey: 'path-qi-2' });
+  assert.notEqual(item1, item2, "item 2 must not inherit item 1's failure");
+  // App: the question id and the boundary key tell modules apart too.
+  const app = (overrides) => questionModuleFailureKey({ boundaryKey: 'gen-1|0|reset-0', questionId: 'q1', draftKey: 'a1:q1', ...overrides });
+  assert.notEqual(app({}), app({ questionId: 'q2' }));
+  assert.notEqual(app({}), app({ boundaryKey: 'gen-1|0|reset-1' }), 'a fresh start is a new module');
+  assert.equal(app({}), app({}), 'the same module keeps its key across renders');
+  assert.equal(new Set([item1, item2, app({}), app({ questionId: 'q2' }), app({ boundaryKey: 'gen-1|0|reset-1' })]).size, 5);
 });
 
 test('program words are gone from the question (RUN-16)', async () => {

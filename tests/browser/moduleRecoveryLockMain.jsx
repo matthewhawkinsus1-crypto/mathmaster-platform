@@ -7,6 +7,11 @@
 //                  record is `?status=` (expired | correct | unattempted)
 //   ?scene=path    one engine with NO key (as My Math Path mounts it); the
 //                  driver swaps the question under it (window.__mmNextItem)
+//   ?scene=pathPlayer  exactly as PathSessionPlayer.jsx mounts it: no key, no
+//                  generationKey, a record of only { status, attemptCount },
+//                  a question with no id (sanitizePublicQuestion keeps content
+//                  fields only) and the draft key `path-${questionInstanceId}`;
+//                  window.__mmSetStatus closes the item the way a submit does
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
@@ -36,28 +41,33 @@ const record = (value) => ({
   totalAttempts: value === 'expired' ? 3 : value === 'correct' ? 1 : 0,
   variantIndex: 0,
 });
-const question = (index) => ({ type: 'crashProbe', id: `probe-${index}`, questionId: `probe-${index}`, prompt: `Probe question ${index}.` });
+const question = (index) => (scene === 'pathPlayer'
+  ? { type: 'crashProbe', prompt: `Probe question ${index}.` }
+  : { type: 'crashProbe', id: `probe-${index}`, questionId: `probe-${index}`, prompt: `Probe question ${index}.` });
+const pathRecord = (value) => ({ status: value, attemptCount: value === 'unattempted' ? 0 : 1 });
 
 function Harness() {
-  const [item, setItem] = useState({ index: 1, status: scene === 'path' ? 'unattempted' : status });
+  const [item, setItem] = useState({ index: 1, status: scene === 'fresh' ? status : 'unattempted' });
   useEffect(() => {
     window.__mmNextItem = (next) => setItem((current) => ({ index: current.index + 1, ...next }));
+    window.__mmSetStatus = (value) => setItem((current) => ({ ...current, status: value }));
     window.__mmModuleRecoveryReady = true;
   }, []);
+  const pathPlayer = scene === 'pathPlayer';
   const props = {
     question: question(item.index),
-    questionRecord: record(item.status),
+    questionRecord: pathPlayer ? pathRecord(item.status) : record(item.status),
     onGrade: async () => null,
     maximumAttempts: 3,
     activityRole: 'classwork',
     assignmentId: 'module-recovery-lock',
     executionScope: 'student',
-    draftKey: `module-recovery-lock:${item.index}`,
+    draftKey: pathPlayer ? `path-instance-${item.index}` : `module-recovery-lock:${item.index}`,
   };
   return (
     <ToastProvider>
       <main className="app-container" data-item={item.index}>
-        {scene === 'path'
+        {scene === 'path' || pathPlayer
           ? <QuestionEngine {...props} />
           : <QuestionEngine key="fresh" generationKey="fresh-1" {...props} />}
       </main>
