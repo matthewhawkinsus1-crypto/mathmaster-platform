@@ -125,14 +125,21 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   console always closes first (1.5 s); if both arrive, one closes it and the
   other is told it is already closed. A student waits at most about 70 s on
   "Time is up! The results are coming." instead of until the teacher returns;
-- results that have stood `HOST_AWAY_FINISH_MS` (10 min) with no host screen
-  heard for as long are ended by the console's own Finish (End Game: answers
-  given count; one match result, its standings and rewards). The console's
-  30-second clock calibration is its heartbeat (`hostHeardAt`, private state,
-  written at most once a minute), so a teacher talking the round through is
-  never ended; the finish re-checks the round and the heartbeat inside its
-  transaction, so a Next Round that lands first is played. The room records
-  `endedBy: "hostAway"`.
+- **only when the owner switches it on** (`platformFlags/liveChallengeServerSweep`,
+  `finishAbandonedGames`, default off): results that have stood
+  `HOST_AWAY_FINISH_MS` (30 min) with no host screen heard for as long are
+  ended by the console's own Finish (End Game: answers given count; one match
+  result, its standings and rewards). Never a game that writes a grade (a
+  Warm-Up), and never one whose host the server has not heard at least once.
+  The console's 30-second clock calibration is its heartbeat (`hostHeardAt`,
+  private state, written at most once a minute), so a teacher talking the
+  round through is never ended; the finish re-checks the round, the heartbeat
+  and the switch inside its transaction, so a Next Round that lands first is
+  played. The room records `endedBy: "hostAway"` (readable by the class).
+  Otherwise results wait for the teacher, as before.
+
+`enabled: false` on the same switch turns the whole sweep off — the first step
+of a rollback (`docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md`).
 
 The sweep reads only rooms whose private state is due (`serverSweepDueAt`, set
 when a round opens and closes, cleared at the finish): one single-field range

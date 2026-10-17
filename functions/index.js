@@ -4584,8 +4584,8 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   }
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
+  if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return { studentId, assignedTeacherEmail, classPeriod };
 });
 
@@ -6484,8 +6484,6 @@ exports.setStudentClass = onCall(async (request) => {
   // Without this the new teacher would hold a roster row for a child whose
   // work they cannot open.
   const reauthorized = await reauthorizeStudentRecords(db, studentId, classRecord);
-  // The new class's Live Challenge, if one is on (lobby or running).
-  if (classRecord) await inviteStudentToClassLiveChallengeSafely(db, studentId);
 
   await writeAdminAudit(db, actor, classRecord ? "student_class_assigned" : "student_removed_from_class", studentId, {
     fromClassId: previous.classId || null,
@@ -6494,6 +6492,9 @@ exports.setStudentClass = onCall(async (request) => {
     teacherOfRecord: classRecord?.teacherOfRecord || null,
     reauthorized,
   });
+  // The new class's Live Challenge, if one is on (lobby or running) — after
+  // the audit, so nothing it waits on can come between the move and its record.
+  if (classRecord) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return {
     studentId,
     classId: classRecord?.classId || null,
@@ -11195,8 +11196,12 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
  * who played it, so a late player changes nobody's earlier rounds.
  *
  * Never takes a student out of another game: an invite to a different room
- * that is still live is left alone. Never fails the roster change.
+ * that is still live is left alone. Only a game created in the last 12 hours.
+ * Never fails the roster change.
  */
+// A game older than this is not "on" for a newly enrolled student.
+const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
 async function inviteStudentToClassLiveChallenge(db, studentId) {
   const id = String(studentId || "").trim();
   if (!id) return { invited: false, reason: "no_student" };
@@ -11224,6 +11229,9 @@ async function inviteStudentToClassLiveChallenge(db, studentId) {
     const room = roomSnapshot.data() || {};
     const student = latestGrade.data() || {};
     if (!live(room.status) || room.teacherEmail !== teacherEmail) return { invited: false, reason: "no_game" };
+    // Today's game, not a lobby left open since yesterday.
+    const createdMs = toDate(room.createdAt)?.getTime() ?? 0;
+    if (Date.now() - createdMs > LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS) return { invited: false, reason: "stale_game" };
     // The same membership rule as loadChallengeRoster.
     const inClass = room.classId
       ? String(student.classId || "") === String(room.classId)
@@ -13443,22 +13451,29 @@ async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = f
  * decision is re-checked inside the command's own transaction, so a console,
  * a retry or a second run arriving at the same moment changes nothing twice.
  */
-async function sweepLiveChallengeRoom(db, privateDoc, nowMs) {
+async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
   const engine = await liveChallengeEngine();
   const { serverSweep, lifecycle } = engine;
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(privateDoc.id);
   const roomSnapshot = await roomRef.get();
   const room = roomSnapshot.exists ? roomSnapshot.data() || {} : null;
   const privateState = privateDoc.data() || {};
-  const plan = serverSweep.planServerSweep({ room, privateState, nowMs });
+  const plan = serverSweep.planServerSweep({ room, privateState, nowMs, settings });
   const seenDueMs = toDate(privateState.serverSweepDueAt)?.getTime() ?? null;
   // Moves this room's due time only if nothing (a close, an opening, another
   // run) has moved it since this run read it.
+  // A move that fails pushes the room back instead, so a room that cannot be
+  // written never holds the batch every minute.
   const reschedule = (nextDueMs) => db.runTransaction(async (transaction) => {
     const latest = await transaction.get(privateDoc.ref);
     if (!latest.exists) return;
     if ((toDate(latest.data()?.serverSweepDueAt)?.getTime() ?? null) !== seenDueMs) return;
     transaction.update(privateDoc.ref, { serverSweepDueAt: liveChallengeSweepDate(nextDueMs) });
+  }).catch(async (error) => {
+    logger.error("liveChallenge.serverSweep.rescheduleFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+    await privateDoc.ref.update({
+      serverSweepDueAt: liveChallengeSweepDate(nowMs + serverSweep.SERVER_RESCHEDULE_FAILURE_BACKOFF_MS),
+    }).catch(() => {});
   });
 
   if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null).then(() => "cleared");
@@ -13477,7 +13492,7 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs) {
       command: lifecycle.LIFECYCLE_COMMAND.FINISH,
       status: lifecycle.SESSION_STATUS.FINISHED,
       stillWanted: ({ room: latestRoom, privateState: latestPrivate }) => serverSweep.stillAbandoned({
-        room: latestRoom, privateState: latestPrivate, expected: plan.expected, nowMs: Date.now(),
+        room: latestRoom, privateState: latestPrivate, expected: plan.expected, nowMs: Date.now(), settings,
       }),
       endedBy: "hostAway",
     });
@@ -13502,16 +13517,22 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs) {
 
 async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() }) {
   const { serverSweep } = await liveChallengeEngine();
+  // The switch, read on every run: off, the run does nothing.
+  const switchSnapshot = await db.collection(serverSweep.SWEEP_SETTINGS_COLLECTION).doc(serverSweep.SWEEP_SETTINGS_FLAG).get();
+  const settings = serverSweep.sweepSettingsFrom(switchSnapshot.exists ? switchSnapshot.data() : null);
+  if (!settings.enabled) return { scanned: 0, disabled: true, outcomes: {} };
   // One single-field range: no composite index, and an idle minute is one read.
+  // Only the two fields the sweep reads: never a room's questions or solutions.
   const due = await db.collection(LIVE_CHALLENGE_PRIVATE)
     .where("serverSweepDueAt", "<=", new Date(Math.min(dueByMs, nowMs)))
     .orderBy("serverSweepDueAt")
+    .select("serverSweepDueAt", "hostHeardAt")
     .limit(serverSweep.SERVER_SWEEP_LIMIT)
     .get();
   const outcomes = {};
   for (const privateDoc of due.docs) {
     // eslint-disable-next-line no-await-in-loop
-    const outcome = await sweepLiveChallengeRoom(db, privateDoc, nowMs).catch((error) => {
+    const outcome = await sweepLiveChallengeRoom(db, privateDoc, nowMs, settings).catch((error) => {
       logger.error("liveChallenge.serverSweep.roomFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
       return "failed";
     });
@@ -13523,6 +13544,11 @@ async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() 
 exports.closeOverdueLiveChallengeRounds = onSchedule({
   schedule: "every 1 minutes",
   invoker: "private",
+  // One run at a time, with room for up to SERVER_SWEEP_LIMIT finishes and
+  // their effects. A run that still overlapped the next would be safe —
+  // every decision is re-checked in its command's transaction — only slower.
+  maxInstances: 1,
+  timeoutSeconds: 300,
 }, async (event) => {
   // A run takes the rooms that were due by the time it was scheduled for
   // (a late run is no different); each room's decision uses the real now.

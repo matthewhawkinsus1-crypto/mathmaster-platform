@@ -63,6 +63,25 @@ const failureOf = (promise) => promise.then(() => null, (error) => error);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const millis = (value) => value?.toMillis?.() ?? null;
 const runSweep = () => functionsIndex.closeOverdueLiveChallengeRounds.run({ scheduleTime: SWEEP_SCHEDULED_AT });
+const switchRef = db.collection(sweep.SWEEP_SETTINGS_COLLECTION).doc(sweep.SWEEP_SETTINGS_FLAG);
+
+/*
+ * Run `hook` just before the next transaction this process starts, then let
+ * that transaction go. The sweep's finish decides from ordinary reads, then
+ * opens its transaction: this puts a teacher's Next Round, or their console's
+ * heartbeat, exactly between the decision and the re-check — the race, made
+ * deterministic. Functions and suite share one Firestore instance (asserted).
+ */
+const beforeNextTransaction = (hook) => {
+  const state = { fired: false };
+  db.runTransaction = async function gated(...args) {
+    delete db.runTransaction;
+    state.fired = true;
+    await hook();
+    return db.runTransaction(...args);
+  };
+  return state;
+};
 
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const privateRef = (roomId) => db.collection('liveChallengePrivate').doc(roomId);
@@ -159,6 +178,8 @@ const roundZeroPlayed = async (klass) => {
     // eslint-disable-next-line no-await-in-loop
     await call('joinLiveChallenge', studentRequest(studentId, { roomId }));
   }
+  // The console's heartbeat, as it calibrates its clock in the lobby.
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
   await call('startLiveChallenge', klass.as({ roomId }));
   await waitForRoundStart(roomId);
   await answer(roomId, klass.students[0], { correct: true });
@@ -174,11 +195,32 @@ const deadlinePassedLongAgo = async (roomId) => {
   await privateRef(roomId).set({ serverSweepDueAt: Timestamp.fromMillis(LONG_AGO_MS) }, { merge: true });
 };
 
-/** The round's results have stood, with no host screen heard, far past the host-away window. */
+/** The round's results have stood, with the host last heard long ago, far past the host-away window. */
 const resultsAbandonedLongAgo = async (roomId) => {
   await roomRef(roomId).set({ roundClosedAt: Timestamp.fromMillis(LONG_AGO_MS) }, { merge: true });
-  await privateRef(roomId).set({ serverSweepDueAt: Timestamp.fromMillis(LONG_AGO_MS), hostHeardAt: null }, { merge: true });
+  await privateRef(roomId).set({
+    serverSweepDueAt: Timestamp.fromMillis(LONG_AGO_MS),
+    hostHeardAt: Timestamp.fromMillis(LONG_AGO_MS - 60_000),
+  }, { merge: true });
 };
+
+/**
+ * The console calibrating a minute after its last heartbeat (each game here
+ * heartbeats once in its lobby, and an instance writes at most once a minute).
+ */
+const calibrateAMinuteLater = async (klass, roomId) => {
+  const realNow = Date.now;
+  Date.now = () => realNow() + sweep.HOST_HEARD_WRITE_INTERVAL_MS + 1_000;
+  try {
+    return await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  } finally {
+    Date.now = realNow;
+  }
+};
+
+// Ending abandoned games is off until the owner switches it on; this suite
+// switches it on, and each test that needs otherwise says so.
+await switchRef.set({ enabled: true, finishAbandonedGames: true });
 
 /* ===================== Q-23: an overdue round, no host screen ===================== */
 
@@ -227,7 +269,7 @@ test('a run on results a moment old changes nothing and looks again later', asyn
   assert.ok(millis((await privateOf(aloneRoom)).serverSweepDueAt) > Date.now(), 'rescheduled, not dropped');
 });
 
-test('results nobody moves on from, with no host heard, end the game once — with its standings and rewards', async () => {
+test('results nobody moves on from, with the host long unheard, end the game once — with its standings and rewards', async () => {
   await resultsAbandonedLongAgo(aloneRoom);
   const before = await hostRound(aloneRoom, 0);
   // Two runs at once (a slow run overlapping the next).
@@ -282,7 +324,7 @@ test('a host still heard on the results keeps the game going', async () => {
   await resultsAbandonedLongAgo(roomId);
   // The console's clock calibration is its heartbeat.
   const heardFrom = Date.now();
-  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  await calibrateAMinuteLater(klass, roomId);
   const heard = millis((await privateOf(roomId)).hostHeardAt);
   assert.ok(heard >= heardFrom - 1_000, "the console's calibration records the host");
   await runSweep();
@@ -299,32 +341,115 @@ test("another teacher's calibration is not this game's host", async () => {
   await call('cancelLiveChallenge', klass.as({ roomId }));
 });
 
-test('Next Round racing the server ending abandoned results: one outcome, never both', async () => {
-  // Nothing was heard from this console for the whole window, so either may
-  // land first. Whichever does, the other must see it: a round the teacher
-  // opened is never ended under them (the finish re-checks the round inside
-  // its transaction), and a game the server ended is never reopened.
+test('functions and this suite share one Firestore, so a gated transaction is the sweep\'s', () => {
+  const { getFirestore } = require(path.join(repo, 'functions/node_modules/firebase-admin/lib/firestore/index.js'));
+  assert.equal(getFirestore(), db);
+});
+
+test('a Next Round that lands after the server decided to end the results is played', async () => {
   const klass = await seedClass('returns');
   const roomId = await roundZeroPlayed(klass);
   await call('closeLiveChallengeRound', klass.as({ roomId, force: true }));
   await resultsAbandonedLongAgo(roomId);
   const room = await roomOf(roomId);
-  const [advanced] = await Promise.all([
-    call('advanceLiveChallenge', klass.as({ roomId, expectedRoundIndex: room.currentRound, expectedRoundVersion: room.roundVersion })),
-    runSweep(),
-  ]);
+  // The sweep reads the abandoned results and decides to finish; the teacher
+  // presses Next Round before its transaction runs.
+  const gate = beforeNextTransaction(() => call('advanceLiveChallenge', klass.as({
+    roomId, expectedRoundIndex: room.currentRound, expectedRoundVersion: room.roundVersion,
+  })));
+  const run = await runSweep();
+  assert.equal(gate.fired, true);
+  assert.equal(run.outcomes[roomId], 'kept', 'the finish re-checked inside its transaction and stood down');
   const after = await roomOf(roomId);
-  if (after.status === 'running') {
-    assert.equal(after.currentRound, 1, 'the round the teacher opened is played');
-    assert.equal(after.roundState, 'open');
-    assert.equal(advanced.roundIndex, 1);
-    assert.equal((await db.collection('liveChallengeMatchResults').doc(roomId).get()).exists, false, 'and nothing finished it');
-    await call('finishLiveChallenge', klass.as({ roomId }));
-  } else {
-    assert.equal(after.status, 'finished');
-    assert.equal(after.currentRound, 0, 'the server finished first; no round was opened after it');
-    assert.equal(advanced.alreadyApplied, true, 'the console is told the game already moved on');
+  assert.equal(after.status, 'running', 'the round the teacher opened is played');
+  assert.equal(after.currentRound, 1);
+  assert.equal(after.roundState, 'open');
+  assert.equal((await db.collection('liveChallengeMatchResults').doc(roomId).get()).exists, false, 'and nothing finished it');
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test('a console heard after the server decided to end the results keeps the game', async () => {
+  const klass = await seedClass('heard-late');
+  const roomId = await roundZeroPlayed(klass);
+  await call('closeLiveChallengeRound', klass.as({ roomId, force: true }));
+  await resultsAbandonedLongAgo(roomId);
+  // The teacher's laptop wakes between the sweep's read and its transaction.
+  const gate = beforeNextTransaction(() => calibrateAMinuteLater(klass, roomId));
+  const run = await runSweep();
+  assert.equal(gate.fired, true);
+  assert.equal(run.outcomes[roomId], 'kept', 'the re-check, at the real now, sees the fresh heartbeat');
+  assert.equal((await roomOf(roomId)).status, 'running');
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test("a console's heartbeat is refreshed once its minute has passed", async () => {
+  const klass = await seedClass('heartbeat');
+  const { roomId } = await create(klass);
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  const first = millis((await privateOf(roomId)).hostHeardAt);
+  assert.ok(first, 'heard');
+  // Within the minute: four of five samples write nothing.
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  assert.equal(millis((await privateOf(roomId)).hostHeardAt), first);
+  // A minute later the same console instance writes again — the memo of
+  // what this instance wrote must let go, or a present teacher goes stale.
+  await calibrateAMinuteLater(klass, roomId);
+  assert.ok(millis((await privateOf(roomId)).hostHeardAt) >= first + sweep.HOST_HEARD_WRITE_INTERVAL_MS, 'refreshed');
+  await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('results the server must never end are left to the teacher', async () => {
+  // (a) A room whose host the server never heard — its console, or the
+  // calibration that records it, older than the sweep.
+  const unheard = await seedClass('unheard');
+  const unheardRoom = await roundZeroPlayed(unheard);
+  await call('closeLiveChallengeRound', unheard.as({ roomId: unheardRoom, force: true }));
+  await resultsAbandonedLongAgo(unheardRoom);
+  await privateRef(unheardRoom).update({ hostHeardAt: admin.firestore.FieldValue.delete() });
+  // (b) A game that writes a grade: a Warm-Up's result is the Warm-Up grade.
+  const warmup = await seedClass('warmup-grade');
+  const warmupRoom = await roundZeroPlayed(warmup);
+  await call('closeLiveChallengeRound', warmup.as({ roomId: warmupRoom, force: true }));
+  await resultsAbandonedLongAgo(warmupRoom);
+  await roomRef(warmupRoom).update({ assignmentId: 'sweep-warmup-assignment' });
+  const run = await runSweep();
+  for (const roomId of [unheardRoom, warmupRoom]) {
+    assert.equal(run.outcomes[roomId], 'cleared');
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await roomOf(roomId)).status, 'running', 'still on its results, for the teacher');
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await privateOf(roomId)).serverSweepDueAt, null, 'and not looked at again');
   }
+  await roomRef(warmupRoom).update({ assignmentId: null });
+  await call('finishLiveChallenge', unheard.as({ roomId: unheardRoom }));
+  await call('finishLiveChallenge', warmup.as({ roomId: warmupRoom }));
+});
+
+test('the switch: ending abandoned games is off unless set, and off turns the whole sweep off', async () => {
+  const klass = await seedClass('switch');
+  const roomId = await roundZeroPlayed(klass);
+  // No switch document: the default. Overdue rounds close; abandoned results stay.
+  await switchRef.delete();
+  try {
+    await deadlinePassedLongAgo(roomId);
+    await runSweep();
+    assert.equal((await roomOf(roomId)).roundState, 'closed', 'closing overdue rounds is on by default');
+    await resultsAbandonedLongAgo(roomId);
+    assert.equal((await runSweep()).outcomes[roomId], 'cleared', 'ending abandoned results is off by default');
+    assert.equal((await roomOf(roomId)).status, 'running');
+    // enabled: false — a rollback's first step. Nothing is read or written.
+    await switchRef.set({ enabled: false, finishAbandonedGames: true });
+    await resultsAbandonedLongAgo(roomId);
+    const off = await runSweep();
+    assert.equal(off.disabled, true);
+    assert.equal(off.scanned, 0);
+    assert.equal((await roomOf(roomId)).status, 'running');
+    assert.equal(millis((await privateOf(roomId)).serverSweepDueAt), LONG_AGO_MS, 'not even rescheduled');
+  } finally {
+    await switchRef.set({ enabled: true, finishAbandonedGames: true });
+  }
+  await privateRef(roomId).update({ serverSweepDueAt: null });
+  await call('finishLiveChallenge', klass.as({ roomId }));
 });
 
 test('a finished game is never swept again, even if its private state outlived the finish', async () => {
@@ -416,4 +541,28 @@ test('a student already in another live game is not pulled out of it, and a clas
   assert.equal(await inviteOf(late), null, 'no game, no invite');
   const refused = await failureOf(call('joinLiveChallenge', studentRequest(late, { roomId: busyRoom })));
   assert.ok(refused, 'and nobody joins a room they were not invited to');
+});
+
+test("a teacher's other class: a student added there is not pulled into this class's game", async () => {
+  const klass = await seedClass('late-two-classes');
+  const otherClassId = 'sweep-late-two-classes-other';
+  // The same teacher's second class, with no game of its own.
+  await db.collection('classes').doc(otherClassId).set({ teacherOfRecord: klass.teacher, status: 'active', course: 'algebra1', period: '5', name: 'Sweep other' });
+  const { roomId } = await create(klass);
+  const late = await lateStudent('other-class');
+  await call('setStudentClass', rootRequest({ studentId: late, classId: otherClassId }));
+  assert.equal(await inviteOf(late), null, 'same teacher, different class: not invited');
+  assert.equal((await privateRef(roomId).collection('players').doc(late).get()).exists, false);
+  assert.equal((await roomOf(roomId)).eligibleCount, 2);
+  await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('a lobby left open since yesterday invites nobody', async () => {
+  const klass = await seedClass('late-stale');
+  const { roomId } = await create(klass);
+  await roomRef(roomId).update({ createdAt: Timestamp.fromMillis(Date.now() - 13 * 60 * 60 * 1000) });
+  const late = await lateStudent('stale');
+  await call('setStudentClass', rootRequest({ studentId: late, classId: klass.classId }));
+  assert.equal(await inviteOf(late), null);
+  await call('cancelLiveChallenge', klass.as({ roomId }));
 });

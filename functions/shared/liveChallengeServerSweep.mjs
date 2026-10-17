@@ -17,16 +17,19 @@
  *     deadline, long before this, so the sweep only ever acts for a class
  *     whose console is gone — and if both arrive, one closes it and the other
  *     is told it is already closed;
- *   - a round's results that have stood HOST_AWAY_FINISH_MS with no host
- *     screen heard for as long are finished by the console's own Finish
+ *   - only when the owner switches it on (finishAbandonedGames, default
+ *     off): a round's results that have stood HOST_AWAY_FINISH_MS with no
+ *     host screen heard for as long are finished by the console's own Finish
  *     (End Game: answers already given count, the match result and its
  *     rewards are written once). A teacher still on the results, talking
  *     the round through, keeps calibrating their console's clock, and that
- *     heartbeat holds the finish off.
+ *     heartbeat holds the finish off. Never a game that writes a grade
+ *     (a Warm-Up), and never one whose host the server has not heard.
  *
  * WHEN THE SWEEP LOOKS. Each room's private state carries `serverSweepDueAt`:
  * set when a round opens (its deadline plus the grace) and when a round
- * closes (the close plus the host-away window), cleared when the match ends.
+ * closes (the close plus the host-away window), cleared when the match ends
+ * or there is nothing left for the server to do.
  * The sweep reads only rooms that are due — one single-field range query, no
  * composite index, and nothing the class's screens listen to — so an idle
  * minute costs one read. A room opened before this field existed is never
@@ -39,8 +42,10 @@
 // (ROUND_CLOSE_AFTER_DEADLINE_MS, 1.5 s) and the arrival grace (0.75 s), so a
 // console that is open always closes first and an answer sent at 0:00 counts.
 export const SERVER_CLOSE_GRACE_MS = 10_000;
-// A round's results with no host heard for this long end the game.
-export const HOST_AWAY_FINISH_MS = 10 * 60_000;
+// A round's results with no host heard for this long end the game — when
+// the owner has switched that on (SWEEP_SETTINGS_FLAG, finishAbandonedGames).
+// Longer than a class's discussion of a round, and than a laptop's nap.
+export const HOST_AWAY_FINISH_MS = 30 * 60_000;
 // How often a console's calibration may refresh `hostHeardAt` (a console
 // calibrates five times every 30 s; a background tab about once a minute).
 export const HOST_HEARD_WRITE_INTERVAL_MS = 60_000;
@@ -49,9 +54,30 @@ export const HOST_HEARD_WRITE_INTERVAL_MS = 60_000;
 export const SERVER_RECHECK_MS = 30_000;
 // A room whose sweep failed waits this long before the next try, so one bad
 // room cannot take every run's slots.
-export const SERVER_FAILURE_BACKOFF_MS = 5 * 60_000;
+export const SERVER_FAILURE_BACKOFF_MS = 15 * 60_000;
+// A room whose due time could not even be moved waits this long.
+export const SERVER_RESCHEDULE_FAILURE_BACKOFF_MS = 15 * 60_000;
 // Rooms handled per run. The scheduler runs every minute.
 export const SERVER_SWEEP_LIMIT = 25;
+
+/*
+ * THE SWITCH (platformFlags/liveChallengeServerSweep; server-written only, read
+ * by every run). A rollback turns the sweep off here first — it does not
+ * depend on deleting the scheduled function.
+ *
+ *   enabled               false: the run does nothing at all. Default true.
+ *   finishAbandonedGames  true: abandoned results are ended (End Game).
+ *                         Default FALSE: the owner decides
+ *                         (docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md).
+ */
+export const SWEEP_SETTINGS_COLLECTION = 'platformFlags';
+export const SWEEP_SETTINGS_FLAG = 'liveChallengeServerSweep';
+
+/** The switch as stored (or absent): what this run may do. */
+export const sweepSettingsFrom = (stored = null) => Object.freeze({
+  enabled: stored?.enabled !== false,
+  finishAbandonedGames: stored?.finishAbandonedGames === true,
+});
 
 export const SWEEP_ACTION = Object.freeze({
   CLOSE: 'close',
@@ -94,14 +120,30 @@ export const hostAway = ({ hostHeardAt, nowMs }) => {
 };
 
 /**
+ * Whether the server may ever end this game for a host who is away.
+ *
+ * Only a game whose host screen the server has heard at least once (a room
+ * the heartbeat never reached — its console, or the calibration code, older
+ * than this — is never ended), that writes no grade (a Warm-Up's result IS
+ * the student's Warm-Up grade, and enters the section grade Classroom
+ * receives: the teacher ends those), and only when the switch allows it.
+ */
+export const finishAllowed = ({ room = {}, privateState = {}, settings = sweepSettingsFrom() }) => (
+  settings.finishAbandonedGames === true
+  && millisOf(privateState?.hostHeardAt) != null
+  && !room?.assignmentId
+);
+
+/**
  * What the sweep does with one due room.
  *
  * @param room          the public room as read
  * @param privateState  the room's private state as read
  * @param nowMs         server time
+ * @param settings      sweepSettingsFrom(the switch)
  * @returns {{ action, nextDueMs?, expected? }}
  */
-export const planServerSweep = ({ room = null, privateState = {}, nowMs }) => {
+export const planServerSweep = ({ room = null, privateState = {}, nowMs, settings = sweepSettingsFrom() }) => {
   const now = Number(nowMs);
   if (!room || room.status !== 'running') return { action: SWEEP_ACTION.CLEAR };
   const expected = {
@@ -118,6 +160,8 @@ export const planServerSweep = ({ room = null, privateState = {}, nowMs }) => {
     return { action: SWEEP_ACTION.CLOSE, expected };
   }
   if (room.roundState === 'closed') {
+    // Results the server will never end stay with the teacher, as before.
+    if (!finishAllowed({ room, privateState, settings })) return { action: SWEEP_ACTION.CLEAR };
     const closedAtMs = millisOf(room.roundClosedAt);
     const heardMs = millisOf(privateState?.hostHeardAt);
     const since = Math.max(closedAtMs ?? 0, heardMs ?? 0);
@@ -135,8 +179,9 @@ export const planServerSweep = ({ room = null, privateState = {}, nowMs }) => {
  * results the sweep decided to end — not a round the teacher has opened since,
  * nor results a host screen has been heard on.
  */
-export const stillAbandoned = ({ room = {}, privateState = {}, expected, nowMs }) => (
-  room.status === 'running'
+export const stillAbandoned = ({ room = {}, privateState = {}, expected, nowMs, settings = sweepSettingsFrom() }) => (
+  finishAllowed({ room, privateState, settings })
+  && room.status === 'running'
   && room.roundState === 'closed'
   && Number(room.currentRound) === Number(expected?.roundIndex)
   && Math.max(0, Number(room.roundVersion) || 0) === Number(expected?.roundVersion)

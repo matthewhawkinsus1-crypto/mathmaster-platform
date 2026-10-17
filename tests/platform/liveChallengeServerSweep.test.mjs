@@ -13,12 +13,16 @@ import {
   SERVER_CLOSE_GRACE_MS,
   SERVER_RECHECK_MS,
   SWEEP_ACTION,
+  SWEEP_SETTINGS_COLLECTION,
+  SWEEP_SETTINGS_FLAG,
+  finishAllowed,
   hostAway,
   hostHeartbeatDue,
   planServerSweep,
   stillAbandoned,
   sweepDueAfterCloseMs,
   sweepDueAfterOpeningMs,
+  sweepSettingsFrom,
 } from '../../functions/shared/liveChallengeServerSweep.mjs';
 import { ROUND_CLOSE_AFTER_DEADLINE_MS } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
@@ -26,6 +30,36 @@ import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChalleng
 const NOW = Date.UTC(2026, 9, 16, 15, 0, 0);
 const open = (endsAtMs, extra = {}) => ({ status: 'running', roundState: 'open', currentRound: 2, roundVersion: 3, endsAt: endsAtMs, ...extra });
 const closed = (closedAtMs, extra = {}) => ({ status: 'running', roundState: 'closed', currentRound: 2, roundVersion: 3, roundClosedAt: closedAtMs, ...extra });
+// The owner switched ending abandoned games on; the host was heard, long ago.
+const FINISH_ON = sweepSettingsFrom({ finishAbandonedGames: true });
+const HEARD_LONG_AGO = { hostHeardAt: NOW - 2 * HOST_AWAY_FINISH_MS };
+
+test('the switch: the sweep is on and ending abandoned games is off unless the owner sets them', () => {
+  assert.equal(SWEEP_SETTINGS_COLLECTION, 'platformFlags', 'a server-written-only collection (firestore.rules)');
+  assert.ok(SWEEP_SETTINGS_FLAG);
+  assert.deepEqual({ ...sweepSettingsFrom(null) }, { enabled: true, finishAbandonedGames: false });
+  assert.deepEqual({ ...sweepSettingsFrom({ enabled: false }) }, { enabled: false, finishAbandonedGames: false });
+  assert.deepEqual({ ...sweepSettingsFrom({ finishAbandonedGames: 'yes' }) }, { enabled: true, finishAbandonedGames: false }, 'only a real true turns it on');
+  // Longer than a class talking a round through, or a laptop's nap.
+  assert.ok(HOST_AWAY_FINISH_MS >= 30 * 60_000);
+});
+
+test('the server never ends a game it never heard a host on, or one that writes a grade', () => {
+  assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO, settings: FINISH_ON }), true);
+  assert.equal(finishAllowed({ room: closed(0), privateState: {}, settings: FINISH_ON }), false, 'no heartbeat ever: an older console or calibration');
+  assert.equal(finishAllowed({ room: closed(0, { assignmentId: 'a1' }), privateState: HEARD_LONG_AGO, settings: FINISH_ON }), false, "a Warm-Up's result is its grade");
+  assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO }), false, 'off by default');
+  const longAgo = NOW - HOST_AWAY_FINISH_MS;
+  for (const [room, privateState, settings] of [
+    [closed(longAgo), {}, FINISH_ON],
+    [closed(longAgo, { assignmentId: 'a1' }), HEARD_LONG_AGO, FINISH_ON],
+    [closed(longAgo), HEARD_LONG_AGO, sweepSettingsFrom(null)],
+  ]) {
+    assert.deepEqual(planServerSweep({ room, privateState, settings, nowMs: NOW }), { action: SWEEP_ACTION.CLEAR }, 'left to the teacher, and not looked at again');
+  }
+  // Closing an overdue round needs none of it.
+  assert.equal(planServerSweep({ room: open(NOW - SERVER_CLOSE_GRACE_MS, { assignmentId: 'a1' }), nowMs: NOW }).action, SWEEP_ACTION.CLOSE);
+});
 
 test('an open console always closes the round before the server would', () => {
   // The console closes 1.5 s after the deadline and an answer sent at 0:00 has
@@ -59,18 +93,19 @@ test("a paused round, a Pace Race round and a game that is not running are the h
 
 test('results are ended only after the host-away window with no host heard', () => {
   const longAgo = NOW - HOST_AWAY_FINISH_MS;
-  assert.equal(planServerSweep({ room: closed(longAgo), privateState: {}, nowMs: NOW }).action, SWEEP_ACTION.FINISH);
-  assert.equal(planServerSweep({ room: closed(longAgo), privateState: { hostHeardAt: longAgo }, nowMs: NOW }).action, SWEEP_ACTION.FINISH);
+  const plan0 = (room, privateState = HEARD_LONG_AGO) => planServerSweep({ room, privateState, settings: FINISH_ON, nowMs: NOW });
+  assert.equal(plan0(closed(longAgo)).action, SWEEP_ACTION.FINISH);
+  assert.equal(plan0(closed(longAgo), { hostHeardAt: longAgo }).action, SWEEP_ACTION.FINISH);
   // Results a moment old: look again when the window ends.
-  assert.deepEqual(planServerSweep({ room: closed(NOW - 1_000), nowMs: NOW }), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW - 1_000 + HOST_AWAY_FINISH_MS });
-  // A host heard a minute ago, on results that have stood an hour.
+  assert.deepEqual(plan0(closed(NOW - 1_000)), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW - 1_000 + HOST_AWAY_FINISH_MS });
+  // A host heard a minute ago, on results that have stood two windows.
   const heard = NOW - 60_000;
   assert.deepEqual(
-    planServerSweep({ room: closed(NOW - 3_600_000), privateState: { hostHeardAt: heard }, nowMs: NOW }),
+    plan0(closed(NOW - 2 * HOST_AWAY_FINISH_MS), { hostHeardAt: heard }),
     { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: heard + HOST_AWAY_FINISH_MS },
   );
   // Closed without a close time (an old room): never ended, looked at again later.
-  const plan = planServerSweep({ room: closed(null), nowMs: NOW });
+  const plan = plan0(closed(null));
   assert.equal(plan.action, SWEEP_ACTION.RESCHEDULE);
   assert.ok(plan.nextDueMs >= NOW + SERVER_RECHECK_MS);
   assert.equal(sweepDueAfterCloseMs({ nowMs: NOW }), NOW + HOST_AWAY_FINISH_MS);
@@ -79,12 +114,15 @@ test('results are ended only after the host-away window with no host heard', () 
 test('the finish re-checks, inside its transaction, that nobody came back', () => {
   const expected = { roundIndex: 2, roundVersion: 3 };
   const longAgo = NOW - HOST_AWAY_FINISH_MS;
-  assert.equal(stillAbandoned({ room: closed(longAgo), privateState: {}, expected, nowMs: NOW }), true);
-  assert.equal(stillAbandoned({ room: open(NOW - 60_000, { roundVersion: 4, currentRound: 3 }), privateState: {}, expected, nowMs: NOW }), false, 'the teacher opened the next round');
-  assert.equal(stillAbandoned({ room: closed(longAgo, { roundVersion: 4 }), privateState: {}, expected, nowMs: NOW }), false, 'a different round');
-  assert.equal(stillAbandoned({ room: closed(longAgo), privateState: { hostHeardAt: NOW - 5_000 }, expected, nowMs: NOW }), false, 'the host was heard');
-  assert.equal(stillAbandoned({ room: closed(longAgo, { status: 'finished' }), privateState: {}, expected, nowMs: NOW }), false);
-  assert.equal(stillAbandoned({ room: closed(longAgo + 1), privateState: {}, expected, nowMs: NOW }), false, 'not yet a whole window');
+  const check = (room, privateState = HEARD_LONG_AGO, settings = FINISH_ON) => stillAbandoned({ room, privateState, expected, nowMs: NOW, settings });
+  assert.equal(check(closed(longAgo)), true);
+  assert.equal(check(open(NOW - 60_000, { roundVersion: 4, currentRound: 3 })), false, 'the teacher opened the next round');
+  assert.equal(check(closed(longAgo, { roundVersion: 4 })), false, 'a different round');
+  assert.equal(check(closed(longAgo), { hostHeardAt: NOW - 5_000 }), false, 'the host was heard');
+  assert.equal(check(closed(longAgo, { status: 'finished' })), false);
+  assert.equal(check(closed(longAgo + 1)), false, 'not yet a whole window');
+  assert.equal(check(closed(longAgo), {}), false, 'never heard');
+  assert.equal(check(closed(longAgo), HEARD_LONG_AGO, sweepSettingsFrom(null)), false, 'switched off since the decision');
 });
 
 test("the host's heartbeat is written at most once a minute and ages out after the window", () => {
@@ -112,8 +150,16 @@ test("the scheduled sweep is private, runs every minute, and uses the console's 
   const room = executableSource(region(index, 'async function sweepLiveChallengeRoom(', 'async function sweepOverdueLiveChallengeRooms(', 'one room'));
   assert.match(room, /closeLiveChallengeRoundForRoom\(db, \{ roomRef, expected: plan\.expected \}\)/, 'the close, never forced');
   assert.match(room, /finalizeLiveChallengeMatch\(db, \{[\s\S]*command: lifecycle\.LIFECYCLE_COMMAND\.FINISH[\s\S]*stillWanted:[\s\S]*serverSweep\.stillAbandoned\(/, 'the finish, re-checked in its transaction');
+  assert.match(scheduler, /maxInstances: 1,/, 'one run at a time');
+  assert.match(scheduler, /timeoutSeconds: 300,/);
   const query = region(index, 'async function sweepOverdueLiveChallengeRooms(', 'exports.closeOverdueLiveChallengeRounds', 'the query');
-  assert.match(query, /\.where\("serverSweepDueAt", "<="[\s\S]*\.orderBy\("serverSweepDueAt"\)[\s\S]*\.limit\(serverSweep\.SERVER_SWEEP_LIMIT\)/, 'one bounded single-field range');
+  assert.match(query, /\.where\("serverSweepDueAt", "<="[\s\S]*\.orderBy\("serverSweepDueAt"\)[\s\S]*\.select\("serverSweepDueAt", "hostHeardAt"\)[\s\S]*\.limit\(serverSweep\.SERVER_SWEEP_LIMIT\)/, 'one bounded single-field range, two fields');
+  // The switch is read on every run, before anything else.
+  const switchRead = query.indexOf('serverSweep.sweepSettingsFrom(');
+  assert.ok(switchRead !== -1 && switchRead < query.indexOf('.where("serverSweepDueAt"'), 'the switch is read first');
+  assert.match(query, /if \(!settings\.enabled\) return \{ scanned: 0, disabled: true, outcomes: \{\} \};/);
+  assert.match(room, /serverSweep\.planServerSweep\(\{ room, privateState, nowMs, settings \}\)/);
+  assert.match(room, /nowMs: Date\.now\(\), settings,/, 'the re-check uses the real now and the switch');
   // The host's command is the same function.
   const callable = region(index, 'exports.closeLiveChallengeRound = onCall(', '\n});', 'the close callable');
   assert.match(callable, /return closeLiveChallengeRoundForRoom\(db, \{/);
