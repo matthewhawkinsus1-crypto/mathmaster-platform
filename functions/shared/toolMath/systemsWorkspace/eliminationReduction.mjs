@@ -121,6 +121,12 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const result = (state, feedback = null) => ({ state, feedback });
 const equationById = (system, id) => system.equations.find((equation) => equation.id === id) || null;
 const pairKey = (pair) => (Array.isArray(pair) ? pair.join('|') : '');
+// Whether an equation has a nonzero coefficient for the variable: what decides
+// if it can be paired to cancel it, brought down without it, or give its value
+// back. Read from the coefficient, so y + 0z = 2 has no z (PR-23 review).
+const equationHoldsVariable = (system, equation, variable) => (
+  Math.abs(linearEquationForm(equation.text, system.variables)?.coefficients?.[variable] || 0) > EPS
+);
 const setRound = (state, roundKey, round) => ({ ...state, classification: null, back: { destinationId: null, placed: {}, solved: null }, verification: {}, rounds: { ...state.rounds, [roundKey]: round } });
 
 /** Every possible unordered pair of the system's equations, in authored order. */
@@ -147,7 +153,7 @@ export const activeEliminationRoundKey = (state) => {
 export const chooseEliminationVariable = (state, system, variable) => {
   if (!system.variables.includes(variable)) return result(state);
   // Nowhere = a zero coefficient in every equation (absent, or written 0z).
-  if (!system.equations.some((equation) => Math.abs(linearEquationForm(equation.text, system.variables)?.coefficients?.[variable] || 0) > EPS)) {
+  if (!system.equations.some((equation) => equationHoldsVariable(system, equation, variable))) {
     return result(state, { stage: 'variable', reason: 'variable-nowhere', variable });
   }
   return result({ ...emptyEliminationState(), variable });
@@ -160,7 +166,7 @@ export const chooseEliminationVariable = (state, system, variable) => {
 export const eliminationCarryOptions = (state, system) => (
   state.variable
     ? system.equations
-      .filter((equation) => !equationMentionsVariable(equation.text, state.variable))
+      .filter((equation) => !equationHoldsVariable(system, equation, state.variable))
       .map((equation) => ({ id: equation.id, equationIds: [equation.id], label: equation.label }))
     : []
 );
@@ -176,7 +182,7 @@ export const carryEliminationEquation = (state, system, roundKey, equationId) =>
   if (!state.variable) return result(state);
   const equation = equationById(system, equationId);
   if (!equation) return result(state);
-  if (equationMentionsVariable(equation.text, state.variable)) {
+  if (equationHoldsVariable(system, equation, state.variable)) {
     return result(state, { stage: 'pair', reason: 'carry-has-variable', roundKey, equationId, variable: state.variable });
   }
   const otherKey = roundKey === 'round1' ? 'round2' : 'round1';
@@ -213,7 +219,7 @@ export const chooseEliminationPair = (state, system, roundKey, pairId) => {
   if (otherPair && pairKey(otherPair) === pairKey(option.equationIds)) {
     return result(state, { stage: 'pair', reason: 'pair-repeated', roundKey, pairId });
   }
-  const missing = option.equationIds.find((id) => !equationMentionsVariable(equationById(system, id).text, state.variable));
+  const missing = option.equationIds.find((id) => !equationHoldsVariable(system, equationById(system, id), state.variable));
   if (missing) {
     return result(state, { stage: 'pair', reason: 'variable-absent', roundKey, equationId: missing, variable: state.variable });
   }
@@ -552,7 +558,7 @@ export const eliminationClassificationCorrect = (state, system) => {
 
 /** Every original equation that still contains the eliminated variable — no isolated "relation" destination exists for elimination, unlike substitution. */
 export const eliminationBackSubstitutionDestinations = (state, system) => (
-  state.variable ? system.equations.filter((equation) => equationMentionsVariable(equation.text, state.variable)) : []
+  state.variable ? system.equations.filter((equation) => equationHoldsVariable(system, equation, state.variable)) : []
 );
 
 export const attemptEliminationBackPlacement = (state, system, knownValues, destinationId, targetVariable, tokenVariable) => {

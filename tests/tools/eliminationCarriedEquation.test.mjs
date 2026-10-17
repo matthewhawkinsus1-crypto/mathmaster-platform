@@ -117,6 +117,24 @@ test('x in one equation: both other equations are brought down, each once, and t
   assert.equal(repaired.rounds.round2.carried, true);
 });
 
+test('a variable written with a zero coefficient counts as absent everywhere: pairing, bringing down, back-substitution', () => {
+  // Integrator review: x + y + z = 6, y + 0z = 2, z = 3, eliminating z, used
+  // to strand at round 2 — Equation 2 could be neither brought down (it
+  // "has" z in its text) nor cancelled (its z coefficient is 0).
+  const sys = system(['x + y + z = 6', 'y + 0z = 2', 'z = 3']);
+  let state = chooseEliminationVariable(emptyEliminationState(), sys, 'z').state;
+  assert.deepEqual(eliminationCarryOptions(state, sys).map((option) => option.id), ['E2']);
+  assert.equal(chooseEliminationPair(state, sys, 'round1', 'E1E2').feedback.reason, 'variable-absent');
+  assert.deepEqual(eliminationBackSubstitutionDestinations(state, sys).map((equation) => equation.id), ['E1', 'E3']);
+  state = playPair(state, sys, 'round1', 'E1E3', 'subtract', { x: '1', y: '1', constant: '3' });
+  const carried = carryEliminationEquation(state, sys, 'round2', 'E2');
+  assert.equal(carried.feedback, null);
+  state = carried.state;
+  assert.equal(eliminationPhase(state, sys), 'subsystem');
+  assert.deepEqual(eliminationReducedSystem(state, sys).equations.map((equation) => equation.text), ['x + y = 3', 'y = 2']);
+  assert.deepEqual(repairEliminationState(JSON.parse(JSON.stringify(state)), sys), state);
+});
+
 test('a brought-down equation is a settled row: a pair that cancels to 0 = 0 plus it is a dependent system', () => {
   const sys = system(['x + y + z = 2', 'x + y + z = 2', 'y - z = 1']);
   assert.equal(reductionAnswerKey(sys).type, 'infinite');
