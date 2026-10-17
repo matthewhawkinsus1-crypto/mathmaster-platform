@@ -6,11 +6,14 @@ Branch `claude/pass3-systems-tools`, from `claude/modest-pasteur-xzagn7` at
 `06-open-items-qa-docs.md` Q-24. All three still reproduced on the base before
 any change.
 
-| Item | Commit | Grading changed? |
+| Item | Commits | Grading changed? |
 | --- | --- | --- |
-| PR-22 inequality vertices step | `a025ba6` | No. The shared grader is untouched. |
-| PR-23 3×3 elimination with a missing variable | `7239575` | No. The 3×3 grader never reads elimination rounds. |
-| Q-24 3×3 substitution side column | `e8f127c` | No. CSS only. |
+| PR-22 inequality vertices step | `a025ba6`, review fixes `c76e375` | No. The shared grader is untouched. |
+| PR-23 3×3 elimination with a missing variable | `7239575`, review fixes `9cea58f`, `e1094ef` | No. The 3×3 grader never reads elimination rounds. |
+| Q-24 3×3 substitution side column | `e8f127c`, review fix `41a9581` | No. CSS only. |
+
+The integrator's review of `d59d34e` found one blocker and four should-fixes.
+All five are fixed. Each section below says what changed in answer to it.
 
 ## PR-22 — the vertices step said "done" before every corner was marked
 
@@ -30,9 +33,19 @@ a mark within 0.15, and exactly as many marks as corners.
 - `StudentBuildInequalityMode.jsx` gets one helper, `verticesStepDone`. Both
   the flow (`reasoningDone`) and the Check's own advance use it. Where outcomes
   are shown, the step is done only when the coverage is complete. A new line
-  under Check says what is missing: "You have found 2 of the 3 corners of the
-  solution region. Tap each other place where two boundary lines meet at a
-  corner of the region." A second mark on the same corner gets its own line.
+  under Check says what is wrong (`vertexCoverageMessage` in
+  `inequalityFormat.js`):
+  - "You have found 2 of the 3 corners of the solution region. Tap each other
+    place where two boundary lines meet at a corner of the region." It says
+    "1 corner" in the singular.
+  - Review fix: with every corner marked and also a mark that is not a corner,
+    the old line claimed two marks shared a corner. It now names the mark:
+    "Vertex D is not a corner of the solution region. Remove it." This uses
+    `offCorner` and the letters the list shows.
+  - The shared-corner line now appears only when a corner really is marked
+    twice.
+  - In a region with no corners: "This solution region has no corners, so
+    there is nothing to mark."
 - On a DOL, quiz or test nothing changes. There the step is recorded once
   every mark is answered, which is what the final check counts as complete. A
   count of corners would be a verdict.
@@ -42,6 +55,12 @@ a mark within 0.15, and exactly as many marks as corners.
   browser and on the server for six vertex sets. In every case the "vertices"
   part is right exactly when `vertexCoverage(...).complete` is. A source
   contract pins the step and the line.
+- Review fix: the 0.15 tolerance is pinned. A mark 0.149, exactly 0.15 and 0.151
+  from a corner must give the same answer in the browser rule and the grader.
+  Changing 0.15 to 0.05, 0.15 to 0.6, or `<=` to `<` each turn it red.
+- Review fix: the line's wording is tested on real coverage cases (missing,
+  not a corner, one and two named marks, marked twice, singular, no corners).
+  Each branch was mutation-checked.
 - `tests/platform/inequalityBuildOutcomePolicy.test.mjs` pinned the old
   expression's text. The behaviour it protects still holds: where outcomes are
   withheld, the step never depends on whether the work is right. I rewrote the
@@ -55,6 +74,10 @@ a mark within 0.15, and exactly as many marks as corners.
     line appears, the cursor stays on the vertices step, and Submit is not
     ready. With the third corner, the step completes and Submit is ready.
   - DOL, two corners: recorded, as before.
+  - Practice, all three corners plus a mark at (5, 5): the corners read
+    "Correct", D reads "does not look like a corner", the line reads "Vertex D
+    is not a corner of the solution region. Remove it.", and Submit is not
+    ready.
 
 ## PR-23 — a 3×3 where an equation has no term in the eliminated variable
 
@@ -73,8 +96,9 @@ offered nothing else. So after one round there was no second round to make.
 Authoring gave no error or warning. Codex's own example `x = 1, y = 2,
 x + y = 3` writes z in no equation at all.
 
-**Decision: support it in elimination, and refuse only a variable that
-appears in no equation.** Why:
+**Decision: support it in elimination. A variable that appears in no
+equation is refused when the student picks it, and gets an authoring
+warning (not an error).** Why:
 - It is mathematically clean. An equation with no term in the chosen variable
   already has it eliminated, so it is one of the reduced equations. This is how
   textbooks solve cyclic systems. Every round the rules allow leaves an
@@ -86,7 +110,7 @@ appears in no equation.** Why:
   | All three | Two different pairs, as before |
   | Two (Ei, Ej) | The pair {Ei, Ej}, and Ek brought down |
   | One (Ei) | Ej and Ek brought down. Ei gives the variable back |
-  | None | Refused: nothing to eliminate and nothing to back-substitute into |
+  | None | Refused when picked: nothing to eliminate and nothing to back-substitute into |
 
 - The server agrees by construction. The 3×3 rubric in
   `serverGrading/tools/systemsWorkspace/algebraic.mjs` grades only the ordered
@@ -112,21 +136,43 @@ appears in no equation.** Why:
     transitions ignore it.
   - Repair replays brought-down rounds and drops one that is not valid any more
     (tampered, or the question was edited).
-  - There is no state-version bump. An older client reading a brought-down
-    round drops just that round, because its pair has length 1.
+  - Review fix: when both reduced rows already read `variable = value` with
+    different variables (`x + y + z = 6, y = 2, z = 3`, eliminating x gives
+    {y = 2, z = 3}), `eliminationSeparatedReduction` treats them as the 2×2's
+    solution. The work goes straight to back-substitution, and nothing is
+    computed for the student.
+    - Before this, the reduced 2×2 offered Substitution and Elimination and
+      neither could do anything. Only Undo got out. My first handoff said the
+      student could choose Substitution; that was wrong.
+    - When the rows are separated but scaled (`2y = 4, z = 3`), no 2×2 workflow
+      is offered. The screen says there is nothing to substitute or eliminate
+      between them and points to Undo and another variable. Eliminating y or z
+      works there.
+  - There is deliberately no state-version bump. The integrator checked a stale
+    tab: a new-build draft with a brought-down round loads in the base build
+    without errors. The round shows as not done, its pair has length 1, and
+    viewing does not rewrite storage. A bump would instead throw away every
+    student's elimination draft on deploy.
 - `EliminationReductionMode.jsx`:
   - Beside the pairs: "Or, if an equation already has no x term, bring it down
     as it is", with a "Bring down Equation 3" button for each such equation.
   - A brought-down round shows as its own board: the equation, the rule, and R.
   - New feedback lines. The `variable-absent` line now points to bringing the
     equation down.
-- `validateAlgebraicSystemAuthoring` refuses a 3×3 algebraic system in which a
-  variable appears in no equation: "systemsWorkspace 3×3 algebraic system: z
-  appears in none of the three equations, so it is not an unknown of this
-  system. …". It does not do this for a three-plane exploration. `toolSchemas`
-  validates spatial questions with `mode: 'spatial'`, because a spatial question
-  authored with no `mode` would otherwise be refused, and vertical planes are
-  legitimate.
+  - The work trail names a brought-down round "R₁ brought down" (it said
+    "First pair").
+- `validateAlgebraicSystemAuthoring` WARNS (review fix: it was an error) when a
+  variable has a zero coefficient in all three equations. The check reads the
+  coefficient, so `0z` counts as absent, both here and in the runtime guard.
+  - Why a warning: such a system is never unique, but it works today.
+    `x + y = 3, 2x + 2y = 6, x − y = 1` reaches 0 = 0 by elimination, and the
+    server gives full credit.
+  - As an error, it blocked reuse/duplicate of saved assignments
+    (`prepareStoredAssignmentForReuse`), Pre-Flight, import and publish.
+  - Students are already protected by the runtime guard.
+  - `toolSchemas.js` is back to its base text. Spatial validation forwards only
+    errors, so no exemption is needed. An authored `mode: 'spatial'` that routes
+    to this workspace (`solveSystem`) is checked like any algebraic system.
 
 **Content checked.**
 - Every tracked JSON with a 3-equation system: 45 systems. The scan script is
@@ -152,10 +198,18 @@ appears in no equation.** Why:
     tampered round dropped on repair.
   - A pair that cancels to 0 = 0 plus a brought-down equation reads as
     infinitely many.
-  - The variable-nowhere refusal at runtime, in repair, and at authoring for
-    all three methods. It is accepted for spatial, with and without `mode`.
+  - The variable-nowhere refusal at runtime (including `0z`) and in repair.
+  - The authoring warning: for all three methods, for `0z`, and for a
+    `mode: 'spatial'` that routes here. It is never an error, so the
+    integrator's working system stays valid. Spatial gets no error and no
+    warning.
+  - Separated reduced rows: `{y = 2, z = 3}` is the solution, `{2y = 4,
+    z = 3}` is not, and two-variable or same-variable rows are an ordinary
+    2×2.
   - The screen wiring.
-- I mutation-checked all 9 behaviours. Each turns the suite red.
+- I mutation-checked every behaviour; each turns the suite red. That covers
+  the bring-down rules (9), separated rows (3), and the authoring and runtime
+  rules (4).
 - In a browser (a temporary harness, not committed):
   - Triangular system, eliminate x: pairing Equation 1 and Equation 2 shows the
     new line. "Bring down Equation 2" and then "Bring down Equation 3" draw R₁
@@ -163,6 +217,12 @@ appears in no equation.** Why:
   - The work survives a reload. Undo takes the last brought-down round back.
   - On the two-equation system, bringing Equation 3 down twice shows the
     repeat line.
+  - `y = 2, z = 3`, eliminate x, bring both down: the screen reads "Reduced
+    2×2: y = 2 and z = 3 — each row already gives one value". No 2×2 workflow
+    is mounted, and the trail shows Solve 2×2 ✓. Placing y and z into
+    Equation 1 opens the back-substitution solve.
+  - `2y = 4, z = 3`: the "nothing to substitute or eliminate" line, no 2×2, and
+    no back-substitution.
 
 ## Q-24 — 3×3 substitution kept a fixed side column while solving
 
@@ -177,6 +237,17 @@ Step Algebra is open), `.mathmaster-reduction-layout` becomes one column. The
 originals and their derived equations become a compact strip above the solver.
 The strip is not sticky, its cards sit side by side, and each equation sits on
 one line with its name.
+
+**Review fix (blocker).** The first version cut equations short. The headings
+span every track, so auto-fit never collapsed the empty ones. At 1366×768
+three cards sat in five 203px tracks, with about 100px left for the math.
+Examples:
+- Day 2 PR-1's Equation 3 lost its "4".
+- R₁ "2(−y − z + 6) − y + 3z = 9" showed only "2(−y − z + 6)".
+- At 125% text every right side was lost.
+
+The tracks are now 16em: three whole equations at 100%, two at 125%, and one at
+200%. The solver width is unchanged.
 
 **Measured (Playwright, same scene):**
 
@@ -195,10 +266,18 @@ lower, under a 74px strip.
 
 **Proof.**
 - A contract in `tests/platform/studentWorkspaceVisibility.test.mjs` pins:
-  one column while solving, a static side-by-side strip, and the class set
-  from `embeddedSolverActive`. Both CSS mutations turn it red.
-- `algebraicSystems3x3.mjs` passes, including its layout journeys on Chromebook
-  and phone (overflow 0).
+  one column while solving, a static side-by-side strip in em-sized tracks, and
+  the class set from `embeddedSolverActive`.
+- The CSS text cannot see clipping, so `algebraicSystems3x3.mjs` measures it in
+  the browser. A strip card fails if any box in it is narrower than what it
+  holds (the 1px visually hidden spoken text is excluded).
+  - New strip-fit journeys open the shipped Day 2 PR-1 and Day 1 PR-2 systems
+    with Isolate x open. They run at 1366×768 with 100% and 125% browser text
+    (set through CDP, checked by the root font size) and at 390×844.
+  - The full journey checks again while R₁ is standardized.
+- With the old 200px tracks these report the reviewer's findings: Equation 3
+  at 100%, all three originals at 125%, and R₁. With 16em they report none,
+  and the solver stays 1020px wide. The driver passes all 14 journeys.
 
 ## Gate (all run on `e8f127c`)
 
@@ -230,7 +309,7 @@ collections changed.
   - `eliminationReduction.mjs`: the browser state machine. No server module
     imports it.
   - `algebraicSystemsEngine.mjs`: `validateAlgebraicSystemAuthoring`, which only
-    `src/tools/toolSchemas.js` calls.
+    `src/tools/toolSchemas.js` calls. It now produces a warning only.
 
   No server grader's output changes. `node scripts/release-firebase.mjs`
   still lists the whole functions fleet and `path-admin`, because any
@@ -241,30 +320,33 @@ collections changed.
 1. **Functions with this Hosting release, or not.** Behaviour is identical
    either way. Shipping Hosting alone leaves `platformBuildInfo` reporting the
    previous commit until the next functions release.
-2. **The new authoring refusal.** A 3×3 algebraic system that writes a variable
-   in no equation is refused in Pre-Flight. An assignment already stored with
-   one keeps working:
-   - Picking that variable shows "z is not in any of the three equations … Choose
-     another variable".
-   - Every other variable proceeds, using brought-down rounds where needed.
-   - Editing the assignment will surface the refusal.
+2. **The authoring rule is a warning, not a refusal.** A 3×3 algebraic system
+   in which a variable has a zero coefficient everywhere gets a Pre-Flight
+   warning; nothing is blocked. In the workspace:
+   - Picking that variable shows "z is not in any of the three equations …
+     Choose another variable".
+   - Every other variable proceeds as before, using brought-down rounds where
+     needed.
+
+   If you would rather refuse such content outright, that is a one-line change.
+   It would block reuse of any saved assignment that has one.
 3. **PR-22 on a DOL, quiz or test** keeps "recorded once every mark is
    answered". The alternative, holding the step until every corner is marked,
    would tell the student how many corners there are, which is a verdict.
 
 ## Not done
 
-- **2×2 elimination inside the reduced system.** A 3×3 like `x = 1, y = 2,
-  z = 3` reduces to `y = 2, z = 3`. There 2×2 elimination has nothing to
-  cancel. The student can still choose Substitution, which the reduced 2×2
-  offers. I left the 2×2 workspace alone (outside this item).
+- **The 2×2 workspace itself** cannot solve a pair whose rows each hold a
+  different single variable. The 3×3 now avoids sending it one (above). The 2×2
+  workspace is unchanged, so a standalone 2×2 authored that way is still stuck.
 - **3×3 substitution** on systems with missing variables was not re-examined.
   This change does not touch it.
-- **Possible existing gap, not touched (read from the code, not run):** a
-  question that asks for vertices whose region has no corners (unbounded with
-  none, or no solution) looks impossible to complete. The vertices step is
-  planned whenever `askVertices` is set, Check vertices is disabled with no
-  marks, and the grader expects zero marks.
-- **Shared files touched** outside the systems directories: only
-  `src/tools/toolSchemas.js` (the spatial validation call), and test files.
-  Nothing in CoordinatePlane or the tool keyboard/Undo code.
+- **Existing gap, not touched (the integrator confirmed it):** in a region
+  with no corners the vertices step cannot be completed, because Check vertices
+  is disabled with no marks. Submit is not gated by it, and the grader accepts
+  zero marks. If the student marks a point, the line now says the region has
+  no corners.
+- **Shared files touched** outside the systems directories: none (toolSchemas.js
+  is back to base). Test files and the 3×3 browser harness gained
+  questions and journeys. Nothing in CoordinatePlane or the tool keyboard/Undo
+  code.
