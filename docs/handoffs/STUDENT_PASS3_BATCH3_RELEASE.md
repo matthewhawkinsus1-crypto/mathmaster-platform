@@ -31,7 +31,9 @@ line.
 
 | Gate | Result |
 | --- | --- |
-| `npm run test:platform`, `node --test tests/tools/*.test.mjs`, `npm run lint` | pass |
+| `npm run test:platform` | 11,377 of 11,377 |
+| `node --test tests/tools/*.test.mjs` | 1,644 of 1,644 |
+| `npm run lint` | pass (no errors) |
 | `npm run build`, `npm run build:firebase` | pass; tree clean after |
 | `test:rules`, `test:challenge-finish`, `test:canonical-persistence`, `test:secure-exam-auto-finalize` | pass (201, 441, 35 and 11 cases) |
 | `test:draft-persistence` | every family passes navigate, reload, reopen and backup |
@@ -54,21 +56,28 @@ edit times, and those answers merge by the old rule (client handoff, note 1).
 Do not pause or resume a live Test while `manageAssignmentLifecycle` is
 deploying.
 
+Run it from `main` once this is merged (`git checkout main && git pull
+--ff-only origin main`), then `npm ci && npm --prefix functions ci`.
+
 1. Check what is live:
 
    ```
    node scripts/release-firebase.mjs --whats-live
    ```
 
-   Hosting and the Functions should both report `56a5a5b`. If either reports
-   an older commit, `main` has changes that are not live yet: use the default
-   plan (`node scripts/release-firebase.mjs`, which diffs against the live
-   build) instead of step 2, and read it before adding `--execute`.
+   Hosting and the Functions should both report `56a5a5b`.
+   - An older commit that is on `main`: `main` has changes that are not live
+     yet. Use the default plan (`node scripts/release-firebase.mjs`, which
+     diffs against the live build) instead of step 2, and read it before
+     adding `--execute`.
+   - A commit that is not on `main` (`git merge-base --is-ancestor <commit>
+     origin/main` fails), for example one from the pass-3 branch: stop.
+     Releasing this would take that work off the site.
 
 2. The narrowed plan, then the release:
 
    ```
-   node scripts/release-firebase.mjs --since origin/main --only hosting --functions finalizeAbandonedSecureExams,createSecureExamSession,finalizeSecureExam,issueSecureExamQuestion,listProctorExamSessions,listStudentSecureExamSessions,manageAssignmentLifecycle,proctorExamAction,saveSecureExamDraft,startSecureExamSession,submitSecureExamResponse,teacherTestCycleAction
+   node scripts/release-firebase.mjs --since 56a5a5b --only hosting --functions finalizeAbandonedSecureExams,createSecureExamSession,finalizeSecureExam,issueSecureExamQuestion,listProctorExamSessions,listStudentSecureExamSessions,manageAssignmentLifecycle,proctorExamAction,saveSecureExamDraft,startSecureExamSession,submitSecureExamResponse,teacherTestCycleAction
    ```
 
    The same command with `--execute` added deploys it: two function groups
