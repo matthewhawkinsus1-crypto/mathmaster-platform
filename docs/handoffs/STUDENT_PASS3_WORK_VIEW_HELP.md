@@ -88,6 +88,22 @@ The integrator found every round-1 finding fixed and no new leak path, and asked
 Round-2 mutations (each seen red, restored): the workbench, bridge and calculator flags dropped; the workbench's
 method list shown on a DOL; the rotation rule ungated — 5 of 5 red.
 
+Two contracts followed the bridge change: `representationBridgeOutcomePolicy` asserted the exact import line
+(now names two hooks) — rewritten to "the import includes `useToolRuntimeContext`", the same rewrite session B
+made; `toolPolicyGates`' DOL bridge check now asserts the drawer says how to work the table and holds neither the
+description nor a method step (both red with the method list restored on a DOL).
+
+**Round-3 gate** (this branch, one driver at a time):
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,443 pass, 0 fail |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | exit 0; no tracked file rewritten |
+| `workViewHelpReach`, `toolPolicyGates` (51), `assessmentLeakGates`, `toolAttemptOutcome`, `phoneToolPanelReach`, `studentUxPlatform` | pass |
+| Drivers for the four tools touched this round: `calculatorKeyboard`, `captureToolResponses regressionCalculator` and `dataModelingLab`, `linearMultipleRepresentations`, `regressionCalculatorPhone`, `toolKeyboardRegression` | pass |
+| `hostAccessibility`, `lmrProcessMode`, `studentShellLargeText --check=targets,s5` | fail **identically on the base** (`6accda1`, run in a separate worktree on its own servers): hostAccessibility's recovery scene times out on `networkidle`, lmrProcessMode reports resource 403/404s, studentShellLargeText waits for "Waiting for your teacher to start". The container's proxy blocks outside hosts; not this branch's. CI runs them with network. |
+
 Owner notes (left as they are, as the integrator suggested): `RepresentationBridge.jsx:514/:542` ("a is the rate,
 c is the zero/x-intercept"; "Plot the x-intercept… then a second point using the slope") and
 `RepresentationMatch.jsx:521`'s "Representation reasoning" fold are body text that may name the method on an
