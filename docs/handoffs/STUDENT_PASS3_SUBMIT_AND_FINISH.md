@@ -167,6 +167,17 @@ Each fix is its own commit; the sections above already describe the result.
 | question-family-cases CI: drivers looked for "Check my work". | Accept the Submit label; one `finalAction` helper for the day-2 journeys (`1b3bd23`). | `questionFamilyCases.mjs`: all 36 journeys |
 | Notes: cost on a closed question's tool button; phone "← Back to Q1" failed label-in-name; GraphScenarioMatch said "use Submit Answer". | No cost while closed; "← Go back"; "use **Submit** below" (`5925ba3`). | `submitAndFinish`, `workBarPrimaryLabel`, `submitAndFinishJourneys` |
 
+**Round 2 of the review:**
+
+| Finding | Fix (commit) | Proof |
+| --- | --- | --- |
+| My Math Path as it really mounts (no `generationKey`, a `{status, attemptCount}` record, questions with no id, the reset version back to 0 per item) gave every item the same failure key: after item 1 was started fresh, item 2 never closed; moving on without a fresh start left item 2 behind item 1's panel. | `questionModuleFailureKey.js`: boundary key, question id and **draft key** (`path-${questionInstanceId}`), also the boundary's `resetKey`. The failure is held with the question object it happened on and counts only for it; recovery clears it. Not cleared in the new-question effect: a module that throws as it first mounts reports during the commit, before that effect, and would lose its panel (`64691d1`). | Unit test on the key (collapsing it to a constant, or dropping the draft key, goes red); `moduleRecoveryLock.mjs` gains the PathSessionPlayer mount, started fresh and moving on, both sizes (red without the draft key) |
+| The new browser proofs ran in no CI workflow. | `moduleRecoveryLock` and `closedQuestionEnter` in Student Runtime Browser Gates; `submitAndFinishJourneys` in its own job in Student and Teacher Journeys; `paths:` triggers for each (`c1c2c00`). | the workflow contracts (74 pass) |
+
+With Batch 3 (pass3-b3-persistence-client), a submit that could not be queued is announced twice, both by Batch 3 (its
+`role="alert"` "Not submitted…" and its polite toast); the save line's region stays silent, as it should. The
+integrator is raising it with Batch 3.
+
 **Gate, rerun on the final tree (after `22237df`):**
 
 | Check | Result |
