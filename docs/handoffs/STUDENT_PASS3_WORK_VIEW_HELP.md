@@ -70,7 +70,27 @@ dropped; Graphing2 loses `stepsAreControls` — 11 of 11 red. The new browser dr
 
 ## Gate
 
-_Pending: the browser drivers are still running; this table is filled in by the next commit._
+Run on this branch, one driver at a time (plain `npx vite --host 127.0.0.1 --port 5199 --strictPort`,
+`AUDIT_ORIGIN=http://127.0.0.1:5199`; teacherWorkflow harness on 5188).
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,434 pass, 0 fail (functions and path-admin deps installed with `npm ci`) |
+| `node --test tests/tools/*.test.mjs` | 1,643 pass, 0 fail (1,644 tests) |
+| `npm run lint` | exit 0; no warning in a touched file |
+| `npm run build` / `npm run build:firebase` | both exit 0; `git status` unchanged by the Firebase build |
+| New `workViewHelpReach` (390×844) | 30 checks pass; against the base source 14 fail |
+| `toolPolicyGates` | pass (50 checks) after one assertion rewritten: it looked for the removed generic Help sentence; it now asserts the TaskCard's directions and the platform Help are in the DOL drawer and the authored hint is not |
+| Student runtime gates: mathEntryContract, renderStability, errorRecovery, duplicateTabs, graphPointCheck, phoneToolPanelReach, undoTyping, composedOutcomePolicy, relationPlotGrading, toolAttemptOutcome, assessmentLeakGates, systemsWorkspaceStudio, clickMapLetterbox, stagedQuestion, unansweredChoiceGates, graphKeyboardRoute, composedDraftRestore, draftEditTime, fractionTemplateGrading, mathFontsProduction | all pass |
+| `workViewMatrix` (no `--write`) | pass: 480 screenshots, every Stage 3A family keeps controls, state and Undo |
+| `workViewCertification` | pass: Stage 4 certified 24 tools on 8 devices |
+| `studentUxPlatform`, `algebraicSubstitutionHandoff` | pass |
+| teacherWorkflow `journeys`, `appUrlJourneys` (5188) | pass (24 journeys; 12 App URL journeys incl. 390×844) |
+
+`workViewMatrix` and `workViewCertification` launch Playwright's default browser, so they were run with
+`PLAYWRIGHT_MODULE=/opt/node22/lib/node_modules/playwright/index.mjs` (the container's browsers match that
+version, not the `playwright@1.55.0` the workflow installs). CI installs its own browser and needs no change.
+No CSS was added, so no hint-ladder word reaches inlined CSS.
 
 ## Deploy targets
 
