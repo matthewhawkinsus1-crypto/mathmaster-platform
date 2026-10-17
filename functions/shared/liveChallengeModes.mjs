@@ -374,9 +374,11 @@ export const graphFeatureRushMode = defineChallengeMode({
  *
  * Every item is one target (its line), so the question-set machinery the
  * rush proved — per-player issue, allTargets receipts, ranking by work, then
- * accuracy, then time — applies unchanged. Not offered to teachers until the
- * screens ship (createLiveChallenge admits a mode that is not
- * teacherSelectable for the platform administrator only, to preview it).
+ * accuracy, then time — applies unchanged. Offered to teachers since whole
+ * classes were certified playing it (tests/integration/lineGraphLaunch); a
+ * mode set back to `teacherSelectable: false` would launch for the platform
+ * administrator only again, as a preview (createLiveChallenge), and the
+ * create panel would offer it to the administrator alone.
  * See docs/architecture/graph-the-line.md.
  */
 const lineGraphMode = ({ id, format, label, projectorLabel, description, questionsPerRound }) => defineChallengeMode({
@@ -384,7 +386,7 @@ const lineGraphMode = ({ id, format, label, projectorLabel, description, questio
   label,
   projectorLabel,
   description,
-  teacherSelectable: false,
+  teacherSelectable: true,
   roundStructure: ROUND_STRUCTURE.QUESTION_SET,
   questionsPerRound,
   questionSource: QUESTION_SOURCE.LINE_GRAPH_GENERATOR,

@@ -31,7 +31,7 @@ import { getScoringStrategy } from '../../functions/shared/liveChallengeScoring.
 
 const MODES = LINE_GRAPH_MODE_IDS.map(getChallengeMode);
 
-test('the three formats are registered under their permanent ids, not yet offered to teachers', () => {
+test('the three formats are registered under their permanent ids, offered to teachers', () => {
   assert.deepEqual(MODES.map((mode) => mode.id), [
     CHALLENGE_MODE_ID.LINE_GRAPH_CLASSIC,
     CHALLENGE_MODE_ID.LINE_GRAPH_SPRINT,
@@ -39,8 +39,8 @@ test('the three formats are registered under their permanent ids, not yet offere
   ]);
   const offered = listChallengeModes({ teacherSelectable: true });
   for (const mode of MODES) {
-    assert.equal(mode.teacherSelectable, false, `${mode.id} waits for its screens`);
-    assert.ok(!offered.includes(mode));
+    assert.equal(mode.teacherSelectable, true, `${mode.id} is launched`);
+    assert.ok(offered.includes(mode));
     assert.equal(mode.roundStructure, ROUND_STRUCTURE.QUESTION_SET);
     assert.equal(mode.questionIssue, QUESTION_ISSUE.PER_PLAYER);
     assert.equal(mode.questionSource, QUESTION_SOURCE.LINE_GRAPH_GENERATOR);

@@ -3,10 +3,9 @@
 //
 // WHY. The game's rules are pure and unit tested (lineGraph*.test.mjs). What
 // only a database shows is that the callables apply them inside transactions
-// on the engine's lifecycle: a mode still in preview launches for the
-// administrator only; each student gets their own items (or, in Classic, the
-// class the same one); a line is checked the moment it is drawn and recorded
-// once however a batch is retried; three misses end an item; a refresh
+// on the engine's lifecycle: any teacher launches each format; each student
+// gets their own items (or, in Classic, the class the same one); a line is
+// checked the moment it is drawn and recorded once however a batch is retried; three misses end an item; a refresh
 // resumes where the student was; a Sprint round is ready to close when
 // everyone has worked through it (and each student's public row says when
 // they have), and the engine ranks it; the finished match writes the report
@@ -34,9 +33,9 @@ const { ROOT_ADMIN_EMAIL } = require(path.join(repo, 'functions/shared/rolePolic
 const db = admin.firestore();
 
 // Unique to this file: the integration files share one emulator in parallel.
-// While the modes are in preview only the administrator can launch them, so
-// the games here are the administrator's (one at a time: one active room per
-// teacher), and a regular teacher's class shows the refusal.
+// The games here are the administrator's (one at a time: one active room per
+// teacher), as they were while the modes were a preview; a regular teacher's
+// class shows that every teacher can launch them now.
 const TEACHER = 'line-teacher@example.com';
 const CLASSES = {
   sprint: { id: 'line-class-sprint', size: 3, teacher: ROOT_ADMIN_EMAIL },
@@ -136,17 +135,20 @@ const wrongLine = (item, n = 0) => {
 const fetchItems = async (roomId, studentId, extra = {}) => call('getLineGraphRound', student(studentId, { ...(await identityOf(roomId)), count: 8, ...extra }));
 const submit = async (roomId, studentId, attempts) => call('submitLineGraphAttempts', student(studentId, { ...(await identityOf(roomId)), attempts }));
 
-/* ========================== the preview gate ========================== */
+/* ============================== launched ============================== */
 
-test('a game still in preview launches for the platform administrator only', async () => {
+test('every teacher can launch each format', async () => {
   for (const mode of ['lineGraphClassic', 'lineGraphSprint', 'lineGraphRush']) {
     // eslint-disable-next-line no-await-in-loop
-    const refused = await failureOf(createLine('regular', mode));
-    assert.equal(refused?.code, 'failed-precondition', mode);
-    assert.match(refused.message, /still in preview/);
+    const { roomId } = await createLine('regular', mode);
+    // eslint-disable-next-line no-await-in-loop
+    const room = (await db.collection('liveChallengeRooms').doc(roomId).get()).data();
+    assert.equal(room.challengeMode, mode);
+    assert.equal(room.teacherEmail, CLASSES.regular.teacher);
+    // One active room per teacher: this one makes way for the next format.
+    // eslint-disable-next-line no-await-in-loop
+    await call('cancelLiveChallenge', teacherAs(TEACHER)({ roomId }));
   }
-  const rooms = await db.collection('liveChallengeRooms').where('classId', '==', CLASSES.regular.id).get();
-  assert.equal(rooms.size, 0, 'nothing was created');
 });
 
 /* ================= GAME 1: a Sprint of five, three students ================= */

@@ -17,6 +17,8 @@ import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeSc
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
+import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import {
   EXTENDED_TIME_HOST_HINT,
@@ -87,6 +89,8 @@ const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.j
 // Graph the Line's the same way: loaded only when a teacher chooses it.
 const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
 const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
+// Whether Graph the Line's modes are offered to every teacher (not a preview).
+const LINE_GRAPH_LAUNCHED = LINE_GRAPH_MODE_IDS.every((id) => getChallengeMode(id).teacherSelectable);
 
 const speedPreset = (value) => [0, 10, 20, 35].includes(Number(value)) ? String(Number(value)) : 'custom';
 
@@ -512,10 +516,11 @@ export default function LiveChallengeTeacher({
   );
   const joinedCount = leaderboard.length;
   const rushMode = challengeMode === RUSH_MODE_ID;
-  // Graph the Line is in preview (its modes are not teacher-selectable): the
-  // create panel offers it to the platform administrator, the one teacher
-  // createLiveChallenge's preview gate lets launch it.
-  const lineGraphOffered = isRootAdminEmail(signedInEmail);
+  // Graph the Line is offered to every teacher while its modes are
+  // teacher-selectable — the server's own switch. A mode that is not is a
+  // preview, which createLiveChallenge launches for the platform administrator
+  // only, so then the create panel offers it to the administrator alone.
+  const lineGraphOffered = LINE_GRAPH_LAUNCHED || isRootAdminEmail(signedInEmail);
   const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;
   // A game with its own settings: no Warm-Up link, no bank question style,
   // no speed setting — and its own setup panel.
@@ -1040,10 +1045,10 @@ export default function LiveChallengeTeacher({
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
-                  {lineGraphOffered && <option value={LINE_GRAPH_GAME}>Graph the Line (preview)</option>}
+                  {lineGraphOffered && <option value={LINE_GRAPH_GAME}>{LINE_GRAPH_LAUNCHED ? 'Graph the Line' : 'Graph the Line (preview)'}</option>}
                 </select>
                 {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
-                {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn. In preview: only you can launch it.</span>}
+                {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>

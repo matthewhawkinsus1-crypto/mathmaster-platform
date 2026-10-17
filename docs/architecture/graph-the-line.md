@@ -12,20 +12,17 @@ way Graph Feature Rush is (`graph-feature-rush.md`): lifecycle, the room
 clock, receipts and idempotency, ranking, results and rewards are the
 engine's. This mode adds a question source, a way to answer, and screens.
 
-**Status.** Phase 1 (the pure foundation: exact line math, how equations are
-written and read, the generator, auto-check grading, hints, teacher settings,
-shared rules), Phase 2 (the server: the three modes registered, the planner,
-the attempt pipeline, the callables, the report) and Phase 3 (the screens:
-the student's round, the teacher's setup and "Try it yourself first", the
-host's race and report, the projector, the Classic reveal, early close) are
-built and tested — the server end to end on the Firestore emulator, the
-screens in real browsers against the real handlers
-(`tests/browser/lineGraphGame.mjs`). **Still a preview** until Phase 4
-certifies it: the modes are registered with `teacherSelectable: false`;
-`createLiveChallenge` launches them for the platform administrator only, and
-only the administrator's console offers "Graph the Line (preview)". Every
-other teacher sees nothing new. **Mastery evidence is deliberately not
-written yet** (§11, with the reason).
+**Status. Launched.** Phase 1 (the pure foundation: exact line math, how
+equations are written and read, the generator, auto-check grading, hints,
+teacher settings, shared rules), Phase 2 (the server: the three modes, the
+planner, the attempt pipeline, the callables, the report), Phase 3 (the
+screens: the student's round, the teacher's setup and "Try it yourself
+first", the host's race and report, the projector, the Classic reveal, early
+close) and Phase 4 (certification: whole classes of 30 and 35 playing every
+format at class scale, then the launch) are built and tested. The three modes
+are `teacherSelectable: true`: every teacher's console offers "Graph the
+Line". **Mastery evidence is deliberately not written yet** (§11, with the
+reason).
 
 ---
 
@@ -285,9 +282,11 @@ network and storage are the rush round's: one clock anchor
 localStorage and sent gathered, the server's counts taken when they differ.
 The standings listener pauses while a question-set round is open.
 
-**Teacher setup** (`LineGraphSetup.jsx`, lazy). "Graph the Line (preview)" in
-Create a challenge — offered to the platform administrator only while the
-modes are not teacher-selectable. Format cards, presets, item types, Name-it
+**Teacher setup** (`LineGraphSetup.jsx`, lazy). "Graph the Line" in Create a
+challenge, for every teacher. One switch decides it — the modes'
+`teacherSelectable`: set back to false, the server launches the game for the
+platform administrator only and the console offers "Graph the Line (preview)"
+to the administrator alone. Format cards, presets, item types, Name-it
 style, forms and special lines, difficulty, tries, Sprint length, same
 equations, show your method, slope helper, rounds, time, scoring, the shared
 Rewards choice; the server's own words when a setting makes the game
@@ -376,7 +375,7 @@ unchanged and its suites pass):
 | `functions/shared/lineGraphAttempts.mjs` | the submit transaction's body (`applyLineGraphAttempts`), round state from receipts, player totals, the report |
 | `functions/shared/seededRandom.mjs` | the integer-only seeded random source (moved verbatim from the rush generator, which re-exports it; its output is unchanged) |
 | `functions/shared/lineGraphReveal.mjs` | a shared Classic round's worked solution, and the class's facts added at its close |
-| `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER` (with the shared round's solution), the preview gate in `createLiveChallenge`, `getLineGraphRound`, `submitLineGraphAttempts` (writes `rushRoundFinished`), `previewLineGraph`, the reveal's class facts |
+| `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER` (with the shared round's solution), the preview gate in `createLiveChallenge` (for any mode not yet offered), `getLineGraphRound`, `submitLineGraphAttempts` (writes `rushRoundFinished`), `previewLineGraph`, the reveal's class facts |
 | `src/platform/liveChallenge/liveChallengeService.js` | the three callables for the screens (mirrored in the emulator bridge) |
 | `src/platform/liveChallenge/lineGraphModel.js` | the grid as geometry: unit space, snapping, the line edge to edge, the draft reducer (press, drag, release), the keyboard, where labels and the ✓/✗ float |
 | `src/platform/liveChallenge/lineGraphSession.js` | a student's round on the device: verdicts (the server's grading), tries, pauses, the queue, the server's word |
@@ -401,7 +400,8 @@ unchanged and its suites pass):
   and the mode's pool — "rebuilt from the log alone", as target counts already
   are. A player with no receipts is unfinished either way.
 - [x] Register `lineGraphClassic`, `lineGraphSprint`, `lineGraphRush` in
-  `liveChallengeModes.mjs` (`teacherSelectable: false` until Phase 3 ships).
+  `liveChallengeModes.mjs` (`teacherSelectable: false` until Phase 4
+  certified them).
   `normalizeConfig` must return `questionStyle`, `solverRaceFocus` and
   `solverRaceDifficulty` (null is fine) — the room write has no
   `ignoreUndefinedProperties`.
@@ -469,13 +469,67 @@ unchanged and its suites pass):
   declared in the registry so unambiguous diagnoses become misconception
   evidence. Until then the planner gives line rounds no standards, so a line
   game writes no evidence at all (the integration test checks
-  `roundStandards` stays empty). It ships as its own reviewed change after
-  certification.
+  `roundStandards` stays empty). The game is certified now; this ships next,
+  as its own reviewed change.
 
-**Phase 4 — certification.** 30- and 35-student launch runs; then
-`teacherSelectable: true`. (Phase 3 already played every format in real
-browsers — phone, iPad, Chromebook, mouse, finger and keyboard — against the
-real handlers: `tests/browser/lineGraphGame.mjs`.)
+**Phase 4 — certification and launch. Done.** (Phase 3 had already played
+every format in real browsers — phone, iPad, Chromebook, mouse, finger and
+keyboard — against the real handlers: `tests/browser/lineGraphGame.mjs`.)
+
+- [x] Two loose ends from Phase 3's browser QA, neither in this game: the
+  Graph Feature Rush grid kept the page's focus ring after a mouse or finger
+  tap (it draws its own keyboard ring, so it now opts out with
+  `data-focus-ring="own"`, as the line grid does), and on the projector a
+  bank question's worked-solution steps were centred under their numbers
+  (they read down a left edge now).
+- [x] The launch certification's simulated students play line rounds
+  (`tests/integration/support/liveChallengeSimLineRound.mjs`): every verdict
+  through the screen's own session, and the round's clock anchor, sending,
+  storage, resume and prefetch mirrored from `LineGraphRound.jsx`, held to it
+  by `liveChallengeLaunchCertificationMirror.test.mjs`. Each student follows
+  a plan (right first time, a slip fixed, the class's common mistake, out of
+  tries, skipping). The simulated host closes a round when the console would
+  (`roundCloseDue`), through `closeLiveChallengeRound`, never forced. The
+  launch certification's own games still pass on the changed device and
+  host (`npm run test:live-challenge-launch:emulator`, 10 of 10).
+- [x] Whole classes against Firestore (`tests/integration/lineGraphLaunch`,
+  `npm run test:line-graph-launch:emulator`: an emulator to itself, in CI's
+  full platform suite, about two minutes):
+  - **Sprint, 30 students**, five lines each: one device offline at the
+    start, one that reloads its page while offline mid-round, one that opens
+    after the start. Every attempt recorded exactly once, to each plan's
+    count (230 for the class, in about 180 submits and 35 item requests);
+    the room 2.1 kB at launch, a first batch at most 4.2 kB; the round
+    closed the moment the class had finished, 1.2 s after its last answer
+    and 20 s in.
+  - **Classic, 35 students**, three rounds, the same line for everyone: 18
+    right first time, 9 drawing the same wrong line first, 5 slips fixed, 3
+    out of tries. Each round closed 1.2 s after its last answer; only then was
+    its line published, every time with the class's facts — 35 answered, 32
+    right, 18 first time, "Right point, wrong slope" by 9, the nine's own line
+    — and no student's id or key.
+  - **Rush, 30 students**, Graph it and built equations for 30 seconds: 36
+    lines a student (median; 39 at most), one check per line for students who
+    drew every line right, items fetched ahead in 7 batches (the first at most
+    4.7 kB); the round ended on its clock, never early, and no batch arrived
+    too late.
+  - In every game: what each device shows is what the server holds; no
+    standings listener and no live snapshot while a round is open; the final
+    standings on every screen are the match result's; the report counts the
+    receipts; diagnostics stay small and private; every listener closes.
+- [x] A flake, found and fixed — in the simulated students, not the game. In
+  two runs of three, a stuck student completed a line it should have run out
+  of tries on. The cause: a key point on the grid's edge (about one item in
+  twenty), where every offset one way leaves the grid, left the plan two
+  wrong lines, so its third try was the right one. The offsets reach ±6
+  now, and `tests/platform/lineGraphLaunchPlans.test.mjs` checks every plan
+  on every kind of item the generator makes, and the edge case by name.
+  Five runs in a row since: all green.
+- [x] `teacherSelectable: true` for the three modes. The console reads the
+  same flag (`LINE_GRAPH_LAUNCHED`): "Graph the Line" for every teacher, with
+  no preview wording. The server's preview gate stays, for any mode not yet
+  offered; set the flag back to false and the administrator-only preview
+  returns, label and all.
 
 ---
 
@@ -490,11 +544,14 @@ real handlers: `tests/browser/lineGraphGame.mjs`.)
 | `tests/platform/lineGraphConfig.test.mjs` | defaults per format; validation; presets; round limits; pools; mode ids; tries; the pause |
 | `tests/platform/lineGraphPlay.test.mjs` | the attempt pipeline: a right answer completes once; a miss with its mistake; `repeated`; the last try ends the item in one receipt; tries 1/2/3/until right; one try for a choice; `method` and `form`; replays, late, early, malformed and mismatched attempts; skips; claimed times; record limits; a Sprint's length read back by the engine; the report; the receipt size budget; the fairness simulation |
 | `tests/platform/lineGraphEngine.test.mjs` | the three mode declarations; the format is the mode's; limits per format; a Sprint round ranked by `buildRoundResult` from pipeline receipts |
-| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | the preview gate; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); extended time (a question-set room plays at ×1 and closes at its deadline); previews |
+| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | every teacher launches each format; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); extended time (a question-set room plays at ×1 and closes at its deadline); previews |
 | `tests/platform/lineGraphScreenModels.test.mjs` | the grid's geometry and gestures (checked only on a release that completes or changes a line); where the held label and the ✓/✗ float; the keyboard; the device session — tries, pauses, reveals, method, naming, skips, the queue, the server's word — and its verdicts replayed through the server's pipeline over random rounds; shown answers read back by the oracle |
 | `tests/platform/lineGraphReveal.test.mjs` | every slot's worked solution is the item's own line, every point a step names on it; the class's facts (distinct students, skips, who left); a mistake shown only when two students made it; the published document names no student; a line held while a later round asks it |
 | `tests/platform/lineGraphScreens.test.mjs` | the setup model against the server's validation; formats and presets; which rooms end on the clock; who has finished; Play Again; source contracts for the student, round, canvas, teacher, projector and server wiring |
 | `tests/browser/lineGraphGame.mjs` (QA, not CI) | whole games in Chromium against the real handlers on the emulator: setup and practice; a Sprint with a mouse and a finger (a hint and a fix by dragging, the label beside the finger, three misses, early close, results, the report); a Classic round's reveal on phones and the projector; built equations and the keyboard |
+| `tests/integration/lineGraphLaunch/lineGraphLaunchCertification.test.mjs` (an emulator to itself, `npm run test:line-graph-launch:emulator`, CI) | the class-scale certification: a Sprint of 30 (an outage at the start, a reload while offline, a late join), a three-round Classic of 35, a 30-second Rush of 30; each plan's exact attempts against the receipts; each device against the server; quiet boards while a round is open; the console's early close (a Rush only on its clock); the reveal only after the close, with the class's own mistake and no student named; items fetched ahead; the final standings on every screen; the report; diagnostics |
+| `tests/platform/lineGraphLaunchPlans.test.mjs` | every plan a simulated student follows does what it says on every kind of item the generator makes (3 formats × 4 difficulties × 2 Name-it styles × 24 seeds × 6 items): wrong answers that are wrong, three different ones for a stuck student, one common mistake for the class; a key point on the grid's edge |
+| `tests/platform/liveChallengeLaunchCertificationMirror.test.mjs`, `liveChallengeStandingsWiring.test.mjs` | the simulated line round held to `LineGraphRound.jsx` (its timings and refusal rule, the clock anchor, storage then the server at the start, sending and retries, prefetch, the finish and the buzzer, the reconnect), and the simulated host's round closing to the console's |
 
 Each assertion that protects a behaviour was broken once on purpose and seen
 to fail (the sign convention, a wrong option marked right, the block mix,
@@ -507,7 +564,15 @@ a mistake shown for one student, the reveal's method headline, Classic and
 Sprint ending only on the clock (and Rush closing early), the create branch
 and the student's question-set flags. That nothing is public while a round
 can be answered is checked through the emulator and in the browser, not by
-mutation.
+mutation. Phase 4's were too: the Rush grid without its opt-out, a bank
+question's steps centred again, the console still saying "preview" or
+deciding the launch on its own, the modes back in preview (and through the
+emulator, a regular teacher refused); the simulated round drifting from the
+screen (its timings, an outage taken as final, the wall clock for its anchor
+or its buzzer, a queue not stored, a finished set held back, nothing sent on
+reconnect, a resume that forgets the stored queue — and at class scale, a
+reload whose stored lines are never sent); the simulated host's finished
+rule, grace, round scope and second look; and the plans' old ±4 offsets.
 
 ---
 

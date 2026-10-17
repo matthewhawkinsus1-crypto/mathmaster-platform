@@ -41,7 +41,7 @@ durable match result.
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
 | `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
 | `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush and Graph the Line) | yes |
-| `lineGraph*.mjs` | Graph the Line — three registered modes (Classic, Sprint, Rush), in preview for the platform administrator until its screens ship: exact lines, how equations are written and read, the generator, auto-check grading and hints, the attempt pipeline (see `graph-the-line.md`) | yes |
+| `lineGraph*.mjs` | Graph the Line — three modes (Classic, Sprint, Rush), offered to every teacher since its class-scale certification: exact lines, how equations are written and read, the generator, auto-check grading and hints, the attempt pipeline (see `graph-the-line.md`) | yes |
 | `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
 `functions/index.js` loads the pure modules once through `liveChallengeEngine()`.

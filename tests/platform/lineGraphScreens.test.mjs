@@ -252,13 +252,21 @@ test('the canvas floats its labels and badge where the model places them, and dr
 
 /* ------------------------------ the teacher ------------------------------ */
 
-test('the console offers Graph the Line to the administrator only while it is in preview', () => {
+// One switch: the modes' own teacherSelectable. Launched, every teacher's
+// console offers the game; set back to a preview, the server launches it for
+// the administrator only and the console offers it to the administrator alone.
+test('the console offers Graph the Line to every teacher once its modes are launched, and to the administrator alone in a preview', () => {
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
-  assert.match(teacher, /const lineGraphOffered = isRootAdminEmail\(signedInEmail\);/);
-  assert.match(teacher, /\{lineGraphOffered && <option value=\{LINE_GRAPH_GAME\}>Graph the Line \(preview\)<\/option>\}/);
+  assert.match(teacher, /const LINE_GRAPH_LAUNCHED = LINE_GRAPH_MODE_IDS\.every\(\(id\) => getChallengeMode\(id\)\.teacherSelectable\);/);
+  assert.match(teacher, /const lineGraphOffered = LINE_GRAPH_LAUNCHED \|\| isRootAdminEmail\(signedInEmail\);/);
+  assert.match(teacher, /\{lineGraphOffered && <option value=\{LINE_GRAPH_GAME\}>\{LINE_GRAPH_LAUNCHED \? 'Graph the Line' : 'Graph the Line \(preview\)'\}<\/option>\}/);
+  assert.match(teacher, /\{LINE_GRAPH_LAUNCHED \? '' : ' In preview: only you can launch it\.'\}/);
   assert.match(teacher, /const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;/);
   assert.match(teacher, /import \{ isRootAdminEmail \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/rolePolicy\.mjs';/);
-  assert.equal(getChallengeMode(LINE_GRAPH_MODE_ID.CLASSIC).teacherSelectable, false, 'the server agrees: still in preview');
+  LINE_GRAPH_MODE_IDS.forEach((id) => assert.equal(getChallengeMode(id).teacherSelectable, true, `${id} is launched`));
+  // The server's gate stays for any mode that is not offered yet.
+  const server = executableSource(read('../../functions/index.js'));
+  assert.match(server, /if \(!mode\.teacherSelectable && !authLib\.isRootAdminEmail\(teacherEmail\)\) \{\s*throw new HttpsError\("failed-precondition", `\$\{mode\.label\} is still in preview/);
   assert.match(teacher, /const LineGraphSetup = lazy\(\(\) => import\('\.\/LineGraphSetup\.jsx'\)\);/);
   assert.match(teacher, /const LineGraphPractice = lazy\(\(\) => import\('\.\/LineGraphPractice\.jsx'\)\);/);
 });
