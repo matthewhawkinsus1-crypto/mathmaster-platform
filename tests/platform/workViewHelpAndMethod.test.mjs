@@ -46,33 +46,80 @@ const METHOD_STEPS = [
 const QUESTION = { prompt: 'Two of the three equations of a system are given. Write a third.' };
 const TASK = 'Write a third equation that gives the system the kind of solution asked for.';
 
-const renderCard = async (load, { runtime = null, stepsAreControls = false } = {}) => {
-  const { TaskCard } = await load('/src/tools/shared/ToolShell.jsx');
+const DESCRIPTION = 'Design a system: what makes it have no solution, or infinitely many?';
+const NOTE = 'A value that makes the denominator zero is never part of the solution.';
+
+// The card as a tool draws it: inside its ToolShell (which hands it the
+// tool's description), under the activity's runtime.
+const renderCard = async (load, { runtime = null, stepsAreControls = false, note = null } = {}) => {
+  const { default: ToolShell, TaskCard } = await load('/src/tools/shared/ToolShell.jsx');
   const { ToolRuntimeProvider } = await load('/src/tools/shared/ToolRuntimeContext.jsx');
-  const card = React.createElement(TaskCard, { question: QUESTION, task: TASK, steps: METHOD_STEPS, stepsAreControls });
-  return renderToStaticMarkup(runtime ? React.createElement(ToolRuntimeProvider, runtime, card) : card);
+  const card = React.createElement(TaskCard, { question: QUESTION, task: TASK, steps: METHOD_STEPS, stepsAreControls, note });
+  const shell = React.createElement(ToolShell, { title: 'Matrix Lab', subtitle: DESCRIPTION, badge: 'Singular systems', focusOnOpen: false }, card);
+  return renderToStaticMarkup(runtime ? React.createElement(ToolRuntimeProvider, runtime, shell) : shell);
 };
 
-test('R-10: the method steps are offered on practice and withheld where the activity withholds hints or verdicts', async () => {
+// What the card hands to Work View's Help: the same pure decision, drawn by
+// the component the card publishes (TaskCardDirections). Rendered open, so
+// every line it holds is in the markup.
+const renderPublished = async (load, { methodWithheld, stepsAreControls = false, note = NOTE } = {}) => {
+  const { taskCardSupport, TaskCardDirections } = await load('/src/tools/shared/ToolShell.jsx');
+  const support = taskCardSupport({ task: TASK, steps: METHOD_STEPS, note, question: QUESTION, stepsAreControls, methodWithheld, description: DESCRIPTION, badge: 'Singular systems' });
+  return renderToStaticMarkup(React.createElement(TaskCardDirections, { support })).replace('<details', '<details open');
+};
+
+const DOL = { hintsAllowed: false, verdictsWithheld: true };
+
+test('R-10: practice offers the steps; a DOL, quiz or test card is the authored prompt alone', async () => {
   await withVite(async (load) => {
     // Practice (and the tools lab, with no provider): the steps, counted.
     assert.match(await renderCard(load), /How to do this \(3 steps\)/);
     assert.match(await renderCard(load, { runtime: { hintsAllowed: true } }), /How to do this \(3 steps\)/);
-    // A DOL, quiz or test withholds hints: no steps, and no count of steps.
-    const dol = await renderCard(load, { runtime: { hintsAllowed: false, verdictsWithheld: true } });
-    assert.doesNotMatch(dol, /step/i);
-    // The directions sentence is not the method, so the card still offers it.
-    assert.match(dol, /How to do this/);
-    // Verdicts withheld alone (feedback held for release) withholds it too.
-    assert.doesNotMatch(await renderCard(load, { runtime: { hintsAllowed: true, verdictsWithheld: true } }), /\(3 steps\)/);
+    const dol = await renderCard(load, { runtime: DOL });
+    // The prompt stays; no steps, no "How to do this", no tool description
+    // (header fold included) — tool-written text names the method too often.
+    assert.match(dol, /Two of the three equations of a system are given/);
+    assert.doesNotMatch(dol, /How to do this|About this tool|step/i);
+    assert.ok(!dol.includes(DESCRIPTION));
+    // Hints off with verdicts shown (a DOL after release) and verdicts held
+    // with hints on: each withholds it.
+    assert.doesNotMatch(await renderCard(load, { runtime: { hintsAllowed: false, verdictsWithheld: false } }), /How to do this/);
+    assert.doesNotMatch(await renderCard(load, { runtime: { hintsAllowed: true, verdictsWithheld: true } }), /How to do this/);
   });
 });
 
-test('R-10: steps that only say how to work the controls stay on an assessment', async () => {
+test('R-10: steps that only say how to work the controls stay on an assessment, with their directions — the description does not', async () => {
   await withVite(async (load) => {
-    const dol = await renderCard(load, { runtime: { hintsAllowed: false, verdictsWithheld: true }, stepsAreControls: true });
+    const dol = await renderCard(load, { runtime: DOL, stepsAreControls: true });
     assert.match(dol, /How to do this \(3 steps\)/);
+    const published = await renderPublished(load, { methodWithheld: true, stepsAreControls: true });
+    assert.ok(published.includes(TASK), 'the directions sentence stays beside control steps');
+    assert.ok(published.includes(METHOD_STEPS[0]));
+    assert.ok(!published.includes(DESCRIPTION), 'the description is withheld even beside control steps');
   });
+});
+
+test('R-10 / TOOL-3: what the card hands to Work View Help is what the card may show', async () => {
+  await withVite(async (load) => {
+    const practice = await renderPublished(load, { methodWithheld: false });
+    for (const line of [DESCRIPTION, TASK, ...METHOD_STEPS, NOTE]) assert.ok(practice.includes(line), `practice Help carries: ${line}`);
+    assert.match(practice, /How to do this \(3 steps\)/);
+    // On an assessment: nothing — no steps, no note, no directions, no
+    // description, so no fold either.
+    assert.equal(await renderPublished(load, { methodWithheld: true }), '');
+  });
+  // The card draws and publishes the one decision.
+  const card = region(code('src/tools/shared/ToolShell.jsx'), 'export const TaskCard', 'return (', 'the task card');
+  assert.match(card, /const support = taskCardSupport\(\{[^}]*methodWithheld[^}]*\}\);/);
+  assert.match(card, /const supportText = JSON\.stringify\(support\);/);
+  assert.match(card, /<TaskCardDirections support=\{published\} \/>/);
+});
+
+test('R-10: the header does not offer the description on an assessment', () => {
+  const shell = region(code('src/tools/shared/ToolShell.jsx'), 'export default function ToolShell', 'export const ToolGrid', 'the tool shell');
+  assert.match(shell, /const methodWithheld = useMethodWithheld\(\);/);
+  assert.match(shell, /\{subtitle && !methodWithheld \? \(/);
+  assert.match(shell, /subtitle && !methodWithheld && taskCards === 0 \? \{\s*directions:/);
 });
 
 test('R-10: the gate is the activity\'s own hint and verdict signals', () => {
@@ -89,6 +136,18 @@ test('R-10: the gate is the activity\'s own hint and verdict signals', () => {
     'src/tools/expressionMeaning/ExpressionMeaning.jsx',
   ]) assert.match(code(file), /<TaskCard\s(?:(?!\/>)[\s\S])*?\bstepsAreControls\b/, file);
   assert.doesNotMatch(code('src/tools/matrixLab/MatrixLab.jsx'), /stepsAreControls/);
+  // Lists written to say what to do, not how (review S2): the inequality
+  // build's process steps, Data Modeling's secure lists.
+  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /<TaskCard [^>]*stepsAreControls=\{taskKey === 'inequalitiesConstruct'\}/);
+  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /stepsAreControls=\{!teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\)\}/);
+  // A solver's Help that is the student's own work history stays on a DOL
+  // (review B1: everything else a tool declares as Help is withheld there).
+  for (const file of ['src/StepByStepAlgebra.jsx', 'src/MultiRelationAlgebra.jsx']) {
+    assert.match(code(file), /help: \{ content: focusPanel, controlsOnly: true \}/, file);
+  }
+  // Graphing2's snap note is worked out from the answer line; on an
+  // assessment it says only that points snap (review N2).
+  assert.match(code('src/tools/graphing2/Graphing2.jsx'), /methodWithheld\s*\?\s*'Points snap to the grid as you place them\.'/);
 });
 
 test('R-10: Transformations Lab withholds its bridge and its first step where the method is withheld', () => {
@@ -99,18 +158,24 @@ test('R-10: Transformations Lab withholds its bridge and its first step where th
   assert.match(lab, /\{methodWithheld \? null : \(\s*<div className="mathmaster-work-view-secondary">\s*<Panel title="Transformation bridge"/);
 });
 
-test('TOOL-3: the TaskCard hands the support it shows to Work View\'s Help', () => {
+test('TOOL-3: a tool with no TaskCard still describes itself in Work View Help', () => {
   const shell = code('src/tools/shared/ToolShell.jsx');
-  const card = region(shell, 'export const TaskCard', 'return (', 'the task card');
-  // The same steps the card shows — never the withheld ones.
-  assert.match(card, /const shownSteps = showMethod \? steps : \[\];/);
-  assert.match(card, /\.\.\.shownSteps\.map\(String\)/);
-  assert.match(card, /directions: \{\s*content: \(/);
-  assert.match(card, /usePublishWorkViewCapabilities\(`task-card-\$\{useId\(\)\}`, workViewDirections\);/);
-  // A tool with no TaskCard still describes itself there.
+  assert.match(region(shell, 'export const TaskCard', 'return (', 'the task card'), /usePublishWorkViewCapabilities\(`task-card-\$\{useId\(\)\}`, workViewDirections\);/);
   const toolShell = region(shell, 'export default function ToolShell', 'export const ToolGrid', 'the tool shell');
-  assert.match(toolShell, /subtitle && taskCards === 0 \? \{\s*directions:/);
   assert.match(toolShell, /usePublishWorkViewCapabilities\(`tool-shell-about-\$\{useId\(\)\}`, aboutDirections\);/);
+});
+
+test('B2: "Hints are not part of this activity" only where hints are off; a server-graded practice tool keeps its own Help', () => {
+  const engine = code('src/QuestionEngine.jsx');
+  const help = region(engine, 'const workViewPlatformHelp =', '\n\n', 'the platform help');
+  // The sentence sits under the `!toolHintsAllowed` branch and nowhere else.
+  assert.match(help, /: !toolHintsAllowed\s*\?\s*\{ label: 'Help', text: 'Hints are not part of this activity\./);
+  assert.equal((engine.match(/Hints are not part of this activity/g) || []).length, 1);
+  // With hints on and nothing of its own to say (server-graded practice), the
+  // platform declares no Help, so the tool's ladder is the Help.
+  assert.match(help, /: methodWithheldHere \? \{ authoritative: true, withholdsMethod: true \} : null;/);
+  assert.match(engine, /const methodWithheldHere = !toolHintsAllowed \|\| !showOutcomeFeedback;/);
+  assert.match(engine, /help: workViewPlatformHelp,/);
 });
 
 test('TOOL-3: the Help drawer is the directions, then the platform Help, then the tool\'s', () => {
@@ -124,5 +189,5 @@ test('TOOL-3: the Help drawer is the directions, then the platform Help, then th
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'directions, platform Help, tool Help — in that order');
   // QuestionEngine's Help is authoritative, so no tool replaces it.
   const engine = code('src/QuestionEngine.jsx');
-  assert.match(engine, /help: \{ \.\.\.\(workspaceActions\.help \|\| \{[\s\S]{0,500}?\}\), authoritative: true \},/);
+  assert.match(engine, /\? \{ \.\.\.workspaceActions\.help, authoritative: true, withholdsMethod: methodWithheldHere \}/);
 });

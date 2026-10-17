@@ -23,7 +23,18 @@
 //   transform practice  Help keeps the platform's hint and Ask above the
 //                     tool's own bridge
 //   transform DOL     no bridge anywhere, no first-step banner, no hint; Ask
-//   graphing DOL      steps that only say how to plot stay, with Ask
+//   graphing DOL      steps that only say how to plot stay, with Ask; the snap
+//                     note does not say how far between gridlines the line runs
+//   matrixSolve DOL   neither the tool's description nor its directions
+//                     ("X = A⁻¹B") in the card or in Help (review B3)
+//   balance DOL       a tool's own Help that states the method ("inverse
+//                     operations in reverse order") is not in Help (review B1)
+//   graphing, server-graded practice  no "Hints are not part of this
+//                     activity"; the tool's own "Stuck? Show a hint" is the
+//                     Help (review B2)
+// "Show a hint", the tool's hint and "Ask my teacher" are checked on the
+// drawer's FIRST screen, without scrolling (review S1): the directions arrive
+// folded above them.
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -51,12 +62,14 @@ const POINT_MAP_STEP = 'undo the inside multiplier b';
 const PLOT_STEP = 'Click the grid to plot a point';
 
 const run = Date.now();
-const open = async (role, tool) => {
+const open = async (role, tool, grading = '') => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${role}/${tool}: page error ${error.message}`));
-  await page.goto(`${ORIGIN}/tests/browser/workViewHelpReach.html?role=${role}&tool=${tool}&run=${run}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/workViewHelpReach.html?role=${role}&tool=${tool}&run=${run}${grading ? `&grading=${grading}` : ''}`, { waitUntil: 'networkidle' });
   // Something the TOOL renders, so absence checks below are not vacuous.
-  await page.locator('.mathmaster-tool-task-card').first().waitFor({ timeout: 20000 });
+  // Attached, not visible: on an assessment the card is the authored prompt
+  // alone, which the question already shows, so the card draws nothing.
+  await page.locator('.mathmaster-tool-task-card').first().waitFor({ state: 'attached', timeout: 20000 });
   return page;
 };
 const taskCardSummary = (page) => page.locator('.mathmaster-tool-task-card button[aria-expanded]').first().innerText().catch(() => '');
@@ -83,6 +96,23 @@ const reachable = async (locator) => {
   const box = await locator.first().boundingBox();
   return Boolean(box && box.width > 0 && box.y >= 0 && box.y + box.height <= 844 && box.x >= 0 && box.x + box.width <= 390);
 };
+// On the drawer's first screen: the drawer unscrolled, the control inside its
+// visible box and inside the phone's viewport.
+const onFirstScreen = async (page, locator) => {
+  if (!(await locator.count())) return false;
+  return locator.first().evaluate((control) => {
+    const drawer = control.closest('section[aria-label="Help and instructions"]');
+    if (!drawer) return false;
+    drawer.scrollTop = 0;
+    const box = control.getBoundingClientRect();
+    const frame = drawer.getBoundingClientRect();
+    return box.height > 0 && box.top >= frame.top && box.bottom <= frame.bottom && box.bottom <= window.innerHeight;
+  });
+};
+const openDirections = async (page) => {
+  const fold = helpDrawer(page).locator('[data-task-card-directions] > summary').first();
+  if (await fold.count()) await fold.click();
+};
 const ask = (page) => helpDrawer(page).getByRole('button', { name: /Ask my teacher/ });
 const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a hint$/ });
 
@@ -93,7 +123,11 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
   await openWorkView(page);
   check(!(await page.locator('.mathmaster-tool-task-card').first().isVisible()), 'matrix practice: Work View hides the task card (the reason Help must carry it)');
   await openHelp(page);
-  check(await drawerShows(page, MATRIX_STEP), 'matrix practice: Help shows the steps');
+  await helpDrawer(page).locator('[data-task-card-directions]').first().waitFor({ timeout: 8000 });
+  check(await onFirstScreen(page, showHint(page)), 'matrix practice: "Show a hint" is on the drawer\'s first screen');
+  check(await onFirstScreen(page, ask(page)), 'matrix practice: "Ask my teacher" is on the drawer\'s first screen');
+  await openDirections(page);
+  check(await drawerShows(page, MATRIX_STEP), 'matrix practice: Help shows the steps (one tap on "How to do this")');
   const text = await drawerText(page);
   check(await reachable(showHint(page)), 'matrix practice: "Show a hint" is in Help, on screen');
   check(await reachable(ask(page)), 'matrix practice: "Ask my teacher" is in Help, on screen');
@@ -133,8 +167,8 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
   await openWorkView(page);
   await openHelp(page);
   check(await drawerShows(page, 'X’s lie') || await drawerShows(page, "X's lie"), 'transform practice: the tool\'s bridge is in Help');
-  check(await reachable(showHint(page)), 'transform practice: the platform "Show a hint" is in Help');
-  check(await reachable(ask(page)), 'transform practice: "Ask my teacher" is in Help');
+  check(await onFirstScreen(page, showHint(page)), 'transform practice: the platform "Show a hint" is on the drawer\'s first screen');
+  check(await onFirstScreen(page, ask(page)), 'transform practice: "Ask my teacher" is on the drawer\'s first screen');
   const order = await helpDrawer(page).evaluate((section) => {
     const all = [...section.querySelectorAll('*')];
     return { hints: all.indexOf(section.querySelector('[data-hint-panel]')), tool: all.indexOf(section.querySelector('[data-work-view-tool-help]')) };
@@ -162,9 +196,52 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
   check(/How to do this \(3 steps\)/.test(await taskCardSummary(page)), 'graphing DOL: the plotting directions stay on the card', await taskCardSummary(page));
   await openWorkView(page);
   await openHelp(page);
+  check(await onFirstScreen(page, ask(page)), 'graphing DOL: "Ask my teacher" is on the drawer\'s first screen');
+  await openDirections(page);
   check(await drawerShows(page, PLOT_STEP), 'graphing DOL: Help shows how to plot');
-  check(await reachable(ask(page)), 'graphing DOL: "Ask my teacher" is in Help');
   check(!(await showHint(page).count()), 'graphing DOL: Help offers no hint');
+  check(!/nearest|whole numbers/.test(await drawerText(page)), 'graphing DOL: the snap note does not hint at the line', (await drawerText(page)).slice(0, 200));
+  await page.close();
+}
+{
+  const page = await open('practice', 'graphing', 'server');
+  await openWorkView(page);
+  await openHelp(page);
+  const toolHint = helpDrawer(page).getByRole('button', { name: /Stuck\? Show a hint/ });
+  check(await drawerShows(page, 'Stuck? Show a hint'), 'graphing server-graded practice: the tool\'s own hints are the Help');
+  check(!/Hints are not part of this activity/.test(await drawerText(page)), 'graphing server-graded practice: no "Hints are not part of this activity"', (await drawerText(page)).slice(0, 200));
+  check(await onFirstScreen(page, toolHint), 'graphing server-graded practice: "Stuck? Show a hint" is on the drawer\'s first screen');
+  await page.close();
+}
+
+// ------------------------------------------------- Matrix solve, Step Algebra
+{
+  const page = await open('dol', 'matrixSolve');
+  const card = await page.locator('.mathmaster-tool-task-card').first().evaluate((node) => node.textContent || '');
+  check(!/A⁻¹|How to do this/.test(card), 'matrixSolve DOL: the card names no route', card);
+  await openWorkView(page);
+  await openHelp(page);
+  check(await drawerShows(page, 'Ask my teacher'), 'matrixSolve DOL: Help keeps "Ask my teacher"');
+  const text = await drawerText(page);
+  check(!/A⁻¹|matrix technology|About this tool|How to do this/.test(text), 'matrixSolve DOL: Help holds no description and no directions', text.slice(0, 200));
+  await page.close();
+}
+{
+  const page = await open('dol', 'balance', 'server');
+  await openWorkView(page);
+  await openHelp(page);
+  // A server-graded host has no "Ask my teacher"; the platform's Help is its
+  // DOL sentence, and the drawer is open on something.
+  check(await drawerShows(page, 'Hints are not part of this activity'), 'balance DOL (server-graded): Help holds the platform\'s sentence');
+  const text = await drawerText(page);
+  check(!/inverse operations in reverse order/.test(text), 'balance DOL: the tool\'s method Help is not in Help', text.slice(0, 200));
+  await page.close();
+}
+{
+  const page = await open('practice', 'balance', 'server');
+  await openWorkView(page);
+  await openHelp(page);
+  check(await drawerShows(page, 'inverse operations in reverse order'), 'balance practice: the tool\'s own Help stays, below the platform\'s');
   await page.close();
 }
 
