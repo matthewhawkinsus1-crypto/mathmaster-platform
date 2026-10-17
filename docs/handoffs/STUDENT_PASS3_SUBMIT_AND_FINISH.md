@@ -26,8 +26,8 @@ changes: this is browser code only.
 
 | What a student saw | What changed | Proof |
 | --- | --- | --- |
-| Moving between questions showed "Syncing · 1 change saved on this device…" and then "Recorded by MathMaster." beside an answer never submitted. | The line knows its **subject** (`saveStatusModel.js`: `nextSaveSubject`, `describeRuntimeSaveLine`). It is "answer" from the moment the student submits (App wraps `onGrade` / `onStepGrade` to say so) until the queue next drains with nothing owed; "draft" otherwise. Draft: "Saving your draft…", "Draft saved on this device. You may keep working.", "Draft saved." Answer: "Saving your answer…", "Answer saved on this device · sending it to MathMaster. You may keep working.", **"Answer recorded by MathMaster."** — reachable only from a drain that left nothing owed after an answer was sent. An answer the device could not store, or that was refused, is never called recorded. Offline and "needs review" name answers and items in the student's words. | `submitAndFinish` (state sequences, incl. the two cases the mutation checks found missing); `submitAndFinishJourneys` |
-| The line was a live region, a second announcement of every result. | It is announced only when the student must act: offline, needs review, refused, not stored. | `submitAndFinish` |
+| Moving between questions showed "Syncing · 1 change saved on this device…" and then "Recorded by MathMaster." beside an answer never submitted. | The line knows its **subject** (`saveStatusModel.js`: `nextSaveSubject`, `describeRuntimeSaveLine`). It is "answer" from the moment the student's submission is durably queued (App marks it right after the enqueue succeeds, never when the enqueue fails; after a reload, a queued grade-bearing action or any owed grade marks it again) until the queue next drains with nothing owed; it starts over for each assignment and each student; "draft" otherwise. Draft: "Saving your draft…", "Draft saved on this device. You may keep working.", "Draft saved." Answer: "Saving your answer…", "Answer saved on this device · sending it to MathMaster. You may keep working.", **"Answer recorded by MathMaster."** — reachable only from a drain that left nothing owed after an answer was sent. An answer the device could not store, or that was refused, is never called recorded. Offline and "needs review" name answers and items in the student's words. | `submitAndFinish` (state sequences, incl. the two cases the mutation checks found missing); `submitAndFinishJourneys` |
+| The line was a live region, a second announcement of every result. | One always-mounted `role="status"` span carries only what the student must act on (offline, needs review, refused); the visible line is plain text. The region is never mounted with its text, so a screen reader hears each change. | `submitAndFinish`; `submitAndFinishJourneys` (region empty on a draft) |
 
 **Batch 3 merges beside this cleanly.** The "volatile" case is not described by the model (`null`) and App keeps the
 existing chain's last two branches (`'rejected'`, then the volatile sentence) untouched, so Batch 3's rewrite of that
@@ -41,15 +41,19 @@ hunks.
 | --- | --- | --- |
 | The last button read "Continue to <next lesson> →" and opened the next lesson: this lesson's results were never seen. | `resolveAssignmentHandoff` hands off to the next section with work, else **this assignment's results page** ("Continue to your results →"). Up next is the results page's own second action (StudentAssignmentResult already shows it); the hand-off no longer computes it. | `submitAndFinish`, rewritten `studentAssignmentHandoff`; `submitAndFinishJourneys` lands on the results page at both sizes (`*-results.png`) |
 | A section that ended on a miss had no complete card. | The completion card shows at any accuracy, after the closed card's worked solution. | `submitAndFinish` (rendered: expired + section complete); `submitAndFinishJourneys` |
-| A skipped earlier question left no Next, no Continue, no Enter. | `resolveSkippedQuestion` (pure): when nothing workable lies ahead and the section is not done, the earliest question still to do — this section's first — as **"Go back to Practice Q1 (not answered)"** ("not finished" when it has tries spent). It is the bar's action ("← Back to Q1" on a phone), a card where Next would be, and the Enter shortcut. The DOL is called "Exit ticket (DOL)" there. | `submitAndFinish`; `submitAndFinishJourneys` (`phone-skipped.png`) |
+| A skipped earlier question left no Next, no Continue, no Enter. | `resolveSkippedQuestion` (pure): when nothing workable lies ahead and the section is not done, the earliest question still to do — this section's first — as **"Go back to Practice Q1 (not answered)"** ("not finished" when it has tries spent). It is the bar's action ("← Go back" on a phone, the start of its accessible name), a card where Next would be, and the Enter shortcut. The DOL is called "Exit ticket (DOL)" there. | `submitAndFinish`; `submitAndFinishJourneys` (`phone-skipped.png`) |
 
 ### RUN-13 — "Start this question fresh" on a closed question
 
 `QuestionModuleBoundary` tells the engine when the module failed (`onFailureChange`); the work area's disabled/inert gate
-is one value, `workAreaClosed`, which lifts only while the module's failure panel is all that is there. So the button
+is one value, `workAreaClosed`, which lifts only while the module's failure panel is all that is there. The failure
+is held for the module that failed (its boundary key plus question id), not for the mount, so after "Start this question
+fresh" or My Math Path's next item the new module starts not-failed and a closed question closes again. So the button
 can be pressed on a closed question — the lmr-wu-1 case it was built for. It now asks first, as Reset does ("Start this
 question fresh?… Your recorded tries and grade history do not change"), and never touches the attempt record (asserted).
-Proof: `submitAndFinish` (the boundary driven directly; the engine's gate and confirmation), `accessibleDialog` (rewritten).
+Proof: `submitAndFinish` (the boundary driven directly; the engine's gate and confirmation), `accessibleDialog`
+(rewritten), `tests/browser/moduleRecoveryLock.mjs` (a probe tool that throws on demand: fresh start on a closed
+question, and the next item under an unkeyed engine, at both sizes).
 
 ### RUN-16 — program words inside the question (the engine's; session A has the chrome's)
 
@@ -72,10 +76,12 @@ Proof: `submitAndFinish` (the boundary driven directly; the engine's gate and co
 - **Focus and Enter after a correct or final answer.** One rule for the way on (`closedQuestionWayOn`: Continue, Next or
   the way back) drives the bar, the cards and Enter. Enter is live on every locked question with a way on — not only
   after a correct answer — and never takes a press meant for another control (Request New Question, a practice box,
-  Read aloud). When a submit closes the question, focus moves to the closed card (after a final miss with its review)
+  Read aloud, a `<summary>` such as "See why it works", ARIA widgets, anything in the tab order):
+  `closedQuestionEnter.js` decides, and only Enter on the page itself goes on. When a submit closes the question, focus moves to the closed card (after a final miss with its review)
   or to Next / Continue, two frames later so the lock's own focus return does not cancel it; a press, a key or focus
-  the student moved elsewhere wins. Proof: `submitAndFinish`, `submitAndFinishJourneys` (focus on the card; Enter to
-  Q2 at both sizes), `workViewTerminalTransition`.
+  the student moved elsewhere wins. Proof: `submitAndFinish` (the guard driven with fake elements), `submitAndFinishJourneys` (focus on the card; Enter to
+  Q2 at both sizes), `workViewTerminalTransition`, `tests/browser/closedQuestionEnter.mjs` (focus on Next, Enter on the
+  summary opens it and does not go on, Enter on a button does not go on, Enter on the page goes on once).
 
 ## Source contracts rewritten (SOURCE_CONTRACT_PLAYBOOK)
 
@@ -129,8 +135,8 @@ merged into this branch (merge commit `578cc84`). Conflicts, each resolved keepi
 | `tests/tools` | 1,643 pass, 0 fail |
 | lint, build, build:firebase | pass; no tracked file rewritten |
 | `certify:accessibility`, `certify:dark-mode` | both pass |
-| The 43 student / tool browser drivers listed below | all pass except **hostAccessibility**, which times out loading `?scene=recovery` ("networkidle" never reached). It fails identically on the base alone (6accda1 served from its own worktree), so it came in with the base — likely Batch 4's Recovery changes — not with this merge |
-| Teacher-harness journeys + `submitAndFinishJourneys` | 15 of 16 pass. The Recovery, focus-race and Warm-Up journeys that tripped on the update-depth loop before now pass. **enduranceJourneys** still stops at a "Back to Dashboard" button that does not exist on the base either (checked on 6accda1 too) |
+| The 43 student / tool browser drivers listed below | all pass. (This row first reported **hostAccessibility** failing on the base too. That was my serving setup, not the base: served as CI serves it, `npx vite --config tests/browser/emulator/vite.config.mjs`, it passes — rechecked after the review fixes, below.) |
+| Teacher-harness journeys + `submitAndFinishJourneys` | 15 of 16 pass. The Recovery, focus-race and Warm-Up journeys that tripped on the update-depth loop before now pass. **enduranceJourneys** stops at a "Back to Dashboard" button the base no longer has: a stale journey the integrator is fixing, not a base failure |
 
 The gate table below is from before the merge (base `a7dddc7`), kept for the record.
 
