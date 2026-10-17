@@ -69,7 +69,7 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
   const target = region(app, 'const sectionNavigationTarget = (section) => sectionLandingEntry({', 'currentIndex: currentQuestionIndex,', 'the tab target');
   assert.match(target, /viewable: entryIsAvailable\(entry\),/);
   assert.match(app, /if \(entryIsAvailable\(visibleQuestionEntries\[position\]\)\) return visibleQuestionEntries\[position\];/);
-  assert.equal([...nav.matchAll(/<option key=\{entry\.index\} value=\{entry\.index\} disabled=\{!entryIsAvailable\(entry\)\}>/g)].length, 2, 'both question lists disable a locked question');
+  assert.equal([...nav.matchAll(/<option key=\{entry\.index\} value=\{entry\.index\} disabled=\{!entryIsAvailable\(entry\)\} data-locked=\{entryIsAvailable\(entry\) \? undefined : 'true'\}>/g)].length, 2, 'both question lists disable a locked question, and mark it for drivers');
   // Pressing a locked tab puts its reason on screen, in a status line.
   assert.match(nav, /setSectionLockNote\(\{ assignmentId: activeAssignmentId, role: section\.role, text: access\.reason \}\)/);
   assert.match(nav, /<p className="mathmaster-section-lock-note" role="status">/);
@@ -154,4 +154,17 @@ test('D9: the enlarged workspace is called Work View where a student opens it', 
   const figure = region(engine, '<EnlargeableFigure\n        label="Question Work View"', '>', 'the question Work View');
   assert.match(figure, /enlargeLabel="Open Work View"/);
   assert.doesNotMatch(executableSource(engine), /enlargeLabel="Enlarge question"/);
+});
+
+test('a toast never covers the action bar: it rises above where the bar actually is', () => {
+  // With the compact navigator a short question no longer fills the page, so
+  // the bar can sit above the bottom of the screen; lifting toasts by the
+  // bar's height alone put one on Submit at 1366×768.
+  const publish = region(app, 'const publish = () => {', '};\n    publish();', 'the clearance publisher');
+  assert.match(publish, /querySelectorAll\('\.mathmaster-desktop-action-bar, \.portrait-action-bar, \.landscape-action-bar'\)/);
+  assert.match(publish, /Math\.max\(0, Math\.round\(window\.innerHeight - bar\.getBoundingClientRect\(\)\.top\)\)/);
+  assert.match(publish, /root\.style\.setProperty\('--mm-action-bar-clearance', `\$\{clearance\}px`\)/);
+  assert.match(app, /window\.addEventListener\('scroll', publish, \{ passive: true, capture: true \}\);/);
+  const rule = region(css, '@media (min-width: 641px) {\n  body:has(.mathmaster-assignment-screen) .mm-toast-viewport {', '}\n}', 'the toast rule');
+  assert.match(rule, /bottom: calc\(max\(18px, env\(safe-area-inset-bottom\)\) \+ var\(--mm-action-bar-clearance, var\(--mm-action-bar-height, 0px\)\)\);/);
 });

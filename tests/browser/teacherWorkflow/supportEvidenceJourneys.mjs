@@ -293,10 +293,11 @@ const journeys = {
       }
     } else {
       // Phones and portrait tablets hide the assignment header by design (the
-      // dashboard above carries the date); Support tools move to the expanded
-      // navigator, which the student opens with "Show progress".
-      const show = page.getByRole('button', { name: 'Show progress' });
-      if (await show.count()) await show.first().click();
+      // dashboard above carries the date); Support tools move to the
+      // navigator's chip ("More", or the most urgent status), which the
+      // student opens (pass 3).
+      const chip = page.locator('.mathmaster-assignment-status-chip').filter({ visible: true });
+      if (await chip.count()) await chip.first().click();
       await page.waitForTimeout(600);
     }
     const tools = page.locator('[data-student-support-tools]:visible');

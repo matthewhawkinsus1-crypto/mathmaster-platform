@@ -903,6 +903,39 @@ function App() {
     if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
     setAssignmentNavigationCollapsed((current) => !current);
   };
+  // TOASTS NEVER COVER THE ACTION BAR. Toasts lift above the action bar by its
+  // height, which clears it only while the bar is stuck to the bottom of the
+  // screen. With the compact navigator a short question no longer fills the
+  // page, and the bar sits higher, in the flow. So the assignment screen
+  // publishes how far the bar's top is from the bottom of the screen
+  // (--mm-action-bar-clearance), and App.css lifts toasts by that.
+  useEffect(() => {
+    if (activeView !== 'assignment' && activeView !== 'teacherPreview') return undefined;
+    const root = document.documentElement;
+    let frame = 0;
+    const publish = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const bar = [...document.querySelectorAll('.mathmaster-desktop-action-bar, .portrait-action-bar, .landscape-action-bar')]
+          .find((element) => element.getBoundingClientRect().height > 0);
+        const clearance = bar ? Math.max(0, Math.round(window.innerHeight - bar.getBoundingClientRect().top)) : 0;
+        root.style.setProperty('--mm-action-bar-clearance', `${clearance}px`);
+      });
+    };
+    publish();
+    window.addEventListener('scroll', publish, { passive: true, capture: true });
+    window.addEventListener('resize', publish);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publish) : null;
+    observer?.observe(document.body);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', publish, { capture: true });
+      window.removeEventListener('resize', publish);
+      observer?.disconnect();
+      root.style.removeProperty('--mm-action-bar-clearance');
+    };
+  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+
   useLayoutEffect(() => {
     const anchor = navigationToggleAnchorRef.current;
     navigationToggleAnchorRef.current = null;
@@ -10413,7 +10446,7 @@ function App() {
                       onChange={(event) => changeQuestion(Number(event.target.value))}
                     >
                       {visibleQuestionEntries.map((entry) => (
-                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
                       ))}
                     </select>
                     <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
@@ -10509,7 +10542,7 @@ function App() {
                   onChange={(event) => changeQuestion(Number(event.target.value))}
                 >
                   {visibleQuestionEntries.map((entry) => (
-                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
                   ))}
                 </select>
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
