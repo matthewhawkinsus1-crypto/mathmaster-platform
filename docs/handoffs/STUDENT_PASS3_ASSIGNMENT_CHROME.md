@@ -158,6 +158,57 @@ node scripts/release-firebase.mjs --execute  # deploy it (asks for the project i
 
 Never a raw `firebase deploy --only hosting…`.
 
+## Wave-3 integration round (items 1–7)
+
+Each item is its own commit (76f25147 … a19c3fb6).
+
+1. **Raw date keys.** A section open on another class day said "Opens 2026-10-19". `describeSectionAccess`
+   now formats the key as a day: future → "Opens Mon, Oct 19", past → "Closed" ("was open in class on …"),
+   today or no key → "Opens in class". Unit test: no label or reason ever matches `\d{4}-\d{2}-\d{2}`
+   (mutation: return the raw key → red).
+2. **prerequisiteEarlyJourneys.** Locked options now carry `data-locked="true"` in both question lists, and the
+   journey reads that plus the new words ("Exit ticket (DOL)"). P2's address check: probes on base+G and on this
+   branch both show the Home "Welcome," flash (where the old readiness marker fired) and the address redirect
+   ~1.47–1.49 s later; this branch paints the question ~250 ms before the address at 1366. The address is not
+   lost. The journey now waits for the question stage (or the result) before the unchanged address assertion
+   (mutation: drop the address writes → P2 red).
+3. **draftCrossDeviceJourneys.** The navigator is compact by default; `warmUp()` presses Show progress before
+   reading the question numbers.
+4. **dolExtraTimeJourneys with G.** Passes on the merge unchanged.
+5. **assignmentChromeJourneys DOL timer.** The "7 min" pill was right: student 910002 has extra time under G. The
+   2:00/0:30 checks now use 910003 (no extra time), and a new check on 910002 asserts the pill's minutes agree
+   (±1.5) with G's "Your exit ticket closes at H:MM — extra time." line.
+6. **Toast over Submit at 1366.** With the compact navigator the action bar sits in flow above the viewport
+   bottom, so `--mm-action-bar-height` was not enough. The assignment screen publishes
+   `--mm-action-bar-clearance` (viewport bottom → the visible bar's top, on scroll/resize/ResizeObserver) and,
+   above 640 px, the toast viewport's bottom uses it. Phones keep C's top-placed toasts. Mutation (clearance 0)
+   → supportEvidence S7 red; restored → green.
+7. **appUrlJourneys.** Presses Show progress before clicking a question number.
+
+Also: supportEvidence S1 on a phone opens Support tools through the navigator's status chip (that is where
+they live at 390).
+
+### Journeys on the scratch merge
+
+Scratch merge (not pushed) of this head + base 6accda1 + C 3fca304 + G 837b383 + D 12f0835 + E 776c69f; each
+teacherWorkflow journey run alone.
+
+- Pass: assignmentChrome, appUrl, prerequisiteEarly, draftCrossDevice, dolExtraTime, journeys, caseReview,
+  walkthrough, warmupReopen, askMyTeacher, districtId, privateControls, restoredDraftFocusRace, recoveryHold,
+  recoveryDraftCrossDevice, studentScreenChange (1366×768 and 390×844), supportEvidence (both sizes).
+- Fail on base 6accda1 alone as well (not this branch):
+  - studentName N2/N4: Attendance History shows rows labelled "ID 9100xx".
+  - endurance: waits for a button named /Back to Dashboard/ (nightly-only journey).
+- Scratch-only artifact: with the merge in a worktree whose `node_modules` is a symlink outside the Vite root,
+  MathLive fonts 403. A scratch `vite.allow.config.mjs` adding `server.fs.allow` for both paths was used and
+  never committed. recoveryHold, recoveryDraftCrossDevice, studentScreenChange and supportEvidence failed on that
+  403 before it and pass after.
+
+### Gate on a19c3fb6
+
+`test:platform` 11459/11459 · tools 1644 pass / 0 fail · lint 0 · build 0 · build:firebase 0 (clean tree) ·
+theme colour audit pass.
+
 ## Decisions for the owner
 
 1. **Which closed sections a student may open.** Teacher-closed Classwork/Practice opens read-only when the
