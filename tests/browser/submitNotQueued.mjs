@@ -49,7 +49,10 @@ for (const [label, viewport] of [['Chromebook', { width: 1366, height: 768 }], [
   await page.waitForTimeout(500);
   const body = await text(page);
   expect(!/Correct!|This question is complete/i.test(body), 'no verdict is shown', body.slice(0, 400));
-  const alert = page.locator('[data-attempt-results] [role="alert"]');
+  // The results area ([data-attempt-results]) comes with Batch 1 (RUN-1); without it
+  // (main) the engine's own alert is found by its words.
+  const scoped = page.locator('[data-attempt-results] [role="alert"]');
+  const alert = await scoped.count() ? scoped : page.locator('.mathmaster-question-engine [role="alert"]', { hasText: 'Not submitted' });
   expect(await alert.count() === 1 && /Not submitted/.test(await alert.innerText()), 'the results area says it was not submitted');
   expect(/no try was used/i.test(await alert.innerText().catch(() => '')), 'and that no try was used');
   expect(await submitButton(page).count() === 1 && await submitButton(page).isEnabled(), 'Submit is still there and can be pressed');
