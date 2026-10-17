@@ -4542,6 +4542,8 @@ exports.createStudentAccount = onCall(async (request) => {
       "The student account could not be created. The server logged the exact cause so it can be diagnosed without guessing.",
     );
   }
+  // A student created straight into a class whose Live Challenge is on.
+  if (membership.classId || assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
 
   return {
     studentId,
@@ -4582,6 +4584,7 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   }
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
   return { studentId, assignedTeacherEmail, classPeriod };
 });
@@ -6481,6 +6484,8 @@ exports.setStudentClass = onCall(async (request) => {
   // Without this the new teacher would hold a roster row for a child whose
   // work they cannot open.
   const reauthorized = await reauthorizeStudentRecords(db, studentId, classRecord);
+  // The new class's Live Challenge, if one is on (lobby or running).
+  if (classRecord) await inviteStudentToClassLiveChallengeSafely(db, studentId);
 
   await writeAdminAudit(db, actor, classRecord ? "student_class_assigned" : "student_removed_from_class", studentId, {
     fromClassId: previous.classId || null,
@@ -10782,7 +10787,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10798,9 +10803,10 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
       import("./shared/liveChallengePlayerSummary.mjs"),
+      import("./shared/liveChallengeServerSweep.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep,
     };
   }
   return liveChallengeEngineModules;
@@ -11172,6 +11178,111 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
     ownedInvites.slice(start, start + 450).forEach((invite) => batch.set(invite.ref, fields, { merge: true }));
     // eslint-disable-next-line no-await-in-loop
     await batch.commit();
+  }
+}
+
+/*
+ * A STUDENT ADDED TO A CLASS WHILE ITS GAME IS ON.
+ *
+ * createLiveChallenge invites the class as it stands at create time. A student
+ * enrolled after that sat the game out until the next one. Now the roster
+ * change itself invites them into the class's game while it is still in its
+ * lobby or running, exactly as if they had been on the roster and arrived
+ * late (live-challenge-shell.md §10): the next seat and code name, an invite
+ * their screen follows at once, and joinLiveChallenge's late-join rule —
+ * they play from the round that is open now, and no round that closed
+ * before is counted against them. Grand Prix sizes each round's field from
+ * who played it, so a late player changes nobody's earlier rounds.
+ *
+ * Never takes a student out of another game: an invite to a different room
+ * that is still live is left alone. Never fails the roster change.
+ */
+async function inviteStudentToClassLiveChallenge(db, studentId) {
+  const id = String(studentId || "").trim();
+  if (!id) return { invited: false, reason: "no_student" };
+  const challenge = await liveChallengeRules();
+  const gradeRef = db.collection("grades").doc(id);
+  const gradeSnapshot = await gradeRef.get();
+  const grade = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+  const teacherEmail = String(grade?.assignedTeacherEmail || "").trim().toLowerCase();
+  if (!teacherEmail) return { invited: false, reason: "no_teacher" };
+  // One active room per teacher: the pointer names it.
+  const pointer = await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail).get();
+  const roomId = String(pointer.data()?.roomId || "").trim();
+  if (!roomId) return { invited: false, reason: "no_game" };
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const playerRef = privateRef.collection("players").doc(id);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(id);
+  const live = (status) => [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(status);
+  return db.runTransaction(async (transaction) => {
+    const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot, latestGrade] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privateRef), transaction.get(playerRef), transaction.get(inviteRef), transaction.get(gradeRef),
+    ]);
+    if (!roomSnapshot.exists || !privateSnapshot.exists) return { invited: false, reason: "no_game" };
+    const room = roomSnapshot.data() || {};
+    const student = latestGrade.data() || {};
+    if (!live(room.status) || room.teacherEmail !== teacherEmail) return { invited: false, reason: "no_game" };
+    // The same membership rule as loadChallengeRoster.
+    const inClass = room.classId
+      ? String(student.classId || "") === String(room.classId)
+      : Boolean(room.classPeriod) && !student.classId && String(student.classPeriod || "") === String(room.classPeriod);
+    if (!inClass || String(student.assignedTeacherEmail || "").trim().toLowerCase() !== teacherEmail) {
+      return { invited: false, reason: "not_in_class" };
+    }
+    if (playerSnapshot.exists) return { invited: false, reason: "already_invited", roomId };
+    const otherRoomId = inviteSnapshot.exists ? String(inviteSnapshot.data()?.roomId || "") : "";
+    if (otherRoomId && otherRoomId !== roomId) {
+      const otherRoom = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      if (otherRoom.exists && live(otherRoom.data()?.status)) return { invited: false, reason: "in_another_game" };
+    }
+    // The next seat, and its code name from the room's own seed — the one
+    // createLiveChallenge would have given the next student.
+    const slot = Math.max(0, Number(room.eligibleCount) || 0);
+    const aliasSeed = parseInt(crypto.createHash("sha256").update(roomId).digest("hex").slice(0, 6), 16);
+    const player = { playerKey: crypto.randomUUID(), slot, alias: challenge.challengeAlias(slot, aliasSeed) };
+    transaction.set(playerRef, {
+      ...player,
+      joined: false,
+      score: 0,
+      correctCount: 0,
+      roundsAnswered: 0,
+      streak: 0,
+      answeredRound: -1,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(inviteRef, {
+      roomId,
+      title: room.title || null,
+      teacherEmail,
+      assignmentId: room.assignmentId || null,
+      classId: room.classId || null,
+      classPeriod: room.classPeriod || null,
+      className: room.className || null,
+      courseId: room.courseId || null,
+      alias: player.alias,
+      playerKey: player.playerKey,
+      slot,
+      // A running game's invites say so (startLiveChallenge set the rest).
+      status: room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING ? "running" : "invited",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    // The console's "Joined X of N" and its roster read follow the class.
+    transaction.set(roomRef, { eligibleCount: slot + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { invited: true, roomId, status: room.status };
+  });
+}
+
+/** After a roster change: invite the student to their class's game, if one is on. Never throws. */
+async function inviteStudentToClassLiveChallengeSafely(db, studentId) {
+  try {
+    const outcome = await inviteStudentToClassLiveChallenge(db, studentId);
+    if (outcome.invited) logger.info("liveChallenge.lateInvite", { roomId: outcome.roomId, status: outcome.status });
+    return outcome;
+  } catch (error) {
+    logger.error("liveChallenge.lateInvite.failed", { message: error?.message || String(error) });
+    return { invited: false, reason: "failed" };
   }
 }
 
@@ -12045,6 +12156,9 @@ function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
     .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
 }
 
+/** A sweep due time as Firestore stores it: a Date, or null for "never". */
+const liveChallengeSweepDate = (ms) => (Number.isFinite(ms) ? new Date(ms) : null);
+
 /** Open a round inside a transaction. Room and private state move together. */
 function applyLiveChallengeRoundOpening(transaction, {
   engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs, players = [],
@@ -12076,6 +12190,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     currentRound: roundIndex,
     roundVersion,
     roundToken,
+    // When the server closes this round if no host screen does
+    // (liveChallengeServerSweep.mjs). None for a Pace Race: no deadline.
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs })),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   transaction.set(roomRef, {
@@ -12538,7 +12655,8 @@ function applyLiveChallengeMatchFinalization(transaction, {
     // list stays on the server-only result, for rewards and each recap).
     ...(finished ? { recognitions: engine.recognitions.classVisibleRecognitions(recognitions, { warmup: Boolean(room.assignmentId) }) } : {}),
   }, { merge: true });
-  transaction.set(privateRef, terminal, { merge: true });
+  // A terminal match is never swept again.
+  transaction.set(privateRef, { ...terminal, serverSweepDueAt: null }, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
   // THE RECAP: a finished match publishes every solution it held. Nothing can
   // be answered any more. A cancelled match publishes nothing.
@@ -12825,8 +12943,14 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
  * Finish or cancel a match. Idempotent: the first call makes the room terminal
  * and writes its result; any later or concurrent call finds it terminal and
  * only resumes outstanding effects.
+ *
+ * `stillWanted`, when given, is asked inside the transaction, with the room
+ * and private state as it read them, whether this finish should still happen
+ * (the server's finish of an abandoned game: not if the teacher opened a
+ * round or was heard since). No: nothing is written, `{ skipped: true }`.
+ * `endedBy` is recorded on the room ("hostAway": the server ended it).
  */
-async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }) {
+async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status, stillWanted = null, endedBy = null }) {
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
   const roomId = roomRef.id;
@@ -12849,6 +12973,9 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const plan = lifecycle.planLifecycleCommand({ command, room: currentRoom });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (stillWanted && !stillWanted({ room: currentRoom, privateState: privateSnapshot.exists ? privateSnapshot.data() || {} : {} })) {
+      return { skipped: true };
+    }
     const pointsHere = Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId);
     const hadRound = Number.isInteger(Number(currentRoom.currentRound)) && Number(currentRoom.currentRound) >= 0;
 
@@ -12892,9 +13019,11 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     applyLiveChallengeMatchFinalization(transaction, {
       engine, db, roomRef, privateRef, pointerRef, pointsHere, room: currentRoom, privateState, players, status, nowMs,
     });
+    if (endedBy) transaction.set(roomRef, { endedBy }, { merge: true });
     return { finalized: true };
   });
 
+  if (outcome.skipped) return { roomId, skipped: true };
   if (outcome.staleCancelled) {
     await updateLiveChallengeInvitesByRoom(db, {
       roomId,
@@ -12998,6 +13127,42 @@ exports.joinLiveChallenge = onCall(async (request) => {
   return { roomId, joined: true, playerKey: joined.playerKey, rejoined: joined.rejoined, timeMultiplier: joined.timeMultiplier };
 });
 
+/*
+ * THE HOST'S HEARTBEAT. A console calibrates its clock every 30 s while its
+ * game is live; that call is how the server knows a host screen is still on
+ * the game, so the sweep never ends results a teacher is talking through
+ * (liveChallengeServerSweep.mjs). Written to the server-only private state —
+ * nothing a student listens to — at most once a minute per room, and from
+ * this instance's memory first, so four of a calibration's five samples skip
+ * the read and the clock estimate (a median) is untouched. Never fails the
+ * calibration.
+ */
+const liveChallengeHostHeardInInstance = new Map();
+async function recordLiveChallengeHostHeard(request, roomId, nowMs) {
+  try {
+    const { serverSweep } = await liveChallengeEngine();
+    const teacherEmail = callerEmail(request);
+    const instanceKey = `${roomId}|${teacherEmail}`;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: liveChallengeHostHeardInInstance.get(instanceKey) ?? null, nowMs })) return;
+    if (liveChallengeHostHeardInInstance.size > 500) liveChallengeHostHeardInInstance.clear();
+    liveChallengeHostHeardInInstance.set(instanceKey, nowMs);
+    const privateRef = getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+    const privateSnapshot = await privateRef.get();
+    if (!privateSnapshot.exists) return;
+    const privateState = privateSnapshot.data() || {};
+    if (privateState.teacherEmail !== teacherEmail && !authLib.isRootAdminEmail(teacherEmail)) return;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: privateState.hostHeardAt ?? null, nowMs })) return;
+    // update, not set: a finished game's private state, deleted meanwhile,
+    // is never brought back.
+    await privateRef.update({ hostHeardAt: new Date(nowMs) });
+  } catch (error) {
+    // NOT_FOUND: the game ended and its private state is gone.
+    if (error?.code !== 5) {
+      logger.warn("liveChallenge.hostHeard.failed", { roomId, message: error?.message || String(error) });
+    }
+  }
+}
+
 // A deliberately tiny calibration endpoint. Calling it several times lets the
 // browser estimate offset/RTT without granting it any scoring authority.
 exports.calibrateLiveChallengeClock = onCall(async (request) => {
@@ -13006,6 +13171,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
   if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
+  if (isTeacher && roomId) await recordLiveChallengeHostHeard(request, roomId, serverAt);
   if (studentId && roomId && (request.data?.quality || request.data?.launchReport)) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
@@ -13176,12 +13342,23 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  return closeLiveChallengeRoundForRoom(db, {
+    roomRef, expected: expectedRoundFromRequest(request.data, room), force: request.data?.force === true,
+  });
+});
+
+/**
+ * The close itself, for the host's command and for the server's own close of
+ * an overdue round (closeOverdueLiveChallengeRounds): one transaction, so a
+ * console and the sweep arriving together close the round once and the other
+ * is told it is already closed.
+ */
+async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = false }) {
+  const roomId = roomRef.id;
   const challenge = await liveChallengeRules();
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
-  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  const expected = expectedRoundFromRequest(request.data, room);
-  const force = request.data?.force === true;
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
 
   const outcome = await db.runTransaction(async (transaction) => {
@@ -13243,6 +13420,9 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     }, { merge: true });
     transaction.set(privateRef, {
       roundState: lifecycle.ROUND_STATE.CLOSED,
+      // Results nobody moves on from, with no host screen heard, end the
+      // game (liveChallengeServerSweep.mjs).
+      serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterCloseMs({ nowMs })),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return { roundResult: engine.results.publicRoundSummary(roundResult) };
@@ -13250,6 +13430,110 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
   if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   return { roomId, roundIndex: outcome.roundResult.roundIndex, roundState: lifecycle.ROUND_STATE.CLOSED, roundResult: outcome.roundResult };
+}
+
+/*
+ * THE SERVER CLOSES WHAT NO HOST SCREEN CLOSES (liveChallengeServerSweep.mjs).
+ *
+ * Every minute: the rooms whose private state says they are due. An open
+ * round past its deadline (plus a grace no open console ever reaches) is
+ * closed by the console's own close; results that have stood with no host
+ * screen heard for the host-away window are ended by the console's own
+ * Finish, which writes the match result, standings and rewards once. Each
+ * decision is re-checked inside the command's own transaction, so a console,
+ * a retry or a second run arriving at the same moment changes nothing twice.
+ */
+async function sweepLiveChallengeRoom(db, privateDoc, nowMs) {
+  const engine = await liveChallengeEngine();
+  const { serverSweep, lifecycle } = engine;
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(privateDoc.id);
+  const roomSnapshot = await roomRef.get();
+  const room = roomSnapshot.exists ? roomSnapshot.data() || {} : null;
+  const privateState = privateDoc.data() || {};
+  const plan = serverSweep.planServerSweep({ room, privateState, nowMs });
+  const seenDueMs = toDate(privateState.serverSweepDueAt)?.getTime() ?? null;
+  // Moves this room's due time only if nothing (a close, an opening, another
+  // run) has moved it since this run read it.
+  const reschedule = (nextDueMs) => db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(privateDoc.ref);
+    if (!latest.exists) return;
+    if ((toDate(latest.data()?.serverSweepDueAt)?.getTime() ?? null) !== seenDueMs) return;
+    transaction.update(privateDoc.ref, { serverSweepDueAt: liveChallengeSweepDate(nextDueMs) });
+  });
+
+  if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null).then(() => "cleared");
+  if (plan.action === serverSweep.SWEEP_ACTION.RESCHEDULE) return reschedule(plan.nextDueMs).then(() => "rescheduled");
+  try {
+    if (plan.action === serverSweep.SWEEP_ACTION.CLOSE) {
+      const closed = await closeLiveChallengeRoundForRoom(db, { roomRef, expected: plan.expected });
+      if (!closed.alreadyApplied) {
+        logger.info("liveChallenge.serverClose", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+      }
+      return closed.alreadyApplied ? "alreadyClosed" : "closed";
+    }
+    const finished = await finalizeLiveChallengeMatch(db, {
+      roomRef,
+      room,
+      command: lifecycle.LIFECYCLE_COMMAND.FINISH,
+      status: lifecycle.SESSION_STATUS.FINISHED,
+      stillWanted: ({ room: latestRoom, privateState: latestPrivate }) => serverSweep.stillAbandoned({
+        room: latestRoom, privateState: latestPrivate, expected: plan.expected, nowMs: Date.now(),
+      }),
+      endedBy: "hostAway",
+    });
+    if (finished.skipped) {
+      // The teacher came back (or moved on): look again after the window.
+      await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS);
+      return "kept";
+    }
+    if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+    return finished.alreadyApplied ? "alreadyFinished" : "finished";
+  } catch (error) {
+    // The round is still running (a student with extended time is inside
+    // their own deadline): look again soon. Anything else: back off.
+    const stillRunning = error?.details?.lifecycle === lifecycle.LIFECYCLE_REJECTION.ROUND_IN_PROGRESS;
+    if (!stillRunning) {
+      logger.error("liveChallenge.serverSweep.failed", { roomId: roomRef.id, action: plan.action, message: error?.message || String(error) });
+    }
+    await reschedule(nowMs + (stillRunning ? serverSweep.SERVER_RECHECK_MS : serverSweep.SERVER_FAILURE_BACKOFF_MS)).catch(() => {});
+    return stillRunning ? "stillRunning" : "failed";
+  }
+}
+
+async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() }) {
+  const { serverSweep } = await liveChallengeEngine();
+  // One single-field range: no composite index, and an idle minute is one read.
+  const due = await db.collection(LIVE_CHALLENGE_PRIVATE)
+    .where("serverSweepDueAt", "<=", new Date(Math.min(dueByMs, nowMs)))
+    .orderBy("serverSweepDueAt")
+    .limit(serverSweep.SERVER_SWEEP_LIMIT)
+    .get();
+  const outcomes = {};
+  for (const privateDoc of due.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await sweepLiveChallengeRoom(db, privateDoc, nowMs).catch((error) => {
+      logger.error("liveChallenge.serverSweep.roomFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+      return "failed";
+    });
+    outcomes[privateDoc.id] = outcome;
+  }
+  return { scanned: due.size, outcomes };
+}
+
+exports.closeOverdueLiveChallengeRounds = onSchedule({
+  schedule: "every 1 minutes",
+  invoker: "private",
+}, async (event) => {
+  // A run takes the rooms that were due by the time it was scheduled for
+  // (a late run is no different); each room's decision uses the real now.
+  const scheduledMs = Date.parse(event?.scheduleTime || "");
+  const nowMs = Date.now();
+  const result = await sweepOverdueLiveChallengeRooms(getFirestore(), {
+    dueByMs: Number.isFinite(scheduledMs) ? scheduledMs : nowMs,
+    nowMs,
+  });
+  if (result.scanned) logger.info("liveChallenge.serverSweep", result);
+  return result;
 });
 
 exports.advanceLiveChallenge = onCall(async (request) => {
@@ -13849,6 +14133,14 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
     // FAILED_PRECONDITION: the room changed since it was read — another answer
     // already started the closing countdown, or the round moved on.
     if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
+  }
+  if (compressed) {
+    // The new deadline is when the server closes it if no host screen does —
+    // the first deadline a Pace Race round has.
+    const { serverSweep } = await liveChallengeEngine();
+    await getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id).update({
+      serverSweepDueAt: liveChallengeSweepDate(serverSweep.sweepDueAfterOpeningMs({ endsAtMs: targetEndsAtMs })),
+    }).catch((error) => logger.warn("liveChallenge.compress.sweepDue.failed", { roomId: roomRef.id, message: error?.message || String(error) }));
   }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
