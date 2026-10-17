@@ -28,7 +28,7 @@
  * PR #247's durable submission path owns the outcome and this layer only keeps
  * the workspace looking the way they left it.
  */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import {
   parseQuestionDraftKey,
   questionDraftEnvelopeVersion,
@@ -551,15 +551,25 @@ export default function usePersistentToolState(field, initialValue, options = {}
   // The question can change UNDER a mounted tool: PathSessionPlayer renders one
   // QuestionEngine and swaps the question beneath it. Re-read rather than keep
   // showing the previous question's answer.
+  //
+  // DURING RENDER, not in an effect (pass 3 review). Read in an effect, the
+  // new question's value arrived one render late: everything that took the
+  // first render of the new question as its starting point — Universal Undo's
+  // re-baseline above all (useMathUndoHistory.js) — saw the PREVIOUS question's
+  // answer, recorded the late re-read as an edit, and one Undo then wrote the
+  // previous question's answer into this one and its draft. React's
+  // "adjust state while rendering" pattern: the render with the new key
+  // re-renders at once with the new value, before anything commits.
   const keyRef = useRef(key);
-  useEffect(() => {
-    if (keyRef.current === key) return;
+  const [renderedKey, setRenderedKey] = useState(key);
+  if (renderedKey !== key) {
+    setRenderedKey(key);
     keyRef.current = key;
     inputMarkRef.current = studentInputMark();
     // `setValue`, not the persisting setter: reading a draft back is not an
     // edit and must not write it out again.
     setValue(restoreField(key, field, initialRef.current, canonicalSavedAt, normalizeRef.current));
-  }, [key, field, canonicalSavedAt]);
+  }
 
   const setPersistentValue = useCallback((next) => {
     setValue((current) => {

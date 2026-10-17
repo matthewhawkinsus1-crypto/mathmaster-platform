@@ -30,6 +30,19 @@ export const persistedUndoKey = (toolKey, ownerId) => (
   toolKey && ownerId ? `${toolKey}:${PERSISTED_UNDO_SEGMENT}:${ownerId}` : null
 );
 
+/** Is this storage key an Undo history (persistedUndoKey), rather than work? */
+export const isPersistedUndoKey = (key) => String(key ?? '').includes(`:${PERSISTED_UNDO_SEGMENT}:`);
+
+/*
+ * A question's draft family as it may leave this device. The secure-exam
+ * runtime sends every key under the item's draft key to the server
+ * (RichQuestionRuntime.jsx, saveSecureExamDraft), inside per-item size and
+ * entry limits; the Undo history is this device's convenience, not work, and
+ * must not ride along (pass 3 review).
+ */
+export const withoutPersistedUndo = (entries) => (Array.isArray(entries) ? entries : [])
+  .filter((entry) => !isPersistedUndoKey(entry?.key));
+
 /** The newest entries whose serialized size fits the budget, oldest first. */
 export const boundUndoEntries = (entries, maxChars = PERSISTED_UNDO_MAX_CHARS) => {
   const list = Array.isArray(entries) ? entries : [];

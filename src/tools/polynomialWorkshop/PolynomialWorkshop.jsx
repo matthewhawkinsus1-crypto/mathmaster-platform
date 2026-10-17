@@ -6,6 +6,7 @@ import { evaluatePolynomial } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import polynomialWorkshopGrader from '../../../functions/shared/serverGrading/tools/polynomialWorkshop.mjs';
 import {
@@ -52,6 +53,8 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', UNANSWERED);
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
+  // Universal Undo over these answers (TOOL-2, useFieldUndoHistory.js).
+  useFieldUndoHistory({questionData,fields:{value:[value,setValue],factorChoice:[factorChoice,setFactorChoice]}});
   const work={value,factorChoice};
   useReportToolWork(work);
   const check=()=>{
@@ -78,6 +81,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
   const [cells, setCells] = usePersistentToolState('cells', ['','','','']);
   const [expanded, setExpanded] = usePersistentToolState('expanded', '');
   const setCell=(index,value)=>setCells((old)=>old.map((v,i)=>i===index?value:v));
+  useFieldUndoHistory({questionData,fields:{cells:[cells,setCells],expanded:[expanded,setExpanded]}});
   const work={cells,expanded};
   useReportToolWork(work);
   const check=()=>{
@@ -102,6 +106,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
 function FactorQuadratic({ questionData, feedback, submit, onAction }) {
   const coefficients = questionData.coefficients || DEFAULTS.factorQuadratic.coefficients;
   const [p, setP] = usePersistentToolState('p', ''); const [q, setQ] = usePersistentToolState('q', '');
+  useFieldUndoHistory({questionData,fields:{p:[p,setP],q:[q,setQ]}});
   const work={p,q};
   useReportToolWork(work);
   const check=()=>{
@@ -118,6 +123,7 @@ function DivisionMode({ questionData, feedback, submit, onAction }) {
   const dividend = questionData.dividend || DEFAULTS.division.dividend;
   const divisor = questionData.divisor || DEFAULTS.division.divisor;
   const [quotient, setQuotient] = usePersistentToolState('quotient', ''); const [remainder, setRemainder] = usePersistentToolState('remainder', '');
+  useFieldUndoHistory({questionData,fields:{quotient:[quotient,setQuotient],remainder:[remainder,setRemainder]}});
   const work={quotient,remainder};
   useReportToolWork(work);
   const check=()=>{
@@ -137,6 +143,7 @@ function GraphConnection({ questionData, feedback, submit, onAction }) {
   const fn=(x)=>evaluatePolynomial(coefficients,x);
   // These selects open unanswered, so whatever they hold the student chose
   // (OWN_CHOICES) — even the options an earlier workshop pre-selected.
+  useFieldUndoHistory({questionData,fields:{behavior:[behavior,setBehavior],end:[end,setEnd]}});
   const work={behavior,end,...OWN_CHOICES};
   useReportToolWork(work);
   const check=()=>{
@@ -153,6 +160,7 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
   const features=useMemo(()=>rationalFeatureMap({numeratorRoots,denominatorRoots}),[numeratorRoots,denominatorRoots]);
   const targetValue=rationalFeatureTargetValue(features, questionData.targetValue);
   const [choice, setChoice] = usePersistentToolState('choice', UNANSWERED);
+  useFieldUndoHistory({questionData,fields:{choice:[choice,setChoice]}});
   const work={choice,...OWN_CHOICES};
   useReportToolWork(work);
   const check=()=>{

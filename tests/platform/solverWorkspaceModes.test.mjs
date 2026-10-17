@@ -53,7 +53,10 @@ test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Su
   assert.match(question, /const guidedCoach = \(/);
   assert.match(question, /const workspaceActions = \{/);
   assert.match(question, /undo:\s*\{/);
-  assert.match(question, /onClick:\s*\(\) => undoController\?\.onUndo\?\.\(\)/);
+  // Work View's Undo is the assignment's own controller (it is unavailable
+  // while grading or paused, pass 3 review: tests/platform/workViewStage3D).
+  const workViewUndo = question.slice(question.indexOf('const workspaceActions = {'), question.indexOf('scratchpad: {', question.indexOf('const workspaceActions = {')));
+  assert.match(workViewUndo, /onClick:\s*\(\) => \{?[^}]*undoController\?\.onUndo\?\.\(\)/);
   assert.match(question, /scratchpad:\s*\{/);
   assert.match(question, /onClick:\s*openScratchpad/);
   // Work View's Help drawer carries Guided Notes where they are on — now

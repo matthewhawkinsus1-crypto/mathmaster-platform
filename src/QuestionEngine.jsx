@@ -2202,11 +2202,15 @@ function QuestionEngineBody({
         : record.attemptCount > 0
           ? 'Submit Another Attempt'
           : 'Submit Answer';
+  // Undo may not change the work while it is being graded, or in a tab paused
+  // because the question is open in another one: its restore would write this
+  // tab's older work over the draft (pass 3 review; as Reset and Submit).
+  const undoUnavailable = locked || submitting || pausedByAnotherTab;
   const workspaceActions = {
     undo: {
       label: '↶ Undo',
-      onClick: () => undoController?.onUndo?.(),
-      disabled: !undoController?.canUndo || locked,
+      onClick: () => { if (!undoUnavailable) undoController?.onUndo?.(); },
+      disabled: !undoController?.canUndo || undoUnavailable,
       title: undoController?.label || 'Undo the most recent response change',
     },
     reset: {
@@ -2266,7 +2270,8 @@ function QuestionEngineBody({
           phone whose bar also carries Submit / Next can show the icons alone
           and keep ONE row (MathToolMobileLayout.css). The word stays in the
           accessible name. */}
-      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {/* No Undo for work that has no history (pass 3, TOOL-2): a greyed ↶ Undo that can never work is hidden, not shown. */}
+      {!scratchpadOpen && undoController ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={undoUnavailable} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: undoController?.canUndo && !undoUnavailable ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !undoUnavailable ? 1 : 0.45 }} /> : null}
       {!scratchpadOpen ? (
         <button
           className="mm-button-neutral mathmaster-work-bar-tool"

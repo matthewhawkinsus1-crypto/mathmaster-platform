@@ -87,7 +87,9 @@ test('Rich Tool work survives: device drafts restored before mount, and sent wit
   // Restored in the state initializer — before QuestionEngine mounts and reads.
   assert.match(toolItem, /useState\(\(\) => \{[\s\S]{0,400}restoreQuestionDrafts\(own\)/);
   const emit = region(toolItem, 'const emitDraft = useCallback(', '}, [draftKey]);', 'draft emission');
-  assert.match(emit, /workspaceDrafts: draftKey \? readQuestionDraftFamily\(draftKey\) : \[\]/);
+  // Every draft of the item, less this device's Undo history (pass 3 review;
+  // tests/tools/persistedUndoNotSent.test.mjs).
+  assert.match(emit, /workspaceDrafts: draftKey \? withoutPersistedUndo\(readQuestionDraftFamily\(draftKey\)\) : \[\]/);
   assert.match(emit, /raw: latestRawRef\.current/);
   // Only the student's own edits go up, not a workspace writing back on mount.
   assert.match(toolItem, /if \(!edit \|\| !belongsToDraft\(key, draftKey\)\) return;/);

@@ -28,7 +28,8 @@ import {
   scoreLinearConnectionGrouping,
 } from '../../src/tools/representationMatch/representationMath.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -103,8 +104,28 @@ test('every card is announced with what it says', () => {
   assert.equal(describeLinearCard({ kind: 'xIntercept', value: [2, 0] }), '(2, 0)');
   assert.equal(describeLinearCard({ kind: 'table', value: [[0, 20], [1, 17]] }), 'x and y values 0, 20; 1, 17');
   assert.equal(describeLinearCard({ kind: 'graph', value: { type: 'linear', a: 2, h: 0, k: -4 } }, { bounds }), 'a line through (0, -4) and (1, -2)');
+  // ...and SPOKEN, not read as program text (pass 3, A11Y-3): the button's name
+  // is what a screen reader says and what a voice-control student says back,
+  // so "y = -2/3x + 4" must reach them as "y equals negative 2 over 3 x plus 4".
+  const spoken = (card) => spokenMathLabel(describeLinearCard(card, { bounds }));
+  assert.equal(spoken({ kind: 'slopeIntercept', value: 'y = -2/3x + 4' }), 'y equals negative 2 over 3 x plus 4');
+  assert.equal(spoken({ kind: 'slope', value: -4 }), 'm equals negative 4');
+  for (const card of [
+    { kind: 'slopeIntercept', value: 'y = 2x - 4' },
+    { kind: 'pointSlope', value: 'y - 2 = 3(x + 1)' },
+    { kind: 'standard', value: '2x + 3y = 12' },
+    { kind: 'slope', value: '-1/2' },
+    { kind: 'xIntercept', value: [2, 0] },
+    { kind: 'table', value: [[0, 20], [1, -17]] },
+  ]) {
+    assert.doesNotMatch(spoken(card), /[=/*()]|-\d/, `${card.kind} is spoken, not program text`);
+  }
+  // The board's card button names itself through that same speech: bound to
+  // the line-card button, so another aria-label in the file cannot satisfy it.
   const source = executableSource(read('src/tools/representationMatch/RepresentationMatch.jsx'));
-  assert.match(source, /aria-label=\{`\$\{LINEAR_KIND_LABELS\[card\.kind\]\}: \$\{describeLinearCard\(card, \{ bounds: linearGraphBounds \}\)\}\./);
+  const cardButton = region(source, 'className="mathmaster-line-card"', 'style={{', 'the line-card button');
+  assert.match(cardButton, /aria-label=\{`\$\{LINEAR_KIND_LABELS\[card\.kind\]\}: \$\{spokenMathLabel\(describeLinearCard\(card, \{ bounds: linearGraphBounds \}\)\)\}\./);
+  assert.match(source, /import \{ spokenMathLabel \} from '\.\.\/\.\.\/platform\/language\/mathSpeechLabel\.js';/);
 });
 
 test('cards are laid out in bands of like size, and the deck keeps its shuffle', () => {

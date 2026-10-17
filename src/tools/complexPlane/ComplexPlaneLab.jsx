@@ -7,6 +7,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import complexPlaneGrader from '../../../functions/shared/serverGrading/tools/complexPlaneLab.mjs';
 import {
   complexAdd,
@@ -73,6 +74,7 @@ function Features({ questionData, feedback, submit, onAction }) {
   const [magnitudeAnswer, setMagnitudeAnswer] = usePersistentToolState('magnitudeAnswer', '');
   const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
+  useFieldUndoHistory({ questionData, fields: { magnitudeAnswer: [magnitudeAnswer, setMagnitudeAnswer], conjugateRe: [conjugateRe, setConjugateRe], conjugateIm: [conjugateIm, setConjugateIm] } });
   const work = { magnitudeAnswer, conjugateRe, conjugateIm };
   useReportToolWork(work);
   const check = () => {
@@ -104,6 +106,7 @@ function Operations({ questionData, feedback, submit, onAction }) {
   const symbol = operation === 'add' ? '+' : operation === 'subtract' ? '−' : '×';
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  useFieldUndoHistory({ questionData, fields: { real: [real, setReal], imaginary: [imaginary, setImaginary] } });
   const work = { real, imaginary };
   useReportToolWork(work);
   const check = () => {
@@ -134,6 +137,7 @@ function Division({ questionData, feedback, submit, onAction }) {
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  useFieldUndoHistory({ questionData, fields: { conjugateRe: [conjugateRe, setConjugateRe], conjugateIm: [conjugateIm, setConjugateIm], real: [real, setReal], imaginary: [imaginary, setImaginary] } });
   const work = { conjugateRe, conjugateIm, real, imaginary };
   useReportToolWork(work);
   const check = () => {
@@ -163,6 +167,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [magnitude, setMagnitude] = usePersistentToolState('magnitude', '');
+  useFieldUndoHistory({ questionData, fields: { real: [real, setReal], imaginary: [imaginary, setImaginary], magnitude: [magnitude, setMagnitude] } });
   const work = { real, imaginary, magnitude };
   useReportToolWork(work);
   const check = () => {
@@ -193,6 +198,7 @@ function Rotation({ questionData, feedback, submit, onAction }) {
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [rotation, setRotation] = usePersistentToolState('rotation', '');
+  useFieldUndoHistory({ questionData, fields: { real: [real, setReal], imaginary: [imaginary, setImaginary], rotation: [rotation, setRotation] } });
   const work = { real, imaginary, rotation };
   useReportToolWork(work);
   const check = () => {
@@ -221,6 +227,7 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
   const roots = quadraticRootsComplex(quadratic);
   const [r1Re, setR1Re] = usePersistentToolState('r1Re', ''); const [r1Im, setR1Im] = usePersistentToolState('r1Im', '');
   const [r2Re, setR2Re] = usePersistentToolState('r2Re', ''); const [r2Im, setR2Im] = usePersistentToolState('r2Im', '');
+  useFieldUndoHistory({ questionData, fields: { r1Re: [r1Re, setR1Re], r1Im: [r1Im, setR1Im], r2Re: [r2Re, setR2Re], r2Im: [r2Im, setR2Im] } });
   const work = { r1Re, r1Im, r2Re, r2Im };
   useReportToolWork(work);
   const check = () => {

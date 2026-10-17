@@ -5,6 +5,7 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import exponentialLogGrader from '../../../functions/shared/serverGrading/tools/exponentialLogBridge.mjs';
 import {
@@ -69,6 +70,7 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
   const [expAnswer, setExpAnswer] = usePersistentToolState('expAnswer', '');
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
+  useFieldUndoHistory({ questionData, fields: { logAnswer: [logAnswer, setLogAnswer], expAnswer: [expAnswer, setExpAnswer] } });
   const work = { logAnswer, expAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -101,6 +103,7 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
   };
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
   const [exponentAnswer, setExponentAnswer] = usePersistentToolState('exponentAnswer', '');
+  useFieldUndoHistory({ questionData, fields: { xAnswer: [xAnswer, setXAnswer], exponentAnswer: [exponentAnswer, setExponentAnswer] } });
   const work = { xAnswer, exponentAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -135,6 +138,7 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
   };
   const [argumentAnswer, setArgumentAnswer] = usePersistentToolState('argumentAnswer', '');
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
+  useFieldUndoHistory({ questionData, fields: { argumentAnswer: [argumentAnswer, setArgumentAnswer], xAnswer: [xAnswer, setXAnswer] } });
   const work = { argumentAnswer, xAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -168,6 +172,7 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
   const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
   const [asymptote, setAsymptote] = usePersistentToolState('asymptote', '');
   const [domainSide, setDomainSide] = usePersistentToolState('domainSide', '');
+  useFieldUndoHistory({ questionData, fields: { inverseAnswer: [inverseAnswer, setInverseAnswer], asymptote: [asymptote, setAsymptote], domainSide: [domainSide, setDomainSide] } });
   const work = { inverseAnswer, asymptote, domainSide };
   useReportToolWork(work);
   const check = () => {
@@ -198,6 +203,7 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
   const y = Number(questionData.y ?? defaultY);
   const [inverseAfterForward, setInverseAfterForward] = usePersistentToolState('inverseAfterForward', '');
   const [forwardAfterInverse, setForwardAfterInverse] = usePersistentToolState('forwardAfterInverse', '');
+  useFieldUndoHistory({ questionData, fields: { inverseAfterForward: [inverseAfterForward, setInverseAfterForward], forwardAfterInverse: [forwardAfterInverse, setForwardAfterInverse] } });
   const work = { inverseAfterForward, forwardAfterInverse };
   useReportToolWork(work);
   const check = () => {

@@ -19,6 +19,7 @@ import {
 } from './regressionAddMenu.js';
 import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -386,10 +387,17 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       subtitle="Build a table and regression expression in the calculator workspace."
       badge="Assessment statistics"
     >
+      {/* The steps a first-time student needs (pass 3, TOOL-9): this panel
+          looks like a desktop graphing calculator and said nothing about how
+          to use it. */}
       <TaskCard
         question={questionData}
         task="Use the calculator to model the source data and interpret its correlation."
-        steps={[]}
+        steps={[
+          'Press ＋ (Add Item) and choose table. Type each data point: x in the x₁ column, y in the y₁ column.',
+          'Press the curve button beside the table to add the regression y₁ ~ mx₁ + b.',
+          ...(questionData.requireInterpretation !== false ? ['Read r, then choose the direction and the strength of the correlation.'] : ['Read r and the equation of the line.']),
+        ]}
       />
 
       {sourceMode === 'data' ? (
@@ -430,13 +438,12 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
             points={plotted.map(([x, y]) => ({ x, y }))}
             lines={run ? [{ m: run.m, b: run.b }] : []}
             enlargeable={false}
-            panZoom={false}
+            // Real zoom (TOOL-9): the plane's own Zoom in / Zoom out / Reset
+            // view. Its ＋/− glyphs in the corner were drawings that did
+            // nothing. The view is the camera, never part of the answer or Undo.
+            panZoom
             ariaLabel="Student data graph and fitted regression line"
           />
-          <div className="regression-graph-controls" aria-hidden="true">
-            <span>＋</span>
-            <span>−</span>
-          </div>
         </section>
 
         <nav className={`regression-toolbar ${editOpen ? 'is-editing' : ''}`} aria-label="Calculator toolbar">
@@ -446,8 +453,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 Delete All
               </button>
               <span className="regression-toolbar-spacer" />
-              <button type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo">↶</button>
-              <button type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo">↷</button>
+              <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo">↶</FocusSafeButton>
+              <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
             </>
@@ -488,8 +495,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 ) : null}
               </div>
               <span className="regression-toolbar-spacer" />
-              <button className="regression-tool-icon" type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo" title="Undo">↶</button>
-              <button className="regression-tool-icon" type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo" title="Redo">↷</button>
+              <FocusSafeButton className="regression-tool-icon" onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo" title="Undo">↶</FocusSafeButton>
+              <FocusSafeButton className="regression-tool-icon" onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo" title="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>

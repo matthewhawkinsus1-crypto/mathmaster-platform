@@ -44,6 +44,9 @@
 //   6. FOCUS THAT MOVES ON ITS OWN. Focus is checked after every keyboard Check
 //      (still on the button, or dropped to <body>?) and for three seconds after
 //      a single Tab right after load.
+//   7. FOCUS AFTER AN ACTION (ACTION_FOCUS_PROBES). Where a tool's button
+//      disables or removes itself (Open Sort's placements), the tool is worked
+//      by keyboard and focus is recorded after each press: `lostAfterAction`.
 //
 // A focused control counts as visibly focused only if something changed on
 // screen AND it is not under another element (elementFromPoint), so a ring
@@ -887,6 +890,58 @@ const primaryProbe = async (page, cdp) => {
 /* Run                                                                       */
 /* ------------------------------------------------------------------------ */
 
+/*
+ * 7. FOCUS AFTER AN ACTION THAT REMOVES OR DISABLES ITS OWN BUTTON (A11Y-2).
+ *
+ * Open Sort's "Place … here" disables itself once the card is placed, and the
+ * controlled sort's category button unmounts with its card; either dropped
+ * focus to <body>, and a 12-card sort meant tabbing back from the top 12 times.
+ * The board is sorted with keys only: the card is chosen with Enter, Tab walks
+ * to the group's Place button (controlled: the category button is already
+ * there), Enter places it, and where focus is afterwards is recorded. Focus must
+ * be on the next card still to place, or on the group's heading after the
+ * last.
+ */
+const ACTION_FOCUS_PROBES = {
+  openSortBoard: async (page) => {
+    const steps = [];
+    for (let round = 0; round < 12; round += 1) {
+      const card = await page.evaluate(() => {
+        const el = document.querySelector('[data-kb-root] [data-sort-card]');
+        if (!el) return null;
+        if (document.activeElement !== el) el.focus();
+        return el.getAttribute('data-sort-card');
+      });
+      if (!card) break;
+      const controlled = await page.evaluate(() => document.activeElement?.closest('[data-sort-card]')?.tagName === 'BUTTON' && !document.activeElement.hasAttribute('aria-pressed'));
+      if (!controlled) {
+        await page.keyboard.press('Enter');
+        await wait(page, 80);
+        let reached = false;
+        for (let tab = 0; tab < 40; tab += 1) {
+          await page.keyboard.press('Tab');
+          await wait(page, 40);
+          reached = await page.evaluate(() => /^Place /.test(document.activeElement?.getAttribute('aria-label') || ''));
+          if (reached) break;
+        }
+        if (!reached) { steps.push({ card, error: 'no Place button reached by Tab' }); break; }
+      }
+      const pressed = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.innerText || '');
+      await page.keyboard.press('Enter');
+      await wait(page, 160);
+      const after = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return { body: true };
+        return { body: false, card: el.getAttribute('data-sort-card'), heading: el.tagName === 'H3' ? el.innerText : null, name: el.getAttribute('aria-label') || el.innerText?.slice(0, 60) };
+      });
+      steps.push({ card, pressed: pressed.slice(0, 80), after });
+    }
+    // Not on the body is not enough: focus must have moved on to a card or to
+    // the group heading, or the student is left on a button with nothing to do.
+    return { steps, focusLost: steps.filter((step) => step.error || !(step.after?.card || step.after?.heading)).length };
+  },
+};
+
 const idPage = await context.newPage();
 await idPage.goto(`${ORIGIN}/tests/browser/keyboardSweep.html`, { waitUntil: 'networkidle', timeout: 90000 });
 const allIds = await idPage.evaluate(() => window.__TOOL_IDS__ || []);
@@ -911,6 +966,8 @@ const EXTRA_SCENES = [
   // The relation's own coordinate plot (RelationCoordinatePlot), which typed
   // entry only backs up when the author sets plotEntryMode.
   { toolId: 'relationMapping', variant: 'plot', spec: { pairs: [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }], ask: ['plot', 'domain', 'range'] } },
+  // The fixed-category sort: its category buttons unmount with their card.
+  { toolId: 'openSortBoard', variant: 'controlled', spec: { mode: 'controlled', categories: [{ id: 'line', label: 'Linear' }, { id: 'curve', label: 'Quadratic' }], validSchemes: [{ id: 'family', groups: [{ id: 'line', itemIds: ['a', 'c'] }, { id: 'curve', itemIds: ['b', 'd'] }] }] } },
   { toolId: 'sequenceExplorer', variant: 'fullBridge', spec: { mode: 'fullBridge', prompt: 'Complete the table, plot the terms, and write both sequence rules.', sequence: { kind: 'arithmetic', first: 3, difference: 2 }, displayCount: 5, targetN: 8, studentActions: ['buildSequenceTable', 'plotSequence', 'analyzeSequence', 'writeExplicit', 'writeRecursive', 'findSequenceTerm'] } },
 ];
 const EXTRAS_ONLY = process.argv.includes('--extras-only');
@@ -945,6 +1002,13 @@ for (const scene of scenes) {
     entry.primary = await primaryProbe(second.page, second.cdp);
     entry.pageErrors.push(...second.errors);
     await second.page.close();
+
+    if (ACTION_FOCUS_PROBES[toolId]) {
+      const third = await openTool(toolId, { spec });
+      entry.actionFocus = await ACTION_FOCUS_PROBES[toolId](third.page);
+      entry.pageErrors.push(...third.errors);
+      await third.page.close();
+    }
   } catch (error) {
     entry.error = String(error?.stack || error).slice(0, 800);
   }
@@ -970,6 +1034,7 @@ for (const scene of scenes) {
     focusDroppedAfterLoadMs: entry.lateFocus?.droppedToBodyAfterMs ?? null,
     focusLostAfterCheck: (entry.primary?.checks || []).filter((c) => c.focusLostToBody).map((c) => c.name),
     plotted: entry.primary ? entry.primary.plotMarksAfter !== entry.primary.plotMarksBefore : null,
+    focusLostAfterAction: entry.actionFocus ? entry.actionFocus.focusLost : null,
   };
   entry.ms = Date.now() - started;
   tools.push(entry);
@@ -977,7 +1042,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();

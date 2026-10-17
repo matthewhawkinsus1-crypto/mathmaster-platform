@@ -17,6 +17,7 @@ import {
 } from './inverseCompositionMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import inverseCompositionGrader from '../../../functions/shared/serverGrading/tools/inverseCompositionLab.mjs';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
@@ -49,6 +50,18 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const [restrictionChoice, setRestrictionChoice] = usePersistentToolState('restrictionChoice', UNANSWERED);
   const { feedback, submit } = useToolSubmission(onAction);
   const revealAnswers = useRevealAnswers();
+  // Universal Undo over every answer (TOOL-2, useFieldUndoHistory.js). A given
+  // input x is the question's, not the student's, and is never written back.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      ...(inputLocked ? {} : { x: [draftX, setX] }),
+      fogAnswer: [fogAnswer, setFogAnswer],
+      gofAnswer: [gofAnswer, setGofAnswer],
+      inverseAnswer: [inverseAnswer, setInverseAnswer],
+      restrictionChoice: [restrictionChoice, setRestrictionChoice],
+    },
+  });
 
   const canInvert = useMemo(() => hasFunctionalInverse(f), [f]);
   const fx = useMemo(() => evaluateSpecWithDomain(f, Number(x)), [f, x]);
