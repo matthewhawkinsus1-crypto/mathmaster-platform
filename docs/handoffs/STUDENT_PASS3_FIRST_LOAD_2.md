@@ -239,13 +239,28 @@ are now void. After the revert: an on-demand store load in the hook, and one in 
 
 ## Gate
 
+**After the store revert (`4b455da2` and later):**
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,789 pass, 0 fail |
+| `npm run lint` | 0 errors |
+| `npm run build` | ok |
+| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome 830.3 KB (base 847.0), signIn 291.2 KB |
+| `firstLoadTeacherCode`, `supportTelemetryWiring`, `supportEngagementWiring` | pass, 22 tests (also inside test:platform) |
+| `supportEvidenceJourneys.mjs` (5188) | pass, 22 runs |
+| teacherWorkflow `journeys.mjs` (5188) | pass, A–K and retry at 1440 and 1024 |
+
+**The full gate, run on `8f946670` (with the store still lazy).** The revert restores the base's own code for the
+store, so it changes nothing outside the two support-evidence files.
+
 | Check | Result |
 | --- | --- |
 | `npm run test:platform` | 11,790 pass, 0 fail |
 | `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail |
 | `npm run lint` | 0 errors (existing warnings only) |
 | `npm run build` / `npm run build:firebase` | ok, no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome 828.6 KB (base 847.0), signIn 291.2 KB |
+| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome 828.6 KB then (base 847.0), signIn 291.2 KB |
 | teacherWorkflow `journeys.mjs` (5188) | pass, A–K and retry at 1440 and 1024 |
 | `supportEvidenceJourneys.mjs` | pass |
 | `caseReviewJourneys.mjs` | pass (C1–C7 at four viewports) |
