@@ -1,6 +1,8 @@
 # Student pass 3, wave 5 (W5-2): figures that say what they show, a one-stop keypad, the reference in Work View, the VPAT
 
-Branch `claude/pass3-figure-descriptions`, cut from `claude/modest-pasteur-xzagn7` at `e822504`.
+Branch `claude/pass3-figure-descriptions`, cut from `claude/modest-pasteur-xzagn7` at `e822504`. The base was merged
+again at `cbeff6a`, cleanly; its CoordinatePlane tick change does not touch these descriptions, which come from data,
+not from tick text.
 
 At the integrator's request (TOOL-12 builds on its drawer), W4-1 `claude/pass3-b6-work-view-help` @ `016c2ea` was
 merged in as `f5b6146`. Its two conflicts were resolved exactly as the integration resolved them:
@@ -21,6 +23,8 @@ Each item was first reproduced on the base (in Chromium where it is visual).
 | `f5b6146` | merge W4-1 |
 | `b18d8e5` | TOOL-12 Reference drawer |
 | `2161b8e` | A11Y-9 VPAT; the new drivers in CI |
+| `a177aee` | the two keyboard drivers read the figure's description |
+| `634a551` | merge of the base at `cbeff6a` (clean) |
 
 ## Per item: what a student saw, what changed, the proof
 
@@ -218,7 +222,47 @@ automated checks and the Chromium accessibility tree. A new section lists the 11
 
 ## Gate
 
-_Pending: the final gate is running on head `2161b8e`; its results replace this line in the next commit._
+Run on `634a551`: this branch, with W4-1 merged and the base moved to `cbeff6a` (the merge was clean). Browser
+drivers ran one at a time.
+
+Servers, as the workflows start them, each with its Vite `cacheDir` in the scratchpad (outside the repo):
+- **Plain:** `vite --host 127.0.0.1 --port 5199 --strictPort`.
+- **Accessibility:** the emulator config on 5199, plus the accessibility app harness on 5188.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | **11,638 pass, 0 fail** |
+| `node --test tests/tools/*.test.mjs` | **1,670 pass, 0 fail** |
+| `npm run test:authoring-v5` | **686 pass, 0 fail** |
+| `npm run lint` | **exit 0**; no new warnings in changed files |
+| `npm run build`, `npm run build:firebase` | **exit 0**; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | studentHome **1048.8 KB** (signIn 291.5 KB): **over** its 1023.4 KB baseline, as the base already is (`e822504`: 1048.6 KB, same check). The +0.2 KB is mine. Baseline not edited. |
+| Emulator suites (`test:rules`, `test:*:emulator`) | **Not run: nothing they cover changed.** No `functions/`, rules, indexes or Firestore paths in the diff. |
+| **New:** `figureDescriptions.mjs`, `mathKeypadToolbar.mjs`, `workViewReference.mjs` | **pass** at 1366×768 and 390×844, before and after the base merge |
+| `npm run certify:accessibility` | **pass**: 11 screens × 2 viewports, axe 4.11.4, no new or increased violations |
+| `npm run review:contrast` | **pass**: 134 undecided nodes in 31 families, 0 fail, 28 decorative |
+| `studentShellLargeText.mjs --check=targets,s5` and `--check=text` | **pass** (200% text, 320 px reflow, text spacing; 0 clipped, 0 off screen, 0 unscaled) |
+| `mathSpeech`, `graphDescription`, `accessiblePrimitives`, `calculatorKeyboard`, `hostAccessibility`, `studentAccessibleNames` | **pass** (`graphDescription` re-run after the base merge) |
+| `toolKeyboardRelationMapping`, `toolKeyboardRegression`, `toolKeyboardDataModelingAndSystemsCss` | **pass** |
+| `toolKeyboardNumberLine`, `toolKeyboardThreePlane` | **pass after rewrite** (`a177aee`). They asserted the keys were in the figure's *name*; Q-8 moved them to the description, after what it shows. Both now read every `aria-describedby` id. Dropping the content description turns each red. |
+| `keyboardSweep.mjs` (audit) | 33 scenes: every one `end=y rev=y`, 0 missing focus rings, 0 unnamed, 0 mouse-only, 0 Escape failures, `lostAfterAction=0/4` |
+| Student runtime gates: `assessmentLeakGates`, `clickMapLetterbox`, `composedDraftRestore`, `composedOutcomePolicy`, `draftEditTime`, `duplicateTabs`, `errorRecovery`, `focusSafeToolControls`, `fractionTemplateGrading`, `graphKeyboardRoute`, `graphPointCheck`, `mathEntryContract`, `phoneToolPanelReach`, `planePhoneReach`, `relationPlotGrading`, `renderStability`, `stagedQuestion`, `systemsWorkspaceStudio`, `toolAttemptOutcome`, `toolPolicyGates`, `unansweredChoiceGates`, `undoTyping`, `workViewHelpReach` | **pass** (`planePhoneReach` re-run after the base merge) |
+| `toolFocusAndUndo.mjs` | **2 failures, not this branch's** (see below) |
+| Also covering these files: `day2NonuniqueJourneys`, `readAloudTranslate`, `secureAccessParity`, `studentUxPlatform`, `assignmentMobile`, `workBarPrimaryLabel`, `closedVerdictChip`, `unchangedConfirmWorkView` | **pass** |
+| `teacherWorkflow/journeys.mjs`, `studentScreenChange.mjs`, `restoredDraftFocusRaceJourneys.mjs` (5188) | **pass** (24 journeys at 1440 and 1024) |
+| Mutation checks | Every new or rewritten assertion was broken once and seen red, then restored (per item above). |
+
+**The `toolFocusAndUndo` failures come from W4-1 meeting the base, not from this branch.**
+
+- **What fails.** "regressionCalculator how-to and zoom (desktop / phone): the how-to has its steps".
+- **Same on the merge alone.** It fails the same way on `f5b6146`: the base plus W4-1, before any TOOL-12 code. W4-1
+  itself was cut before this driver existed.
+- **Cause.** The driver checks `getByText('How to do this (3 steps)').count() === 1`. W4-1 now also renders the
+  TaskCard's directions, with the same summary, inside Work View's **closed** Help drawer. The page has two copies:
+  the visible card and a hidden one.
+- **Suggested fix**, for whoever owns the integration of W4-1:
+  `page.locator('summary', { hasText: 'How to do this (3 steps)' }).filter({ visible: true })`, or scope the check to
+  the tool shell. Not changed here.
 
 ## Deploy targets
 
@@ -263,10 +307,11 @@ Tool and driver files changed only where a name or a target changed:
   - `UniversalUndoButton.jsx`, `MathToolMobileLayout.css`;
   - `esSupport.js` (two Spanish sentences).
 - **Drivers that found a figure by its old instruction name now find it by the new one:**
-  - `toolKeyboardThreePlane.mjs`, `day2NonuniqueJourneys.mjs`, `assessmentLeakGates.mjs` (by `/3D view of the three
+  - `toolKeyboardThreePlane.mjs` (also reads the description now), `day2NonuniqueJourneys.mjs`, `assessmentLeakGates.mjs` (by `/3D view of the three
     planes/`, which matches either name);
   - `graphKeyboardRoute.mjs` (the plane by its workspace selector);
   - `clickMapLetterboxMain.jsx` ("Graph story sketch").
+  - `toolKeyboardNumberLine.mjs` and `toolKeyboardThreePlane.mjs` read the keys from the description, not the name.
 - **Contracts rewritten per the playbook:**
   - `tests/tools/threePlaneKeyboard.test.mjs` (the svg's name and describedby);
   - `studentWorkspaceVisibility.test.mjs` (the label span's classes);
