@@ -229,7 +229,8 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
   assert.match(core, /\n\s*const publishHints = useToolHintPublisher\(\);/);
   assert.match(runtimeImport[1], /\buseToolHintPublisher\b/, 'the publisher hook is imported where it is called');
   const publish = region(core, 'useEffect(() => {\n    if (!publishHints || !strategicHint)', '}, [publishHints, strategicHint]);', 'the strategic hint rung');
-  assert.match(publish, /return publishHints\(\[strategicHint\]\);/);
+  // A STANDING rung: open from the start, taking no family rung's place.
+  assert.match(publish, /return publishHints\(\[\{ text: strategicHint, standing: true \}\]\);/);
 
   // Every solver QuestionEngine mounts is handed the permission and the
   // recorder, including the one inside the intercepts orchestrator.

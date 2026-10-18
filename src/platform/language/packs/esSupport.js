@@ -131,7 +131,7 @@ const genericHints = [
   ['When you find a value, check it in an equation you have not used yet.', 'Cuando encuentres un valor, compruébalo en una ecuación que todavía no hayas usado.'],
   ['If it does not fit, look back at your last step.', 'Si no cumple, revisa tu último paso.'],
   ['Say what each row and each column of the matrix stands for before you change anything.', 'Di qué representa cada fila y cada columna de la matriz antes de cambiar algo.'],
-  ['When you have an answer, put it back into the original equations to check it.', 'Cuando tengas una respuesta, sustitúyela en las ecuaciones originales para comprobarla.'],
+  ['When you have an answer, put it back into the original equations to check it.', 'Cuando tengas una respuesta, vuelve a ponerla en las ecuaciones originales para comprobarla.'],
   ['Look at one card at a time.', 'Mira una tarjeta a la vez.'],
   ['Say one thing you can read from it before you place it.', 'Di una cosa que puedas leer en ella antes de colocarla.'],
   ['If two cards look alike, find one thing that is different about them.', 'Si dos tarjetas se parecen, busca una cosa en la que sean diferentes.'],

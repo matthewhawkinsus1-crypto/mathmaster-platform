@@ -1920,18 +1920,19 @@ export default function StepByStepAlgebra({
   // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
   // hint control beside the work bar's Hint: it opened with no try at all and
   // was recorded only as "a hint was used". Inside a question it is now the
-  // solver's rung of the platform ladder (toolHintChannel.js, like a registry
-  // tool's HintPanel): released one try at a time, read through the leak
-  // guard, counted with the other hints, and shown as read in Work View Help
-  // too. It follows the equation on screen, so it changes as the student
-  // works. Without a platform ladder (the tools lab, a server-graded host) the
-  // solver keeps its own disclosure.
+  // solver's STANDING rung of the platform ladder (toolHintChannel.js): open
+  // from the start as it always was, without taking a family rung's place in
+  // the one-per-try release, and now read through the leak guard, counted
+  // with the other hints, and shown as read in Work View Help too. It follows
+  // the equation on screen, so it changes as the student works. Without a
+  // platform ladder (the tools lab, a server-graded host) the solver keeps its
+  // own disclosure.
   const strategicHint = hintsAllowed && question.showHint !== false && suggestedMove && !solved
     ? `Look for a move that cancels a term: ${describeOperation(suggestedMove.operation, suggestedMove.operand)}.`
     : '';
   useEffect(() => {
     if (!publishHints || !strategicHint) return undefined;
-    return publishHints([strategicHint]);
+    return publishHints([{ text: strategicHint, standing: true }]);
   }, [publishHints, strategicHint]);
   const inlineToolActive = Boolean(
     (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,

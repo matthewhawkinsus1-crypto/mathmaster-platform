@@ -711,6 +711,9 @@ const composedAlgebra = async () => {
         check(rung, 'practice composed-algebra: the algebra step\'s strategic hint is a rung of the platform ladder');
       } else {
         check(!(await page.locator('[data-hint-panel] li[data-hint-source]').count()) && !(await page.getByRole('button', { name: /^Show a hint$/ }).count()), `${role} composed-algebra: the algebra step offers no hint`);
+        // The method itself, in any element (review S2): not only its summary.
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        check(!/Look for a move that cancels a term/.test(html), `${role} composed-algebra: the strategic move is nowhere in the document`);
       }
     });
   }

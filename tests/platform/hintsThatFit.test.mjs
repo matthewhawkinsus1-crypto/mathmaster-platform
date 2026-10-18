@@ -33,6 +33,9 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { TRANSLATION_COVERAGE, loadLanguagePack, translateWithPack } from '../../src/platform/language/translationProviders.js';
+import { hintRelease } from '../../src/platform/supports/hints/questionHints.js';
+import { publishableHints } from '../../src/tools/shared/toolHintChannel.js';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const read = (path) => readFileSync(join(ROOT, path), 'utf8');
@@ -156,6 +159,14 @@ test('a hint that states an answer is still dropped: a value, a point, an expres
   assert.deepEqual(statedAnswers('Write f(x/2).', { answers: ['2'], visibleText: '' }), ['2']);
   assert.deepEqual(statedAnswers('Add 12 to both sides.', { answers: ['2'], visibleText: '' }), []);
   assert.deepEqual(statedAnswers('Start at −2 on the axis.', { answers: ['2'], visibleText: '' }), [], '−2 is not 2');
+  // Review B1: each was dropped on the base, and must stay dropped.
+  assert.deepEqual(statedAnswers('Line q is y = 3x − 8.', { answers: ['3'], visibleText: 'Line p is y = 13x − 8. Line q is perpendicular to it.' }), ['3'], 'quoted as a whole token: "3x − 8" is not in "13x − 8"');
+  assert.deepEqual(statedAnswers('Compare with y = 2x + 1.', { answers: ['2'], visibleText: 'Slope of y = 12x + 1' }), ['2'], 'nor "2x + 1" in "12x + 1"');
+  assert.deepEqual(statedAnswers('The answer is a 3.', { answers: ['3'], visibleText: 'Shade a 3 by 3 grid.' }), ['3'], 'the word "a" and a number are not mathematics');
+  assert.deepEqual(statedAnswers('The slope is 3/(1).', { answers: ['3'], visibleText: '' }), ['3'], 'a number over a bracket is a number');
+  // An empty list of matches is never "quoted": the shared guard matched
+  // "4/3" inside "14/3", which no number in the hint is, so the value counts.
+  assert.deepEqual(statedAnswers('Try 14/3 first.', { answers: ['4/3'], visibleText: 'y = 14/3 x' }), ['4/3']);
   assert.deepEqual(statedAnswers('Look at x − 2.', { answers: ['2'], visibleText: '' }), ['2'], 'a subtracted term is the number');
 });
 
@@ -263,7 +274,7 @@ test('a slope described in words is a Pre-Flight warning — L3 Activity 3.1, an
 
 /* ------------------------------------------------- HELP-23, the fallbacks */
 
-test('the fallback fits the kind of question, and names no method step the item measures', () => {
+test('the fallback fits the kind of question, and names no method step the item measures', async () => {
   const genericOnly = realQuestions()
     .filter(({ role }) => getEffectiveActivityPolicy(role)?.hintsAllowed)
     .filter(({ question }) => buildQuestionHints(question).every((hint) => hint.source === 'generic'))
@@ -290,6 +301,16 @@ test('the fallback fits the kind of question, and names no method step the item 
     if (kind === 'general' && /both sides|two sides/.test(hint)) return; // equations only: the platform's checking question
     assert.doesNotMatch(hint, METHOD, `${kind}: ${hint}`);
   }));
+  // The Spanish names no method either (review N3: "sustitúyela" was the
+  // method word the English avoids).
+  const pack = await loadLanguagePack('es');
+  const METODO = /elimin|sustitu|recíproc|pendiente|distribu|ambos lados|inversa|operaci[oó]n de fila|reduc|factoriz|despej|deshaz|intercambi|refle|estir|traslad|desplaz|intersecci|vértice/i;
+  Object.entries(FALLBACK_HINTS).forEach(([kind, hints]) => hints.forEach((hint) => {
+    const spanish = translateWithPack(hint, pack);
+    assert.equal(spanish.coverage, TRANSLATION_COVERAGE.FULL, hint);
+    if (kind === 'general' && /both sides|two sides/.test(hint)) return;
+    assert.doesNotMatch(spanish.text, METODO, `${kind}: ${spanish.text}`);
+  }));
   // Each fallback still goes through nothing it could leak: it carries no number.
   Object.values(FALLBACK_HINTS).flat().forEach((hint) => assert.doesNotMatch(hint, /\d/));
 });
@@ -308,6 +329,10 @@ test('where only fallbacks are left, the panel points to Ask my teacher — and 
     assert.doesNotMatch(render({ hints: fallback }), /data-hint-fallback-ask/, 'no pointer at a button that is not there');
     assert.doesNotMatch(render({ hints: [{ text: 'Your teacher wrote this.', source: 'authored' }, ...fallback], askTeacher: ask }), /data-hint-fallback-ask/, 'a hint that fits is not general');
     assert.doesNotMatch(render({ hints: [], askTeacher: ask }), /data-hint-fallback-ask/, 'the Ask-only panel of a DOL says nothing about hints');
+    // Review N4: with the hand up, the button below is "Cancel my help request".
+    const raised = render({ hints: fallback, askTeacher: { ...ask, requested: true } });
+    assert.match(raised, />Cancel my help request</);
+    assert.doesNotMatch(raised, /data-hint-fallback-ask/, 'no pointer at "Cancel my help request"');
   } finally {
     await server.close();
   }
@@ -324,4 +349,50 @@ test('the ladder is the audit\'s shown hints; repeats and leaks are dropped with
     [false, 'it names “4”, which is an answer to this question or part of one'],
   ]);
   assert.deepEqual(buildQuestionHints(question).map((hint) => hint.text), ['Undo the + 3 first.']);
+});
+
+/* --------------------------------- TOOL-5: the solver's rung takes no place */
+
+// Review S1. The step solver sits inside these practice and classwork items
+// (representationBridge's process algebra; systemsWorkspace's algebraic
+// mode). "Need a strategic hint?" was open from the start beside every family
+// rung. As a rung after four family rungs it never opened on a 3-try item.
+const SOLVER_ITEMS = [
+  ['docs/assignments/algebra1-linear-multiple-representations-final-v5.json', ['lmr-cw-1', 'lmr-cw-2', 'lmr-cw-3', 'lmr-pr-1', 'lmr-pr-2']],
+  ['docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', ['3x3-d1-wu-1', '3x3-d1-wu-2', '3x3-d1-pr-6-ccmr-bridge']],
+];
+// An operand no item's answer is, so the leak guard keeps it.
+const STRATEGIC = 'Look for a move that cancels a term: subtract 977 from both sides.';
+// Which rungs a student can open after `tries` tries, as texts.
+const openAfter = (ladder, tries) => {
+  const { available } = hintRelease({ hints: ladder, revealed: 0, attemptCount: tries });
+  return ladder.slice(0, available).map((hint) => hint.text);
+};
+
+test('the solver\'s strategic hint is open before the first try, and every family rung opens at the same try as before', () => {
+  assert.deepEqual(publishableHints([{ text: ` ${STRATEGIC} `, standing: true }, 'plain']), [{ text: STRATEGIC, standing: true }, 'plain']);
+  assert.deepEqual(publishableHints([{ text: 'not standing' }]), [], 'only a standing rung may be an object');
+  let checked = 0;
+  SOLVER_ITEMS.forEach(([file, ids]) => {
+    const questions = compileAuthoringIntentV5(JSON.parse(read(file))).package.sections.flatMap((section) => section.questions);
+    ids.forEach((id) => {
+      const question = questions.find((entry) => entry.questionId === id);
+      assert.ok(question, id);
+      const before = buildQuestionHints(question);
+      const after = buildQuestionHints(question, { toolHints: [{ text: STRATEGIC, standing: true }] });
+      assert.ok(before.filter((hint) => hint.source === 'family').length >= 3, `${id} has family rungs`);
+      assert.deepEqual(after[0], { text: STRATEGIC, source: 'tool', standing: true }, `${id}: the solver's rung is first`);
+      assert.ok(openAfter(after, 0).includes(STRATEGIC), `${id}: open before the first try`);
+      for (const tries of [0, 1, 2, 3]) {
+        assert.deepEqual(openAfter(after, tries).filter((hint) => hint !== STRATEGIC), openAfter(before, tries), `${id}: after ${tries} tries the family rungs open as before`);
+      }
+      // Recorded and withheld like any hint: nothing on an assessment.
+      assert.equal(hintRelease({ hints: after, attemptCount: 0, hintsAllowed: false }).allowed, false);
+      checked += 1;
+    });
+  });
+  assert.equal(checked, 8);
+  // A plain tool rung keeps the one-per-try rule (HELP-10): it is not open early.
+  const plain = buildQuestionHints({ prompt: 'Solve 2x + 3 = 11.' }, { toolHints: ['tool one', 'tool two', 'tool three'] });
+  assert.deepEqual(openAfter(plain, 0), ['tool one']);
 });

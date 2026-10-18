@@ -28,7 +28,8 @@ import { hintCostSentence } from './hintCopy.js';
  * 'generic': no teacher, family or tool hint is left), the hints are about
  * the kind of question, not this one, and the panel says so and points to the
  * teacher — only where the teacher can be asked (Ask is wired), so the
- * sentence never points at a button that is not there.
+ * sentence never points at a button that is not there, and not while the hand
+ * is up (the button below is then "Cancel my help request").
  */
 const summaryStyle = { cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 };
 
@@ -117,7 +118,7 @@ export default function HintPanel({
           <SupportedTextActions text={diagnosisShown.text} readAloud={readAloud} translation={translation} label="what might have gone wrong" onEvidence={onSupportEvidence} />
         </div>
       ) : null}
-      {fallbackOnly && ask.button ? (
+      {fallbackOnly && ask.button && !askTeacher?.requested ? (
         <p data-hint-fallback-ask="" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>These hints are general, not written for this question. For help with this one, ask your teacher with the button below.</p>
       ) : null}
       {askOnly ? null : (

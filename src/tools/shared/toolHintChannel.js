@@ -21,9 +21,20 @@
  */
 const clean = (value) => String(value ?? '').trim();
 
-/** A tool's rungs as plain text; anything that is not text is not a rung. */
+/*
+ * A tool's rungs as plain text; anything else is not a rung — except a
+ * STANDING rung, `{ text, standing: true }` (student pass 3, TOOL-5): the step
+ * solver's "look for a move that cancels a term". It was there from the first
+ * moment before it joined this ladder, so it is released from the start and
+ * takes no other rung's place (questionHints.js hintRelease).
+ */
+const rungText = (hint) => (typeof hint === 'string' ? hint : hint?.text);
 export const publishableHints = (hints) => (Array.isArray(hints) ? hints : [])
-  .map((hint) => (typeof hint === 'string' ? clean(hint) : ''))
+  .map((hint) => {
+    if (typeof hint === 'string') return clean(hint);
+    if (hint && typeof hint === 'object' && hint.standing === true && typeof hint.text === 'string' && clean(hint.text)) return { text: clean(hint.text), standing: true };
+    return '';
+  })
   .filter(Boolean);
 
 export const createToolHintChannel = (onChange = null) => {
@@ -33,7 +44,7 @@ export const createToolHintChannel = (onChange = null) => {
   const merged = () => {
     const seen = new Set();
     return published.flatMap((entry) => entry.hints).filter((hint) => {
-      const key = hint.toLowerCase();
+      const key = rungText(hint).toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

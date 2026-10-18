@@ -170,7 +170,9 @@ export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
   const authored = [...list(question.supportHints), ...list(question.hints), ...list(question.hint)]
     .map(hintText).filter(Boolean).map((value) => ({ text: value, source: 'authored' }));
   const family = familyHints(question).filter(Boolean).map((value) => ({ text: value, source: 'family' }));
-  const tool = list(toolHints).map(hintText).filter(Boolean).map((value) => ({ text: value, source: 'tool' }));
+  const tool = list(toolHints).map((entry) => ({ value: hintText(entry), standing: entry?.standing === true }))
+    .filter(({ value }) => value)
+    .map(({ value, standing }) => (standing ? { text: value, source: 'tool', standing: true } : { text: value, source: 'tool' }));
   const options = { answers: questionAnswerValues(question), visibleText: questionVisibleText(question) };
   const seen = new Set();
   return [...authored, ...family, ...tool].map((hint) => {
@@ -185,9 +187,15 @@ export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
 
 export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
   if (!question || typeof question !== 'object') return [];
-  const safe = questionHintAudit(question, { toolHints }).filter((hint) => hint.shown).map(({ text: value, source }) => ({ text: value, source }));
-  if (!safe.length) safe.push(...fallbackHints(question).map((value) => ({ text: value, source: 'generic' })));
-  return safe.slice(0, MAX_HINTS);
+  const shown = questionHintAudit(question, { toolHints }).filter((hint) => hint.shown)
+    .map(({ text: value, source, standing }) => (standing ? { text: value, source, standing } : { text: value, source }));
+  // A standing rung (the step solver's, TOOL-5) comes first and is released
+  // from the start without taking another rung's place (hintRelease), so the
+  // rungs after it open at the same try they did before it joined the ladder.
+  const standing = shown.filter((hint) => hint.standing);
+  const ladder = shown.filter((hint) => !hint.standing);
+  if (!ladder.length && !standing.length) ladder.push(...fallbackHints(question).map((value) => ({ text: value, source: 'generic' })));
+  return [...standing, ...ladder.slice(0, MAX_HINTS)];
 };
 
 /*
@@ -251,10 +259,16 @@ export const diagnosisHint = ({ question = null, diagnosis = null, alreadyShown 
 /*
  * Which hints the student may see now.
  *   { allowed, available: count unlocked, nextUnlocksAfterAttempt }
+ *
+ * One rung on request, then one more per try. A STANDING rung (TOOL-5: the
+ * step solver's strategic hint, first in the ladder) is open from the start
+ * and adds its own place, so it never holds back a rung after it: the k-th
+ * other rung still opens after try k − 1.
  */
 export const hintRelease = ({ hints = [], revealed = 0, attemptCount = 0, hintsAllowed = true, closed = false } = {}) => {
   if (!hintsAllowed || closed || !hints.length) return { allowed: false, available: 0, canRevealNext: false };
-  const unlocked = Math.min(hints.length, 1 + Math.max(0, Number(attemptCount) || 0));
+  const standing = hints.filter((hint) => hint?.standing === true).length;
+  const unlocked = Math.min(hints.length, standing + 1 + Math.max(0, Number(attemptCount) || 0));
   return {
     allowed: true,
     available: unlocked,

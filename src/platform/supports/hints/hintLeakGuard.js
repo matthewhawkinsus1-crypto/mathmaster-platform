@@ -73,21 +73,33 @@ const signBefore = (haystack, index) => {
     || (/[a-z]/i.test(haystack[before]) && !/[a-z]/i.test(haystack[before - 1] || '')));
   return operand ? null : at;
 };
+// Every number the hint writes that could be this one as TEXT — the whole
+// token, its numerator or its denominator spelled the same — and, of those,
+// the ones that ARE this number by value. A candidate that reads as another
+// number (a sign, a fraction, a numerator over a variable) is accounted for;
+// a hint the shared guard matched with no candidate at all is not, and then
+// the value counts (fail closed: an empty list is never "quoted").
 const occurrences = (haystack, value) => {
   const wanted = numberValue(value);
-  if (wanted === null) return [];
+  const unsigned = squash(value).replace(/^-/, '');
   const found = [];
+  let candidates = 0;
+  if (wanted === null) return { found, candidates };
   for (const match of haystack.matchAll(NUMBER_TOKEN)) {
     const start = match.index;
     const end = start + match[0].length;
     if (/[\d.]/.test(haystack[start - 1] || '')) continue;
-    if (/^\s*\/\s*[a-z(]/i.test(haystack.slice(end))) continue;
+    const spelled = match[0].replace(/\s+/g, '');
+    if (spelled !== unsigned && match[1] !== unsigned && match[2] !== unsigned) continue;
+    candidates += 1;
+    // A numerator over a variable is not a number: "−1/n" does not write −1.
+    if (/^\s*\/\s*[a-z]/i.test(haystack.slice(end))) continue;
     const size = Number(match[1]) / (match[2] === undefined ? 1 : Number(match[2]));
     const sign = signBefore(haystack, start);
     const read = sign === null ? size : -size;
     if (Math.abs(read - wanted) < 1e-9) found.push({ start: sign === null ? start : sign, end });
   }
-  return found;
+  return { found, candidates };
 };
 
 // A point the hint writes, "(−2, 9)".
@@ -135,14 +147,24 @@ const expressionAround = (haystack, start, end) => {
   return balance(piece);
 };
 
+// Quoted whole: the piece is in what the student reads as a whole token —
+// "3x−8" is not quoted by "13x−8", nor "2x+1" by "12x+1".
+const quotedWhole = (shown, piece) => {
+  const escaped = squash(piece).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return Boolean(escaped) && new RegExp(`(?<![0-9a-z]|\\d\\.)${escaped}(?![0-9a-z]|\\.\\d)`, 'i').test(shown);
+};
+// Mathematics, not prose: an operator, a bracket, or a number against a letter
+// ("3x"). "a 3" is the word "a" and a number.
+const MATHEMATICS = /[=+\-*/^()·]|\d[a-z]|[a-z]\d/i;
+
 // The occurrence is part of something the student is shown, quoted whole.
 const quotedAt = (haystack, { start, end }, shown) => {
   for (const match of haystack.matchAll(POINT)) {
-    if (match.index <= start && end <= match.index + match[0].length) return shown.includes(squash(match[0]));
+    if (match.index <= start && end <= match.index + match[0].length) return quotedWhole(shown, match[0]);
   }
   const expression = expressionAround(haystack, start, end);
-  if (!/[a-z]/i.test(expression)) return false;
-  return shown.includes(squash(expression));
+  if (!/[a-z]/i.test(expression) || !MATHEMATICS.test(expression)) return false;
+  return quotedWhole(shown, expression);
 };
 
 /**
@@ -159,8 +181,10 @@ export const statedAnswers = (hint, { answers = [], visibleText = '' } = {}) => 
     if (!hintRevealsAnswer(raw, [value])) return false;
     if (!isNumberAnswer(value)) return true;
     // The shared guard reads text; read as numbers, its match may have been a
-    // different number only ("2" in "1/2"). Then this one is not written.
-    const found = occurrences(haystack, value);
+    // different number only ("2" in "1/2", "−2"). Then this one is not
+    // written — but only when every such match is accounted for.
+    const { found, candidates } = occurrences(haystack, value);
+    if (!found.length) return candidates === 0;
     return !found.every((occurrence) => quotedAt(haystack, occurrence, shown));
   });
 };
