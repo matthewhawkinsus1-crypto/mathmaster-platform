@@ -16,11 +16,20 @@
 // Wednesday keeps "yesterday" and the fixture's week of service minutes inside
 // one school week, whichever day the week starts on.
 //
+// A DAY SCHOOL IS IN SESSION. The Wednesday is the most recent one that, with
+// the Tuesday before it ("yesterday"), is instructional on the district
+// calendar the app reads (src/curriculum/calendars/schoolYear2026-2027.js). In
+// Fall break the plain "most recent Wednesday" was 2026-10-14: the app rightly
+// said "This class did not meet" on Attendance History, and the name journeys
+// found no rows.
+//
 // ONLY THE DATE MOVES. Timers, animation frames and performance.now() stay the
 // browser's own, so the app's timing is a Chromebook's. Playwright's
 // clock.install fakes timers too and fires them from its own loop, which
 // reorders a delayed draft read against keystrokes: draftCrossDeviceJourneys'
 // "directions" then typed into a question that was remounting under it.
+import { schoolYearNonInstructionalRanges } from '../../../src/curriculum/calendars/schoolYear2026-2027.js';
+
 export const SCHOOL_TIME_ZONE = 'America/Chicago';
 const SCHOOL_WEEKDAY = 3; // Wednesday
 const SCHOOL_HOUR = 11;
@@ -40,14 +49,25 @@ const schoolInstant = (year, monthIndex, day, hour) => {
   return wall - offsetAt(wall - offsetAt(wall));
 };
 
-// The most recent Wednesday 11:00 in the school's zone, at or before `realMs`.
+// 'YYYY-MM-DD' of a calendar day (Date.UTC normalises an out-of-range day).
+const dateKeyOf = (year, monthIndex, day) => new Date(Date.UTC(year, monthIndex, day)).toISOString().slice(0, 10);
+const NON_INSTRUCTIONAL = schoolYearNonInstructionalRanges();
+const closed = (key) => NON_INSTRUCTIONAL.some(({ start, end }) => key >= start && key <= end);
+// The Wednesday on `day` and the Tuesday before it both hold class.
+const weekInSession = (year, monthIndex, day) => [-1, 0]
+  .every((offset) => !closed(dateKeyOf(year, monthIndex, day + offset)));
+
+// The most recent Wednesday 11:00 in the school's zone, at or before `realMs`,
+// on a day school is in session.
 export const schoolMorningBefore = (realMs) => {
   const parts = schoolParts(realMs);
   const year = Number(parts.year);
   const monthIndex = Number(parts.month) - 1;
-  const daysBack = (WEEKDAYS.indexOf(parts.weekday) - SCHOOL_WEEKDAY + 7) % 7;
-  const morning = schoolInstant(year, monthIndex, Number(parts.day) - daysBack, SCHOOL_HOUR);
-  return morning <= realMs ? morning : schoolInstant(year, monthIndex, Number(parts.day) - daysBack - 7, SCHOOL_HOUR);
+  let day = Number(parts.day) - (WEEKDAYS.indexOf(parts.weekday) - SCHOOL_WEEKDAY + 7) % 7;
+  if (schoolInstant(year, monthIndex, day, SCHOOL_HOUR) > realMs) day -= 7;
+  // Winter break is the longest closure (two weeks); a year of weeks is a bound.
+  for (let weeks = 0; weeks < 52 && !weekInSession(year, monthIndex, day); weeks += 1) day -= 7;
+  return schoolInstant(year, monthIndex, day, SCHOOL_HOUR);
 };
 
 const SHIFT_MS = schoolMorningBefore(Date.now()) - Date.now();

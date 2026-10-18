@@ -78,20 +78,22 @@ test('intercept controls use student words, never staging vocabulary', () => {
   }
 });
 
-test('an intercept question submits as "Submit Intercepts", not as a solved equation', () => {
+// The label once named the work ("Submit Solved Equation"), and an intercept
+// question — two ordered pairs, not a solved equation — had to be told apart.
+// Since student pass 3 (RUN-4, D9) the action is "Submit" and its cost for
+// every route, so no route can be named for work the student never did.
+test('an intercept question is never labelled as a solved equation', () => {
   const engine = source('src/QuestionEngine.jsx');
-  const label = region(engine, 'const submitLabel = submitting', 'const workspaceActions', 'submit label');
-  const intercept = label.indexOf('ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS');
-  const stepAlgebra = label.indexOf("'Submit Solved Equation'");
-  assert.ok(intercept > -1 && stepAlgebra > intercept, 'the intercept route is decided before the Step Algebra label');
-  assert.match(label, /'Submit Intercepts'/);
+  const label = region(engine, 'const tryCost = submitTryCost(', 'const workspaceActions', 'submit label');
+  assert.match(label, /const submitLabel = submitActionLabel\(\{ hostLabel: hostSubmitLabel, submitting, cost: tryCost \}\);/);
+  assert.doesNotMatch(label, /Solved Equation|Intercepts|LINEAR_INTERCEPTS|stepAlgebra/, 'the label names no route');
 });
 
 // ─── Locked work is inert to the keyboard, not only to the mouse ───────────
 
 test('the locked tool region passes a boolean inert (React 19 reads "" as false)', () => {
   const engine = source('src/QuestionEngine.jsx');
-  const lockedRegion = region(engine, '<div aria-disabled={locked', '<QuestionModuleBoundary', 'locked tool region');
+  const lockedRegion = region(engine, '<div aria-disabled={workAreaClosed', '<QuestionModuleBoundary', 'locked tool region');
   assert.match(lockedRegion, /inert=\{[^}]*\? true : undefined\}/);
   assert.doesNotMatch(lockedRegion, /inert=\{[^}]*\? '' : undefined\}/);
 });

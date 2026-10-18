@@ -288,8 +288,12 @@ if (functionSteps > 1) {
   console.log(`\n  ${functionSteps} function groups of up to ${GROUP_SIZE}, ${PAUSE_SECONDS}s apart — about ${Math.round((functionSteps * (PAUSE_SECONDS + 90)) / 60)} minutes if nothing is throttled.`);
 }
 if (steps.some((step) => step.target === VERIFY_FUNCTIONS)) {
-  console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group; the verify step then requires it to report ${head} before anything after it deploys.`);
+  console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group before the checks; the verify step then requires it to report ${head} before anything after it deploys.`);
 }
+const shipsFirst = steps.filter((step) => step.deployFirst).flatMap((step) => step.group);
+const shipsAfterChecks = steps.filter((step) => step.afterChecks).flatMap((step) => step.group);
+if (shipsFirst.length) console.log(`  First, each alone: ${shipsFirst.join(', ')}.`);
+if (shipsAfterChecks.length) console.log(`  After both checks, each alone, and only if every other function shipped and both passed: ${shipsAfterChecks.join(', ')}.`);
 
 if (!EXECUTE) {
   console.log('\nPlan only. Re-run with --execute to deploy.');
@@ -384,6 +388,8 @@ const report = {
   ok: outcome.ok,
   results: outcome.results,
   failedFunctions: outcome.failedFunctions,
+  // Planned after the checks and not deployed because they did not pass.
+  heldFunctions: outcome.heldFunctions,
   // passed | failed (sha-mismatch | unreachable) | skipped; null when no default-codebase function was deployed.
   verification: outcome.verification,
   // passed | failed | skipped, with the callables granted browser access and any still unreachable.
@@ -410,6 +416,7 @@ if (outcome.failedFunctions.length) {
   console.log(`Functions that did not deploy (${outcome.failedFunctions.length}):`);
   outcome.failedFunctions.forEach(({ name, failure }) => console.log(`  ${name}  (${failure})`));
 }
+if (outcome.heldFunctions?.length) console.log(`Held until the rest is proven (not deployed): ${outcome.heldFunctions.join(', ')}`);
 if (outcome.verification?.status === 'passed') {
   console.log(`Functions verified: ${outcome.verification.function} serves ${String(outcome.verification.liveGitSha).slice(0, 12)}${outcome.verification.warning ? ` (WARNING: ${outcome.verification.warning})` : ''}.`);
 } else if (outcome.verification?.status === 'failed') {

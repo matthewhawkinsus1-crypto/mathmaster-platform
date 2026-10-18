@@ -69,12 +69,17 @@ test('append-only resolution events clear linked outstanding follow-ups without 
 test('runtime wiring imports the contact center and store next to their calls', async () => {
   // The center is rendered by the teacher's screen, its own module since G2:
   // it imports the center (loaded on demand) and the store calls it makes;
-  // App keeps the listener.
+  // App keeps the listener, and loads the store on demand: a static import put
+  // the store in every student's first load. A late-arriving store must not
+  // subscribe for a teacher who already left the tab.
   const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   const teacherWorkspace = await readFile(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'ParentContactCenter', 'src/components/teacher/ParentContactCenter.jsx'));
   assert.match(teacherWorkspace, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution \} from '..\/..\/platform\/teacher\/parentContactStore\.js'/);
-  assert.match(app, /import \{ subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
+  assert.doesNotMatch(app, /^import [^;]*from '\.\/platform\/teacher\/parentContactStore\.js'/m);
+  assert.match(app, /import\('\.\/platform\/teacher\/parentContactStore\.js'\)[\s\S]{0,200}subscribeParentContacts\(\{ db, teacherEmail: user\.email, onChange: setParentContacts/);
+  assert.match(app, /if \(stopped\) return;\s*const unsubscribe = subscribeParentContacts\(/);
+  assert.match(app, /release = \(\) => unsubscribe\(\);[\s\S]{0,200}return \(\) => \{ stopped = true; release\?\.\(\); \};/);
   assert.match(teacherWorkspace, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
 });
 

@@ -48,7 +48,9 @@ const DEVICES = [
   { id: 'chromebook-1366', phone: false, options: { viewport: { width: 1366, height: 768 } } },
 ];
 const STATES = [
-  { id: 'submit', selector: 'button.mathmaster-bar-submit', name: 'Submit Answer', phoneText: 'Submit', tools: 6 },
+  // Submit over its cost (student pass 3, RUN-4): two short lines, the phone's
+  // shorter cost under the verb.
+  { id: 'submit', selector: 'button.mathmaster-bar-submit', name: 'Submit — uses 1 of 3 tries', phoneText: 'Submit 1 of 3', desktopText: 'Submit uses 1 of 3 tries', tools: 6 },
   { id: 'next', selector: 'button.mathmaster-bar-continue', name: 'Next question →', phoneText: 'Next →', tools: 5 },
   { id: 'section', selector: 'button.mathmaster-bar-continue', name: 'Continue to Unit 2 Review →', phoneText: 'Continue →', tools: 5 },
 ];
@@ -59,10 +61,13 @@ const measure = (page, selector) => page.evaluate((primarySelector) => {
   const primary = document.querySelector(primarySelector);
   if (!primary) return null;
   const bar = primary.closest('.portrait-action-bar, .mathmaster-desktop-action-bar');
+  // A block child is its own line: read as a space between words.
   const visibleText = (element) => [...element.childNodes].map((node) => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.nodeType !== Node.ELEMENT_NODE) return '';
-    return getComputedStyle(node).display === 'none' ? '' : visibleText(node);
+    const display = getComputedStyle(node).display;
+    if (display === 'none') return '';
+    return display === 'block' ? ` ${visibleText(node)} ` : visibleText(node);
   }).join('');
   const controls = bar ? [...bar.querySelectorAll(':scope > button')].map((button) => {
     const rect = button.getBoundingClientRect();
@@ -117,7 +122,9 @@ for (const device of DEVICES) {
       check(facts.ariaLabel === state.name, `${scene}: the accessible name is the whole label`, `${facts.ariaLabel}`);
       check(await page.getByRole('button', { name: state.name, exact: true }).count() === 1, `${scene}: the button is found by its whole name`);
       const visibleWords = facts.text.replace(/ →$/, '');
-      check(state.name.startsWith(visibleWords), `${scene}: the visible words begin the accessible name`, `"${facts.text}" in "${state.name}"`);
+      // Every word on the button is in its accessible name, in order.
+      const inOrder = visibleWords.split(/\s+/).reduce((at, word) => (at < 0 ? at : state.name.indexOf(word, at) < 0 ? -1 : state.name.indexOf(word, at) + word.length), 0) >= 0;
+      check(state.name.startsWith(visibleWords.split(' ')[0]) && inOrder, `${scene}: the visible words are the accessible name's`, `"${facts.text}" in "${state.name}"`);
 
       if (device.phone) {
         check(facts.portrait, `${scene}: the phone bar is the portrait action bar`);
@@ -134,7 +141,7 @@ for (const device of DEVICES) {
         check(narrow.length === 0, `${scene}: every tool is at least ${Math.round(floor)}px wide`, tools.map((tool) => `${tool.name} ${tool.width.toFixed(1)}`).join(', '));
       } else {
         check(!facts.portrait, `${scene}: the desktop bar is not the phone bar`);
-        check(facts.text === state.name, `${scene}: the desktop shows the whole label`, `"${facts.text}"`);
+        check(facts.text === (state.desktopText || state.name), `${scene}: the desktop shows the whole label`, `"${facts.text}"`);
       }
       await context.close();
     }

@@ -372,7 +372,8 @@ for (const device of ['desktop', 'phone']) {
   const page = await open('regressionCalculator', { device });
   const key = `regressionCalculator how-to and zoom (${device})`;
   try {
-    check(await page.getByText('How to do this (3 steps)').count() === 1, `${key}: the how-to has its steps`);
+    // One on screen: Work View's Help keeps the same steps in its closed drawer (TOOL-3).
+    check(await page.getByText('How to do this (3 steps)').filter({ visible: true }).count() === 1, `${key}: the how-to has its steps`);
     const ticks = () => page.locator('[data-regression-graph] svg text').allInnerTexts().then((list) => list.join(','));
     const before = await ticks();
     const zoomIn = page.locator('[data-regression-graph]').getByRole('button', { name: 'Zoom in' });

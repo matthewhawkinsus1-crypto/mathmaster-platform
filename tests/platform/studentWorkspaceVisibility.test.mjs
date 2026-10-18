@@ -22,6 +22,27 @@ test('an active systems solver gets the full width; the givens become a strip ab
   assert.doesNotMatch(css, /algebraic-system-layout\.has-active-solver \{\s*grid-template-columns:\s*minmax\(2\d0px/, 'no fixed side column while solving');
 });
 
+// Q-24 (student pass 3): the 3×3 substitution kept a 220–280px column of the
+// originals while Step Algebra was open — at 1366×768 the solver had 722px and
+// each equation side ~250px. The 2×2 fix above, applied to the 3×3 layout.
+test('an active 3×3 substitution solver gets the full width; the originals become a strip above it', () => {
+  const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
+  const rule = (selector) => {
+    const start = css.indexOf(`\n${selector} {`);
+    assert.ok(start >= 0, selector);
+    return css.slice(start, css.indexOf('}', start));
+  };
+  assert.match(rule('.mathmaster-reduction-layout.has-active-solver'), /grid-template-columns:\s*minmax\(0, 1fr\);/, 'one column while solving');
+  const strip = rule('.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-reference');
+  assert.match(strip, /position:\s*static;/, 'the strip scrolls with the work instead of sticking over it');
+  // In em, so a track grows with the text; whether each equation shows whole
+  // is measured in a browser (algebraicSystems3x3.mjs, strip-fit-*).
+  assert.match(strip, /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, \d+(\.\d+)?em\), 1fr\)\);/, 'the equations sit side by side in text-sized tracks');
+  // The class is set exactly while the embedded solver is open.
+  const source = read('src/tools/systemsWorkspace/SubstitutionReductionMode.jsx');
+  assert.match(source, /className=\{`mathmaster-reduction-layout\$\{embeddedSolverActive \? ' has-active-solver' : ''\}`\}/);
+});
+
 // Live QA, 1536×900: the navigator (top: 8px) sat 30px under the identity bar,
 // hiding the section tabs; the task card's Hide button sat under the navigator
 // (fixed top: 118px); the TEKS/CCMR chips rode in the sticky area over the
@@ -160,7 +181,7 @@ test('a locked question says why in the attempt strip, not only below the tool',
   const source = read('src/QuestionEngine.jsx');
   const strip = source.slice(source.indexOf('className="mathmaster-question-attempt-strip"'), source.indexOf('{dolMode && <div'));
   const lockedAt = strip.search(/: assignmentLocked\s*\?\s*\(assignmentLockedMessage \|\|/);
-  const triesAt = strip.indexOf("'try' : 'tries'} left`");
+  const triesAt = strip.indexOf(': triesLeftText({');
   assert.ok(lockedAt > 0, 'the strip shows the lock message');
   assert.ok(triesAt > lockedAt, 'the lock message wins over the tries count');
 });
@@ -350,10 +371,13 @@ test('Work View landscape rail fits seven full-size controls', () => {
 // y=939, clipped by the fixed-height question container — unreachable.
 test('a finished question puts its next step in the action bar', () => {
   const engine = read('src/QuestionEngine.jsx');
-  const decide = engine.slice(engine.indexOf('const barContinueAction = !locked'), engine.indexOf('// UNDO BELONGS WHERE THE HANDS ARE.'));
-  assert.match(decide, /sectionComplete && typeof onContinueSection === 'function'\s*\? \{ label: `Continue to \$\{continueSectionLabel \|\| 'next section'\} →`, onClick: onContinueSection \}/);
-  assert.match(decide, /!sectionComplete && typeof onNextQuestion === 'function'\s*\? \{ label: 'Next question →', onClick: onNextQuestion \}/);
-  assert.match(engine, /\) : barContinueAction \? \(\s*\/\/[\s\S]*?<button\s*type="button"\s*className="mathmaster-bar-continue"\s*onClick=\{barContinueAction\.onClick\}/);
+  // One rule for the way on since student pass 3 (closedQuestionWayOn): the
+  // bar, the Enter shortcut and the focus after a closed question all read it.
+  assert.match(engine, /const barContinueAction = closedQuestionWayOn;/);
+  const decide = region(engine, 'const closedQuestionWayOn = !locked', '          : null;', 'the way on');
+  assert.match(decide, /sectionComplete && typeof onContinueSection === 'function'\s*\? \{ kind: 'continue', label: `Continue to \$\{continueSectionLabel \|\| 'next section'\} →`, onClick: onContinueSection \}/);
+  assert.match(decide, /!sectionComplete && typeof onNextQuestion === 'function'\s*\? \{ kind: 'next', label: 'Next question →', onClick: onNextQuestion \}/);
+  assert.match(engine, /\) : barContinueAction \? \(\s*\/\/[\s\S]*?<button\s*ref=\{continueButtonRef\}\s*type="button"\s*className="mathmaster-bar-continue"\s*data-way-on=\{barContinueAction\.kind\}\s*onClick=\{barContinueAction\.onClick\}/);
 });
 
 // Live QA round 2, 1180×820: a multi-part question's table sat centred with

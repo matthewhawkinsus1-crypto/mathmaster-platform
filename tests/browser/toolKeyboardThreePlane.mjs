@@ -203,7 +203,7 @@ const run = async (width, height) => {
   for (const text of beforeCheck) assert.doesNotMatch(text, /\b(correct|incorrect|right|wrong|not yet)\b/i, `${at}: nothing announces a verdict before Check: "${text}"`);
 
   // Check by keys: incorrect, as the keyed state says.
-  const check = await tabUntil((s) => s.tag === 'button' && /^Check my answer$/.test(s.text), 'Check my answer');
+  const check = await tabUntil((s) => s.tag === 'button' && /^Submit — /.test(s.text), 'Check my answer');
   assert.ok(check.focusVisible);
   await page.keyboard.press('Enter');
   await until(async () => (await grades()).length >= 1);
@@ -231,7 +231,7 @@ const run = async (width, height) => {
   assert.deepEqual({ meaning: await choices(meaningLabel), count: await choices(countLabel) }, chosen, `${at}: rotating changes no choice`);
   assert.equal((await grades()).length, gradedOnce, `${at}: rotating grades nothing`);
 
-  await tabUntil((s) => s.tag === 'button' && /^Check my answer$/.test(s.text), 'Check my answer again');
+  await tabUntil((s) => s.tag === 'button' && /^Submit — /.test(s.text), 'Check my answer again');
   await page.keyboard.press('Enter');
   await until(async () => (await grades()).length >= gradedOnce + 1);
   log = await grades();

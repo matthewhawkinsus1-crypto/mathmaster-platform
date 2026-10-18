@@ -26,6 +26,7 @@ import {
   studentBuildConstraintStatus,
   studentBuildInequalityTask,
   studentBuildWorkingConstraints,
+  vertexCoverage,
   vertexInclusionExpected,
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -35,7 +36,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
-import { formatInequality, formatModelingConstraint, formatPoint } from './inequalityFormat.js';
+import { formatInequality, formatModelingConstraint, formatPoint, vertexCoverageMessage } from './inequalityFormat.js';
 import {
   STEP_LABELS,
   buildFlowPlan,
@@ -404,11 +405,27 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const teacherReport = teacherPointChecked ? pointReport([teacherTestPoint.x, teacherTestPoint.y], teacherPointResponse) : null;
   const studentReport = studentPointChecked ? pointReport(studentTestPoint, studentPointResponse, studentProbeIndex(studentTestPoint)) : null;
   const vertexReports = verticesChecked ? vertices.map(vertexReport) : [];
+  // Where outcomes are shown, the step is done only when every true corner is
+  // marked, as the final check grades it; each mark's own line cannot say a
+  // corner is missing. On a DOL, quiz or test the count is a verdict, so the
+  // step is recorded once every mark is answered, as the final check counts it.
+  const verticesStepDone = (reports) => reports.length > 0
+    && reports.every((report) => report.done)
+    && (!buildGate.verdictsShown || vertexCoverage(workingVertices, vertices).complete);
+  const vertexCoverageReport = () => {
+    if (!verticesChecked || !buildGate.verdictsShown) return null;
+    // The letters VertexList shows, for the marks near no corner.
+    const offCornerLetters = vertices
+      .map((vertex, index) => (vertexIncludedExpected(vertex) == null ? String.fromCharCode(65 + index) : null))
+      .filter(Boolean);
+    const text = vertexCoverageMessage(vertexCoverage(workingVertices, vertices), offCornerLetters);
+    return text ? { tone: 'revise', text } : null;
+  };
   const reasoningDone = (phase) => {
     if (phase === 'classify') return Boolean(classificationReport()?.done);
     if (phase === 'teacherPoint') return Boolean(teacherReport?.done);
     if (phase === 'studentPoint') return Boolean(studentReport?.done);
-    if (phase === 'vertices') return vertexReports.length > 0 && vertexReports.every((report) => report.done);
+    if (phase === 'vertices') return verticesStepDone(vertexReports);
     return false;
   };
 
@@ -465,7 +482,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       ? (!buildGate.verdictsShown ? { done: Boolean(regionClassification) } : { done: Boolean(regionClassification) && regionClassification === workingClassification })
       : phase === 'teacherPoint' ? pointReport([teacherTestPoint.x, teacherTestPoint.y], teacherPointResponse)
         : phase === 'studentPoint' ? pointReport(studentTestPoint, studentPointResponse, studentProbeIndex(studentTestPoint))
-          : { done: vertices.length > 0 && vertices.map(vertexReport).every((item) => item.done) };
+          : { done: verticesStepDone(vertices.map(vertexReport)) };
     const next = cursorAfterCheck(flowContext, phase, Boolean(report?.done));
     if (next !== phase) moveCursor(next, { focus: true });
   };
@@ -957,6 +974,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
               <div className="mm-ineq-actions">
                 <button type="button" className="mm-ineq-action" onClick={() => checkReasoning('vertices')} disabled={!vertices.length}>Check vertices</button>
               </div>
+              <StepFeedback tone={vertexCoverageReport()?.tone}>{vertexCoverageReport()?.text}</StepFeedback>
             </>
           ), vertices.length ? `${vertices.length} marked` : '') : null}
 
