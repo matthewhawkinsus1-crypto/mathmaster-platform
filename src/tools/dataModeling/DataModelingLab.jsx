@@ -27,7 +27,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
-import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -228,6 +228,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // like, how to choose a model) answer parts it asks. They are hints: shown
   // where hints are, withheld on a secure item.
   const teachingNotes = useHintsAllowed();
+  // THE ERROR READOUTS ARE A VERDICT (student pass 3, W6-4; found on the base).
+  // The live MAE · RMSE under the student's model let them tune until the
+  // numbers bottomed out, and each candidate's RMSE · MAE in modelCompare
+  // ranks the candidates — nearly the answer to "Select the best model".
+  // Where the activity withholds verdicts and the method (an exit ticket,
+  // quiz or test before release) neither is shown; practice keeps both.
+  const errorReadouts = !useMethodWithheld();
   const hostSubmitLabel = useHostSubmitLabel();
   const guideSteps = teachingNotes
     ? (MODE_STEPS[mode] || MODE_STEPS.full)
@@ -479,7 +486,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
                         : <>y = {shownSlope}x {Number(b) >= 0 ? '+' : '−'} {shownInterceptMagnitude}</>}
-                  <br/><span style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
+                  {errorReadouts ? <><br/><span data-model-error-readout="" style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span></> : null}
                 </div>
               ) : (
                 <p style={{margin:'10px 0 0',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
@@ -559,7 +566,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             {candidateModels.map((entry) => (
               <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:modelChoice===entry.id?'var(--mm-primary-subtle)':'var(--mm-surface)' }}>
                 <input type="radio" name="modelChoice" checked={modelChoice===entry.id} onChange={()=>setModelChoice(entry.id)} />
-                <span><strong>{entry.label}</strong><br/><span style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
+                <span><strong>{entry.label}</strong>{errorReadouts ? <><br/><span data-model-error-readout="" style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></> : null}</span>
               </label>
             ))}
           </div>

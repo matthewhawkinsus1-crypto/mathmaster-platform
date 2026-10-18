@@ -155,6 +155,30 @@ comparison against the base's model, not committed) wrong reads go from 652 to 1
 3.1416 — inside that line's measured uncertainty (the base read 3.1 or 3.14). sin(x)⁴ and (1 − cos x)² now list their
 flat minima as y = 0 at full precision (the base said 2.4 × 10⁻¹⁵ at 9.425).
 
+## 6. Found on the base, fixed here: Data Modeling's error readouts (integrator review)
+
+**What a student saw** (base `3cb782a9`, the secure-test runtime, `hostAccessibility.html?scene=rich-tool&tool=dataModelingLab`):
+"Current MAE: 1.34 · RMSE: 1.44" live under their own model, and "RMSE 0.4 · MAE 0.33" / "RMSE 0.37 · MAE 0.3" beside
+each candidate in "Compare model families". The first lets a student tune the coefficients until the numbers bottom
+out. The second ranks the candidates, which nearly answers the graded "Select the best model"; the teaching note on
+how to choose was already withheld there.
+
+**What changed.** `DataModelingLab.jsx`: `errorReadouts = !useMethodWithheld()` gates both. On an exit ticket, quiz or
+test (hints off or verdicts withheld) neither is shown, before or after release while hints stay off. On practice and
+classwork both are exactly as before. The after-submit reference is unchanged; it only shows where feedback is shown.
+
+**Proof.** `toolDirectionsSplit` "W6-4: Data Modeling shows no error readout…": three modes (linearFitPrediction,
+modelCompare, full) rendered through Vite SSR with each role's runtime, derived from `getEffectiveActivityPolicy` the
+way QuestionEngine derives it. Practice and classwork show the readouts; DOL, quiz and test show no "MAE" or "RMSE";
+the model choice is still offered on a test. Mutations, each red: the gate always open, gated by hints only, the live
+readout ungated, the candidate readout ungated, the gate always closed. In the browser, the secure-test runtime shows
+no readout on the branch and both on the base. `testCycleRichToolQa` with `QA_TOOLS=dataModelingLab` (real functions
+on the emulator): 52 checks pass on the branch. Its 2 findings ("Cannot read properties of null (reading
+'questionInstanceId')", chromebook and ipad) appear identically on the base `3cb782a9`; that bank item is a
+correlation item and has neither readout. Rerun after the fix, all passing: `captureToolResponses dataModelingLab`,
+`toolPolicyGates`, `assessmentLeakGates`, `unansweredChoiceGates`; the Data Modeling and policy node tests (127/127);
+lint 0.
+
 ## Source contracts rewritten (SOURCE_CONTRACT_PLAYBOOK)
 
 | Test | Protected behaviour | Old pin | New assertion |
@@ -245,8 +269,8 @@ wording; expect small text conflicts in those `TaskCard` blocks at merge.
 
 ## Not done / noticed
 
-- Data Modeling shows "Current MAE … · RMSE …" live under the model on a DOL. It is a fit-quality readout a student can
-  tune against; not changed here (outcome-feedback scope).
+- `testCycleRichToolQa` (dataModelingLab, chromebook and ipad): "Cannot read properties of null (reading
+  'questionInstanceId')". The same on the base `3cb782a9`; not this branch's.
 - The older secure Data Modeling lists were not re-judged (e.g. "Run a correlation calculation … using statistical
   technology", "Use the model to compute the predicted y"); W4-1 accepted them.
 - A tool's Work View `task` text is not withheld in a tool shell without QuestionEngine (no student host does that).

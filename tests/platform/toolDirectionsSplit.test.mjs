@@ -308,3 +308,42 @@ test('W6-4: the banners kept on an assessment are the ones that only say how to 
   const shell = region(code('src/tools/shared/ToolShell.jsx'), 'export const taskCardSupport', 'return {', 'the support decision');
   assert.match(shell, /const shownSteps = \(showMethod \? steps : steps\.filter\(isControlStep\)\)\.map\(stepText\);/);
 });
+
+// FOUND ON THE BASE, FIXED HERE (W6-4): Data Modeling's error readouts are a
+// verdict. On an exit ticket the live "Current MAE · RMSE" under the student's
+// model let them tune until the numbers bottomed out, and modelCompare's
+// "RMSE · MAE" beside each candidate ranked them — nearly the answer to
+// "Select the best model". Each role's runtime is derived the way
+// QuestionEngine derives it from the activity policy.
+test('W6-4: Data Modeling shows no error readout where the activity withholds verdicts and the method', async () => {
+  const { getEffectiveActivityPolicy } = await import('../../src/platform/policies/activityPolicies.js');
+  const runtimeFor = (role) => {
+    const policy = getEffectiveActivityPolicy(role);
+    return { hintsAllowed: policy.hintsAllowed !== false, verdictsWithheld: policy.feedback !== 'immediate' };
+  };
+  const points = [[1, 2], [2, 3], [3, 5], [4, 5], [5, 7], [6, 8], [7, 10]];
+  const questions = {
+    fit: { type: 'dataModelingLab', mode: 'linearFitPrediction', points, predictionX: 9, prompt: 'Model the data.' },
+    compare: { type: 'dataModelingLab', mode: 'modelCompare', points, prompt: 'Choose the best model.' },
+    full: { type: 'dataModelingLab', mode: 'full', points, predictionX: 8, prompt: 'Model the data.' },
+  };
+  await withVite(async (load) => {
+    // Inputs a student has typed, so the live readout has numbers to show.
+    for (const [name, question] of Object.entries(questions)) {
+      for (const role of ['practice', 'classwork']) {
+        const html = await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, runtimeFor(role));
+        assert.match(html, /data-model-error-readout/, `${name} ${role}: the readouts stay`);
+        assert.match(words(html), name === 'compare' ? /RMSE [\d.]+ · MAE [\d.]+/ : /Current MAE: /, `${name} ${role}`);
+      }
+      for (const role of ['dol', 'quiz', 'test']) {
+        const html = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, runtimeFor(role)));
+        assert.doesNotMatch(html, /\bMAE\b|\bRMSE\b/, `${name} ${role}: no error readout`);
+      }
+    }
+    // Released (feedback shown again, hints still off) is also method-withheld.
+    assert.doesNotMatch(words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', questions.compare, { hintsAllowed: false, verdictsWithheld: false })), /\bRMSE\b/);
+    // The model choice itself is still offered on a test.
+    assert.match(words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', questions.compare, runtimeFor('test'))), /Compare model families/);
+  });
+  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /const errorReadouts = !useMethodWithheld\(\);/);
+});
