@@ -102,3 +102,18 @@ test('a submission the device queued clears its question; one it could not queue
   const tool = region(engine, 'const handleMissingToolAction = async (', 'const handleModelingLabGrade = async (');
   assert.equal([...tool.matchAll(guarded)].length, 2, 'both tool paths');
 });
+
+// The pass-3 line also tells Home (saveStatusModel draftsUnsaved). Started
+// over, Home stops saying the work needs attention.
+test('Home stops saying "needs attention" once the work it was about is gone', async () => {
+  const { describeSaveStatus } = await import('../../src/platform/student/saveStatusModel.js');
+  const { draftSaveProblemsForStudent } = await import('../../src/platform/persistence/draftSaveHealth.js');
+  const home = () => describeSaveStatus({ persistenceStatus: 'submitted', draftsUnsaved: Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(STUDENT))) }).tone;
+  clearDraftSaveProblems();
+  reportDraftSaveProblem(DRAFT_SAVE_PROBLEM.DEVICE_FULL, `${family(3)}:multi-answer`);
+  assert.equal(home(), 'attention');
+  const store = await drafts();
+  await quietly(() => store.resetQuestionDraftFamily(family(3)));
+  assert.equal(home(), 'saved');
+  clearDraftSaveProblems();
+});
