@@ -19,8 +19,10 @@ test('NAV-22: the DOL opens at 2:15 — here is Classwork meanwhile', () => {
     dolState: { enabled: true, status: 'waiting', opensAt: at(14, 15) },
   });
   const detour = describeSectionDetour({ requestedRole: 'dol', landingRole: 'classwork', access });
-  assert.equal(detour.title, 'The exit ticket (DOL) is not open right now');
-  assert.match(detour.body, /^The exit ticket \(DOL\) opens at 2:15\s?PM — here is Classwork meanwhile\.$/);
+  // Spelled out once, in the title; "the exit ticket" in the sentence (D9).
+  assert.equal(detour.title, 'Exit ticket (DOL) is not open right now');
+  assert.match(detour.body, /^The exit ticket opens at 2:15\s?PM — here is Classwork meanwhile\.$/);
+  assert.doesNotMatch(detour.body, /DOL/);
 });
 
 test('NAV-22: nothing to explain when the section is open, or the student landed in it', () => {

@@ -12,6 +12,7 @@
  */
 
 import { outcomeWithheld } from '../student/assignmentNavigator.js';
+import { BACK_TO_HOME } from '../student/studentWords.js';
 
 const SCREEN_LABEL = Object.freeze({
   assignmentsCenter: 'Back to Assignments',
@@ -52,7 +53,7 @@ export const liveChallengeReturnPlace = ({
 export const liveChallengeExitLabel = (place) => {
   if (place?.kind === 'assignment') return 'Back to your assignment';
   if (place?.kind === 'result') return 'Back to your results';
-  return SCREEN_LABEL[place?.mode] || 'Back to Home';
+  return SCREEN_LABEL[place?.mode] || BACK_TO_HOME;
 };
 
 /*

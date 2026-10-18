@@ -30,8 +30,9 @@
 //       The notice appears with the workspace, never over Home or the loading
 //       screen before it (wave-3 gate).
 //   S8  A Classroom post for the exit ticket, tapped before it opens (NAV-22):
-//       the student lands where they can work now and is told why ("The exit
-//       ticket (DOL) opens at 11:35 AM — here is Classwork meanwhile.").
+//       the student lands where they can work now and is told why ("Exit
+//       ticket (DOL) is not open right now" / "The exit ticket opens at
+//       11:35 AM — here is Classwork meanwhile.").
 //
 // Exit code 1 on any finding.
 
@@ -323,10 +324,10 @@ for (const viewport of VIEWPORTS) {
 
   // S8 — a Classroom DOL post before the DOL opens says why it opened Classwork.
   await page.goto(`${ORIGIN}/?launch=a-today&classroomSection=dol&${asStudent}`);
-  const detour = page.locator('.mm-toast').filter({ hasText: /exit ticket \(DOL\) is not open right now/ }).first();
+  const detour = page.locator('.mm-toast').filter({ hasText: /Exit ticket \(DOL\) is not open right now/ }).first();
   if (expect(`S8 ${tag}`, await detour.waitFor({ timeout: 60_000 }).then(() => true, () => false), 'a Classroom DOL link before the DOL opens said nothing')) {
     const text = (await detour.innerText()).replace(/\s+/g, ' ');
-    expect(`S8 ${tag}`, /The exit ticket \(DOL\) opens at \d{1,2}:\d{2}\s?[AP]M — here is (Classwork|Practice|the Warm-Up) meanwhile\./.test(text), `the notice reads "${text}"`);
+    expect(`S8 ${tag}`, /The exit ticket opens at \d{1,2}:\d{2}\s?[AP]M — here is (Classwork|Practice|the Warm-Up) meanwhile\./.test(text), `the notice reads "${text}"`);
     await page.waitForFunction(() => /\/assignments\/a-today\/(classwork|practice|warmup)\//.test(location.pathname), null, { timeout: 20_000 }).catch(() => {});
     expect(`S8 ${tag}`, /\/assignments\/a-today\/(classwork|practice|warmup)\//.test(new URL(page.url()).pathname), `landed on ${new URL(page.url()).pathname}`);
   }

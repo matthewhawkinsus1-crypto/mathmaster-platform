@@ -7,22 +7,31 @@
  * they can work now — Classwork Question 3 — and used to say nothing, so the
  * student thought the link was broken. This is the one sentence that says why:
  *
- *   "The exit ticket (DOL) opens at 2:15 PM — here is Classwork meanwhile."
+ *   "Exit ticket (DOL) is not open right now"
+ *   "The exit ticket opens at 2:15 PM — here is Classwork meanwhile."
  *
  * The reason is the navigator's own (describeSectionAccess), so the toast and
  * the section tab say the same thing. It names times and sections only —
  * nothing about any question's answer or method.
  *
+ * The exit ticket is spelled out once, in the title, and is "the exit ticket"
+ * in the sentence (student words, D9: src/platform/student/studentWords.js).
+ *
  * Pure: no React, no clock.
  */
+
+import { EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './studentWords.js';
 
 // Read mid-sentence by describeSectionAccess ("… opens at 2:15 PM.").
 export const DETOUR_SECTION_LABEL = Object.freeze({
   warmup: 'the Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'the exit ticket (DOL)',
+  dol: `the ${exitTicketInSentence}`,
 });
+
+// The toast's title names the section on its own.
+const DETOUR_TITLE_LABEL = Object.freeze({ ...DETOUR_SECTION_LABEL, dol: EXIT_TICKET_SPELLED_OUT });
 
 /**
  * @param {object} input
@@ -35,7 +44,7 @@ export const describeSectionDetour = ({ requestedRole = null, landingRole = null
   if (!requestedRole || !DETOUR_SECTION_LABEL[requestedRole]) return null;
   if (!landingRole || landingRole === requestedRole) return null;
   if (!access || access.workable !== false) return null;
-  const label = DETOUR_SECTION_LABEL[requestedRole];
+  const label = DETOUR_TITLE_LABEL[requestedRole];
   const title = `${label.charAt(0).toUpperCase()}${label.slice(1)} is not open right now`;
   const reason = String(access.reason || '').trim().replace(/\.$/, '') || title;
   const landing = DETOUR_SECTION_LABEL[landingRole] || 'the work that is open';
