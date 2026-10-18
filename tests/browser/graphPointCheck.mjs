@@ -153,6 +153,46 @@ let trueEnds = null;
   await page.close();
 }
 
+// PRACTICE, THE SELF-CHECK (HELP-22): "Check Point Placements" is free; which
+// way a point is off is an opt-in, and only that press counts as a hint.
+for (const optIn of [false, true]) {
+  const page = await open('practice', 'points');
+  const offer = () => page.getByRole('button', { name: 'Which way is each point off?' });
+  await plot(page, 'Plot the point where x = 0', 0, 1);
+  check(await offer().count() === 1, 'practice self-check: offered on a partial plot (Check Point Placements cannot run yet)');
+  await plot(page, 'Plot the point where x = 2', 2, 4);
+  check(await offer().count() === 0, 'practice self-check: a complete plot offers Check Point Placements first');
+  await checkButton(page).click();
+  await page.waitForTimeout(200);
+  check(/Revise: Plot the point where x = 2/.test(await bodyText(page)), 'practice self-check: the free check still names the point to revise');
+  check(await page.locator('[data-self-check-report]').count() === 0, 'practice self-check: the free check gives no direction');
+  check(await offer().count() === 1, 'practice self-check: after a miss, the direction is offered');
+  if (optIn) {
+    await offer().click();
+    await page.waitForTimeout(200);
+    const items = await page.locator('[data-self-check-report] li').allInnerTexts();
+    check(JSON.stringify(items) === JSON.stringify(['(2, 4) — too low — find f(2) and compare']), 'practice self-check: the opt-in lists only the point that is off, by direction', JSON.stringify(items));
+  }
+  // Fix the point and commit it, so the attempt can be submitted.
+  await plot(page, 'Plot the point where x = 2', 2, 5);
+  await checkButton(page).click();
+  await page.waitForTimeout(200);
+  const { graded } = await submitAndRead(page);
+  check(graded?.isCorrect === true, 'practice self-check: the fixed plot is submitted and correct', JSON.stringify(graded?.isCorrect ?? null));
+  const hinted = graded?.supportUsage?.hintUsed === true || graded?.supportUsage?.isMathematicallyIndependent === false;
+  check(hinted === optIn, `practice self-check: ${optIn ? 'the opt-in counts as a hint' : 'Check Point Placements alone is not a hint'}`, JSON.stringify(graded?.supportUsage || null));
+  await page.close();
+}
+
+// AN UNKNOWN ROLE: read as classwork, but the hint ladder fails closed, and so
+// does the self-check (review N-c): no opt-in, whatever is plotted.
+{
+  const page = await open('mystery-role', 'points');
+  await plot(page, 'Plot the point where x = 0', 0, 1);
+  check(await page.getByRole('button', { name: /Which way is each point off\?|Check my points/ }).count() === 0, 'unknown role: no self-check is offered (the hint ladder fails closed too)');
+  await page.close();
+}
+
 // DOL, CURVE, WRONG: nothing says so until it is submitted.
 {
   const page = await open('dol');

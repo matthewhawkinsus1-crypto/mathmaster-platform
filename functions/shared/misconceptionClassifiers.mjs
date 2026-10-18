@@ -42,7 +42,8 @@
  * Pure. The tool registry (serverGrading/toolGraders.mjs) is not loaded —
  * only the helpers each grader itself uses to read the same work.
  */
-import { parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
+import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
+import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
 import { lineFeatureKey } from './serverGrading/tools/graphing.mjs';
@@ -815,6 +816,61 @@ const studentBuildInequalityFindings = ({ question, response, grading }) => {
   ];
 };
 
+/*
+ * ORDINARY QUESTION TYPES — classified from the authored fields themselves.
+ *
+ * multiAnswer: a typed equation that is the RIGHT LINE in the WRONG FORM
+ * (student pass 3, R-3). The field's key and the student's equation have the
+ * same graph, the grader refused it, and the form the field asks for — named
+ * by its label or prompt ("in slope-intercept form", "y = mx + b"), else the
+ * form its key is written in — is not the form the student wrote. When the
+ * text names one form and the key is written in another, nothing is named:
+ * the student cannot be told which one is wanted. The grade is the grader's;
+ * whether an unasked-for form should be accepted is the equivalence layer's
+ * (answerEquivalence.mjs), never this.
+ */
+const LINE_FORM_CODES = Object.freeze({
+  [LINE_FORMS.SLOPE_INTERCEPT]: 'line-wrong-form-slope-intercept',
+  [LINE_FORMS.POINT_SLOPE]: 'line-wrong-form-point-slope',
+  [LINE_FORMS.STANDARD]: 'line-wrong-form-standard',
+});
+
+// The field's own words first; the question's prompt only when this is its
+// one answer field (a prompt asking for "slope-intercept form" for line A
+// says nothing about the vertical line in the next box). A form the key's
+// line cannot take — a vertical line has no slope — is never named.
+const fieldLineForm = (question, field) => {
+  const onlyField = list(question?.answerFields).filter((entry) => entry?.id).length === 1;
+  const asked = requestedLineForm([field?.label, field?.prompt, field?.placeholder, field?.instructions, ...(onlyField ? [question?.prompt] : [])]);
+  const key = answerCandidatesForField(field)[0];
+  const keyForm = writtenLineForm(key);
+  if (asked && keyForm && asked !== keyForm) return null;
+  const form = asked || keyForm;
+  if (isVerticalLine(key) && (form === LINE_FORMS.SLOPE_INTERCEPT || form === LINE_FORMS.POINT_SLOPE)) return null;
+  return form;
+};
+
+const multiAnswerLineFormFindings = ({ question, grading }) => {
+  const parts = partsById(grading);
+  const byCode = new Map();
+  list(question?.answerFields).forEach((field) => {
+    const id = text(field?.id);
+    const part = wrongPart(parts, id);
+    if (!part || typeof part.response !== 'string') return;
+    const keys = answerCandidatesForField(field).filter((key) => typeof key === 'string');
+    if (!keys.some((key) => sameLine(part.response, key))) return;
+    const form = fieldLineForm(question, field);
+    if (!form || writtenLineForm(part.response) === form) return;
+    const code = LINE_FORM_CODES[form];
+    byCode.set(code, [...(byCode.get(code) || []), id]);
+  });
+  return [...byCode].map(([code, ids]) => finding(code, ids));
+};
+
+const ORDINARY_CLASSIFIERS = {
+  multiAnswer: multiAnswerLineFormFindings,
+};
+
 const sameEndpoint = (a, b) => a === b || near(a, b);
 
 /** One interval answer against the key: an inclusion error, a reversed ray, or nothing. */
@@ -847,13 +903,19 @@ export const misconceptionClassifierIdFor = ({ question, grading, familyValues =
     return FAMILY_CLASSIFIERS[key] ? `family:${key}` : null;
   }
   const toolKey = `${text(grading?.surfaceId)}/${text(grading?.mode)}`;
-  return TOOL_CLASSIFIERS[toolKey] ? `tool:${toolKey}` : null;
+  if (TOOL_CLASSIFIERS[toolKey]) return `tool:${toolKey}`;
+  // An ordinary type: the server's grading names it as its surface; the
+  // device's display grading names no surface at all (displayGradingSurface.js).
+  const type = text(question?.type);
+  const surface = text(grading?.surfaceId);
+  return ORDINARY_CLASSIFIERS[type] && (!surface || surface === type) ? `ordinary:${type}` : null;
 };
 
 /** Every classifier this file implements (the registry declares the same set). */
 export const IMPLEMENTED_MISCONCEPTION_CLASSIFIERS = Object.freeze([
   ...Object.keys(FAMILY_CLASSIFIERS).map((key) => `family:${key}`),
   ...Object.keys(TOOL_CLASSIFIERS).map((key) => `tool:${key}`),
+  ...Object.keys(ORDINARY_CLASSIFIERS).map((key) => `ordinary:${key}`),
 ]);
 
 /*
@@ -884,7 +946,7 @@ export const classifyMisconceptions = ({ question = null, response = null, gradi
     const classifierId = misconceptionClassifierIdFor({ question, grading, familyValues });
     if (!classifierId) return NONE;
     const [kind, key] = [classifierId.slice(0, classifierId.indexOf(':')), classifierId.slice(classifierId.indexOf(':') + 1)];
-    const run = kind === 'family' ? FAMILY_CLASSIFIERS[key] : TOOL_CLASSIFIERS[key];
+    const run = kind === 'family' ? FAMILY_CLASSIFIERS[key] : kind === 'ordinary' ? ORDINARY_CLASSIFIERS[key] : TOOL_CLASSIFIERS[key];
     const raw = run({ question, response, grading, values: familyValues || {} }) || [];
     const findings = reconcile(raw.filter((entry) => getMisconceptionCode(entry?.code)));
     const evidence = buildMisconceptionEvidence({ classifierId, findings });

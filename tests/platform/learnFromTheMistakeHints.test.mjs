@@ -75,7 +75,9 @@ test('the old wordings are gone from every place a hint is offered', () => {
   }
   // The graph check and the solver's strategic hint say it in the same words,
   // the host's where it has its own.
-  const graph = region(code('src/InteractiveGraphWorkspace.jsx'), '{selfCheckAllowed && !construction.pointsValidated && (', 'Check my points', 'the graph check');
+  // (HELP-22: one opt-in self-check, "Check my points" where outcomes are
+  // withheld and "Which way is each point off?" after a miss elsewhere.)
+  const graph = region(code('src/InteractiveGraphWorkspace.jsx'), '{selfCheckAllowed && !construction.pointsValidated && Object.keys(construction.placements).length > 0', 'Which way is each point off?', 'the graph check');
   assert.match(graph, /title=\{`Compares your plotted points with the function\. \$\{selfCheckCostSentence\(hintCostNote\)\}`\}/);
   assert.match(code('src/InteractiveGraphWorkspace.jsx'), /data-hint-cost-note="">\{selfCheckCostSentence\(hintCostNote\)\}<\/span>/);
   assert.match(code('src/StepByStepAlgebraCore.jsx'), /<summary[^>]*>Need a strategic hint\? <span data-hint-cost-note=""[^>]*>\{hintCostSentence\(hintCostNote\)\}<\/span><\/summary>/);
