@@ -262,7 +262,7 @@ On the branch head after merging the moved base (`3cb782a9`), unless a row says 
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,789 of 11,789 (on `58e9cc73`, the merge) |
+| `npm run test:platform` | 11,789 of 11,789 (on the merge `58e9cc73`, and again on the final head) |
 | `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail (1 skipped, as on the base) |
 | `npm run lint` | exit 0, no errors (warnings only, none in a line this branch added) |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
