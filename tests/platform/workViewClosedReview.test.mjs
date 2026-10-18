@@ -68,3 +68,19 @@ test('TOOL-13: a closed question\'s opener stays for review; closing still close
   // On a closed question the Work View Help is only "this question is closed".
   assert.match(engine, /: locked\s*\?\s*\{ label: 'Help', text: 'This question is closed\. Your work stays in place when you open or close Work View\.'/);
 });
+
+test('TOOL-13 review R2: reviewing a closed question, the rail carries no tool action at all', async () => {
+  const helper = region(figure, 'export const withoutRailActions = (capabilities) => {', '\n};', 'strip helper');
+  // eslint-disable-next-line no-new-func
+  const withoutRailActions = new Function(`${helper.replace('export const withoutRailActions =', 'return')}\n}`)();
+  const caps = { primaryActions: [{ id: 'check-mapping' }], secondaryActions: [{ id: 'start-over' }], help: { text: 'h' } };
+  assert.deepEqual(withoutRailActions(caps), { help: { text: 'h' } });
+  assert.equal(withoutRailActions(null), null);
+  const plain = { help: {} };
+  assert.equal(withoutRailActions(plain), plain, 'nothing to strip: the same object');
+  // Both the figure's own and every published (nested tool) capability, only in closed review;
+  // the question's platform actions (Undo and Reset disabled) come through the provider unchanged.
+  assert.match(figure, /const railToolCapabilities = useMemo\(\(\) => \(reviewingClosed \? withoutRailActions\(toolCapabilities\) : toolCapabilities\)/);
+  assert.match(figure, /const railPublishedCapabilities = useMemo\(\(\) => \(reviewingClosed \? withoutRailActions\(publishedCapabilities\) : publishedCapabilities\)/);
+  assert.match(figure, /const registeredCapabilities = useWorkViewCapabilities\(railToolCapabilities, railPublishedCapabilities\);/);
+});

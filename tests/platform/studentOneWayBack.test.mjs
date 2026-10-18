@@ -50,7 +50,8 @@ test('NAV-20: Export PDF only on a Home card with work to do', () => {
 
 test('NAV-20 review N3: the worksheet PDF lives with the results, so a done lesson can still be printed to study', () => {
   const result = read('src/components/student/StudentAssignmentResult.jsx');
-  const button = region(result, '{onExportPdf && !closedByTeacher && (', '</button>', 'result Export PDF');
+  // Never for a Test Cycle: Home never offered one there (review R3).
+  const button = region(result, '{onExportPdf && !closedByTeacher && !entry.isTestCycle && (', '</button>', 'result Export PDF');
   assert.match(button, /data-result-export-pdf/);
   assert.match(button, /Promise\.resolve\(onExportPdf\(entry\.assignmentId\)\)\.finally\(\(\) => setExportingPdf\(false\)\)/);
   assert.match(button, /\{exportingPdf \? 'Preparing PDF…' : 'Export PDF'\}/);

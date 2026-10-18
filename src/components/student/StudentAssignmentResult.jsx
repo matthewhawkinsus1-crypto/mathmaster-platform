@@ -397,7 +397,8 @@ export default function StudentAssignmentResult({
               {PRACTICE_SKILL_LABEL}
             </button>
           )}
-          {onExportPdf && !closedByTeacher && (
+          {/* Never for a Test Cycle (review R3): Home never offered one there. */}
+          {onExportPdf && !closedByTeacher && !entry.isTestCycle && (
             <button
               type="button"
               data-result-export-pdf

@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { liveChallengeExitLabel, liveChallengeReturnPlace } from '../../src/platform/liveChallenge/liveChallengeReturn.js';
+import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from '../../src/platform/liveChallenge/liveChallengeReturn.js';
 import { shouldShowChallengeHandoffBanner, shouldShowChallengeLobbyInvite } from '../../src/platform/liveChallenge/warmupChallengeLink.js';
 import { classroomAnnouncement, classroomAnnouncementState } from '../../src/platform/student/classroomAnnouncements.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -43,18 +43,37 @@ test('NAV-25: the lobby invite is offered in an assignment; the running banner k
 });
 
 test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is withheld', () => {
-  // The navigator's rule for the question the student is on (outcomeWithheld).
+  // The section the student is on, not only the question on screen (review R1).
   const rule = region(app, 'const studentWorkspaceHoldsOutcome = () => {', '\n  };', 'the workspace rule');
   assert.match(rule, /if \(user\?\.role !== 'student' \|\| activeView !== 'assignment' \|\| !activeAssignmentId\) return false;/);
   assert.match(rule, /\.isPracticeOnly\) return false;/);
-  assert.match(rule, /\.find\(\(entry\) => entry\.storageIndex === currentQuestionIndex\)\?\.logicalRole/);
-  assert.match(rule, /return outcomeWithheld\(\{\s*feedbackMode: getEffectiveActivityPolicy\(role\)\.feedback,\s*released: assignmentFeedbackWasReleased\(assignment\),\s*record: tracker\?\.\[activeAssignmentId\]\?\.\[currentQuestionIndex\],\s*\}\);/);
+  assert.match(rule, /const role = entries\.find\(\(entry\) => entry\.storageIndex === currentQuestionIndex\)\?\.logicalRole/);
+  assert.match(rule, /return sectionHoldsLobbyInvite\(\{\s*entries,\s*role,\s*feedbackMode: role \? getEffectiveActivityPolicy\(role\)\.feedback : 'immediate',\s*released: assignmentFeedbackWasReleased\(assignment\),\s*recordOf: \(storageIndex\) => tracker\?\.\[activeAssignmentId\]\?\.\[storageIndex\],\s*\}\);/);
   assert.match(app, /const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome\(\);/);
   // The banner, the phone chip and the announcement all use it; the running
   // hand-off banner (pre-existing, deliberate) does not.
   assert.equal((app.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
   assert.match(app, /invite: user\?\.role === 'student' && !lobbyInviteHeldHere \? liveChallengeInvite : null,/);
   assert.doesNotMatch(app, /lobbyInviteHeldHere && shouldShowChallengeHandoffBanner/);
+});
+
+test('NAV-25 review R1: a two-question exit ticket with Q1 submitted still holds the invite until it is all submitted or released', () => {
+  const entries = [
+    { storageIndex: 0, logicalRole: 'classwork' },
+    { storageIndex: 3, logicalRole: 'dol' },
+    { storageIndex: 4, logicalRole: 'dol' },
+  ];
+  const dol = (records, extra = {}) => sectionHoldsLobbyInvite({
+    entries, role: 'dol', feedbackMode: 'afterAssignmentSubmit', recordOf: (index) => records[index] || null, ...extra,
+  });
+  assert.equal(dol({ 3: { status: 'expired' } }), true, 'Q1 out of tries, Q2 unanswered: still held, on Q1 too');
+  assert.equal(dol({ 3: { status: 'correct' } }), true, 'Q1 right, Q2 unanswered: still held');
+  assert.equal(dol({ 3: { status: 'correct' }, 4: { status: 'expired' } }), false, 'all submitted: nothing left to protect');
+  assert.equal(dol({}, { released: true }), false, 'released');
+  // Classwork never holds it; a quiz before release holds it even when all answered.
+  assert.equal(sectionHoldsLobbyInvite({ entries, role: 'classwork', feedbackMode: 'immediate' }), false);
+  assert.equal(sectionHoldsLobbyInvite({ entries, role: 'dol', feedbackMode: 'afterRelease', recordOf: () => ({ status: 'correct' }) }), true);
+  assert.equal(sectionHoldsLobbyInvite({ entries, role: null }), false);
 });
 
 test('NAV-25: every way into the game keeps the place, and the game\'s exit returns there', () => {
@@ -71,7 +90,7 @@ test('NAV-25: every way into the game keeps the place, and the game\'s exit retu
   // No way into the game skips keeping the place.
   assert.doesNotMatch(app, /setStudentDashboardMode\('liveChallenge'\)/);
   assert.equal((app.match(/openStudentDashboardMode\('liveChallenge'\)/g) || []).length, 1, 'only joinLiveChallenge opens the game');
-  assert.match(app, /import \{ liveChallengeExitLabel, liveChallengeReturnPlace \} from '\.\/platform\/liveChallenge\/liveChallengeReturn\.js';/);
+  assert.match(app, /import \{ liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite \} from '\.\/platform\/liveChallenge\/liveChallengeReturn\.js';/);
 });
 
 test('NAV-23: the invite and a Spotlight request are said once, when they newly appear', () => {

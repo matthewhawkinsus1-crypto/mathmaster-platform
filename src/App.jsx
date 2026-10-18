@@ -298,7 +298,7 @@ import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from 
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import { whenDateTimeText } from './platform/student/studentWhen.js';
 import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
-import { liveChallengeExitLabel, liveChallengeReturnPlace } from './platform/liveChallenge/liveChallengeReturn.js';
+import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
 import { classroomAnnouncement, classroomAnnouncementState } from './platform/student/classroomAnnouncements.js';
 import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
@@ -11165,9 +11165,9 @@ function App() {
    * cleared after a few seconds so a screen change does not repeat it.
    */
   /*
-   * NOT ON AN EXIT TICKET, QUIZ OR TEST (NAV-25 review B1). Inside an
+   * NOT ON AN EXIT TICKET, QUIZ OR TEST (NAV-25 review B1, R1). Inside an
    * assignment the lobby invite (banner, phone chip, announcement) is offered
-   * only where the question the student is on does not withhold its outcome —
+   * only where no question of the section the student is on withholds its outcome —
    * the navigator's own rule (outcomeWithheld): never on a DOL, quiz or test
    * before it is released or finished; Classwork and Practice keep it. Home and
    * the other screens are unchanged.
@@ -11177,13 +11177,15 @@ function App() {
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment) return false;
     if (getAssignmentLifecycle(assignment, now, { studentId: user.id }).isPracticeOnly) return false;
-    const role = projectCurrentAssignmentContent(assignment).entries
-      .find((entry) => entry.storageIndex === currentQuestionIndex)?.logicalRole || null;
-    if (!role) return false;
-    return outcomeWithheld({
-      feedbackMode: getEffectiveActivityPolicy(role).feedback,
+    const { entries } = projectCurrentAssignmentContent(assignment);
+    const role = entries.find((entry) => entry.storageIndex === currentQuestionIndex)?.logicalRole || null;
+    // The whole section, not the question on screen (review R1).
+    return sectionHoldsLobbyInvite({
+      entries,
+      role,
+      feedbackMode: role ? getEffectiveActivityPolicy(role).feedback : 'immediate',
       released: assignmentFeedbackWasReleased(assignment),
-      record: tracker?.[activeAssignmentId]?.[currentQuestionIndex],
+      recordOf: (storageIndex) => tracker?.[activeAssignmentId]?.[storageIndex],
     });
   };
   const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome();

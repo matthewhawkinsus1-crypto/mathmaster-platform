@@ -11,6 +11,8 @@
  * Pure: no React.
  */
 
+import { outcomeWithheld } from '../student/assignmentNavigator.js';
+
 const SCREEN_LABEL = Object.freeze({
   assignmentsCenter: 'Back to Assignments',
   grades: 'Back to Grades',
@@ -51,6 +53,31 @@ export const liveChallengeExitLabel = (place) => {
   if (place?.kind === 'assignment') return 'Back to your assignment';
   if (place?.kind === 'result') return 'Back to your results';
   return SCREEN_LABEL[place?.mode] || 'Back to Home';
+};
+
+/*
+ * NOT WHILE AN EXIT TICKET, QUIZ OR TEST IS STILL UNDER WAY (NAV-25 review B1,
+ * R1). The lobby invite inside an assignment is held while ANY question of the
+ * section the student is on withholds its outcome — the navigator's own rule
+ * (outcomeWithheld) — not only the question on screen: on a DOL that rule lifts
+ * for a question once it is submitted, while the rest of the DOL and its clock
+ * run on. A section that is released, or fully submitted, has nothing left to
+ * protect, and Classwork and Practice never hold it.
+ *
+ * `entries` are the assignment's current-content entries ({ storageIndex,
+ * logicalRole }); `recordOf(storageIndex)` reads the student's record.
+ */
+export const sectionHoldsLobbyInvite = ({
+  entries = [],
+  role = null,
+  feedbackMode = 'immediate',
+  released = false,
+  recordOf = () => null,
+} = {}) => {
+  if (!role) return false;
+  return entries
+    .filter((entry) => entry?.logicalRole === role)
+    .some((entry) => outcomeWithheld({ feedbackMode, released, record: recordOf(entry.storageIndex) }));
 };
 
 export default liveChallengeReturnPlace;

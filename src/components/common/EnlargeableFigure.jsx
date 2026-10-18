@@ -119,6 +119,16 @@ function WorkViewActionButton({ action, primary, onInvoke }) {
   );
 }
 
+// A tool's capabilities without its rail actions (a closed question in review).
+export const withoutRailActions = (capabilities) => {
+  if (!capabilities || typeof capabilities !== 'object') return capabilities;
+  if (!('primaryActions' in capabilities) && !('secondaryActions' in capabilities)) return capabilities;
+  const rest = { ...capabilities };
+  delete rest.primaryActions;
+  delete rest.secondaryActions;
+  return rest;
+};
+
 // The dialog's name says "Work View" once (TOOL-13): "Question Work View,
 // Work View" was the label with the suffix added again.
 export const workViewDialogName = (label) => {
@@ -212,7 +222,13 @@ export default function EnlargeableFigure({
     () => relabelToolPrimaryActions(capabilities, { submitLabel: hostSubmitLabel, submitCost }),
     [capabilities, hostSubmitLabel, submitCost],
   );
-  const registeredCapabilities = useWorkViewCapabilities(toolCapabilities, publishedCapabilities);
+  // Reviewing a closed question (TOOL-13 review R2): no tool's own actions in
+  // the rail — nothing there can be checked or changed, and a tool's live-looking
+  // "Check" pressed nothing. The question's own (platform) actions stay as they
+  // are: Submit already gone, Undo and Reset disabled.
+  const railToolCapabilities = useMemo(() => (reviewingClosed ? withoutRailActions(toolCapabilities) : toolCapabilities), [reviewingClosed, toolCapabilities]);
+  const railPublishedCapabilities = useMemo(() => (reviewingClosed ? withoutRailActions(publishedCapabilities) : publishedCapabilities), [reviewingClosed, publishedCapabilities]);
+  const registeredCapabilities = useWorkViewCapabilities(railToolCapabilities, railPublishedCapabilities);
 
   // CLOSING AN AUTO-OPENED PANEL MEANS IT.
   //
