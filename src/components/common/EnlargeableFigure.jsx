@@ -119,6 +119,14 @@ function WorkViewActionButton({ action, primary, onInvoke }) {
   );
 }
 
+// The dialog's name says "Work View" once (TOOL-13): "Question Work View,
+// Work View" was the label with the suffix added again.
+export const workViewDialogName = (label) => {
+  const text = String(label || '').trim();
+  if (!text) return 'Work View';
+  return /\bwork view\b/i.test(text) ? text : `${text}, Work View`;
+};
+
 export default function EnlargeableFigure({
   children,
   label = 'graph',
@@ -128,6 +136,12 @@ export default function EnlargeableFigure({
   dismissKey = null,
   presentationKey = null,
   forceClosed = false,
+  // A CLOSED QUESTION CAN STILL BE ENLARGED TO LOOK AT (TOOL-13). Closing still
+  // closes an open Work View (the grading transition below), but the opener
+  // stays: a student can enlarge their own graded graph to review it. The work
+  // area inside stays exactly as closed as it is inline (inert, no Submit,
+  // Reset or Undo), so Work View shows nothing the page does not.
+  reviewWhenClosed = false,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
   //
   // It is a full-window modal over the page holding the task, so a student who
@@ -156,6 +170,10 @@ export default function EnlargeableFigure({
   // hosts, while the shared lifecycle closes every direct or nested figure in
   // the current question without relying on a tool to forward that prop.
   const shouldForceClose = forceClosed || questionTerminal || nestedWorkView;
+  // Whether the opener works: never in a nested figure (the question's own
+  // shell is the one host), and on a closed question only for review.
+  const openerBlocked = nestedWorkView || (shouldForceClose && !reviewWhenClosed);
+  const reviewingClosed = shouldForceClose && !openerBlocked;
   const [enlarged, setEnlarged] = useState(() => !shouldForceClose && openEnlarged && !readDismissed(dismissKey));
   const [drawer, setDrawer] = useState(null);
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
@@ -274,8 +292,12 @@ export default function EnlargeableFigure({
     return () => window.cancelAnimationFrame(frame);
   }, [enlarged]);
 
+  // Set while a closed question is open for review, so closing it gives focus
+  // back to the opener (a grading transition's close never does).
+  const reviewOpenRef = useRef(false);
   const openWorkView = () => {
-    if (shouldForceClose) return;
+    if (openerBlocked) return;
+    reviewOpenRef.current = reviewingClosed;
     // The host is `display: contents` while closed; the surface has the box.
     const hold = captureWorkViewScrollHold(hostRef.current?.querySelector?.('.mathmaster-work-view-surface'));
     scrollHoldRef.current = hold;
@@ -299,7 +321,9 @@ export default function EnlargeableFigure({
     }
     if (!wasEnlargedRef.current) return;
     wasEnlargedRef.current = false;
-    if (!shouldForceClose) openerRef.current?.focus?.({ preventScroll: true });
+    const reviewed = reviewOpenRef.current;
+    reviewOpenRef.current = false;
+    if (!shouldForceClose || reviewed) openerRef.current?.focus?.({ preventScroll: true });
   }, [enlarged, shouldForceClose]);
 
   useEffect(() => {
@@ -554,7 +578,7 @@ export default function EnlargeableFigure({
     >
       {shortHeight ? null : instructionNode}
       {!enlarged ? (
-        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
+        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
@@ -624,7 +648,7 @@ export default function EnlargeableFigure({
       // inside the modal would make the button do almost nothing.
       role={enlarged ? 'dialog' : undefined}
       aria-modal={enlarged ? 'true' : undefined}
-      aria-label={enlarged ? `${label}, Work View` : undefined}
+      aria-label={enlarged ? workViewDialogName(label) : undefined}
       // Clicking the backdrop closes; clicking the figure must not. Plotting a
       // point is a click on the plane, and it would be maddening for the panel
       // to vanish underneath it.

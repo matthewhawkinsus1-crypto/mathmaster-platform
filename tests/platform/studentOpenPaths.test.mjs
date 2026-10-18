@@ -199,7 +199,7 @@ const app = executableSource(read('src/App.jsx'));
 test('NAV-4 / NAV-10: every blocked start in startAssignment lands on the result page with its notice', () => {
   assert.match(app, /^import \{ OPEN_NOTICE, describeOpenNotice, teacherClosedState \} from '\.\/platform\/student\/studentOpenGate\.js';$/m);
   assert.match(app, /^import \{ LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack \} from '\.\/platform\/student\/navigationModel\.js';$/m);
-  const start = region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "setActiveView('assignment');\n  };");
+  const start = region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', "return true;\n  };");
   const gate = region(start, 'const resultOrigin = ', 'const currentContent = ');
   assert.match(gate, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
   // Computed for a student (review fix 2: 'teacher' here left the suite green).
@@ -236,7 +236,10 @@ test('P3: the Live Challenge lobby invite shows on Assignments, Grades, Rewards,
   assert.match(invite, /\['invited', 'joined', 'running'\]\.includes\(liveChallengeInvite\.status\)/);
   // Through openStudentDashboardMode, which also leaves the result page (activeView
   // 'dashboard') and clears a pending Path launch — the bare mode setter did neither (review fix 1).
-  assert.match(invite, /onClick=\{\(\) => openStudentDashboardMode\('liveChallenge'\)\}/);
+  // NAV-25: through joinLiveChallenge, which keeps the place to come back to
+  // and then opens the game with openStudentDashboardMode.
+  assert.match(invite, /onClick=\{joinLiveChallenge\}/);
+  assert.match(region(app, 'const joinLiveChallenge = () => {', '\n  };'), /openStudentDashboardMode\('liveChallenge'\);/);
   assert.doesNotMatch(invite, /setStudentDashboardMode\(/);
   const open = region(app, 'const openStudentDashboardMode = (mode) => {', '\n  };');
   assert.match(open, /setActiveView\('dashboard'\);/);

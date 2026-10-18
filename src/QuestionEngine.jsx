@@ -3068,6 +3068,10 @@ function QuestionEngineBody({
         enlargeLabel="Open Work View"
         presentationKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}
         forceClosed={locked}
+        // A closed question can be enlarged to look at (TOOL-13): the area
+        // inside stays as closed as it is inline, the rail has no Submit,
+        // Reset or Undo, and Help says the question is closed.
+        reviewWhenClosed
         style={{ width: '100%' }}
       >
       <div
@@ -3160,7 +3164,9 @@ function QuestionEngineBody({
         // A module that could not render shows only its panel here, and that
         // panel's "Start this question fresh" must work on a closed question —
         // the case it was built for (RUN-13): the area is not disabled then.
-        <fieldset disabled={workAreaClosed} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        // data-work-view-area: what Work View opens on when the tool marks
+        // nothing more precise (TOOL-13, workViewReveal.js).
+        <fieldset disabled={workAreaClosed} data-work-view-area="true" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* `inert` must be a boolean: React 19 reads inert="" as false, which
               left a completed answer's math field focused and editable (and
               swallowing the Enter that should continue). pointer-events alone

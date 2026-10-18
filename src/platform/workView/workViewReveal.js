@@ -13,6 +13,12 @@
  *                          is brought fully into view with the least scroll,
  *                          keeping as much of what sits above it (the data
  *                          table the student plots from) as will fit.
+ *   data-work-view-area    the question's whole work area (QuestionEngine's
+ *                          tool region), the fallback when a tool marks
+ *                          neither (TOOL-13): only two tools mark anything, so
+ *                          every other tool opened Work View at its top, above
+ *                          its work. Read last and only by the shell, and
+ *                          brought into view like a reveal region.
  *
  * THE SCROLLER IS NOT ALWAYS THE SURFACE. A staged question's Work View keeps
  * its Previous/Next footer on screen by making the surface `overflow: hidden`
@@ -46,6 +52,8 @@ export function findWorkViewRevealTarget(surface) {
   if (focus.length) return { target: focus[focus.length - 1], align: 'start' };
   const reveal = [...surface.querySelectorAll('[data-work-view-reveal="true"]')].filter(shown);
   if (reveal.length) return { target: reveal[0], align: 'nearest' };
+  const area = [...surface.querySelectorAll('[data-work-view-area="true"]')].filter(shown);
+  if (area.length) return { target: area[0], align: 'nearest' };
   return null;
 }
 

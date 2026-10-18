@@ -20,6 +20,11 @@ export const STUDENT_ROUTE_STATE_KEY = '__mathmasterStudentRoute';
  * by spreading the current state (My Math Path's) inherit it.
  */
 export const ROUTE_OWNER_STATE_KEY = '__mathmasterRouteOwner';
+// What Assignments was showing (assignmentsCenterMemory.js, NAV-21). It belongs
+// to its one entry: a push does not copy it into the next entry, so opening
+// Assignments afresh starts clean while Back onto that entry restores it.
+export const ASSIGNMENTS_VIEW_STATE_KEY = '__mathmasterAssignmentsView';
+const ENTRY_ONLY_STATE_KEYS = [ASSIGNMENTS_VIEW_STATE_KEY];
 export const readRouteOwner = (state) => (
   state && typeof state === 'object' ? state[ROUTE_OWNER_STATE_KEY] || null : null
 );
@@ -159,10 +164,17 @@ const currentStateObject = () => (
 // browserUrl.js); without one the entry keeps the current address. `owner`
 // stamps the entry with the signed-in account; `fresh` drops whatever the
 // current entry held (an entry another account wrote).
+const carriedStateObject = (replace) => {
+  const current = { ...currentStateObject() };
+  // A new entry is a new place: what belongs to the entry being left stays there.
+  if (!replace) ENTRY_ONLY_STATE_KEYS.forEach((entryKey) => { delete current[entryKey]; });
+  return current;
+};
+
 const writeState = (key, route, { replace = false, url = null, owner = null, fresh = false } = {}) => {
   if (typeof window === 'undefined' || !window.history) return;
   const next = {
-    ...(fresh ? {} : currentStateObject()),
+    ...(fresh ? {} : carriedStateObject(replace)),
     [key]: route,
     ...(owner ? { [ROUTE_OWNER_STATE_KEY]: owner } : {}),
   };

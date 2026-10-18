@@ -22,7 +22,9 @@
 //   S4  No screen scrolls sideways.
 //   S5  Home → "See results": the result page's Back reads "← Home" and goes
 //       Home (NAV-9), where browser Back would have gone.
-//   S6  Assignments: a search survives View Results → browser Back.
+//   S6  Assignments: the search, the tab and the marking period survive View
+//       Results → browser Back (NAV-21); opening Assignments afresh from the
+//       nav starts clean (they live in that history entry, nothing else).
 //   S7  A toast shown inside an assignment ("That question has moved") never
 //       covers Submit / Check: the button is what a tap at its centre hits.
 //       The notice appears with the workspace, never over Home or the loading
@@ -197,11 +199,35 @@ for (const viewport of VIEWPORTS) {
     }
   }
 
-  // S6 — Assignments keeps its search across View Results and Back.
+  // S6 — Assignments keeps its search, tab and marking period across View
+  // Results and Back, and a fresh visit starts clean.
   await pressDestination(page, 'Assignments', phone);
   await settled(page, 'Assignments');
   const toggle = page.locator('button.mm-assignments-filters__toggle');
   if (await toggle.isVisible()) await toggle.click();
+  // A marking period other than the one shown, and a tab other than Active.
+  const period = page.locator('#assignments-period');
+  const periodValues = await period.locator('option').evaluateAll((options) => options.map((option) => option.value));
+  const startPeriod = await period.inputValue();
+  const chosenPeriod = periodValues.find((value) => value !== startPeriod) || startPeriod;
+  await period.selectOption(chosenPeriod);
+  const tabs = page.getByRole('tab');
+  const tabCount = await tabs.count();
+  let chosenTab = null;
+  if (expect(`S6 ${tag}`, tabCount > 1, `${tabCount} category tabs`)) {
+    // Arrow keys move between the tabs (NAV-23).
+    await page.getByRole('tab', { selected: true }).focus();
+    await page.keyboard.press('ArrowRight');
+    chosenTab = await page.getByRole('tab', { selected: true }).innerText();
+    const focusedTab = await page.evaluate(() => document.activeElement?.getAttribute('role') === 'tab' && document.activeElement.getAttribute('aria-selected') === 'true');
+    expect(`S6 ${tag}`, focusedTab, 'ArrowRight did not select and focus the next tab');
+    const panel = await page.evaluate(() => {
+      const tab = document.querySelector('[role="tab"][aria-selected="true"]');
+      const panelNode = tab && document.getElementById(tab.getAttribute('aria-controls'));
+      return { role: panelNode?.getAttribute('role'), labelledBy: panelNode?.getAttribute('aria-labelledby'), tabId: tab?.id };
+    });
+    expect(`S6 ${tag}`, panel.role === 'tabpanel' && panel.labelledBy === panel.tabId, `the tab's panel: ${JSON.stringify(panel)}`);
+  }
   await page.locator('#assignments-search').fill('Elimination');
   await page.waitForTimeout(200);
   const resultsButton = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
@@ -212,7 +238,28 @@ for (const viewport of VIEWPORTS) {
     await settled(page, 'Assignments');
     const kept = await page.locator('#assignments-search').inputValue().catch(() => null);
     expect(`S6 ${tag}`, kept === 'Elimination', `the search came back as ${JSON.stringify(kept)}`);
+    const keptPeriod = await page.locator('#assignments-period').inputValue().catch(() => null);
+    expect(`S6 ${tag}`, keptPeriod === chosenPeriod, `the marking period came back as ${JSON.stringify(keptPeriod)}, not ${JSON.stringify(chosenPeriod)}`);
+    // The tabs return once the search is cleared, on the tab that was chosen.
     await page.locator('#assignments-search').fill('');
+    await page.waitForTimeout(200);
+    if (chosenTab) {
+      const keptTab = await page.getByRole('tab', { selected: true }).innerText().catch(() => null);
+      expect(`S6 ${tag}`, keptTab === chosenTab, `the tab came back as ${JSON.stringify(keptTab)}, not ${JSON.stringify(chosenTab)}`);
+    }
+    // A fresh visit from the nav starts clean. (On a phone, an empty search
+    // folds the filters again: unfold them to type.)
+    if (!(await page.locator('#assignments-search').isVisible())) await toggle.click();
+    await page.locator('#assignments-search').fill('Elimination');
+    await page.waitForTimeout(200);
+    await pressDestination(page, 'Home', phone);
+    await settled(page, 'Home');
+    await pressDestination(page, 'Assignments', phone);
+    await settled(page, 'Assignments');
+    const fresh = await page.locator('#assignments-search').inputValue().catch(() => null);
+    expect(`S6 ${tag}`, fresh === '', `a fresh visit from the nav kept the search ${JSON.stringify(fresh)}`);
+    const freshPeriod = await page.locator('#assignments-period').inputValue().catch(() => null);
+    expect(`S6 ${tag}`, freshPeriod === startPeriod, `a fresh visit kept the marking period ${JSON.stringify(freshPeriod)}`);
   }
 
   // S7 — a toast over the workspace leaves the action bar pressable.
