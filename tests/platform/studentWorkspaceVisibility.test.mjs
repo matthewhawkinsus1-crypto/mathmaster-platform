@@ -299,7 +299,9 @@ test('the phone work bar is one flexible row with a short Reset label', () => {
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.mathmaster-action-label-long \{\s*display: none;/);
   const engine = read('src/QuestionEngine.jsx');
   assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
-  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
+  // The word sits in a label span (a phone hides it, or since A11Y-10 keeps it
+  // as a caption under the icon: `mathmaster-action-label--kept`).
+  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
 });
 
 // Student UX pass (R-1), 390×844: with "Submit Answer" in the bar the four
@@ -322,7 +324,7 @@ test('with Submit in the phone bar it is still one row: the tools show icons, ke
   // aria-hidden SVG, CalculatorIcon.jsx) since 🧮 is a box without an emoji font.
   assert.equal((bar.match(/<span aria-hidden="true">|<CalculatorIcon( unavailable)? \/>/g) || []).length >= 4, true);
   assert.match(read('src/components/common/CalculatorIcon.jsx'), /aria-hidden="true"/);
-  assert.match(read('src/components/common/UniversalUndoButton.jsx'), /<span aria-hidden="true">↶<\/span><span className="mathmaster-action-label"> Undo<\/span>/);
+  assert.match(read('src/components/common/UniversalUndoButton.jsx'), /<span aria-hidden="true">↶<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Undo<\/span>/);
   // The number keypad covers the bar: the bar yields its row and the work pads for the keys.
   assert.match(css, /\.numeric-keypad-open \.portrait-action-bar \{\s*display: none;/);
   // Platform quirks audit: without Submit the labelled tools wrapped to two rows

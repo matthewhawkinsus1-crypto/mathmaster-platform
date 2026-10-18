@@ -91,6 +91,8 @@ const run = async (width, height) => {
       role: el?.getAttribute('role') || null,
       text: (el?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 120),
       name: el?.getAttribute('aria-label') || null,
+      // What aria-describedby adds: what the model shows, then its keys (Q-8).
+      described: (el?.getAttribute?.('aria-describedby') || '').split(/\s+/).filter(Boolean).map((id) => document.getElementById(id)?.textContent || '').join(' '),
       checked: el?.getAttribute('aria-checked'),
       sentinel: el?.getAttribute('data-kb-sentinel') || null,
       outline: style ? `${style.outlineStyle} ${style.outlineWidth}` : null,
@@ -122,18 +124,21 @@ const run = async (width, height) => {
   await page.evaluate(() => document.querySelector('[data-kb-sentinel="start"]').focus());
   const model = await tabUntil((s) => s.tag === 'svg', 'the 3D model');
   assert.equal(model.role, 'application', `${at}: the model is an application`);
-  assert.match(model.name || '', /arrow keys/i, `${at}: the model's name says how to rotate it`);
+  // Named by what it is; the keys are in its description, after what it shows (pass 3, Q-8).
+  assert.equal(model.name, 'Three planes in 3D', `${at}: the model is named by what it is`);
+  assert.match(model.described || '', /^3D model with the x, y and z axes\.[\s\S]*Arrow keys rotate the model/, `${at}: its description says what it shows, then how to rotate it`);
   assert.ok(model.focusVisible, `${at}: the model matches :focus-visible`);
   assert.doesNotMatch(model.outline, /^none/, `${at}: the model shows a focus ring (${model.outline})`);
   const described = await page.evaluate(() => {
     const svg = document.querySelector('svg[role="application"]');
-    return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
+    // Every id it names: what the model shows, then the keys (Q-8).
+    return svg.getAttribute('aria-describedby').split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ');
   });
   assert.match(described, /Left and Right[\s\S]*Up and Down[\s\S]*Shift[\s\S]*Home/, `${at}: the model is described by its key instructions`);
 
   // The drawing inside the control keeps the image role and name the model
   // always had (assessmentLeakGates.mjs and day2NonuniqueJourneys.mjs find it so).
-  const drawing = page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' });
+  const drawing = page.getByRole('img', { name: /3D view of the three planes/ });
   await drawing.waitFor({ state: 'visible' });
   assert.equal(await drawing.evaluate((g) => g.closest('svg')?.getAttribute('role')), 'application', `${at}: the named drawing sits inside the model control`);
 

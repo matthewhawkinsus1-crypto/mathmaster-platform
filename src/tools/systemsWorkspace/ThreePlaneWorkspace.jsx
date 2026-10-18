@@ -27,6 +27,8 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
+import { describeThreePlaneModel } from './threePlaneDescription.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
@@ -291,6 +293,21 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     return projectPolygon([point3D], camera).points[0];
   }, [shownType, showResult, shownSolution, variables, camera]);
 
+  // WHAT THE MODEL SHOWS, IN WORDS (student pass 3, Q-8): the planes by their
+  // equations, which are shown, the dashed crossings and a marked point. While
+  // the question can be answered it never says which planes cross or classifies
+  // the system (threePlaneDescription.js); a closed question names each pair.
+  const modelDescriptionId = `${instructionId}-model`;
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
+  const modelDescription = useMemo(() => describeThreePlaneModel({
+    variables,
+    equations,
+    visible: visiblePlanes,
+    crossings: intersectionLines.map((line) => line.key.split('-').map(Number)),
+    detail: questionClosed ? 'features' : 'kinds',
+    markedPoint: solutionMarker ? orderedTripleText(shownSolution, variables) : null,
+  }), [variables, equations, visiblePlanes, intersectionLines, questionClosed, solutionMarker, shownSolution]);
+
   // Painter's algorithm: farthest (most negative screen depth toward the
   // viewer's back) first, nearest last, so overlapping translucent planes
   // layer the way a person looking at the model would expect.
@@ -372,14 +389,15 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           <span id={instructionId} className="mathmaster-threeplane-sr-only">
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
+          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true">{modelDescription}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg
             ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="application"
             tabIndex={0}
-            aria-label="Three planes in 3D. Drag or use the arrow keys to rotate."
-            aria-describedby={instructionId}
+            aria-label="Three planes in 3D"
+            aria-describedby={`${modelDescriptionId} ${instructionId}`}
             onKeyDown={handleModelKeyDown}
             style={{ touchAction: 'none', background: 'var(--mm-surface-sunken)', borderRadius: 12, border: '1px solid var(--mm-border)', cursor: 'grab', width: '100%', height: 'auto', maxWidth: 560, aspectRatio: '1 / 1' }}
             onPointerDown={handlePointerDown}
@@ -387,10 +405,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           >
-            {/* The drawing itself, named as the image it is (the name the
-                model has always had, which the browser gates find it by);
-                the svg around it is the focusable control. */}
-            <g role="img" aria-label="Interactive 3D view of the three planes. Drag to rotate.">
+            {/* The drawing itself, named as the image it is and described by
+                what it shows; the svg around it is the focusable control. */}
+            <g role="img" aria-label="3D view of the three planes" aria-describedby={modelDescriptionId}>
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L7,3.5 L0,7 z" style={{ fill: 'var(--mm-graph-axis)' }} />

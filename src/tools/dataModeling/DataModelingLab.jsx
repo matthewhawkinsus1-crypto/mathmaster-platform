@@ -89,7 +89,7 @@ function ResidualPlot({ rows, xMin, xMax }) {
   return (
     <CoordinatePlane xMin={xMin} xMax={xMax} yMin={scale.min} yMax={scale.max} height={250}
       points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
-      horizontalLines={[0]} enlargeable={false} />
+      horizontalLines={[0]} enlargeable={false} ariaLabel="Residual plot" />
   );
 }
 
@@ -350,6 +350,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane
+            // Named for what it is (student pass 3, Q-8): it read "Coordinate plane".
+            ariaLabel="Scatter plot of the data and your model"
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}

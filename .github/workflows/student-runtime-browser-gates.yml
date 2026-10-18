@@ -45,6 +45,15 @@ name: Student Runtime Browser Gates
 #                       Work View, records calculatorUsed, never submits on
 #                       Enter; an exit ticket keeps the stricter rule; secure
 #                       items and no setting unchanged (pass 3, PR-25/PR-26)
+#   figureDescriptions  number lines, the 3D planes, the static question graph,
+#                       the legacy graph workspace and the story sketch say what
+#                       they show in the accessibility tree, follow the student's
+#                       changes, and name nothing that answers a DOL (pass 3, Q-8);
+#                       on a phone Undo and Reset keep their word (A11Y-10)
+#   mathKeypadToolbar   MathInput's keypads are one Tab stop each: arrows, Home,
+#                       End, named keys, focus back to the field (pass 3, PR-27)
+#   workViewReference   "Information you need" is in Work View: its own drawer,
+#                       inside Task on a phone, on a DOL too (pass 3, TOOL-12)
 #   assessmentLeakGates nothing before Submit says whether work is right on a
 #                       DOL, quiz or test (systems, inequalities, intercepts,
 #                       relation solver, constraint builder); practice unchanged
@@ -119,6 +128,9 @@ on:
       - "tests/browser/systemsWorkspaceStudio*"
       - "tests/browser/relationWorkspaceDriver.mjs"
       - "tests/browser/clickMapLetterbox*"
+      - "tests/browser/figureDescriptions*"
+      - "tests/browser/mathKeypadToolbar*"
+      - "tests/browser/workViewReference*"
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
@@ -324,6 +336,24 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/closedQuestionEnter.mjs
+      - name: Figures say what they show, from the accessibility tree
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/figureDescriptions.mjs
+      - name: Each math keypad is one Tab stop
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathKeypadToolbar.mjs
+      - name: Information you need stays reachable in Work View
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workViewReference.mjs
       - name: A production build serves the math fonts
         if: always()
         env:

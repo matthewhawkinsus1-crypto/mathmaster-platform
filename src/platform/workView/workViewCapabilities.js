@@ -10,6 +10,9 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   // description and "How to do this" steps, which Work View hides with the
   // TaskCard, and a tool's own help kept below the platform's.
   'directions', 'toolHelp',
+  // The question's "Information you need" card (student pass 3, TOOL-12),
+  // which Work View hides with the task card around it.
+  'reference',
 ]);
 
 const WorkViewCapabilityContext = createContext(Object.freeze({}));
@@ -64,6 +67,12 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // took Ask away. Under an authoritative platform Help the tool's own goes
     // to `toolHelp`, which the drawer shows after it.
     help: base.help?.authoritative ? base.help : (local.help || base.help),
+    // THE QUESTION'S REFERENCE IS THE PLATFORM'S, AND ONLY THE PLATFORM'S
+    // (W5-2 review N3). Nothing withholds it on an assessment, so a tool must
+    // not be able to publish its own text — a method — as "Information you
+    // need". Only a reference marked `authoritative` (QuestionEngine's) is kept,
+    // the nearest platform one first; any other is dropped.
+    reference: base.reference?.authoritative ? base.reference : (local.reference?.authoritative ? local.reference : undefined),
     toolHelp: shownToolHelp(base.help?.authoritative ? (local.help || local.toolHelp || base.toolHelp) : (local.toolHelp || base.toolHelp)),
     directions: mergedDirections(base.directions, local.directions),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],

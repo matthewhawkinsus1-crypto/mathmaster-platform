@@ -469,6 +469,19 @@ export default function EnlargeableFigure({
       {toolHelp ? <div role="group" aria-label="This tool's help" data-work-view-tool-help="">{toolHelp}</div> : null}
     </>
   ) : null;
+  // "INFORMATION YOU NEED" IS PART OF THE QUESTION (student pass 3, TOOL-12).
+  // Work View hid it with the task card around it, so a student who enlarged
+  // the work lost the numbers the question gives. It is the question's own
+  // content, not help: it stays on a DOL, quiz or test. It gets its own header
+  // button and drawer; on a phone, where a fourth header button squeezes the
+  // task (see Support tools below), it opens inside the Task drawer instead,
+  // as its own labelled group.
+  const reference = helpPart(registeredCapabilities.reference);
+  const referenceInTask = Boolean(reference && task && viewport.mode === 'mobile');
+  // Only while enlarged: the page under Work View already shows the card.
+  const referenceNode = reference && enlarged
+    ? <div role="group" aria-label="Information you need" data-work-view-reference="">{typeof reference === 'string' ? <MathText>{reference}</MathText> : reference}</div>
+    : null;
   const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
   // Task, Help and the current instruction have their own places in the shell,
   // and anything with an `onAction` becomes a button below. What is left is the
@@ -489,6 +502,7 @@ export default function EnlargeableFigure({
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
     .filter((name) => !['task', 'help', 'directions', 'toolHelp', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
+    .filter((name) => name !== 'reference')
     .filter((name) => !shellActionNames.includes(name));
   const shellActions = [
     registeredCapabilities.undo,
@@ -644,7 +658,8 @@ export default function EnlargeableFigure({
           ) : null}
           {shortHeight ? instructionNode : null}
         </div>
-        {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
+        {task ? <button type="button" data-work-view-reference={referenceInTask ? '' : undefined} aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
+        {reference && !referenceInTask ? <button type="button" data-work-view-reference="" aria-expanded={drawer === 'reference'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'reference'))}>Reference</button> : null}
         {help ? (
           <button
             type="button"
@@ -660,7 +675,13 @@ export default function EnlargeableFigure({
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
         {task ? (typeof task === 'string' ? <MathText>{task}</MathText> : task) : null}
+        {referenceInTask ? referenceNode : null}
       </section>
+      {reference && !referenceInTask ? (
+        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'reference' ? 'true' : 'false'} aria-label="Reference">
+          {referenceNode}
+        </section>
+      ) : null}
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
         {help || null}
         {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}

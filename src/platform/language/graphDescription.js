@@ -103,6 +103,21 @@ const readPair = (x, y, res) => {
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
+// A window end as the axis lets it be read: exact on a tick, otherwise "about"
+// at one decimal finer than the tick step. An equal-unit window computed to fit
+// the screen ends at −6.374046…, which the axis never prints.
+const stepDecimals = (step) => {
+  const text = String(tidy(step));
+  return text.includes('.') ? text.split('.')[1].length : 0;
+};
+const windowEndText = (value, step) => {
+  if (!(Number(step) > 0)) return formatNumber(value);
+  const places = stepDecimals(step);
+  // Already at the step's precision (−5 on a step-2 axis): said exactly.
+  if (Math.abs(Number(Number(value).toFixed(places)) - value) < 1e-9) return formatNumber(value);
+  return `about ${formatNumber(Number(Number(value).toFixed(places + 1)))}`;
+};
+
 // The finest grid the plane draws: its minor grid where it draws one,
 // otherwise its major gridlines.
 const resolutionFor = (span, snapStep, majorStep, minorGridDrawn) => {
@@ -121,7 +136,10 @@ const inWindow = (x, y, w) => x >= w.xMin - EPS && x <= w.xMax + EPS && y >= w.y
 const arrowDirection = (vector) => {
   const dx = Number(vector?.[0] ?? 1);
   const dy = Number(vector?.[1] ?? 0);
-  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (Math.abs(dx) < EPS && Math.abs(dy) < EPS)) return 'right';
+  // Only a vector that is exactly zero has no direction. A tiny one still
+  // points somewhere: an edge arrow found by bisection carries a vector like
+  // [−4.6e-14, −1.8e-13] (W5-2 review, for W5-5's equal-unit arrows).
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return 'right';
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
   const names = ['right', 'up and right', 'up', 'up and left', 'left', 'down and left', 'down', 'down and right'];
   return names[((Math.round(angle / 45) % 8) + 8) % 8];
@@ -330,6 +348,7 @@ const vertexList = (vertices, res) => {
 const describeKinds = ({
   sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
   points, lines, functions, polylines, regions, verticalLines, horizontalLines,
+  positionsWithheldText,
 }) => {
   const lineCount = lines.filter((line) => Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b))).length;
   const curveCount = functions.filter((fn) => typeof fn === 'function').length;
@@ -374,7 +393,7 @@ const describeKinds = ({
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
   if (hasUndescribedMarks) sentences.push('It also shows marks drawn by the activity that are not listed here.');
   if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length) {
-    sentences.push('Positions are not read out while this question can be answered.');
+    sentences.push(positionsWithheldText || 'Positions are not read out while this question can be answered.');
   }
   void w;
   const description = sentences.join(' ');
@@ -411,6 +430,18 @@ export function describeCoordinatePlane({
   // An interactive plane: read back the points the student placed (no marker,
   // not fixed) even in 'kinds'.
   listPlottedPoints = false,
+  // AN AXIS WHOSE NUMBERS THE GRAPH HIDES (graph.axisDisplay: an axis-scale
+  // item asks the student for the step). Its range is not said — with the
+  // gridlines, the window's ends give the step away — and nothing is read in
+  // tick units the student never saw, so the whole reading stays 'kinds',
+  // closed question or not (student pass 3, W5-2 review B1).
+  axisNumbersHidden = { x: false, y: false },
+  // The labelled tick steps, when a window's ends may fall between ticks: the
+  // ends are then read "about" at tick precision (windowEndText).
+  windowSteps = null,
+  // The sentence that says positions are withheld, for a host that knows why:
+  // a closed question whose review is not shown cannot "be answered".
+  positionsWithheldText = null,
 } = {}) {
   const w = { xMin: Number(xMin), xMax: Number(xMax), yMin: Number(yMin), yMax: Number(yMax) };
   const xStep = Number(xTickStep) > 0 ? Number(xTickStep) : niceStep(w.xMax - w.xMin);
@@ -422,11 +453,19 @@ export function describeCoordinatePlane({
   const list = (value) => (Array.isArray(value) ? value : []);
 
   const sentences = [];
-  sentences.push(`x from ${formatNumber(w.xMin)} to ${formatNumber(w.xMax)}, y from ${formatNumber(w.yMin)} to ${formatNumber(w.yMax)}.`);
+  const hideX = axisNumbersHidden?.x === true;
+  const hideY = axisNumbersHidden?.y === true;
+  const end = (value, axis) => (windowSteps ? windowEndText(value, windowSteps[axis]) : formatNumber(value));
+  const xRange = `x from ${end(w.xMin, 'x')} to ${end(w.xMax, 'x')}`;
+  const yRange = `y from ${end(w.yMin, 'y')} to ${end(w.yMax, 'y')}`;
+  if (hideX && hideY) sentences.push('The axis numbers are not shown.');
+  else if (hideX) sentences.push(`${yRange}. The x-axis numbers are not shown.`);
+  else if (hideY) sentences.push(`${xRange}. The y-axis numbers are not shown.`);
+  else sentences.push(`${xRange}, ${yRange}.`);
 
-  if (detail !== 'features') {
+  if (detail !== 'features' || hideX || hideY) {
     return describeKinds({
-      sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
+      sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, positionsWithheldText,
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
       regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
     });

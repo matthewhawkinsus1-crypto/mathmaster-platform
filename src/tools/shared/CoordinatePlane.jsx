@@ -546,7 +546,7 @@ export default function CoordinatePlane({
   const describedRegions = orNone(regions);
   const describedVerticals = orNone(verticalLines);
   const describedHorizontals = orNone(horizontalLines);
-  const { terminal: questionClosed } = useQuestionLifecycle();
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
   const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,

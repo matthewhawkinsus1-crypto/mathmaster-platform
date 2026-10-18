@@ -21,6 +21,9 @@ test('the registry covers every platform Work View capability', () => {
     // TaskCard's description and steps, and a tool's own Help kept below the
     // platform's.
     'directions', 'toolHelp',
+    // The question's "Information you need" card, its own drawer (student
+    // pass 3, TOOL-12: tests/platform/workViewReference.test.mjs).
+    'reference',
   ]);
 });
 

@@ -117,7 +117,7 @@ const statePlanes = async (page, answers) => {
 };
 const openModel = async (page, where) => {
   await page.getByRole('button', { name: 'Connect my result to 3D', exact: true }).click();
-  await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+  await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
   await settle(page, 400);
   const caption = await page.locator('.mathmaster-threeplane-viewport').innerText();
   check(!/coincident|parallel/i.test(caption), `${where}: the 3D model captions the plane relationships the student is about to state: ${caption.replace(/\s+/g, ' ').slice(0, 200)}`);

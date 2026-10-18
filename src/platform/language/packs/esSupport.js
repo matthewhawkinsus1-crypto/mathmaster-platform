@@ -113,6 +113,13 @@ const attemptOutcome = [
   ['Request a new question to continue.', 'Pide una pregunta nueva para continuar.'],
 ];
 
+// --- Tool checks (student pass 3, A11Y-12: words for every input, not a click)
+const toolChecks = [
+  // src/tools/relationMapping/RelationMapping.jsx
+  ['No arrows drawn yet.', 'Todavía no has dibujado flechas.'],
+  ['Choose a value on the left, then the value on the right it maps to.', 'Elige un valor a la izquierda y luego el valor de la derecha al que corresponde.'],
+];
+
 // --- Generic hints (src/platform/supports/hints/questionHints.js) -----------
 const genericHints = [
   ['Underline what the question asks you to find, and list the numbers it gives you.', 'Subraya lo que la pregunta te pide hallar y haz una lista de los números que te da.'],
@@ -1125,5 +1132,5 @@ const matrixLabFixes = [
   ...['₁', '₂', '₃', '₄', '₅', '₆'].flatMap((row) => ['₁', '₂', '₃', '₄', '₅', '₆'].map((col) => [`Reconsider: Element {1}${row}${col}.`, `Revisa: el elemento {1}${row}${col}.`])),
 ];
 
-export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
+export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
 export const supportChoices = [...backUpChoices, ...platformFamilyChoices];

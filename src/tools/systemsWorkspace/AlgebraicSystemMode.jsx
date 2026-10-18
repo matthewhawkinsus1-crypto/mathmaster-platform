@@ -12,6 +12,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
+import { scrollMotion } from '../../motionPreference.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
@@ -352,7 +353,7 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
     const frame = window.requestAnimationFrame(() => {
       // `start` + the scroll-margin under the sticky task (App.css): the
       // solver's own controls land just below the task, not under it.
-      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      hostRef.current?.scrollIntoView?.({ behavior: scrollMotion(), block: 'start' });
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -464,7 +465,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   React.useEffect(() => { stagesMountedRef.current = true; }, []);
   const revealStageOnAppear = useCallback((element) => {
     if (!element || !stagesMountedRef.current || typeof window === 'undefined') return;
-    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
   }, []);
   const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
   // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing

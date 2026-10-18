@@ -367,7 +367,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
                     {group.itemIds.map((id) => {
                       const card = cardName(itemById(id), id);
-                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
+                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Tap to move this card again" style={{ ...button, minHeight: 44, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
                     })}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>

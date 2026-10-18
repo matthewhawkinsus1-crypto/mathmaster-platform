@@ -42,7 +42,7 @@ import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
-import { prefersReducedMotion } from './motionPreference.js';
+import { prefersReducedMotion, scrollMotion } from './motionPreference.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
@@ -1763,7 +1763,7 @@ function QuestionEngineBody({
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
-    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
   }, [hintPanelOpen, hintsRevealed, similarOpen]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
@@ -2434,8 +2434,9 @@ function QuestionEngineBody({
           aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {/* "Question" drops on a phone so the work bar fits one row. */}
-          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
+          {/* "Question" drops on a phone so the work bar fits one row; "Reset"
+              stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
+          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
         </button>
       ) : null}
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -2937,9 +2938,16 @@ function QuestionEngineBody({
     </div>
   );
 
+  // Figure descriptions read positions exactly when the worked solution is
+  // shown: the closedReview gate (closed AND feedbackOpen, which on a DOL
+  // needs the assignment's release). Never from a lock alone — an ended DOL, a
+  // waiting Warm-Up, a locked section — and never on a closed DOL item before
+  // release, which a teacher's extra try can reopen (W5-2 review S1, S1').
+  const positionsReadable = Boolean((isCorrect || isExpired) && feedbackOpen);
+
   return (
     <DeferredFocusProvider authority={focusAuthority}>
-    <QuestionLifecycleProvider terminal={locked}>
+    <QuestionLifecycleProvider terminal={locked} positionsReadable={positionsReadable}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
       ref={questionEngineRef}
@@ -3034,6 +3042,9 @@ function QuestionEngineBody({
         // The same Support tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
         supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
+        // "Information you need" in Work View too (TOOL-12): the question's own
+        // content, so it stays on every activity, assessments included.
+        reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} />, authoritative: true } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
           { ...workspaceActions.reset, onAction:workspaceActions.reset.onClick },
