@@ -13,7 +13,10 @@
  * does not count toward unlocking the Recovery (practiceMastery.mjs counts only
  * independent items), so there the sentence says that instead.
  */
-export const HINT_COST_SENTENCE = 'Hints never lower your score. Your teacher can see you used one.';
+import { HINT_COST } from '../../student/studentWords.js';
+
+// The sentence is the student word list's (studentWords.js).
+export const HINT_COST_SENTENCE = HINT_COST;
 
 export const RECOVERY_HINT_COST_SENTENCE = "Hints help you learn, but this question then won't count toward unlocking.";
 

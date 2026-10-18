@@ -118,13 +118,12 @@ export const triesCount = (count) => {
 // --- Hints -------------------------------------------------------------------
 
 /*
- * What a hint costs, said the same way everywhere one is offered (HELP-17):
- * "Hints never lower your score. Your teacher can see you used one." The
- * sentence lives in hintCopy.js beside Recovery's one exception; it is named
- * here so the student's words are in one list. On an exit ticket, quiz or test
- * no hint is offered at all, so it never appears there.
+ * What a hint costs, said the same way everywhere one is offered (HELP-17).
+ * hintCopy.js offers it as HINT_COST_SENTENCE, beside Recovery's one
+ * exception. On an exit ticket, quiz or test no hint is offered at all, so it
+ * never appears there. (This module imports nothing: the sign-in page loads it.)
  */
-export { HINT_COST_SENTENCE as HINT_COST } from '../supports/hints/hintCopy.js';
+export const HINT_COST = 'Hints never lower your score. Your teacher can see you used one.';
 
 // --- Dates -------------------------------------------------------------------
 
