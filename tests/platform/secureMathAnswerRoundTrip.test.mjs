@@ -249,9 +249,29 @@ test('the editor\'s own spelling of a π, root or exponent key is a right answer
   assert.equal(stackDivisions('2/π^{2}', { constantOperands: true }), '\\frac{2}{π^{2}}');
   assert.equal(stackDivisions('x^π/2', { constantOperands: true }), '\\frac{x^π}{2}');
   assert.equal(stackDivisions('e^\\sqrt{2}/2', { constantOperands: true }), '\\frac{e^\\sqrt{2}}{2}');
-  assert.equal(stackDivisions('x^(\\alpha)/2', { constantOperands: true }), '\\frac{x^(\\alpha)}{2}');
+  assert.equal(stackDivisions('x^{\\alpha}/2', { constantOperands: true }), '\\frac{x^{\\alpha}}{2}', 'a braced exponent brings its base');
+  assert.equal(stackDivisions('3/x^{n-1}', { constantOperands: true }), '\\frac{3}{x^{n-1}}', 'and is a denominator\'s power');
+  // An ASCII `^(…)/` keeps the reading the renderer shows (round 3).
+  assert.equal(stackDivisions('x^(\\alpha)/2', { constantOperands: true }), stackDivisions('x^(\\alpha)/2'));
   assert.equal(stackDivisions('x^(\\alpha)/2'), 'x^\\frac{\\alpha}{2}', 'rendering (no constantOperands) is unchanged');
   assert.equal(stackDivisions('x_π/2', { constantOperands: true }), 'x_π/2', 'a subscript is part of a name');
+});
+
+test('an ASCII key written B^(E)/N grades as the renderer draws it, B^(E/N) (H-13 review, round 3)', async () => {
+  // The key 2^(x-1)/3 is shown to a student as 2^((x-1)/3) (stackDivisions,
+  // no option); its grading must name the same number, as it did on c350dfc.
+  assert.equal(await grades('2^\\frac{x-1}{3}', '2^(x-1)/3', { profile: 'expression' }), true);
+  for (const [sent, key] of [
+    ['\\frac{2^{x-1}}{3}', '2^(x-1)/3'],
+    ['(2^(x-1))/3', '2^(x-1)/3'],
+    ['y=\\frac{2^{x-1}}{3}', 'y=2^(x-1)/3'],
+  ]) {
+    assert.equal(await grades(sent, key, { profile: 'expression' }), false, `${sent} is not ${key} as it is shown`);
+  }
+  // A braced exponent is unambiguous LaTeX and keeps round 2's reading.
+  assert.equal(await grades('\\frac{x^{n-1}}{2}', 'x^{n-1}/2', { profile: 'expression' }), true);
+  assert.equal(await grades('x^\\frac{n-1}{2}', 'x^{n-1}/2', { profile: 'expression' }), false);
+  assert.equal(await grades('\\frac{3}{x^{n-1}}', '3/x^{n-1}', { profile: 'expression' }), true);
 });
 
 test('an nth root and a digit that ends a name are not stacked operands (H-13 review S1)', () => {

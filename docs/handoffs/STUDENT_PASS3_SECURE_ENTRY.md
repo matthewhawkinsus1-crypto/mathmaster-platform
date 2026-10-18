@@ -460,3 +460,55 @@ unchanged. Five mutations red.
 expressions, and the pair grader matches only that exact text. This is true on Path and on a Test, before H-13 and
 after it. A fix is either the content (simplify the key, or add accepted forms) or the grader (compare a pair
 coordinate with a root by value). Either is outside this branch.
+
+## Review round 3: an ASCII `B^(E)/N` key grades as it is shown
+
+The final grader review of `643e3be` found one disagreement. The renderer (`stackDivisions` with no option) draws an
+ASCII key `2^(x-1)/3` as `2^\frac{x-1}{3}`, which is 2^((x−1)/3). Round 2's `)` branch graded it as (2^(x−1))/3,
+so:
+
+- `2^\frac{x-1}{3}`, which is what the student sees, became wrong;
+- `\frac{2^{x-1}}{3}` became right.
+
+**The fix.** "A power brings its base" applies only to an exponent that was **braced in the input**, which is
+unambiguous LaTeX:
+
+- `normalizeAnswer` keeps compound braced exponents braced until the divisions are stacked
+  (`keepCompoundBraced`); simple ones (`^{2}`, `^{π}`, `^{\sqrt{2}}`) are unbraced first, as before.
+- `stackDivisions` (grading only) reads a braced exponent as a numerator that brings its base, and as a
+  denominator's power (`3/x^{n-1}`).
+- The ASCII `^(…)` branch is back to the renderer's reading.
+
+**Verdicts, against `c350dfc`:**
+
+- `2^\frac{x-1}{3}` vs `2^(x-1)/3`: true, as on the base.
+- `\frac{2^{x-1}}{3}`, `(2^(x-1))/3` and `y=\frac{2^{x-1}}{3}` vs their keys: false, as on the base.
+- Braced keys keep round 2's verdicts (`\frac{x^{n-1}}{2}` is right for `x^{n-1}/2`, `x^\frac{n-1}{2}` is not).
+
+These are pinned in `secureMathAnswerRoundTrip`, with four mutations red.
+
+**Sweep against `c350dfc`:**
+
+- 9,523 fields, 269,994 verdicts;
+- **0 right → wrong**, **0 near miss → right**, 0 editor spellings refused, 0 wrong stacked spellings accepted;
+- 2,130 newly accepted, the same 30 shapes as round 2;
+- **300** near misses the base accepted, now refused: the 216 N1 shapes, plus 84 braced `B^{E}/N` answers against
+  ASCII `B^(E)/N` keys.
+
+**What changed in the sweep:**
+
+- 14 synthetic ASCII `B^(E)/N` keys.
+- Their displayed reading `B^{\frac{E}{N}}` is now a right spelling.
+- `\frac{B^{E}}{N}` and `B^{E}/N` are now wrong spellings that must fail. As LaTeX they are (B^E)/N, another number
+  from the one the key is shown as. The base accepted `B^{E}/N` only because it turned every brace into a
+  parenthesis before stacking.
+- The old "`^(E)` is `^{E}`" spelling no longer applies before a `/`.
+- No editor spelling is claimed for an ASCII `B^(E)/N` key.
+- Restoring round 2's reading makes the sweep exit 1 (84 accepted).
+
+**For the owner** (the integrator lists it with the other grader follow-ups):
+
+- Which reading an ASCII author means by `B^(E)/N`: the displayed B^(E/N), or standard precedence (B^E)/N.
+- Until that is decided, the editor's own spelling of the displayed number, `2^{\frac{x-1}{3}}`, is refused, as it
+  was on the base.
+- No bank key has this shape.

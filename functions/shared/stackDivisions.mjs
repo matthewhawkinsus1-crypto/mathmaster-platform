@@ -209,18 +209,20 @@ const operandBefore = (text, end, options = {}) => {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
     const start = withLeftPrefix(text, open);
-    // Grading: a bracketed exponent brings its base, whatever it holds —
-    // `x^{π}/2` (written `x^(π)/2` by then) is (x^π)/2, never x^(π/2).
-    if (options.constantOperands) {
-      const whole = withPowerBase(text, start, options);
-      if (!whole) return null;
-      return { start: whole.start, text: text.slice(whole.start, index + 1) };
-    }
     return { start, text: text.slice(start, index + 1) };
   }
   // A closing brace is the tail of a `\frac{…}{…}` or a superscript group as
-  // often as it is an operand. Ambiguous: leave the slash alone.
-  if (text[index] === '}') return null;
+  // often as it is an operand. Ambiguous: leave the slash alone — except, in
+  // grading, a braced exponent: `x^{n-1}/2` is unambiguous LaTeX for
+  // (x^{n-1})/2, so the power and its base come along as one operand. (An
+  // ASCII `x^(n-1)/2` keeps the reading the renderer shows, x^((n-1)/2).)
+  if (text[index] === '}') {
+    if (!options.constantOperands) return null;
+    const open = matchBackwards(text, index);
+    if (open < 1 || text[open - 1] !== '^') return null;
+    const whole = withPowerBase(text, open, options);
+    return whole ? { start: whole.start, text: text.slice(whole.start, index + 1) } : null;
+  }
 
   const single = /[A-Za-z]|\d/.test(text[index]);
   if (!single) return null;
@@ -268,6 +270,11 @@ const operandAfter = (text, start, options = {}) => {
   // 180 over d, all squared. A subscript is part of a name, so it comes too.
   const withTrailingPower = (end) => {
     if (text[end] !== '^') return { end, text: text.slice(index, end) };
+    // Grading: a braced exponent on a denominator (`3/x^{n-1}`) is its power.
+    if (options.constantOperands && text[end + 1] === '{') {
+      const close = matchForwards(text, end + 1);
+      return close < 0 ? null : { end: close + 1, text: text.slice(index, close + 1) };
+    }
     const exponent = operandAfter(text, end + 1, options);
     if (!exponent) return null;
     return { end: exponent.end, text: text.slice(index, exponent.end) };

@@ -113,7 +113,7 @@ const absCallsAsBars = (value) => {
  * flat-brace pattern left a nested exponent braced and the two apart.
  */
 const SIMPLE_EXPONENT = /^\s*(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})\s*$/;
-const bracedExponentsAsGroups = (value) => {
+const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => {
   let text = value;
   for (let index = text.indexOf('^{'); index >= 0; index = text.indexOf('^{', index + 1)) {
     let depth = 0;
@@ -124,6 +124,10 @@ const bracedExponentsAsGroups = (value) => {
     }
     if (close < 0) break;
     const body = text.slice(index + 2, close);
+    // Left braced until the divisions are stacked (normalizeAnswer): a braced
+    // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
+    // written with keeps the reading the renderer shows (H-13 review).
+    if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
     const group = SIMPLE_EXPONENT.test(body) ? body.trim() : `(${body})`;
     text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
   }
@@ -143,7 +147,7 @@ const bracedExponentsAsGroups = (value) => {
  * the same answer agree. It is not applied before the structural parsers
  * (polynomials, intervals, radicals), which keep reading what they always read.
  */
-const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
+const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = false } = {}) => {
   let text = absCallsAsBars(String(value ?? '')
     .replace(/\\(?:lvert|rvert|vert)(?![A-Za-z])/g, '|')
     // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
@@ -155,13 +159,13 @@ const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = bracedExponentsAsGroups(text);
+  text = bracedExponentsAsGroups(text, { keepCompoundBraced });
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
   return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
 };
 
-export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))), { asciiPi: false })
+export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false })
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')

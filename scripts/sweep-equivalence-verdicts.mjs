@@ -177,6 +177,8 @@ for (const a of [1, 2, 3, 5]) {
       // A braced exponent that is not a single symbol comes along as one
       // operand (N1): x^{2t}/b is (x^{2t})/b, never x^(2t/b).
       [`x^{${a + 1}t}/${b}`, 'expression'], [`x^{\\alpha}/${b}`, 'expression'],
+      // ASCII B^(E)/N keeps the reading the renderer shows, B^(E/N).
+      [`${a + 1}^(x-1)/${b}`, 'expression'],
       [`(sqrt(${a + 1})/${b},1/${b})`, 'orderedPair'], [`x<=${a}pi/${b}`.replace(/=1pi/, '=pi'), 'inequality'],
     );
   }
@@ -205,6 +207,10 @@ const EDITOR_DENOMINATOR = String.raw`(\\pi(?:\^\{[^{}]+\})?|\\sqrt\{[^{}]+\}|\d
 const EDITOR_STACK = new RegExp(`${EDITOR_NUMERATOR}\\/${EDITOR_DENOMINATOR}(?![\\w.^{(\\\\])`, 'g');
 const editorSpellingsOf = (text) => {
   if (!/\^|(?<![A-Za-z])pi(?![A-Za-z])|π|sqrt|√/.test(text)) return [];
+  // An ASCII `B^(E)/N` is drawn as B^(E/N) but reads as (B^E)/N by standard
+  // precedence; which one an author means is the owner's question, so no
+  // editor spelling is claimed for it (H-13 review, round 3).
+  if (/\^\([^()]*\)\s*\//.test(text)) return [];
   const flat = text.replace(/\s+/g, '')
     .replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}')
     .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])|π/g, '\\pi')
@@ -224,13 +230,17 @@ const stackedWrongSpellings = new Set();
 const spellingsOf = (text) => {
   const out = new Set();
   const add = (value) => { if (value && value !== text) out.add(value); };
+  // B^(E)/N as the renderer draws it: B^{\frac{E}{N}}.
+  add(text.replace(/(\d|[A-Za-z])\^\(([^()]+)\)\/(\d+)(?![\w.(^])/g, '$1^{\\frac{$2}{$3}}'));
   const editor = editorSpellingsOf(text);
   if (editor.length) editorSpellingKeys.add(text);
   editor.forEach(add);
   add(text.replace(/\s+/g, ''));
   add(text.replace(/(^|[-+=(*])1(?=sqrt|[a-z(])/g, '$1'));
   add(text.replace(/-/g, '−'));
-  add(text.replace(/\^\(([^()]+)\)/g, '^{$1}'));
+  // `^(E)` is `^{E}` — except before a `/`: an ASCII B^(E)/N is drawn as
+  // B^(E/N), while LaTeX B^{E}/N is (B^E)/N, another number (round 3).
+  add(text.replace(/\^\(([^()]+)\)(?!\s*\/)/g, '^{$1}'));
   add(text.replace(/\^(-?\w)(?![\w{(])/g, '^{$1}'));
   add(text.replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}'));
   add(text.replace(/sqrt\((\w)\)/g, '\\sqrt$1'));
@@ -303,6 +313,10 @@ const nearMissesOf = (text) => {
   addStackedWrong(text.replace(/\^\{?(?:pi|π)\}?\/(\d+)/g, '^{\\frac{\\pi}{$1}}'));
   addStackedWrong(text.replace(/\^sqrt\((\d+)\)\/(\d+)/g, '^{\\frac{\\sqrt{$1}}{$2}}'));
   addStackedWrong(text.replace(/\^\{([^{}]+)\}\/(\d+)(?![\w.(^])/g, '^\\frac{$1}{$2}'));
+  // …and against an ASCII B^(E)/N key, the standard-precedence (B^E)/N, which
+  // is not what the student is shown.
+  addStackedWrong(text.replace(/(\d|[A-Za-z])\^\(([^()]+)\)\/(\d+)(?![\w.(^])/g, '\\frac{$1^{$2}}{$3}'));
+  addStackedWrong(text.replace(/(\d|[A-Za-z])\^\(([^()]+)\)\/(\d+)(?![\w.(^])/g, '$1^{$2}/$3'));
   addStackedWrong(text.replace(/\^\{([^{}]+)\}\/(\d+)(?![\w.(^])/g, '^{\\frac{$1}{$2}}'));
   addStackedWrong(text.replace(/\^sqrt\((\d+)\)\/(\d+)/g, '^\\frac{\\sqrt{$1}}{$2}'));
   addStackedWrong(text.replace(/(\d*(?:pi|sqrt\(\d+\)))\/(\d+)(?![\w.(^])/g, '\\frac{$2}{$1}').replace(/sqrt\((\d+)\)/g, '\\sqrt{$1}').replace(/(?<![A-Za-z\\])pi/g, '\\pi'));
