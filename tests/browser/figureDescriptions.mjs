@@ -53,8 +53,8 @@ const axNode = async (page, selector) => {
   }
 };
 
-const open = async (page, q, { role = 'practice', closed = false } = {}) => {
-  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}`, { waitUntil: 'networkidle' });
+const open = async (page, q, { role = 'practice', closed = false, locked = false } = {}) => {
+  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}`, { waitUntil: 'networkidle' });
   await page.locator(`[data-figure-fixture="${q}"]`).waitFor();
   await page.waitForTimeout(400);
 };
@@ -151,6 +151,15 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     }, GRAPH);
     assert.match(review, /A at \(2, 3\)/, `the closed question reads the point at the drawn grid: ${review}`);
     assert.doesNotMatch(review, /Positions are not read out/);
+    // An ended DOL is locked but shows no solution, and a teacher can reopen
+    // it: still kinds only (W5-2 review S1).
+    await open(page, 'numberLine', { role: 'dol', locked: true });
+    const ended = await page.evaluate((selector) => {
+      const svg = document.querySelector(selector);
+      return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
+    }, GRAPH);
+    assert.match(ended, /Positions are not read out while this question can be answered\./, `an ended DOL reads no positions: ${ended}`);
+    assert.doesNotMatch(ended, /\(2, 3\)/);
   });
 
   for (const role of ['practice', 'dol']) {

@@ -10,6 +10,7 @@
 //   ?q=story        Graph Story's sketch plane
 //   ?role=practice|dol   the activity policy (default practice)
 //   ?closed=1       the question is already answered (a closed question)
+//   ?locked=1       the assignment is locked (an ended DOL): terminal, nothing shown
 //
 // All data is synthetic.
 import React from 'react';
@@ -26,6 +27,7 @@ const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
 const which = params.get('q') || 'interval';
 const closed = params.get('closed') === '1';
+const locked = params.get('locked') === '1';
 
 const GRAPH = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, line: { m: 1, b: 1 }, points: [{ x: 2, y: 3, label: 'A' }] };
 const FIXTURES = {
@@ -74,7 +76,8 @@ function Harness() {
   return (
     <main style={{ maxWidth: 1360, margin: '0 auto', padding: 12, fontFamily: 'system-ui' }} data-figure-fixture={which}>
       <QuestionEngine
-        key={`${which}-${role}-${closed}`}
+        key={`${which}-${role}-${closed}-${locked}`}
+        assignmentLocked={locked}
         question={question}
         questionRecord={closed ? { status: 'correct', attemptCount: 1, isCorrect: true } : { status: 'unattempted', attemptCount: 0 }}
         activityRole={role}

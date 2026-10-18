@@ -67,8 +67,12 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // took Ask away. Under an authoritative platform Help the tool's own goes
     // to `toolHelp`, which the drawer shows after it.
     help: base.help?.authoritative ? base.help : (local.help || base.help),
-    // The question's reference is the platform's: a tool never replaces it.
-    reference: base.reference || local.reference,
+    // THE QUESTION'S REFERENCE IS THE PLATFORM'S, AND ONLY THE PLATFORM'S
+    // (W5-2 review N3). Nothing withholds it on an assessment, so a tool must
+    // not be able to publish its own text — a method — as "Information you
+    // need". Only a reference marked `authoritative` (QuestionEngine's) is kept,
+    // the nearest platform one first; any other is dropped.
+    reference: base.reference?.authoritative ? base.reference : (local.reference?.authoritative ? local.reference : undefined),
     toolHelp: shownToolHelp(base.help?.authoritative ? (local.help || local.toolHelp || base.toolHelp) : (local.toolHelp || base.toolHelp)),
     directions: mergedDirections(base.directions, local.directions),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],

@@ -185,11 +185,15 @@ const axisTitle = (label, unit) => {
  * marks are said, never where they are; a closed question gets the full
  * reading. An authored `graph.accessibleDescription` always wins.
  */
-const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail }) => {
+const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail, axisNumbersHidden }) => {
   const isLine = (spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
     && Number.isFinite(Number(spec.m ?? spec.slope)) && Number.isFinite(Number(spec.b ?? spec.intercept ?? 0));
   return describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep: xStep, yTickStep: yStep, detail,
+    // An axis-scale item hides its tick numbers until the student gives the
+    // step: the description says neither that axis's range nor any position
+    // (W5-2 review B1).
+    axisNumbersHidden,
     // Read no finer than the grid this graph draws: its minor gridlines where
     // both axes draw them at one step, otherwise its labelled ticks.
     snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
@@ -202,7 +206,14 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
       ...points,
       ...endpointRequirements
         .filter((requirement) => Array.isArray(requirement?.point))
-        .map((requirement) => ({ x: Number(requirement.point[0]), y: Number(requirement.point[1]), marker: requirement.marker === 'open' || requirement.marker === 'closed' ? requirement.marker : 'arrow' })),
+        .map((requirement) => ({
+          x: Number(requirement.point[0]),
+          y: Number(requirement.point[1]),
+          marker: requirement.marker === 'open' || requirement.marker === 'closed' ? requirement.marker : 'arrow',
+          // Which way an arrowhead points (W5-2 review S2): without it every
+          // arrow read "pointing right".
+          ...(Array.isArray(requirement.vector) ? { vector: requirement.vector } : {}),
+        })),
     ],
     verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
     horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
@@ -212,7 +223,7 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   const descriptionId = `mm-graph-desc-${useId()}`;
-  const { terminal: questionClosed } = useQuestionLifecycle();
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
   if (!graph) return null;
 
   const displayGraph = fitStaticGraphViewport(graph);
@@ -284,6 +295,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
     minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
     asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
+    axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
   });
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';

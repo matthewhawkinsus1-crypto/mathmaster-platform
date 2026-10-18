@@ -25,7 +25,7 @@ const code = (path) => executableSource(readFileSync(new URL(`../../${path}`, im
 
 test('the reference is a capability the platform owns', () => {
   assert.ok(WORK_VIEW_CAPABILITIES.includes('reference'));
-  const card = { content: 'A taxi charges a $3 pickup fee.' };
+  const card = { content: 'A taxi charges a $3 pickup fee.', authoritative: true };
   // A tool below cannot replace the question's reference…
   assert.equal(mergeWorkViewCapabilities({ reference: card }, { reference: { content: 'tool text' } }).reference, card);
   // …it survives an authoritative Help that withholds the method (a DOL)…
@@ -34,13 +34,22 @@ test('the reference is a capability the platform owns', () => {
   assert.equal(dol.toolHelp, undefined, 'while the tool\'s method stays out (W4-1)');
   // …and no reference means none.
   assert.equal(mergeWorkViewCapabilities({}, {}).reference, undefined);
+  // PLATFORM ONLY (W5-2 review N3): nothing withholds the reference on an
+  // assessment, so a tool's own text can never become "Information you need" —
+  // not beside the platform's, not where the platform has none, not through
+  // the published port. Only QuestionEngine's (authoritative) is kept.
+  const method = { content: 'Use inverse operations in reverse order.' };
+  assert.equal(mergeWorkViewCapabilities({}, { reference: method }).reference, undefined);
+  assert.equal(mergeWorkViewCapabilities({ reference: method }, {}).reference, undefined);
+  assert.equal(mergeWorkViewCapabilities({}, { reference: card }).reference, card, 'QuestionEngine, the top provider');
+  assert.equal(mergeWorkViewCapabilities(mergeWorkViewCapabilities({}, { reference: card }), { reference: method }).reference, card);
   assert.ok(workViewCapabilitySummary({ reference: card }).includes('reference'));
 });
 
 test('QuestionEngine publishes "Information you need" to Work View whenever the question has one', () => {
   const engine = code('src/QuestionEngine.jsx');
   const capabilities = region(engine, '<WorkViewCapabilityProvider capabilities={{', '}}>', 'the Work View capabilities');
-  assert.match(capabilities, /reference: referenceInfo \? \{ content: <ReferenceInfoCard referenceInfo=\{referenceInfo\} \/> \} : null,/);
+  assert.match(capabilities, /reference: referenceInfo \? \{ content: <ReferenceInfoCard referenceInfo=\{referenceInfo\} \/>, authoritative: true \} : null,/);
   // The same card, from the same resolved info, as the page shows.
   assert.match(engine, /const questionReferencePanel = referenceInfo\s*\? <ReferenceInfoCard referenceInfo=\{referenceInfo\} \/>/);
   assert.match(engine, /^import ReferenceInfoCard from '\.\/ReferenceInfoCard';$/m);
@@ -60,7 +69,7 @@ const renderShell = async (capabilities) => {
 
 test('enlarged, the shell has a Reference button and drawer holding the card as a labelled group', async () => {
   const card = React.createElement('aside', { 'data-card': '' }, 'A taxi charges a $3 pickup fee.');
-  const html = await renderShell({ task: { text: 'Graph the cost.', authoritative: true }, reference: { content: card } });
+  const html = await renderShell({ task: { text: 'Graph the cost.', authoritative: true }, reference: { content: card, authoritative: true } });
   assert.match(html, /<button type="button" data-work-view-reference="" aria-expanded="false">Reference<\/button>/);
   const drawer = html.slice(html.indexOf('aria-label="Reference"'));
   assert.ok(html.includes('aria-label="Reference"'), 'a drawer named Reference');

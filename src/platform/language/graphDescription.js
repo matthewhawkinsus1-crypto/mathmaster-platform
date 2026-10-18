@@ -411,6 +411,12 @@ export function describeCoordinatePlane({
   // An interactive plane: read back the points the student placed (no marker,
   // not fixed) even in 'kinds'.
   listPlottedPoints = false,
+  // AN AXIS WHOSE NUMBERS THE GRAPH HIDES (graph.axisDisplay: an axis-scale
+  // item asks the student for the step). Its range is not said — with the
+  // gridlines, the window's ends give the step away — and nothing is read in
+  // tick units the student never saw, so the whole reading stays 'kinds',
+  // closed question or not (student pass 3, W5-2 review B1).
+  axisNumbersHidden = { x: false, y: false },
 } = {}) {
   const w = { xMin: Number(xMin), xMax: Number(xMax), yMin: Number(yMin), yMax: Number(yMax) };
   const xStep = Number(xTickStep) > 0 ? Number(xTickStep) : niceStep(w.xMax - w.xMin);
@@ -422,9 +428,14 @@ export function describeCoordinatePlane({
   const list = (value) => (Array.isArray(value) ? value : []);
 
   const sentences = [];
-  sentences.push(`x from ${formatNumber(w.xMin)} to ${formatNumber(w.xMax)}, y from ${formatNumber(w.yMin)} to ${formatNumber(w.yMax)}.`);
+  const hideX = axisNumbersHidden?.x === true;
+  const hideY = axisNumbersHidden?.y === true;
+  if (hideX && hideY) sentences.push('The axis numbers are not shown.');
+  else if (hideX) sentences.push(`y from ${formatNumber(w.yMin)} to ${formatNumber(w.yMax)}. The x-axis numbers are not shown.`);
+  else if (hideY) sentences.push(`x from ${formatNumber(w.xMin)} to ${formatNumber(w.xMax)}. The y-axis numbers are not shown.`);
+  else sentences.push(`x from ${formatNumber(w.xMin)} to ${formatNumber(w.xMax)}, y from ${formatNumber(w.yMin)} to ${formatNumber(w.yMax)}.`);
 
-  if (detail !== 'features') {
+  if (detail !== 'features' || hideX || hideY) {
     return describeKinds({
       sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),

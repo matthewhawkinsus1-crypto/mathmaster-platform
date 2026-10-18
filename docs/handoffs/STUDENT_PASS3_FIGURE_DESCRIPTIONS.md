@@ -287,6 +287,24 @@ Re-run on `d143e23b`:
 | `toolFocusAndUndo` | **pass**: the base's `282006b` counts the visible how-to, which fixes the failure above |
 | `keyboardSweep` | 33 scenes, all clean |
 
+## Review fixes (reviewer session_01EG79ziTX1TqEwp7k6XxNpY, on the branch as it lands on `c350dfc`)
+
+The reviewer found everything else clean, probed on real DOL items:
+
+- open-question descriptions;
+- the 3D model withholding pairs;
+- the Reference card (scenario text only; 9 of 4,351 items);
+- the keypad toolbar with B's terminal gate;
+- every changed locator.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B1 (blocker).** An axis-scale item hides its tick numbers until the student gives the step (`axisDisplay.showX/YTickLabels: false`; AxisSetupStage `requireScale`, RelationshipModel `hideGraphScale`). GraphDisplay's description still began "x from 0 to 50, y from 0 to 200". With the drawn gridlines that is the graded step. | `describeCoordinatePlane` takes `axisNumbersHidden: { x, y }`. A hidden axis's range is left out ("The axis numbers are not shown." / "The y-axis numbers are not shown."). With either axis hidden, the whole reading stays `'kinds'`, closed question or not, since positions would be in tick units the student never saw. GraphDisplay passes `{ x: !showXTickLabels, y: !showYTickLabels }`. | `figureDescriptions.test.mjs` "B1": an SSR of the real GraphDisplay with the reviewer's shape, open, locked and finished. No window end, step or position; one hidden axis keeps the other's range. Mutation: not passing the option, or not forcing kinds, turns it red. |
+| **S1.** Positions were read whenever the question was `terminal`, which includes an ended DOL (reopenable), a waiting Warm-Up and a locked section, none of which shows a solution. | `QuestionLifecycleProvider` gains `positionsReadable`, false unless the host says so. QuestionEngine passes `Boolean(showOutcomeFeedback && (isCorrect \|\| isExpired))`. GraphDisplay, ThreePlaneWorkspace **and CoordinatePlane** (the same rule, the same leak) read it instead of `terminal`. `terminal` is unchanged for B's keypad gate. | `figureDescriptions.test.mjs` "S1": SSR, terminal → kinds, finished and shown → positions, plus the engine's expression. `figureDescriptions.mjs`: an ended DOL (`?locked=1`, role dol) reads no positions; correct practice reads them. Mutation: `positionsReadable={locked}` turns the node test and both viewports red. Two contracts follow the prop (`graphDescription.test.mjs`, `workViewTerminalLifecycle.test.mjs`); the latter now matches each provider's `terminal` value, and is mutation-checked. |
+| **S2.** Every arrowhead on a closed static graph read "pointing right": `requirement.vector` was dropped. | The vector is kept in the map. | `figureDescriptions.test.mjs` "S2": "pointing down and left" and "pointing up and right". Mutation red. |
+| **S3.** VPAT accuracy. | The axe scope says 11 screens (as certify prints). The ✓/✗ cite is `QuestionEngine.jsx:2783`. The 4.1.3 Matrix Lab line says W5-3 (`4d3e5ee`) passes the "Reconsider" lines to `AttemptOutcome`'s `role="status"` coaching, to re-check once it is in the base. 1.1.1 states the positions rule and the hidden-axis rule. | — |
+| **N3.** `reference: base.reference \|\| local.reference` would let a tool publish its own text (a method) as "Information you need", which nothing withholds on an assessment. | Only a reference marked `authoritative` (QuestionEngine's) survives a merge; any other is dropped. This is the same convention as `task` and `help`. A plain `base.reference` would have dropped QuestionEngine's own reference too, because the engine is the top provider. | `workViewReference.test.mjs`: a tool's reference is dropped beside the platform's, alone, and through the port. Mutation red. |
+
 ## Deploy targets
 
 **Hosting only.** Nothing under `functions/`, `firestore.rules`, `firestore.indexes.json` or Firebase config changes;

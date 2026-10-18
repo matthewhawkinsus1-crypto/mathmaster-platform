@@ -158,3 +158,97 @@ test('the statistics charts are named for what they are', () => {
   const regression = executableSource(read('src/tools/regressionCalculator/RegressionCalculator.jsx'));
   assert.match(regression, /ariaLabel="Source scatterplot"/);
 });
+
+/*
+ * W5-2 REVIEW (B1, S1, S2): the real GraphDisplay, server-rendered.
+ *
+ *   B1  An axis-scale item hides its tick numbers until the student gives the
+ *       step (graph.axisDisplay; AxisSetupStage requireScale, RelationshipModel
+ *       hideGraphScale). The description said "x from 0 to 50, y from 0 to 200",
+ *       and with the gridlines that is the step the item grades. It now says
+ *       neither range, and reads no position even once closed.
+ *   S1  Positions are read only where the outcome is shown and the question is
+ *       finished (`positionsReadable`), never from a lock alone: an ended DOL,
+ *       a waiting Warm-Up and a locked section are `terminal` but show nothing.
+ *   S2  An arrowhead says which way it points (it always said "right").
+ */
+const withGraphDisplay = async (run) => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+  try {
+    const { default: GraphDisplay } = await server.ssrLoadModule('/src/GraphDisplay.jsx');
+    const { QuestionLifecycleProvider } = await server.ssrLoadModule('/src/platform/question/QuestionLifecycleContext.jsx');
+    const { default: React } = await import('react');
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const describe = (graph, lifecycle = null) => {
+      const figure = React.createElement(GraphDisplay, { graph, enlargeable: false });
+      const html = renderToStaticMarkup(lifecycle ? React.createElement(QuestionLifecycleProvider, lifecycle, figure) : figure);
+      const text = html.match(/<p id="[^"]*" data-graph-description=""[^>]*>([^<]*)<\/p>/);
+      assert.ok(text, 'the graph has its description paragraph');
+      return text[1].replace(/&#x27;/g, "'");
+    };
+    return await run(describe);
+  } finally {
+    await server.close();
+  }
+};
+
+test('B1: an axis that hides its numbers is not read, open or closed', async () => {
+  await withGraphDisplay((describe) => {
+    const scale = {
+      xMin: 0, xMax: 50, yMin: 0, yMax: 200, xStep: 5, yStep: 20,
+      points: [{ x: 10, y: 40 }, { x: 30, y: 120 }],
+      axisDisplay: { showXTickLabels: false, showYTickLabels: false },
+    };
+    for (const lifecycle of [null, { terminal: true }, { terminal: true, positionsReadable: true }]) {
+      const text = describe(scale, lifecycle);
+      assert.match(text, /^The axis numbers are not shown\. /, text);
+      assert.doesNotMatch(text, /\b(50|200|20|5|10|30|40|120)\b/, `no window end, step or position: ${text}`);
+      assert.match(text, /Positions are not read out/, 'kinds only, closed question or not');
+    }
+    // One hidden axis: the other keeps its range; still no positions.
+    const yOnly = describe({ ...scale, axisDisplay: { showYTickLabels: false } }, { terminal: true, positionsReadable: true });
+    assert.match(yOnly, /^x from 0 to 50\. The y-axis numbers are not shown\./, yOnly);
+    assert.doesNotMatch(yOnly, /\b200\b|\(10, 40\)/);
+    // Numbers shown: the full window, as before.
+    assert.match(describe({ ...scale, axisDisplay: {} }), /^x from 0 to 50, y from 0 to 200\./);
+  });
+});
+
+test('S1: a locked question reads kinds; a finished one with its outcome shown reads positions', async () => {
+  await withGraphDisplay((describe) => {
+    const graph = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 2, y: 3, label: 'A' }] };
+    // Ended DOL, waiting Warm-Up, locked section: terminal, nothing shown.
+    const locked = describe(graph, { terminal: true });
+    assert.match(locked, /Positions are not read out while this question can be answered\./, locked);
+    assert.doesNotMatch(locked, /\(2, 3\)/);
+    // Correct practice (or a released review): the full reading.
+    const finished = describe(graph, { terminal: true, positionsReadable: true });
+    assert.match(finished, /A at \(2, 3\)/, finished);
+    // Only an explicit true opens it.
+    assert.doesNotMatch(describe(graph, { terminal: true, positionsReadable: 'yes' }), /\(2, 3\)/);
+  });
+  // QuestionEngine sets it from the outcome being shown, never from assignmentLocked.
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  const provider = engine.match(/<QuestionLifecycleProvider terminal=\{locked\} positionsReadable=\{(.*?)\}>/);
+  assert.ok(provider, 'the engine passes positionsReadable');
+  assert.equal(provider[1], 'Boolean(showOutcomeFeedback && (isCorrect || isExpired))');
+  // Every figure that reads positions reads this flag, not `terminal`.
+  for (const file of ['src/GraphDisplay.jsx', 'src/tools/shared/CoordinatePlane.jsx', 'src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx']) {
+    assert.match(executableSource(read(file)), /const \{ positionsReadable: questionClosed \} = useQuestionLifecycle\(\);/, file);
+  }
+});
+
+test('S2: each arrowhead on a closed static graph says which way it points', async () => {
+  await withGraphDisplay((describe) => {
+    const text = describe({
+      xMin: -5, xMax: 5, yMin: -5, yMax: 5,
+      endpointRequirements: [
+        { point: [-4, -4], marker: 'arrow', vector: [-1, -1] },
+        { point: [4, 4], marker: 'arrow', vector: [1, 1] },
+      ],
+    }, { terminal: true, positionsReadable: true });
+    assert.match(text, /pointing down and left/, text);
+    assert.match(text, /pointing up and right/, text);
+  });
+});

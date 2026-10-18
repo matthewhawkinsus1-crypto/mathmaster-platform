@@ -2906,7 +2906,10 @@ function QuestionEngineBody({
 
   return (
     <DeferredFocusProvider authority={focusAuthority}>
-    <QuestionLifecycleProvider terminal={locked}>
+    // Positions in figure descriptions only once the outcome is on screen and
+    // the question is finished; never from a lock alone (an ended DOL, a
+    // waiting Warm-Up, a locked section: student pass 3, W5-2 review S1).
+    <QuestionLifecycleProvider terminal={locked} positionsReadable={Boolean(showOutcomeFeedback && (isCorrect || isExpired))}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
       ref={questionEngineRef}
@@ -3003,7 +3006,7 @@ function QuestionEngineBody({
         supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
         // "Information you need" in Work View too (TOOL-12): the question's own
         // content, so it stays on every activity, assessments included.
-        reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} /> } : null,
+        reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} />, authoritative: true } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
           { ...workspaceActions.reset, onAction:workspaceActions.reset.onClick },

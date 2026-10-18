@@ -298,7 +298,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   // the question can be answered it never says which planes cross or classifies
   // the system (threePlaneDescription.js); a closed question names each pair.
   const modelDescriptionId = `${instructionId}-model`;
-  const { terminal: questionClosed } = useQuestionLifecycle();
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
   const modelDescription = useMemo(() => describeThreePlaneModel({
     variables,
     equations,
