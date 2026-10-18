@@ -344,12 +344,25 @@ no conflicts. B2's fix reads its draft save health.
 | **S3** The Spotlight sentence was said in a secure exam. | Gated like the challenge. | `studentLiveChallengePlace`, mutation-checked. |
 | **S4** Copy. | The announcement says the news only: "Your teacher opened the Live Challenge lobby." / "The Live Challenge is running now." It no longer names a button the screen may call something else. The Test Cycle card says "Opens at 10:36 AM." today, using `opensWhenPhrase`. | `studentLiveChallengePlace`, `studentWhen`, mutation-checked. |
 | **N3** Export PDF gone from finished cards took away printing a done lesson to study. | It is on the result page (See results) for every result, beside the results, with "Preparing PDF…" while it builds. Home's finished cards stay uncluttered. Decision 1 is reworded. | `studentOneWayBack` "review N3", mutation-checked. |
+| **R1** (final look, the rest of B1) On a DOL, `outcomeWithheld` lifts for a question once it is submitted, so the invite came back on a submitted Q1 while Q2 and the clock ran on. | The hold is per section. `sectionHoldsLobbyInvite` (`liveChallengeReturn.js`) holds while ANY question of the student's current section withholds its outcome. A released or fully submitted section shows the invite again. | `studentLiveChallengePlace` "review R1": a two-question DOL with Q1 expired, then correct, holds; all submitted or released does not; Classwork never holds; a quiz before release holds even when answered. Mutation-checked: first question only, and the current question's record only. |
+| **R2** A closed question's Work View still showed a tool's own rail actions (relationMapping's "Check", which pressed nothing). | In one place, for every tool: while EnlargeableFigure reviews a closed question it strips `primaryActions` and `secondaryActions` from the tool's own and every published capability (`withoutRailActions`). The question's platform actions come through its provider unchanged: no Submit, Undo and Reset disabled. | `workViewClosedReview` "review R2", mutation-checked. |
+| **R3** The result page's Export PDF also showed on Test Cycle results. | Hidden when `entry.isTestCycle`. Quiz, test and DOL results keep it, as Home offered. | `studentOneWayBack` "review N3/R3", mutation-checked. |
 | **N4** Under the mutation, S6 died on an uncaught `fill` timeout. | `fillSearch` unfolds the phone filters if needed, and reports a finding instead of throwing. | — |
 
 Noted by the integrator, no action here: N1 (graphing2 practice has 8 rail actions at 740×360, no spare row), N5 (dates
 follow the device's time zone, as before), N6 (a queued arrival notice is not cleared if the workspace never commits).
 
 ## Gate
+
+### After R1–R3 (the final look)
+
+- `npm run test:platform`: 11,889 of 11,889. `submitAndFinish` was rewritten: the relabelled tool actions reach the rail through `railToolCapabilities`. Mutation-checked.
+- `npm run lint`: exit 0, 494 warnings.
+- `npm run build` and `npm run build:firebase`: pass, no tracked file rewritten.
+- Drivers, all pass:
+  - workViewTerminalTransition, workViewHelpReach, closedQuestionEnter, toolPolicyGates, studentUxPlatform;
+  - harness: dolExtraTimeJourneys (X1–X6), studentScreenChange.
+- R1's two-question exit ticket is covered by a unit case, not a driver variant.
 
 ### After the review fixes, on the merged head (base `3cb782a9` + W6-5 `85abaee1` + the fixes)
 
