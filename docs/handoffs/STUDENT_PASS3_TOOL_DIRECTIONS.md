@@ -188,7 +188,25 @@ Each made once, seen red, restored (node suites unless marked):
 
 ## Gate
 
-Gate in progress: `test:platform` 11,786 / 11,786; `tests/tools` 1,710 (1,709 pass, 1 skipped); lint, build, build:firebase 0 with no tracked file rewritten; studentHome 847.3 KB (within baseline); `test:authoring-v5` 686 / 686. Browser drivers: running.
+Run on the merge of the moved base (`3cb782a9`, merge `498d7627`), one driver at a time against plain
+`npx vite --host 127.0.0.1 --port 5199 --strictPort` with `AUDIT_ORIGIN`, Playwright from `/opt/node22`.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,786 / 11,786 |
+| `node --test tests/tools/*.test.mjs` | 1,710: 1,709 pass, 1 skipped, 0 fail |
+| `npm run lint` / `build` / `build:firebase` | 0 / 0 / 0; no tracked file rewritten; no new warning in a touched file (the one in `assignmentGraphingCalculator.mjs:180` is on the base) |
+| `node scripts/check-first-load-budget.mjs` | **studentHome 847.2 KB gzip**, within baseline (baseline not edited) |
+| `npm run test:authoring-v5` | 686 / 686 |
+| `npm run test:secure-exam-navigation` (Firestore emulator) | 25 / 25 |
+| Browser: `workViewHelpReach` (86 checks), `toolPolicyGates`, `assessmentLeakGates`, `toolFocusAndUndo`, `assignmentGraphingCalculator`, `calculatorKeyboard`, `toolKeyboardRegression`, `toolKeyboardDataModelingAndSystemsCss`, `toolKeyboardThreePlane`, `regressionCalculatorPhone`, `captureToolResponses dataModelingLab` and `regressionCalculator`, `linearMultipleRepresentations`, `toolAttemptOutcome`, `phoneToolPanelReach`, `studentUxPlatform`, `stepAlgebraStructureTools`, `systemsWorkspaceStudio`, `graphPointCheck`, `graphKeyboardRoute`, `planePhoneReach`, `algebraicSubstitutionHandoff` | all pass |
+| Browser, the rest of the student-runtime gate: `mathEntryContract`, `renderStability`, `errorRecovery`, `duplicateTabs`, `undoTyping`, `composedOutcomePolicy`, `relationPlotGrading`, `clickMapLetterbox`, `stagedQuestion`, `unansweredChoiceGates`, `focusSafeToolControls`, `composedDraftRestore`, `draftEditTime`, `fractionTemplateGrading`, `moduleRecoveryLock`, `closedQuestionEnter`, `figureDescriptions`, `mathKeypadToolbar`, `workViewReference` | all pass |
+| `workViewMatrix` (no `--write`), `workViewCertification` | pass: 480 screenshots, every Stage 3A family keeps controls, state and Undo; Stage 4 certified 24 tools on 8 devices |
+| `secureExamNavigation` (standalone, its own Vite) | 364 passed, 0 failed, no production contact |
+
+Not run: `mathFontsProduction` (needs a production preview), `hostAccessibility`, `lmrProcessMode`,
+`studentShellLargeText` (fail identically on the base in this container per W4-1's handoff: the proxy blocks outside
+hosts). The base's own gate before the merge (12 drivers above) also passed on `0b26b54f`.
 
 ## Deploy targets
 
