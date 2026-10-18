@@ -1,7 +1,9 @@
 import React from 'react';
+// The outcome is drawn below the fix list (CheckRow), not inside the pill.
+import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
-import { AttemptOutcome, ResultPill } from '../shared/ToolShell';
+import { ResultPill } from '../shared/ToolShell';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
