@@ -123,9 +123,9 @@ is an expectation that failed: there were **no rows**. The screenshot reads "Thi
 **Who was wrong: the harness.** `tests/browser/teacherWorkflow/schoolClock.mjs` puts every harness browser on "the most
 recent Wednesday, 11:00 Chicago". From 12 to 18 October 2026 that Wednesday is 14 October, inside Fall break
 (`src/curriculum/calendars/schoolYear2026-2027.js`: 2026-10-12 to 2026-10-16). Attendance History correctly classifies
-the date as not in session (`classifySchoolDay`, reason `school_closed`), so it lists no one. It reproduced on this
-branch before any change and on the base's logic; it would have passed again next week, and failed again at
-Thanksgiving and in Winter break.
+the date as not in session (`classifySchoolDay`, reason `school_closed`), so it lists no one. I reproduced it on this
+branch before the clock change (the integrator saw it on the base); the cause is the date, not any code on either
+tree. It would have passed again next week, and failed again at Thanksgiving and in Winter break.
 
 **Fix.** The harness clock now takes the most recent Wednesday that, with the Tuesday before it ("yesterday" in the
 fixture), is instructional on the same district calendar the app reads. Today that is 2026-10-07. Weeks with school
@@ -153,8 +153,8 @@ run is in the gate table.
 | `supportEvidenceJourneys.mjs` | pass, 22 runs |
 | `caseReviewJourneys.mjs` | pass |
 | `privateControlsJourneys.mjs` | pass |
-| `studentNameJourneys.mjs` | running (N2, N4 pass) |
-| `enduranceJourneys.mjs` | not yet run |
+| `studentNameJourneys.mjs` | pass, N1–N4 |
+| `enduranceJourneys.mjs` | pass: Firestore listeners steady (student 13, teacher 39 every round), no fan-out, clean console |
 | Home probe on a production harness build | see item 1 |
 
 No emulator suite covers these files: no rules, functions or indexes changed.
