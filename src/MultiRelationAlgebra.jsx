@@ -67,7 +67,9 @@ export default function MultiRelationAlgebra(props) {
         numericControls: { label: 'Relation operation controls', studentState: true },
         instruction: { text: relationQuestion.prompt || 'Transform the relation while preserving its solution set.' },
         task: { text: relationQuestion.prompt || 'Solve the equation or inequality.' },
-        help: { content: focusPanel },
+        // The student's own work history, not the method: it stays in Help
+        // on a DOL, where a tool's other Help is withheld (R-10).
+        help: { content: focusPanel, controlsOnly: true },
       }}
     >
       <MultiRelationAlgebraCore

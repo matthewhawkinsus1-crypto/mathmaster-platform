@@ -258,16 +258,17 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         task={controlled
           ? 'Place every card into one of the provided categories. Each card has one correct destination.'
           : 'Sort every card into at least two groups. Name your groups and explain the mathematical feature that makes each group belong together.'}
+        stepsAreControls
         steps={controlled ? [
           'Read or inspect one card.',
           'Tap the category that best describes it.',
           'Tap a placed card to move it back if you want to change your choice.',
-          'Check the sort after every card has been placed.',
+          'When every card is placed, submit your sort.',
         ] : [
           'Tap a card to select it, then tap a group to place it there.',
           'Create another group if your sorting idea needs one.',
           'Name each group and explain the mathematical characteristic you used.',
-          'Check your sort. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
+          'Submit your sort when it is finished. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
         ]}
         note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />

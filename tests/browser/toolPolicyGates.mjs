@@ -122,7 +122,7 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
   // a time, recorded — not printed all at once and unrecorded.
   check(await helpDrawerShows(page, 'Show a hint'), 'practice bridge: the Work View Help drawer offers the authored hint as a recorded hint', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'practice bridge: the hint is not printed before the student asks for it', await helpDrawers(page));
-  await page.getByRole('button', { name: /Open Work View/ }).first().click();
+  await page.getByRole('button', { name: /Enlarge question|Open Work View/ }).first().click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Help', exact: true }).first().click();
   await page.waitForTimeout(200);
@@ -134,9 +134,15 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
 
 {
   const page = await open('dol', 'bridge', (p) => p.locator(`input[aria-label="${GENERAL.m}"]`));
-  // The bridge's Work View wrapper has published its Help (its own generic
-  // directions) — and they are not the authored hint.
-  check(await helpDrawerShows(page, 'Use the directions and controls in this workspace'), 'DOL bridge: the Work View Help drawer holds the tool\'s directions', await helpDrawers(page));
+  // The drawer holds the platform's Help, never replaced by the tool's
+  // (student pass 3, TOOL-3) — and on a DOL no tool description and no method
+  // step (R-10, fail-closed), and not the authored hint.
+  check(await helpDrawerShows(page, 'Hints are not part of this activity'), 'DOL bridge: the platform Help is in the drawer, not replaced', await helpDrawers(page));
+  // What it keeps is how to work the panels (stepsAreControls on an
+  // assessment, integrator round 2): not the tool's description and not a
+  // method step.
+  check(/tap two rows to form an interval/.test(await helpDrawers(page)), 'DOL bridge: the drawer says how to work the table', await helpDrawers(page));
+  check(!/five connected views|using the b you determine|plot the x-intercept from your factored form/.test(await helpDrawers(page)), 'DOL bridge: the drawer holds neither the tool\'s description nor a method step', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'DOL bridge: the authored hint is NOT in the Work View Help drawer', await helpDrawers(page));
   await fill(page, GENERAL.m, '5');
   await fill(page, GENERAL.b, '-19');

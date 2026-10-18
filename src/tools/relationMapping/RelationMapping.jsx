@@ -363,6 +363,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={questionData.prompt || `Build the mapping diagram for {${pairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}}.`}
+        stepsAreControls
         steps={[
           ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you plot.'] : []),
           ...(ask.includes('mapping') ? ['Choose a value in the left column, then the value on the right it maps to (click or tap, or Tab to a value and press Enter).', 'To remove an arrow, choose its two values again or press its button under the diagram.'] : []),

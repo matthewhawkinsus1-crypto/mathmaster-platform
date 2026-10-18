@@ -3,6 +3,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import {
@@ -30,6 +31,10 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   // the shared grader always marks the screen the student is looking at.
   const mode = resolveLinearTableWorkbenchMode(questionData);
   const requiredComparisons = linearTableRequiredComparisons(questionData);
+  // Where the activity withholds the method (R-10) the card keeps only how to
+  // work the table — without them nothing on screen says rows are tapped in
+  // pairs, and classifying stays locked until the intervals are recorded.
+  const methodWithheld = useMethodWithheld();
 
   const [evidence, setEvidence] = usePersistentToolState('evidence', []);
   const [classification, setClassification] = usePersistentToolState('classification', '');
@@ -273,7 +278,12 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task="Select pairs of rows, compute Δx, Δy, and the rate for each interval you record, then classify the table."
-        steps={[
+        stepsAreControls={methodWithheld}
+        steps={methodWithheld ? [
+          'Tap two rows to form an interval.',
+          'Enter Δx, Δy and Δy/Δx for that interval, then record it.',
+          `Record ${requiredComparisons} different intervals; the questions below the table open after that.`,
+        ] : [
           'Tap two rows to form an interval.',
           'Compute Δx, Δy, and Δy/Δx for that interval yourself and enter them below.',
           'Record the interval as evidence, then repeat with a different pair of rows.',

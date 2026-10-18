@@ -30,6 +30,9 @@ name: Student Runtime Browser Gates
 #                       "Your graph"), while practice keeps its feedback
 #   toolPolicyGates     registry tools: no stage verdict and no hint where the
 #                       activity withholds them; hints reveal and record
+#   workViewHelpReach   on a 390x844 phone Work View's Help holds the tool's
+#                       steps, "Show a hint" and "Ask my teacher"; on a DOL it
+#                       holds Ask and no hint, no method card (TOOL-3, R-10)
 #   relationPlotGrading a correct relation plot is graded correct, either way
 #                       round for same-x cards; a DOL plot has no check
 #   mathFontsProduction a PRODUCTION build serves the fonts its math fields
@@ -95,6 +98,7 @@ on:
       - "tests/browser/toolFocusAndUndo*"
       - "tests/browser/composedOutcomePolicy*"
       - "tests/browser/toolPolicyGates*"
+      - "tests/browser/workViewHelpReach*"
       - "tests/browser/relationPlotGrading*"
       - "tests/browser/mathFontsProduction.mjs"
       - "tests/browser/toolAttemptOutcome*"
@@ -202,6 +206,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolPolicyGates.mjs
+      - name: Work View Help reaches the steps, the hints and Ask on a phone; a DOL shows no hint and no method
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workViewHelpReach.mjs
       - name: Relation plots are graded by their points
         if: always()
         env:

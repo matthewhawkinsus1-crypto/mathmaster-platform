@@ -265,7 +265,11 @@ test('Data Modeling: the guide steps on a secure item repeat no withheld teachin
   // Chosen by the hint permission; an unknown mode falls back to secure steps.
   assert.match(source, /const guideSteps = teachingNotes\s*\? \(MODE_STEPS\[mode\] \|\| MODE_STEPS\.full\)\s*: \(SECURE_MODE_STEPS\[mode\] \|\| MODE_STEPS\[mode\] \|\| SECURE_MODE_STEPS\.full\);/);
   assert.match(source, /const taskSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
-  assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\} \/>/);
+  assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\}[^>]*\/>/);
+  // The secure lists say what to do, not how to judge it, so the card shows
+  // them where the method is withheld (R-10); a mode with no secure list falls
+  // back to teaching steps and is withheld.
+  assert.match(source, /steps=\{taskSteps\} stepsAreControls=\{!teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\)\} \/>/);
 });
 
 test('only the student\'s own work is autosaved, and only a host that keeps live tool work is sent it', () => {

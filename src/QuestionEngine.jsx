@@ -2251,6 +2251,26 @@ function QuestionEngineBody({
     } : null,
   };
 
+  /*
+   * WORK VIEW'S HELP (student pass 3, TOOL-3, R-10). Authoritative: a tool's
+   * Help goes below it, never in its place (workViewCapabilities.js). It says
+   * whether the activity withholds the method, so a tool's own Help — which
+   * is usually the method — is kept out of the drawer there.
+   *
+   * "Hints are not part of this activity" only where hints really are off. A
+   * server-graded host (My Math Path, Corrections) has no platform ladder but
+   * keeps the tool's own hints: there the platform says nothing, and the
+   * tool's Help is the Help.
+   */
+  const methodWithheldHere = !toolHintsAllowed || !showOutcomeFeedback;
+  const workViewPlatformHelp = workspaceActions.help
+    ? { ...workspaceActions.help, authoritative: true, withholdsMethod: methodWithheldHere }
+    : locked
+      ? { label: 'Help', text: 'This question is closed. Your work stays in place when you open or close Work View.', authoritative: true, withholdsMethod: methodWithheldHere }
+      : !toolHintsAllowed
+        ? { label: 'Help', text: 'Hints are not part of this activity. Use the task directions and the controls in this workspace; your work stays in place when you open or close Work View.', authoritative: true, withholdsMethod: true }
+        : methodWithheldHere ? { authoritative: true, withholdsMethod: true } : null;
+
   const barContinueAction = !locked
     ? null
     : sectionComplete && typeof onContinueSection === 'function'
@@ -2845,12 +2865,7 @@ function QuestionEngineBody({
       <WorkViewCapabilityProvider capabilities={{
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
-        help: workspaceActions.help || {
-          label: 'Help',
-          text: locked
-            ? 'This question is closed. Your work stays in place when you open or close Work View.'
-            : 'Hints are not part of this activity. Use the task directions and the controls in this workspace; your work stays in place when you open or close Work View.',
-        },
+        help: workViewPlatformHelp,
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         // The same Support tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
