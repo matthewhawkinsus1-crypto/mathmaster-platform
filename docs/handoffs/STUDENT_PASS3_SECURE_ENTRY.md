@@ -318,3 +318,29 @@ Mutation checks are listed with each item above.
 - A key that uses π or a root **without** its metadata saying so: a phone gets the √ and π keys on a pair or an
   inequality (profile keys), but not on a number field.
 - The first-load budget is over on the base too (see the gate); that is W5-1's lane.
+
+## After the wave-4 base (`c350dfc`), merge `3875e70`
+
+There were no textual conflicts. I checked three places by hand:
+
+- **MathInput:** `extraKeys` feeds only the key list, and B's terminal gate hides both keypads on a closed question.
+- **QuestionEngine:** `calculatorInToolbar` sits beside B's Submit work and W4-1's Help. Only the Work View rail
+  reads `workspaceActions.calculator`, and it accepts null.
+- **Results and Corrections:** the `reviewIsReleased` gate is unchanged next to W4-2's dates, and every review
+  mount still carries the profile.
+
+Re-gate on the merged head, all passing:
+
+| Check | Result |
+| --- | --- |
+| test:platform | 11,684 pass, 0 fail |
+| `tests/tools` | 1,682 pass, 0 fail |
+| lint | 0 errors |
+| build, build:firebase | pass; no tracked file changed |
+| first-load budget | studentHome 845.8 KB, 177.6 KB under baseline (W5-1); baseline file not touched |
+| test:secure-exam-navigation | 25 pass |
+| test:test-cycle-certification | 38 pass |
+| test:canonical-persistence | 35 pass |
+| secureAccessParity (no `--write`) | 26 / 26 |
+| secureResults | 324 / 0 |
+| readAloudTranslate, assessmentLeakGates, closedQuestionEnter | all pass |
