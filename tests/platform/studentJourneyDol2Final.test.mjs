@@ -262,8 +262,12 @@ test('running linear regression makes its line the student\'s model and keeps th
 test('the Work View rail renders the finishing action as the primary one', () => {
   const figure = source('src/components/common/EnlargeableFigure.jsx');
   assert.match(figure, /const primaryShellActions = new Set\(registeredCapabilities\.primaryActions \|\| \[\]\)/);
-  assert.match(figure, /data-action-emphasis=\{primaryShellActions\.has\(action\) \? 'primary' : undefined\}/);
-  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\) \{[^}]*background: var\(--mm-primary\)/);
+  // Since pass 3 (A11Y-2) each rail control is a WorkViewActionButton, told
+  // whether it is primary; an unavailable one (disabled, or aria-disabled while
+  // it keeps focus) is not drawn as primary.
+  assert.match(figure, /primary=\{primaryShellActions\.has\(action\)\}/);
+  assert.match(region(figure, 'function WorkViewActionButton(', '\n}\n', 'rail button'), /data-action-emphasis=\{primary \? 'primary' : undefined\}/);
+  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\)(?::not\(\[aria-disabled="true"\]\))? \{[^}]*background: var\(--mm-primary\)/);
 });
 
 test('the shared confirm dialog stacks above Work View and its phone keypad', () => {
@@ -302,7 +306,10 @@ test('the DOL "do this next" opens the first DOL question the student has not tr
 
 test('the Warm-Up banner leaves once every Warm-Up question is finished', () => {
   const app = source('src/App.jsx');
-  const banner = region(app, 'const renderStudentWarmupBanner', 'const renderIdleOverlay', 'warm-up banner');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  assert.match(banner, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(banner, /const warmupFinished = questionIndices\.every/);
   assert.match(banner, /questionIndices\.length && !warmupFinished \?/);
 });

@@ -470,7 +470,11 @@ test('App builds one Recovery list, from the same original the Results panel com
   // tracker, which already credits a completed Recovery.
   assert.match(memo, /trackerByAssignment: projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
   assert.doesNotMatch(executableSource(memo), /gradeDisplayTracker|projectSectionRecoveries/);
-  assert.match(memo, /studentProfile: user\.profile \|\| null/, 'the same support profile the server decides with');
+  // The server decides with the grade document's own `profile` field
+  // (gradeData.profile || null); the browser holds exactly that as
+  // user.timingProfile (D7), not the normalized copy, which falls back to the
+  // whole grade document.
+  assert.match(memo, /studentProfile: user\.timingProfile \|\| null/, 'the browser decides with the same support profile as the server');
   // A Recovery opens when a window closes: the clock is an input and a dependency.
   assert.match(memo, /nowValue: now,/);
   assert.match(memo, /\[[^\]]*\bnow\]\)/);

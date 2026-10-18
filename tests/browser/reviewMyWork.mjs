@@ -8,7 +8,8 @@
 //
 // WHAT IT CHECKS: each question shows the student's answer and a worked
 // solution (or says plainly that one is unavailable), the teacher's reason
-// line, the error state with its retry; no sideways scroll, every control at
+// line, the error state with its retry, a refusal in the server's words with
+// no retry (NAV-1); no sideways scroll, every control at
 // least 44px, no console errors. Every non-localhost request is aborted, so
 // this page cannot reach Firestore or any real student's data.
 
@@ -34,6 +35,13 @@ const SCENES = [
     minSolutions: 4,
   },
   { name: 'error', mustContain: ['Your answers could not be loaded right now. Try again.'], mustReach: ['Try again'], maxSolutions: 0 },
+  {
+    name: 'refused',
+    mustContain: ['Your answers and solutions appear here once this assignment has closed for your whole class.'],
+    mustNotContain: ['could not be loaded'],
+    mustNotReach: ['Try again'],
+    maxSolutions: 0,
+  },
   { name: 'loading', mustContain: ['Loading your answers'], maxSolutions: 0 },
 ];
 
@@ -108,6 +116,10 @@ for (const viewport of VIEWPORTS) {
     (scene.mustReach || []).forEach((needle) => {
       const control = seen.controls.find((entry) => entry.label.includes(needle));
       if (!control) problems.push(`missing control: ${needle}`);
+    });
+    (scene.mustNotContain || []).forEach((needle) => { if (seen.text.includes(needle)) problems.push(`unexpected text: ${needle}`); });
+    (scene.mustNotReach || []).forEach((needle) => {
+      if (seen.controls.some((entry) => entry.label.includes(needle))) problems.push(`unexpected control: ${needle}`);
     });
     if (scene.minSolutions !== undefined && seen.solutions < scene.minSolutions) problems.push(`only ${seen.solutions} solution reviews rendered`);
     if (scene.maxSolutions !== undefined && seen.solutions > scene.maxSolutions) problems.push(`${seen.solutions} solution reviews shown without server rows`);

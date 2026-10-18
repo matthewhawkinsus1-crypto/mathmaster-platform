@@ -496,7 +496,7 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
       : Promise.resolve(null),
   ]);
   if (!assignmentSnap?.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
-  if (!gradeSnap?.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
+  if (!gradeSnap?.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.", { retry: true });
 
   const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
   const gradeData = gradeSnap.data() || {};
@@ -532,7 +532,8 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   try {
     classCloseAtMs = await latestAudienceFinalCloseAt({ db, assignment, assignmentId, deps });
   } catch {
-    throw new HttpsError("failed-precondition", "Your answers and solutions cannot be shown right now. Try again later.");
+    // A refusal a retry can change (the browser keeps "Try again" for it, NAV-1).
+    throw new HttpsError("failed-precondition", "Your answers and solutions cannot be shown right now. Try again later.", { retry: true });
   }
   // No date in this message: the latest deadline is someone else's.
   if (classCloseAtMs === null || !(Number(now) > Number(classCloseAtMs))) {

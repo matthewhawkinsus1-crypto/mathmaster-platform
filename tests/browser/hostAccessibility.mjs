@@ -103,8 +103,8 @@ for (const viewport of VIEWPORTS) {
     // covered by the modal; Tab must never scroll the page beneath it.
     for (const tool of ['dataModelingLab', 'linearTableWorkbench']) {
       const { page } = await open(`scene=path-tool&tool=${tool}`, viewport);
-      const enlarge = page.locator('button:visible', { hasText: /Enlarge question/ }).first();
-      if (!(await enlarge.count())) { check(false, `${at} ${tool}: no Enlarge question button`); await page.close(); continue; }
+      const enlarge = page.locator('button:visible', { hasText: /Open Work View/ }).first();
+      if (!(await enlarge.count())) { check(false, `${at} ${tool}: no Open Work View button`); await page.close(); continue; }
       await enlarge.click();
       await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
       const startY = await page.evaluate(() => window.scrollY);

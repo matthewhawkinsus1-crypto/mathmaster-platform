@@ -28,7 +28,8 @@
 //             tool's own coaching, and from the second miss offers the hint
 //             the platform has ready, which opens the hint panel.
 //   plotting  on Graphing, Enter on the plane says what it plotted, the count,
-//             and which points a restarted line replaced; Check's coaching
+//             and which point a third plot replaced (since pass 3, TOOL-11, the
+//             nearest one — the line is no longer restarted); Check's coaching
 //             ("…other one is not…") is said with the outcome.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -237,14 +238,14 @@ for (const device of ['chromebook', 'phone']) {
   const state = await outcomeState(page);
   check(state.inTool && state.liveRegions === 1 && /tr(?:y|ies) left(?: — your last one)?\. \S/.test(state.liveText) && !/tr(?:y|ies) left(?: — your last one)?\.\s*$/.test(state.liveText),
     `${device} graphing, a wrong line: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
-  // A third plot starts the line again, and says which points went.
+  // A third plot replaces the nearest point, keeps the other, and says which went.
   await plane.focus();
   for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
   words = await said();
-  check(words === 'Plotted (0, 4). It replaced (0, 0) and (1, 0). 1 of 2 points plotted.', `${device} graphing: a restarted line says what it replaced`, words);
+  check(words === 'Plotted (0, 4). It replaced (0, 0). 2 of 2 points plotted.', `${device} graphing: a third point replaces the nearest one and says so`, words);
   await context.close();
 }
 

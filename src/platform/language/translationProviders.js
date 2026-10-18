@@ -24,7 +24,7 @@
  * implementation detail; a future provider plugs in here (registerProvider)
  * behind the same contract, after that decision is made.
  */
-import { maskMath, preservesMath, splitSentences, unmaskMath } from './mathSafeText.js';
+import { maskMath, mathTokensOf, preservesMath, splitSentences, unmaskMath } from './mathSafeText.js';
 import { authoredTranslationEntry, authoredTranslationKeepsMath } from './authoredTranslation.js';
 
 export const TRANSLATION_COVERAGE = Object.freeze({
@@ -94,6 +94,8 @@ export const compileTemplates = (pairs = []) => pairs.map(([english, translated]
 });
 
 const packCache = new Map();
+// Packs already loaded, by language: what resolveTranslationNow can use.
+const loadedPacks = new Map();
 /** The compiled pack for a language, or null when there is none. */
 export const loadLanguagePack = (language) => {
   const code = baseLanguage(language);
@@ -102,25 +104,47 @@ export const loadLanguagePack = (language) => {
   if (!packCache.has(code)) {
     packCache.set(code, loader().then((module) => {
       const pack = module.default || module;
-      return {
+      const compiled = {
         language: code,
         sentences: compileTemplates(pack.sentences),
         choices: compileTemplates(pack.choices),
       };
+      loadedPacks.set(code, compiled);
+      return compiled;
     }).catch((error) => { packCache.delete(code); throw error; }));
   }
   return packCache.get(code);
 };
 
-const applyTemplate = (templates, masked) => {
+const applyTemplate = (templates, masked, used = null) => {
   const text = masked.trim();
   for (const template of templates) {
     const match = text.match(template.pattern);
     if (!match) continue;
     const bySlot = new Map(template.slots.map((slot, index) => [slot, match[index + 1]]));
+    if (used) used.push(template);
     return template.translated.replace(/\{(\d+)\}/g, (whole, slot) => bySlot.get(Number(slot)) ?? whole);
   }
   return null;
+};
+
+/*
+ * A curated template's own words carry no mathematics: with every slot
+ * replaced by a plain word, the translated text has no math token. Together
+ * with unmaskMath (every piece of the source's mathematics, each exactly
+ * once), that proves the output's mathematics is the source's. It is the
+ * check for a curated template because re-reading the finished Spanish cannot
+ * always tell the conjunctions "y" and "o" from a variable beside a symbol
+ * ("< y >", "el cambio en y"), and refused sentences that were correct.
+ */
+const literalCache = new Map();
+const templateWordsCarryNoMath = (template, language) => {
+  const key = `${language}|${template.translated}`;
+  if (!literalCache.has(key)) {
+    const words = template.translated.replace(/\{\d+\}/g, 'slot');
+    literalCache.set(key, mathTokensOf(words, { language }).length === 0);
+  }
+  return literalCache.get(key);
 };
 
 const hasWords = (masked) => /[A-Za-zÀ-ÿ]{2,}/.test(masked.replace(/⟦\d+⟧/g, ' '));
@@ -145,16 +169,27 @@ export const translateWithPack = (input, pack, { language = pack?.language } = {
       }
       prose += 1;
       let result = null;
+      const used = [];
       const label = masked.match(CHOICE_LABEL);
       if (label && /^[A-Ea-e]$/.test(tokens[Number(label[2])] || '')) {
-        const body = applyTemplate(pack.choices, label[3]) ?? applyTemplate(pack.sentences, label[3]);
+        const body = applyTemplate(pack.choices, label[3], used) ?? applyTemplate(pack.sentences, label[3], used);
         if (body !== null) result = `${label[1]}${body}`;
       } else {
-        result = applyTemplate(pack.sentences, masked) ?? applyTemplate(pack.choices, masked);
+        result = applyTemplate(pack.sentences, masked, used) ?? applyTemplate(pack.choices, masked, used);
+        // A choice read as its own sentence ("The same thing.") keeps its stop.
+        const stop = masked.trim().match(/^([\s\S]*?)([.?!])$/);
+        if (result === null && stop) {
+          const body = applyTemplate(pack.choices, stop[1], used);
+          if (body !== null) result = `${body}${stop[2]}`;
+        }
       }
       const restored = result === null ? null : unmaskMath(result, tokens);
-      // Belt and braces: the mathematics must survive exactly.
-      const safe = restored !== null && preservesMath(sentence, restored, { language });
+      // Belt and braces: the mathematics must survive exactly — re-read in the
+      // output, or proven by the slots and a template with no math of its own.
+      const safe = restored !== null && (
+        preservesMath(sentence, restored, { language })
+        || (used.length > 0 && used.every((template) => templateWordsCarryNoMath(template, language)))
+      );
       if (safe) translated += 1;
       out.push({ source: sentence, text: safe ? restored : sentence, translated: safe });
       return safe ? restored : sentence;
@@ -249,4 +284,31 @@ export const resolveTranslation = async ({ question = null, text = null, languag
     text: result.text,
     sentences: result.sentences,
   };
+};
+
+/**
+ * The same answer as resolveTranslation for a plain text, WITHOUT waiting —
+ * or null when it cannot be known yet (the student's pack is not loaded, or
+ * another provider would have to be asked). A language with no pack at all
+ * is known at once. Lets a support text show Translate (or say there is none)
+ * on its first paint once the pack has loaded for an earlier text.
+ */
+export const resolveTranslationNow = ({ text, language } = {}) => {
+  const code = String(language || '').trim().toLowerCase();
+  const original = String(text ?? '');
+  const base = { language: code, original, provider: null, text: null, sentences: [], reason: null };
+  if (!code) return { ...base, coverage: TRANSLATION_COVERAGE.NONE, reason: TRANSLATION_GAP.NO_PACK };
+  if (extraProviders.length) return null;
+  const packCode = baseLanguage(code);
+  if (!PACK_LOADERS[packCode]) return { ...base, coverage: TRANSLATION_COVERAGE.NONE, reason: TRANSLATION_GAP.NO_PACK };
+  const pack = loadedPacks.get(packCode);
+  if (!pack) return null;
+  const result = translateWithPack(original, pack, { language: code });
+  if (result.coverage === TRANSLATION_COVERAGE.NOT_APPLICABLE) {
+    return { ...base, coverage: result.coverage, provider: TRANSLATION_PROVIDER.CURATED, text: original, sentences: result.sentences };
+  }
+  if (result.coverage === TRANSLATION_COVERAGE.NONE) {
+    return { ...base, coverage: result.coverage, sentences: result.sentences, reason: TRANSLATION_GAP.NO_RESOURCE };
+  }
+  return { ...base, coverage: result.coverage, provider: TRANSLATION_PROVIDER.CURATED, text: result.text, sentences: result.sentences };
 };

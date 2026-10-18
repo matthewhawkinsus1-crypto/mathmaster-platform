@@ -4,6 +4,7 @@ import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import signSolutionGrader from '../../../functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs';
 import {
@@ -37,6 +38,8 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
   const expectedIdx = analysis.intervals.map((interval, index) => interval.included ? index : null).filter((value) => value !== null);
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (index) => setSelected((old) => old.includes(index) ? old.filter((value) => value !== index) : [...old, index]);
+  // Universal Undo over the chosen intervals (TOOL-2, useFieldUndoHistory.js).
+  useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
 
   // The verdict comes from the shared grader the server runs; this chart only
   // shows it. The same work is reported live so a deadline can finalize it.
@@ -139,6 +142,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
   const expected = validRadicalCandidates(spec, candidates);
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (value) => setSelected((old) => old.includes(value) ? old.filter((entry) => entry !== value) : [...old, value]);
+  useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
   const work = { selected };
   useReportToolWork(work);
   const check = () => {

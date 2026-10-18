@@ -7,6 +7,7 @@ import {
   TRY_AGAIN_LABEL,
   describeResultNextStep,
   describeSectionStatus,
+  resultTryAgainLabel,
   tryAgainLabel,
 } from '../../src/platform/student/studentResultNextStep.js';
 import { LEVEL, resolveBack } from '../../src/platform/student/navigationModel.js';
@@ -142,9 +143,12 @@ test('closed work is never "Practice": "Try it again — no credit" / "Try DOL a
   assert.equal(tryAgainLabel(), TRY_AGAIN_LABEL);
   assert.equal(TRY_AGAIN_LABEL, 'Try it again — no credit');
   assert.equal(tryAgainLabel('DOL'), 'Try DOL again — no credit');
+  // The result page names its retry by the questions it reopens (NAV-8):
+  // "Try these questions again — no credit", "Try these DOL questions again — no credit".
   const retry = region(resultSource, '{entry.practiceAvailable', '</button>', 'retry button');
-  assert.match(retry, /tryAgainLabel\(sectionLabel\)/);
+  assert.match(retry, /resultTryAgainLabel\(sectionLabel\)/);
   assert.match(retry, /onPractice\?\.\(entry\.assignmentId\)/);
+  assert.equal(resultTryAgainLabel('DOL'), 'Try these DOL questions again — no credit');
   assert.doesNotMatch(resultSource, /Practice This Skill|`Practice \$\{sectionLabel\}`/);
 });
 

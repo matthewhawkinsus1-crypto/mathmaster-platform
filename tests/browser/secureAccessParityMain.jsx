@@ -195,7 +195,7 @@ function ItemScene() {
           </section>
         </main>
       </div>
-      {/* QuestionEngine's "Enlarge question" layer, with its real stylesheet. */}
+      {/* QuestionEngine's "Open Work View" layer, with its real stylesheet. */}
       {workView && <div className="mathmaster-work-view-host" data-open="true" data-harness-work-view><div style={{ gridRow: 3, padding: 24 }}>Enlarged question</div></div>}
     </div>
   );

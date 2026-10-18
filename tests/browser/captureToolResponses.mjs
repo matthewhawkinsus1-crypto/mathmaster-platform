@@ -127,8 +127,9 @@ const SCRIPTS = {
   relationMapping: async (page) => {
     // Click a domain value, then the range value it maps to: (-2,3), (1,2), (3,-1).
     for (const [from, to] of [[-2, 3], [1, 2], [3, -1]]) {
-      await btn(page, `Domain value ${from}`).click();
-      await btn(page, `Range value ${to}`).click();
+      // Nodes name their arrows since pass 3 (TOOL-10): "Domain value -2, no arrow yet".
+      await btn(page, new RegExp(`^Domain value ${String(from).replace('-', '\\-')},`)).click();
+      await btn(page, new RegExp(`^Range value ${String(to).replace('-', '\\-')},`)).click();
       await page.waitForTimeout(80);
     }
     await page.getByRole('textbox', { name: /^Domain/ }).fill('-2, 1, 3');

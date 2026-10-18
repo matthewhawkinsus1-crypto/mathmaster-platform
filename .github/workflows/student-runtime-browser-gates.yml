@@ -19,6 +19,12 @@ name: Student Runtime Browser Gates
 #                       names a wrong point; a point plot is graded as placed
 #   undoTyping          one platform Undo takes back a run of typing, not one
 #                       character; a math field's own Ctrl+Z agrees with it
+#   toolFocusAndUndo    every tool that gained Universal Undo (pass 3, TOOL-2)
+#                       walks back to exactly what the student had, after a
+#                       reload too, and never makes an attempt; a button that
+#                       disables or removes itself never throws focus to the
+#                       page (A11Y-2); the Regression Calculator's how-to and
+#                       zoom (TOOL-9)
 #   composedOutcomePolicy  a multi-step question on a DOL, quiz or test reveals
 #                       nothing in any step (registry-tool steps, table->graph,
 #                       "Your graph"), while practice keeps its feedback
@@ -44,7 +50,15 @@ name: Student Runtime Browser Gates
 #                       is it a factor) opens on "Choose…" and earns nothing
 #                       unanswered
 #   graphKeyboardRoute  the graph workspace's analysis fields are named by their
-#                       part, and its keyboard route offers only what is there
+#                       part, and its keyboard route offers only what is there;
+#                       a function graph and its inverse are finished by
+#                       keyboard alone with "Connect my points" (TOOL-1)
+#   planePhoneReach     on a phone the plane's text renders at 12 px or more, a
+#                       press beside a point picks it up, and a third point keeps
+#                       the line (pass 3, TOOL-11)
+#   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
+#                       targets keep keyboard focus when they disable themselves
+#                       (pass 3, A11Y-2)
 #   stagedQuestion      every step of a staged graph question, reached as a
 #                       student reaches it on six screens: its question and its
 #                       answer control on screen together, a plane big enough
@@ -84,6 +98,7 @@ on:
       - "tests/browser/algebra1Module2Topic2*"
       - "teacher-import-jsons/algebra1-module2-topic2/**"
       - "tests/browser/undoTyping*"
+      - "tests/browser/toolFocusAndUndo*"
       - "tests/browser/composedOutcomePolicy*"
       - "tests/browser/toolPolicyGates*"
       - "tests/browser/relationPlotGrading*"
@@ -96,6 +111,8 @@ on:
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
+      - "tests/browser/planePhoneReach*"
+      - "tests/browser/focusSafeToolControls*"
       - "tests/browser/composedDraftRestore*"
       - "tests/browser/draftEditTime.mjs"
       - "tests/browser/fractionTemplateGrading*"
@@ -176,6 +193,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/undoTyping.mjs
+      - name: Every tool's Undo, and no press throws focus to the page
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolFocusAndUndo.mjs
       - name: A composed question follows the feedback policy in every step
         if: always()
         env:
@@ -236,6 +259,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphKeyboardRoute.mjs
+      - name: On a phone, plane text is readable and a missed drag keeps the line
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planePhoneReach.mjs
+      - name: Self-disabling tool controls keep keyboard focus
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/focusSafeToolControls.mjs
       - name: A composed question with a graph step survives a Chromebook swap
         if: always()
         env:

@@ -46,6 +46,8 @@ const {
   clearedClassroomErrorFields,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
+const { deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -3340,10 +3342,11 @@ function progressCheckpointStage(progress, { late = false } = {}) {
 // The per-student final cutoff for Classroom passback. Classroom must never
 // call a student "final" earlier than the deadline the student's own dashboard
 // and the server's own submission finalizer already honor for them.
-// `studentFinalCutoff` is that student's individual cutoff as the one override
-// resolver answers it — their private record (studentAssignmentOverrides.mjs)
-// merged with any copy still on the shared document — resolved by the caller
-// (resolvedStudentFinalCutoff below). The class cutoff is never shortened by it.
+// `studentFinalCutoff` is that student's individual cutoff — their private
+// record (studentAssignmentOverrides.mjs) merged with any copy still on the
+// shared document, and their extra-time final date (supportDeadline.mjs) —
+// resolved by the caller (resolvedStudentClassroomDeadlines below). The class
+// cutoff is never shortened by it.
 function studentLateDueAt(assignment, studentFinalCutoff = null) {
   const classFinal = toDate(
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
@@ -3354,28 +3357,38 @@ function studentLateDueAt(assignment, studentFinalCutoff = null) {
   return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
 }
 
-/** One student's individual final cutoff on one assignment, read with the server's authority. */
-async function resolvedStudentFinalCutoff(db, assignmentId, assignment, studentId) {
-  if (!studentId) return null;
-  const overrides = await studentOverrides();
-  const ref = await studentOverrideRef(db, studentId, assignmentId);
-  const snapshot = ref ? await ref.get() : null;
-  return overrides.resolveStudentOverride({
-    assignment,
-    studentId,
-    privateOverride: privateOverrideFrom(snapshot),
-  })?.lateDueAt ?? null;
+// The student's own due time: an extra-time accommodation's individualized
+// due date (supportDeadline.mjs) moves it later; nothing moves it earlier.
+function studentDueDate(assignment, studentDueAt = null) {
+  const classDue = toDate(assignment?.dueAt || assignment?.dueDate);
+  const studentDue = toDate(studentDueAt);
+  if (!classDue) return studentDue;
+  if (!studentDue) return classDue;
+  return studentDue.getTime() > classDue.getTime() ? studentDue : classDue;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null }) {
-  const reason = releaseSignalReason(releaseSignal);
-  if (reason === "final-deadline") return "final-deadline";
-  if (reason === "due-checkpoint") return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+/**
+ * One student's individual due time and final cutoff on one assignment, read
+ * with the server's authority: their private record, and their pinned support
+ * profile (`studentProfile`, from the grade document in hand). Each is null
+ * when it is not individual (lib/classroomStudentCheckpoints.js).
+ */
+async function resolvedStudentClassroomDeadlines(db, assignmentId, assignment, studentId, studentProfile = null) {
+  return classroomStudentCheckpoints.studentClassroomDeadlinesFor({ db, assignmentId, assignment, studentId, studentProfile });
+}
 
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null, studentDueAt = null }) {
+  const reason = releaseSignalReason(releaseSignal);
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const lateDueAt = studentLateDueAt(assignment, studentFinalCutoff);
+  // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
+  // roster at the CLASS's cutoff and due time. They speak for this student
+  // only once THEIR own has arrived; before it the grade is ordinary progress
+  // (not returned), and the scheduler wakes them again at their own time.
+  if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
+  if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -3394,9 +3407,9 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() }) {
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const explicitlyStudentVisible = [
     "due-checkpoint",
     "final-complete",
@@ -6034,36 +6047,76 @@ exports.migrateAssignmentPrivacy = onCall({ timeoutSeconds: 540 }, async (reques
 
 /**
  * Root-admin action: turn class-scoped assignment lists for students on or off
- * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs).
+ * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs), and, as a
+ * second independent switch, class-scoped opening of one assignment by id
+ * (`studentGetScoped`, D10 Phase 0 P0-3).
  *
  * Off is the state a release ships in, so open student tabs from the previous
- * release keep their live assignment updates. Turn it on once this release has
- * been live for a school day; turning it off again is the rollback, and needs
- * no deploy.
+ * release keep their live assignment updates. Turn the list on once this
+ * release has been live for a school day; the by-id switch only after that.
+ * By-id on with lists off is never stored: turning by-id on while lists are
+ * off, or lists off while by-id is on, is refused (both in one call is fine).
+ * Turning either off again is the rollback (by-id first), and needs no deploy.
+ * A call with neither boolean only reads.
  */
 exports.setAssignmentReadScope = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   const privacy = await import("./shared/assignmentPrivacy.mjs");
   const ref = db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG);
-  if (typeof request.data?.studentListScoped !== "boolean") {
-    const snapshot = await ref.get();
-    return { studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true, changed: false };
+  const wantsList = typeof request.data?.studentListScoped === "boolean";
+  const wantsGet = typeof request.data?.studentGetScoped === "boolean";
+  // Read and write in one transaction: two racing calls (one turning lists
+  // off, one turning the by-id switch on) cannot end in "by-id on, lists off",
+  // because each re-checks the state it is about to leave behind.
+  const outcome = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const stored = {
+      studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
+      studentGetScoped: snapshot.data()?.[privacy.STUDENT_GET_SCOPED_FIELD] === true,
+    };
+    if (!wantsList && !wantsGet) return { ...stored, changed: false };
+    const next = {
+      studentListScoped: wantsList ? request.data.studentListScoped : stored.studentListScoped,
+      studentGetScoped: wantsGet ? request.data.studentGetScoped : stored.studentGetScoped,
+    };
+    if (next.studentGetScoped && !next.studentListScoped) {
+      throw new HttpsError(
+        "failed-precondition",
+        wantsGet && request.data.studentGetScoped
+          ? "Turn on class-scoped assignment lists first: limiting who opens an assignment protects nothing while every assignment can still be listed."
+          : "Turn off class-scoped opening of an assignment first: it protects nothing once every assignment can be listed again.",
+      );
+    }
+    transaction.set(ref, {
+      ...(wantsList ? { [privacy.STUDENT_LIST_SCOPED_FIELD]: next.studentListScoped } : {}),
+      ...(wantsGet ? { [privacy.STUDENT_GET_SCOPED_FIELD]: next.studentGetScoped } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actor.uid,
+    }, { merge: true });
+    return { ...next, changed: true };
+  });
+  if (!outcome.changed) return outcome;
+  const next = outcome;
+  if (wantsList) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentListScoped: next.studentListScoped },
+    );
   }
-  const studentListScoped = request.data.studentListScoped;
-  await ref.set({
-    [privacy.STUDENT_LIST_SCOPED_FIELD]: studentListScoped,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.uid,
-  }, { merge: true });
-  await writeAdminAudit(
-    db,
-    actor,
-    studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
-    privacy.ASSIGNMENT_READ_SCOPE_FLAG,
-    { studentListScoped },
-  );
-  return { studentListScoped, changed: true };
+  if (wantsGet) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentGetScoped ? "assignment_get_scope_enforced" : "assignment_get_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentGetScoped: next.studentGetScoped },
+    );
+  }
+  return outcome;
 });
 
 /* =========================================================================
@@ -10035,20 +10088,40 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         };
       }
-      // The student's own individual cutoff, from their private record.
-      const studentFinalCutoff = isTestCycleAssignment
-        ? null
+      // The student's own individual due time and final cutoff: their private
+      // record and their extra-time dates (H-116).
+      const { studentDueAt, studentFinalCutoff } = isTestCycleAssignment
+        ? { studentDueAt: null, studentFinalCutoff: null }
         // eslint-disable-next-line no-await-in-loop
-        : await resolvedStudentFinalCutoff(db, assignmentId, assignment, event.params.studentId);
+        : await resolvedStudentClassroomDeadlines(db, assignmentId, assignment, event.params.studentId, afterData.profile || null);
+      // One clock for the stage, the deferral and the release: at a student's
+      // own cutoff they are either called final or recorded, never neither.
+      const stageNow = Date.now();
       const stage = isTestCycleAssignment
         ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
           assignment,
           progress,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
           studentFinalCutoff,
+          studentDueAt,
         });
+      // H-116: a class-wide "final"/"due" wake-up that reached this student
+      // before their own time is set aside above; record their own time so
+      // the checkpoint scheduler wakes them again then.
+      const deferredCheckpoint = isTestCycleAssignment
+        ? null
+        : deferredClassCheckpoint({ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt });
+      if (deferredCheckpoint) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+          stateRef: db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId),
+          assignmentId,
+          studentId: event.params.studentId,
+          deferred: deferredCheckpoint,
+        });
+      }
       if (!stage) continue;
 
       const grade = progress.grade;
@@ -10084,7 +10157,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
-        nowValue: Date.now(),
+        nowValue: stageNow,
+        studentDueAt,
       });
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
@@ -10611,6 +10685,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   let finalAssignments = 0;
   let reconcileAssignments = 0;
   let queuedStudents = 0;
+  let studentCheckpointStudents = 0;
 
   for (const assignmentDoc of assignmentSnapshots) {
     if (!assignmentDoc.exists) continue;
@@ -10627,6 +10702,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     // eslint-disable-next-line no-await-in-loop
     const stateSnap = await stateRef.get();
     const state = stateSnap.exists ? stateSnap.data() || {} : {};
+
+    // H-116: a student whose OWN due time or final cutoff is later than the
+    // class's was recorded by the grade trigger when it set the class's
+    // wake-up aside for them (deferredClassCheckpoint); wake them at theirs.
+    // eslint-disable-next-line no-await-in-loop
+    const ownCheckpointsQueued = await classroomStudentCheckpoints.wakeArrivedStudentCheckpoints({
+      stateRef,
+      state,
+      now,
+      enqueue: ({ studentIds, reason }) => classroomPushQueue.enqueueClassroomPushes(db, {
+        assignmentId, studentIds, reason, requestedAt, source: reason,
+      }),
+    });
+    if (ownCheckpointsQueued) {
+      studentCheckpointStudents += ownCheckpointsQueued;
+      queuedStudents += ownCheckpointsQueued;
+    }
 
     // Final cutoff has precedence. On first deploy, do not emit both an old due
     // checkpoint and a final checkpoint for the same assignment.
@@ -10714,11 +10806,12 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     }
   }
 
-  if (dueAssignments || finalAssignments || reconcileAssignments) {
+  if (dueAssignments || finalAssignments || reconcileAssignments || studentCheckpointStudents) {
     logger.info("Queued Classroom grade checkpoints", {
       dueAssignments,
       finalAssignments,
       reconcileAssignments,
+      studentCheckpointStudents,
       queuedStudents,
     });
   }

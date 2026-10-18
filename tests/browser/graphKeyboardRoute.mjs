@@ -13,6 +13,12 @@
 // called by its part ("Domain in interval notation"), not by its placeholder —
 // the format example "[2, ∞)" — or, with none, "Math answer".
 //
+// And (pass 3, TOOL-1) the whole function-graph question by keyboard alone:
+// points typed, Check Point Placements, "Connect my points" (focus goes there
+// when the check passes), the end markers by arrow keys and Enter, Submit —
+// graded correct for the right points and wrong for wrong ones, under practice
+// and under a DOL.
+//
 // Driven only through rendered controls, in the real QuestionEngine
 // (graphKeyboardRouteMain.jsx), under practice and under a DOL (whose points
 // are held still by the student's own sketch rather than by a passed check).
@@ -181,6 +187,138 @@ for (const role of ['practice', 'dol']) {
     'analysis: every field is named by its part, in plain words', JSON.stringify(names));
   check(!names.some((name) => /^(Math answer|\[2, ∞\)|\(x, y\) or DNE)$/.test(name)), 'analysis: no field is called by its placeholder or the generic name', JSON.stringify(names));
   await page.close();
+}
+
+/* ------------------------- TOOL-1: the whole question, by keyboard alone */
+
+{
+  const focusName = (page) => page.evaluate(() => {
+    const el = document.activeElement;
+    return !el || el === document.body ? '<body>' : (el.getAttribute('aria-label') || el.innerText || el.tagName).trim().slice(0, 60);
+  });
+  const enterOn = async (page, locator) => { await locator.focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(250); };
+  const typeByKeyboard = async (page, card, x, y) => {
+    await enterOn(page, page.getByRole('button', { name: new RegExp(`^${card}`) }));
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).focus();
+    await page.keyboard.type(String(x));
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).focus();
+    await page.keyboard.type(String(y));
+    // Enter in the y box places the point (it owns its Enter).
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+  };
+  const cursorAt = async (page) => {
+    const match = (await announcement(page)).match(/\((-?[\d.]+), (-?[\d.]+)\)/);
+    return match ? [Number(match[1]), Number(match[2])] : null;
+  };
+  const markEndByKeyboard = async (page, target) => {
+    await enterOn(page, markerButton(page, 'Arrow'));
+    await plane(page).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
+    await page.waitForTimeout(100);
+    let at = await cursorAt(page);
+    for (let i = 0; i < 80 && at && Math.abs(at[0] - target[0]) > 0.01; i += 1) { await page.keyboard.press(at[0] < target[0] ? 'ArrowRight' : 'ArrowLeft'); at = await cursorAt(page); }
+    for (let i = 0; i < 80 && at && Math.abs(at[1] - target[1]) > 0.01; i += 1) { await page.keyboard.press(at[1] < target[1] ? 'ArrowUp' : 'ArrowDown'); at = await cursorAt(page); }
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+  };
+  const connect = (page) => page.locator('[data-graph-connect-points="construction"]');
+  const curvePart = (page) => page.evaluate(() => (window.__mmGraded.at(-1)?.parts || []).find((part) => part.id === 'graph-curve') || null);
+
+  for (const [role, points, right] of [['practice', [1, 5], true], ['dol', [1, 5], true], ['dol', [2, 6], false]]) {
+    const label = `keyboard only, ${role}, ${right ? 'right' : 'wrong'} points`;
+    const page = await open('construct', role);
+    await typeByKeyboard(page, 'Plot the point where x = 0', 0, points[0]);
+    check(/^Placed Plot the point where x = 0 at /.test(await announcement(page)), `${label}: Enter in the y box places the point`, `"${await announcement(page)}"`);
+    await typeByKeyboard(page, 'Plot the point where x = 2', 2, points[1]);
+    if (role === 'practice') {
+      await enterOn(page, page.getByRole('button', { name: 'Check Point Placements' }));
+      check(await focusName(page) === 'Connect my points', `${label}: a passed check sends focus to Connect my points, not the page`, await focusName(page));
+    } else {
+      check(await connect(page).count() === 1, `${label}: Connect my points is offered once every point is down`);
+      await connect(page).focus();
+    }
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    check((await connect(page).innerText()).includes('Curve drawn'), `${label}: Connect my points draws the curve through the student's points`, await announcement(page));
+    check(await focusName(page) !== '<body>', `${label}: after connecting, focus is not thrown to the page`, await focusName(page));
+    check(await markerButton(page, 'Arrow').count() === 1, `${label}: the end markers come next, reachable by keyboard`);
+    await markEndByKeyboard(page, [-3.5, -6]);
+    await markEndByKeyboard(page, [3.5, 8]);
+    await enterOn(page, page.getByRole('button', { name: /^Submit/ }).first());
+    await page.waitForTimeout(800);
+    const graded = await page.evaluate(() => window.__mmGraded.at(-1) || null);
+    const curve = await curvePart(page);
+    check(Boolean(graded), `${label}: the question is submitted by keyboard`);
+    check(curve?.isComplete === true && curve?.isCorrect === right && graded?.isCorrect === right,
+      `${label}: graded ${right ? 'correct' : 'wrong'}, the curve with it`, JSON.stringify({ isCorrect: graded?.isCorrect, curve }));
+    await page.close();
+  }
+
+  // Enter in the x box with y still empty moves on to y; it places nothing
+  // (an empty y is not 0; pass 3 review).
+  {
+    const page = await open('construct', 'practice');
+    await enterOn(page, page.getByRole('button', { name: /^Plot the point where x = 0/ }));
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).focus();
+    await page.keyboard.type('0');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const focused = await page.evaluate(() => document.activeElement?.closest('label')?.textContent?.trim()?.[0] || '');
+    check(focused === 'y' && !/^Placed /.test(await announcement(page)),
+      'typed entry: Enter in x with y empty moves to y and places nothing', `focus "${focused}", "${await announcement(page)}"`);
+    await page.keyboard.type('1');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(/^Placed Plot the point where x = 0 at \(0, 1\)\.$/.test(await announcement(page)), 'typed entry: then Enter in y places (0, 1)', `"${await announcement(page)}"`);
+    // A card that states its x needs only y: Enter in y with x empty places it.
+    await enterOn(page, page.getByRole('button', { name: /^Plot the point where x = 2/ }));
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).focus();
+    await page.keyboard.type('5');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(/^Placed Plot the point where x = 2 at \(2, 5\)\.$/.test(await announcement(page)), 'typed entry: a card that states its x is placed from y alone', `"${await announcement(page)}"`);
+    await page.close();
+  }
+
+  // Practice, wrong points: the check refuses them and nothing is connected.
+  const page = await open('construct', 'practice');
+  await typeByKeyboard(page, 'Plot the point where x = 0', 0, 2);
+  await typeByKeyboard(page, 'Plot the point where x = 2', 2, 6);
+  await enterOn(page, page.getByRole('button', { name: 'Check Point Placements' }));
+  check(await connect(page).count() === 0, 'keyboard only, practice, wrong points: no curve can be connected until the points are right');
+  await page.close();
+
+  // The inverse sketch, mirrored: reflect both points by keyboard, check them,
+  // and "Connect my reflected points" draws the inverse through them.
+  for (const [reflected, right] of [[[[1, 0], [3, 1]], true], [[[0, 1], [1, 3]], false]]) {
+    const label = `keyboard only, inverse, ${right ? 'reflected' : 'unreflected'} points`;
+    const inverse = await open('inverse', 'practice');
+    await typeByKeyboard(inverse, 'Plot the point where x = 0', 0, 1);
+    await typeByKeyboard(inverse, 'Plot the point where x = 1', 1, 3);
+    await enterOn(inverse, inverse.getByRole('button', { name: 'Check Point Placements' }));
+    await inverse.keyboard.press('Enter');
+    await inverse.waitForTimeout(300);
+    for (const end of [[-3.5, -6], [2.5, 6]]) await markEndByKeyboard(inverse, end);
+    await enterOn(inverse, inverse.getByRole('button', { name: '2. Build Inverse' }));
+    await typeByKeyboard(inverse, 'Reflect the point at x = 0', ...reflected[0]);
+    await typeByKeyboard(inverse, 'Reflect the point at x = 1', ...reflected[1]);
+    await enterOn(inverse, inverse.getByRole('button', { name: 'Check Reflected Points' }));
+    const connectInverse = inverse.locator('[data-graph-connect-points="inverse"]');
+    if (!right) {
+      check(await connectInverse.count() === 0, `${label}: nothing to connect until the reflected points are right`);
+      await inverse.close();
+      continue;
+    }
+    check(await focusName(inverse) === 'Connect my reflected points', `${label}: a passed check sends focus to Connect my reflected points`, await focusName(inverse));
+    await inverse.keyboard.press('Enter');
+    await inverse.waitForTimeout(300);
+    check((await connectInverse.innerText()).includes('Inverse drawn') && /snapped to the exact inverse/.test(await announcement(inverse)),
+      `${label}: the inverse is drawn through the reflected points and snaps`, await announcement(inverse));
+    check(await focusName(inverse) !== '<body>', `${label}: after connecting, focus is not thrown to the page`, await focusName(inverse));
+    await inverse.close();
+  }
 }
 
 await browser.close();

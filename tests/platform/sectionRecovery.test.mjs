@@ -857,7 +857,11 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // The original is compared after teacher overrides and BEFORE any Recovery.
   assert.match(summaryMemo, /projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
   assert.doesNotMatch(summaryMemo, /gradeDisplayTracker|projectSectionRecoveries/);
-  assert.match(summaryMemo, /studentProfile: user\.profile \|\| null/, 'the browser decides with the same support profile as the server');
+  // The server decides with the grade document's own `profile` field
+  // (gradeData.profile || null); the browser holds exactly that as
+  // user.timingProfile (D7), not the normalized copy, which falls back to the
+  // whole grade document.
+  assert.match(summaryMemo, /studentProfile: user\.timingProfile \|\| null/, 'the browser decides with the same support profile as the server');
   const startHandler = region(app, 'const startStudentRecovery = async', '};', 'start handler');
   assert.match(startHandler, /await startSectionRecovery\(\{ assignmentId, section \}\)/);
   assert.match(startHandler, /recoveryErrorCode\(error\)/);

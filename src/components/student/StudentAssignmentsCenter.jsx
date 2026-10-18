@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
@@ -10,6 +10,7 @@ import {
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
 import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
+import { readAssignmentsView, writeAssignmentsView } from '../../platform/student/assignmentsCenterMemory.js';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -175,9 +176,17 @@ export default function StudentAssignmentsCenter({
   studentId = null,
   onOpenRecovery = null,
 }) {
-  const [search, setSearch] = useState('');
-  const [periodId, setPeriodId] = useState(null);
-  const [category, setCategory] = useState(ASSIGNMENT_CATEGORY.ACTIVE);
+  // As the student left them, when they come Back (assignmentsCenterMemory.js).
+  const [remembered] = useState(() => readAssignmentsView(studentId));
+  const [search, setSearch] = useState(remembered.search || '');
+  const [periodId, setPeriodId] = useState(remembered.periodId || null);
+  const [category, setCategory] = useState(
+    Object.values(ASSIGNMENT_CATEGORY).includes(remembered.category) ? remembered.category : ASSIGNMENT_CATEGORY.ACTIVE,
+  );
+  useEffect(() => { writeAssignmentsView(studentId, { search, category, periodId }); }, [studentId, search, category, periodId]);
+  // On a phone the search and the marking period fold behind one button
+  // (NAV-13, index.css); a search in progress keeps them open.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const center = useMemo(() => buildStudentAssignmentsCenter({
     dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment,
@@ -211,7 +220,40 @@ export default function StudentAssignmentsCenter({
           </p>
         </header>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {/* Phone only (index.css): one row instead of two until the student
+            asks for the search. Laptops always show the search and period. */}
+        <button
+          type="button"
+          className="mm-assignments-filters__toggle"
+          aria-expanded={filtersOpen || Boolean(search)}
+          aria-controls="assignments-filters"
+          onClick={() => {
+            if (search) return; // a search in progress stays open
+            const opening = !filtersOpen;
+            setFiltersOpen(opening);
+            if (opening && typeof window !== 'undefined') {
+              window.requestAnimationFrame(() => document.getElementById('assignments-search')?.focus());
+            }
+          }}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            width: '100%', minHeight: MIN_TOUCH_TARGET_PX, marginBottom: 12, padding: '9px 13px',
+            borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
+            fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))', textAlign: 'left', cursor: 'pointer',
+            justifyContent: 'space-between', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+            <span aria-hidden="true">🔍 </span>Search · {periodOptions.find((option) => option.id === activePeriodId)?.label || 'All marking periods'}
+          </span>
+          <span aria-hidden="true">{filtersOpen || search ? '▴' : '▾'}</span>
+        </button>
+        <div
+          id="assignments-filters"
+          className="mm-assignments-filters"
+          data-open={filtersOpen || Boolean(search) ? 'true' : 'false'}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}
+        >
           <label htmlFor="assignments-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             Search assignments
           </label>

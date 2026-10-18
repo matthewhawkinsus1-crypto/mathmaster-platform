@@ -13,6 +13,7 @@ import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
 import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
+import { dolExtraTimeForClass } from '../../platform/teacher/dolExtraTimeRoster.js';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
 import {
   assignmentIsForStudent,
@@ -946,10 +947,17 @@ export default function LiveClassMonitor({
         const timers = [];
         if (warmup.status === 'active' && warmup.endsAt) timers.push({ kind: 'Warm-Up', assignment, endsAt: warmup.endsAt, remaining: warmup.millisecondsRemaining });
         if (dol.status === 'active' && dol.endsAt) timers.push({ kind: 'DOL', assignment, endsAt: dol.endsAt, remaining: dol.millisecondsRemaining });
+        // Students whose extra time (decision D7) keeps their DOL open past the
+        // class's. Never on the projector: it would tell the room who has an
+        // accommodation.
+        const extraTime = projecting ? null : dolExtraTimeForClass({ assignment, schedule: classSchedule, classContext: timerContext, roster: monitoredRoster, nowValue });
+        if (extraTime) {
+          timers.push({ kind: 'DOL extra time', assignment, endsAt: extraTime.endsAt, remaining: extraTime.millisecondsRemaining, students: extraTime.students });
+        }
         return timers;
       })
       .sort((left, right) => Number(left.remaining || 0) - Number(right.remaining || 0));
-  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue]);
+  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue, projecting, monitoredRoster]);
 
   const suggestions = useMemo(() => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }), [visibleRows, learningProfilesByStudentId]);
   const integrityByStudentId = useMemo(() => Object.fromEntries(
@@ -1179,9 +1187,15 @@ export default function LiveClassMonitor({
       {activeSectionTimers.length > 0 && (
         <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
-          {activeSectionTimers.map(({ kind, assignment, endsAt }) => {
-            const isDol = kind === 'DOL';
-            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
+          {activeSectionTimers.map(({ kind, assignment, endsAt, students: extraTimeStudents }) => {
+            const isDol = kind !== 'Warm-Up';
+            const label = extraTimeStudents
+              ? `${kind} · ${extraTimeStudents.length} ${extraTimeStudents.length === 1 ? 'student' : 'students'}`
+              : kind;
+            const title = extraTimeStudents
+              ? `${assignment.title || 'DOL'}: still working with extra time — ${extraTimeStudents.map((student) => student.name).join(', ')}`
+              : assignment.title || kind;
+            return <span key={`${assignment.id}:${kind}`} data-dol-extra-time={extraTimeStudents ? extraTimeStudents.length : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={title}>{label} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
         </div>
       )}

@@ -1295,6 +1295,10 @@
   color: var(--mm-success-text);
 }
 
+.mathmaster-section-tab.is-read-only {
+  border-style: dashed;
+}
+
 .mathmaster-section-tab.is-locked,
 .mathmaster-section-tab:disabled {
   border-color: var(--mm-border);
@@ -1388,10 +1392,26 @@
   color: #fff;
 }
 
-.mathmaster-question-number.is-attempted:not(.is-correct) {
+.mathmaster-question-number.is-tryAgain {
   border-color: #f9ab00;
   background: var(--mm-warning-soft);
   color: var(--mm-warning-text);
+}
+
+/* Out of tries, or its section closed: done, with no colour that says how it
+   went (pass 3, RUN-9). The dashed ring tells it from "not started". */
+.mathmaster-question-number.is-closed {
+  border-style: dashed;
+  border-color: var(--mm-border-strong);
+  background: var(--mm-surface-control);
+  color: var(--mm-text);
+}
+
+/* Held feedback: answered, nothing about right or wrong (pass 3, RUN-5). */
+.mathmaster-question-number.is-submitted {
+  border-color: var(--mm-primary-text);
+  background: var(--mm-primary-subtle);
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-question-number.is-locked,
@@ -1595,6 +1615,293 @@
 
   .mathmaster-assignment-screen .mathmaster-unified-question-controls button span {
     display: none;
+  }
+}
+
+/* --- Pass 3, Batches 5 and 7: where you stand, and room to work ----------
+   The compact row is the default on every size (RUN-7); its location reads
+   "Question 2 of 6" on a wide screen and "Q2 of 6" on a phone (RUN-15). */
+.mathmaster-location-short {
+  display: none;
+}
+
+/* Why a locked section cannot open, after its tab is pressed (RUN-8). */
+.mathmaster-section-lock-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--mm-surface-control);
+  color: var(--mm-text);
+  font-size: calc(13 * var(--mm-px));
+  font-weight: 750;
+  text-align: left;
+}
+
+.mathmaster-section-lock-note button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--mm-border);
+  border-radius: 8px;
+  background: var(--mm-surface);
+  color: var(--mm-text);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* A timed section's time left (RUN-10): urgent in its last two minutes. */
+.mathmaster-section-time-left {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 8px;
+}
+
+.mathmaster-section-time-left-line {
+  flex-basis: 100%;
+  font-weight: 800;
+}
+
+.mathmaster-unified-nav-alert:has(.is-urgent),
+.mathmaster-section-time-left.is-urgent strong {
+  color: var(--mm-error-text);
+}
+
+.mathmaster-unified-nav-alert:has(.is-urgent) {
+  background: var(--mm-error-bg);
+}
+
+.mathmaster-assignment-unified-top > .mathmaster-section-time-left {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
+  font-size: calc(13 * var(--mm-px));
+  white-space: nowrap;
+}
+
+/* The phone's status chip (NAV-5). Wider screens keep the banners. */
+.mathmaster-assignment-status-chip,
+.mathmaster-assignment-status-panel {
+  display: none;
+}
+
+.mathmaster-assignment-status-chip {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 4px 12px;
+  overflow: hidden;
+  border: 1px solid var(--mm-warning-border-soft, var(--mm-border));
+  border-radius: 999px;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
+  font-size: calc(13 * var(--mm-px));
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mathmaster-assignment-status-chip.is-live,
+.mathmaster-assignment-status-chip.is-dol {
+  border-color: var(--mm-primary-text);
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
+}
+
+.mathmaster-assignment-status-chip.is-more {
+  border-color: var(--mm-border);
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+}
+
+.mathmaster-assignment-status-chip.is-practice,
+.mathmaster-assignment-status-line.is-grade {
+  border-color: var(--mm-border-strong);
+  background: var(--mm-surface-control);
+  color: var(--mm-text);
+}
+
+.mathmaster-assignment-status-panel {
+  gap: 8px;
+  padding: 4px 2px 2px;
+}
+
+.mathmaster-assignment-status-line {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--mm-surface);
+  border: 1px solid var(--mm-border);
+  color: var(--mm-text);
+  font-size: calc(14 * var(--mm-px));
+  text-align: left;
+}
+
+.mathmaster-assignment-status-line button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--mm-primary);
+  color: var(--mm-on-primary);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px) {
+  .mathmaster-assignment-screen .mathmaster-warmup-banner {
+    display: none !important;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-status-chip {
+    display: block;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-status-panel {
+    display: grid;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  /* RUN-15: one larger compact row — back, "Q2 of 6", Previous and Next at
+     44px; the question list is behind "Show progress". Text never under 12px. */
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-assignment-unified-top {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-nav-back,
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back {
+    min-height: 44px;
+    width: 44px;
+    flex-basis: 44px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-collapsed-current-location strong,
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location strong {
+    font-size: calc(14 * var(--mm-px));
+    white-space: nowrap;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location .mathmaster-location-short {
+    display: inline;
+    font-size: calc(13 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location .mathmaster-location-long {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    margin-left: 0;
+    grid-template-columns: 44px 44px;
+    gap: 4px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls button,
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls select {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: calc(18 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls select {
+    font-size: calc(14 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-focus-view-button,
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button {
+    min-height: 44px;
+    padding: 4px 8px;
+    font-size: calc(12 * var(--mm-px));
+    white-space: normal;
+    max-width: 76px;
+    line-height: 1.1;
+  }
+
+  /* A status takes its own row; "More" stays in the row. */
+  .mathmaster-assignment-screen .mathmaster-assignment-status-chip:not(.is-more) {
+    order: 10;
+    flex: 1 1 100%;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-status-chip.is-more {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+  }
+
+  /* Every tab in view: the DOL tab was clipped under "Focus view". */
+  .mathmaster-assignment-screen .mathmaster-section-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tab {
+    min-height: 44px;
+    font-size: calc(13 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tab small,
+  .mathmaster-assignment-screen .mathmaster-section-tab.is-complete small {
+    font-size: calc(12 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary strong {
+    font-size: calc(14 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary span {
+    font-size: calc(12 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-number-strip {
+    gap: 6px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-number {
+    width: 44px;
+    height: 44px;
+    font-size: calc(15 * var(--mm-px));
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-nav-alert,
+  .mathmaster-assignment-screen .mathmaster-section-lock-note {
+    font-size: calc(13 * var(--mm-px));
+  }
+}
+
+/* A toast never covers the action bar: on the assignment screen it rises
+   above the bar's actual top (--mm-action-bar-clearance, published by App
+   from where the bar is), not only by the bar's height, which assumed the bar
+   was stuck to the bottom of the screen. Phones (≤640px) place toasts at the
+   top instead (uiKit.css). */
+@media (min-width: 641px) {
+  body:has(.mathmaster-assignment-screen) .mm-toast-viewport {
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--mm-action-bar-clearance, var(--mm-action-bar-height, 0px)));
   }
 }
 

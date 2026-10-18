@@ -68,6 +68,8 @@ const possessive = (title) => (/s$/i.test(title) ? `${title}'` : `${title}'s`);
  */
 export const entryCanStillRise = (entry) => Boolean(entry)
   && !entry.teacherGrade
+  // Paused or archived by the teacher (NAV-4): nothing to open, so no way.
+  && !entry.closedByTeacher
   && entry.excused !== true
   && entry.frozen !== true
   && entry.lifecycle?.isPracticeOnly !== true

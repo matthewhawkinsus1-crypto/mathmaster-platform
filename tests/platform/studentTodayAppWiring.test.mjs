@@ -95,10 +95,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
   // Filtered by the Today rule (review finding C / item 3).
   assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
-  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
+  // Started from Grades, so a start that cannot happen lands on a result page whose Back says Grades (NAV-9).
+  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\)\}/);
   assert.match(grades, /waysToRaise=\{studentWaysToRaiseNow\(\)\}/);
   assert.match(grades, /if \(way\.action === 'none'\) return undefined;/);
-  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0\);/);
+  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\);/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
   assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaiseNow\(\)\) \}\}/);
@@ -148,7 +149,10 @@ test('entry shares the Today rule\'s predicates, with their imports (review find
 });
 
 test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
-  const banner = region(app, 'const renderStudentWarmupBanner = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(app, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
   assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
   assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);

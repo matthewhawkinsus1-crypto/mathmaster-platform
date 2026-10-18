@@ -342,7 +342,9 @@ const runFull3x3 = async (context, scope) => {
     await leaveAndReturn(page);
     expect(journey, await page.locator('text=Isolated expression ready').count(), 'isolation was lost on leave-and-return');
     await useFormAsToken(page);
-    observed.token = await page.locator('.mathmaster-systems-substitution-token').getAttribute('aria-label');
+    // The token carries the expression; its name says it in words (pass 3,
+    // A11Y-3: "Pick up the expression negative y minus z plus 6 …").
+    observed.token = await page.locator('.mathmaster-systems-substitution-token').getAttribute('data-token-value');
     expect(journey, /-y - z \+ 6/.test(observed.token || ''), `token is not the student's isolated expression in plain notation: ${observed.token}`);
     const box = await page.locator('.mathmaster-systems-substitution-token').boundingBox();
     expect(journey, box && box.height <= 64 && box.width <= 320, `token is not compact: ${JSON.stringify(box)}`);

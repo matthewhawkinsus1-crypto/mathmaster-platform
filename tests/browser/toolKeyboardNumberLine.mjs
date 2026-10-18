@@ -181,6 +181,37 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   }
 }
 
+// Pass 3, A11Y-8: a typed endpoint the line cannot read is said, not only
+// shown in red. The box is invalid and described by the error; the error is
+// an alert; fixing the value clears both.
+{
+  const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  try {
+    await page.goto(URL, { waitUntil: 'networkidle' });
+    const box = page.locator('input[aria-label="Exact endpoint value"]');
+    await box.waitFor();
+    await box.fill('13/8x');
+    await box.press('Enter');
+    await page.waitForSelector('[data-endpoint-help="error"]');
+    const help = page.locator('[data-endpoint-help]');
+    const errorText = (await help.textContent()).trim();
+    assert.equal(await box.getAttribute('aria-invalid'), 'true', 'the box is marked invalid');
+    assert.equal(await box.getAttribute('aria-describedby'), await help.getAttribute('id'), 'the error describes the box');
+    const alert = page.locator('[data-endpoint-error-announcement]');
+    assert.equal(await alert.getAttribute('role'), 'alert');
+    assert.equal((await alert.textContent()).trim(), errorText, 'the alert says the same words');
+    assert.ok(errorText.length > 10, `the error says what to type (${errorText})`);
+    await box.fill('1');
+    assert.equal(await box.getAttribute('aria-invalid'), null, 'typing again clears the invalid mark');
+    assert.equal((await alert.textContent()).trim(), '', 'and the alert');
+    console.log('ok 1366x768: a typed endpoint the line cannot read is announced and described');
+  } catch (error) {
+    failures += 1;
+    console.error(`FAIL typed endpoint error: ${error.message}`);
+  }
+  await page.close();
+}
+
 await browser.close();
 if (failures) {
   console.error(`${failures} viewport(s) failed`);

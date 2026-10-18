@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { region } from './helpers/sourceContract.mjs';
 import { shouldCompactAssignmentNavigation } from '../../src/platform/layout/assignmentNavigationChrome.js';
 
 test('navigation compacts for active work and short landscape, not at the page introduction', () => {
@@ -9,13 +10,29 @@ test('navigation compacts for active work and short landscape, not at the page i
   assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 844, viewportHeight: 390, workTop: 900 }), true);
 });
 
-test('App wires automatic compacting to the shared viewport policy', async () => {
+// Pass 3, RUN-7: the navigator no longer waits for a window scroll to compact
+// (a phone's window never scrolls, so it never did there). It starts compact
+// on every size and every open path; "Show progress" opens it, "Focus view"
+// folds it, and either keeps the work where it was on screen.
+// (tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs measures it.)
+test('the navigator starts compact, on every size and every open path', async () => {
   const source = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(source, /import \{ shouldCompactAssignmentNavigation \} from '\.\/platform\/layout\/assignmentNavigationChrome\.js';/);
-  const effect = source.slice(source.indexOf('const updateAssignmentNavigationChrome'), source.indexOf('}, [activeView, activeAssignmentId]);'));
-  assert.match(effect, /querySelector\('\[data-work-view-focus="true"\]'\)/);
-  assert.match(effect, /shouldCompactAssignmentNavigation\(\{/);
-  assert.match(effect, /window\.addEventListener\('scroll', updateAssignmentNavigationChrome/);
+  assert.match(source, /const \[assignmentNavigationCollapsed, setAssignmentNavigationCollapsed\] = useState\(true\);/);
+  const resets = [...source.matchAll(/setAssignmentNavigationCollapsed\((true|false)\);/g)].map((match) => match[1]);
+  assert.ok(resets.length >= 4, `every open path resets the navigator (found ${resets.length})`);
+  assert.deepEqual([...new Set(resets)], ['true'], 'no open path starts it expanded');
+});
+
+test('Show progress and Focus view keep the work where it was', async () => {
+  const source = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const toggle = region(source, 'const toggleAssignmentNavigation = () => {', '};', 'the navigator toggle');
+  assert.match(toggle, /navigationToggleAnchorRef\.current = work \? \{ element: work, top: work\.getBoundingClientRect\(\)\.top \} : null;/);
+  const keep = region(source, 'useLayoutEffect(() => {\n    const anchor = navigationToggleAnchorRef.current;', '}, [assignmentNavigationCollapsed]);', 'the work anchor');
+  assert.match(keep, /const moved = anchor\.element\.getBoundingClientRect\(\)\.top - anchor\.top;/);
+  assert.match(keep, /window\.scrollBy\(\{ top: moved/);
+  assert.match(source, /import \{ Fragment, Suspense, useCallback, useEffect, useLayoutEffect,/);
+  const nav = region(source, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
+  assert.match(nav, /onClick=\{toggleAssignmentNavigation\}/);
 });
 
 test('compact controls retain keyboard semantics and touch-sized short-landscape targets', async () => {

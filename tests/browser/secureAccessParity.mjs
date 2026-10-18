@@ -663,7 +663,7 @@ for (const device of DEVICES) {
       await shot(page, device, 'sat-both-tools');
     }
 
-    // "Enlarge question" opened with a tool already open: the tool stays on
+    // "Open Work View" opened with a tool already open: the tool stays on
     // top of Work View (2147483000), under the layers that must cover it.
     await page.evaluate(() => window.__mmSetWorkView(true));
     await page.waitForTimeout(250);

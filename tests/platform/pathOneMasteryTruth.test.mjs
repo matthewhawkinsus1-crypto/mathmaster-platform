@@ -23,6 +23,7 @@ import { getStudentPathOptions, STATUS } from '../../src/platform/path/recommend
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { statusForSkill } from '../../src/platform/path/pathMap.js';
+import { loadStudentMasteryState } from '../../src/platform/mastery/studentMasteryState.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -106,7 +107,7 @@ test('"what\'s left to master this" names exactly the unmet conditions', () => {
   assert.equal(list.remaining, 2);
 });
 
-test('the live app, the simulator and the mastery fetch all build from the unified profiles', () => {
+test('the live app, the simulator and the mastery fetch all build from the unified profiles', async () => {
   const app = executableSource(read('src/App.jsx'));
   const options = region(app, 'const studentPathOptions = useMemo(() => buildStudentPathOptions({', '}), [studentRecord', 'student path options');
   assert.match(options, /serverMasteryProfiles: studentServerMasteryProfiles/);
@@ -115,8 +116,21 @@ test('the live app, the simulator and the mastery fetch all build from the unifi
 
   const simulator = executableSource(read('src/components/teacher/SimulatedStudentExperience.jsx'));
   assert.match(simulator, /masteryProfilesByTEKS: buildUnifiedMasteryProfiles\(/);
+  // The mastery fetch (masteryStateService -> loadStudentMasteryState, D10
+  // P0-1 moved the build into the pure loader): asserted by what it returns,
+  // which must be the unified profiles over the same inputs, server rule
+  // included — not by where the call is spelled.
   const service = executableSource(read('src/services/masteryStateService.js'));
-  assert.match(service, /const masteryProfilesByTEKS = buildUnifiedMasteryProfiles\(/);
+  assert.match(service, /export const fetchStudentMasteryState = [^\n]*=> loadStudentMasteryState\(/);
+  const serverProfiles = { 'A.5A': { mastery: { estimate: 60 }, accumulator: { eligibleEvents: 3, effectiveWeight: 3, independentSuccesses: 1 }, dimensions: { dokRepresented: [2] } } };
+  const fetched = await loadStudentMasteryState('s-unified', {
+    assignments: [],
+    reads: { grade: async () => ({ classId: 'c' }), retention: async () => null, serverMastery: async () => ({ profiles: serverProfiles }), scopedAssignments: async () => [] },
+  });
+  assert.ok(fetched.masteryProfilesByTEKS['A.5A'], 'the server profile reaches the fetched mastery');
+  assert.deepEqual(fetched.masteryProfilesByTEKS, buildUnifiedMasteryProfiles({
+    student: { id: 's-unified', classId: 'c' }, assignments: [], serverProfiles, retentionSchedulesByTEKS: {},
+  }));
   const adapter = executableSource(read('src/platform/path/masteryAdapter.js'));
   assert.match(adapter, /masteryBySkillFromProfiles\(buildUnifiedMasteryProfiles\(/);
 });

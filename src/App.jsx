@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 // Stylesheets that must link before App.css, in 805b69e2's order
 // (app/shell/leadingStyles.js says why and how).
 import './app/shell/leadingStyles.js';
@@ -86,7 +86,7 @@ import {
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile } from './platform/assignments/studentAssignmentControls.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
@@ -103,7 +103,6 @@ import {
 } from './platform/generation/generationSeatReconciler.js';
 import { mergePracticeTrackers } from './platform/student/practiceTrackerMerge.js';
 import {
-  getQuestionCardState,
   normalizeQuestionRecord,
   recordQuestionAttempt,
   recordQuestionStep,
@@ -149,6 +148,7 @@ import {
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
   studentDueDateLines,
+  studentExtraTimeDolOpen,
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
@@ -184,6 +184,17 @@ import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from '
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
+import SectionTimeLeft from './components/student/SectionTimeLeft.jsx';
+import {
+  outcomeWithheld,
+  QUESTION_STATUS,
+  SECTION_ACCESS,
+  describeNavigatorQuestion,
+  describeNavigatorSectionProgress,
+  describeSectionAccess,
+  sectionLandingEntry,
+} from './platform/student/assignmentNavigator.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
@@ -259,6 +270,8 @@ import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
+import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
+import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
 import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
@@ -270,7 +283,7 @@ import { resolveAssignmentHandoff, resolveSkippedQuestion } from './platform/stu
 import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
-  buildWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
+  buildWhatChanged, countUnseenWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
@@ -286,7 +299,8 @@ import {
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
 import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
-import { readUrlArrival } from './app/routes/urlArrival.js';
+import { parseAppPath } from './app/routes/appUrl.js';
+import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
 import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
 import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
@@ -379,7 +393,6 @@ import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
-import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
   subscribeToClassPointAnnouncements,
@@ -475,6 +488,7 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
 import SessionGate from './app/shell/SessionGate.jsx';
+import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -638,6 +652,9 @@ function App() {
   // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
   const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
+  // A Classroom link that could not be read: said once a student is signed
+  // in (NAV-11), instead of only in the console.
+  const [classroomLaunchInvalid, setClassroomLaunchInvalid] = useState(false);
   // The address the page was opened at — a reload, a bookmark, a shared link
   // or a deep link waiting through sign-in (app/routes/urlArrival.js). Held
   // until an account has loaded, then opened through the same functions a
@@ -674,6 +691,7 @@ function App() {
       launch = parseClassroomLaunchSearch(window.location.search);
     } catch (error) {
       console.error('Rejected invalid Classroom launch link:', error);
+      setClassroomLaunchInvalid(true);
       return;
     }
     if (!launch) return;
@@ -852,8 +870,12 @@ function App() {
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
+  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(true);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
+  // The phone's status chip (pass 3, NAV-5) and why a locked section tab
+  // cannot open (RUN-8): both belong to one assignment, and close with it.
+  const [assignmentStatusOpenFor, setAssignmentStatusOpenFor] = useState(null);
+  const [sectionLockNote, setSectionLockNote] = useState(null);
   const assignmentQuestionStageRef = useRef(null);
   // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
   // another question, or another assignment, opens as any question opens.
@@ -862,37 +884,66 @@ function App() {
     setDraftRestoreFocus(null);
   }, [currentQuestionIndex, activeAssignmentId]);
 
-  // Once the student reaches the workspace, the full progress dashboard has
-  // done its job. Keep its section/question/previous/next essentials in one
-  // row and let the existing “Show progress” control restore the full view.
-  // Short landscape phones start in this presentation even before scrolling.
+  // THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE (pass 3, RUN-7).
+  // One row — back, where you are, Previous/Next — leaves the work the
+  // screen; "Show progress" opens the section tabs and question numbers, and
+  // "Focus view" folds them again. Every open path resets it to compact. (It
+  // used to start full and compact only once the window scrolled, which a
+  // phone's never does: 179px of navigator stayed above every phone question.)
+  //
+  // Folding or opening it keeps the work where it was on screen: the page is
+  // scrolled by however far the toggle moved the work, so "Focus view" no
+  // longer sends a graph further down the page.
+  const navigationToggleAnchorRef = useRef(null);
+  const assignmentWorkElement = () => assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
+    || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace')
+    || assignmentQuestionStageRef.current;
+  const toggleAssignmentNavigation = () => {
+    const work = assignmentWorkElement();
+    navigationToggleAnchorRef.current = work ? { element: work, top: work.getBoundingClientRect().top } : null;
+    if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
+    setAssignmentNavigationCollapsed((current) => !current);
+  };
+  // TOASTS NEVER COVER THE ACTION BAR. Toasts lift above the action bar by its
+  // height, which clears it only while the bar is stuck to the bottom of the
+  // screen. With the compact navigator a short question no longer fills the
+  // page, and the bar sits higher, in the flow. So the assignment screen
+  // publishes how far the bar's top is from the bottom of the screen
+  // (--mm-action-bar-clearance), and App.css lifts toasts by that.
   useEffect(() => {
-    if (activeView !== 'assignment' || !activeAssignmentId) return undefined;
+    if (activeView !== 'assignment' && activeView !== 'teacherPreview') return undefined;
+    const root = document.documentElement;
     let frame = 0;
-    const updateAssignmentNavigationChrome = () => {
+    const publish = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const work = assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
-          || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace');
-        if (shouldCompactAssignmentNavigation({
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-          workTop: work?.getBoundingClientRect?.().top ?? Infinity,
-        })) {
-          setAssignmentNavigationCollapsed(true);
-          setAssignmentOverviewExpanded(false);
-        }
+        const bar = [...document.querySelectorAll('.mathmaster-desktop-action-bar, .portrait-action-bar, .landscape-action-bar')]
+          .find((element) => element.getBoundingClientRect().height > 0);
+        const clearance = bar ? Math.max(0, Math.round(window.innerHeight - bar.getBoundingClientRect().top)) : 0;
+        root.style.setProperty('--mm-action-bar-clearance', `${clearance}px`);
       });
     };
-    updateAssignmentNavigationChrome();
-    window.addEventListener('scroll', updateAssignmentNavigationChrome, { passive: true });
-    window.addEventListener('resize', updateAssignmentNavigationChrome);
+    publish();
+    window.addEventListener('scroll', publish, { passive: true, capture: true });
+    window.addEventListener('resize', publish);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publish) : null;
+    observer?.observe(document.body);
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', updateAssignmentNavigationChrome);
-      window.removeEventListener('resize', updateAssignmentNavigationChrome);
+      window.removeEventListener('scroll', publish, { capture: true });
+      window.removeEventListener('resize', publish);
+      observer?.disconnect();
+      root.style.removeProperty('--mm-action-bar-clearance');
     };
-  }, [activeView, activeAssignmentId]);
+  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+
+  useLayoutEffect(() => {
+    const anchor = navigationToggleAnchorRef.current;
+    navigationToggleAnchorRef.current = null;
+    if (!anchor?.element?.isConnected) return;
+    const moved = anchor.element.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(moved) >= 1) window.scrollBy({ top: moved, left: 0, behavior: 'instant' });
+  }, [assignmentNavigationCollapsed]);
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -973,6 +1024,9 @@ function App() {
   // Which Test Cycle the student has open. One id, because a student is in one
   // assessment at a time and the card asks the server for everything else.
   const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
+  // Where the Test Cycle card was opened from, so its Back names and opens
+  // that screen (NAV-9). Always a normalizeOrigin value.
+  const [activeTestCycleOrigin, setActiveTestCycleOrigin] = useState(NAV_LEVEL.ASSIGNMENTS);
   // What, on the student's live grade document, means "ask the server about
   // this Test Cycle again": its projection (stage, release, retest) and its
   // Review answers. A string, so an unrelated grade change does not refetch.
@@ -1070,8 +1124,12 @@ function App() {
     return {
       surface: 'dashboard',
       dashboardMode: studentDashboardMode || 'assignments',
+      // The test on screen and where it was opened from (NAV-9).
+      ...(studentDashboardMode === 'testCycle'
+        ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
+        : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -1153,6 +1211,24 @@ function App() {
       }
 
       if (route.surface === 'assignment') {
+        // Back/Forward onto a lesson the teacher has since paused or archived
+        // lands on its result page, like every other way in (NAV-4).
+        const closedNow = teacherClosedState(assignmentsRef.current.find((item) => item.id === route.assignmentId));
+        if (closedNow) {
+          setPathLaunchTeks(null);
+          setActiveAssignmentId(route.assignmentId);
+          setActiveClassroomSectionKey(null);
+          setAssignmentResultRoute({
+            assignmentId: route.assignmentId,
+            sectionKey: 'whole',
+            sectionLabel: null,
+            questionIndex: 0,
+            origin: NAV_LEVEL.ASSIGNMENTS,
+            notice: describeOpenNotice({ kind: closedNow }),
+          });
+          setActiveView('assignmentResult');
+          return;
+        }
         setStudentDashboardMode('assignments');
         setPathLaunchTeks(null);
         setActiveAssignmentId(route.assignmentId || null);
@@ -1186,6 +1262,22 @@ function App() {
       setAssignmentResultRoute(null);
       setActiveClassroomSectionKey(null);
       setActiveAssignmentId(null);
+      // Back onto a Test Cycle restores that test and its Back (NAV-9). An
+      // entry written before it carried the test falls back to the address
+      // (/test-cycle/<id>); with neither, Assignments rather than a blank card.
+      if (route.dashboardMode === 'testCycle') {
+        const fromAddress = parseAppPath(window.location.pathname)?.extras?.testCycleAssignmentId || null;
+        const testCycleId = route.testCycleAssignmentId || fromAddress;
+        if (!testCycleId) {
+          setActiveTestCycleAssignmentId(null);
+          setStudentDashboardMode('assignmentsCenter');
+          return;
+        }
+        setActiveTestCycleAssignmentId(testCycleId);
+        setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, route.origin));
+      } else {
+        setActiveTestCycleAssignmentId(null);
+      }
       setStudentDashboardMode(route.dashboardMode || 'assignments');
       if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
     };
@@ -1261,10 +1353,11 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the server reads it (D7).
+      studentProfile: user.timingProfile || null,
       nowValue: studentRecoveryMinute * 60000,
     })
-    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -1277,9 +1370,9 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
     });
-  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.profile, classSchedule]);
+  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
@@ -1318,10 +1411,10 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
       nowValue: now,
     });
-  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.profile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
   const studentRecoveryByAssignment = useMemo(
     () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
     [studentRecoveryDiscovery],
@@ -1923,7 +2016,11 @@ function App() {
   const studentPriorWorkAssignmentsRef = useRef([]);
   // Whose lessons these are, for the projection: set from the session before
   // the first lesson reaches state, and cleared with the lessons themselves.
-  const studentViewerRef = useRef({ studentId: null, profile: null });
+  // `timingProfile` is the grade document's own `profile` field, exactly as the
+  // server's deadline readers take it (gradeData.profile || null): the
+  // student's DOL window (D7) is computed from it, never from the normalized
+  // copy's fallback to the whole grade document.
+  const studentViewerRef = useRef({ studentId: null, profile: null, timingProfile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
   /*
@@ -1960,15 +2057,46 @@ function App() {
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
+
+  /*
+   * A CLASSROOM LINK THAT CANNOT OPEN SAYS SO (student pass 3, NAV-11).
+   *
+   * The launch waited for its assignment to arrive, forever: a link posted to
+   * the wrong period, or for removed work, left the student on Home in
+   * silence, and a malformed link only reached the console. Once this
+   * student's lessons have settled — the same test an address waits for — a
+   * launch whose assignment is not among them is cleared with the same
+   * message an address gets. No timer: on slow Wi-Fi a wrong "not available"
+   * for a real link would be worse than waiting.
+   */
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    if (classroomLaunchInvalid) {
+      setClassroomLaunchInvalid(false);
+      toastInfo('That Google Classroom link could not be opened', 'It may be incomplete or out of date. You are on your Home screen.');
+      return;
+    }
+    if (!pendingClassroomLaunch) return;
+    if (assignments.some((assignment) => assignment.id === pendingClassroomLaunch.assignmentId)) return;
+    const settled = [STUDENT_CONTROLS_STATUS.READY, STUDENT_CONTROLS_STATUS.UNAVAILABLE].includes(studentAssignmentControls.status)
+      && lastPublishedRef.current?.[4] === studentAssignmentControls;
+    if (!settled) return;
+    toastInfo(ARRIVAL_MESSAGES.studentStale.title, ARRIVAL_MESSAGES.studentStale.body);
+    setPendingClassroomLaunch(null);
+    // toastInfo is stable for the session (ToastProvider).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, pendingClassroomLaunch, classroomLaunchInvalid, assignments, studentAssignmentControls]);
   const publishStudentAssignments = () => {
-    const { studentId, profile } = studentViewerRef.current;
-    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];
+    const { studentId, profile, timingProfile } = studentViewerRef.current;
+    // The controls stay at index 4: URL arrival reads lastPublishedRef.current[4].
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current, timingProfile];
     if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
     lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
       assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
       studentId,
       profile,
+      timingProfile,
       controls: studentControlsRef.current,
     }));
   };
@@ -2032,7 +2160,7 @@ function App() {
   const clearSignedInAssignments = () => {
     studentClassAssignmentsRef.current = [];
     studentPriorWorkAssignmentsRef.current = [];
-    studentViewerRef.current = { studentId: null, profile: null };
+    studentViewerRef.current = { studentId: null, profile: null, timingProfile: null };
     teacherSharedAssignmentsRef.current = [];
     lastPublishedRef.current = null;
     setAssignments([]);
@@ -2042,14 +2170,14 @@ function App() {
   // the lessons already held: no listener is re-opened for it.
   useEffect(() => {
     if (user?.role === 'student' && user.id) {
-      studentViewerRef.current = { studentId: user.id, profile: user.profile || null };
+      studentViewerRef.current = { studentId: user.id, profile: user.profile || null, timingProfile: user.timingProfile || null };
       publishStudentAssignments();
     } else if (user?.role === 'teacher') {
       publishTeacherAssignments();
     }
     // The publishers read refs; these are what change their answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);
+  }, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
@@ -2707,7 +2835,7 @@ function App() {
 
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
-    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()), timingProfile: studentDoc.data()?.profile || null }))
     .sort(compareStudentsByName);
 
   const studentGradeSourceForViewer = (viewer) => (
@@ -3271,11 +3399,12 @@ function App() {
           .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
         studentPriorWorkAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
-        studentViewerRef.current = { studentId, profile: studentProfile };
+        studentViewerRef.current = { studentId, profile: studentProfile, timingProfile: studentData.profile || null };
         const projectedAssignments = projectStudentAssignments({
           assignments: fetchedAssignments,
           studentId,
           profile: studentProfile,
+          timingProfile: studentData.profile || null,
           controls: studentControlsRef.current,
         });
         setAssignments(projectedAssignments);
@@ -3321,6 +3450,8 @@ function App() {
             course: courseContext.courseId,
             courseLevel: courseContext.courseLevel,
           },
+          // The grade document's own `profile` field, as the server reads it (D7).
+          timingProfile: studentData.profile || null,
         });
         // THE STUDENT SEES THE CANONICAL RECORD, AND NEVER REWRITES IT.
         //
@@ -3369,6 +3500,7 @@ function App() {
                 assignments: fetchedAssignments.filter((entry) => entry.id === serverResume.assignmentId),
                 studentId,
                 profile: studentProfile,
+                timingProfile: studentData.profile || null,
                 controls: studentControlsRef.current,
               });
               if (!assignment) return;
@@ -4936,6 +5068,10 @@ function App() {
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
         setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // The DOL window's source (D7): the grade document's own `profile`
+        // field, updated on its own so nothing else about the user changes.
+        const liveTimingProfile = snapshot.data()?.profile || null;
+        setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -5092,6 +5228,10 @@ function App() {
 
       const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
       activeKeys.add(key);
+      // Inside this assignment the Warm-Up's time is already on screen (the
+      // banner, the section pill, the phone's status chip): a toast over the
+      // Submit bar only repeated it (pass 3, RUN-14).
+      if (activeView === 'assignment' && activeAssignmentId === assignment.id) return;
       const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
       if (lastReminderAt && now - lastReminderAt < 120000) return;
 
@@ -5109,7 +5249,7 @@ function App() {
         && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
       ) delete warmupOpenAnnouncedRef.current[key];
     });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -5301,14 +5441,65 @@ function App() {
   }, [user?.role, activeView]);
 
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
-  useDocumentTitle(pageTitleFor({
+  const documentTitle = pageTitleFor({
     signedIn: Boolean(user),
     role: user?.role || null,
     view: activeView,
     studentMode: studentDashboardMode,
     teacherTab,
     assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
-  }));
+  });
+  useDocumentTitle(documentTitle);
+
+  /*
+   * NAV-3: a student screen change moves focus to the new screen's heading
+   * and says its name once (app/shell/screenChange.js). Not on the first
+   * screen after sign-in; inside an assignment it only speaks.
+   */
+  const currentStudentScreenKey = studentScreenKey({
+    role: user?.role || null,
+    view: activeView,
+    mode: studentDashboardMode,
+    resultAssignmentId: assignmentResultRoute?.assignmentId || null,
+    testCycleAssignmentId: activeTestCycleAssignmentId,
+    assignmentId: activeAssignmentId,
+  });
+  const [studentScreenAnnouncement, setStudentScreenAnnouncement] = useState('');
+  const lastStudentScreenKeyRef = useRef(null);
+  // The change still being settled. A lazy screen can suspend the App and
+  // re-run this effect with the same key; the change is finished then, not
+  // dropped.
+  const pendingStudentScreenRef = useRef(null);
+  const documentTitleRef = useRef(documentTitle);
+  documentTitleRef.current = documentTitle;
+  useEffect(() => {
+    const previous = lastStudentScreenKeyRef.current;
+    lastStudentScreenKeyRef.current = currentStudentScreenKey;
+    if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
+    if (previous && previous !== currentStudentScreenKey) {
+      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      // Cleared first, so the same name said twice in a row is still spoken.
+      setStudentScreenAnnouncement('');
+    }
+    const pending = pendingStudentScreenRef.current;
+    if (!pending || pending.key !== currentStudentScreenKey) return undefined;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    let cancelled = false;
+    let timer = null;
+    const settle = () => {
+      if (cancelled) return;
+      // A lazy screen draws its heading a moment later: look for up to 2 s.
+      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
+      if (!focused && Date.now() - pending.startedAt < 2000) {
+        timer = window.setTimeout(settle, 100);
+        return;
+      }
+      if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
+      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
+    };
+    timer = window.setTimeout(settle, 50);
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  }, [currentStudentScreenKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -5652,6 +5843,8 @@ function App() {
     const cycleStage = String(options.cycleStage || '').trim();
     if (isTestCycleAssignment(assignmentData) && !cycleStage) {
       setActiveTestCycleAssignmentId(assignmentId);
+      // Where its Back goes (NAV-9): the screen that opened it.
+      setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, options.origin));
       return openStudentDashboardMode('testCycle');
     }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
@@ -5660,17 +5853,41 @@ function App() {
       toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
     }
+    /*
+     * A START THAT CANNOT HAPPEN LANDS ON THE RESULT PAGE (NAV-4, NAV-10).
+     *
+     * Paused or archived by the teacher, an earlier lesson to finish first,
+     * not open yet, excused: the assignment's result page says so in its
+     * "what opens when" panel, where the student can read it for as long as
+     * they need — not in a toast that is gone in five seconds. Every path in
+     * comes through here: Home, Assignments, Grades, Ways to raise, a
+     * Classroom link, an address.
+     */
+    const resultOrigin = normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin);
+    const landOnResult = (notice) => openStudentAssignmentResult(assignmentId, { origin: resultOrigin, notice });
+    const closedByTeacher = user?.role === 'student' ? teacherClosedState(assignmentData) : null;
+    if (closedByTeacher) {
+      landOnResult(describeOpenNotice({ kind: closedByTeacher }));
+      return;
+    }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
     if (user?.role === 'student' && !access.open) {
-      const prerequisiteTitle = assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || 'the prerequisite notes/classwork assignment';
-      toastInfo('Finish the prerequisite first', `Complete ${prerequisiteTitle} first. This practice assignment also opens automatically at its scheduled release time.`);
+      landOnResult(describeOpenNotice({
+        kind: OPEN_NOTICE.PREREQUISITE,
+        prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
+        opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '',
+      }));
       return;
     }
     const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
       studentId: user?.role === 'student' ? user.id : undefined,
     });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
-      toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      if (user?.role === 'student') {
+        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '' }));
+      } else {
+        toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      }
       return;
     }
     // EXCUSED WORK IS NOT OPENED AS GRADED WORK. Home and Assignments leave
@@ -5679,8 +5896,7 @@ function App() {
     // Review/Practice buttons (returnToResult) are unchanged.
     if (user?.role === 'student' && !cycleStage && !lifecycle.isPracticeOnly && !options?.returnToResult
       && resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true) {
-      toastInfo('You are excused from this assignment', 'Your teacher excused you, so there is nothing to turn in. Its page has the details.');
-      openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+      landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.EXCUSED }));
       return;
     }
 
@@ -5808,7 +6024,7 @@ function App() {
       if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
         // No dead end: with nothing open this minute, show the assignment's
         // result page — its sections, what opens when, and what to do next.
-        openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+        openStudentAssignmentResult(assignmentId, { origin: resultOrigin });
         return;
       }
       if (actionableIndex === null) {
@@ -5834,7 +6050,7 @@ function App() {
     if (!options?.returnToResult) setAssignmentResultRoute(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
@@ -5922,6 +6138,14 @@ function App() {
     return openStudentDashboardMode('assignments');
   };
 
+  // A navigation level a Back control returns to (NAV-9).
+  const openStudentOriginLevel = (level) => {
+    if (level === NAV_LEVEL.HOME) return openStudentDashboardMode('assignments');
+    if (level === NAV_LEVEL.GRADES) return openStudentGradeCenter();
+    if (level === NAV_LEVEL.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
+    return openStudentAssignmentsCenter();
+  };
+
   const openStudentAssignmentResult = (assignmentId, options = {}) => {
     const id = String(assignmentId || '').trim();
     if (!id) return;
@@ -5931,10 +6155,14 @@ function App() {
       sectionKey,
       sectionLabel: options.sectionLabel || null,
       questionIndex: Number(options.questionIndex) || 0,
-      // Which list sent the student here, so the visible Back control returns
-      // to that list rather than guessing. Browser Back already does the right
-      // thing; this is what keeps the on-screen control agreeing with it.
-      origin: options.origin === 'grades' ? 'grades' : 'assignments',
+      // Which screen sent the student here (Home, Assignments or Grades), so
+      // the visible Back control names and returns to it rather than guessing.
+      // Browser Back already does the right thing; this keeps the on-screen
+      // control agreeing with it (NAV-9).
+      origin: normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin),
+      // Why a start landed here instead of opening (studentOpenGate.js), for
+      // the page's "what opens when" panel. Null for an ordinary visit.
+      notice: options.notice || null,
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
@@ -6041,7 +6269,7 @@ function App() {
     setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
@@ -6130,7 +6358,7 @@ function App() {
         setLiveTeachingSession(resumed);
         setActiveAssignmentId(assignmentId);
         setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
-        setAssignmentNavigationCollapsed(false);
+        setAssignmentNavigationCollapsed(true);
         setAssignmentOverviewExpanded(false);
         setActiveView('teacherPreview');
         return;
@@ -6151,7 +6379,7 @@ function App() {
     if (!assignmentData) return;
     setActiveAssignmentId(liveTeachingSession.assignmentId);
     setCurrentQuestionIndex(liveTeachingSession.storageQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setActiveView('teacherPreview');
   };
@@ -6691,7 +6919,8 @@ function App() {
       // This student's own final cutoff (attendance extension, individualized
       // extra time), so the finalize hint is not earlier than the server's.
       studentId: user.id,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the finalizer reads it (D7).
+      studentProfile: user.timingProfile || null,
     });
     try {
       setStudentPersistenceStatus('capturing');
@@ -8292,8 +8521,10 @@ function App() {
   // the history the evidence report depends on.
   const handleSupportProfileSaved = (studentId, projection) => {
     const nextProfile = normalizeStudentProfile(projection);
-    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+    // `timingProfile` is the stored projection itself (the D7 DOL window).
+    const timingProfile = projection && typeof projection === 'object' ? projection : null;
+    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
+    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
   };
 
   const handleSaveClassSchedule = async () => {
@@ -8703,6 +8934,8 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
+    // Nor is a student still on their exit ticket's extra time (D7).
+    if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
 
     return (
       <aside
@@ -8726,16 +8959,52 @@ function App() {
           ⏰ PACK UP & RETURN TECHNOLOGY
         </div>
         <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
-          Save your work, sign out, and return your device now. The bell is in{' '}
+          {/* No "Save your work": work saves as it is entered, and the save
+              line says when it could not be (student pass 3). */}
+          Finish up, sign out, and return your device now. The bell is in{' '}
           <DOLCountdown endsAt={packUp.endsAt} />.
         </div>
       </aside>
     );
   };
 
-  const renderStudentWarmupBanner = () => {
+  /*
+   * THE LIVE CHALLENGE LOBBY, WHEREVER THE STUDENT IS (student pass 3, P3).
+   *
+   * The invite showed only on Home: a student on Grades, Assignments, My
+   * Rewards, My Math Path or a result page saw nothing until the game was
+   * running. One line, the same action as Home's card. Never in a secure
+   * exam, a Test Cycle or the game itself (those screens do not render it).
+   */
+  const renderStudentLiveChallengeInvite = () => {
+    if (user?.role !== 'student' || secureExamActive) return null;
+    if (!liveChallengeInvite || !['invited', 'joined', 'running'].includes(liveChallengeInvite.status)) return null;
+    const running = liveChallengeInvite.status === 'running';
+    return (
+      <section
+        aria-label="Live Challenge"
+        data-live-challenge-invite
+        style={{ maxWidth: 920, margin: '12px auto 0', padding: '10px 14px', boxSizing: 'border-box', borderRadius: 12, background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', textAlign: 'left' }}
+      >
+        <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}>
+          <span aria-hidden="true">⚡ </span>
+          {running ? 'The Live Challenge is running now.' : 'Your teacher opened the Live Challenge lobby.'}
+        </span>
+        {/* openStudentDashboardMode, not the bare mode: from the result page the
+            view must change too, and a pending Path launch must not survive. */}
+        <button type="button" onClick={() => openStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+          {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
+        </button>
+      </section>
+    );
+  };
+
+  // The most urgent open Warm-Up this student has not finished, across their
+  // lessons: the banner shows it, and on a phone (no banner) the assignment's
+  // status chip offers it when it belongs to another lesson.
+  const studentActiveWarmup = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Its "Go to Warm-Up" button would take a student out of a secure exam.
+    // Its "Go to Warm-Up" would take a student out of a secure exam.
     if (secureExamActive) return null;
     const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
     const active = assignments
@@ -8772,9 +9041,13 @@ function App() {
       })
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
+    return active[0] || null;
+  };
 
-    if (!active.length) return null;
-    const { assignment, state, questionIndices } = active[0];
+  const renderStudentWarmupBanner = () => {
+    const activeWarmup = studentActiveWarmup();
+    if (!activeWarmup) return null;
+    const { assignment, state, questionIndices } = activeWarmup;
     const support = getStudentSupportPresentation(user.profile);
     const alreadyInThisWarmup = activeView === 'assignment'
       && activeAssignmentId === assignment.id
@@ -8784,6 +9057,10 @@ function App() {
       <aside
         role="alert"
         aria-live="polite"
+        // On a phone the assignment screen hides this banner: its countdown
+        // rides in the section pill there, and a Warm-Up elsewhere in the
+        // lesson is a line in the status chip (pass 3, RUN-14).
+        className="mathmaster-warmup-banner"
         style={{
           position: 'sticky',
           top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
@@ -9476,7 +9753,7 @@ function App() {
     // The DOL's lock message, open notice and close receipt: a teacher's
     // "Close now" never reads as the timer, and "when time ends" only while it is open.
     const currentDolCopy = currentIsDOL && !preview
-      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome })
+      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome, extendedTime: dolState.extendedTime, endsAt: dolState.endsAt })
       : null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
@@ -9540,7 +9817,9 @@ function App() {
         ? { label: 'Late — still open', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
         : lifecycle.isScheduled
           ? { label: 'Scheduled', background: 'var(--mm-surface-control-strong)', color: 'var(--mm-text)' }
-          : { label: 'On-time access', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' };
+          // On time is the ordinary case: no badge (pass 3, RUN-16 — "ON-TIME
+          // ACCESS" named a program state, not anything the student does).
+          : { label: '', background: 'transparent', color: 'var(--mm-text)' };
 
     // Bundle/V5 activities are flattened for runtime compatibility, but every
     // question keeps its activityRole. Rebuild the visible sections here so a
@@ -9574,7 +9853,6 @@ function App() {
       return { index, visiblePosition, sectionPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
-    const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
     const visibleByStorageIndex = new Map(visibleQuestionEntries.map((entry) => [entry.index, entry]));
     const navigationSections = currentContent.logicalSections.map((logicalSection) => ({
       role: logicalSection.role,
@@ -9582,7 +9860,10 @@ function App() {
     })).filter((section) => section.entries.length).map((section) => ({
       ...section,
       complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
-      allCorrect: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsCorrect(entry.index)),
+      // `progress` and `allCorrect` (the tab's "✓ Complete") are filled in
+      // below from the navigator's question states, held-feedback mask included.
+      progress: null,
+      allCorrect: false,
     }));
     const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
@@ -9601,38 +9882,116 @@ function App() {
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
     const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
     const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
-    const currentSectionGrade = currentSectionGrades[activeQuestionRole] || null;
-    const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
-    const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
-    const entryIsAvailable = (entry) => {
-      if (preview || lifecycle.isPracticeOnly) return true;
-      if (entry?.role === 'warmup' && warmupState.enabled && !warmupCanBeViewed) return false;
-      if (entry?.isTimedDOLQuestion && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) return false;
-      const manualState = getSectionAccessState({
-        assignment,
-        activityRole: entry?.role,
-        classId: user?.classId || null,
-        classPeriod: user?.classPeriod,
+    /*
+     * WHAT EACH SECTION AND QUESTION IS DOING NOW, SAID ONE WAY (pass 3,
+     * RUN-5 / RUN-8 / RUN-9; platform/student/assignmentNavigator.js).
+     *
+     * A section can be open, read-only (closed, its work still there to look
+     * over: a Warm-Up closed for the period, an ended DOL, Classwork the
+     * teacher closed) or locked (not open yet) — and a locked one says when or
+     * why. A question is correct, needs another try, closed, submitted (held
+     * feedback: never right or wrong) or not started. The tabs, the number
+     * strip, the dropdown and the Overview all read these.
+     */
+    const sectionHasWork = (role) => projectedEntries.some((entry) => entry.logicalRole === role
+      && normalizeQuestionRecord(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
+    const sectionAccessCache = new Map();
+    const sectionAccessFor = (entry) => {
+      const cacheKey = `${entry?.role}|${entry?.isTimedDOLQuestion ? 'timed' : ''}`;
+      if (sectionAccessCache.has(cacheKey)) return sectionAccessCache.get(cacheKey);
+      const access = describeSectionAccess({
+        role: entry?.role,
+        // Read mid-sentence ("Time is up for the Exit ticket (DOL)."); the
+        // model capitalises a sentence that starts with it.
+        label: entry?.role === 'dol' ? 'the Exit ticket (DOL)' : `the ${activitySectionMeta[entry?.role]?.label || entry?.role || 'section'}`,
+        timedDol: Boolean(entry?.isTimedDOLQuestion),
+        unrestricted: preview || lifecycle.isPracticeOnly,
+        lifecycle,
+        warmupState,
+        dolState,
+        manualState: getSectionAccessState({
+          assignment,
+          activityRole: entry?.role,
+          classId: user?.classId || null,
+          classPeriod: user?.classPeriod,
+          nowValue: now,
+          studentId: user?.role === 'student' ? user.id : undefined,
+        }),
+        hasWork: sectionHasWork(entry?.role),
         nowValue: now,
-        studentId: user?.role === 'student' ? user.id : undefined,
       });
-      if (manualState.enabled && !manualState.isOpen) return false;
-      return true;
+      sectionAccessCache.set(cacheKey, access);
+      return access;
+    };
+    // Viewable: a closed section stays reachable read-only.
+    const entryIsAvailable = (entry) => sectionAccessFor(entry).viewable;
+    const entryMaximumAttempts = (entry) => {
+      const policy = getEffectiveActivityPolicy(entry.role);
+      return resolveQuestionMaximumAttempts({
+        question: questions[entry.index],
+        maximumAttempts: policy.attempts,
+        activityPolicy: policy,
+        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+          assignment,
+          activityRole: entry.role,
+          classId: user?.classId || null,
+          studentId: user?.role === 'student' ? user.id : null,
+        }),
+      });
+    };
+    // The policy the question itself runs under (post-deadline practice runs
+    // every question as Practice).
+    const entryRuntimePolicy = (entry) => getEffectiveActivityPolicy(!preview && lifecycle.isPracticeOnly ? 'practice' : entry.role);
+    // The held-feedback mask: wherever the question withholds its outcome — a
+    // quiz or test until the teacher's release, a DOL until it is finished
+    // (a teacher's extra try leaves it open) — the navigator says nothing of
+    // right or wrong either (outcomeWithheld, the engine's own rule).
+    const entryFeedbackHeld = (entry) => !preview && outcomeWithheld({
+      feedbackMode: entryRuntimePolicy(entry).feedback,
+      released: lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment),
+      record: workingTracker?.[entry.index],
+    });
+    const navigatorQuestionFor = (entry) => {
+      const access = sectionAccessFor(entry);
+      const policy = entryRuntimePolicy(entry);
+      return describeNavigatorQuestion({
+        record: workingTracker?.[entry.index],
+        maximumAttempts: entryMaximumAttempts(entry),
+        feedbackHeld: entryFeedbackHeld(entry),
+        sectionClosed: access.state === SECTION_ACCESS.READ_ONLY,
+        available: access.viewable,
+        lockedLabel: access.short,
+        // Out of tries, the question offers "Request New Question" when its
+        // policy allows a replacement (as the question decides it).
+        replacementAvailable: resolveQuestionReplacementAllowed({
+          question: questions[entry.index],
+          activityPolicy: policy,
+          canGenerateFresh: isPersonalizedBlueprint(questions[entry.index]),
+        }),
+      });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
-      ? 'DOL'
+      ? 'Exit ticket (DOL)'
       : (activitySectionMeta[section?.role]?.label || section?.role || 'Section');
-    const sectionNavigationTarget = (section) => {
-      const availableEntries = (section?.entries || []).filter((entry) => entryIsAvailable(entry));
-      if (!availableEntries.length) return null;
-      // A section shortcut resumes at the earliest question that is not yet
-      // correct. This intentionally includes an exhausted variant so the
-      // student can request a replacement rather than silently skipping it.
-      const needsWork = availableEntries.find((entry) => normalizeQuestionRecord(workingTracker?.[entry.index]).status !== 'correct');
-      if (needsWork) return needsWork;
-      const currentEntry = availableEntries.find((entry) => entry.index === currentQuestionIndex);
-      return currentEntry || availableEntries[0];
-    };
+    // A section tab lands on the first question the student can still work,
+    // never on one out of tries while a workable one is left; with nothing
+    // workable, a closed section opens for review.
+    const sectionNavigationTarget = (section) => sectionLandingEntry({
+      entries: (section?.entries || []).map((entry) => ({
+        ...entry,
+        viewable: entryIsAvailable(entry),
+        workable: entryIsWorkableNow(entry),
+        status: navigatorQuestionFor(entry).status,
+      })),
+      currentIndex: currentQuestionIndex,
+    });
+    navigationSections.forEach((section) => {
+      section.progress = describeNavigatorSectionProgress({
+        questions: section.entries.map((entry) => navigatorQuestionFor(entry)),
+        feedbackHeld: section.entries.some((entry) => entryFeedbackHeld(entry)),
+      });
+      section.allCorrect = section.progress.allCorrect;
+    });
     const findNeighbor = (direction) => {
       for (let position = currentVisibleEntryPosition + direction; position >= 0 && position < visibleQuestionEntries.length; position += direction) {
         if (entryIsAvailable(visibleQuestionEntries[position])) return visibleQuestionEntries[position];
@@ -9641,8 +10000,14 @@ function App() {
     };
     const previousQuestionEntry = findNeighbor(-1);
     const nextQuestionEntry = findNeighbor(1);
-    const nextQuestionSectionMeta = nextQuestionEntry ? (activitySectionMeta[nextQuestionEntry.role] || { label: nextQuestionEntry.role }) : null;
-    const nextQuestionDestinationLabel = nextQuestionEntry ? `Question ${nextQuestionEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === nextQuestionEntry.role)?.entries.length || 1}` : '';
+    // The question's own "Next" goes to the next question the student can
+    // still answer; a closed section kept viewable for review (RUN-8) is
+    // reached by the arrows and tabs, not walked into after an answer.
+    const engineNextEntry = visibleQuestionEntries
+      .slice(currentVisibleEntryPosition + 1)
+      .find((entry) => entryIsWorkableNow(entry)) || nextQuestionEntry;
+    const nextQuestionSectionMeta = engineNextEntry ? (activitySectionMeta[engineNextEntry.role] || { label: engineNextEntry.role }) : null;
+    const nextQuestionDestinationLabel = engineNextEntry ? `Question ${engineNextEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === engineNextEntry.role)?.entries.length || 1}` : '';
     const currentNavigationSectionIndex = navigationSections.findIndex((section) => section.role === currentNavigationSection?.role);
     const laterNavigationSections = currentNavigationSectionIndex >= 0
       ? navigationSections.slice(currentNavigationSectionIndex + 1)
@@ -9653,13 +10018,13 @@ function App() {
     // "Can be viewed" is not "can be worked now": a Warm-Up closed for the
     // period or an ended DOL stays viewable for review, but the continue
     // button must only ever lead to an unfinished question open right now.
-    const entryIsWorkableNow = (entry) => {
-      if (!entryIsAvailable(entry)) return false;
+    function entryIsWorkableNow(entry) {
+      if (!sectionAccessFor(entry).workable) return false;
       if (preview || lifecycle.isPracticeOnly) return true;
       if (entry?.role === 'warmup' && warmupState.enabled) return warmupState.status === 'active';
       if (entry?.isTimedDOLQuestion && dolState.enabled) return dolState.status === 'active';
       return true;
-    };
+    }
     const sectionWorkTarget = (section) => (section?.entries || [])
       .find((entry) => entryIsWorkableNow(entry) && !sectionQuestionIsComplete(entry.index)) || null;
     const nextAvailableIncompleteSection = laterNavigationSections.find((section) => sectionWorkTarget(section));
@@ -9715,6 +10080,102 @@ function App() {
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
           : 'Back to Home';
+    /*
+     * ONE STATUS CHIP ON A PHONE (pass 3, NAV-5). A phone hides the header and
+     * every banner above the work, so a late deadline, "no credit" and a live
+     * challenge used to vanish there. The chip in the navigator names the most
+     * urgent one; pressing it opens the full lines. (Wider screens keep the
+     * banners and hide the chip.)
+     */
+    const dolSectionIndices = dolState.questionIndices || [dolState.questionIndex];
+    const assignmentStatusLines = preview ? [] : [
+      shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+        key: 'liveChallenge',
+        tone: 'live',
+        chip: '⚡ Join the challenge',
+        title: 'Live Challenge has started',
+        text: `${liveChallengeInvite?.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.`,
+      },
+      !lifecycle.isPracticeOnly && dolState.status === 'active' && !dolSectionIndices.includes(currentQuestionIndex)
+        && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
+        key: 'dol',
+        tone: 'dol',
+        chip: 'Exit ticket (DOL) open',
+        title: 'The Exit ticket (DOL) is open',
+        text: `Finish all ${dolSectionIndices.length} question${dolSectionIndices.length === 1 ? '' : 's'} before time runs out.`,
+        action: { label: 'Go to the Exit ticket (DOL)', onClick: () => { setAssignmentStatusOpenFor(null); changeQuestion(dolSectionIndices[0]); } },
+      },
+      // Timed windows mean nothing in post-deadline practice.
+      !lifecycle.isPracticeOnly && warmupState.status === 'active' && activeQuestionRole !== 'warmup'
+        && visibleQuestionEntries.some((entry) => entry.role === 'warmup' && !['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[entry.index]).status)) && {
+        key: 'warmup',
+        tone: 'warmup',
+        chip: 'Warm-Up open',
+        title: 'The Warm-Up is open',
+        text: `It closes at ${warmupState.endsAt ? new Date(warmupState.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the end of its window'}.`,
+        action: { label: 'Go to the Warm-Up', onClick: () => { setAssignmentStatusOpenFor(null); const first = visibleQuestionEntries.find((entry) => entry.role === 'warmup'); if (first) changeQuestion(first.index); } },
+      },
+      lifecycle.isLate && {
+        key: 'late',
+        tone: 'late',
+        chip: `Late · closes ${studentDueDateLines(assignment, lifecycle).finalText}`,
+        title: 'Late, still open',
+        text: `The due date passed. You have ${formatRemainingTime(lifecycle.millisecondsRemaining)} before this assignment closes on ${studentDueDateLines(assignment, lifecycle).finalText}.`,
+      },
+      lifecycle.isPracticeOnly && {
+        key: 'practice',
+        tone: 'practice',
+        chip: 'No credit · practice',
+        title: 'Practice only, no credit',
+        text: 'This assignment has closed and your grade is set. You can keep practising with feedback; it does not change your grade. Your practice is saved, and your teacher can see it.',
+      },
+    ].filter(Boolean);
+    // Another lesson's open Warm-Up: the banner that offers it is hidden on a phone.
+    const otherWarmup = preview ? null : studentActiveWarmup();
+    if (otherWarmup && otherWarmup.assignment.id !== activeAssignmentId) {
+      assignmentStatusLines.push({
+        key: 'otherWarmup',
+        tone: 'warmup',
+        chip: 'Warm-Up open',
+        title: `The Warm-Up is open in ${otherWarmup.assignment.title}`,
+        text: `It closes at ${otherWarmup.state.endsAt ? new Date(otherWarmup.state.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the end of its window'}.`,
+        action: {
+          label: 'Go to that Warm-Up',
+          onClick: () => {
+            setAssignmentStatusOpenFor(null);
+            setStudentDashboardMode('assignments');
+            startAssignment(otherWarmup.assignment.id, otherWarmup.questionIndices[0]);
+          },
+        },
+      });
+    }
+    // THE GRADE LINES, MOVED FROM THE NAVIGATOR (pass 3, RUN-7): Overview on a
+    // wide screen, the chip's panel on a phone. "Grade so far", never "if
+    // submitted now": there is no assignment-level submit (RUN-16).
+    const gradeSoFarLine = preview
+      ? `Preview progress · ${progress.correct}/${progress.total} correct`
+      : assignmentFeedbackHeld
+        ? 'Your score shows after your teacher releases it'
+        : lifecycle.isPracticeOnly
+          ? `Your grade: ${recordedGrade}% · set when the assignment closed`
+          : `Grade so far: ${recordedGrade}%`;
+    const gradeDetailLine = !preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
+      ? `${gradeSplit.attempted} of ${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on what you have answered`
+      : '';
+    // A student always has the chip on a phone: a status, or "More".
+    const assignmentChipShown = !preview && user?.role === 'student';
+    const assignmentStatusOpen = assignmentStatusOpenFor === activeAssignmentId && assignmentChipShown;
+    // The live challenge line's action leaves the assignment, as its banner does.
+    assignmentStatusLines.forEach((line) => {
+      if (line.key === 'liveChallenge') {
+        line.action = { label: 'Join Live Challenge', onClick: () => { setAssignmentStatusOpenFor(null); leaveAssignment(); setStudentDashboardMode('liveChallenge'); } };
+      }
+    });
+    // A locked tab's reason, while that section is still locked.
+    const lockNoteSection = sectionLockNote?.assignmentId === activeAssignmentId
+      ? navigationSections.find((section) => section.role === sectionLockNote.role)
+      : null;
+    const visibleSectionLockNote = lockNoteSection && !sectionNavigationTarget(lockNoteSection) ? sectionLockNote.text : '';
     const isLiveTeachingThisAssignment = preview
       && liveTeachingSession?.active
       && String(liveTeachingSession.assignmentId) === String(assignment.id);
@@ -9907,9 +10368,11 @@ function App() {
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(23 * var(--mm-px))' }}>{assignment.title}</h1>
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
+                {lifecycleBadge.label && <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>}
                 {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
+                {/* Which version a section hands out is the teacher's setting,
+                    not something a student acts on (pass 3, RUN-16). */}
+                {preview && <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>}
               </div>
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
                 {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
@@ -9969,37 +10432,46 @@ function App() {
                 <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
                     const meta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
-                    const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
                     const targetEntry = sectionNavigationTarget(section);
                     const sectionAvailable = Boolean(targetEntry);
+                    const access = sectionAccessFor(section.entries[0]);
+                    const readOnly = sectionAvailable && access.state === SECTION_ACCESS.READ_ONLY;
                     const active = currentNavigationSection?.role === section.role;
+                    const reasonId = `mathmaster-section-reason-${section.role}`;
+                    // A locked tab stays focusable (aria-disabled, not
+                    // disabled) so a keyboard or screen-reader student reaches
+                    // its reason; pressing it shows the reason on screen.
                     return (
-                      <button
-                        type="button"
-                        key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                        className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
-                        style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
-                        onClick={() => targetEntry && changeQuestion(targetEntry.index)}
-                        disabled={!sectionAvailable}
-                        aria-current={active ? 'page' : undefined}
-                        title={sectionAvailable
-                          ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
-                          : `${compactSectionLabel(section)} is not available yet.`}
-                      >
-                        {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
-                        <span className="mathmaster-section-tab-copy">
-                          <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
-                          <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
-                        </span>
-                      </button>
+                      <Fragment key={`section-tab-${section.role}-${section.entries[0]?.index}`}>
+                        <button
+                          type="button"
+                          className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}${readOnly ? ' is-read-only' : ''}`}
+                          style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                          onClick={() => (targetEntry
+                            ? changeQuestion(targetEntry.index)
+                            : setSectionLockNote({ assignmentId: activeAssignmentId, role: section.role, text: access.reason }))}
+                          aria-disabled={sectionAvailable ? undefined : 'true'}
+                          aria-current={active ? 'page' : undefined}
+                          aria-describedby={access.reason ? reasonId : undefined}
+                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.done} of ${section.progress.total} done.`}
+                        >
+                          {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                          <span className="mathmaster-section-tab-copy">
+                            <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                            <small>{sectionAvailable && !readOnly ? section.progress.label : `${sectionAvailable ? '' : '🔒 '}${access.short}`}</small>
+                          </span>
+                        </button>
+                        {access.reason && <span id={reasonId} style={SR_ONLY_STYLE}>{access.reason}</span>}
+                      </Fragment>
                     );
                   })}
                 </div>
               ) : (
                 <>
                   <div className="mathmaster-collapsed-current-location" role="status">
-                    <strong>{currentSectionMeta.label}</strong>
-                    <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
+                    <span className="mathmaster-location-long">Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <span className="mathmaster-location-short" aria-hidden="true">Q{currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
                   </div>
                   <div className="mathmaster-unified-question-controls mathmaster-focus-inline-controls">
                     <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
@@ -10008,34 +10480,51 @@ function App() {
                       value={currentQuestionIndex}
                       onChange={(event) => changeQuestion(Number(event.target.value))}
                     >
-                      {visibleQuestionEntries.map((entry) => {
-                        const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                        return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                      })}
+                      {visibleQuestionEntries.map((entry) => (
+                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                      ))}
                     </select>
                     <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
                   </div>
                 </>
               )}
-              {!assignmentNavigationCollapsed && (
+              {/* The Warm-Up's time, beside the section, in both navigator
+                  states (pass 3, RUN-14): on a phone the banner that carried
+                  it covered the task card, and its 2:00 / 0:30 warnings must
+                  not depend on whether "Show progress" is open. */}
+              {!preview && currentIsWarmup && warmupState.status === 'active' && (
+                <SectionTimeLeft compact label="Warm-Up" endsAt={warmupState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+              )}
+              {/* The phone's chip (wider screens keep the header and banners):
+                  the most urgent status, or "More" — where a phone student
+                  finds "Grade so far" and Support tools. */}
+              {assignmentChipShown && (
                 <button
                   type="button"
-                  className="mathmaster-overview-button"
-                  onClick={() => setAssignmentOverviewExpanded((current) => !current)}
-                  aria-expanded={assignmentOverviewExpanded}
+                  className={`mathmaster-assignment-status-chip is-${assignmentStatusLines[0]?.tone || 'more'}`}
+                  aria-expanded={assignmentStatusOpen}
+                  aria-controls={assignmentStatusOpen ? 'mathmaster-assignment-status-panel' : undefined}
+                  onClick={() => setAssignmentStatusOpenFor(assignmentStatusOpen ? null : activeAssignmentId)}
                 >
-                  <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                  {assignmentStatusLines.length
+                    ? `${assignmentStatusLines[0].chip}${assignmentStatusLines.length > 1 ? ` +${assignmentStatusLines.length - 1}` : ''}`
+                    : <>More <span aria-hidden="true">{assignmentStatusOpen ? '▴' : '▾'}</span></>}
                 </button>
               )}
               <button
                 type="button"
+                className="mathmaster-overview-button"
+                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                aria-expanded={assignmentOverviewExpanded}
+              >
+                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+              </button>
+              <button
+                type="button"
                 className="mathmaster-focus-view-button"
-                onClick={() => {
-                  setAssignmentNavigationCollapsed((current) => !current);
-                  if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
-                }}
+                onClick={toggleAssignmentNavigation}
                 aria-expanded={!assignmentNavigationCollapsed}
-                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide extra navigation to make more room for the problem'}
+                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide section progress to make more room for the problem'}
               >
                 {assignmentNavigationCollapsed ? 'Show progress' : 'Focus view'}
               </button>
@@ -10044,55 +10533,34 @@ function App() {
             {!assignmentNavigationCollapsed && (
             <div className="mathmaster-assignment-unified-bottom">
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
+                {/* Where the student is and what is left. The grade lines
+                    live in Overview (pass 3, RUN-7): four lines of grade text
+                    here pushed the work down on every question. */}
                 <div className="mathmaster-current-section-summary">
-                  <strong>{currentSectionMeta.label}</strong>
+                  <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
                   <span>
                     {currentNavigationSection?.complete
-                      ? '✓ Section complete'
-                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
+                      ? '✓ Section done'
+                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} done · ${currentSectionRemainingCount} left`}
                   </span>
-                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
-                  <small style={{ marginTop: 2, fontWeight: 900, color: currentSectionMeta.color }}>
-                    {preview
-                      ? `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`
-                      : assignmentFeedbackHeld
-                        ? `${currentSectionMeta.label} section score available after teacher release`
-                        : lifecycle.isPracticeOnly
-                          ? `${currentSectionMeta.label} section score ${currentSectionOfficialGrade?.score ?? 0}% · official grade frozen · practice score ${currentSectionGrade?.score ?? 0}%`
-                          : `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`}
-                  </small>
-                  <small style={{ marginTop: 2, fontWeight: 850, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
-                    {preview
-                      ? `Preview progress · ${progress.correct}/${progress.total} correct`
-                      : assignmentFeedbackHeld
-                        ? 'Score available after teacher release'
-                        : lifecycle.isPracticeOnly
-                          ? `Recorded grade ${recordedGrade}% · frozen`
-                          : `Current grade ${recordedGrade}% if submitted now`}
-                    {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
-                      ? ` · ${gradeSplit.attempted}/${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on attempted work`
-                      : ''}
-                  </small>
+                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</small>
                 </div>
-                <div className="mathmaster-question-number-strip" aria-label={`${currentSectionMeta.label} questions`}>
+                <div className="mathmaster-question-number-strip" role="group" aria-label={`${compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })} questions`}>
                   {(currentNavigationSection?.entries || []).map((entry) => {
-                    const record = normalizeQuestionRecord(workingTracker?.[entry.index]);
-                    const correct = record.status === 'correct';
-                    const attempted = record.totalAttempts > 0 && !correct;
+                    const shown = navigatorQuestionFor(entry);
                     const current = entry.index === currentQuestionIndex;
-                    const available = entryIsAvailable(entry);
-                    const status = correct ? 'correct' : attempted ? 'needs another try' : 'not attempted';
+                    const available = shown.status !== QUESTION_STATUS.LOCKED;
                     return (
                       <button
                         type="button"
                         key={`section-question-${entry.index}`}
-                        className={`mathmaster-question-number${current ? ' is-current' : ''}${correct ? ' is-correct' : ''}${attempted ? ' is-attempted' : ''}${available ? '' : ' is-locked'}`}
+                        className={`mathmaster-question-number is-${shown.status}${current ? ' is-current' : ''}${available ? '' : ' is-locked'}`}
                         style={{ '--section-color': currentSectionMeta.color, '--section-border': currentSectionMeta.border, '--section-bg': currentSectionMeta.background }}
                         onClick={() => available && changeQuestion(entry.index)}
                         disabled={!available}
                         aria-current={current ? 'step' : undefined}
-                        aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${available ? status : 'locked'}${current ? ', current question' : ''}`}
-                        title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1} · ${available ? status : 'locked'}`}
+                        aria-label={`${compactSectionLabel(entry)} question ${entry.sectionPosition + 1}: ${shown.spoken}${current ? ', current question' : ''}`}
+                        title={`${compactSectionLabel(entry)} Question ${entry.sectionPosition + 1} · ${shown.label}`}
                       >
                         {entry.sectionPosition + 1}
                       </button>
@@ -10108,81 +10576,120 @@ function App() {
                   value={currentQuestionIndex}
                   onChange={(event) => changeQuestion(Number(event.target.value))}
                 >
-                  {visibleQuestionEntries.map((entry) => {
-                    const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                    return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                  })}
+                  {visibleQuestionEntries.map((entry) => (
+                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                  ))}
                 </select>
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
               </div>
             </div>
             )}
-            {!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (
-              <StudentSupportTools
-                className="mathmaster-narrow-support-tools"
-                profile={user.profile}
-                onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
-              />
+            {visibleSectionLockNote && (
+              <p className="mathmaster-section-lock-note" role="status">
+                <span>{visibleSectionLockNote}</span>
+                <button type="button" onClick={() => setSectionLockNote(null)} aria-label="Close this note">×</button>
+              </p>
             )}
+            {assignmentStatusOpen && (
+              <div id="mathmaster-assignment-status-panel" className="mathmaster-assignment-status-panel">
+                {assignmentStatusLines.map((line) => (
+                  <div key={line.key} className={`mathmaster-assignment-status-line is-${line.tone}`}>
+                    <strong>{line.title}</strong>
+                    <span>{line.text}</span>
+                    {line.action && <button type="button" onClick={line.action.onClick}>{line.action.label}</button>}
+                  </div>
+                ))}
+                <div className="mathmaster-assignment-status-line is-grade">
+                  <strong>{gradeSoFarLine}</strong>
+                  {gradeDetailLine && <span>{gradeDetailLine}</span>}
+                </div>
+                {/* The header's Support tools (a teacher's materials, a
+                    formula sheet): the header is hidden where this panel
+                    shows, so the same panel rides here. */}
+                {!preview && user?.role === 'student' && (
+                  <StudentSupportTools
+                    className="mathmaster-narrow-support-tools"
+                    profile={user.profile}
+                    onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                  />
+                )}
+              </div>
+            )}
+            {/* The DOL's time, seconds in its last minute, with warnings at
+                2:00 and 0:30 (pass 3, RUN-10). Its end is the lifecycle
+                state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
-              <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
+              <div className="mathmaster-unified-nav-alert">
+                <SectionTimeLeft label="Exit ticket (DOL)" endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+              </div>
             )}
           </nav>
 
           {assignmentOverviewExpanded && (
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
+            {/* THE GRADE LINES, MOVED HERE FROM THE NAVIGATOR (pass 3, RUN-7).
+                "Grade so far", never "if submitted now": there is no
+                assignment-level submit (RUN-16). */}
+            <section aria-label="Your grade" className="mathmaster-overview-grade" style={{ padding: '11px 13px', borderRadius: '12px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', display: 'grid', gap: 3, textAlign: 'left' }}>
+              <strong style={{ fontSize: 'calc(15 * var(--mm-px))', color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
+                {gradeSoFarLine}
+              </strong>
+              {gradeDetailLine && <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{gradeDetailLine}</span>}
+            </section>
             {navigationSections.map((section) => {
               const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
+              const sectionName = compactSectionLabel(section);
+              const sectionGrade = currentSectionGrades[section.role] || null;
+              const sectionOfficialGrade = currentSectionOfficialGrades[section.role] || null;
+              const sectionHeld = section.entries.some((entry) => entryFeedbackHeld(entry));
+              const sectionScoreLine = preview
+                ? `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`
+                : sectionHeld
+                  ? 'Score shows after your teacher releases it'
+                  : lifecycle.isPracticeOnly
+                    ? `Section score ${sectionOfficialGrade?.score ?? 0}% (set) · practice ${sectionGrade?.score ?? 0}%`
+                    : `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`;
+              const sectionAccess = sectionAccessFor(section.entries[0]);
               return (
-                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.complete ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.complete ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
+                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionName} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.allCorrect ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.allCorrect ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
-                    {section.complete ? (
-                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
+                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionName}</strong>
+                    {section.allCorrect ? (
+                      <span aria-label={`${sectionName} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionName.toUpperCase()} COMPLETE</span>
                     ) : (
-                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
+                    <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{sectionScoreLine}</span>
+                    {sectionAccess.reason && <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{sectionAccess.reason}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: '10px' }}>
-                    {section.entries.map(({ index, sectionPosition, role: cardRole, isTimedDOLQuestion }) => {
+                    {section.entries.map((entry) => {
+                      const { index, sectionPosition } = entry;
                       const record = normalizeQuestionRecord(workingTracker?.[index]);
                       const cardAssessment = questionAssessmentFramework(questions[index] || {});
                       const cardAssessmentLabel = cardAssessment.examStyle && cardAssessment.framework
                         ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`
                         : '';
-                      const cardPolicy = getEffectiveActivityPolicy(cardRole);
-                      const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-                      const cardMaximumAttempts = resolveQuestionMaximumAttempts({
-                        question: questions[index],
-                        maximumAttempts: cardPolicy.attempts,
-                        activityPolicy: cardPolicy,
-                        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
-                          assignment,
-                          activityRole: cardRole,
-                          classId: user?.classId || null,
-                          studentId: user?.role === 'student' ? user.id : null,
-                        }),
-                      });
-                      const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
-                      const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
-                        ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', label: 'Submitted · feedback held' }
-                        : storedCardState;
-                      const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
-                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
-                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now, studentId: !preview && user?.role === 'student' ? user.id : undefined });
-                      const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
-                      const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
-                      const lockedLabel = warmupUnavailable
-                        ? (warmupState.status === 'waiting' ? `Opens ${warmupState.minutesBeforeStart} min before class` : 'Warm-Up is not open today')
-                        : manualSectionUnavailable
-                          ? (manualSectionState.status === 'scheduled' ? 'Opens with assignment' : 'Waiting for teacher to open')
-                          : 'Locked until DOL window';
+                      const shown = navigatorQuestionFor(entry);
+                      const sectionUnavailable = shown.status === QUESTION_STATUS.LOCKED;
+                      // Colour follows the same state as the words: green only
+                      // for a verdict the student may see.
+                      const cardState = shown.status === QUESTION_STATUS.CORRECT
+                        ? { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }
+                        : shown.status === QUESTION_STATUS.SUBMITTED
+                          ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }
+                          : shown.status === QUESTION_STATUS.CLOSED
+                            ? { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+                            : shown.status === QUESTION_STATUS.TRY_AGAIN
+                              ? { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
+                              : { background: 'var(--mm-surface)', color: 'var(--mm-text-strong)' };
                       return (
                         <button
                           type="button"
                           key={index}
                           onClick={() => !sectionUnavailable && changeQuestion(index)}
                           disabled={sectionUnavailable}
+                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}`}
                           style={{
                             padding: '14px',
                             cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
@@ -10198,10 +10705,10 @@ function App() {
                           }}
                         >
                           <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
-                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionMeta.label}</div>
+                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionName}</div>
                           {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
-                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
-                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
+                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{shown.label}</div>
+                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} {record.totalAttempts === 1 ? 'try' : 'tries'} used</div>}
                         </button>
                       );
                     })}
@@ -10280,7 +10787,7 @@ function App() {
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
-              onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
+              onNextQuestion={engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
               sectionComplete={Boolean(currentNavigationSection?.complete)}
@@ -10383,7 +10890,7 @@ function App() {
     <WhatChangedList
       items={whatChangedItems}
       compact={compact}
-      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? 'assignments' : 'grades' })}
+      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? NAV_LEVEL.HOME : NAV_LEVEL.GRADES })}
       onMarkSeen={() => { if (user?.id) markWhatChangedSeen(user.id, Date.now()); }}
     />
   );
@@ -10391,9 +10898,20 @@ function App() {
   // This is the authenticated-student shell boundary. Keeping identity here,
   // outside every destination, makes it survive Focus View, compact/mobile
   // assignment controls, Live Challenge, and screens that omit global nav.
-  const renderStudentIdentityShell = (content, { preview = false } = {}) => (
+  //
+  // `main`: the screen has no main landmark of its own, so the shell wraps it
+  // in one (NAV-15) — Home, Assignments, Grades, Rewards, Live Challenge,
+  // Test Cycle and Recovery. Screens that draw their own <main> (the result
+  // page, My Math Path, Tests & Exams, the assignment) keep the empty anchor.
+  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
       <SkipToContent />
+      {/* NAV-3: the new screen's name, said once after a screen change. */}
+      {!preview && (
+        <div role="status" aria-live="polite" aria-atomic="true" data-screen-announcement className="mm-visually-hidden">
+          {studentScreenAnnouncement}
+        </div>
+      )}
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
@@ -10418,11 +10936,23 @@ function App() {
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
       {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{studentSpotlightMessage}</div>}
-      {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
-      <div id={MAIN_CONTENT_ID} tabIndex={-1} />
-      {content}
+      {main ? (
+        // The screen's main landmark; the skip link enters it at its h1.
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} data-student-screen-main>
+          {content}
+        </main>
+      ) : (
+        <>
+          {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
+          <div id={MAIN_CONTENT_ID} tabIndex={-1} />
+          {content}
+        </>
+      )}
     </div>
   );
+
+  // A student screen with no main landmark of its own (NAV-15).
+  const renderStudentScreen = (content) => renderStudentIdentityShell(content, { main: true });
 
   // The address the page opened at, opened once the account has loaded
   // (app/routes/useUrlArrival.js). Called after every action it hands on is
@@ -10818,7 +11348,7 @@ function App() {
 
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -10851,6 +11381,7 @@ function App() {
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <MyMathPathApp
           studentId={user.id}
           studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}
@@ -10873,10 +11404,11 @@ function App() {
       );
     }
     if (studentDashboardMode === 'assignmentsCenter') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
             dashboard={studentDashboard}
             gradeCenter={studentGradeCenter}
@@ -10896,10 +11428,11 @@ function App() {
       );
     }
     if (studentDashboardMode === 'rewards') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentRewardsCenter
             student={{ ...studentRecord, ...user }}
             wallet={studentRewardWallet}
@@ -10919,10 +11452,11 @@ function App() {
       );
     }
     if (studentDashboardMode === 'grades') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
@@ -10930,8 +11464,8 @@ function App() {
             onNavigate={navigateStudent}
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
-            onPractice={(assignmentId) => startAssignment(assignmentId)}
-            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0)}
+            onPractice={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.GRADES })}
+            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.GRADES })}
             // The Today rule per row: no Start on work that cannot be done
             // now, Open Recovery, and Start lands on the next question.
             // The Today rule per row: no Start on work that cannot be done
@@ -10942,8 +11476,9 @@ function App() {
               if (way.action === 'none') return undefined; // waiting: nothing to open
               if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
               if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
-              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0);
-              return startAssignment(way.assignmentId); // 'openTestCycle' (startAssignment opens the cycle card)
+              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0, { origin: NAV_LEVEL.GRADES });
+              // 'openTestCycle' (startAssignment opens the cycle card)
+              return startAssignment(way.assignmentId, 0, { origin: NAV_LEVEL.GRADES });
             }}
             whatChangedPanel={renderWhatChangedPanel(false)}
           />
@@ -10953,11 +11488,12 @@ function App() {
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
       const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
       const activeTestCycleLateDueAt = activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null;
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
-          <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* The shell's <main> holds this screen (NAV-15). */}
+          <div style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
             <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
               <TestCycleCard
                 assignmentId={activeTestCycleAssignmentId}
@@ -10975,10 +11511,12 @@ function App() {
                 // ordinary runtime — restricted to the review questions.
                 onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
                 onPracticeSkill={practiseSkillFromResults}
-                onExit={openStudentAssignmentsCenter}
+                // Back names and opens the screen the card was opened from (NAV-9).
+                exitLabel={`← ${resolveBack(NAV_LEVEL.TEST_CYCLE, { origin: activeTestCycleOrigin })?.navLabel || 'Assignments'}`}
+                onExit={() => openStudentOriginLevel(activeTestCycleOrigin)}
               />
             </Suspense>
-          </main>
+          </div>
         </>,
       );
     }
@@ -10997,7 +11535,7 @@ function App() {
           onExit={() => setStudentDashboardMode('assignments')}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
-          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
+          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
           onPracticeSkill={practiseSkillFromResults}
           />
         </>,
@@ -11016,7 +11554,7 @@ function App() {
       dashboard,
       weeklyProgress: studentWeeklyPathProgress,
     });
-    return renderStudentIdentityShell(
+    return renderStudentScreen(
       <>
         {renderStudentPackUpBanner()}
         {/* No Warm-Up banner on Home: the next-action card (or its compact
@@ -11025,7 +11563,8 @@ function App() {
         dashboard={dashboard}
         // Never the student's support status: Home is read over shoulders.
         student={{ ...studentRecord, ...user }}
-        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
+        // From Home, Back on the result page says "← Home" and goes there (NAV-9).
+        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: NAV_LEVEL.HOME })}
         saveStatus={describeSaveStatus({
           persistenceStatus: studentPersistenceStatus,
           outboxDepth: studentOutboxDepth,
@@ -11033,10 +11572,11 @@ function App() {
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
+        whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}
         waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
-        onStartAssignment={startAssignment}
+        onStartAssignment={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.HOME })}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onNavigate={navigateStudent}
@@ -11104,11 +11644,19 @@ function App() {
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
+    // The skill this assignment teaches, for "Practice this skill" (NAV-8).
+    // A split Classroom post's section, a Test Cycle and an assignment with no
+    // Path skill have none.
+    const resultPathLaunch = resolveAssignmentPathLaunch({
+      assignment: recoveryAssignment,
+      questionIndex: assignmentResultRoute.questionIndex,
+      sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+    });
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
             mode={recoverySession.mode}
@@ -11127,34 +11675,33 @@ function App() {
       <>
         {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
         <StudentAssignmentResult
           entry={resultEntry}
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
           onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
-          onPractice={(assignmentId) => {
-            // "Practice This Skill" practises the skill: My Math Path opens on
-            // the TEKS this assignment teaches (assignmentPathLaunch.js). A
-            // split Classroom post's section practice, a Test Cycle and an
-            // assignment with no Path skill reopen the assignment as before.
-            const pathLaunch = resolveAssignmentPathLaunch({
-              assignment: assignments.find((item) => item.id === assignmentId),
-              questionIndex: assignmentResultRoute.questionIndex,
-              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-            });
-            if (pathLaunch) {
-              setPathLaunchTeks(pathLaunch.teksCode);
-              openStudentDashboardMode('mathPath');
-              return;
-            }
-            startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
-              // A split Classroom post practises its own section; a whole-assignment
-              // post practises the whole assignment. Keep the result route so the
-              // visible Back control returns here after practice.
-              sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
-              returnToResult: true,
-            });
-          }}
+          /*
+           * NAV-8: two things, two buttons. "Try these questions again — no
+           * credit" reopens THIS assignment (as the same words do on Home,
+           * Assignments and Grades); "Practice this skill" opens My Math Path
+           * on the TEKS it teaches (assignmentPathLaunch.js), and is offered
+           * only when there is one.
+           */
+          onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
+            // A split Classroom post practises its own section; a whole-assignment
+            // post practises the whole assignment. Keep the result route so the
+            // visible Back control returns here after practice.
+            sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+            returnToResult: true,
+            origin: assignmentResultRoute.origin,
+          })}
+          onPracticeSkill={resultPathLaunch ? () => {
+            setPathLaunchTeks(resultPathLaunch.teksCode);
+            openStudentDashboardMode('mathPath');
+          } : null}
+          notice={assignmentResultRoute.notice || null}
+          changes={whatChangedItems.filter((item) => item.assignmentId === assignmentResultRoute.assignmentId)}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
           // Decision 3: once the work is closed for this student and feedback

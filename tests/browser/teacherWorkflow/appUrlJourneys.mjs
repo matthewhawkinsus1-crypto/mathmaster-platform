@@ -172,6 +172,10 @@ const runStudentJourneys = async (viewport) => {
   await record(/Welcome, /);
   await page.getByRole('button', { name: /^Continue$/ }).filter({ visible: true }).first().click();
   await record(QUESTION);
+  // The navigator starts compact (pass 3); its question numbers are behind
+  // "Show progress".
+  const progress = page.locator('.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button');
+  if (await progress.count()) await progress.first().click();
   await page.locator('[title^="Classwork Question 1"]').filter({ visible: true }).first().click();
   await record(/[Qq]uestion 1 of 2/);
   await page.locator('[title^="Classwork Question 2"]').filter({ visible: true }).first().click();
@@ -377,7 +381,8 @@ const runExcusedJourney = async (viewport) => {
     await page.waitForTimeout(4000);
     expect(`U10 ${tag}`, pathOf(page) === `/assignments/${TODAY}/results`, `${probe} for an excused student went to ${pathOf(page)}`);
     expect(`U10 ${tag}`, !QUESTION.test(await bodyText(page)), `${probe} opened a question for an excused student`);
-    expect(`U10 ${tag}`, /excused/i.test(await toasts(page)), `${probe}: no excused message (${await toasts(page)})`);
+    // Said on the result page itself since student pass 3 (NAV-10), not in a toast.
+    expect(`U10 ${tag}`, /You are excused from this/.test(await page.locator('[data-result-notice="excused"]').innerText().catch(() => '')), `${probe}: no excused notice on the result page`);
   }
   await context.close();
   passed.push(`excused ${tag}`);

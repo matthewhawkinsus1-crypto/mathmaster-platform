@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import { exactFractionText, nearlyEqual } from '../shared/toolMath';
@@ -139,6 +140,9 @@ function BalanceSolver({ questionData = {}, onAction }) {
   };
 
   const startOver = () => { clearFeedback(); setState({ ...original }); setHistory([]); setOperand(''); setInputError(''); };
+  // Start over empties the history and so disables itself: it keeps the focus
+  // it had instead of dropping it to the page (A11Y-2).
+  const startOverAvailability = useFocusSafeDisabled(history.length > 0);
 
   const check = () => {
     const result = gradeToolCheck(stepAlgebra2Grader, questionData, work);
@@ -220,7 +224,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={apply} disabled={!operandIsUsable} style={{ ...primaryButton, opacity: operandIsUsable ? 1 : 0.5, cursor: operandIsUsable ? 'pointer' : 'not-allowed' }}>Apply to both sides</button>
-            <button className="mm-button-neutral" type="button" onClick={startOver} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
+            <button className="mm-button-neutral" type="button" onClick={() => { if (history.length) startOver(); }} {...startOverAvailability} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
           </div>
 
           <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 12, width: '100%', background: solved ? '#137333' : '#1a73e8' }}>

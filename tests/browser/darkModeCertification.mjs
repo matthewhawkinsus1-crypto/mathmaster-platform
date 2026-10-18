@@ -7,7 +7,7 @@
  *
  *   AUDIT_ORIGIN (default http://localhost:5199), TEACHER_HARNESS_ORIGIN
  *   (default http://127.0.0.1:5188), PLAYWRIGHT_MODULE / CHROMIUM_PATH,
- *   ONLY=workview|app to run one part, DARK_MODE_CERTIFICATION_SHOTS for
+ *   ONLY=workview|plotted|app to run one part, DARK_MODE_CERTIFICATION_SHOTS for
  *   artifacts (default tests/browser/artifacts/darkMode, git-ignored).
  *
  * PART 1 — WORK VIEW. Assignment controls, MathLive, tables, feedback and three
@@ -127,6 +127,159 @@ if (!ONLY || ONLY === 'workview') {
     }
   }
   console.log('Part 1: Work View controls, MathLive, tables, feedback and representative tools certified in light and dark.');
+}
+
+// ----------------------------------------------------------------- PART 1B
+// PLOTTED SCENES (pass 3, A11Y-4). Part 1's scenes have nothing plotted, and its
+// contrast check reads CSS `color`, which SVG text does not use: point labels
+// drawn #24324a on the dark plane (about 1.35:1) passed it. These scenes put
+// marks on the drawings — Graphing with given and plotted points, the 3D model
+// of three planes, a mapping diagram with arrows — and measure what is painted:
+// each SVG text's `fill` against the shape it sits on (4.5:1), and the marks a
+// student must see (points, axes, intersection lines, arrows) against the
+// drawing's background (3:1, WCAG 1.4.11).
+const PLOTTED_SCENES = [
+  {
+    scene: 'given-and-plotted-points',
+    tool: 'graphing2',
+    spec: { mode: 'throughPoints', givenPoints: [[0, 1], [2, 5]] },
+    async act(page, root) {
+      const plane = root.locator('svg.mathmaster-responsive-canvas[role="application"]').first();
+      await plane.waitFor({ timeout: 30000 });
+      await plane.focus();
+      await page.keyboard.press('Enter');
+      for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('Enter');
+      await page.waitForFunction((selector) => document.querySelectorAll(`${selector} [data-point-label]`).length >= 4, '[data-stage4-scene="given-and-plotted-points"]');
+      // Measure the plotted state, not the keyboard crosshair's readout chip.
+      await page.evaluate(() => document.activeElement?.blur?.());
+    },
+    marks: 'svg.mathmaster-responsive-canvas circle[stroke="#fff"], svg.mathmaster-responsive-canvas [data-point-shape="square"]',
+    async expect(root) {
+      const labels = await root.locator('[data-point-label]').allTextContents();
+      assert.deepEqual(labels.sort(), ['P1', 'P2', 'given 1', 'given 2'], 'every point is labelled');
+      assert.equal(await root.locator('[data-point-shape="square"]').count(), 2, 'the given points are squares, not only purple');
+    },
+  },
+  {
+    scene: 'three-planes',
+    tool: 'systemsWorkspace',
+    spec: {
+      mode: 'spatial',
+      spatialModel: { kind: 'threePlanes' },
+      equations: ['x + y + z = 6', 'x - y + z = 2', '2x + y - z = 1'],
+      variables: ['x', 'y', 'z'],
+    },
+    async act(page, root) {
+      await root.locator('svg[role="application"] g[role="img"]').first().waitFor({ timeout: 30000 });
+    },
+    marks: '[data-intersection-line], svg[role="application"] g[role="img"] > g > line',
+    async expect(root) {
+      assert.equal(await root.locator('[data-axis-name]').count(), 3, 'the three axes are named');
+    },
+  },
+  {
+    scene: 'mapping-arrows',
+    tool: 'relationMapping',
+    spec: {},
+    async act(page, root) {
+      for (const [x, y] of [[-2, 3], [1, 2]]) {
+        await root.locator(`[data-domain-node="${x}"]`).click();
+        await root.locator(`[data-range-node="${y}"]`).click();
+      }
+      await page.waitForFunction(() => document.querySelectorAll('[data-mapping-arrows] button').length === 2);
+    },
+    // The arrows, and the node rings (controls: their outline is what shows them).
+    marks: 'svg[aria-label="Mapping diagram"] line, [data-domain-node] circle, [data-range-node] circle',
+    async expect(root) {
+      assert.equal(await root.locator('svg[aria-label="Mapping diagram"] line').count(), 2, 'both arrows are drawn');
+    },
+  },
+];
+
+// Runs in the page. Contrast of what the drawing paints.
+const measurePlotted = (root, marksSelector) => {
+  const parse = (value) => {
+    const channels = (String(value).match(/[\d.]+/g) || []).map(Number);
+    return { rgb: channels.slice(0, 3), alpha: channels.length > 3 ? channels[3] : 1 };
+  };
+  const luminance = (value) => {
+    const channels = parse(value).rgb.map((entry) => { const n = entry / 255; return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const ratio = (a, b) => { const x = luminance(a); const y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const painted = (value) => Boolean(value) && value !== 'none' && parse(value).alpha > 0.5;
+  const cssBackground = (node) => {
+    for (let current = node; current; current = current.parentElement) {
+      const value = getComputedStyle(current).backgroundColor;
+      if (parse(value).alpha > 0) return value;
+    }
+    return getComputedStyle(document.documentElement).backgroundColor;
+  };
+  // The last opaque shape drawn under (x, y) before `element`: the plane's
+  // graph rect, a node's circle, a column's ellipse; else the svg's background.
+  const backdropAt = (element, x, y) => {
+    const svg = element.ownerSVGElement;
+    const shapes = [...svg.querySelectorAll('rect, circle, ellipse')]
+      .filter((shape) => shape !== element && !element.contains(shape) && !shape.contains(element)
+        && (shape.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))
+      .filter((shape) => {
+        const style = getComputedStyle(shape);
+        if (!painted(style.fill) || Number(style.fillOpacity) < 0.5 || Number(style.opacity) < 0.5) return false;
+        const box = shape.getBoundingClientRect();
+        return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+      });
+    return shapes.length ? getComputedStyle(shapes.at(-1)).fill : cssBackground(svg);
+  };
+  // A horizontal or vertical line has a zero-height (or zero-width) box.
+  const visible = (element) => { const box = element.getBoundingClientRect(); return element.tagName === 'line' ? box.width > 0 || box.height > 0 : box.width > 0 && box.height > 0; };
+  const failures = [];
+  const texts = [...root.querySelectorAll('svg text')].filter((text) => visible(text) && text.textContent.trim());
+  for (const text of texts) {
+    const box = text.getBoundingClientRect();
+    const fill = getComputedStyle(text).fill;
+    const backdrop = backdropAt(text, box.left + box.width / 2, box.top + box.height / 2);
+    const value = ratio(fill, backdrop);
+    if (value < 4.5) failures.push(`text "${text.textContent.trim().slice(0, 30)}" ${fill} on ${backdrop} = ${value.toFixed(2)}:1`);
+  }
+  const marks = [...root.querySelectorAll(marksSelector)].filter(visible);
+  for (const mark of marks) {
+    const style = getComputedStyle(mark);
+    // Lines and node rings are seen by their stroke; points and squares by their fill.
+    const colour = mark.tagName === 'line' || mark.closest('[data-domain-node], [data-range-node]') ? style.stroke : style.fill;
+    const box = mark.getBoundingClientRect();
+    const backdrop = backdropAt(mark, box.left + box.width / 2, box.top + box.height / 2);
+    const value = ratio(colour, backdrop);
+    if (value < 3) failures.push(`${mark.tagName} ${colour} on ${backdrop} = ${value.toFixed(2)}:1`);
+  }
+  return { failures, texts: texts.length, marks: marks.length };
+};
+
+if (!ONLY || ONLY === 'workview' || ONLY === 'plotted') {
+  for (const [device, width, height] of [['chromebook', 1366, 768], ['phone-portrait', 390, 844]]) {
+    for (const theme of ['light', 'dark']) {
+      const context = await browser.newContext({ viewport: { width, height }, colorScheme: theme });
+      const page = await context.newPage();
+      await page.goto(`${origin}/tests/browser/workViewCertification.html`, { waitUntil: 'networkidle' });
+      await page.waitForFunction(() => typeof window.__mmStage4 === 'function', null, { timeout: 90_000 });
+      await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
+      for (const { scene, tool, spec, act, marks, expect } of PLOTTED_SCENES) {
+        await page.evaluate(([id, overrides, name]) => window.__mmStage4(id, overrides, name), [tool, spec, scene]);
+        const root = page.locator(`[data-stage4-scene="${scene}"]`);
+        await root.waitFor();
+        await act(page, root);
+        await page.waitForTimeout(300);
+        await expect(root);
+        const measured = await root.evaluate(measurePlotted, marks);
+        report.workView.push({ device, theme, scene, texts: measured.texts, marks: measured.marks });
+        assert.ok(measured.texts > 0 && measured.marks > 0, `${device}/${theme}/${scene}: the scene has text and marks to measure`);
+        assert.deepEqual(measured.failures, [], `${device}/${theme}/${scene}: low-contrast drawing`);
+        await root.screenshot({ path: path.join(shots, `${device}-${theme}-plotted-${scene}.png`) });
+      }
+      await context.close();
+    }
+  }
+  console.log('Part 1B: plotted points, the 3D model and a drawn mapping diagram measured in light and dark (SVG fill and stroke).');
 }
 
 // ------------------------------------------------------------------ PART 2

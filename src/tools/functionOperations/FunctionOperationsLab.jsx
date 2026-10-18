@@ -3,6 +3,7 @@ import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import functionOperationsGrader from '../../../functions/shared/serverGrading/tools/functionOperationsLab.mjs';
 import MathInput from '../../MathInput.jsx';
@@ -59,6 +60,14 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
   // student four empty boxes they had already filled in.
   const [responses, setResponses] = usePersistentToolState('responses', () => Object.fromEntries(operations.map((operation) => [operation, ''])));
   const [restrictionResponse, setRestrictionResponse] = usePersistentToolState('restrictionResponse', '');
+
+  // Universal Undo over every answer box (TOOL-2, useFieldUndoHistory.js); an
+  // Undo clears the verdict as an edit does.
+  useFieldUndoHistory({
+    questionData,
+    fields: { responses: [responses, setResponses], restrictionResponse: [restrictionResponse, setRestrictionResponse] },
+    onRestore: () => clearFeedback?.(),
+  });
 
   const setResponse = (operation, value) => {
     clearFeedback?.();

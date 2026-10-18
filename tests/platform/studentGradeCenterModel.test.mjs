@@ -8,6 +8,7 @@ import {
   buildStudentGradeCenter,
   findGradeCenterEntry,
   gradeCountsTowardPeriod,
+  missingGradeWarning,
   resolveGradeStatus,
   summarizeGradeEntries,
 } from '../../src/platform/student/studentGradeCenterModel.js';
@@ -391,4 +392,38 @@ test('the Grade Center only ever shows this student\'s own class assignments', (
   });
   assert.equal(findGradeCenterEntry(gradeCenter, 'other'), null);
   assert.equal(gradeCenter.entries.length, 1);
+});
+
+/*
+ * NAV-2 / D4: the big number keeps leaving missing work out, and the line
+ * under it says so — the count, and that Google Classroom may be lower.
+ */
+test('NAV-2: missing work puts "N missing — your Classroom grade may be lower" under the number', () => {
+  assert.equal(missingGradeWarning({ missing: 0 }), null);
+  assert.equal(missingGradeWarning({}), null);
+  assert.equal(missingGradeWarning(null), null);
+  assert.deepEqual(missingGradeWarning({ missing: 1 }), {
+    count: 1, text: '1 missing — your Classroom grade may be lower', actionLabel: 'Show the missing assignment',
+  });
+  assert.equal(missingGradeWarning({ missing: 3 }).text, '3 missing — your Classroom grade may be lower');
+  assert.equal(missingGradeWarning({ missing: 3 }).actionLabel, 'Show the 3 missing assignments');
+  // The count is the summary's own: the rule for the number is unchanged.
+  const summary = summarizeGradeEntries([
+    { status: GRADE_STATUS.MISSING, countsTowardPeriodGrade: false },
+    { status: GRADE_STATUS.MISSING, countsTowardPeriodGrade: false },
+    { status: GRADE_STATUS.GRADED, countsTowardPeriodGrade: true, weights: { earnedWeight: 9, possibleWeight: 10 } },
+  ]);
+  assert.equal(summary.score, 90);
+  assert.equal(missingGradeWarning(summary).count, 2);
+
+  // The screen draws it under the number and makes the chip a control that
+  // reveals the missing rows (the browser proof: tests/browser/studentGradesRaise.mjs).
+  const screen = executableSource(readFileSync(new URL('../../src/components/student/StudentGradeCenter.jsx', import.meta.url), 'utf8'));
+  const summaryRegion = screen.slice(screen.indexOf('function PeriodSummary'), screen.indexOf('function GradeMath'));
+  assert.match(summaryRegion, /const missingWarning = missingGradeWarning\(summary\);/);
+  assert.match(summaryRegion, /\{missingWarning && \(\s*<p data-missing-warning[^>]*>\s*\{missingWarning\.text\}/);
+  assert.match(summaryRegion, /<button[\s\S]*?data-show-missing[\s\S]*?onClick=\{\(\) => onShowMissing\(\)\}/);
+  const group = screen.slice(screen.indexOf('function PeriodGroup'), screen.indexOf('export default function StudentGradeCenter'));
+  assert.match(group, /querySelector\(`\[data-grade-status="\$\{GRADE_STATUS\.MISSING\}"\]`\)/);
+  assert.match(group, /row\.focus\(/);
 });

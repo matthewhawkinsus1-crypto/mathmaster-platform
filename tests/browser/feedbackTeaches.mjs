@@ -268,8 +268,11 @@ for (const device of DEVICES) {
     check(await actions.getByRole('button', { name: /Translate/ }).isVisible(), `${device.name}: an entitled student can translate a hint`);
     await actions.getByRole('button', { name: /Translate/ }).click();
     await page.waitForTimeout(600);
+    // Student pass 3, HELP-3: Translate is offered only when it will show the
+    // student's language, so pressing it shows Spanish — never "not available".
     const translated = await actions.textContent();
-    check(/Show English|not available/.test(translated), `${device.name}: Translate answers (a translation, or says there is none)`, translated.slice(0, 160));
+    const spanish = actions.locator('[data-translated-text][lang="es"]');
+    check(/Show English/.test(translated) && await spanish.count() === 1 && /\b(Tanto|te dicen|igual)\b/.test(await spanish.textContent()), `${device.name}: Translate shows the hint in Spanish`, translated.slice(0, 160));
     await context.close();
   }
 }

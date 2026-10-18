@@ -15,7 +15,7 @@ import { describeAnswerFormat } from './platform/interaction/answerFormatHints.j
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceAccessibleLabel, choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -58,26 +58,6 @@ const shouldUseInequalityInput = (field) => {
   return acceptedAnswersForField(field).some((value) => /[<>≤≥]/.test(String(value)));
 };
 
-
-const inferredBinaryOptions = (field) => {
-  const label = String(field?.label || field?.prompt || '').toLowerCase();
-  const answer = String(field?.answer ?? field?.acceptedAnswers?.[0] ?? '').trim().toLowerCase();
-  const patterns = [
-    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
-    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
-    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
-    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
-  ];
-  const match = patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer));
-  return match?.options || null;
-};
-
-const choiceOptionsForField = (field, seed = '') => {
-  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
-  const options = authored || inferredBinaryOptions(field);
-  if (!options) return null;
-  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
-};
 
 const shouldUsePlainTextInput = (field) => {
   if (field?.type === 'text' || field?.inputMode === 'text') return true;

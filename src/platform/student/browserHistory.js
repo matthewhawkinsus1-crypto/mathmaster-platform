@@ -84,10 +84,24 @@ export const normalizeStudentRoute = (route = {}) => {
     };
   }
 
-  return {
-    surface,
-    dashboardMode: cleanString(route.dashboardMode, 'assignments'),
-  };
+  const dashboardMode = cleanString(route.dashboardMode, 'assignments');
+  /*
+   * A TEST CYCLE ENTRY NAMES ITS TEST (student pass 3, NAV-9).
+   *
+   * The card is addressed by assignment, like a result. An entry holding only
+   * the mode restored "testCycle" with no test: browser Back showed Home under
+   * a /test-cycle address, and two tests in a row restored the wrong card.
+   * Where it was opened from rides along, so its Back still names that place.
+   */
+  if (dashboardMode === 'testCycle') {
+    return {
+      surface,
+      dashboardMode,
+      testCycleAssignmentId: cleanString(route.testCycleAssignmentId),
+      origin: cleanString(route.origin, 'assignments'),
+    };
+  }
+  return { surface, dashboardMode };
 };
 
 export const normalizeMathPathRoute = (route = {}) => ({
@@ -108,6 +122,7 @@ export const studentRouteKey = (route = {}) => {
     // and collapsing them into one entry would lose that.
     return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}:${normalized.origin}`;
   }
+  if (normalized.dashboardMode === 'testCycle') return `dashboard:testCycle:${normalized.testCycleAssignmentId}`;
   return `dashboard:${normalized.dashboardMode}`;
 };
 

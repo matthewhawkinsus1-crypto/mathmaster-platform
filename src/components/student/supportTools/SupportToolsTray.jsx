@@ -6,6 +6,7 @@ import {
 import { LANGUAGE_NAMES, resolveTranslation } from '../../../platform/language/translationProviders.js';
 import { loadMathGlossary } from '../../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/language/speechText.js';
+import { questionReadingText } from '../../../platform/language/questionReading.js';
 
 /*
  * THE SUPPORT TOOLS TRAY — loaded only for a student entitled to a language
@@ -33,8 +34,12 @@ const ICON = {
   [SUPPORT_TOOL.VOCABULARY]: '📖',
   [SUPPORT_TOOL.READ_ALOUD]: '🔊',
   [SUPPORT_TOOL.SAY_IT]: '💬',
+  'read-parts': '🔊',
 };
 
+// Not a support of its own: the parts of Read aloud, offered beside the work
+// bar's whole-question Read.
+const READ_PARTS = 'read-parts';
 const languageName = (code) => LANGUAGE_NAMES[String(code || '').split('-')[0]] || String(code || '').toUpperCase();
 const isSpanish = (code) => String(code || '').toLowerCase().startsWith('es');
 
@@ -116,6 +121,27 @@ function SayItPanel({ tool, language }) {
   );
 }
 
+/*
+ * HEAR ONE PART AGAIN (pass 3, HELP-6). Read aloud says the whole question;
+ * a student who missed the choices of part 2, or the matrix, plays just that
+ * part. The parts are the reader's own (platform/language/questionReading.js),
+ * in screen order.
+ */
+function ReadPartsPanel({ parts, onRead }) {
+  return (
+    <div data-support-panel="read-parts">
+      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>Hear one part again</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+        {parts.map((part) => (
+          <button key={part.id} type="button" data-read-part={part.kind} onClick={() => onRead(part)} aria-label={`Read ${part.label} aloud`} style={{ ...BUTTON, minHeight: 36 }}>
+            <span aria-hidden="true">🔊</span> {part.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StepsBox({ tool, open, onToggle }) {
   const steps = tool.chunks?.steps || [];
   return (
@@ -144,6 +170,8 @@ function StepsBox({ tool, open, onToggle }) {
 export default function SupportToolsTray({
   entitlement,
   prompt = '',
+  readingParts = null,
+  readingLanguage = null,
   question = null,
   toolType = '',
   surface = 'assignment',
@@ -221,34 +249,60 @@ export default function SupportToolsTray({
     evidenceRef.current?.({ supportId: tool.supportId, eventType: 'used', details: { surface } });
   };
 
+  // What Read aloud says: the whole question, in parts — or, from a host that
+  // passes none, the prompt alone.
+  const parts = Array.isArray(readingParts) && readingParts.length ? readingParts : null;
+  const wholeReading = parts ? questionReadingText(parts) : prompt;
+  // Read aloud is entitled here but the work bar carries the whole-question
+  // Read (includeReadAloud false): the tray still offers the parts.
+  const readAloudTool = (model.tools || []).find((tool) => tool.tool === SUPPORT_TOOL.READ_ALOUD);
+  const entitledReadAloud = entitlement?.tools?.includes(SUPPORT_TOOL.READ_ALOUD);
+  const partsOffered = Boolean(parts && parts.length > 1 && speech && !speechFailed && entitledReadAloud);
+  const partsOnly = partsOffered && !readAloudTool;
+
   const shown = visibleTools(model);
   const steps = shown.find((tool) => tool.tool === SUPPORT_TOOL.BREAK_IT_DOWN);
   const buttons = shown.filter((tool) => tool.tool !== SUPPORT_TOOL.BREAK_IT_DOWN);
-  if (!shown.length) return null;
+  if (!shown.length && !partsOnly) return null;
 
+  const spokenLanguage = readingLanguage || (question?.authoredPrompt !== undefined ? entitlement.language : 'en');
+  const readTool = readAloudTool || { tool: SUPPORT_TOOL.READ_ALOUD, supportId: 'text-to-speech', universal: entitlement?.universal?.includes(SUPPORT_TOOL.READ_ALOUD) };
+  const readPart = (part) => {
+    if (speakAloud(part.text, { language: spokenLanguage, functionNames: part.functionNames })) recordUse(readTool);
+    else setSpeechFailed(true);
+  };
   const press = (tool) => {
     if (tool.tool === SUPPORT_TOOL.READ_ALOUD) {
-      const spokenLanguage = question?.authoredPrompt !== undefined ? entitlement.language : 'en';
-      if (speakAloud(prompt, { language: spokenLanguage })) recordUse(tool);
-      else setSpeechFailed(true);
+      if (speakAloud(wholeReading, { language: spokenLanguage })) {
+        recordUse(tool);
+        // The parts open under it, so the student can hear one again.
+        if (partsOffered) setOpenTool(SUPPORT_TOOL.READ_ALOUD);
+      } else setSpeechFailed(true);
+      return;
+    }
+    if (tool.tool === READ_PARTS) {
+      setOpenTool((current) => (current === READ_PARTS ? null : READ_PARTS));
       return;
     }
     setOpenTool((current) => (current === tool.tool ? null : tool.tool));
     recordUse(tool);
   };
-  const open = buttons.find((tool) => tool.tool === openTool) || null;
+  const partsButton = partsOnly ? [{ tool: READ_PARTS, label: 'Read a part' }] : [];
+  const allButtons = [...buttons, ...partsButton];
+  const open = allButtons.find((tool) => tool.tool === openTool) || null;
+  const partsOpen = partsOffered && (openTool === READ_PARTS || openTool === SUPPORT_TOOL.READ_ALOUD);
 
   return (
     <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label="Support tools">
-      {buttons.length > 0 && (
+      {allButtons.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
           <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
-          {buttons.map((tool) => (
+          {allButtons.map((tool) => (
             <button
               key={tool.tool}
               type="button"
               data-support-tool={tool.tool}
-              aria-expanded={tool.tool === SUPPORT_TOOL.READ_ALOUD ? undefined : openTool === tool.tool}
+              aria-expanded={tool.tool === SUPPORT_TOOL.READ_ALOUD ? (partsOffered ? partsOpen : undefined) : openTool === tool.tool}
               onClick={() => press(tool)}
               style={{ ...BUTTON, background: openTool === tool.tool ? 'var(--mm-primary-soft)' : BUTTON.background }}
             >
@@ -258,7 +312,12 @@ export default function SupportToolsTray({
         </div>
       )}
       {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
-      {open && (
+      {partsOpen && (
+        <div role="region" aria-label="Read a part" style={PANEL}>
+          <ReadPartsPanel parts={parts} onRead={readPart} />
+        </div>
+      )}
+      {open && !partsOpen && open.tool !== SUPPORT_TOOL.READ_ALOUD && (
         <div role="region" aria-label={open.label} style={PANEL}>
           {open.tool === SUPPORT_TOOL.TRANSLATE && <TranslatePanel tool={open} />}
           {open.tool === SUPPORT_TOOL.VOCABULARY && <VocabularyPanel tool={open} language={entitlement.language} onFailed={() => setGlossaryFailed(true)} />}

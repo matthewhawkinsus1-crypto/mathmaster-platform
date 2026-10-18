@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -13,6 +13,8 @@ import {
 } from './inverseDerivationMath';
 import { DEFAULT_INVERSE_LAB_F, functionLabel } from './inverseCompositionMath';
 import { SubmitText } from '../shared/ToolRuntimeContext';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const inputStyle = {
   width: '100%',
@@ -102,10 +104,28 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
     }
   };
 
-  const undo = () => {
-    setDerivation((current) => applyInverseDerivationOperation(current, 'undo'));
+  /*
+   * ONE UNDO, THE PLATFORM'S (TOOL-2). This lab had an Undo of its own beside
+   * a permanently greyed ↶ Undo in the work bar: two buttons, one working.
+   * The derivation already carries its step history, so the platform history
+   * over it takes back exactly one step — a swap, a balanced operation, or
+   * Start over — and the number the student had typed for that step comes
+   * back with it.
+   */
+  const undoState = useMemo(() => ({ derivation, operation, operand }), [derivation, operation, operand]);
+  const restoreDerivation = useCallback((restored) => {
+    if (restored?.derivation) setDerivation(restored.derivation);
+    if (typeof restored?.operation === 'string') setOperation(restored.operation);
+    setOperand(typeof restored?.operand === 'string' ? restored.operand : '');
     setOperationError('');
-  };
+  }, [setDerivation, setOperation, setOperand]);
+  useMathUndoHistory({
+    label: 'Undo your last step',
+    state: undoState,
+    onRestore: restoreDerivation,
+    resetKey: questionUndoResetKey(questionData),
+    persist: true,
+  });
 
   const startOver = () => {
     setDerivation(makeInitial());
@@ -154,14 +174,15 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
             The first required inverse step is to exchange the input and output variables. That creates the inverse relation you will solve for y.
           </p>
-          <button
-            type="button"
+          {/* Done once: it disables itself on the press that uses it, and keeps
+              focus while it is focused (FocusSafeButton). */}
+          <FocusSafeButton
             onClick={swapVariables}
-            disabled={swapped}
+            enabled={!swapped}
             style={{ ...buttonStyle, background: swapped ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: swapped ? 'var(--mm-text-muted)' : '#fff' }}
           >
             {swapped ? '✓ x and y swapped' : 'Swap x and y'}
-          </button>
+          </FocusSafeButton>
         </Panel>
 
         <Panel title="2 · Balanced algebra workspace">
@@ -201,15 +222,15 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           {operationError ? <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{operationError}</div> : null}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-            <button
-              type="button"
+            {/* Applying clears the number, which disables this button under the
+                student's focus (FocusSafeButton keeps it). */}
+            <FocusSafeButton
               onClick={applyOperation}
-              disabled={!swapped || solved || operand === ''}
+              enabled={swapped && !solved && operand !== ''}
               style={{ ...buttonStyle, background: !swapped || solved || operand === '' ? 'var(--mm-surface-control)' : '#1a73e8', color: !swapped || solved || operand === '' ? 'var(--mm-text-muted)' : '#fff' }}
             >
               Apply to both sides
-            </button>
-            <button type="button" onClick={undo} disabled={!derivation.history?.length} style={{ ...buttonStyle, background: 'var(--mm-primary-subtle)', color: 'var(--mm-text)' }}>Undo</button>
+            </FocusSafeButton>
             <button type="button" onClick={startOver} style={{ ...buttonStyle, background: 'var(--mm-primary-subtle)', color: 'var(--mm-text)' }}>Start over</button>
           </div>
         </Panel>

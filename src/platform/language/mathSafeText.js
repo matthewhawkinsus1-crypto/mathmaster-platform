@@ -43,6 +43,17 @@ const ONE_LETTER_WORDS = Object.freeze({
 });
 const oneLetterWordsFor = (language) => ONE_LETTER_WORDS[String(language || 'en').toLowerCase().split('-')[0]] || ONE_LETTER_WORDS.en;
 
+// Words a separate axis letter belongs to (see step 3b of segmentMathText).
+const AXIS_VOCABULARY = Object.freeze({
+  es: {
+    nouns: new Set(['eje', 'ejes', 'coordenada', 'coordenadas']),
+    of: new Set(['de', 'en']),
+    // "valores de x" (x-values), "términos en x" (x-terms). Never the
+    // singular "valor de x": that is the value of the variable x.
+    valueNouns: new Set(['valores', 'término', 'términos']),
+  },
+});
+
 const DELIMITED = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
 const LATEX_COMMAND = /\\[a-zA-Z]+(?:\s*\{[^{}]*\})*/g;
 
@@ -128,9 +139,11 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   // A pair of prices on one line ("$4 and $5", "$15.75, medium baskets for
   // $25") is not a LaTeX span, and neither is a price and list punctuation
   // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
+  // A number with nothing between it and the closing sign ("$7$") is a span:
+  // it is how a LaTeX author writes the number 7, never a price (PR-4).
   collect(DELIMITED, (value) => (
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
-    && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]*\$$/.test(value)
+    && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value)
   ) || /[\\{}^=]/.test(value));
   collect(LATEX_COMMAND);
   protectedSpans.sort((a, b) => a.start - b.start);
@@ -198,6 +211,47 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
     }
     atom.kind = kind === 'word' ? 'text' : kind;
   });
+
+  // 3a. A hyphen that joins mathematics to a word is part of the word, not a
+  //     minus: "$x$-terms", "$y$-intercept". Read as math it was spoken
+  //     "x minus terms" and carried into a translation as "x-".
+  atoms.forEach((atom, index) => {
+    if (atom.kind !== 'math' || !/^[-‐‑]$/.test(atom.value)) return;
+    const before = atoms[index - 1];
+    const after = atoms[index + 1];
+    if (before?.kind === 'math' && /^\$|\$$/.test(before.value) && after?.kind === 'text' && /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,}/.test(after.value)) atom.kind = 'text';
+  });
+
+  // 3b. Axis vocabulary is a word, not a variable. English writes it as one
+  //     hyphenated word ("x-axis", "y-coordinate", "x-values"), which is
+  //     already text; Spanish writes the letter apart ("eje x", "coordenada
+  //     y", "valores de x"). There the letter is part of the word, so a
+  //     translation of "the x-axis" carries no stray variable.
+  const AXIS_WORDS = AXIS_VOCABULARY[String(language || 'en').toLowerCase().split('-')[0]];
+  if (AXIS_WORDS) {
+    const wordBefore = (index, skip = 0) => {
+      let cursor = index - 1;
+      let seen = 0;
+      while (cursor >= 0) {
+        const atom = atoms[cursor];
+        if (atom.kind === 'space') { cursor -= 1; continue; }
+        if (atom.kind !== 'text') return null;
+        if (seen === skip) return atom.value.toLowerCase();
+        seen += 1;
+        cursor -= 1;
+      }
+      return null;
+    };
+    atoms.forEach((atom, index) => {
+      if (atom.kind !== 'math' || !/^[xyz]$/.test(atom.value)) return;
+      // "eje x = 3" is not vocabulary; "eje x," and "eje x del" are.
+      let next = index + 1;
+      while (atoms[next]?.kind === 'space') next += 1;
+      if (atoms[next] && atoms[next].kind !== 'punct' && atoms[next].kind !== 'text') return;
+      const before = wordBefore(index);
+      if (AXIS_WORDS.nouns.has(before) || (AXIS_WORDS.of.has(before) && AXIS_WORDS.valueNouns.has(wordBefore(index, 1)))) atom.kind = 'text';
+    });
+  }
 
   // 4. Join: consecutive math atoms (with only spaces between) become one run.
   //    A sentence-final period after math stays text; a comma or semicolon

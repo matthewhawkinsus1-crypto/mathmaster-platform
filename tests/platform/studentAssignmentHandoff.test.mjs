@@ -38,7 +38,9 @@ test('App offers only an INCOMPLETE later section, then the results (with its im
 });
 
 test('the continue button only leads to a question workable NOW — never a closed Warm-Up or ended DOL', () => {
-  const workable = region(app, 'const entryIsWorkableNow = (entry) => {', 'const nextAvailableIncompleteSection', 'workable-now gate');
+  const workable = region(app, 'function entryIsWorkableNow(entry) {', 'const nextAvailableIncompleteSection', 'workable-now gate');
+  // A read-only section (closed, kept viewable — pass 3, RUN-8) is never workable.
+  assert.match(workable, /if \(!sectionAccessFor\(entry\)\.workable\) return false;/);
   assert.match(workable, /entry\?\.role === 'warmup' && warmupState\.enabled\) return warmupState\.status === 'active'/);
   assert.match(workable, /entry\?\.isTimedDOLQuestion && dolState\.enabled\) return dolState\.status === 'active'/);
   assert.match(workable, /entryIsWorkableNow\(entry\) && !sectionQuestionIsComplete\(entry\.index\)/);

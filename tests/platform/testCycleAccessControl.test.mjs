@@ -88,7 +88,8 @@ test('the Tests & Exams list hands a course test to its assignment card', () => 
     'a course test must hand off to its assignment card.',
   );
   assert.match(dashboard, /isCourseTest\(session\) && !canReview \?/);
-  assert.match(app, /onOpenCourseTest=\{\(assignmentId\) => startAssignment\(assignmentId\)\}/);
+  // Through startAssignment, which opens the card (its Back then says "← Tests & Exams", NAV-9).
+  assert.match(app, /onOpenCourseTest=\{\(assignmentId\) => startAssignment\(assignmentId, 0, \{ origin: NAV_LEVEL\.SECURE_EXAMS \}\)\}/);
 });
 
 test('releasing a course test requires the teacher of record for that class; a practice test, its creator or a teacher of the student', () => {

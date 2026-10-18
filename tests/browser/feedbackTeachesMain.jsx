@@ -4,6 +4,9 @@
 //   ?role=practice|dol      the activity policy
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
+//   ?support=read           give the student Read aloud only (a plan's text-to-speech)
+//   ?q=matrices             the real ACT-style matrices item of Algebra II M1 T2 L3
+//                           (tests/browser/readAloudTranslate.mjs)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -21,6 +24,7 @@ import { getEffectiveActivityPolicy } from '../../src/platform/policies/activity
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { familyFor } from '../../src/platform/supports/families/index.js';
 import day2Transformations from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
+import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -72,6 +76,9 @@ const QUESTIONS = {
   transform: compileAuthoringIntentV5(day2Transformations).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.type === 'multiAnswer' && familyFor(entry)?.family === 'transformations'),
+  matrices: compileAuthoringIntentV5(matricesLesson).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === 'l3m-pr-12-ccmr'),
   system: {
     questionId: 'feedback-system',
     type: 'system',
@@ -84,9 +91,11 @@ const question = QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
 window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? '')) : [];
-const studentProfile = params.get('support') === 'translate'
-  ? { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' }
-  : {};
+const SUPPORT_PROFILES = {
+  translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
+  read: { accommodations: ['text-to-speech'] },
+};
+const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
 
 window.__mmGrades = [];
 window.__mmHelp = [];
