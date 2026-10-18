@@ -345,12 +345,13 @@ const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null, hintCost = 
   if (!hint && !similar) return null;
   const cost = typeof hintCost === 'string' && hintCost.trim() ? hintCost.trim() : HINT_COST_SENTENCE;
   return (
-    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: 8, fontWeight: 600 }}>
+    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: hint && similar ? 2 : 8, fontWeight: 600, ...(hint && similar ? { lineHeight: 1.15 } : null) }}>
       {/* Both offered: the two buttons say it, without the "A hint is ready"
           lead-in, which with a wrapped second button made the box taller than
-          a phone leaves under the task card (390x844). The cost is still said. */}
+          a phone leaves under the task card (390x844). The cost is still said,
+          at the size of the tool's own hint note, so the box still fits. */}
       {hint && !similar ? <>A hint is ready if you want one. {cost}{' '}</> : null}
-      {hint && similar ? <>{cost}{' '}</> : null}
+      {hint && similar ? <><span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))' }}>{cost}</span>{' '}</> : null}
       {hint ? <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button> : null}
       {similar ? <button type="button" data-similar-offer="" onClick={onShowSimilar} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
     </span>

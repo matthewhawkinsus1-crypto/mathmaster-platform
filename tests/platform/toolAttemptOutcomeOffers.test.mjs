@@ -160,7 +160,7 @@ test('after a miss, the box and the tool offer the worked sibling beside the hin
     // still fits a phone under the task card (tests/browser/toolAttemptOutcome.mjs);
     // what a hint costs is still said (HELP-17).
     assert.doesNotMatch(both, /A hint is ready/);
-    assert.match(both, /Hints never lower your score\. Your teacher can see you used one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
+    assert.match(both, /<span data-hint-cost-note=""[^>]*>Hints never lower your score\. Your teacher can see you used one\.<\/span>\s*<button type="button"[^>]*>Show a hint<\/button>/);
     const similarOnly = render({ ...MISS, onShowSimilar: () => {} });
     assert.match(similarOnly, />See a similar problem worked<\/button>/);
     assert.doesNotMatch(similarOnly, /A hint is ready/, 'the sibling alone does not promise a hint');

@@ -363,7 +363,7 @@ test('HELP-17: every "A hint is ready" offer is followed by the one cost sentenc
   assert.match(toolOffers[0].slice(0, 20), /^ \{cost\}/);
   const offer = region(shell, 'const OutcomeHintOffer = ', '\n};', 'the tool outcome offer');
   assert.match(offer, /const cost = typeof hintCost === 'string' && hintCost\.trim\(\) \? hintCost\.trim\(\) : HINT_COST_SENTENCE;/);
-  assert.match(offer, /\{hint && similar \? <>\{cost\}\{' '\}<\/> : null\}/, 'with both offers the cost is still said');
+  assert.match(offer, /\{hint && similar \? <><span data-hint-cost-note="" style=\{\{ fontSize: 'calc\(12 \* var\(--mm-px\)\)' \}\}>\{cost\}<\/span>\{' '\}<\/> : null\}/, 'with both offers the cost is still said');
   assert.match(shell, /const hintCost = useToolRuntimeContext\(\)\.hintCost \|\| HINT_COST_SENTENCE;/);
   // No other wording of the cost is left.
   for (const path of ['src/QuestionEngine.jsx', 'src/tools/shared/ToolShell.jsx', 'src/platform/supports/hints/HintPanel.jsx', 'src/InteractiveGraphWorkspace.jsx']) {

@@ -163,7 +163,7 @@ for (const device of ['chromebook', 'phone']) {
     const state = await outcomeState(page);
     check(state.text.includes(`You have ${left}`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
     check(state.inTool, `${device} practice inverse, wrong attempt ${attempt}: the outcome is in the tool's result area`, `in tool: ${state.inTool}`);
-    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, visible to ${state.visibleBottom}`);
+    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, bottom ${state.bottom}, visible to ${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice inverse, wrong attempt ${attempt}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
     // The tool knows four parts but this question asks two: only those are
     // named, and by names a student reads (toolSubmissionParts.js).
