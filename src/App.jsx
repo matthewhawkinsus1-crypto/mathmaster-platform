@@ -72,7 +72,11 @@ import {
   storeLessonNotesPdf,
 } from './classroomApi';
 
-import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
+// Whether a question can come back as a different question is the one piece
+// of the generator App needs while it renders. The generator itself, with the
+// math engine (mathjs) under it, loads when a student prints a worksheet: a
+// static import put mathjs in every student's first load before Home.
+import { canGenerateDistinctVariants as isPersonalizedBlueprint } from '../functions/shared/questionVariability.mjs';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
@@ -260,9 +264,6 @@ import {
   resolveCurrentContentStorageIndex,
 } from './platform/assignments/currentContentProjection.js';
 import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
-import {
-  repairAssignmentTrackerForCurrentGrader,
-} from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -471,7 +472,6 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
-import { subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
@@ -2767,6 +2767,7 @@ function App() {
   };
 
   const repairGradesByAssignmentWithCurrentGrader = ({
+    repairAssignmentTrackerForCurrentGrader,
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
@@ -2799,9 +2800,13 @@ function App() {
   // run it only after the full academic corpus was intentionally loaded for
   // Grades; ordinary teacher navigation never pays this CPU/memory cost.
   const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    // The grader repair is teacher-only and grades with the full math engine,
+    // so it loads here, when the Grades tab first needs it, and not with Home.
+    const { repairAssignmentTrackerForCurrentGrader } = await import('./platform/assignment/liveQuestionCorrection.js');
     const correctedAt = new Date().toISOString();
     const repairs = (Array.isArray(students) ? students : []).map((student) => {
       const result = repairGradesByAssignmentWithCurrentGrader({
+        repairAssignmentTrackerForCurrentGrader,
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
@@ -4611,6 +4616,9 @@ function App() {
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
+  // The store is loaded on demand: imported here, it rode in every student's
+  // first load (scripts/check-first-load-budget.mjs). A teacher who leaves the
+  // tab before it arrives never subscribes.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
     if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
@@ -4618,7 +4626,16 @@ function App() {
       return undefined;
     }
     if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+    let stopped = false;
+    let release = null;
+    import('./platform/teacher/parentContactStore.js')
+      .then(({ subscribeParentContacts }) => {
+        if (stopped) return;
+        const unsubscribe = subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+        release = () => unsubscribe();
+      })
+      .catch((error) => console.error('Parent contact history failed:', error));
+    return () => { stopped = true; release?.(); };
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => {
@@ -5662,6 +5679,16 @@ function App() {
     const assignmentLocked = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
     if (assignmentLocked) {
       toastInfo('PDF not available yet', 'The printable worksheet unlocks with the assignment.');
+      return;
+    }
+
+    let generateQuestion;
+    try {
+      // The generator loads with the worksheet (see the import note at the top).
+      ({ generateQuestion } = await import('./problemGenerator'));
+    } catch (error) {
+      console.error(error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
       return;
     }
 
