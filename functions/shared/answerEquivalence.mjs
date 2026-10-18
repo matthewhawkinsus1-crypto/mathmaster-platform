@@ -280,13 +280,16 @@ const COMMA_SEPARATED_FORMATS = new Set([
  * Does this field expect ONE number, so a thousands separator in it (or in its
  * key) is grouping rather than a separator between values?
  *
- * Refused for anything declared comma-separated, for opt-in element partial
- * credit (a roster), and for Digital SAT number boxes, whose rules do not
- * accept commas. The assignment matcher (answerUtils) and the Path grader
- * (functions/lib/mathPath.js) both ask it, and pass its answer to sameValue.
+ * Refused for anything declared comma-separated and for opt-in element
+ * partial credit (a roster). A Digital SAT number box accepts a correctly
+ * grouped number, as it has since #496: `1,280` is right by value, and if the
+ * SAT's own no-comma entry rule is wanted it belongs at entry (the box
+ * declining the keystroke), never as a right value graded wrong. The
+ * assignment matcher (answerUtils), the Path grader (functions/lib/mathPath.js)
+ * and the teacher's Path simulation all ask it, and pass its answer to
+ * sameValue.
  */
 export const fieldAcceptsThousandsSeparators = (field = {}) => {
-  if (field?.numberRules === 'digitalSAT') return false;
   if (field?.partialCredit === 'matchedElements') return false;
   return ![
     field?.equivalence,
@@ -304,7 +307,7 @@ export const fieldAcceptsThousandsSeparators = (field = {}) => {
 // STUDENT's side (left), only against a key that is one number with no comma,
 // and never across a comma followed by a space (a list). The grouping is the
 // strict one above (no leading zero: `0,500` is not 500). A caller that knows
-// its field is a list or a Digital SAT box turns it off
+// its field is a list, a pair or a roster turns it off
 // (`sameValue(a, b, tolerance, { thousandsSeparators: false })`).
 const sameThousandsGroupedNumber = (student, key, tolerance) => {
   const plain = withoutThousandsSeparators(student);

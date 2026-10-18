@@ -77,9 +77,19 @@ test('literal and table answers are single numbers too', () => {
   assert.equal(gradeTableResponse(table, { r1c2: '1,2000' }).isCorrect, false);
 });
 
-test('a Digital SAT number box keeps the SAT rule: no commas', () => {
-  assert.equal(gradeField('8050', '8,050', { numberRules: 'digitalSAT' }).isCorrect, false);
-  assert.equal(gradeField('8050', '8050', { numberRules: 'digitalSAT' }).isCorrect, true);
+// A Digital SAT number box reads a correctly grouped number, as live has since
+// #496 (wave 6 review, B1: the server re-grades every queued answer, so a box
+// that refused it would turn a "Correct!" a student saw into a wrong record
+// during a release). The SAT's own decimal rule and the strict grouping stay.
+test('a Digital SAT number box accepts a correctly grouped number, as live does', () => {
+  const sat = { numberRules: 'digitalSAT' };
+  assert.equal(gradeField('8050', '8,050', sat).isCorrect, true);
+  assert.equal(gradeField('8050', '8{,}050', sat).isCorrect, true);
+  assert.equal(gradeField('8050', '8050', sat).isCorrect, true);
+  assert.equal(gradeField('8050', '80,50', sat).isCorrect, false);
+  assert.equal(gradeField('8050', '8, 050', sat).isCorrect, false);
+  assert.equal(gradeField('8050', '8,051', sat).isCorrect, false);
+  assert.equal(gradeField('2/3', '.6666', sat).isCorrect, true, 'the SAT decimal rule still applies');
 });
 
 test('commas that separate values keep their meaning', () => {
@@ -128,24 +138,37 @@ test('commas that separate values keep their meaning', () => {
 // sameValue, so it reaches the Path grader and every other sameValue caller.
 // Merged with this file's field rule, a field that is a list or a Digital SAT
 // box still never reads `8,050` as one number, on either grader.
-test('the Path grader reads a grouped number, except in a list field or a Digital SAT box', async () => {
-  const { gradeResponse } = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
-  const grade = async (field, response) => (await gradeResponse({ fields: [{ id: 'a', ...field }] }, { responses: { a: response } })).isCorrect;
-  assert.equal(await grade({ expected: '8050' }, '8,050'), true);
-  assert.equal(await grade({ expected: '8050' }, '$8,050'), true);
-  assert.equal(await grade({ expected: '8050' }, '8,051'), false);
-  assert.equal(await grade({ expected: '8050', numberRules: 'digitalSAT' }, '8,050'), false);
-  assert.equal(await grade({ expected: '8050', numberRules: 'digitalSAT' }, '8050'), true);
+// Through what production stores: buildIssuePlan's private grading, which
+// keeps each field's kind (inputProfile, answerFormat, notation, toolProfile)
+// so a list or a pair stays comma-literal on the Path grader too (wave 6
+// review, S1: it kept only `equivalence`, so `1,250` passed a list field).
+test('the Path grader reads a grouped number, but not in a list, set or pair field', async () => {
+  const mathPath = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
+  const grade = async (field, response, question = {}) => {
+    const plan = await mathPath.buildIssuePlan({ id: 'tsep', prompt: 'How many?', responseFields: [{ id: 'a', label: 'Answer', ...field }], ...question });
+    assert.ok(plan.issuable, JSON.stringify(field));
+    return (await mathPath.gradeResponse(plan.privateGrading, { responses: { a: response } })).isCorrect;
+  };
+  assert.equal(await grade({ expected: '8050', inputProfile: 'number' }, '8,050'), true);
+  assert.equal(await grade({ expected: '8050', inputProfile: 'number' }, '$8,050'), true);
+  assert.equal(await grade({ expected: '8050', inputProfile: 'number' }, '8,051'), false);
+  const sat = { assessmentContext: { framework: 'digitalSAT' } };
+  assert.equal(await grade({ expected: '8050', inputProfile: 'number' }, '8,050', sat), true, 'a Digital SAT box, as live');
+  assert.equal(await grade({ expected: '8050', inputProfile: 'number' }, '80,50', sat), false);
+  for (const kind of [{ inputProfile: 'list' }, { inputProfile: 'set' }, { answerFormat: 'list' }, { notation: 'set' }, { toolProfile: 'orderedPair' }, { inputProfile: 'orderedPair' }]) {
+    assert.equal(await grade({ expected: '1250', ...kind }, '1,250'), false, `${JSON.stringify(kind)}: 1,250 is two values`);
+    assert.equal(await grade({ expected: '1250', ...kind }, '1250'), true, `${JSON.stringify(kind)}: the key itself`);
+  }
   assert.equal(await grade({ expected: '1234', equivalence: 'numericSet' }, '1,234'), false);
-  assert.equal(await grade({ expected: '1234', answerFormat: 'list' }, '1,234'), false);
+  const plan = await mathPath.buildIssuePlan({ id: 'tsep', prompt: 'List them.', responseFields: [{ id: 'a', inputProfile: 'list', expected: '1250' }] });
+  assert.equal(plan.privateGrading.fields[0].inputProfile, 'list', 'the field kind is stored with the private grading');
 });
 
-test('the assignment matcher keeps a list field and a Digital SAT box comma-literal under #496', () => {
+test('the assignment matcher keeps a list or roster field comma-literal under #496', () => {
   // Key one number, the student's `1,234`: sameValue alone would now accept it.
   assert.equal(gradeField('1234', '1,234', { equivalence: 'numericSet' }).isCorrect, false);
   assert.equal(gradeField('1234', '1,234', { answerFormat: 'list' }).isCorrect, false);
   assert.equal(gradeField('1234', '1,234', { partialCredit: 'matchedElements' }).isCorrect, false);
-  assert.equal(gradeField('8050', '8{,}050', { numberRules: 'digitalSAT' }).isCorrect, false);
   // A comma and a space is a list of two numbers, never one (#496's rule; the
   // pass-3 matcher used to accept `1, 250` for 1250).
   assert.equal(gradeField('1250', '1, 250').isCorrect, false);
