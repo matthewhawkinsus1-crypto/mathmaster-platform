@@ -527,7 +527,7 @@ const TaskSupport = ({ description, badge, taskText, showsDirections, steps, not
 // back to the authored prompt, here and in Work View's Help:
 //   - the steps and the note go, unless the tool passes `stepsAreControls`
 //     (they only say how to work its controls: "Click the grid to plot a
-//     point");
+//     point"); in a mixed list the steps marked `controlStep()` stay;
 //   - the tool's directions sentence goes with them, kept only beside
 //     controls-only steps;
 //   - the tool's description always goes. Tool-written descriptions name the
@@ -537,9 +537,24 @@ const TaskSupport = ({ description, badge, taskText, showsDirections, steps, not
 //     fails closed: a description written tomorrow cannot leak.
 // One pure function decides, and both the card and Work View's Help draw from
 // what it returns, so the two can never show different things.
+//
+// A MIXED LIST KEEPS ITS CONTROLS (student pass 3, W6-4). Most lists mix the
+// two: "Tap two rows to form an interval" works the tool, "Compute Δy/Δx
+// yourself" is the method. A whole list withheld took the control lines with
+// it, and an exit ticket left a student not knowing the rows are tapped in
+// pairs. A step wrapped in `controlStep()` says only how to work the tool
+// (which button, which field, what unlocks what); it stays where the method
+// goes. A plain string is method — fail closed, as before. On practice the
+// list reads in its written order, controls and method together. Where only
+// the controls remain the directions sentence goes too: it is tool-written
+// and may name the route, so it stays only beside a list the tool marks
+// controls-only as a whole (`stepsAreControls`).
+export const controlStep = (text) => Object.freeze({ text: String(text), control: true });
+const isControlStep = (step) => Boolean(step && typeof step === 'object' && step.control === true);
+const stepText = (step) => (step && typeof step === 'object' ? String(step.text ?? '') : String(step));
 export const taskCardSupport = ({ task, steps = [], note = null, question = null, stepsAreControls = false, methodWithheld = false, description = null, badge = null }) => {
   const showMethod = stepsAreControls || !methodWithheld;
-  const shownSteps = showMethod ? steps.map(String) : [];
+  const shownSteps = (showMethod ? steps : steps.filter(isControlStep)).map(stepText);
   const shownNote = showMethod && note ? String(note) : null;
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();

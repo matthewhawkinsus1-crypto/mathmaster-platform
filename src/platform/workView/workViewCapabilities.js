@@ -43,6 +43,19 @@ const mergedDirections = (base, local) => {
   return { content: React.createElement(React.Fragment, null, base.content || base.text, local.content || local.text) };
 };
 
+// THE INSTRUCTION BANNER IS TOOL-WRITTEN, AND ON AN ASSESSMENT IT FAILS
+// CLOSED (student pass 3, W6-4). Work View shows a tool's `instruction` as the
+// one sentence above the work, and tools fill it with their first step —
+// Linear Intercepts' "Choose which variable becomes zero, place the zero on
+// that variable, solve…" on an exit ticket. Where the activity withholds the
+// method only an instruction the tool marks `controlsOnly` (how to work its
+// controls: "Click to place point 1 of 2") or the platform's own
+// `authoritative` one (QuestionEngine's authored stage prompt) is shown; any
+// other is dropped, so an instruction written tomorrow cannot leak either.
+export const instructionShown = (instruction, withholdsMethod) => (
+  instruction && (!withholdsMethod || instruction.controlsOnly || instruction.authoritative) ? instruction : undefined
+);
+
 export function mergeWorkViewCapabilities(platform, tool) {
   const base = normalizeWorkViewCapabilities(platform);
   const local = normalizeWorkViewCapabilities(tool);
@@ -61,6 +74,9 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // question shell, normal composition still applies and the more local task
     // may override a parent/descendant fallback.
     task: base.task?.authoritative ? base.task : (local.task || base.task),
+    // A withheld instruction gives way to the platform's own (the authored
+    // stage prompt), or to none.
+    instruction: instructionShown(local.instruction, withholdsMethod) || base.instruction,
     // THE PLATFORM'S HELP IS NEVER REPLACED (student pass 3, TOOL-3). It holds
     // the hint ladder and "Ask my teacher" — or, on a DOL, the Ask-only panel.
     // A tool's Help used to win here, so a registry tool's generic sentence

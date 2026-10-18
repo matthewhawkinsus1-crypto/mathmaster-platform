@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
-import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import {
@@ -32,10 +31,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   // the shared grader always marks the screen the student is looking at.
   const mode = resolveLinearTableWorkbenchMode(questionData);
   const requiredComparisons = linearTableRequiredComparisons(questionData);
-  // Where the activity withholds the method (R-10) the card keeps only how to
-  // work the table — without them nothing on screen says rows are tapped in
-  // pairs, and classifying stays locked until the intervals are recorded.
-  const methodWithheld = useMethodWithheld();
 
   const [evidence, setEvidence] = usePersistentToolState('evidence', []);
   const [classification, setClassification] = usePersistentToolState('classification', '');
@@ -276,19 +271,25 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       subtitle="Select two rows to build an interval, record what you calculate, and repeat until you can prove whether the rate of change is constant."
       badge="Rate-of-change evidence"
     >
+      {/* One list, each step marked (student pass 3, W6-4). Control steps
+          name a control and what it unlocks, and stay on an exit ticket,
+          quiz or test; the plain strings are the method and go there:
+          - "Tap two rows…": the row buttons. Control.
+          - "Enter Δx, Δy and Δy/Δx…, then record it": the three boxes and
+            Record, by their on-screen labels. Control.
+          - "Work out each value yourself…": how the values are found. Method.
+          - "Record N different intervals…": the tool's lock on the questions
+            below the table. Control.
+          - the last step says what to decide or derive (linear or not, the
+            row that breaks the pattern, m and b). Method. */}
       <TaskCard
         question={questionData}
         task="Select pairs of rows, compute Δx, Δy, and the rate for each interval you record, then classify the table."
-        stepsAreControls={methodWithheld}
-        steps={methodWithheld ? [
-          'Tap two rows to form an interval.',
-          'Enter Δx, Δy and Δy/Δx for that interval, then record it.',
-          `Record ${requiredComparisons} different intervals; the questions below the table open after that.`,
-        ] : [
-          'Tap two rows to form an interval.',
-          'Compute Δx, Δy, and Δy/Δx for that interval yourself and enter them below.',
-          'Record the interval as evidence, then repeat with a different pair of rows.',
-          `Record at least ${requiredComparisons} different intervals before classifying the table.`,
+        steps={[
+          controlStep('Tap two rows to form an interval.'),
+          controlStep('Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.'),
+          'Work out each value yourself from the two rows, then repeat with a different pair of rows.',
+          controlStep(`Record ${requiredComparisons} different intervals; the questions below the table open after that.`),
           mode === 'repairValue'
             ? 'One row breaks the pattern. Identify it and enter its corrected value, then confirm the repaired table is linear.'
             : mode === 'deriveEquation'

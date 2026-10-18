@@ -280,7 +280,8 @@ function BalanceSolver({ questionData = {}, onAction }) {
         undo: undoHistory.capability,
         equationInput: { label: 'Both sides of the equation', studentState: true },
         numericControls: { label: 'Operation controls', studentState: true },
-        instruction: { text: 'Choose an operation, apply it to both sides, and simplify until x is isolated.' },
+        // The balance controls, as the controls-only steps say them (W6-4).
+        instruction: { text: 'Choose an operation, apply it to both sides, and simplify until x is isolated.', controlsOnly: true },
         task: { text: `Solve ${formatEquation(original)} for x.` },
         help: { content: 'Use inverse operations in reverse order. Every committed operation changes both sides equally.' },
         primaryActions: [{ id: 'check-step-algebra', label: 'Check solution', onAction: check }],

@@ -3049,7 +3049,7 @@ function QuestionEngineBody({
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
         help: workViewPlatformHelp,
-        instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
+        instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt, authoritative:true } : null,
         // The same Support tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
         supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,

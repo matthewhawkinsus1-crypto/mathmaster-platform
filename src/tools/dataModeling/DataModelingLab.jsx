@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
@@ -79,6 +79,25 @@ const SECURE_MODE_STEPS = {
   'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Classify the direction and strength of the association.'],
   'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Classify the prediction.'],
   'modelCompare': ['Look at each candidate model against the data.', 'Select the best model.'],
+  // The regression modes (student pass 3, W6-4) had no list here, so a test
+  // showed no steps at all. Each step names a box and what the screen does;
+  // none says how the coefficients are found (the route the item measures:
+  // the teaching list's "Run a linear regression" stays out), how to judge
+  // the residuals, or which way to classify a prediction.
+  ...Object.fromEntries([
+    ['linearFit', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFit', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFit', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['linearFitPrediction', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFitPrediction', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFitPrediction', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['squareRootFitPrediction', 'Enter a, h and k of y = a√(x-h)+k in the three boxes.'],
+  ].map(([mode, entry]) => [mode, [
+    entry,
+    'The graph and the residual table redraw from the numbers you enter.',
+    ...(mode.endsWith('Prediction') ? ['Enter your predicted y in the Predicted y box, then classify the prediction.'] : []),
+  ]])),
+  'association': ['Choose the direction and the strength of the association.', 'Choose what this observational data can justify.'],
 };
 // A host that names the final action ("Record answer") is the only check.
 const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/ and check\.$/, '.'));
@@ -213,7 +232,14 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const guideSteps = teachingNotes
     ? (MODE_STEPS[mode] || MODE_STEPS.full)
     : (SECURE_MODE_STEPS[mode] || MODE_STEPS[mode] || SECURE_MODE_STEPS.full);
-  const taskSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
+  // A secure list says only how to work the boxes, so each of its steps is a
+  // control step and stays on a test; the teaching list is the method and
+  // goes wherever the method is withheld (W6-4). Marked step by step rather
+  // than `stepsAreControls`, so the directions sentence ("Use linear
+  // regression technology…", which names the route) never comes back with it.
+  const secureSteps = !teachingNotes && Boolean(SECURE_MODE_STEPS[mode]);
+  const wordedSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
+  const taskSteps = secureSteps ? wordedSteps.map(controlStep) : wordedSteps;
 
   const studentPredict = useMemo(() => {
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -346,7 +372,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       {/* The secure lists were written to say what to do, never how to judge
           it, so they are shown where the method is withheld (R-10). A mode
           with no secure list falls back to its teaching steps, which are not. */}
-      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} stepsAreControls={!teachingNotes && Boolean(SECURE_MODE_STEPS[mode])} />
+      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} />
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane

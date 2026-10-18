@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory';
-import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -163,17 +163,28 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
       subtitle={`Transform the equation one equivalent step at a time until it reads ${formLatexText}.`}
       badge={`Rewrite to ${formName} form`}
     >
+      {/* Each step marked (student pass 3, W6-4). The control steps name the
+          buttons and what they do, and how to finish; an exit ticket, quiz or
+          test keeps them. The plain strings are the route the item measures
+          (isolate y; when to split and cancel; how to factor out what every
+          term shares) and go there. The finishing step names the target form,
+          which the goal chips already show on every activity, and says
+          "submit": the button is a Submit (D9), never "Check equation". */}
       <TaskCard
         question={questionData}
         task={`Rewrite the given equation in ${formName} form (${formLatexText}).`}
         steps={factoredTarget ? [
+          controlStep('+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.'),
           'Get y alone on the left with balanced operations.',
           'Use Factor: choose the terms, write them as primes, choose the factors every term shares, and pull them out.',
-          'Write what is left of each term inside the parentheses. Press Check equation.',
+          'Write what is left of each term inside the parentheses.',
+          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
         ] : [
+          controlStep('+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.'),
           'Get y alone on the left with balanced operations and cancellation.',
           'If a whole numerator sits over one denominator, use Split fraction, then Cancel factors in each fraction.',
-          'Optionally Arrange terms into mx + b. Press Check equation.',
+          'Optionally Arrange terms into mx + b.',
+          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
         ]}
       />
 

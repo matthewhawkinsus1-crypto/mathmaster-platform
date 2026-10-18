@@ -139,7 +139,10 @@ test('R-10: the gate is the activity\'s own hint and verdict signals', () => {
   // Lists written to say what to do, not how (review S2): the inequality
   // build's process steps, Data Modeling's secure lists.
   assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /<TaskCard [^>]*stepsAreControls=\{taskKey === 'inequalitiesConstruct'\}/);
-  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /stepsAreControls=\{!teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\)\}/);
+  // Data Modeling's secure lists are marked step by step since W6-4
+  // (controlStep, so the directions sentence stays withheld): pinned and
+  // rendered per mode in toolDirectionsSplit.test.mjs.
+  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /const taskSteps = secureSteps \? wordedSteps\.map\(controlStep\) : wordedSteps;/);
   // A solver's Help that is the student's own work history stays on a DOL
   // (review B1: everything else a tool declares as Help is withheld there).
   for (const file of ['src/StepByStepAlgebra.jsx', 'src/MultiRelationAlgebra.jsx']) {
@@ -210,17 +213,20 @@ test('round 2: Linear Table Workbench keeps how to work the table on a DOL, not 
     assert.match(await renderTool(load, '/src/tools/linearTableWorkbench/LinearTableWorkbench.jsx', TABLE, PRACTICE), /How to do this \(5 steps\)/);
     assert.match(await renderTool(load, '/src/tools/linearTableWorkbench/LinearTableWorkbench.jsx', TABLE, DOL), /How to do this \(3 steps\)/);
   });
+  // Since W6-4 one list, each control step marked; which steps a DOL keeps is
+  // asserted by text in toolDirectionsSplit.test.mjs.
   const source = code('src/tools/linearTableWorkbench/LinearTableWorkbench.jsx');
-  assert.match(source, /stepsAreControls=\{methodWithheld\}\s*steps=\{methodWithheld \? \[\s*'Tap two rows to form an interval\.'/);
+  assert.match(source, /steps=\{\[\s*controlStep\('Tap two rows to form an interval\.'\)/);
 });
 
 test('round 2: the Representation Bridge keeps how to work its panels on a DOL', async () => {
   await withVite(async (load) => {
     const question = { type: 'representationBridge', mode: 'linear', prompt: 'Connect the representations.', source: { kind: 'table', rows: [{ x: 0, y: -20 }, { x: 2, y: -10 }, { x: 4, y: 0 }, { x: 6, y: 10 }] } };
-    assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, PRACTICE), /How to do this \(5 steps\)/);
+    // Practice: the five method steps and the two control steps (W6-4).
+    assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, PRACTICE), /How to do this \(7 steps\)/);
     assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, DOL), /How to do this \(2 steps\)/);
   });
-  assert.match(code('src/tools/representationBridge/RepresentationBridge.jsx'), /steps=\{methodWithheld \? \[\s*'Table: tap two rows to form an interval/);
+  assert.match(code('src/tools/representationBridge/RepresentationBridge.jsx'), /steps=\{\[\s*controlStep\('Table: tap two rows to form an interval/);
 });
 
 test('round 2: the Regression Calculator says how to work it, on every activity', async () => {

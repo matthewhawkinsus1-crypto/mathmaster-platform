@@ -358,7 +358,8 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
       enlargeLabel="Enlarge three-plane systems workspace"
       style={{ width: '100%' }}
       capabilities={{
-        instruction: { text: 'Rotate the model, show or hide each plane, and explore how the three planes relate.' },
+        // The model's controls (W6-4): kept on a DOL.
+        instruction: { text: 'Rotate the model, show or hide each plane, and explore how the three planes relate.', controlsOnly: true },
         primaryActions: answerFields.length ? [{ id: 'check-spatial-interpretation', label: 'Check my answer', onAction: check }] : [],
       }}
     >
