@@ -113,10 +113,36 @@ the full list.
 | The grading sweep (`scripts/sweep-equivalence-verdicts.mjs --base 3cb782a --draws 3 --check-wrong`) | `c9a8c31` | exit 0. 9,833 fields and 281,133 verdicts: 0 right → wrong, 0 near miss → right, 0 near miss refused, 0 stacked wrong accepted, 0 editor or gap spellings refused, 0 gap wrong accepted (the base refuses 3,358 gap spellings and accepts 30 gap wrong answers). 60 right answers newly accepted: W6-6's 20 spellings on the three graders, each checked equal by its reviewer. These are W6-6's own numbers on its branch, so nothing else in the wave moves a sweep verdict. The corpus has no grouped spellings; W6-5's four-tree thousands probe covers those |
 | The emulator suites: `test:rules` (both runners), `test:challenge-finish`, `test:canonical-persistence`, `test:test-cycle-certification`, `test:secure-exam-navigation`, `test:grade-authority`, `test:secure-exam-auto-finalize` (Batch 3's finalizer) | `c9a8c31` | 248 and 221 · 477 · 35 · 38 · 25 · 14 · 11, all pass |
 | The rest of the full-platform suite: six emulator suites (Classroom regrade report, identity repair, Live Challenge launch, path choice report, path release, Warm-Up reopen) and the audits (answer acceptance, path release verify, authoring boundary, legacy source, authoring v5 and its validation, release authority, challenge DOK and quality, fidelity seeds) | `c9a8c31` | all pass; no tracked file rewritten |
-| The browser gate: student drivers (2a, 2b, 2c), waves 5 and 6's own drivers (2w, now with hintsThatFit, submitNotQueued, studentHomeToday and pathRetention), the real-App journeys (3a, 3b), the slow journeys (3c, 6a, 6b), the self-starting suites (7a, 7b, and 7c: testCycleRichToolQa and liveChallengeShellQa), dark mode and capabilities (4), accessibility (5) | the pushed head | running after the push, in eight cloud sessions (below) |
+| The browser gate, in eight cloud sessions: student drivers (2a, 2b, 2c), waves 5 and 6's own drivers (2w, now with hintsThatFit, submitNotQueued, studentHomeToday and pathRetention), the real-App journeys (3a, 3b), the slow journeys (3c, 6a, 6b), the self-starting suites (7a, 7b; 7c testCycleRichToolQa; 7d liveChallengeShellQa), dark mode and capabilities (4), accessibility (5) | `5896caf`, then the fixes below | every driver passes except three findings that the base `3cb782a` has too (below). Five drivers failed on the pushed head; each was a test that the merge left behind the screen, now fixed |
 
 Each session's own gate is in its handoff. Every branch also ran its own browser drivers on its merged head, and its
 reviewer reran the ones in its area.
+
+### The browser gate
+
+Run on `5896caf` by eight cloud sessions, one part each, with each failure re-run alone and then compared on `3cb782a`.
+Every failure on the pushed head came from the merge, never from the product: two branches each right on its own, and
+a driver written against one of them. Each fix is in the test only. Each was run locally and mutation-checked: the old
+screen put back turns the check red.
+
+| Driver (part) | What failed | Cause | Fix |
+| --- | --- | --- | --- |
+| studentResultUpNext (2c) | the Assignments rows read as empty | W6-2 made the rows `h2` (NAV-23); W6-1's driver read `article h3` | `482723c` reads each row's own heading |
+| staleTabRecord (5) | "tab 2 shows the question closed" | its check matched the base's held-verdict sentence ("Correctness feedback is held…"), which W6-1 reworded (HELP-24) | `7571921` asserts the exit ticket's closed view ("Response submitted") and that the verdict stays held |
+| liveChallengeShellQa endurance (7d) | five game listeners still open after leaving | the student harness pages still said "Back to Dashboard"; W6-1's driver clicks "Back to Home", into a silent catch | `49a932e`: the harnesses use the game's own label, and a missing exit is a finding |
+| gradeCenterMobile (2b) | no "← Home" on Grades at 390px | W6-2 removed it (NAV-20, one way back; decision 16) | `c237f93` requires the nav's Home and refuses a second "← Home" |
+| studentScreenChange S6 (3b) | no "View Results" on a fresh visit | W6-1 renamed the button "See results" | `e906a80` |
+
+Open, and the same on `3cb782a`:
+- **studentHomeToday**: its console check fails whenever Home's coverage read gets logged. RecommendedSkills reads
+  Path coverage from Firestore, which the driver aborts. Wave 7's CI session makes the harness hermetic.
+- **liveChallengeShellQa** "classic" and "scoring": the projector's round table is not in the round's order, and it
+  does not say the round earned championship points. Both checks date from before pass 3. Not investigated here.
+- **graphFeatureRushGame**, not in the gate: class-of-twelve times out loading a page. Its two-player keyboard check
+  reads the cursor announcement without waiting, and failed once in three runs.
+
+The other drivers all passed, from 490 rich-tool checks and 450 slow recovery-hold checks to dark mode, the
+capabilities certification and `certify:accessibility`. `workViewMatrix --write` changed only its timestamp.
 
 ### The first-load budget
 
@@ -154,34 +180,29 @@ Nothing here is deployed.
 
 ### The order
 
-W6-5's handoff ([section 6](STUDENT_PASS3_BATCH3_INTO_PASS3.md#6-the-release-order)) has the commands. W6-6 adds a last
-step.
+Batch 3 is in `main` (PR #497, merged on 2026-10-18) and ships with W5-5's step key as **release 1**. This line is
+**release 2**. Folding Batch 3 into release 1 answers decision 20: the planner deploys the whole fleet for the key
+anyway. The release, step by step, with the commands, the plans to expect and the owner's "go" before each
+`--execute`, is `docs/handoffs/STUDENT_PASS3_RELEASE_RUNBOOK.md`. It reaches `main` with the release-1 PR (from
+`claude/pass3-release-1`).
 
-0. **Batch 3 from main** (PR #497, head `7bb74f8`), as [STUDENT_PASS3_BATCH3_RELEASE.md](STUDENT_PASS3_BATCH3_RELEASE.md)
-   says.
-   - *Optional, before merging #497:* `8c4c18d` fixes a false alarm in Batch 3. "Your work is not being saved…" stays
-     after a failed save has been followed by New problem, Start over or a submit.
-   - It cherry-picks cleanly onto `7bb74f8`, and the platform suite passes there (11,381 of 11,381).
-   - Without it the alarm errs toward caution and loses nothing.
-1. **W5-5's step 0**: the owner's read-only count (its decision 7).
-2. **Release 1: the step key on main with Batch 3.** That is main once #497 is merged, plus one commit holding only the
-   three key hunks, put on main first.
-3. **Wait** until `--whats-live` shows every function on release 1's commit, path-admin included. Then wait 10 to 15
+0. **What is live, and the read-only step-key count** (W5-5 decision 7): `scripts/report-step-key-credit-changes.mjs`
+   lists every recorded step credit release 1 would move; exit 0 is go, exit 3 the owner decides.
+1. **Release 1:** merge the release-1 PR. From `main`, the planner deploys the whole default fleet (with
+   `finalizeAbandonedSecureExams`), path-admin and Hosting. That is about 56 minutes, with no rules and no indexes.
+2. **Wait** until `--whats-live` shows every function on release 1's commit, path-admin included, then 10 to 15
    minutes more.
-4. **Release 2: this branch**, planned with `node scripts/release-firebase.mjs --since <release 1's commit>`, then
-   `--execute`. It deploys:
-   - Firestore rules (pass 3's);
-   - the whole default fleet, including Batch 3's new scheduled `finalizeAbandonedSecureExams` and every function
-     that loads the shared graders;
-   - path-admin;
-   - Hosting.
+3. **Release 2:**
+   - the calculator-setting count;
+   - merge this line's PR into `main`;
+   - plan with `--since <release 1's commit>`;
+   - then `--execute`. It deploys pass 3's Firestore rules, the whole default fleet, path-admin and Hosting, with no
+     indexes.
+4. **After Hosting:** a root admin publishes the Path release `course-path-v2-01d45bb15d913284`. Students reload after
+   each Hosting release.
 
-   No indexes.
-5. **After Hosting:** a root admin publishes the Path release `course-path-v2-01d45bb15d913284` (Administration → My
-   Math Path content coverage). It needs no new code: `{{p|xterm}}` is already in the live generator.
-6. Ask teachers to have students reload after each Hosting release.
-7. **After release 2 the live build is a pass-3 commit that is not on main.** Until this branch is merged to main,
-   release only from it. A hotfix goes here.
+Release 2 merges into `main` before it deploys, so `main` stays what is live. `8c4c18d`, which ends the unsaved-work
+notice along with its work, was not added to #497; it ships with release 2.
 
 Release with `node scripts/release-firebase.mjs` (plan, then `--execute`), never a raw `firebase deploy --only hosting`.
 
@@ -240,7 +261,7 @@ Each handoff lists its own, in full. Grouped here:
 19. The game's exit returns to where the student joined (W6-2 6).
 
 **Release**
-20. The order above; whether to fold Batch 3 into release 1 (W6-5 3); the optional `8c4c18d` for #497.
+20. *Settled:* Batch 3 is folded into release 1 (#497 merged; the release-1 PR); `8c4c18d` ships with release 2.
 
 ## Found here, left for later
 
