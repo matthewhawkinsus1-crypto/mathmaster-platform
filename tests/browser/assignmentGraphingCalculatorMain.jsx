@@ -10,6 +10,10 @@
 //   ?ctx=sat            an assessment context (a secure SAT item's)
 //   ?tool=<toolId>      a registry tool from SAMPLE_SPECS instead of the
 //                       quadratic question (graphing2 has Work View)
+//   ?released=1         this question's own feedback is released, as App.jsx
+//                       does for a closed (correct or out-of-tries) DOL question
+//                       while the exit ticket is still open
+//   ?review=1           the whole assessment's feedback is released
 //
 // Every graded submission, with the support use it recorded, lands in
 // window.__mmGraded.
@@ -55,6 +59,8 @@ function Harness() {
           assignmentId="assignment-graphing-calculator"
           assignmentCalculatorMode={calc === 'off' ? null : calc}
           assessmentContext={params.get('ctx') || null}
+          feedbackReleased={params.get('released') === '1'}
+          assessmentReviewReleased={params.get('review') === '1'}
           executionScope="student"
           studentProfile={{}}
           onGrade={async (isCorrect, details, parts, supportUsage) => {

@@ -62,7 +62,7 @@ import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { getEffectiveActivityPolicy, isActivityRole } from './platform/policies/activityPolicies';
-import { CALCULATOR_MODES, resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
+import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
@@ -3281,8 +3281,8 @@ function QuestionEngineBody({
               onOpenChange={setCalculatorOpen}
               roomRef={questionEngineRef}
               // Zeros, minimum and maximum: not where they would state the
-              // answer before release (calculatorPolicy.js keyPointsAllowed).
-              keyPoints={calculatorPolicy.keyPointsAllowed === true || showOutcomeFeedback}
+              // answer before the assessment is released (calculatorPolicy.js).
+              keyPoints={calculatorKeyPointsShown({ policy: calculatorPolicy, assessmentReviewReleased })}
               fallback={keypadCalculator}
               onUnavailable={markGraphingCalculatorFailed}
             />

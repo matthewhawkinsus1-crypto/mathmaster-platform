@@ -81,7 +81,7 @@ order asked for here puts the assignment above the question; #239's "explicit no
   props are `open`, `onOpenChange`, `roomRef`, `keyPoints`, `fallback`, `onUnavailable`), shows no verdict, no hint
   and no method; it computes only what the student types. Whether a graphing calculator is allowed at all is the
   policy's decision (item 1). **It lists no zeros, minimum or maximum there** unless the item itself authored a
-  graphing calculator or outcome feedback is shown (review round, B1): a listed vertex was the answer an item asks for.
+  graphing calculator or the whole assessment is released (review rounds, B1 and B1'): a listed vertex was the answer an item asks for.
   Proven on a DOL in the browser (no key points, no verdict text before Submit) and by assessmentLeakGates /
   toolPolicyGates (green).
 
@@ -177,7 +177,7 @@ Merged the base at `cbeff6a` (clean), then:
   Algebra 2 Honors L1's DOL, the vertex the item asks for. `resolveCalculatorPolicy` now returns `keyPointsAllowed`
   on every result: `!isAssessmentActivity(activityPolicy)` (dol/quiz/test, or any feedback mode that is not
   immediate) `|| the item's own calculatorPolicy or embedded calculatorMode is "graphing"`. QuestionEngine passes
-  `keyPoints={calculatorPolicy.keyPointsAllowed === true || showOutcomeFeedback}` through the host to the panel.
+  `keyPoints={calculatorPolicy.keyPointsAllowed === true || showOutcomeFeedback}` through the host to the panel (superseded in the re-review round: one question's release is not enough, B1').
   Graph, trace and the table still follow the assignment setting, so DOL #2's "built-in graphing calculator" still
   works. Node tests (every role, authored both ways, a waiting-feedback policy, every return path) and a browser
   case on `role=dol` (`[data-graphing-key-points]` absent and no "Zeros/Minimum/Maximum" text in the panel; an item
@@ -205,12 +205,38 @@ Merged the base at `cbeff6a` (clean), then:
 
 Mutation totals now: 30 node mutations, all red; 13 browser mutations, all red.
 
+## Re-review round (reviewer `session_019NCALcbn7ffEtK8PCcUoAF`, on `b06d8e6`)
+
+- **B1' (blocker): key points came back on an exit ticket once one question closed.** QuestionEngine allowed them
+  on `showOutcomeFeedback`, and App releases one question's feedback when its DOL record is correct or out of tries
+  while the exit ticket is still open — so answering one question (right or wrong) gave that question's calculator a
+  listed vertex ("(4, −2)" for Alg2H L1's DOL equation) for the others. Now `calculatorKeyPointsShown({ policy,
+  assessmentReviewReleased })` in `calculatorPolicy.js` (pure, tested as behaviour): the policy's `keyPointsAllowed`,
+  or the **whole assessment** released (`assignmentFeedbackWasReleased`, which App already passes). Post-due practice
+  keeps them (App runs it as `practice`). The two source assertions that pinned the old expression now test the
+  helper's behaviour and assert QuestionEngine calls it with no per-question release in the expression. Browser:
+  `role=dol&released=1` (one question released, App's rule) lists nothing; `role=dol&review=1` lists "(4, −2)".
+  Mutations red: back to `showOutcomeFeedback` (node and browser); helper ignoring the release.
+- **S1' (regression from S1): integer vertices read 3.00000003.** The "as good" tolerance near a vertex had
+  become about 2e−15, below the rounding error of evaluating the line, whose size follows its terms (x² + 10x + 24
+  computes 3.6e−15 below −1 near −5, from terms of 25 and 50), not its value. The tolerance is now
+  `1e−14 × max(1, |value|, local change, the line's median |y| on screen)`. A value-relative tolerance alone
+  (`8ε·max(1, |value|, local)`) was tried and still misread 498 of 6448. The sweep is in the model tests:
+  8 leading coefficients × integer vertices (h, k) in −6…6 × six views, 6448 vertices, 0 misread (806 on
+  `b06d8e6`), plus x² − 6x + 5 and −x² + 6x − 5 on the default, pan-right and two zoomed views. Mutations red: round
+  two's tolerance; the value-relative one. 0 first and the touches-zero test are unchanged; (x − 1/3)² now reads
+  (0.333333, 0).
+- **S5:** decision 3 rewritten: current behaviour as shipped, the stricter variant as the owner's alternative.
+- **S6:** the audit runs from `functions/` on stdin, by the owner.
+
+Mutation totals now: 34 node mutations, all red; 14 browser mutations, all red.
+
 ## Merge of wave 4 (base `c350dfc`, merge commit `55942111`)
 
 No textual conflicts. Checked semantically:
 
 - **W4-1 Work View Help and its withheld method.** `methodWithheldHere = !toolHintsAllowed || !showOutcomeFeedback`
-  gates Help's method; the graphing calculator's key points are gated by `keyPointsAllowed || showOutcomeFeedback`,
+  gates Help's method; the graphing calculator's key points are gated by `keyPointsAllowed || assessmentReviewReleased` (after B1'),
   so on a DOL/quiz/test before release both are withheld, and on practice with immediate outcomes the calculator
   lists key points while Help follows its own hint policy. The calculator is not part of Help and passes no method;
   the Work View rail still shows "Graphing calculator" and opens it focusable on top (driver case, after the merge).
@@ -232,7 +258,8 @@ against the base, nothing else in the file):
 6. the Calculator control's label and title (work bar button and `workspaceActions.calculator`) use `calculatorName`;
 7. where `<CalculatorPanel …/>` was mounted: the same element, kept as `keypadCalculator`, rendered unless
    `graphingCalculatorOffered`, in which case `<Suspense><AssignmentGraphingCalculator open onOpenChange roomRef
-   keyPoints fallback onUnavailable/></Suspense>`.
+   keyPoints fallback onUnavailable/></Suspense>`, with `keyPoints={calculatorKeyPointsShown({ policy:
+  calculatorPolicy, assessmentReviewReleased })}` (imported next to `resolveCalculatorPolicy`).
 
 **Gate on the wave-4 merge** (head after `55942111`): `test:platform` 11695 / 11695; `tests/tools` 1681 pass, 1
 skipped, 0 fail; lint 0 errors; build ok; `assignmentGraphingCalculator` all checks passed (with the new closed-question
@@ -254,10 +281,13 @@ This release changes what an already-stored `toolPolicy.calculator` does on live
 - `"teacherChoice"` now applies (the teacher's choice, else the question's).
 
 The owner should count them first, read-only, and not release while one of them has an open DOL, quiz or test
-window. From Cloud Shell with ADC on the production project (reads only; writes nothing):
+window. **The owner runs this** (it names the production project; no agent has run it): from Cloud Shell, with ADC
+on `mathmaster-aleks`, in a checkout with `functions/` installed. It reads only and writes nothing. It is fed to
+Node on stdin from `functions/`, so `firebase-admin` resolves from `functions/node_modules` (a script file in
+`/tmp` would not find it: Node resolves packages from the script's own folder). Nothing is left on disk.
 
 ```bash
-cat > /tmp/calculator-setting-audit.mjs <<'EOF'
+cd functions && node --input-type=module <<'EOF'
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 initializeApp({ credential: applicationDefault(), projectId: 'mathmaster-aleks' });
@@ -277,8 +307,9 @@ const rows = snapshot.docs
 console.table(rows);
 console.log(`${rows.length} of ${snapshot.size} assignments carry a calculator setting.`);
 EOF
-(cd functions && node /tmp/calculator-setting-audit.mjs)   # functions/ has firebase-admin installed
 ```
+
+(Checked here only that the imports resolve this way from `functions/`; the query itself was not run.)
 
 ## Decisions for the owner
 
@@ -288,14 +319,15 @@ EOF
    #239 as superseded after this merges.
 2. **Zeros / minimum / maximum on secure practice tests.** Off there (`keyPoints` is opt-in) so the secure panel is
    unchanged. The Digital SAT's Desmos shows such points; turning it on is one prop in `SecureExamContainer.jsx`.
-3. **May an unauthored assessment item be widened at all?** Today (after B1): on a DOL, quiz or test an item with
-   no authored calculator takes the assignment's "graphing" for graph, trace and table, but no listed key points;
-   an item that authored graphing itself keeps them. The stricter variant: on assessment roles the assignment
-   setting may narrow but never widen an unauthored item (it would keep the platform's basic), and DOL #2 would then
-   need `calculatorMode: "graphing"` authored on its items. Note that even without key points the table of values
-   and the trace still show integer zeros and the symmetry of a parabola, so the real question is whether the
-   assignment setting may widen an unauthored assessment item at all. The variant is one condition in
-   `resolveCalculatorPolicy` (`questionAuthoredMode` null on an assessment role ⇒ keep the question's) and two tests.
+3. **May the assignment widen an unauthored assessment item?** *Current behaviour (what this branch ships):* on an
+   exit ticket, quiz or test, an item with no calculator of its own takes the assignment's "graphing" — the graph,
+   the trace and the table — but lists no zeros, minimum or maximum until the whole assessment is released (an item
+   that authored graphing itself keeps them). Plainly: on such an unauthored DOL item, the graph, the trace and the
+   table can still show a function's integer zeros and a parabola's symmetry. *The alternative the owner may
+   choose (not built):* on assessment roles the assignment setting may narrow but never widen an unauthored item,
+   which would keep the platform's basic calculator there; DOL #2 would then need `calculatorMode: "graphing"`
+   authored on its items. It is one condition in `resolveCalculatorPolicy` (`questionAuthoredMode` null on an
+   assessment role ⇒ keep the question's) and two tests.
 4. **No teacher UI sets `toolPolicy.calculator`.** It comes only from imported V5 JSON (`authoringContract.js` shows
    `"inherit"`). A Pre-Flight control would make PR-25 reachable without JSON.
 

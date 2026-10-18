@@ -281,6 +281,22 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   assert.deepEqual(errors, []);
   await page.close();
 
+  // A closed question of an exit ticket that is still open: App releases that
+  // one question's feedback (its record is correct or out of tries). Its
+  // calculator still lists nothing — a vertex here would answer the next one.
+  for (const [query, listed] of [['calc=graphing&role=dol&released=1', false], ['calc=graphing&role=dol&review=1', true]]) {
+    const run = await open({ width: 1366, height: 768 }, query);
+    await run.page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
+    await run.page.locator(PANEL).waitFor();
+    await run.page.keyboard.type('y = (1/2)abs(x - 4) - 2');
+    await run.page.waitForSelector('[data-graphing-line="1"] [data-graphing-status="function"]');
+    if (listed) await run.page.waitForFunction(() => /\(4, −2\)/.test(document.querySelector('[data-graphing-minima]')?.textContent || ''));
+    else await run.page.waitForTimeout(400);
+    assert.equal(await run.page.locator('[data-graphing-key-points]').count(), listed ? 1 : 0, `${query}: key points ${listed ? 'listed once the exit ticket is released' : 'withheld on a closed question of an open exit ticket'}`);
+    assert.deepEqual(run.errors, []);
+    await run.page.close();
+  }
+
   const authoredGraphing = await open({ width: 1366, height: 768 }, 'calc=off&role=dol&mode=graphing');
   await authoredGraphing.page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
   await authoredGraphing.page.locator(PANEL).waitFor();

@@ -169,6 +169,18 @@ const isAssessmentActivity = (activityPolicy = {}) => (
  * asks for. Graph, trace and table still follow the policy. QuestionEngine
  * also allows them once outcome feedback is shown (released).
  */
+/**
+ * Does the graphing calculator list zeros, minimum and maximum right now?
+ * Where the policy allows them, or once the WHOLE assessment's feedback is
+ * released (`assessmentReviewReleased`). Not on one question's own release:
+ * a DOL question that closes (correct, or out of tries) shows its feedback
+ * while the exit ticket is still open, and a listed vertex on that question's
+ * calculator would answer the next one (pass 3 review, B1').
+ */
+export const calculatorKeyPointsShown = ({ policy = null, assessmentReviewReleased = false } = {}) => (
+  policy?.keyPointsAllowed === true || assessmentReviewReleased === true
+);
+
 export const resolveCalculatorPolicy = ({
   questionSpec = {},
   activityPolicy = {},

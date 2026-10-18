@@ -483,6 +483,9 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
   const gap = span / count;
   const xs = Array.from({ length: count + 1 }, (unused, index) => left + index * gap);
   const ys = xs.map((x) => f(x));
+  const sizes = ys.filter((y) => y !== null).map(Math.abs).sort((a, b) => a - b);
+  // The line's typical size on screen (its median |y|).
+  const viewScale = sizes.length ? sizes[Math.floor(sizes.length / 2)] : 1;
   // "Is y = 0 here": within floating-point error of the line's size a sample
   // step either side (10000x² + 0.01 does not touch 0; x² does).
   const nearZeroAt = (x, y) => {
@@ -535,11 +538,17 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       if (turnValue === null || Math.abs(turnValue) > limit) continue;
       // Golden-section search pins x only to about 8 digits (1.000000006 for
       // 1): take the shortest x within the bracket that is as low (or high).
+      // "As good": no worse than the search's own point, within the rounding
+      // error of evaluating this line. That error follows the size of the
+      // line's terms, not of its value: x² + 10x + 24 is −1 at −5 exactly, yet
+      // at the search's −5.00000002 it computes 3.6e−15 lower, from terms of 25
+      // and 50. The line's typical size on screen stands in for its terms.
       const local = Math.max(...[f(x - gap), f(x + gap)].filter((value) => value !== null).map((value) => Math.abs(value - turnValue)), 0);
+      const tolerance = 1e-14 * Math.max(1, Math.abs(turnValue), local, viewScale);
       const at = shortestEquivalent(x, (candidate) => {
         const value = f(candidate);
         if (value === null) return false;
-        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= local * 1e-12;
+        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= tolerance;
       }, gap);
       const y = f(at);
       if (y === null) continue;

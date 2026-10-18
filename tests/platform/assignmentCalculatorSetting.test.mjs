@@ -17,7 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies.js';
-import { CALCULATOR_MODES, resolveCalculatorPolicy } from '../../src/platform/policies/calculatorPolicy.js';
+import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } from '../../src/platform/policies/calculatorPolicy.js';
 import { ENTRY_KINDS, findGraphFeatures, parseGraphEntry } from '../../src/platform/assessment/graphingCalculatorModel.js';
 import { isSingleLineAnswerTarget, shouldSubmitAnswerOnEnter } from '../../src/platform/interaction/answerEntryUx.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -157,10 +157,22 @@ test('zeros, minimum and maximum are listed only where they cannot state an unre
     resolve({ questionSpec: { calculatorPolicy: NONE } }),
   ]) assert.equal(typeof policy.keyPointsAllowed, 'boolean', JSON.stringify(policy));
 
-  // QuestionEngine hands it to the panel, and also allows them once outcome feedback is shown.
+  // Shown: where the policy allows them, or once the whole assessment is released —
+  // never because one question closed and showed its own feedback (B1').
+  const dol = resolve({ activityPolicy: getEffectiveActivityPolicy('dol'), assignmentCalculatorMode: GRAPHING });
+  assert.equal(calculatorKeyPointsShown({ policy: dol }), false, 'open exit ticket');
+  assert.equal(calculatorKeyPointsShown({ policy: dol, feedbackReleased: true, showOutcomeFeedback: true }), false, 'a closed question of an open exit ticket');
+  assert.equal(calculatorKeyPointsShown({ policy: dol, assessmentReviewReleased: true }), true, 'the exit ticket released');
+  assert.equal(calculatorKeyPointsShown({ policy: resolve({ assignmentCalculatorMode: GRAPHING }) }), true, 'classwork');
+  assert.equal(calculatorKeyPointsShown({ policy: resolve({ activityPolicy: getEffectiveActivityPolicy('practice'), assignmentCalculatorMode: GRAPHING }) }), true, 'post-due practice runs as practice');
+  assert.equal(calculatorKeyPointsShown({}), false, 'no policy: none');
+
+  // QuestionEngine asks exactly that, with the assessment's release.
   const engine = source('src/QuestionEngine.jsx');
   const mount = region(engine, '<AssignmentGraphingCalculator\n', '/>', 'host element');
-  assert.match(mount, /keyPoints=\{calculatorPolicy\.keyPointsAllowed === true \|\| showOutcomeFeedback\}/);
+  assert.match(mount, /keyPoints=\{calculatorKeyPointsShown\(\{ policy: calculatorPolicy, assessmentReviewReleased \}\)\}/);
+  assert.doesNotMatch(executableSource(mount), /showOutcomeFeedback|feedbackReleased/, 'one question\'s release is not the assessment\'s');
+  assert.match(engine, /import \{ CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy \} from '\.\/platform\/policies\/calculatorPolicy';/);
   const host = source('src/components/calculator/AssignmentGraphingCalculator.jsx');
   assert.match(region(host, '<GraphingCalculatorPanel', '/>', 'panel element'), /keyPoints=\{keyPoints\}/);
   assert.match(host, /roomRef = null, keyPoints = false \}\)/, 'off unless the engine says so');
@@ -186,7 +198,7 @@ test('a graphing policy outside an assessment context opens the graphing calcula
   assert.match(offer, /calculatorPolicy\?\.available/);
   assert.match(offer, /calculatorPolicy\.mode === CALCULATOR_MODES\.GRAPHING/);
   assert.match(offer, /!assessmentContext/, 'a secure test brings its own graphing calculator');
-  assert.match(engine, /import \{ CALCULATOR_MODES, resolveCalculatorPolicy \} from '\.\/platform\/policies\/calculatorPolicy';/);
+  assert.match(engine, /import \{ CALCULATOR_MODES, [^}]*resolveCalculatorPolicy \} from '\.\/platform\/policies\/calculatorPolicy';/);
 
   const mount = region(engine, 'const keypadCalculator = (', '})()}', 'calculator mount');
   assert.match(mount, /return graphingCalculatorOffered \? \(/);
@@ -238,7 +250,7 @@ test('the graphing calculator is given nothing about the question', () => {
   const engine = source('src/QuestionEngine.jsx');
   const mount = region(engine, '<AssignmentGraphingCalculator\n', '/>', 'host element');
   assert.deepEqual([...mount.matchAll(/\s([a-zA-Z]+)=\{/g)].map((match) => match[1]), ['open', 'onOpenChange', 'roomRef', 'keyPoints', 'fallback', 'onUnavailable']);
-  assert.match(mount, /keyPoints=\{calculatorPolicy\.keyPointsAllowed === true \|\| showOutcomeFeedback\}/, 'a policy flag, not question data');
+  assert.match(mount, /keyPoints=\{calculatorKeyPointsShown\(\{ policy: calculatorPolicy, assessmentReviewReleased \}\)\}/, 'a policy flag and the release, not question data');
   assert.match(mount, /roomRef=\{questionEngineRef\}/, 'the element to pad, not its content');
 });
 
@@ -308,6 +320,33 @@ test('a zoomed or stretched view states the turning point exactly', () => {
   assert.deepEqual(features('y = x^2/10^6 - 1', -3000, 3000), { zeros: [-1000, 1000], minima: [{ x: 0, y: -1 }], maxima: [], more: { zeros: false, minima: false, maxima: false } });
   assert.deepEqual(features('y = -2(x - 3)^2 + 8', 2.5, 3.7).maxima, [{ x: 3, y: 8 }]);
   assert.deepEqual(features('y = (x - 1/3)^2').minima.map(({ x, y }) => [Number(x.toFixed(6)), y]), [[0.333333, 0]]);
+});
+
+test('an integer vertex reads as that integer in every view (x² − 6x + 5 is (3, −4), not (3.00000003, −4))', () => {
+  for (const [xMin, xMax] of [[-10, 10], [-5, 15], [2, 4], [-2.5, 7.5]]) {
+    assert.deepEqual(features('y = x^2 - 6x + 5', xMin, xMax).minima, [{ x: 3, y: -4 }], `x² − 6x + 5 on [${xMin}, ${xMax}]`);
+    assert.deepEqual(features('y = -x^2 + 6x - 5', xMin, xMax).maxima, [{ x: 3, y: 4 }], `−x² + 6x − 5 on [${xMin}, ${xMax}]`);
+  }
+  // The sweep: expanded parabolas a·x² + b·x + c with integer vertex (h, k), in six views.
+  const term = (n, v) => (n === 0 ? '' : ` ${n < 0 ? '-' : '+'} ${Math.abs(n)}${v}`);
+  const wrong = [];
+  let checked = 0;
+  for (const a of [1, -1, 2, -2, 3, -3, 0.5, -0.5]) {
+    for (let h = -6; h <= 6; h += 1) {
+      for (let k = -6; k <= 6; k += 1) {
+        const text = `y = ${a}x^2${term(-2 * a * h, 'x')}${term(a * h * h + k, '')}`;
+        for (const [xMin, xMax] of [[-10, 10], [-5, 5], [-2.5, 2.5], [-5, 15], [-20, 20], [-15, 5]]) {
+          if (h <= xMin || h >= xMax) continue;
+          checked += 1;
+          const found = features(text, xMin, xMax);
+          const turn = a > 0 ? found.minima : found.maxima;
+          if (turn.length !== 1 || turn[0].x !== h || turn[0].y !== k) wrong.push(`${text} on [${xMin}, ${xMax}]: ${JSON.stringify(turn)}`);
+        }
+      }
+    }
+  }
+  assert.ok(checked > 6000, `${checked} checked`);
+  assert.deepEqual(wrong.slice(0, 5), [], `${wrong.length} of ${checked} vertices misread`);
 });
 
 test('a turning value is reported as it is, and a near miss of y = 0 is not a zero', () => {
