@@ -162,7 +162,7 @@ test('a hint that states an answer is still dropped: a value, a point, an expres
   // Review B1: each was dropped on the base, and must stay dropped.
   assert.deepEqual(statedAnswers('Line q is y = 3x − 8.', { answers: ['3'], visibleText: 'Line p is y = 13x − 8. Line q is perpendicular to it.' }), ['3'], 'quoted as a whole token: "3x − 8" is not in "13x − 8"');
   assert.deepEqual(statedAnswers('Compare with y = 2x + 1.', { answers: ['2'], visibleText: 'Slope of y = 12x + 1' }), ['2'], 'nor "2x + 1" in "12x + 1"');
-  assert.deepEqual(statedAnswers('The answer is a 3.', { answers: ['3'], visibleText: 'Shade a 3 by 3 grid.' }), ['3'], 'the word "a" and a number are not mathematics');
+  assert.deepEqual(statedAnswers('The answer is a 3.', { answers: ['3'], visibleText: 'Rows: a 3, b 4.' }), ['3'], 'the word "a" and a number are not mathematics, even where the prompt writes "a 3" whole');
   assert.deepEqual(statedAnswers('The slope is 3/(1).', { answers: ['3'], visibleText: '' }), ['3'], 'a number over a bracket is a number');
   // An empty list of matches is never "quoted": the shared guard matched
   // "4/3" inside "14/3", which no number in the hint is, so the value counts.
@@ -304,7 +304,7 @@ test('the fallback fits the kind of question, and names no method step the item 
   // The Spanish names no method either (review N3: "sustitúyela" was the
   // method word the English avoids).
   const pack = await loadLanguagePack('es');
-  const METODO = /elimin|sustitu|recíproc|pendiente|distribu|ambos lados|inversa|operaci[oó]n de fila|reduc|factoriz|despej|deshaz|intercambi|refle|estir|traslad|desplaz|intersecci|vértice/i;
+  const METODO = /elimin|sustit|recíproc|pendiente|distribu|ambos lados|inversa|operaci[oó]n de fila|reduc|factoriz|despej|deshaz|intercambi|refle|estir|traslad|desplaz|intersecci|vértice/i;
   Object.entries(FALLBACK_HINTS).forEach(([kind, hints]) => hints.forEach((hint) => {
     const spanish = translateWithPack(hint, pack);
     assert.equal(spanish.coverage, TRANSLATION_COVERAGE.FULL, hint);

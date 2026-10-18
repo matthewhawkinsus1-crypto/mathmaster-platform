@@ -266,6 +266,18 @@ for (const role of ['practice', 'dol']) {
   await page.locator('button', { hasText: '💡 Hint' }).first().click();
   await page.waitForFunction(() => /\btool\b/.test(document.querySelector('[data-hint-panel]')?.dataset.hintSources || ''), null, { timeout: 8000 }).catch(() => {});
   check(/\btool\b/.test(await ladderSources(page)), 'practice step algebra: the strategic hint is a rung of the platform ladder', await ladderSources(page));
+  // A STANDING rung (review S1): open before the first try, as the disclosure
+  // was, and taking no family rung's place — hint 1 of the family still opens
+  // before the first try too, and hint 2 waits for a try.
+  const panel = page.locator('[data-hint-panel]:visible').first();
+  await panel.getByRole('button', { name: /^Show a hint$/ }).click();
+  await page.waitForTimeout(150);
+  const first = await panel.locator('li[data-hint-source]').first().innerText().catch(() => '');
+  check(/Look for a move that cancels a term/.test(first) && await panel.locator('li[data-hint-source="tool"]').count() === 1, 'practice step algebra: before any try, the strategic hint opens on request', first.slice(0, 100));
+  check(await panel.getByRole('button', { name: /^Show the next hint$/ }).count() === 1, 'practice step algebra: the family\'s first hint still opens before any try');
+  await panel.getByRole('button', { name: /^Show the next hint$/ }).click();
+  await page.waitForTimeout(150);
+  check(await panel.locator('li[data-hint-source="family"]').count() === 1 && await panel.getByRole('button', { name: /^Show the next hint$/ }).count() === 0, 'practice step algebra: the family\'s second hint waits for a try, as before');
   await page.close();
 }
 for (const role of ['dol', 'test']) {
