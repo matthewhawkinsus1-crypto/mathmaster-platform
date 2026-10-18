@@ -71,7 +71,8 @@ test('the region says the tool\'s words with the outcome, and offers the hint, R
     }));
     assert.match(platformMiss, /aria-label="Translate the feedback"/);
     assert.doesNotMatch(platformMiss, /No Spanish translation/);
-    assert.match(offered, /A hint is ready if you want one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
+    // With the one sentence on what a hint costs (HELP-17).
+    assert.match(offered, /A hint is ready if you want one\. Hints never lower your score\. Your teacher can see you used one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
 
     // A language with no pack: no dead Translate button, and the student is told.
     const vietnamese = render({ ...MISS, readAloud: { language: 'en' }, translation: { language: 'vi' }, onEvidence: () => {} });
@@ -127,7 +128,7 @@ test('the engine hands a tool what its own box offers, under the same rule', () 
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
   // The box offers the hint under the same rule (beside, since HELP-9, the
   // worked sibling): the button that reveals a hint renders only under it.
-  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\.\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
+  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
 });
 
 test('after a miss, the box and the tool offer the worked sibling beside the hint (HELP-9)', async () => {

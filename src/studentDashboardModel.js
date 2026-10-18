@@ -8,7 +8,7 @@ import { filterStudentRequiredIndices, studentOmittedIndices } from '../function
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
-import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './platform/student/studentWords.js';
+import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, RECOVERY_NAME, exitTicketInSentence } from './platform/student/studentWords.js';
 import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
 import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
@@ -735,7 +735,7 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
     ...(entry.action === 'recovery' ? (entry.lesson?.recoverySection?.recoveryState === 'locked' ? {
       // A locked Recovery is still available (it keeps the lesson open); the
       // next action is the unlock path, on the result page's Recovery panel.
-      headline: `Practice to unlock your ${entry.lesson.recoverySection.label} Recovery`,
+      headline: `Practice to unlock your ${RECOVERY_NAME[entry.lesson.recoverySection.role] || `${entry.lesson.recoverySection.label} Recovery`}`,
       detail: `${entry.assignment.title} — a little more Practice unlocks a second try.`,
       actionLabel: 'Open Recovery',
     } : {

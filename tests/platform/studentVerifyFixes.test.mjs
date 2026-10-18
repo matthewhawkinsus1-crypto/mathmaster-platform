@@ -88,7 +88,7 @@ test('Grades: Start/Continue only on work open now, landing where Home would; Re
     assert.equal(actions.start, null, `${id} still offers ${actions.start?.label}`);
     assert.ok(actions.waitText, `${id} has no wait line`);
   }
-  assert.match(actionsFor('waiting-dol').waitText, /DOL opens at/);
+  assert.match(actionsFor('waiting-dol').waitText, /Exit ticket opens at/);
 
   const recovery = actionsFor('recovery');
   assert.deepEqual(recovery.start, { label: 'Open Recovery', opensResult: true });

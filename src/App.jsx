@@ -10154,7 +10154,7 @@ function App() {
       lifecycle.isPracticeOnly && {
         key: 'practice',
         tone: 'practice',
-        chip: `${CLOSED_WORK.label} · no credit`,
+        chip: CLOSED_WORK.label,
         title: CLOSED_WORK.bannerTitle,
         text: CLOSED_WORK.bannerText,
       },

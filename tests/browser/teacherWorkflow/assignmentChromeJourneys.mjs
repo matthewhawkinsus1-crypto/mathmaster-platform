@@ -296,11 +296,11 @@ if (wanted('statusChip')) {
       window.__mmHarnessStore.importDoc(`assignments/${lesson}`, { ...stored, dueAt: { __ts: Date.now() - 6 * 86400_000 }, lateDueAt: { __ts: Date.now() - 4 * 86400_000 } });
     },
     // Home offers a closed lesson as practice, in its own group.
-    group: /Practice only — closed, no credit/,
+    group: /Closed — no credit/,
     button: /Try it again/i,
   });
   const closedChip = await closed.page.locator('.mathmaster-assignment-status-chip').innerText().catch(() => '');
-  check(/^Practice only · no credit/i.test(closedChip.trim()), `${PHONE.name}: a closed lesson's practice says "Practice only · no credit" in the chip`, closedChip);
+  check(/^Closed — no credit/i.test(closedChip.trim()), `${PHONE.name}: a closed lesson's practice says "Closed — no credit" in the chip`, closedChip);
   await closed.context.close();
 
   const desktop = await openLesson(CHROMEBOOK, {

@@ -42,6 +42,13 @@ export const STUDENT_SECTION_LABEL = Object.freeze({
   test: 'Test',
 });
 
+/*
+ * A Recovery keeps its feature name, "DOL Recovery", which teachers and
+ * Pre-Flight use too: renaming it is the owner's call (W6-1 handoff,
+ * decision 1). Built from the section label it read "Exit ticket Recovery".
+ */
+export const RECOVERY_NAME = Object.freeze({ dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' });
+
 /** Home's chip on a lesson that is done except its exit ticket (NAV-26). */
 export const EXIT_TICKET_WAITS = 'Exit ticket opens in class';
 
@@ -73,16 +80,17 @@ export const firstExitTicketMention = (items = [], namesExitTicket = () => false
 /*
  * Work past its last day to turn in. It can still be opened and practiced, and
  * nothing done there changes the grade. One name for it everywhere: the card
- * chip, the Assignments tab, the Grades status, the workspace badge and its
- * banner.
+ * chip, Home's group, the Assignments tab, the Grades status, the workspace
+ * badge and its banner. Never "Practice …": in student copy "Practice" is only
+ * the lesson's Practice section, and a closed card already shows a "Practice"
+ * chip of its own.
  */
 export const CLOSED_WORK = Object.freeze({
-  // The chip, the badge, the Grades status, the Assignments tab.
-  label: 'Practice only',
-  // Home's group heading: what the name means, said once.
-  groupLabel: 'Practice only — closed, no credit',
+  // The chip, the badge, the Grades status, the Assignments tab, Home's group.
+  label: 'Closed — no credit',
+  groupLabel: 'Closed — no credit',
   // The workspace banner's heading and sentence.
-  bannerTitle: 'Practice only — this assignment is closed',
+  bannerTitle: 'Closed — no credit',
   bannerText: 'Your grade on it stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it.',
   // The button that opens it again.
   tryAgain: 'Try it again — no credit',

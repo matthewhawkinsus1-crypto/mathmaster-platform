@@ -59,7 +59,7 @@ test('Start/Continue only when the Today rule says the button lands on work open
 
 test('waiting rows show what they are waiting for instead of a button', () => {
   assert.match(rowOf('locked-practice').waitText, /^Practice opens when your teacher starts it in class$/);
-  assert.match(rowOf('waiting-dol').waitText, /^DOL opens at /);
+  assert.match(rowOf('waiting-dol').waitText, /^Exit ticket opens at /);
   assert.equal(rowOf('actionable').waitText, null, 'open work has no wait text');
   assert.equal(rowOf('closed').waitText, null, 'closed work is not "waiting"');
   // The component renders the wait text in the row's action area.
@@ -128,9 +128,9 @@ test('closed work is "Try it again — no credit", never "Practice"', () => {
   assert.doesNotMatch(rowActions, />\s*Practice\s*</, 'no bare "Practice" button label on a row');
 });
 
-test('the closed tab keeps its id and says "Closed — try again"', () => {
+test('the closed tab keeps its id and says closed work\'s one name, "Closed — no credit" (NAV-17)', () => {
   assert.equal(ASSIGNMENT_CATEGORY.PRACTICE, 'practice', 'the id is stable');
-  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], 'Closed — try again');
+  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], 'Closed — no credit');
   assert.equal(
     ASSIGNMENT_CATEGORY_HINT[ASSIGNMENT_CATEGORY.PRACTICE],
     'Past the final deadline. You can try these again; they no longer change your grade.',
@@ -139,7 +139,7 @@ test('the closed tab keeps its id and says "Closed — try again"', () => {
     assert.doesNotMatch(text, /\bpractis|\bPractice\b/, `"${text}" must not use Practice for closed work`);
   }
   const tab = result.categories.find((group) => group.id === ASSIGNMENT_CATEGORY.PRACTICE);
-  assert.equal(tab.label, 'Closed — try again');
+  assert.equal(tab.label, 'Closed — no credit');
 });
 
 test('Upcoming is sorted soonest due first', () => {

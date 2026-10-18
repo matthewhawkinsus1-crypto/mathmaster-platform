@@ -52,7 +52,9 @@ test('D9: the exit ticket is spelled out at the first item that names one — no
 });
 
 test('NAV-17: closed work has one name on every screen, and the result button one word', () => {
-  assert.equal(CLOSED_WORK.label, 'Practice only');
+  assert.equal(CLOSED_WORK.label, 'Closed — no credit');
+  // Never "Practice": that word is the lesson's Practice section.
+  assert.doesNotMatch(`${CLOSED_WORK.label} ${CLOSED_WORK.groupLabel} ${CLOSED_WORK.bannerTitle}`, /Practice/);
   assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], CLOSED_WORK.label);
   assert.equal(GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY], CLOSED_WORK.label);
   assert.ok(BUCKET_LABEL[BUCKET.PRACTICE].startsWith(CLOSED_WORK.label), BUCKET_LABEL[BUCKET.PRACTICE]);
