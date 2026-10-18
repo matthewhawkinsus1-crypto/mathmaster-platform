@@ -9039,8 +9039,9 @@ function App() {
         data-pack-up-notice={logoutRisk ? 'unsent' : 'saved'}
         style={{
           display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
-          // Dark text on the yellow in both themes: the bar's colours are fixed.
-          background: '#fbbc04', color: '#202124', borderBottom: '2px solid #b06000',
+          // The theme's warning pair, readable in both themes (the old banner put
+          // --mm-text-strong on a fixed yellow: light on yellow in dark mode).
+          background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', borderBottom: '3px solid #f9ab00',
           padding: '5px clamp(10px, 3vw, 22px)', textAlign: 'center', lineHeight: 1.3,
           fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(14 * var(--mm-px))',
         }}
