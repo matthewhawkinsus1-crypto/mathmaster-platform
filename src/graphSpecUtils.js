@@ -400,8 +400,39 @@ const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
   const ySpan = yMax - yMin;
   if (xSpan / ySpan < aspect) [xMin, xMax] = widen(xMin, xMax, ySpan * aspect - xSpan);
   else [yMin, yMax] = widen(yMin, yMax, xSpan / aspect - ySpan);
+  // Equal units must not uncover a meeting point outside an authored x-range
+  // (re-review R1): an author who crops a system so it must be solved
+  // algebraically (a DOL, quiz or test) must not have the graph show the
+  // answer. If it would, the figure keeps the old fit, which only ever widens
+  // y over the authored x-range and so never showed one.
+  const authoredX = finite(graph.xMin) && finite(graph.xMax);
+  if (authoredX && croppedMeetingPoints(functions, [Number(graph.xMin), Number(graph.xMax)])
+    .some(([x, y]) => x >= xMin && x <= xMax && y >= yMin && y <= yMax)) return null;
+  // Nor may it leave a line entirely off the plot: the old fit shows it.
+  const missesWindow = (spec) => {
+    const m = Number(spec.m ?? 0);
+    const b = Number(spec.b ?? 0);
+    const [low, high] = [m * xMin + b, m * xMax + b].sort((first, second) => first - second);
+    return high < yMin || low > yMax;
+  };
+  if (functions.some((spec) => (spec?.type || spec?.kind || 'line') === 'line' && missesWindow(spec))) return null;
   const tidy = (value) => Number(value.toFixed(6));
   return { ...graph, xMin: tidy(xMin), xMax: tidy(xMax), yMin: tidy(yMin), yMax: tidy(yMax), equalUnits: true };
+};
+
+// Where two lines meet outside the author's x-range.
+const croppedMeetingPoints = (functions, [xMin, xMax]) => {
+  const lines = functions
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map((spec) => ({ m: Number(spec.m ?? 0), b: Number(spec.b ?? 0) }))
+    .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
+  const points = [];
+  lines.forEach((first, index) => lines.slice(index + 1).forEach((second) => {
+    if (Math.abs(first.m - second.m) < 1e-9) return;
+    const x = (second.b - first.b) / (first.m - second.m);
+    if (x < xMin || x > xMax) points.push([x, first.m * x + first.b]);
+  }));
+  return points;
 };
 
 /**
@@ -418,7 +449,10 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
   const landmarks = staticGraphViewportLandmarks(graph, functions);
   // `equalUnits: false` in the options: a host that draws the window on a plane
   // of its own proportions (an interactive stage) keeps the old fit.
-  if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) return fitEqualUnitViewport(graph, landmarks, plotAspect, functions);
+  if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) {
+    const framed = fitEqualUnitViewport(graph, landmarks, plotAspect, functions);
+    if (framed) return framed;
+  }
   const landmarkXs = landmarks.map(([x]) => x);
   const landmarkYs = landmarks.map(([, y]) => y);
 
@@ -535,7 +569,9 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
 
 export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBoundaryVisibility = false } = {}) => {
   graph = fitStaticGraphViewport(graph);
-  const equalUnitLines = graph?.equalUnits === true
+  // A locked window is the author's frame, held to every rule even when the
+  // author also asked for equal units (re-review R2).
+  const equalUnitLines = graph?.equalUnits === true && graph?.lockViewport !== true
     && staticViewportFunctions(graph).every((spec) => (spec?.type || spec?.kind || 'line') === 'line');
   const slopes = staticViewportFunctions(graph)
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')

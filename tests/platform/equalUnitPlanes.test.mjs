@@ -91,6 +91,12 @@ test('Pre-Flight: equal-unit lines are exempt from "mostly outside", nothing els
   // A steep pair in a small window: with equal units the steep line leaves it.
   const steep = { xMin: -2, xMax: 2, yMin: -2, yMax: 2, functions: [{ type: 'line', m: 0.1, b: 0 }, { type: 'line', m: -10, b: 0 }] };
   assert.deepEqual(auditStaticGraphViewport(steep, { label: 'steep' }).warnings, []);
+  // Re-review R2: a locked window is held to every rule even when the author
+  // also asked for equal units: the strict error and the warning stay.
+  const lockedEqual = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, lockViewport: true, equalUnits: true, functions: [{ type: 'line', m: 3, b: 0 }, { type: 'line', m: -1 / 3, b: 0 }] };
+  const lockedResult = auditStaticGraphViewport(lockedEqual, { label: 'locked', strictBoundaryVisibility: true });
+  assert.equal(lockedResult.errors.filter((message) => /clipped by its locked viewport/.test(message)).length, 1);
+  assert.equal(lockedResult.warnings.filter((message) => /mostly outside/.test(message)).length, 1);
   // A curve the author forced into equal units still warns.
   const curve = { xMin: -10, xMax: 10, yMin: -2, yMax: 2, equalUnits: true, functions: [{ type: 'quadratic', a: 5, b: 0, c: 0 }] };
   assert.match(auditStaticGraphViewport(curve, { label: 'curve' }).warnings.join('\n'), /mostly outside/);
@@ -126,9 +132,25 @@ test('review S2: what the old fit showed stays in frame, and a cropped line stil
   const intercepts = fitStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m: -2, b: 12 }, { type: 'line', m: 1, b: 0 }], points: [{ x: 4, y: 4 }] });
   assert.equal(intercepts.equalUnits, true);
   assert.ok(intercepts.yMax > 12 && intercepts.yMin <= -10, `y ${intercepts.yMin}..${intercepts.yMax}`);
-  // Two meeting lines with no marked point: the meeting point is kept.
-  const meet = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
-  assert.ok(meet.yMax > 7 && meet.xMax > 7, 'the meeting point (7, 7)');
+  // Re-review R1: a meeting point OUTSIDE an authored x-range stays out. An
+  // author who crops a system so it must be solved algebraically (an exit
+  // ticket, quiz or test) must not have the graph hand over the answer.
+  const cropped = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
+  const shows = (graph, [x, y]) => x >= graph.xMin && x <= graph.xMax && y >= graph.yMin && y <= graph.yMax;
+  assert.equal(shows(cropped, [7, 7]), false, `(7, 7) must stay out of ${JSON.stringify(cropped)}`);
+  const farther = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 30 }] });
+  assert.equal(shows(farther, [15, 15]), false, '(15, 15) stays out too');
+  // Equal units cannot keep that x-range, so such a figure keeps the old fit:
+  // the authored x-range, y widened over it, exactly as before R-1.
+  assert.deepEqual([cropped.xMin, cropped.xMax, cropped.equalUnits], [-5, 5, undefined]);
+  // And no line is ever left off the plot (that would block an import).
+  assert.deepEqual(auditStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 30 }] }, { label: 'farther' }), { errors: [], warnings: [] });
+  // Inside the authored x-range a meeting point is kept, as the old fit did.
+  const inside = fitStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
+  assert.equal(shows(inside, [7, 7]), true, 'a meeting point inside the authored x-range shows');
+  // With no authored x-range, a nearby meeting point is kept.
+  const unpinned = fitStaticGraphViewport({ functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
+  assert.equal(shows(unpinned, [7, 7]), true, 'no authored x-range: the meeting point shows');
   // Parallel steep lines that show on a sliver of the window: warned.
   const sliver = auditStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m: 4, b: 30 }, { type: 'line', m: 4, b: -30 }] }, { label: 'sliver' });
   assert.equal(sliver.warnings.filter((message) => /mostly outside/.test(message)).length, 2);
