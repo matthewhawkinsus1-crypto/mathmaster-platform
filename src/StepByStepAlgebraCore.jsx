@@ -88,7 +88,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
@@ -383,6 +383,9 @@ export default function StepByStepAlgebra({
   const teacherView = useTeacherView();
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
+  // Where the host carries the platform's hint ladder (QuestionEngine), the
+  // strategic hint is a rung of it, not a second hint control (below).
+  const publishHints = useToolHintPublisher();
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
   const question = useContentStableValue(questionProp);
@@ -1914,6 +1917,23 @@ export default function StepByStepAlgebra({
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
+  // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
+  // hint control beside the work bar's Hint: it opened with no try at all and
+  // was recorded only as "a hint was used". Inside a question it is now the
+  // solver's STANDING rung of the platform ladder (toolHintChannel.js): open
+  // from the start as it always was, without taking a family rung's place in
+  // the one-per-try release, and now read through the leak guard, counted
+  // with the other hints, and shown as read in Work View Help too. It follows
+  // the equation on screen, so it changes as the student works. Without a
+  // platform ladder (the tools lab, a server-graded host) the solver keeps its
+  // own disclosure.
+  const strategicHint = hintsAllowed && question.showHint !== false && suggestedMove && !solved
+    ? `Look for a move that cancels a term: ${describeOperation(suggestedMove.operation, suggestedMove.operand)}.`
+    : '';
+  useEffect(() => {
+    if (!publishHints || !strategicHint) return undefined;
+    return publishHints([{ text: strategicHint, standing: true }]);
+  }, [publishHints, strategicHint]);
   const inlineToolActive = Boolean(
     (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,
   );
@@ -2839,7 +2859,7 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint? <span data-hint-cost-note="" style={{ fontWeight: 'normal', fontSize: 'calc(12.5 * var(--mm-px))' }}>{hintCostSentence(hintCostNote)}</span></summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {!publishHints && strategicHint && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint? <span data-hint-cost-note="" style={{ fontWeight: 'normal', fontSize: 'calc(12.5 * var(--mm-px))' }}>{hintCostSentence(hintCostNote)}</span></summary><p style={{ margin: '8px 0 0' }}>{strategicHint}</p></details>}
       {message && (() => {
         // Where verdicts are withheld, a message keeps its words but loses its
         // correctness colour; only a genuine error stays red.

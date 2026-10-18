@@ -36,7 +36,7 @@ import { maskMath } from '../../src/platform/language/mathSafeText.js';
 import {
   loadLanguagePack, resolveTranslation, resolveTranslationNow, translateWithPack, TRANSLATION_COVERAGE, TRANSLATION_GAP,
 } from '../../src/platform/language/translationProviders.js';
-import { buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
+import { FALLBACK_HINTS, buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
 import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
@@ -316,6 +316,8 @@ test('every miss message, generic hint and outcome sentence MathMaster writes is
     ...Object.values(MISCONCEPTION_STUDENT_MESSAGES),
     ...Object.values(GENERIC_MISS_MESSAGES),
     ...buildQuestionHints({ type: 'multiAnswer', prompt: 'x' }).map((hint) => hint.text),
+    // Every fallback, by kind of question (HELP-23).
+    ...Object.values(FALLBACK_HINTS).flat(),
     // Built from the functions that write them, so a new wording cannot ship
     // untranslated (pass 3: the pack once held only the old sentences).
     ...[3, 2, 1].map((left) => missOutcomeText(left)),

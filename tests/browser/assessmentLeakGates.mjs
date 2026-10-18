@@ -32,7 +32,7 @@
 //   intercepts         "Check x-intercept" / "Check y-intercept" and their step credit
 //   relation           the relation solver's graph-your-solution number line
 //   constraint-builder the Constraint-Based Function Builder's live checklist
-//   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
+//   composed-algebra   a composed question's algebra step: its strategic hint is a platform ladder rung in practice, absent on a DOL or test
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
 //   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
 //                      hint offer, worked solution, similar problem, back-up step)
@@ -55,6 +55,7 @@ import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2N
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -700,9 +701,20 @@ const composedAlgebra = async () => {
     await scenario(`${role} composed-algebra`, async () => {
       const page = await open(role, 'composed-algebra');
       await page.locator('[data-math-state]').first().waitFor();
-      const offered = /Need a strategic hint\?/.test(await bodyText(page));
-      if (role === 'practice') check(offered, 'practice composed-algebra: the algebra step still offers its strategic hint');
-      else check(!offered, `${role} composed-algebra: the algebra step offers no hint`);
+      // ONE LADDER (student pass 3, TOOL-5): in practice the step's strategic
+      // hint is a rung of the platform's ladder, not a disclosure of its own.
+      const disclosure = /Need a strategic hint\?/.test(await bodyText(page));
+      check(!disclosure, `${role} composed-algebra: no "Need a strategic hint?" beside the platform's Hint`);
+      if (role === 'practice') {
+        await page.locator('button:visible', { hasText: '💡 Hint' }).first().click();
+        const rung = await page.waitForFunction(() => /\btool\b/.test(document.querySelector('[data-hint-panel]')?.dataset.hintSources || ''), null, { timeout: 8000 }).then(() => true, () => false);
+        check(rung, 'practice composed-algebra: the algebra step\'s strategic hint is a rung of the platform ladder');
+      } else {
+        check(!(await page.locator('[data-hint-panel] li[data-hint-source]').count()) && !(await page.getByRole('button', { name: /^Show a hint$/ }).count()), `${role} composed-algebra: the algebra step offers no hint`);
+        // The method itself, in any element (review S2): not only its summary.
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        check(!/Look for a move that cancels a term/.test(html), `${role} composed-algebra: the strategic move is nowhere in the document`);
+      }
     });
   }
 };
@@ -730,7 +742,10 @@ const threePlaneReveal = async () => {
 const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
   // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
   // rung, and the sentence beside every hint offer.
-  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking'];
+  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking',
+  // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
+  // every fallback (none may reach a DOL or test).
+  'These hints are general', ...Object.values(FALLBACK_HINTS).flat()];
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
   const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];

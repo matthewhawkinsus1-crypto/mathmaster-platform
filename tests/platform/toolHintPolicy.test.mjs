@@ -149,8 +149,12 @@ test('the systems workspace\'s embedded Step Algebra offers no strategic hint wh
   assert.match(embedded, /\n\s*const offerHint = showHint && hintsAllowed;/);
   assert.match(embedded, /\.\.\.\(offerHint \? \{\} : \{ showHint: false \}\),/);
   assert.match(embedded, /\[normalizedEquationText, solveFor, prompt, workspaceDifficulty, objectiveKey, requireSimplifiedFinalForm, offerHint\]/);
-  // The flag it sets is the one the solver's hint reads.
-  assert.match(read('src/StepByStepAlgebraCore.jsx'), /question\.showHint !== false && suggestedMove && !solved && <details/);
+  // The flag it sets is the one the solver's hint reads: the strategic hint
+  // (its disclosure, or its rung of the platform ladder — TOOL-5) exists only
+  // while showHint is not false.
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  assert.match(core, /\n\s*const strategicHint = hintsAllowed && question\.showHint !== false && suggestedMove && !solved\n/);
+  assert.match(core, /\{!publishHints && strategicHint && <details/);
 });
 
 // ------------------------------------------------------------------- the guard
@@ -216,7 +220,17 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
   assert.match(body, /\n\s*const onHintUsed = onHintUsedProp \|\| contextHintReporter;/);
   const hint = core.match(/\{([^{}\n]*)&& <details onToggle=\{\(event\) => \{ if \(event\.currentTarget\.open\) onHintUsed\?\.\(\); \}\}[^\n]*Need a strategic hint\?/);
   assert.ok(hint, 'the strategic hint reports when it is opened');
-  assert.match(hint[1], /^hintsAllowed && /, 'and is not rendered at all where hints are withheld');
+  // It is rendered only from strategicHint, which is empty where hints are
+  // withheld — so neither the disclosure nor the published rung exists there.
+  assert.match(hint[1], /^!publishHints && strategicHint $/, 'and is not rendered at all where hints are withheld');
+  assert.match(core, /\n\s*const strategicHint = hintsAllowed && /);
+  // ONE LADDER (TOOL-5): inside a question the hint is a rung of the platform
+  // ladder — published to it, and no disclosure of its own beside it.
+  assert.match(core, /\n\s*const publishHints = useToolHintPublisher\(\);/);
+  assert.match(runtimeImport[1], /\buseToolHintPublisher\b/, 'the publisher hook is imported where it is called');
+  const publish = region(core, 'useEffect(() => {\n    if (!publishHints || !strategicHint)', '}, [publishHints, strategicHint]);', 'the strategic hint rung');
+  // A STANDING rung: open from the start, taking no family rung's place.
+  assert.match(publish, /return publishHints\(\[\{ text: strategicHint, standing: true \}\]\);/);
 
   // Every solver QuestionEngine mounts is handed the permission and the
   // recorder, including the one inside the intercepts orchestrator.
