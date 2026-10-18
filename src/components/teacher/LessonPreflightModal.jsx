@@ -1579,6 +1579,23 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (hintAnswerPreflight.js): a hint
+          that writes the row or the value the student is asked for. */}
+      {preflightModel.hintAnswers?.warnings?.length > 0 && (
+        <div data-hint-answer-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Hints that give the answer</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These hints state what the student is asked to write, so after a few tries the hints have done the question. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hintAnswers.warnings.length === 1 ? '1 hint' : `${preflightModel.hintAnswers.warnings.length} hints`}</summary>
+            <ul data-hint-answer-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.hintAnswers.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {preflightModel.questionValues?.rows?.length > 0 && (
         <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>

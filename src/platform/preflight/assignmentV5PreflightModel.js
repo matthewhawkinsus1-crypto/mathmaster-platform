@@ -14,6 +14,7 @@ import { auditAssignmentProcessMode } from './processModePreflight.js';
 import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight.js';
 import { auditAssignmentSolutionReviews } from './solutionReviewPreflight.js';
 import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
+import { auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -165,6 +166,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // Practice items with no attempt feedback (warning only, and advisory: kept
   // out of the readiness diagnostics below — attemptFeedbackPreflight.js).
   const attemptFeedback = auditAssignmentAttemptFeedback(questions, deliveredOnly);
+  // Hints that state what the student is asked to produce (warning only, and
+  // advisory like attemptFeedback — hintAnswerPreflight.js).
+  const hintAnswers = auditAssignmentHintAnswers(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -260,6 +264,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     // Advisory only (see above): never in errors, warnings or diagnostics.
     solutionReviews,
     attemptFeedback,
+    hintAnswers,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,

@@ -11,6 +11,7 @@ import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
 import FigureMatchStage from './FigureMatchStage';
+import { figureMatchWrongItems } from './figureMatch';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import { choicePreviewLabel, previewFigures, previewGivenEvaluators } from './choicePreview';
@@ -602,7 +603,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null, wrongItems = [] }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -720,7 +721,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         </>
       );
     case 'figureMatch':
-      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} wrongItems={wrongItems} />;
     case 'classification':
     case 'multipleChoice':
       return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} showFigure={showFigure} />;
@@ -1270,6 +1271,13 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
+    // A sort marked wrong names its wrong figures (P2-4). Only from a review,
+    // which QuestionEngine passes only where outcome feedback is shown, and
+    // only for the exact response that was checked ('incorrect', not
+    // 'changed').
+    const wrongItems = reviewStatus === 'incorrect' && stage.kind === 'figureMatch'
+      ? figureMatchWrongItems(stage, responses[stage.id], grading?.[stage.id]?.match)
+      : [];
     // A graph stage is rendered exactly as the server rebuilds it: with its
     // finite domain's boundary semantics (so the student marks open/closed
     // endpoints instead of leaving a stopped segment ambiguous) and with the
@@ -1369,6 +1377,7 @@ export default function WorkflowRunner({
               canonicalSavedAt={canonicalSavedAt}
               revealCorrectness={revealCorrectness}
               graphStage={graphStage}
+              wrongItems={wrongItems}
             />
           </>
         )}

@@ -112,10 +112,20 @@ function FigureGraph({ graph, label }) {
   );
 }
 
-export default function FigureMatchStage({ stage, value, onChange, disabled = false }) {
+// "Figure 3", "Figures 3 and 5", "Figures 1, 3 and 5".
+const figureList = (indexes) => {
+  const numbers = indexes.map((index) => String(index + 1));
+  const joined = numbers.length <= 1 ? numbers.join('') : `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`;
+  return `${numbers.length === 1 ? 'Figure' : 'Figures'} ${joined}`;
+};
+
+// `wrongItems`: positions of the figures the checked step placed wrongly, from
+// WorkflowRunner while this step shows its verdict (P2-4). Empty otherwise.
+export default function FigureMatchStage({ stage, value, onChange, disabled = false, wrongItems = [] }) {
   const items = matchItems(stage);
   const categories = matchCategories(stage);
   const assignments = readFigureMatch(value);
+  const wrong = new Set(wrongItems);
 
   const assign = (itemId, categoryId) => {
     const next = { ...assignments };
@@ -130,6 +140,11 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {wrong.size ? (
+        <p data-figure-match-wrong="" style={{ margin: 0, fontWeight: 700, color: 'var(--mm-danger)' }}>
+          {`${figureList([...wrong].sort((a, b) => a - b))} ${wrong.size === 1 ? 'is' : 'are'} not in the right category yet.`}
+        </p>
+      ) : null}
       <div
         style={{
           display: 'grid',
@@ -144,8 +159,8 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
           const label = figureLabel(index);
           const chosen = assignments[itemId] || '';
           return (
-            <div key={itemId || index} style={card}>
-              <p style={heading}>{label}</p>
+            <div key={itemId || index} style={wrong.has(index) ? { ...card, border: '2px solid var(--mm-error-border)' } : card} data-figure-wrong={wrong.has(index) ? '' : undefined}>
+              <p style={heading}>{label}{wrong.has(index) ? <span style={{ marginLeft: 8, color: 'var(--mm-danger)', textTransform: 'none', letterSpacing: 0 }}>· not in the right category yet</span> : null}</p>
               {item.graph ? <FigureGraph graph={item.graph} label={label} /> : null}
               {item.math ? (
                 <div style={{ fontSize: 'calc(18 * var(--mm-px))', padding: '10px 0' }}>

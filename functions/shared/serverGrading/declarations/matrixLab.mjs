@@ -32,7 +32,12 @@ export default declareTool({
   //                     entries: [[cell]], inverses: 'yes'|'no'|'' }
   //   equation        { A: [[cell]], B: [cell] }
   //   solve           { A, B, inverse: [[cell]], classification: 'one'|'none'|'many'|'',
-  //                     values: [cell], usedTechnology: boolean }
+  //                     values: [cell], usedTechnology: boolean,
+  //                     singularReason?: { row, otherRow, factor: cell,
+  //                                        constant: 'follows'|'breaks'|'' } }
+  //                   (singularReason only where the question sets
+  //                   justifySingular; an older client that omits it is
+  //                   graded as having given no reason)
   //   completeSystem  { rows: [{ id, coefficients: [cell], constant: cell }] }
   // `values`, not `solution`: the response contract drops a key named
   // `solution` at every depth as answer material, so the student's own
