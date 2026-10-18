@@ -232,7 +232,26 @@ Re-anchored (the behaviour each protects holds, and each was checked red against
 | `node scripts/check-first-load-budget.mjs` | within baseline: studentHome 828.6 KB (base 847.0), signIn 291.2 KB |
 | teacherWorkflow `journeys.mjs` (5188) | pass, A–K and retry at 1440 and 1024 |
 | `supportEvidenceJourneys.mjs` | pass |
-| Remaining browser drivers, `certify:dark-mode`, `certify:accessibility`, `npm run test:rules` | in progress; this table is updated when they finish |
+| `caseReviewJourneys.mjs` | pass (C1–C7 at four viewports) |
+| `walkthroughJourneys.mjs` | pass |
+| `askMyTeacherJourneys.mjs` | pass |
+| `privateControlsJourneys.mjs` (the Action Center listener) | pass |
+| `districtIdJourneys.mjs` | pass |
+| `appUrlJourneys.mjs` | pass |
+| `studentScreenChange.mjs` | pass |
+| `enduranceJourneys.mjs` | pass: no growth that keeps going, no fan-out, clean console |
+| studentUxPlatform (5199) | pass |
+| assignmentMobile (5199) | pass |
+| keyboardSweep (5199) | pass |
+| studentAccessibleNames | pass |
+| `npm run test:live-challenge-teaching-browser` | pass, 58 checks |
+| `npm run test:live-challenge-projector-privacy-browser` | pass, 86 checks, no findings |
+| `npm run certify:dark-mode` (13:36 UTC) | pass: 192 surfaces, light and dark |
+| `npm run certify:accessibility` | 14 audited screens: 0 violations. **Exit 1 because 4 screens could not be reached:** `secure-exam/start` and `live-challenge/lobby`, desktop and phone. The live-challenge screenshot reads "Cannot read properties of undefined (reading 'fromCache')", which comes from `watchLiveChallengeRoom` on the harness's fake Firestore. The secure exam never advances past its Review stage. **This was broken before this branch:** the same certification on the base `3cb782a9` (same servers, same day) fails the same 4 screens, and the 14 audited screens are line-for-line identical. Not fixed here: out of scope, and no moved module is involved |
+| `npm run test:rules` (Firestore emulator, includes `supportEvidenceRules`) | pass |
+| Teacher kit and support-evidence probes on the harness | see "Proof on the running app" |
+
+No emulator suite covers the moved modules beyond the rules: no rules, functions or indexes changed.
 
 ## Deploy targets
 
