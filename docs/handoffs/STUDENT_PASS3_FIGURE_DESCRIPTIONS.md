@@ -264,6 +264,29 @@ Servers, as the workflows start them, each with its Vite `cacheDir` in the scrat
   `page.locator('summary', { hasText: 'How to do this (3 steps)' }).filter({ visible: true })`, or scope the check to
   the tool shell. Not changed here.
 
+### After the wave-4 base (`c350dfc`), merged as `d143e23b`
+
+The integrator's scratch merge had found these two conflicts; I resolved them as the integrator described:
+
+- **`src/MathInput.jsx`:** both imports are kept. B's question-lifecycle gate (`toolsVisible = !questionTerminal && …`,
+  `requiredKeysVisible = !questionTerminal && …`) stands, and the two roving toolbars render inside it, so a closed
+  question's keypad still closes.
+- **`student-runtime-browser-gates.yml`:** both sides' steps are kept (`moduleRecoveryLock`, `closedQuestionEnter`;
+  `figureDescriptions`, `mathKeypadToolbar`, `workViewReference`).
+
+Re-run on `d143e23b`:
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | **11,694 pass, 0 fail** |
+| `node --test tests/tools/*.test.mjs` | **1,681 pass, 0 fail** |
+| `npm run test:authoring-v5` | **686 pass, 0 fail** |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | **exit 0**; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | studentHome **845.5 KB**, within budget (W5-1 took mathjs out of Home) |
+| `mathKeypadToolbar`, `mathEntryContract`, `closedQuestionEnter`, `undoTyping`, `toolKeyboardNumberLine`, `toolKeyboardThreePlane`, `figureDescriptions`, `workViewReference`, `moduleRecoveryLock`, `secureAccessParity`, `studentUxPlatform` | **pass** |
+| `toolFocusAndUndo` | **pass**: the base's `282006b` counts the visible how-to, which fixes the failure above |
+| `keyboardSweep` | 33 scenes, all clean |
+
 ## Deploy targets
 
 **Hosting only.** Nothing under `functions/`, `firestore.rules`, `firestore.indexes.json` or Firebase config changes;
