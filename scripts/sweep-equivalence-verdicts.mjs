@@ -148,6 +148,30 @@ walkJson(path.join(ROOT, 'docs/assignments'));
 walkJson(path.join(ROOT, 'drafts'));
 walkJson(path.join(ROOT, 'seed'), (full) => full.includes(`${path.sep}pathQuestionBank`));
 
+/*
+ * Π AND ROOT KEYS THE BANK BARELY HAS (student pass 3, H-13 review). The math
+ * editor writes a typed `/` around π or a root as a stacked fraction, and the
+ * grader reads it (stackDivisions `constantOperands`). Only a handful of bank
+ * keys put π or a root beside a slash, so these keys exercise that rule: each
+ * gets its stacked spellings as right answers (spellingsOf) and the stacked
+ * spellings that mean something else as wrong ones (nearMissesOf: a power on
+ * the denominator, a power whose exponent is a fraction, numerator and
+ * denominator swapped).
+ */
+const constantKeys = [];
+for (const a of [1, 2, 3, 5]) {
+  for (const b of [2, 3, 4, 6]) {
+    if (a === b) continue;
+    constantKeys.push(
+      [`${a}pi/${b}`.replace(/^1pi/, 'pi'), 'number'], [`${a}/pi`, 'number'], [`${a}/pi^2`, 'number'],
+      [`sqrt(${a + 1})/${b}`, 'number'], [`${b}/sqrt(${a + 1})`, 'number'], [`${a}sqrt(${b + 1})/${b}`, 'number'],
+      [`x^pi/${b}`, 'expression'], [`e^sqrt(${a + 1})/${b}`, 'expression'],
+      [`(sqrt(${a + 1})/${b},1/${b})`, 'orderedPair'], [`x<=${a}pi/${b}`.replace(/=1pi/, '=pi'), 'inequality'],
+    );
+  }
+}
+constantKeys.forEach(([key, inputProfile]) => addField('synthetic: π and root keys', { expected: key, inputProfile }));
+
 // --- spellings and near misses -------------------------------------------------
 
 const NUMBER = /-?\d+(?:\.\d+)?/;
@@ -222,6 +246,13 @@ const nearMissesOf = (text) => {
   else if (/[<>]/.test(text)) add(text.replace(/</, '<=').replace(/>/, '>='));
   if (/\s+or\s+/.test(text)) add(text.replace(/\s+or\s+/, ' and '));
   if (/\s+and\s+/.test(text)) add(text.replace(/\s+and\s+/, ' or '));
+  // Stacked spellings that are a different number (H-13 review): (a/π)² for
+  // a/π², x^(π/2) for x^π/2, e^(√n/b) for e^√n/b, and b/a for a/b.
+  add(text.replace(/(\d+)\/(?:pi|π)\^(\d+)/g, '\\frac{$1}{\\pi}^$2'));
+  add(text.replace(/(\d+)\/(?:pi|π)\^(\d+)/g, '\\frac{$1}{\\pi}^{$2}'));
+  add(text.replace(/\^(?:pi|π)\/(\d+)/g, '^\\frac{\\pi}{$1}'));
+  add(text.replace(/\^sqrt\((\d+)\)\/(\d+)/g, '^\\frac{\\sqrt{$1}}{$2}'));
+  add(text.replace(/(\d*(?:pi|sqrt\(\d+\)))\/(\d+)(?![\w.(^])/g, '\\frac{$2}{$1}').replace(/sqrt\((\d+)\)/g, '\\sqrt{$1}').replace(/(?<![A-Za-z\\])pi/g, '\\pi'));
   return [...out];
 };
 

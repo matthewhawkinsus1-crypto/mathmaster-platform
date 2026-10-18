@@ -127,22 +127,29 @@ const withNumberCoefficient = (text, start) => {
   return begin;
 };
 
+// An exponent or a subscript is not an operand of its own: `x^π/2` is x^π
+// over 2 and `e^\sqrt{2}/2` is e^√2 over 2 (the power comes along as one
+// operand, above), so a constant right after `^` or `_` is not taken here.
+const afterPowerOrSubscript = (text, start) => start > 0 && /[\^_]/.test(text[start - 1]);
+
 const constantBefore = (text, index) => {
   if (text[index] === 'π') {
     const start = withNumberCoefficient(text, index);
-    return { start, text: text.slice(start, index + 1) };
+    return afterPowerOrSubscript(text, start) ? null : { start, text: text.slice(start, index + 1) };
   }
   if (text[index] === '}') {
     const open = matchBackwards(text, index);
     if (open < 5 || text.slice(open - 5, open) !== '\\sqrt') return null;
     const start = withNumberCoefficient(text, open - 5);
-    return { start, text: text.slice(start, index + 1) };
+    return afterPowerOrSubscript(text, start) ? null : { start, text: text.slice(start, index + 1) };
   }
   return null;
 };
 
+// A denominator followed by a power or a subscript is not the constant alone:
+// `2/π^2` is 2 over π², never (2/π)².
 const constantAfter = (text, index) => {
-  if (text[index] === 'π') return /[A-Za-z\d]/.test(text[index + 1] || '') ? null : { end: index + 1, text: 'π' };
+  if (text[index] === 'π') return /[A-Za-z\d^_]/.test(text[index + 1] || '') ? null : { end: index + 1, text: 'π' };
   if (text.startsWith('\\sqrt{', index)) {
     const close = matchForwards(text, index + 5);
     if (close < 0 || /[A-Za-z\d^_]/.test(text[close + 1] || '')) return null;

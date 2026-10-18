@@ -187,6 +187,42 @@ test('a stacked fraction around π or a root grades as the slash a key is writte
   assert.equal(stackDivisions('3/4x', { constantOperands: true }), '\\frac{3}{4}x', 'the slope rule is untouched');
 });
 
+test('a constant next to a power is never a stacked operand: (2/π)² is not 2/π², x^(π/2) is not x^π/2 (H-13 review B1)', async () => {
+  // MathLive writes \frac{2}{\pi}^2 for 2, /, π, →, ^2. Each of these graded
+  // RIGHT against its key on the first H-13 commit; each is another number.
+  for (const [sent, key, profile = 'number'] of [
+    ['\\frac{2}{\\pi}^2', '2/pi^2'],
+    ['\\frac{3}{\\pi}^{2}', '3/pi^2'],
+    ['\\frac{1}{\\pi}^2', '1/pi^2'],
+    ['2^\\frac{\\pi}{2}', '2^pi/2'],
+    ['x^\\frac{\\pi}{2}', 'x^pi/2', 'expression'],
+    ['e^\\frac{\\sqrt2}{2}', 'e^sqrt(2)/2', 'expression'],
+  ]) {
+    assert.equal(await grades(sent, key, { profile }), false, `${sent} is not ${key}`);
+  }
+  // Normalised: the power stays with its constant, the division is left alone.
+  assert.equal(stackDivisions('2/π^2', { constantOperands: true }), '2/π^2');
+  assert.equal(stackDivisions('x^π/2', { constantOperands: true }), 'x^π/2');
+  assert.equal(stackDivisions('e^\\sqrt{2}/2', { constantOperands: true }), 'e^\\sqrt{2}/2');
+  assert.equal(stackDivisions('x_π/2', { constantOperands: true }), 'x_π/2');
+  // Every intended acceptance stands.
+  for (const [sent, key, profile = 'number'] of [
+    ['\\frac{\\pi}{2}', 'pi/2'], ['\\frac{\\sqrt3}{2}', 'sqrt(3)/2'], ['\\frac{2}{\\sqrt3}', '2/sqrt(3)'],
+    ['\\frac{3\\pi}{4}', '3pi/4'], ['\\frac{2\\sqrt3}{3}', '2sqrt(3)/3'],
+    ['(\\frac{\\sqrt3}{2},\\frac12)', '(sqrt(3)/2,1/2)', 'orderedPair'], ['x\\le\\frac{\\pi}{2}', 'x<=pi/2', 'inequality'],
+  ]) {
+    assert.equal(await grades(sent, key, { profile }), true, `${sent} for ${key}`);
+  }
+});
+
+test('an nth root and a digit that ends a name are not stacked operands (H-13 review S1)', () => {
+  // Only a square root: \sqrt[3]{8}/2 is left as written.
+  assert.equal(stackDivisions('\\sqrt[3]{8}/2', { constantOperands: true }), '\\sqrt[3]{8}/2');
+  // A digit after `_` is part of the name x_2, not a coefficient of the root.
+  assert.equal(stackDivisions('x_2\\sqrt{3}/2', { constantOperands: true }), 'x_2\\frac{\\sqrt{3}}{2}');
+  assert.equal(stackDivisions('2\\sqrt{3}/2', { constantOperands: true }), '\\frac{2\\sqrt{3}}{2}', 'a number coefficient comes along');
+});
+
 test('a field naming π, √, % or $ gets the math editor; π and √ are keys in the keypad, % and $ need none', async () => {
   // What the real editor sends for each (tests/browser/secureAccessParity.mjs
   // captures them), against the same characters typed.
