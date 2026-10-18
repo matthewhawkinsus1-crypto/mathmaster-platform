@@ -373,3 +373,13 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
 - `toolStatePersistence.js` declares the confirm prompt's `confirmed` state as presentation (the transient-state contract).
 - Re-run on the merged tree (`cbeff6a` in): test:platform, tools, lint, build, build:firebase (tree clean), budget (unchanged), and the drivers matrixLabFeedback, algebra2MatricesLesson, toolPolicyGates, assessmentLeakGates, toolAttemptOutcome, composedOutcomePolicy — all green.
 - **N3, N4, N6**: in "Deploy targets" and decision 8. **N8**: the format message now ends "No try has been used."
+
+## Wave 4 merge and the double-press guard
+
+- Base `c350dfc` (wave 4) merged as `bf2569e7`. The one conflict (`CheckRow`) resolved with B's `<SubmitText>` button
+  using `onClick={press}`, and this branch's stageCheck pill.
+- A double-click or double-tap on an untouched start used to ask and check in one gesture, spending a try before the
+  prompt could be read. A second press within `CONFIRM_SETTLE_MS` (400 ms) of the ask is now ignored, using a
+  timestamp ref, not a timer, so Check never goes dead. Driver: a double-click asks and spends no try, and a press
+  after 400 ms checks (one try). The unit test pins the guard. Mutation (guard removed): both the driver and the unit
+  test go red.

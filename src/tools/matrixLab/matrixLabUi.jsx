@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 // The outcome is drawn below the fix list (CheckRow), not inside the pill.
 import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
@@ -204,14 +204,23 @@ export function YesNo({ value, onChange, label }) {
  * Nothing here renders while the activity withholds outcome feedback:
  * `feedback` is null there (useToolSubmission), so no line can reveal a key.
  */
+// How long after the "check it as it is?" prompt a second press still counts
+// as the same gesture.
+const CONFIRM_SETTLE_MS = 400;
+
 export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], blocker = null, confirm = null }) {
   // The confirmation answered for this exact message; any edit that changes
   // or clears it asks again.
   const [confirmed, setConfirmed] = useState(null);
   useEffect(() => { if (!confirm) setConfirmed(null); }, [confirm]);
   const asking = Boolean(confirm) && confirmed === confirm;
+  // A double-click or double-tap is one gesture: its second press must not
+  // answer a prompt the student has not read yet. A timestamp, not a timer —
+  // Check never goes dead.
+  const askedAt = useRef(0);
   const press = () => {
-    if (confirm && !asking) { setConfirmed(confirm); return; }
+    if (confirm && !asking) { askedAt.current = Date.now(); setConfirmed(confirm); return; }
+    if (asking && Date.now() - askedAt.current < CONFIRM_SETTLE_MS) return;
     setConfirmed(null);
     onCheck();
   };

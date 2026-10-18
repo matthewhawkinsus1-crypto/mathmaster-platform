@@ -284,8 +284,10 @@ test('P2-10: in every view Check waits for a readable cell and an edited start; 
     assert.doesNotMatch(region(view, 'const blocker', ';'), /UNTOUCHED_START/, `${start}: an untouched start does not keep Check off`);
   }
   const ui = executableSource(read('src/tools/matrixLab/matrixLabUi.jsx'));
-  assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ setConfirmed\(confirm\); return; \}/, 'the first press asks; the second checks');
+  assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ (askedAt\.current = Date\.now\(\); )?setConfirmed\(confirm\); return; \}/, 'the first press asks; the second checks');
   assert.match(ui, /onClick=\{press\}/);
+  // A second press within the settle time is the same gesture (a double-click).
+  assert.match(region(ui, 'const press = ', '};'), /if \(asking && Date\.now\(\) - askedAt\.current < CONFIRM_SETTLE_MS\) return;/);
   assert.match(region(lab, 'const formatProblem', 'const gridFields'), /SIGN_ONLY\.test\(raw\)/);
   const start = { type: 'matrixLab', mode: 'equation', variables: ['x', 'y'], equations: ['x + y = 2', 'x - y = 0'] };
   assert.equal(validateMatrixLabQuestion({ ...start, startFrom: { A: [[1, 1], [1, -1]], B: [2, 0] } }).length, 1, 'a start that is already right');

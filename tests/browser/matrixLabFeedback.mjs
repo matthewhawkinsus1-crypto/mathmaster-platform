@@ -108,6 +108,16 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   const asked = await page.evaluate(() => document.querySelector('[data-matrix-confirm-message]')?.textContent || '');
   check(/as it was given.*press Check again/.test(asked), `the first press asks: ${asked}`);
   check((await s.record('l3m-cw-8')) === null, 'and spends no try');
+  // A double-click (or double-tap) on the untouched start is one gesture: it
+  // asks, and its second press does not answer the prompt.
+  await s.go('l3m-cw-9');
+  await s.go('l3m-cw-8');
+  await s.checkButton().dblclick();
+  await page.waitForTimeout(500);
+  check((await s.record('l3m-cw-8')) === null, 'a double-click asks and spends no try');
+  await s.checkButton().click();
+  await page.waitForTimeout(800);
+  check((await s.record('l3m-cw-8'))?.attemptCount === 1, 'a press after the prompt has settled checks: one try');
 
   journey = 'CW 9 missing variable as 1 (P2-3)';
   await s.go('l3m-cw-9');
