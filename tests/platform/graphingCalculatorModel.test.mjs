@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, formatNumber, normalizeEntryText,
+  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, formatNumber, normalizeEntryText,
   panViewport, parseGraphEntries, parseGraphEntry, readNumberEntry, tableOfValues, zoomViewport,
 } from '../../src/platform/assessment/graphingCalculatorModel.js';
 import { executableSource } from './helpers/sourceContract.mjs';
@@ -262,4 +262,29 @@ test('a refused line says what to change, in the keypad calculator\'s words', as
   assert.equal(said('y = 2(x + 1)').kind, ENTRY_KINDS.FUNCTION);
   assert.equal(said('y = log(x, 2)').kind, ENTRY_KINDS.FUNCTION);
   assert.equal(said('|x - 2|').kind, ENTRY_KINDS.FUNCTION);
+});
+
+// A flat turn (W5-7's review note, W6-4). Near (x − 2.718)⁶ − 3's minimum every
+// x within about 0.02 computes −3, so the shortest "as low" x was 2.7, and in a
+// zoomed view that x failed the real-turn test and the minimum vanished.
+test('a turn flatter than a parabola reads where it is, in every view', () => {
+  const turns = (text, xMin = -10, xMax = 10) => {
+    const found = findGraphFeatures(parseGraphEntry(text), { xMin, xMax });
+    return { minima: found.minima, maxima: found.maxima, zeros: found.zeros };
+  };
+  for (const [xMin, xMax] of [[-10, 10], [-5, 5], [2, 4], [2.6, 2.8]]) {
+    assert.deepEqual(turns('y = (x - 2.718)^6 - 3', xMin, xMax).minima, [{ x: 2.718, y: -3 }], `(x − 2.718)⁶ − 3 on [${xMin}, ${xMax}]`);
+  }
+  assert.deepEqual(turns('y = -(x + 0.577)^8 + 2').maxima, [{ x: -0.577, y: 2 }]);
+  // A flat touch of y = 0 is that zero, exactly.
+  assert.deepEqual(turns('y = (x - 1.234)^6'), { minima: [{ x: 1.234, y: 0 }], maxima: [], zeros: [1.234] });
+  // A lopsided flat turn has no middle that is its turn: (x − 1)⁴ + 0.001(x − 1)³
+  // turns at x = 1 − 0.00075, where the search finds it.
+  assert.deepEqual(turns('y = (x - 1)^4 + 0.001(x - 1)^3', 0.5, 4).minima.map(({ x }) => x), [0.99925]);
+  // Parabolas, a cubic's turns and corners are read as before (the integer
+  // vertex sweep in assignmentCalculatorSetting covers 6,448 parabolas).
+  assert.deepEqual(turns('y = x^3 - 3x'), { minima: [{ x: 1, y: -2 }], maxima: [{ x: -1, y: 2 }], zeros: turns('y = x^3 - 3x').zeros });
+  assert.deepEqual(turns('y = abs(x - 0.3) - 2').minima, [{ x: 0.3, y: -2 }]);
+  // A flat inflection is not a turn.
+  assert.deepEqual([turns('y = (x - 2.718)^5 + 1').minima, turns('y = (x - 2.718)^5 + 1').maxima], [[], []]);
 });
