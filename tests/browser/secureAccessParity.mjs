@@ -577,6 +577,9 @@ for (const device of DEVICES) {
     await shot(page, device, 'sat-item');
 
     // Supports: prompt only.
+    // Translate shows once the item's translation resolves (the language pack
+    // loads on demand), which can outlast the settle above on a busy machine.
+    await page.waitForSelector('[data-support-tool="translate"]', { timeout: 15000 }).catch(() => {});
     const buttons = await page.evaluate(() => [...document.querySelectorAll('[data-support-tool]')].map((element) => element.getAttribute('data-support-tool')));
     for (const tool of ['translate', 'vocabulary', 'read-aloud']) if (!buttons.includes(tool)) problems.push(`no ${tool} button for an entitled student`);
     for (const tool of ['break-it-down', 'say-it']) if (buttons.includes(tool)) problems.push(`${tool} offered on a secure item`);
