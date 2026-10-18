@@ -216,7 +216,7 @@ const selectByKeys = async (page, field, value) => {
 };
 
 const dataModelingKeyboard = async (viewport, plan, at) => {
-  const { page, context, errors } = await openPage(viewport, 'dataModelingLab', null, 'button:has-text("Check data model")');
+  const { page, context, errors } = await openPage(viewport, 'dataModelingLab', null, 'button:has-text("Submit —")');
   await startAtSentinel(page);
   const snapshots = {};
 
@@ -263,7 +263,7 @@ const dataModelingKeyboard = async (viewport, plan, at) => {
   await page.keyboard.type(plan.predictionY);
   await selectByKeys(page, 'This prediction is...', plan.wrongType);
   snapshots.wrong = await labState(page);
-  await tabTo(page, (i) => i.tag === 'BUTTON' && i.name === 'Check data model', 'Check data model');
+  await tabTo(page, (i) => i.tag === 'BUTTON' && /^Submit — /.test(i.name || ''), 'Check data model');
   await page.keyboard.press('Enter');
   const first = await waitForGrades(page, 1);
   // Back to the prediction type, by Shift+Tab, and fix it.
@@ -271,7 +271,7 @@ const dataModelingKeyboard = async (viewport, plan, at) => {
   const { index, current } = await page.evaluate((v) => ({ index: [...document.activeElement.options].findIndex((o) => o.value === v), current: document.activeElement.selectedIndex }), plan.rightType);
   for (let i = 0; i < Math.abs(index - current); i += 1) await page.keyboard.press(index > current ? 'ArrowDown' : 'ArrowUp');
   snapshots.right = await labState(page);
-  await tabTo(page, (i) => i.tag === 'BUTTON' && i.name === 'Check data model', 'Check data model (again)');
+  await tabTo(page, (i) => i.tag === 'BUTTON' && /^Submit — /.test(i.name || ''), 'Check data model (again)');
   await page.keyboard.press('Enter');
   const both = await waitForGrades(page, 2);
   check(first.length === 1, `${at}: the first keyboard Check reached onGrade (${first.length} grade records)`);
@@ -288,7 +288,7 @@ const dataModelingKeyboard = async (viewport, plan, at) => {
 };
 
 const dataModelingPointer = async (viewport, plan, at) => {
-  const { page, context, errors } = await openPage(viewport, 'dataModelingLab', null, 'button:has-text("Check data model")');
+  const { page, context, errors } = await openPage(viewport, 'dataModelingLab', null, 'button:has-text("Submit —")');
   const snapshots = {};
   const press = async (label, { count, direction }) => {
     const button = page.getByRole('button', { name: `${direction > 0 ? 'Increase' : 'Decrease'} ${label}`, exact: true });
@@ -310,11 +310,11 @@ const dataModelingPointer = async (viewport, plan, at) => {
   await page.keyboard.type(plan.predictionY);
   await select('This prediction is...').selectOption(plan.wrongType);
   snapshots.wrong = await labState(page);
-  await page.getByRole('button', { name: 'Check data model', exact: true }).click();
+  await page.getByRole('button', { name: /^Submit — / }).first().click();
   await waitForGrades(page, 1);
   await select('This prediction is...').selectOption(plan.rightType);
   snapshots.right = await labState(page);
-  await page.getByRole('button', { name: 'Check data model', exact: true }).click();
+  await page.getByRole('button', { name: /^Submit — / }).first().click();
   const verdicts = await waitForGrades(page, 2);
   check(errors.length === 0, `${at}: no page errors on the pointer route (${errors.join(' | ')})`);
   await context.close();
@@ -478,7 +478,7 @@ const inequality = async (viewport, at) => {
     check(clicked?.focused && clicked.outlineStyle === 'none' && !clicked.focusVisible, `${at}: a mouse press on the step heading draws no ring (${JSON.stringify(clicked)})`);
     // Graded by keys: "Check my work".
     await startAtSentinel(page);
-    await tabTo(page, (i) => i.name === 'Check my work', 'Check my work');
+    await tabTo(page, (i) => /^Submit — /.test(i.name || ''), 'Check my work');
     await page.keyboard.press('Enter');
     const graded = await waitForGrades(page, 1);
     check(graded.length >= 1, `${at}: "Check my work" by Enter reached onGrade (${graded.length} grade records)`);

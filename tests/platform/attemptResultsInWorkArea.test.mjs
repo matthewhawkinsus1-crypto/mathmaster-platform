@@ -71,7 +71,8 @@ test('the results render inside the work area, after the tool, and nowhere else'
 
 test('a closed question reads in order: verdict, what was written, the solution, then the way on', () => {
   const results = region(engine, 'const attemptResults = (', '\n  );\n', 'the results area');
-  const card = region(results, '<section className="mathmaster-closed-question-card"', '</section>', 'the closed card');
+  // The card is also where focus lands after a final miss (ref, tabIndex).
+  const card = region(results, 'className="mathmaster-closed-question-card"', '</section>', 'the closed card');
   const inCard = (needle) => {
     const index = card.indexOf(needle);
     assert.ok(index >= 0, `the closed card has ${needle}`);
@@ -86,7 +87,7 @@ test('a closed question reads in order: verdict, what was written, the solution,
   // The miss box steps aside for a closed question; the closed card says it once.
   assert.match(results, /\{feedback && !feedback\.blocked && showOutcomeFeedback && !outcomeInTool && !isExpired && \(/);
   // Each result a submit can produce is what the reveal brings into view.
-  for (const marked of [/<div role="alert" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/, /className="mathmaster-closed-question-card"[\s\S]{0,700}<div role="status" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/, /<section\s+\{\.\.\.ATTEMPT_RESULT_FOCUS\}\s+className=\{`mathmaster-section-completion-card/, /\{terminalFeedbackHidden && \(\s*<div role="status" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/]) {
+  for (const marked of [/<div role="alert" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/, /className="mathmaster-closed-question-card"[\s\S]{0,700}<div role="status" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/, /<section\s+\{\.\.\.\(isCorrect && showOutcomeFeedback \? ATTEMPT_RESULT_FOCUS : \{\}\)\}\s+className=\{`mathmaster-section-completion-card/, /\{terminalFeedbackHidden && \(\s*<div role="status" \{\.\.\.ATTEMPT_RESULT_FOCUS\}/]) {
     assert.match(results, marked);
   }
 });

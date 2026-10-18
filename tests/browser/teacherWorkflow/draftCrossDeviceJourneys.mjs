@@ -504,7 +504,7 @@ if (wanted('practice')) {
   const P = await openDevice('P practises');
   await openPractice(P.page);
   await typeInto(P.page, 0, '5');
-  await P.page.getByRole('button', { name: /^Submit Answer/ }).first().click();
+  await P.page.getByRole('button', { name: /^Submit — / }).first().click();
   await showsWarmUp(P.page, /: correct/);
   let rows = await savedPractice(P.page);
   for (let wait = 0; wait < 40 && !practiced(rows); wait += 1) {

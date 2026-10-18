@@ -393,10 +393,14 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task="Use the calculator to model the source data and interpret its correlation."
+        /* How to work the calculator, never which model to choose: shown on
+           every activity, assessments included (R-10: stepsAreControls). The
+           calculator fits one model, so naming it names the button's effect. */
+        stepsAreControls
         steps={[
-          'Press ＋ (Add Item) and choose table. Type each data point: x in the x₁ column, y in the y₁ column.',
-          'Press the curve button beside the table to add the regression y₁ ~ mx₁ + b.',
-          ...(questionData.requireInterpretation !== false ? ['Read r, then choose the direction and the strength of the correlation.'] : ['Read r and the equation of the line.']),
+          'Press + (Add Item), choose table, and type each data point: x in the x₁ column, y in the y₁ column.',
+          'Press Add Regression, the curve button beside the table, to add the regression y₁ ~ mx₁ + b.',
+          'Read r and the equation in the calculator\'s result, answer, then submit.',
         ]}
       />
 

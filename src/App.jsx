@@ -72,7 +72,11 @@ import {
   storeLessonNotesPdf,
 } from './classroomApi';
 
-import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
+// Whether a question can come back as a different question is the one piece
+// of the generator App needs while it renders. The generator itself, with the
+// math engine (mathjs) under it, loads when a student prints a worksheet: a
+// static import put mathjs in every student's first load before Home.
+import { canGenerateDistinctVariants as isPersonalizedBlueprint } from '../functions/shared/questionVariability.mjs';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
@@ -203,6 +207,7 @@ import {
   createDurableAction,
   drainDurableActions,
   enqueueDurableAction,
+  isGradeBearingAction,
   listDurableActions,
   overlayDurableActionsOnGrades,
   resendRetiredReviewWork,
@@ -259,9 +264,6 @@ import {
   resolveCurrentContentStorageIndex,
 } from './platform/assignments/currentContentProjection.js';
 import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
-import {
-  repairAssignmentTrackerForCurrentGrader,
-} from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -278,7 +280,7 @@ import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalG
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
-import { resolveAssignmentHandoff } from './platform/student/assignmentHandoff.js';
+import { resolveAssignmentHandoff, resolveSkippedQuestion } from './platform/student/assignmentHandoff.js';
 import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
 import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
@@ -286,7 +288,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeSaveStatus } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -470,7 +472,6 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
-import { subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
@@ -2766,6 +2767,7 @@ function App() {
   };
 
   const repairGradesByAssignmentWithCurrentGrader = ({
+    repairAssignmentTrackerForCurrentGrader,
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
@@ -2798,9 +2800,13 @@ function App() {
   // run it only after the full academic corpus was intentionally loaded for
   // Grades; ordinary teacher navigation never pays this CPU/memory cost.
   const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    // The grader repair is teacher-only and grades with the full math engine,
+    // so it loads here, when the Grades tab first needs it, and not with Home.
+    const { repairAssignmentTrackerForCurrentGrader } = await import('./platform/assignment/liveQuestionCorrection.js');
     const correctedAt = new Date().toISOString();
     const repairs = (Array.isArray(students) ? students : []).map((student) => {
       const result = repairGradesByAssignmentWithCurrentGrader({
+        repairAssignmentTrackerForCurrentGrader,
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
@@ -3227,6 +3233,25 @@ function App() {
     return result;
   };
 
+  // WHAT THE SAVE LINE IS ABOUT: a draft, or an answer the student sent
+  // (RUN-11, saveStatusModel.js). Derived during render so "Answer recorded"
+  // appears with the drain that recorded it, then committed.
+  const [studentSaveSubjectState, setStudentSaveSubject] = useState(initialSaveSubject);
+  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount });
+  useEffect(() => {
+    if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
+  }, [studentSaveSubject, studentSaveSubjectState]);
+  const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  // What the save line says aloud: only when the student must act.
+  const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
+    ? 'This change was not accepted because the assignment is no longer available.'
+    : ['offline', 'needs-review'].includes(studentPersistenceStatus) ? studentSaveLine || '' : '';
+  const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
+  // The line is about this student's work in this assignment: it starts over
+  // when either changes.
+  useEffect(() => {
+    setStudentSaveSubject(initialSaveSubject());
+  }, [activeAssignmentId, user?.id]);
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -4083,6 +4108,8 @@ function App() {
       if (cancelled) return;
       setStudentOutboxDepth(actions.length);
       if (actions.length) {
+        // After a reload, an answer still in the queue is still an answer.
+        if (actions.some(isGradeBearingAction)) markAnswerSent();
         setStudentPersistenceStatus('queued');
         // A reload must restore the same visible score state immediately even
         // before Wi-Fi returns. The server remains canonical; this is only the
@@ -4589,6 +4616,9 @@ function App() {
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
+  // The store is loaded on demand: imported here, it rode in every student's
+  // first load (scripts/check-first-load-budget.mjs). A teacher who leaves the
+  // tab before it arrives never subscribes.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
     if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
@@ -4596,7 +4626,16 @@ function App() {
       return undefined;
     }
     if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+    let stopped = false;
+    let release = null;
+    import('./platform/teacher/parentContactStore.js')
+      .then(({ subscribeParentContacts }) => {
+        if (stopped) return;
+        const unsubscribe = subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+        release = () => unsubscribe();
+      })
+      .catch((error) => console.error('Parent contact history failed:', error));
+    return () => { stopped = true; release?.(); };
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => {
@@ -5640,6 +5679,16 @@ function App() {
     const assignmentLocked = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
     if (assignmentLocked) {
       toastInfo('PDF not available yet', 'The printable worksheet unlocks with the assignment.');
+      return;
+    }
+
+    let generateQuestion;
+    try {
+      // The generator loads with the worksheet (see the import note at the top).
+      ({ generateQuestion } = await import('./problemGenerator'));
+    } catch (error) {
+      console.error(error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
       return;
     }
 
@@ -7152,6 +7201,10 @@ function App() {
           evidenceEvent,
         },
       }));
+      // An answer is on its way only once it is in the device queue: a
+      // no-credit practice submit or one that could not be stored is not
+      // (RUN-11, saveStatusModel.js).
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
@@ -7303,6 +7356,7 @@ function App() {
           hasDolGrade: false,
         },
       }));
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
@@ -10019,21 +10073,29 @@ function App() {
       ? resolveAssignmentHandoff({
         nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
         nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
-        upNext: !preview && user?.role === 'student' && !lifecycle.isPracticeOnly && !nextAvailableSectionTarget
-          ? resolveUpNext({ dashboard: studentUpNextDashboard(), assignmentId: activeAssignmentId })
-          : null,
         student: !preview && user?.role === 'student',
       })
       : null;
+    // Finishing lands on this assignment's results; its Up next card is the
+    // second action there (RUN-12, assignmentHandoff.js).
     const continueAfterSection = !assignmentHandoff
       ? null
       : assignmentHandoff.kind === 'section'
         ? () => changeQuestion(nextAvailableSectionTarget.index)
-        : assignmentHandoff.kind === 'upNext'
-          ? () => (assignmentHandoff.upNext.opensResult
-            ? openStudentAssignmentResult(assignmentHandoff.upNext.assignment.id, { origin: 'assignments' })
-            : startAssignment(assignmentHandoff.upNext.assignment.id, assignmentHandoff.upNext.questionIndex ?? 0))
-          : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
+        : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
+    // Nothing workable ahead and the section not done: the way back to the
+    // question that was skipped (RUN-12).
+    const skippedQuestion = !nextQuestionEntry && !currentNavigationSection?.complete
+      ? resolveSkippedQuestion({
+        entries: visibleQuestionEntries,
+        currentIndex: currentQuestionIndex,
+        currentRole: currentNavigationSection?.role,
+        isWorkable: entryIsWorkableNow,
+        isComplete: sectionQuestionIsComplete,
+        attemptCountOf: (index) => normalizeQuestionRecord(workingTracker?.[index]).attemptCount,
+        sectionLabelOf: (role) => (role === 'dol' ? 'Exit ticket (DOL)' : activitySectionMeta[role]?.label || ''),
+      })
+      : null;
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -10763,6 +10825,8 @@ function App() {
               sectionQuestionCount={currentSectionQuestionCount}
               onContinueSection={assignmentHandoff ? continueAfterSection : null}
               continueSectionLabel={assignmentHandoff?.label || ''}
+              onGoBackToQuestion={skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null}
+              goBackLabel={skippedQuestion?.label || ''}
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
@@ -10793,20 +10857,24 @@ function App() {
                 is now reachable only from a drain that left nothing owed, and
                 every other state names where the work actually is and whether
                 anything is still to come. */}
+            {/* ANNOUNCED ONLY WHEN THE WORK NEEDS THE STUDENT: offline, not
+                recorded, refused. A routine save is not a second announcement
+                of the result the question just gave. The region is always
+                mounted and only its words change — a live region that appears
+                with its text is often not read at all. "Not stored" is said
+                by the question and a toast already. */}
+            {!preview && (
+              <span role="status" aria-live="polite" data-save-line-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {studentSaveLineAnnouncement}
+              </span>
+            )}
             {!preview && studentPersistenceStatus !== 'idle' && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
-                {studentPersistenceStatus === 'capturing'
-                  ? 'Saving…'
-                  : studentPersistenceStatus === 'queued' || studentPersistenceStatus === 'syncing'
-                    ? `Syncing · ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} saved on this device. You may keep working.`
-                    : studentPersistenceStatus === 'offline'
-                      ? `Waiting for connection · ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} saved on this device.`
-                      : studentPersistenceStatus === 'needs-review'
-                        ? `Needs review · ${studentPendingGradeCount || studentOutboxDepth} saved item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} has not been recorded yet. You may keep working.`
-                      : studentPersistenceStatus === 'submitted'
-                        ? 'Recorded by MathMaster.'
-                        : studentPersistenceStatus === 'durable'
-                          ? 'Recorded by MathMaster.'
+              <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                {/* A draft is "Draft saved"; only an answer the student sent
+                    is ever "Answer recorded", and only once the server has it
+                    (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
+                {studentSaveLine
+                  ? studentSaveLine
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
                             : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
@@ -11449,7 +11517,14 @@ function App() {
     }
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
       const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
-      const activeTestCycleLateDueAt = activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null;
+      // THIS student's dates, not the class's: an attendance extension or an
+      // individualized extra-time deadline (injected in memory by
+      // projectStudentAssignments) moves them, and getAssignmentLifecycle
+      // resolves them with resolveStudentDeadlines, the precedence the
+      // server's assignmentFinalCloseAt uses.
+      const activeTestCycleDates = activeTestCycleAssignment
+        ? getAssignmentLifecycle(activeTestCycleAssignment, Date.now(), { studentId: user.id })
+        : null;
       return renderStudentScreen(
         <>
           {renderStudentPackUpBanner()}
@@ -11461,9 +11536,14 @@ function App() {
                 assignmentId={activeTestCycleAssignmentId}
                 studentId={user.id}
                 studentProfile={user.profile}
-                // The class's final late date, so a card opened after the
-                // regular due date says the work is still open and until when.
-                lateDueAt={activeTestCycleLateDueAt}
+                // The student's own due and final late dates, so a card opened
+                // after the regular due date says the work is still open and
+                // until when — for an extended student, until their date.
+                dueAt={activeTestCycleDates?.dueAt || null}
+                lateDueAt={activeTestCycleDates?.lateDueAt || null}
+                // Corrections and the Retest close at the class's date unless
+                // the server's home window says otherwise.
+                classLateDueAt={activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the
@@ -11499,6 +11579,12 @@ function App() {
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
           onPracticeSkill={practiseSkillFromResults}
+          // The student's Test Cycles with THEIR dates, so a Test whose session
+          // is not open yet is listed with when it is (PR-20).
+          testCycles={assignments.filter(isTestCycleAssignment).map((assignment) => {
+            const own = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+            return { assignment, dueAt: own.dueAt, lateDueAt: own.lateDueAt };
+          })}
           />
         </>,
       );

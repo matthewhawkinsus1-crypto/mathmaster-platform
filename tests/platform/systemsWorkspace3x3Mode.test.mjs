@@ -123,7 +123,8 @@ test('the reduced 2×2 IS the existing 2×2 workflow, under its own draft scope 
 
 test('in its subsystem role the 2×2 submits nothing, verifies nothing, and reports its solution up', () => {
   assert.match(twoByTwo, /export default function AlgebraicSystemMode\(\{ questionData = \{\}, onAction, draftKey = null, subsystem = null \}\)/);
-  assert.match(twoByTwo, /subsystem \? null : <button type="button" onClick=\{check\} style=\{actionStyle\}>Check my work<\/button>/);
+  // On its own its final action says Submit and its cost (SubmitText, D9).
+  assert.match(twoByTwo, /subsystem \? null : <button type="button" onClick=\{check\} style=\{actionStyle\}><SubmitText>Check my work<\/SubmitText><\/button>/);
   assert.match(twoByTwo, /\{subsystem \? null : <HintPanel/);
   const report = region(twoByTwo, 'const onSubsystemSolutionChange = subsystem?.onSolutionChange;', 'const bothPlaced = ', 'subsystem report');
   assert.match(report, /onSubsystemSolutionChange\(solution \? \{/);

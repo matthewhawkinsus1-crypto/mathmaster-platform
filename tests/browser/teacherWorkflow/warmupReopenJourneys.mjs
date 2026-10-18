@@ -199,14 +199,14 @@ const toolDraft = (page, studentId, index = 0) => page.evaluate(([student, assig
 }, [studentId, ASSIGNMENT, index]);
 
 // Attempts used on the question on screen (the Warm-Up allows 3), from the
-// question's own attempt strip: "You have 2 attempts remaining…".
+// question's own outcome: "You have 2 tries left." (student pass 3, D9).
 const MAX_ATTEMPTS = 3;
 const attempts = (page) => page.evaluate((max) => {
   const text = document.querySelector('.mathmaster-question-stage')?.innerText || '';
-  const match = /You have (\d+) attempts? remaining/i.exec(text);
+  const match = /You have (\d+) tr(?:y|ies) left/i.exec(text);
   return match ? max - Number(match[1]) : 0;
 }, MAX_ATTEMPTS);
-const attemptStrip = (page) => page.evaluate(() => ((document.querySelector('.mathmaster-question-stage')?.innerText || '').match(/[^.\n]*attempt[^.\n]*/gi) || []).join(' | '));
+const attemptStrip = (page) => page.evaluate(() => ((document.querySelector('.mathmaster-question-stage')?.innerText || '').match(/[^.\n]*(?:attempt|tr(?:y|ies) left|last try)[^.\n]*/gi) || []).join(' | '));
 
 // Sort the whole board correctly: place each card in group A, read from the
 // draft which line it belongs to, and move it to group B when it is line B.
@@ -327,7 +327,7 @@ const journeyInProgress = async () => {
     await groupButton(b.page, index % 2).click();
     await cards(b.page).nth(index).click();
   }
-  await b.page.getByRole('button', { name: /Check groups/i }).click();
+  await b.page.getByRole('button', { name: /^Submit — / }).first().click();
   await b.page.waitForTimeout(2500 * SLOW_FACTOR);
   check((await attempts(b.page)) === 1, 'B: one submission recorded after the reopen', String(await attempts(b.page)));
   noErrors(b, 'after submitting');
@@ -339,7 +339,7 @@ const journeySubmitted = async () => {
   const a = await openDevice('A', { studentId: STUDENT_A });
   await openTodayWarmup(a.page);
   await sortCorrectly(a.page, STUDENT_A);
-  await a.page.getByRole('button', { name: /Check groups/i }).click();
+  await a.page.getByRole('button', { name: /^Submit — / }).first().click();
   await a.page.waitForTimeout(2500 * SLOW_FACTOR);
   const lockedBefore = await lockedNow(a.page);
   const stripBefore = await attemptStrip(a.page);
@@ -529,7 +529,7 @@ const journeyBridgeCorrupt = async () => {
 
 // "Let's back up" after a wrong Check: the student answers and carries on.
 const answerScaffold = async (page) => {
-  const scaffold = page.locator('[data-scaffold][aria-label="Productive struggle scaffold"]');
+  const scaffold = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
   if (await scaffold.count()) {
     await scaffold.locator('button', { hasText: 'Yes' }).click();
     await page.waitForTimeout(400 * SLOW_FACTOR);
@@ -563,7 +563,7 @@ const moveFirstCardTo = async (page, slot) => {
   await cards(page).nth(0).click();
 };
 const checkGroups = async (page) => {
-  await page.getByRole('button', { name: /Check groups/i }).click();
+  await page.getByRole('button', { name: /^Submit — / }).first().click();
   await page.waitForTimeout(3000 * SLOW_FACTOR);
 };
 const serverRecord = (page, studentId) => page.evaluate(([student, assignment]) => {
@@ -725,7 +725,7 @@ const journeyServerAttempted = async () => {
   await checkGroups(b.page);
   const third = await serverRecord(b.page, STUDENT_B);
   check(third?.totalAttempts === 3 && third.origin === 'server-ingestion', 'B: the next Check is the third attempt on the server', third);
-  check(/final allowed attempt \(3 total\)/.test(await stageText(b.page)) && (await lockedNow(b.page)), 'B: and the last on the screen — no phantom attempt left', await attemptStrip(b.page));
+  check(/That was your last try \(3 in all\)/.test(await stageText(b.page)) && (await lockedNow(b.page)), 'B: and the last on the screen — no phantom attempt left', await attemptStrip(b.page));
   noErrors(b, 'after the third Check');
 
   // Closed now; after a refresh it renders closed, with its solution.

@@ -207,7 +207,11 @@ test('where outcomes are withheld, whether a Check moves the student on never de
   // Test points and vertices move on with their own reports, which answer
   // "finished?" where outcomes are withheld (next test).
   assert.match(reasoning, /phase === 'teacherPoint' \? pointReport\(/);
-  assert.match(reasoning, /: \{ done: vertices\.length > 0 && vertices\.map\(vertexReport\)\.every\(\(item\) => item\.done\) \};/);
+  assert.match(reasoning, /: \{ done: verticesStepDone\(vertices\.map\(vertexReport\)\) \};/);
+  // Whether every true corner is marked (PR-22) is a verdict: it decides the
+  // step only where outcomes are shown.
+  assert.match(region(mode, 'const verticesStepDone = ', 'const vertexCoverageReport', 'verticesStepDone'),
+    /&& \(!buildGate\.verdictsShown \|\| vertexCoverage\(workingVertices, vertices\)\.complete\);/);
   // The step on screen does not move on by itself as the work is finished
   // (where outcomes are withheld a step is done once finished).
   assert.match(region(mode, 'const updateBuildEntry = (index, patch) => {', '\n  };', 'updateBuildEntry'), /if \(activeStep == null\) setActiveStep\(cursor\);/);

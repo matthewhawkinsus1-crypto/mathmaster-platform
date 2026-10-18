@@ -3,7 +3,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
-import { useHintsAllowed, useHintUseReporter, useToolHintPublisher } from './ToolRuntimeContext';
+import { useHintUseReporter, useOwnHintLadder } from './ToolRuntimeContext';
 import { HintPanel } from './ToolShell';
 
 // Sentence case for the rail labels: `numericControls` used to read
@@ -38,12 +38,13 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   useRenderPerformance('UniversalWorkView', toolId);
   const inventory = WORK_VIEW_INVENTORY[toolId];
   const mobile = useMobileInteractionMode();
-  const hintsAllowed = useHintsAllowed();
   const reportHintUse = useHintUseReporter();
   // Inside a question with the platform's hint ladder, that ladder is this
   // Work View's Help (QuestionEngine publishes it to the shell) and it already
-  // holds the question's authored hints (student pass 3, HELP-10).
-  const platformLadder = Boolean(useToolHintPublisher());
+  // holds the question's authored hints (student pass 3, HELP-10). Only where
+  // there is no platform ladder and hints are allowed does this wrapper offer
+  // them itself.
+  const ownLadder = useOwnHintLadder();
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -55,25 +56,24 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
 
   // The question's AUTHORED HINTS are help, not directions. The Work View
   // Help drawer printed all of them at once, unrecorded, on every activity —
-  // including a DOL, where the tool's own hint panel is withheld. Where the
-  // activity withholds hints, the drawer keeps only the generic directions.
-  const authoredHints = hintsAllowed && Array.isArray(questionData?.hints)
+  // including a DOL, where the tool's own hint panel is withheld. Where they
+  // are allowed they are offered the way every tool offers hints — one at a
+  // time, each reveal reported.
+  const authoredHints = ownLadder && Array.isArray(questionData?.hints)
     ? questionData.hints.map((hint) => String(hint || '').trim()).filter(Boolean)
     : [];
-  // Where they are allowed they are offered the way every tool offers hints —
-  // one at a time, each reveal reported — not printed all at once and
-  // unrecorded, which let practice work count as independent after the
-  // student had read every hint.
   const helpText = authoredHints.length
     ? <HintPanel hints={authoredHints} onHintUsed={() => reportHintUse?.()} />
-    : 'Use the directions and controls in this workspace to complete the current mathematical task. Your work stays in place when you open or close Work View.';
+    : null;
 
-  // A Help of this wrapper's own would replace the platform's ladder in the
-  // shell (a tool's capability wins over the platform's), so it declares none
-  // there: one ladder per question, not a third copy of the authored hints.
+  // NO HELP OF ITS OWN OTHERWISE (student pass 3, TOOL-3). This wrapper used to
+  // publish "Use the directions and controls in this workspace…" for 15 tools,
+  // and it replaced the platform's Help — "Ask my teacher" included — while
+  // the directions it pointed to were hidden. The drawer now carries the
+  // tool's TaskCard steps (`directions`) and the platform's Help itself.
   const capabilities = Object.fromEntries(inventory.capabilities
     .filter((key) => !['primaryActions', 'secondaryActions', 'undo', 'fitView', 'panZoom'].includes(key))
-    .filter((key) => !(platformLadder && key === 'help'))
+    .filter((key) => !(key === 'help' && !helpText))
     .map((key) => [key, capabilityDescriptor(key, { taskText, helpText })]));
 
   return (
