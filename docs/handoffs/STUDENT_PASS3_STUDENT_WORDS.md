@@ -265,11 +265,11 @@ On the branch head after merging the moved base (`3cb782a9`), unless a row says 
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,789 of 11,789 (on the merge `58e9cc73`, and again on the final head) |
+| `npm run test:platform` | 11,793 of 11,793 on the final head (after the review round); 11,789 of 11,789 before it |
 | `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail (1 skipped, as on the base) |
 | `npm run lint` | exit 0, no errors (warnings only, none in a line this branch added) |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome **847.8 KB** (186 files), signIn 291.8 KB (27 files) |
+| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome **848.0 KB** (186 files), signIn 291.9 KB (27 files), after the review round |
 | Mutation checks (every new assertion) | 23 mutations, 23 red (`studentWords`, `studentWhatChanged`; listed below) |
 | `npm run test:rules` (emulator) | 243 of 243 and 220 of 220 (a sanity run; no rules change) |
 | Other emulator suites | not run: nothing here touches Functions, rules or indexes |
@@ -324,6 +324,19 @@ sentence is also shorter. The baseline file is not edited.
 | S4 NAV-26 and a prerequisite lock | `91b08275` | An exit ticket locked behind earlier classwork does not get "Exit ticket opens in class" |
 | S5 a Test Cycle in the closed tab | `91b08275` | `practiceAvailable` is false for a Test Cycle, in its actions and in its tab membership. It still offers "Open assessment" past its date (decision 6) |
 | D9 Grades spelled "(DOL)" on every row | `91b08275` | One row's breakdown spells it out, the first in screen order; the rest say "Exit ticket". A result page's single breakdown spells it out |
+
+**Gate after the review round** (head after `71595287`): `test:platform` 11,793 of 11,793; tools 1,709 pass; lint and
+build pass; first load studentHome 848.0 KB (the review fixes added 0.2 KB). Drivers, all exit 0: toolAttemptOutcome,
+matrixLabFeedback, studentUxPlatform, gradeCenterMobile, studentResultUpNext, readAloudTranslate, dolCloseCopy,
+studentGradesRaise, toolPolicyGates, workViewHelpReach; studentHomeToday as before (only the offline-Firestore console
+check). Harness: askMyTeacherJourneys, recoveryHoldJourneys, assignmentChromeJourneys, journeys,
+supportEvidenceJourneys, all exit 0.
+
+**One layout cost of B2.** With both offers ("Show a hint" and "See a similar problem worked"), the hint sentence made
+the tool's result box 6 px too tall for a 390×844 phone (toolAttemptOutcome). That line is now at the tool's hint-note
+size (12 px) with tighter spacing: the box ends at 729 of 733 visible px. The margin is small. The phone's work area
+cannot scroll the box above the action bar, which predates this branch, so a longer focus line on another tool could
+still reach the bar.
 
 ## Decisions for the owner
 
