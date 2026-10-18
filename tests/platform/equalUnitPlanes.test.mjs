@@ -145,6 +145,18 @@ test('review S2: what the old fit showed stays in frame, and a cropped line stil
   assert.deepEqual([cropped.xMin, cropped.xMax, cropped.equalUnits], [-5, 5, undefined]);
   // And no line is ever left off the plot (that would block an import).
   assert.deepEqual(auditStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 30 }] }, { label: 'farther' }), { errors: [], warnings: [] });
+  // Parallel lines have no meeting point, so only the off-plot rule keeps
+  // y = x + 30 on this plot: the figure keeps the old fit.
+  const parallel = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: 1, b: 30 }] };
+  assert.equal(fitStaticGraphViewport(parallel).equalUnits, undefined);
+  assert.deepEqual(auditStaticGraphViewport(parallel, { label: 'parallel' }).errors, []);
+  // A line written without a slope is DRAWN with slope 1 (y = x here), so
+  // where it meets y = -x + 14, (7, 7), stays hidden as well.
+  const slopeless = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line' }, { type: 'line', m: -1, b: 14 }] });
+  assert.equal(shows(slopeless, [7, 7]), false, `(7, 7) must stay out of ${JSON.stringify(slopeless)}`);
+  // Read as slope 0 instead, this one's meeting point was missed and drawn.
+  const slopelessShallow = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line' }, { type: 'line', m: -0.5, b: 10 }] });
+  assert.equal(shows(slopelessShallow, [20 / 3, 20 / 3]), false, `(6.67, 6.67) must stay out of ${JSON.stringify(slopelessShallow)}`);
   // Inside the authored x-range a meeting point is kept, as the old fit did.
   const inside = fitStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
   assert.equal(shows(inside, [7, 7]), true, 'a meeting point inside the authored x-range shows');

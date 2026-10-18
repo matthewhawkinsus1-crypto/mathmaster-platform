@@ -33,6 +33,14 @@ export const getQuadraticParameterization = (spec = {}) => {
  *   standard: y = ax² + bx + c
  *   vertex:   y = a(x - h)² + k
  */
+/**
+ * A line's slope and intercept exactly as it is drawn: a line written without
+ * a slope is drawn with slope 1, without an intercept through the origin.
+ * Everything that reasons about the drawn line (equal-unit framing, where two
+ * lines meet) reads it here, so it reasons about the line on the screen.
+ */
+export const staticLineCoefficients = (spec = {}) => ({ m: Number(spec?.m ?? 1), b: Number(spec?.b ?? 0) });
+
 export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
   const x = Number(xValue);
   if (!Number.isFinite(x)) return Number.NaN;
@@ -50,7 +58,10 @@ export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
     if (x > maximum || (!maximumInclusive && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
   }
 
-  if (type === 'line') return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
+  if (type === 'line') {
+    const { m, b } = staticLineCoefficients(spec);
+    return m * x + b;
+  }
   if (type === 'quadratic') {
     const a = Number(spec.a ?? 1);
     if (getQuadraticParameterization(spec) === 'vertex') {
@@ -340,7 +351,7 @@ export const staticGraphUsesEqualUnits = (graph = {}) => {
 const lineLandmarks = (functions, [xMin, xMax], [yMin, yMax]) => {
   const lines = functions
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
-    .map((spec) => ({ m: Number(spec.m ?? 0), b: Number(spec.b ?? 0) }))
+    .map(staticLineCoefficients)
     .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
   // A meeting point far outside the window (two nearly parallel lines) would
   // blow the window up: only one within a window's span of it is kept.
@@ -410,8 +421,7 @@ const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
     .some(([x, y]) => x >= xMin && x <= xMax && y >= yMin && y <= yMax)) return null;
   // Nor may it leave a line entirely off the plot: the old fit shows it.
   const missesWindow = (spec) => {
-    const m = Number(spec.m ?? 0);
-    const b = Number(spec.b ?? 0);
+    const { m, b } = staticLineCoefficients(spec);
     const [low, high] = [m * xMin + b, m * xMax + b].sort((first, second) => first - second);
     return high < yMin || low > yMax;
   };
@@ -424,7 +434,7 @@ const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
 const croppedMeetingPoints = (functions, [xMin, xMax]) => {
   const lines = functions
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
-    .map((spec) => ({ m: Number(spec.m ?? 0), b: Number(spec.b ?? 0) }))
+    .map(staticLineCoefficients)
     .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
   const points = [];
   lines.forEach((first, index) => lines.slice(index + 1).forEach((second) => {
@@ -575,9 +585,9 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
     && staticViewportFunctions(graph).every((spec) => (spec?.type || spec?.kind || 'line') === 'line');
   const slopes = staticViewportFunctions(graph)
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
-    .map((spec) => Number(spec.m ?? 0));
+    .map((spec) => staticLineCoefficients(spec).m);
   const hasPerpendicularPartner = (spec) => {
-    const m = Number(spec?.m ?? 0);
+    const { m } = staticLineCoefficients(spec);
     return slopes.some((other) => Math.abs(m * other + 1) < 1e-6);
   };
   const errors = [];

@@ -84,7 +84,15 @@ function storedAlgebraStepPartialCredit(record) {
   const currentSteps = steps.filter((step) => Number(step?.variantIndex) === variantIndex);
   if (!currentSteps.length) return 0;
 
-  const stateKey = (value) => String(value || "").replace(/\s+/g, "").replace(/[−–—]/g, "-");
+  // The same key as attemptPolicy's compactStepStateKey, rule for rule
+  // (callers are synchronous, so the ESM module cannot be awaited here;
+  // stepAlgebraStepCredit compares every copy over every rule): spaces and the
+  // TeX tie of 2~ x (before pass 3 Q-31) are spacing, any dash is a minus, and
+  // a unit coefficient before a group (push Q's 1\left() is dropped.
+  const stateKey = (value) => String(value || "")
+    .replace(/[\s~]+/g, "")
+    .replace(/[−–—]/g, "-")
+    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(");
   const expectedTotal = currentSteps.reduce(
     (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
     0

@@ -119,28 +119,56 @@ The readers that go through `getQuestionCredit` ship later: `queueClassroomGrade
 `syncSectionGradeToClassroom` (25), and `path-admin` (step 30). Old-key readers would see new records for about 35
 minutes. So the release is a cherry-pick:
 
-0. **Owner's step, decision 7.** Before release 1, take a read-only count of student records whose `stepGrades`
-   mix push Q's two renderings: one `equationAfter` containing `1\left(` and another that equals it once that `1` is
-   dropped. These are the only records whose derived credit release 1 can move (down to the server's own value, never
-   below it). If any must not move without a regrade report, drop the `1\left(` line from the `functions/index.js`
-   hunk below and keep only the tie.
-1. **Release 1: the key, nothing else.** On the integration head, make a commit holding only these two hunks. They
-   are the whole difference this branch makes to those files:
+0. **Owner's step, decision 7.** Before release 1, take a read-only count of the records whose `stepGrades` mix
+   push Q's two renderings: one `equationAfter` containing `1\left(` and another that equals it once that `1` is
+   dropped. Count **assignment records, Test Cycle records and section (Classroom section) records**, because all three
+   are graded through a copy that gains that rule. These are the only records whose derived credit release 1 can move,
+   and only down to the server's own value, never below it. If any must not move without a regrade report, drop the
+   `1\left(` line from the `functions/index.js` and `functions/lib/classroomGradeRuntime.js` hunks below and keep only
+   the tie.
+1. **Release 1: the key, nothing else.** On the integration head, make a commit holding only these **three** hunks.
+   They are the whole difference this branch makes to those files:
    - `functions/shared/attemptPolicy.mjs` `compactStepStateKey`: `.replace(/\s+/g, '')` becomes
      `.replace(/[\s~]+/g, '')`, plus its three comment lines.
    - `functions/index.js` `storedAlgebraStepPartialCredit`: its `stateKey` copy becomes
      `String(value || "").replace(/[\s~]+/g, "").replace(/[−–—]/g, "-").replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(")`,
      plus its comment.
+   - `functions/lib/classroomGradeRuntime.js` `storedAlgebraStepPartialCredit`: the same `stateKey` and comment (the
+     third copy, found in the final review). Test Cycle (`lib/testCycle.js`: `getQuestionCredit`,
+     `assignmentGradeProgress`) and the Classroom section entry grade with it.
 
    ```
-   git diff c350dfc0 claude/pass3-math-display -- functions/shared/attemptPolicy.mjs functions/index.js > release1.patch
+   git diff c350dfc0 claude/pass3-math-display -- functions/shared/attemptPolicy.mjs functions/index.js functions/lib/classroomGradeRuntime.js > release1.patch
+   git apply --check release1.patch
    git apply --index release1.patch && git commit -m "Step-state key: a TeX tie is spacing (pass 3 release 1)"
    node --test tests/tools/stepAlgebraStepCredit.test.mjs tests/platform/algebraStepCreditAndRuntimeFixes.test.mjs
    node scripts/release-firebase.mjs            # the plan: the whole default fleet and path-admin
    node scripts/release-firebase.mjs --execute
    ```
 
-   Checked: that patch applies cleanly to `c350dfc0`, and the two step-credit suites pass on it (53 pass, 0 fail).
+   Checked: the three-hunk patch passes `git apply --check` on `c350dfc0` and applies cleanly, and the two step-credit
+   suites pass on it (53 pass, 0 fail).
+
+   **What release 1 deploys.** The planner names the whole default fleet and `path-admin`, and all of them need it:
+   - Every default-codebase function loads `lib/classroomGradeRuntime.js`: the entry `platformEntry.js` loads
+     `index.js`, which requires it at line 50 (`deferredClassCheckpoint`).
+   - The functions that grade with the runtime copy:
+     - the Test Cycle callables `getStudentTestCycle`, `getTeacherTestCyclePlans`, `listTeacherTestCycleRecords`,
+       `teacherTestCycleAction`, `assignTestCycleSessions`, `releaseTestCycleResults`, `releaseTestCycleAnswers`,
+       `adjustTestCycleGrade`, `runTestCycleBulkAction`, `getTestCycleOperation`, `updateTestCyclePolicy`,
+       `updateTestCycleAudience`, `updateTestCycleAvailability`, `attachTestCycleContract`,
+       `preflightTestCycleAssignment`, `preflightTestCycleCandidate`, `issueTestCycleCorrectionQuestion`,
+       `submitTestCycleCorrectionResponse`, `previewTestCycleSecureItems` and `gradeTestCyclePreviewItem`, through
+       `lib/testCycle.js`;
+     - the section functions from `classroomSectionEntry.js`: `reconcileClassroomSectionGrades`,
+       `syncSectionGradeToClassroom`, `queueClassroomSectionGradeCheckpoints`, `drainClassroomPushQueue` and
+       `resolveClassroomSectionLaunchToken`;
+     - `forceRepublishAssignmentToClassrooms`, through `classroomSectionForceEntry.js`.
+   - The functions that grade with the `index.js` copy go through `getQuestionCredit` (`queueClassroomGradeCheckpoints`,
+     `syncGradeToClassroom`, `retryClassroomGradeSync` and the rest).
+   - `path-admin` receives `compactStepStateKey` through `functions-path-admin/vendor/shared/attemptPolicy.mjs`. That
+     file is gitignored and regenerated from `functions/shared` by the path-admin predeploy, so it needs no hunk of its
+     own.
 
    On today's data this is a no-op. Every record today is written with the tie, so dropping it from every key
    changes no comparison. Push Q's rule is already live in `compactStepStateKey`, and in the `index.js` copy it only
@@ -181,9 +209,15 @@ repeating a wrong answer across the deploy can spend at most one extra try. It n
    renderings (`1\left(` before push Q's deploy, `\left(` after), `storedAlgebraStepPartialCredit` used to count one
    state twice. It now counts it once, as the shared key and `bestPartialCredit` already do. `getQuestionCredit` is
    `max(bestPartialCredit, derived)`, so a credit can only drop where the double count had pushed the derived value
-   above the stored best, and then it drops to what the server already computed. No other record changes. If no
-   live credit may move without a regrade report, hold the `1\left(` line back and keep only the tie rule (the
-   test then needs that one input removed).
+   above the stored best, and then it drops to what the server already computed. No other record changes. This
+   reaches **Test Cycle and section grading too**: `functions/lib/classroomGradeRuntime.js` keeps a third copy of the
+   key (it lacked the tie and push Q's rule), which Test Cycle and section grading use, and it gains both rules in
+   release 1. The step-0 count covers those records. If no live credit may move without a regrade report, hold the
+   `1\left(` line back in both copies and keep only the tie rule (the parity test then needs that one input removed).
+8. **A meeting point with no authored x-range.** The R1 rule protects a figure whose author pinned the x-range. A
+   figure with only a y-range, or no window at all, is not a deliberate crop of x. There the equal-unit fit keeps a
+   nearby meeting point in frame (within one window span), which the old fit's default x-window could hide. Left as is
+   (re-review); say if such figures should also hide it.
 
 ## Touched outside my files (kept minimal)
 
@@ -191,6 +225,7 @@ repeating a wrong answer across the deploy can spend at most one extra try. It n
   Wave 4's B5 (`SubmitText`) and B6 (`useMethodWithheld`) also edit this file; expect a small textual merge near the
   provider signature.
 - `src/QuestionEngine.jsx`: `teacherPolicyView` and one prop on each `ToolRuntimeProvider`.
+- `functions/lib/classroomGradeRuntime.js` `storedAlgebraStepPartialCredit`'s key: the same three rules (final review).
 - `functions/shared/attemptPolicy.mjs` `compactStepStateKey`, and `functions/index.js` `storedAlgebraStepPartialCredit`'s
   key: the tie is spacing; the `index.js` copy also gains push Q's `1\left(` rule (it lacked it; a synchronous
   caller, `getQuestionCredit`, is why it is a copy and not an import).
@@ -233,6 +268,8 @@ three places:
 | Q-13's spoken name (pre-existing). | Unchanged; listed under Not done. | — |
 | **Re-review R1**: S2 framed a meeting point outside the authored x-range. For y = x and y = −x + 14 on x ∈ [−5, 5], (7, 7) showed, which would hand over the answer on an exit ticket or test that crops the system so it must be solved algebraically. | If the equal-unit window would show a meeting point outside an authored x-range, or leave any line entirely off the plot, the figure keeps the old fit: the authored x-range, y widened over it, exactly as before R-1. Meeting points inside the authored x-range, and y-intercepts, are still kept. | "review S2": (7, 7) and (15, 15) stay out; the cropped figure's x-range is still [−5, 5]; y = −x + 30 is not left off the plot (no Pre-Flight error); a meeting point inside the x-range and an unpinned one still show. Red without the check (and without the line check). |
 | **Re-review R2**: `lockViewport` plus `equalUnits: true` escaped the locked-viewport error and the warning. | The exemptions apply only when the window is not locked. | "Pre-Flight": locked + equalUnits, 3x and −x/3 on [−10, 10]², gives 1 strict error and 1 warning, as on the base. Red without the lock check. |
+| **Final review, blocker: a third copy of the step-credit key** in `functions/lib/classroomGradeRuntime.js` (whitespace and dashes only), used by Test Cycle and section grading. On a record written on both sides of the deploy it gave 90% where the shared key gives 67%. | The same three rules and comment as the `index.js` copy. It is in release 1 (now three hunks). A search for any other copy found none: `replace(/\s+/g, "")` beside a dash rule in `functions/`, `functions-path-admin`, `scripts` and `src` turns up only answer normalisers in `src/platform/supports/families/*` and `similarProblem.js`, which compare typed answers, not step states. `functions-path-admin/vendor/shared/attemptPolicy.mjs` is a gitignored copy regenerated from `functions/shared`. | `stepAlgebraStepCredit` compares both copies with `compactStepStateKey` over the same inputs, and calls the runtime's real `storedAlgebraStepPartialCredit` on records mixing the tie and push Q renderings; it must equal the shared dedupe. Red when any rule is dropped from either copy (tie, `1\left(`, an em dash). |
+| **Final review, R1**: a line written without a slope is drawn with slope 1, but the meeting-point check read it as slope 0, so a hidden meeting point could show again. | One helper, `staticLineCoefficients` (slope 1 and intercept 0 when unwritten), used by the drawing and by every check (landmarks, cropped meeting points, off-plot lines, perpendicular partners). | "review S2": slope-less y = x with y = −x + 14 and with y = −0.5x + 10 keep (7, 7) and (6.67, 6.67) hidden. Red if the helper defaults to 0, and red if the meeting check keeps its own `?? 0`. Parallel y = x and y = x + 30 pin the off-plot fallback (red without it). |
 | **Re-review R3**: one planner run does not satisfy S1. | The release section is the cherry-pick plan, with the exact hunks, the wait on `--whats-live`, and the owner's count. | — |
 
 ## Not done
