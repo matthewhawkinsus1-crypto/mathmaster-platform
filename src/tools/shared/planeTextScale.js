@@ -26,3 +26,10 @@ export const planeFontSize = (authored, viewBoxWidth, renderedWidth, floorPx = M
 
 /** The CSS px a viewBox font size renders at. */
 export const renderedFontPx = (fontSize, viewBoxWidth, renderedWidth) => Number(fontSize) * (Number(renderedWidth) / Number(viewBoxWidth));
+
+/*
+ * Where a number below an axis sits. Its baseline is `authoredOffset` below
+ * the axis at the authored size; text grown for a phone pushes it down by its
+ * own size, so the digits never reach up over the axis line.
+ */
+export const baselineBelowAxis = (fontSize, authoredOffset, gap) => Math.max(Number(authoredOffset), Number(fontSize) + Number(gap));

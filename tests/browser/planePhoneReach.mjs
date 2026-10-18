@@ -37,6 +37,19 @@ const smallestText = (page) => page.locator(PLANE).first().evaluate((svg) => {
     .filter((text) => text.textContent.trim() && !text.closest('[aria-hidden="true"]'))
     .map((text) => Number.parseFloat(getComputedStyle(text).fontSize) * scale));
 });
+// Axis numbers that a drawn axis line runs through: the line's box and the
+// number's box overlap (getBBox, in the plane's own units). A phone's larger
+// text once pushed the x-axis numbers up over the x axis, and the origin's 0
+// across the y axis (contrastReview measured them against the axis line).
+const numbersOnAxisLines = (page) => page.locator(PLANE).first().evaluate((svg) => {
+  const box = (node) => { const b = node.getBBox(); return { left: b.x, right: b.x + b.width, top: b.y, bottom: b.y + b.height }; };
+  const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const axes = [...svg.querySelectorAll('line')].filter((line) => line.getAttribute('stroke-width') === '2' && line.style.stroke.includes('--mm-graph-axis')).map(box);
+  return [...svg.querySelectorAll('text')]
+    .filter((text) => /^-?\d+(\.\d+)?$/.test(text.textContent.trim()))
+    .filter((text) => axes.some((axis) => overlap(box(text), axis)))
+    .map((text) => text.textContent.trim());
+});
 const plotted = (page) => page.locator('dt:has-text("Points plotted") + dd').textContent().then((text) => text.trim());
 
 let failures = 0;
@@ -59,6 +72,10 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
     const px = await smallestText(page);
     if (device === 'phone') assert.ok(px >= 11.9, `smallest plane text renders at ${px.toFixed(1)} CSS px`);
     else assert.ok(px >= 10 && px <= 13.5, `a wide plane keeps its authored sizes (${px.toFixed(1)} px)`);
+  });
+
+  await check(`${device}: no axis line runs through the axis numbers`, async () => {
+    assert.deepEqual(await numbersOnAxisLines(page), []);
   });
 
   // P1 at (0, 0) and P2 at (3, 0), by keyboard so the points are exact.
