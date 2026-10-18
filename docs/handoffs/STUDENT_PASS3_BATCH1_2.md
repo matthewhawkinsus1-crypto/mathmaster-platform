@@ -143,10 +143,13 @@ it ships. Submit and finishing merged with wave 4.
 Wave 4 is merged, with Submit and finishing and wave 5's first-load session: Work View help on phones and exit tickets
 that keep the method to themselves, Test Cycle dates, Live Challenge rounds that always finish, Systems tools that never
 strand a student, and the student first load back within its budget. See
-[STUDENT_PASS3_WAVE4_INTEGRATION.md](STUDENT_PASS3_WAVE4_INTEGRATION.md). The rest of wave 5 is under review on its own
-branches: descriptions for non-graph figures and the VPAT, Matrix Lab feedback, reasons that name the fix, Step Algebra's
-board and equal-unit planes, secure-test answer entry, and the assignment's calculator setting. The D9 word pass and the
-hint fixes come after wave 5.
+[STUDENT_PASS3_WAVE4_INTEGRATION.md](STUDENT_PASS3_WAVE4_INTEGRATION.md).
+
+Wave 5 is merged: descriptions for non-graph figures and the VPAT, Matrix Lab feedback, reasons that name the fix, Step
+Algebra's board and equal-unit planes, secure-test answer entry, and the assignment's calculator setting. See
+[STUDENT_PASS3_WAVE5_INTEGRATION.md](STUDENT_PASS3_WAVE5_INTEGRATION.md); its step-key change ships in two releases.
+Wave 6 follows on this base: the D9 word pass, getting around (NAV-19 to NAV-25), hints that fit, tool directions on exit
+tickets, Batch 3 merged into this line, and the grader gaps the secure-entry reviews found.
 
 ## Left for later
 
