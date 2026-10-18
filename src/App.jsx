@@ -72,7 +72,11 @@ import {
   storeLessonNotesPdf,
 } from './classroomApi';
 
-import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
+// Whether a question can come back as a different question is the one piece
+// of the generator App needs while it renders. The generator itself, with the
+// math engine (mathjs) under it, loads when a student prints a worksheet: a
+// static import put mathjs in every student's first load before Home.
+import { canGenerateDistinctVariants as isPersonalizedBlueprint } from '../functions/shared/questionVariability.mjs';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
@@ -259,9 +263,6 @@ import {
   resolveCurrentContentStorageIndex,
 } from './platform/assignments/currentContentProjection.js';
 import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
-import {
-  repairAssignmentTrackerForCurrentGrader,
-} from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2765,6 +2766,7 @@ function App() {
   };
 
   const repairGradesByAssignmentWithCurrentGrader = ({
+    repairAssignmentTrackerForCurrentGrader,
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
@@ -2797,9 +2799,13 @@ function App() {
   // run it only after the full academic corpus was intentionally loaded for
   // Grades; ordinary teacher navigation never pays this CPU/memory cost.
   const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    // The grader repair is teacher-only and grades with the full math engine,
+    // so it loads here, when the Grades tab first needs it, and not with Home.
+    const { repairAssignmentTrackerForCurrentGrader } = await import('./platform/assignment/liveQuestionCorrection.js');
     const correctedAt = new Date().toISOString();
     const repairs = (Array.isArray(students) ? students : []).map((student) => {
       const result = repairGradesByAssignmentWithCurrentGrader({
+        repairAssignmentTrackerForCurrentGrader,
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
@@ -5651,6 +5657,16 @@ function App() {
     const assignmentLocked = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
     if (assignmentLocked) {
       toastInfo('PDF not available yet', 'The printable worksheet unlocks with the assignment.');
+      return;
+    }
+
+    let generateQuestion;
+    try {
+      // The generator loads with the worksheet (see the import note at the top).
+      ({ generateQuestion } = await import('./problemGenerator'));
+    } catch (error) {
+      console.error(error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
       return;
     }
 
