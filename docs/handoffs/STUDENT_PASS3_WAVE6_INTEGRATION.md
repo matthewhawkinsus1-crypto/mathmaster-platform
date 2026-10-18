@@ -144,6 +144,14 @@ Open, and the same on `3cb782a`:
 The other drivers all passed, from 490 rich-tool checks and 450 slow recovery-hold checks to dark mode, the
 capabilities certification and `certify:accessibility`. `workViewMatrix --write` changed only its timestamp.
 
+After the gate, CI's student-runtime job on the release-2 PR (`d4f98c2`) found one more driver behind the screen,
+which the cloud sessions' font had hidden. **stagedQuestion** reported "[phone-portrait] plot: the first step does
+not start on screen when the question opens". Its page keeps a copy of App.jsx's navigator, and the copy still
+started full. App.jsx has started compact since RUN-7 (`8492033`). With CI's wider system font (Ubuntu's DejaVu
+Sans; the cloud sessions' `system-ui` is Inter), that full navigator pushed step 1 below a phone's fold. `76b9ba3`
+opens the copy compact, with App.jsx's compact row. With DejaVu Sans forced through fontconfig the old page fails as
+CI did and the new one passes on all six screens; starting the copy full again brings the finding back.
+
 ### The first-load budget
 
 Without W6-7, the six other branches came to 855.8 KB against an 855.1 KB limit. The growth was real student
