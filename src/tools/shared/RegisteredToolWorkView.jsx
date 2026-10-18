@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { useHintUseReporter, useOwnHintLadder } from './ToolRuntimeContext';
 import { HintPanel } from './ToolShell';
+import { readToolCheck, sameToolCheck, toolCheckRailAction } from './toolCheckMirror.js';
 
 // Sentence case for the rail labels: `numericControls` used to read
 // "numeric Controls" to the student.
@@ -45,6 +46,24 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   // there is no platform ladder and hints are allowed does this wrapper offer
   // them itself.
   const ownLadder = useOwnHintLadder();
+  // The tool's own Check, mirrored into the rail (TOOL-13, toolCheckMirror.js).
+  // A hidden marker finds the element that holds the tool; an observer keeps
+  // the rail's words and disabled state in step with the button.
+  const markerRef = useRef(null);
+  const [toolCheck, setToolCheck] = useState(null);
+  useEffect(() => {
+    const root = markerRef.current?.parentElement;
+    if (!root) return undefined;
+    const read = () => {
+      const next = readToolCheck(root);
+      setToolCheck((current) => (sameToolCheck(current, next) ? current : next));
+    };
+    read();
+    if (typeof MutationObserver !== 'function') return undefined;
+    const observer = new MutationObserver(read);
+    observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'hidden', 'style', 'class'] });
+    return () => observer.disconnect();
+  }, []);
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -75,6 +94,8 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
     .filter((key) => !['primaryActions', 'secondaryActions', 'undo', 'fitView', 'panZoom'].includes(key))
     .filter((key) => !(key === 'help' && !helpText))
     .map((key) => [key, capabilityDescriptor(key, { taskText, helpText })]));
+  const checkAction = toolCheckRailAction(toolCheck, markerRef.current?.parentElement);
+  if (checkAction) capabilities.primaryActions = [checkAction];
 
   return (
     <EnlargeableFigure
@@ -86,6 +107,7 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
       dismissKey={`mm.workview.phone.dismissed.${toolId}`}
       presentationKey={questionData?.questionId || questionData?.id || questionData?.prompt || toolId}
     >
+      <span ref={markerRef} hidden data-tool-check-marker />
       {children}
     </EnlargeableFigure>
   );

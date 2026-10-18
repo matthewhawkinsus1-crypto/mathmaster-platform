@@ -260,6 +260,17 @@ for (const viewport of VIEWPORTS) {
     expect(`S6 ${tag}`, fresh === '', `a fresh visit from the nav kept the search ${JSON.stringify(fresh)}`);
     const freshPeriod = await page.locator('#assignments-period').inputValue().catch(() => null);
     expect(`S6 ${tag}`, freshPeriod === startPeriod, `a fresh visit kept the marking period ${JSON.stringify(freshPeriod)}`);
+    // …and stays clean through View Results → Back, untouched: the old view
+    // was left in its own entry, not carried into the ones after it.
+    const freshResults = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
+    if (expect(`S6 ${tag}`, await freshResults.count(), 'no View Results on a fresh visit')) {
+      await freshResults.click();
+      await settled(page, 'Assignment result');
+      await page.goBack();
+      await settled(page, 'Assignments');
+      const after = await page.locator('#assignments-search').inputValue().catch(() => null);
+      expect(`S6 ${tag}`, after === '', `Back onto the fresh visit brought back the search ${JSON.stringify(after)}`);
+    }
   }
 
   // S7 — a toast over the workspace leaves the action bar pressable.

@@ -20,6 +20,11 @@
 //       pack-up banner does not tell them to sign out mid-DOL.
 //   X2  a classmate without extra time, at the same moment: the DOL is
 //       closed, and the pack-up banner shows.
+//   X4  the same classmate in the lesson's Classwork during pack-up (NAV-24):
+//       the pack-up line ("Finish up — your work is saved.") sits in the
+//       pinned stack under the identity bar and never covers the sticky
+//       assignment navigator — its section tabs and Previous/Next stay
+//       pressable, also after scrolling.
 //   X3  the teacher's Live view lists the students still working with extra
 //       time on the DOL — 910001 among them — counting down to the last close.
 //
@@ -136,6 +141,33 @@ const run = async (viewport) => {
 
   const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth);
   expect(`layout ${tag}`, overflow <= 1, `sideways scrolling (${overflow}px)`);
+
+  // X4 — the classmate in Classwork while the pack-up line shows.
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  for (const scrolled of [0, 600]) {
+    await page.evaluate((y) => window.scrollTo(0, y), scrolled);
+    await page.waitForTimeout(300);
+    const layout = await page.evaluate(() => {
+      const visible = (node) => node && node.getClientRects().length > 0;
+      const notice = document.querySelector('[data-pack-up-notice]');
+      const nav = [...document.querySelectorAll('.mathmaster-assignment-unified-nav')].find(visible);
+      if (!notice || !nav) return { notice: Boolean(notice), nav: Boolean(nav) };
+      const noticeBox = notice.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const controls = [...nav.querySelectorAll('button')].filter(visible).map((button) => {
+        const box = button.getBoundingClientRect();
+        const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { label: button.getAttribute('aria-label') || button.innerText.trim().slice(0, 30), hit: Boolean(at && (at === button || button.contains(at))) };
+      });
+      return { notice: true, nav: true, text: notice.innerText.replace(/\s+/g, ' '), noticeBottom: Math.round(noticeBox.bottom), navTop: Math.round(navBox.top), covered: controls.filter((control) => !control.hit).map((control) => control.label), controls: controls.length };
+    });
+    if (!expect(`X4 ${tag} scrolled ${scrolled}`, layout.notice && layout.nav, `could not measure: ${JSON.stringify(layout)}`)) continue;
+    expect(`X4 ${tag} scrolled ${scrolled}`, /Finish up — your work is saved\./.test(layout.text), `the line reads "${layout.text}"`);
+    expect(`X4 ${tag} scrolled ${scrolled}`, layout.navTop >= layout.noticeBottom - 1, `the navigator (top ${layout.navTop}) is under the pack-up line (bottom ${layout.noticeBottom})`);
+    expect(`X4 ${tag} scrolled ${scrolled}`, layout.controls > 0 && layout.covered.length === 0, `covered navigator controls: ${layout.covered.join(', ')}`);
+  }
   expect(`errors ${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);
   passed.push(tag);
   await context.close();
