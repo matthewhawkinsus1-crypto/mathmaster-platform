@@ -148,13 +148,16 @@ strand a student, and the student first load back within its budget. See
 Wave 5 is merged: descriptions for non-graph figures and the VPAT, Matrix Lab feedback, reasons that name the fix, Step
 Algebra's board and equal-unit planes, secure-test answer entry, and the assignment's calculator setting. See
 [STUDENT_PASS3_WAVE5_INTEGRATION.md](STUDENT_PASS3_WAVE5_INTEGRATION.md); its step-key change ships in two releases.
-Wave 6 follows on this base: the D9 word pass, getting around (NAV-19 to NAV-25), hints that fit, tool directions on exit
-tickets, Batch 3 merged into this line, and the grader gaps the secure-entry reviews found.
+Wave 6 is merged: the D9 word pass, getting around (NAV-19 to NAV-25), hints that fit, tool directions on exit tickets,
+Batch 3 merged into this line, the grader gaps the secure-entry reviews found, and teacher-only code off the student's
+first load. See [STUDENT_PASS3_WAVE6_INTEGRATION.md](STUDENT_PASS3_WAVE6_INTEGRATION.md): this branch is release 2 and
+ships after Batch 3.
 
 ## Left for later
 
-- The Path V2 field grader (`functions/lib/mathPath.js`, mirrored in `teacherPathRuntime.js`) and tool workflow
-  grading still read a thousands separator as wrong.
+- Since wave 6 (W6-5) the Path V2 field grader (`functions/lib/mathPath.js`) and its teacher mirror
+  (`teacherPathRuntime.js`) read a correctly grouped thousands separator, Digital SAT boxes included; a list or set
+  field keeps the comma as a separator.
 - The Path stimulus still cannot shade beside a vertical boundary (only above/below).
 - The new vertical-boundary drawing is covered by unit and source tests, not yet seen in a browser.
 - A real screen-reader pass of the new announcements (Batch 6 asks for one across the platform).
