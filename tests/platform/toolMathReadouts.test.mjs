@@ -12,6 +12,11 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+// Outside the repository: lint scans the tree.
+const VITE_CACHE = join(tmpdir(), 'mathmaster-vite-ssr');
 import { polynomialReadoutText } from '../../src/tools/polynomialWorkshop/polynomialReadout.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -29,7 +34,7 @@ test('a polynomial is written without a 1, a 0 term, a caret or a hyphen', () =>
 });
 
 test('Polynomial Workshop shows P(x) in those words', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: '/tmp/claude-0/vitecache/ssr' });
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
   try {
     const { default: PolynomialWorkshop } = await server.ssrLoadModule('/src/tools/polynomialWorkshop/PolynomialWorkshop.jsx');
     const factorZero = renderToStaticMarkup(React.createElement(PolynomialWorkshop, { questionData: { mode: 'factorZero', coefficients: [1, -5, 6], candidateRoot: 2 } }));

@@ -20,6 +20,11 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+// Outside the repository: lint scans the tree.
+const VITE_CACHE = join(tmpdir(), 'mathmaster-vite-ssr');
 import {
   auditStaticGraphViewport,
   fitStaticGraphViewport,
@@ -90,13 +95,24 @@ test('Pre-Flight: equal-unit lines are exempt from "mostly outside", nothing els
 });
 
 test('GraphDisplay draws the lesson figure at a right angle, with one labelled step', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: '/tmp/claude-0/vitecache/ssr' });
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
   try {
     const { default: GraphDisplay } = await server.ssrLoadModule('/src/GraphDisplay.jsx');
     const markup = renderToStaticMarkup(React.createElement(GraphDisplay, { graph: L3_CW1, enlargeable: false }));
-    const paths = [...markup.matchAll(/<path d="M\s*([-\d.]+)[ ,]([-\d.]+)\s*L\s*([-\d.]+)[ ,]([-\d.]+)[^"]*"[^>]*stroke-linecap="round"/g)]
+    const lineTags = markup.match(/<path\b[^>]*stroke-linecap="round"[^>]*>/g) || [];
+    const paths = lineTags.map((tag) => tag.match(/\sd="M\s*([-\d.]+)[ ,]([-\d.]+)\s*L\s*([-\d.]+)[ ,]([-\d.]+)/))
       .map(([, x1, y1, x2, y2]) => Math.atan2(-(Number(y2) - Number(y1)), Number(x2) - Number(x1)));
     assert.equal(paths.length, 2, 'two lines drawn');
+    // The steep line is cropped to the plot area, not drawn over the labels...
+    const clip = markup.match(/<clipPath id="([^"]+)"><rect x="48" y="48" width="524" height="334"><\/rect><\/clipPath>/);
+    assert.ok(clip, 'a clip to the plot area');
+    lineTags.forEach((tag) => assert.match(tag, new RegExp(`clip-path="url\\(#${clip[1]}\\)"`)));
+    // ...and each line keeps an arrow at both ends, where it leaves the frame
+    // (through the top or bottom as well as the sides).
+    const arrows = [...markup.matchAll(/<g transform="translate\(([-\d.]+) ([-\d.]+)\) rotate\([-\d.e]+\)"><polygon points="14,0 -7,-9 -7,9"/g)]
+      .map(([, x, y]) => [Number(x), Number(y)]);
+    assert.equal(arrows.length, 4, `four arrows, got ${arrows.length}`);
+    arrows.forEach(([x, y]) => assert.ok(x >= 47.9 && x <= 572.1 && y >= 47.9 && y <= 382.1, `arrow on the frame: ${x}, ${y}`));
     let angle = Math.abs(paths[0] - paths[1]) * 180 / Math.PI;
     if (angle > 90) angle = 180 - angle;
     assert.ok(Math.abs(angle - 90) < 0.5, `drawn at ${angle}°`);
@@ -114,7 +130,7 @@ test('an interactive plane: only its height follows the window', async () => {
   assert.equal(equalUnitPlaneHeight({ width: 560, pad: 42, xMin: -7, xMax: 7, yMin: -7, yMax: 7, fallback: 380 }), 560);
   assert.equal(equalUnitPlaneHeight({ width: 560, pad: 42, xMin: -10, xMax: 10, yMin: -5, yMax: 5, fallback: 380 }), 42 * 2 + 238);
   assert.equal(equalUnitPlaneHeight({ width: 560, pad: 42, xMin: -1, xMax: 1, yMin: -100, yMax: 100, fallback: 380 }), Math.round(476 * 1.5 + 84), 'capped');
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: '/tmp/claude-0/vitecache/ssr' });
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
   try {
     const { default: CoordinatePlane } = await server.ssrLoadModule('/src/tools/shared/CoordinatePlane.jsx');
     const plane = (props) => renderToStaticMarkup(React.createElement(CoordinatePlane, { xMin: -7, xMax: 7, yMin: -7, yMax: 7, onPlot: () => {}, enlargeable: false, ...props }));

@@ -14,6 +14,11 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+// Outside the repository: lint scans the tree.
+const VITE_CACHE = join(tmpdir(), 'mathmaster-vite-ssr');
 
 const QUESTION = {
   id: 'q12-step',
@@ -35,7 +40,7 @@ const render = async (server, { teacherView }) => {
 const text = (markup) => markup.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 
 test('a student sees no support level or policy sentence, only the sentence about them', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: '/tmp/claude-0/vitecache/ssr' });
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
   try {
     for (const teacherView of [undefined, false]) {
       const shown = text(await render(server, { teacherView }));
