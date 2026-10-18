@@ -17,10 +17,19 @@
  * hands its rungs to this ladder instead (toolHintChannel.js), so they get the
  * release rule and the leak guard below like any other hint.
  *
- * THE LEAK GUARD. Every hint is checked with hintRevealsAnswer
- * (pathSolutionSupport.mjs) against the answers this module can read for the
- * question (the family's expectedValues plus the plain keys); a hint that
- * contains one is dropped, whoever wrote it. A hint is never a smaller answer.
+ * THE LEAK GUARD. Every hint is checked against the answers this module can
+ * read for the question (the family's expectedValues, the plain keys and a
+ * table's answer cells); a hint that states one is dropped, whoever wrote it.
+ * A hint is never a smaller answer. A NUMBER answer that the hint only writes
+ * inside the problem's own expression or point, quoted whole ("solve
+ * 0 = 3x − 8" when the slope is 3), is not stated (HELP-16, hintLeakGuard.js);
+ * a point, an expression or a word answer always is. questionHintAudit lists
+ * every hint with the reason it was dropped, for Pre-Flight.
+ *
+ * FALLBACKS THAT FIT (HELP-23). Where nothing else is left, the fallback is
+ * chosen by what the student does — solve a system, work a matrix, sort cards,
+ * read or build a graph, build representations, pick a choice — and names no
+ * method step the item measures. The panel then points to Ask my teacher.
  *
  * RELEASE (hintRelease): hints are withheld wherever the activity withholds
  * help (DOL, quiz, test — hintsAllowed false) and once the question is closed.
@@ -31,6 +40,7 @@
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
 import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
 import { familyFor } from '../families/index.js';
+import { hintAnswerLeak } from './hintLeakGuard.js';
 
 const list = (value) => (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]);
 const text = (value) => String(value ?? '').trim();
@@ -63,16 +73,83 @@ export const questionAnswerValues = (question = {}) => {
     push(question.generatedAnswer);
     list(question.acceptedAnswers).forEach(push);
     if (question.solutionKey && typeof question.solutionKey === 'object') push(question.solutionKey.value);
+    // A table's answer cells: "(4/5)(−2) = −8/5" filled the first row.
+    const tableAnswers = question.table?.answers;
+    if (tableAnswers && typeof tableAnswers === 'object' && !Array.isArray(tableAnswers)) Object.values(tableAnswers).forEach(push);
     const family = familyFor(question);
     if (family) list(family.expectedValues(question)).forEach(push);
   } catch { /* the guard reads what it can */ }
   return [...new Set(values)];
 };
 
-const GENERIC_HINTS = Object.freeze([
-  'Underline what the question asks you to find, and list the numbers it gives you. Which of them do you need first?',
-  'Write the first step of your work on the scratchpad, then check it before going on: does each step keep the two sides (or the quantities) equal?',
-]);
+/*
+ * What the student already reads: the prompt and the field labels (never a
+ * choice's options — the right one is an answer). A number the hint only
+ * quotes from here is not one the hint states (hintLeakGuard.js).
+ */
+export const questionVisibleText = (question = {}) => [
+  question.prompt,
+  question.stem,
+  question.question,
+  ...list(question.answerFields).map((field) => field?.label),
+].filter((value) => typeof value === 'string' && value.trim()).join('\n');
+
+// The fallbacks, by what the student does. Each is about reading and checking
+// the student's own work, never a method step the item measures.
+export const FALLBACK_HINTS = Object.freeze({
+  systems: Object.freeze([
+    'Read every equation before you start. A solution has to make all of them true at the same time.',
+    'When you find a value, check it in an equation you have not used yet. If it does not fit, look back at your last step.',
+  ]),
+  matrix: Object.freeze([
+    'Say what each row and each column of the matrix stands for before you change anything.',
+    'When you have an answer, put it back into the original equations to check it.',
+  ]),
+  sort: Object.freeze([
+    'Look at one card at a time. Say one thing you can read from it before you place it.',
+    'If two cards look alike, find one thing that is different about them.',
+  ]),
+  graphChoice: Object.freeze([
+    'Read the labels and the scale on each axis first: how much is one grid square worth?',
+    'Rule out one choice that does not fit the graph, and say why.',
+  ]),
+  graph: Object.freeze([
+    'Read the scale on each axis before you plot: how much is one grid square worth?',
+    'After you place a point, read its coordinates back from the grid. Is it where you meant to put it?',
+  ]),
+  build: Object.freeze([
+    'Start with what you are given and say in words what it tells you.',
+    'Every representation you build describes the same relationship. Check that two of them agree before you go on.',
+  ]),
+  choice: Object.freeze([
+    'Read each choice all the way through before you pick one.',
+    'Rule out one choice you are sure is wrong, and say why.',
+  ]),
+  general: Object.freeze([
+    'Underline what the question asks you to find, and list the numbers it gives you. Which of them do you need first?',
+    'Write the first step of your work on the scratchpad, then check it before going on: does each step keep the two sides (or the quantities) equal?',
+  ]),
+});
+
+const SORT_TYPES = new Set(['figureMatch', 'representationMatch', 'openSortBoard']);
+const isChoiceField = (field) => /choice|select|dropdown/i.test(String(field?.type || field?.inputProfile || ''));
+
+/** Which fallback fits: what the student does on this question. */
+export const fallbackKind = (question = {}) => {
+  const type = text(question.type || question.toolId);
+  const tool = text(question.toolId);
+  if (type === 'matrixLab' || tool === 'matrixLab') return 'matrix';
+  if (type === 'systemsWorkspace' || tool === 'systemsWorkspace') return 'systems';
+  if (SORT_TYPES.has(type) || SORT_TYPES.has(tool)) return 'sort';
+  if (type === 'representationBridge' || tool === 'representationBridge') return 'build';
+  if (type === 'graphChoicePreview') return 'graphChoice';
+  if (/graph|plot|transformations|parabola|plane/i.test(type)) return 'graph';
+  const fields = list(question.answerFields);
+  if (type === 'multipleChoice' || (fields.length && fields.every(isChoiceField))) return 'choice';
+  return 'general';
+};
+
+export const fallbackHints = (question = {}) => FALLBACK_HINTS[fallbackKind(question)] || FALLBACK_HINTS.general;
 
 const familyHints = (question) => {
   try {
@@ -83,21 +160,33 @@ const familyHints = (question) => {
   }
 };
 
-export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
+/*
+ * Every hint the question could offer, with the guard's verdict: shown, or
+ * dropped with the reason (a repeat, or the answers it states). The ladder is
+ * the shown ones; Pre-Flight lists the dropped ones for the author.
+ */
+export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const authored = [...list(question.supportHints), ...list(question.hints), ...list(question.hint)]
     .map(hintText).filter(Boolean).map((value) => ({ text: value, source: 'authored' }));
   const family = familyHints(question).filter(Boolean).map((value) => ({ text: value, source: 'family' }));
   const tool = list(toolHints).map(hintText).filter(Boolean).map((value) => ({ text: value, source: 'tool' }));
-  const answers = questionAnswerValues(question);
+  const options = { answers: questionAnswerValues(question), visibleText: questionVisibleText(question) };
   const seen = new Set();
-  const safe = [...authored, ...family, ...tool].filter((hint) => {
+  return [...authored, ...family, ...tool].map((hint) => {
     const key = hint.text.toLowerCase();
-    if (seen.has(key) || hintRevealsAnswer(hint.text, answers)) return false;
+    if (seen.has(key)) return { ...hint, shown: false, repeat: true, reason: 'it repeats an earlier hint' };
+    const leak = hintAnswerLeak(hint.text, options);
+    if (leak) return { ...hint, shown: false, values: leak.values, reason: leak.reason };
     seen.add(key);
-    return true;
+    return { ...hint, shown: true };
   });
-  if (!safe.length) safe.push(...GENERIC_HINTS.map((value) => ({ text: value, source: 'generic' })));
+};
+
+export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
+  if (!question || typeof question !== 'object') return [];
+  const safe = questionHintAudit(question, { toolHints }).filter((hint) => hint.shown).map(({ text: value, source }) => ({ text: value, source }));
+  if (!safe.length) safe.push(...fallbackHints(question).map((value) => ({ text: value, source: 'generic' })));
   return safe.slice(0, MAX_HINTS);
 };
 

@@ -254,14 +254,18 @@ for (const role of ['practice', 'dol']) {
 }
 
 // ------------------------------------------------------------- step algebra
-// The solver's own "Need a strategic hint?" follows the activity's permission,
-// and opening it in practice is recorded like any other hint.
+// ONE LADDER (student pass 3, TOOL-5): the solver's strategic hint is a rung
+// of the platform's ladder — released a try at a time and recorded with the
+// other hints — not a second "Need a strategic hint?" beside the work bar's
+// Hint, which opened with no try at all.
 {
-  const page = await open('practice', 'step', (p) => p.getByText('Need a strategic hint?'));
-  check(await page.getByText('Need a strategic hint?').count() === 1, 'practice step algebra: the strategic hint is offered');
-  await page.getByText('Need a strategic hint?').click();
-  await page.waitForTimeout(150);
-  check(/Look for a move that cancels a term/.test(await bodyText(page)), 'practice step algebra: opening it shows the hint');
+  // Ready: the solver's own footnote, in the same render as the disclosure was.
+  const page = await open('practice', 'step', (p) => p.getByText(/A longer route is still correct algebra/));
+  check(await page.getByText('Need a strategic hint?').count() === 0, 'practice step algebra: no second hint control beside the work bar\'s Hint');
+  check(!/Look for a move that cancels a term/.test(await bodyText(page)), 'practice step algebra: the strategic hint is not on screen before it is asked for');
+  await page.locator('button', { hasText: '💡 Hint' }).first().click();
+  await page.waitForFunction(() => /\btool\b/.test(document.querySelector('[data-hint-panel]')?.dataset.hintSources || ''), null, { timeout: 8000 }).catch(() => {});
+  check(/\btool\b/.test(await ladderSources(page)), 'practice step algebra: the strategic hint is a rung of the platform ladder', await ladderSources(page));
   await page.close();
 }
 for (const role of ['dol', 'test']) {

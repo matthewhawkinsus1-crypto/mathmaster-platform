@@ -14,7 +14,7 @@ import { auditAssignmentProcessMode } from './processModePreflight.js';
 import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight.js';
 import { auditAssignmentSolutionReviews } from './solutionReviewPreflight.js';
 import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
-import { auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
+import { auditAssignmentHiddenHints, auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -169,6 +169,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // Hints that state what the student is asked to produce (warning only, and
   // advisory like attemptFeedback — hintAnswerPreflight.js).
   const hintAnswers = auditAssignmentHintAnswers(questions, deliveredOnly);
+  // Teacher-written hints the runtime guard drops, with the reason (HELP-16):
+  // advisory, like hintAnswers.
+  const hiddenHints = auditAssignmentHiddenHints(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -265,6 +268,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     solutionReviews,
     attemptFeedback,
     hintAnswers,
+    hiddenHints,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,

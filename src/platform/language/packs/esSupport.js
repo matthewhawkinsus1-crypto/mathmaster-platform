@@ -125,6 +125,26 @@ const genericHints = [
   ['Underline what the question asks you to find, and list the numbers it gives you.', 'Subraya lo que la pregunta te pide hallar y haz una lista de los números que te da.'],
   ['Which of them do you need first?', '¿Cuál de ellos necesitas primero?'],
   ['Write the first step of your work on the scratchpad, then check it before going on: does each step keep the two sides (or the quantities) equal?', 'Escribe el primer paso de tu trabajo en la hoja de borrador y revísalo antes de seguir: ¿cada paso mantiene iguales los dos lados (o las cantidades)?'],
+  // The fallbacks by kind of question (FALLBACK_HINTS, HELP-23).
+  ['Read every equation before you start.', 'Lee todas las ecuaciones antes de empezar.'],
+  ['A solution has to make all of them true at the same time.', 'Una solución tiene que hacer que todas sean verdaderas al mismo tiempo.'],
+  ['When you find a value, check it in an equation you have not used yet.', 'Cuando encuentres un valor, compruébalo en una ecuación que todavía no hayas usado.'],
+  ['If it does not fit, look back at your last step.', 'Si no cumple, revisa tu último paso.'],
+  ['Say what each row and each column of the matrix stands for before you change anything.', 'Di qué representa cada fila y cada columna de la matriz antes de cambiar algo.'],
+  ['When you have an answer, put it back into the original equations to check it.', 'Cuando tengas una respuesta, sustitúyela en las ecuaciones originales para comprobarla.'],
+  ['Look at one card at a time.', 'Mira una tarjeta a la vez.'],
+  ['Say one thing you can read from it before you place it.', 'Di una cosa que puedas leer en ella antes de colocarla.'],
+  ['If two cards look alike, find one thing that is different about them.', 'Si dos tarjetas se parecen, busca una cosa en la que sean diferentes.'],
+  ['Read the labels and the scale on each axis first: how much is one grid square worth?', 'Primero lee los rótulos y la escala de cada eje: ¿cuánto vale un cuadro de la cuadrícula?'],
+  ['Rule out one choice that does not fit the graph, and say why.', 'Descarta una opción que no corresponda a la gráfica y di por qué.'],
+  ['Read the scale on each axis before you plot: how much is one grid square worth?', 'Lee la escala de cada eje antes de marcar puntos: ¿cuánto vale un cuadro de la cuadrícula?'],
+  ['After you place a point, read its coordinates back from the grid.', 'Después de colocar un punto, lee sus coordenadas en la cuadrícula.'],
+  ['Is it where you meant to put it?', '¿Está donde querías ponerlo?'],
+  ['Start with what you are given and say in words what it tells you.', 'Empieza con lo que te dan y di con palabras lo que te dice.'],
+  ['Every representation you build describes the same relationship.', 'Cada representación que construyes describe la misma relación.'],
+  ['Check that two of them agree before you go on.', 'Comprueba que dos de ellas coincidan antes de seguir.'],
+  ['Read each choice all the way through before you pick one.', 'Lee cada opción completa antes de elegir una.'],
+  ['Rule out one choice you are sure is wrong, and say why.', 'Descarta una opción que sepas que es incorrecta y di por qué.'],
 ];
 
 // --- "Let's back up" (src/platform/supports/feedback/backUpStep.js, families) -

@@ -7,7 +7,10 @@ const coreSource = executableSource(componentSource('src/StepByStepAlgebraCore.j
 
 test('optional simplification puts the answer field before explanatory copy', () => {
   const start = coreSource.indexOf("pendingMove.simplificationTargets?.length > 0");
-  const end = coreSource.indexOf("question.showHint", start);
+  // The region ends where the strategic hint's disclosure begins (it used to
+  // be found by its question.showHint condition, which now sits in
+  // strategicHint above the render — TOOL-5).
+  const end = coreSource.indexOf("Need a strategic hint?", start);
   assert.ok(start >= 0 && end > start);
   const region = coreSource.slice(start, end);
   const inputIndex = region.indexOf('placeholder="Simplified expression"');

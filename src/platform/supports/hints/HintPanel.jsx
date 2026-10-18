@@ -23,6 +23,12 @@ import { hintCostSentence } from './hintCopy.js';
  * box below holds back while the question is open, as a rung the student asks
  * for (`diagnosis`: { onShow, shown }). The caller records it like a hint and
  * offers it only where hints are allowed (questionHints.js diagnosisHint).
+ *
+ * WHERE NOTHING FITS (HELP-23). When every rung is a fallback (source
+ * 'generic': no teacher, family or tool hint is left), the hints are about
+ * the kind of question, not this one, and the panel says so and points to the
+ * teacher — only where the teacher can be asked (Ask is wired), so the
+ * sentence never points at a button that is not there.
  */
 const summaryStyle = { cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 };
 
@@ -59,6 +65,7 @@ export default function HintPanel({
   // On a DOL (no hints) the panel holds only "Ask my teacher", and says
   // nothing about hints (PR #462 review m9).
   const askOnly = !hints.length && !similar;
+  const fallbackOnly = hints.length > 0 && hints.every((hint) => hint.source === 'generic');
   const diagnosisShown = diagnosis?.shown?.text ? diagnosis.shown : null;
   const diagnosisOffered = !diagnosisShown && typeof diagnosis?.onShow === 'function';
   /*
@@ -109,6 +116,9 @@ export default function HintPanel({
           <MathText>{diagnosisShown.text}</MathText>
           <SupportedTextActions text={diagnosisShown.text} readAloud={readAloud} translation={translation} label="what might have gone wrong" onEvidence={onSupportEvidence} />
         </div>
+      ) : null}
+      {fallbackOnly && ask.button ? (
+        <p data-hint-fallback-ask="" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>These hints are general, not written for this question. For help with this one, ask your teacher with the button below.</p>
       ) : null}
       {askOnly ? null : (
         <p data-hint-cost-note="" style={{ margin: 0, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{hintCostSentence(costNote)}</p>

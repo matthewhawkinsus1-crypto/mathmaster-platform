@@ -119,6 +119,7 @@ on:
       - "tests/browser/toolFocusAndUndo*"
       - "tests/browser/composedOutcomePolicy*"
       - "tests/browser/toolPolicyGates*"
+      - "tests/browser/hintsThatFit*"
       - "tests/browser/workViewHelpReach*"
       - "tests/browser/relationPlotGrading*"
       - "tests/browser/mathFontsProduction.mjs"
@@ -234,6 +235,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolPolicyGates.mjs
+      - name: Hints that fit — a teacher's quoted hint is shown, the fallback fits and points to Ask, a DOL offers neither
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/hintsThatFit.mjs
       - name: Work View Help reaches the steps, the hints and Ask on a phone; a DOL shows no hint and no method
         if: always()
         env:
