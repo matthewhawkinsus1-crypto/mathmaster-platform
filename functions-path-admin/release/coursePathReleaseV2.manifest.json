@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-fdcfdcd711e6401f",
-  "contentHash": "fdcfdcd711e6401f91bfc5d4e42917704e49e8f7f440fdd0f5c6a80e2719d1cf",
+  "releaseId": "course-path-v2-01d45bb15d913284",
+  "contentHash": "01d45bb15d91328427503f0bc91b3bc0bfc6dc2188674fdda4314d3b1c563fdd",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -48,8 +48,8 @@
     {
       "courseId": "algebra2",
       "file": "algebra2_pathQuestionBank_seed.json",
-      "sha256": "83bf5f12c16738288874998f4ddcd17250296385e742525fd02a1f9ea6e063a2",
-      "bytes": 1133421
+      "sha256": "d457294eeb90ba89ee71b4ed37540ee3dbd60542dc49d192dd6e59b5e7d11eca",
+      "bytes": 1133503
     }
   ],
   "documents": [
@@ -288,7 +288,7 @@
       "id": "mm_A2_3C_v2_quadratic-formula-exact",
       "familyId": "mathmaster:A2.3C:v2-quadratic-formula-exact",
       "courseId": "algebra2",
-      "contentHash": "d57626590f1fbf52ebda2257fa2806a05b774896810b34a38499b3356e76bec4",
+      "contentHash": "e9a72926751e5553a92e95b4167d7d2dbe1480eb449613fda952ab6c945a7e7d",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-10-18T11:40:58.631Z",
+    "builtAt": "2026-10-18T12:18:51.186Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "3d08697718c9188b7a29fd8907f80da0200d28bf",
+    "gitCommit": "94a27828d0f92aae34d7ef0f9b95bef0ff8dd239",
     "nodeVersion": "v22.22.0",
-    "certificationMs": 1039
+    "certificationMs": 896
   }
 }

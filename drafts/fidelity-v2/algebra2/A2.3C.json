@@ -412,7 +412,10 @@
           "id": "reduced",
           "label": "Reduced quadratic equation",
           "inputProfile": "equation",
-          "expected": "x^2{{p|xterm}}{{q|signed}}=0"
+          "expected": "x^2{{p|xterm}}{{q|signed}}=0",
+          "accepted": [
+            "x^2{{p|signed}}x{{q|signed}}=0"
+          ]
         },
         {
           "id": "disc",

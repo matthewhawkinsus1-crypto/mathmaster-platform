@@ -301,7 +301,7 @@ those listed.
 - **`functions:path-admin`.** It vendors `functions/shared` (gitignored, written at predeploy).
 - **Hosting**, through `npm run deploy:hosting`. The browser grades Check and practice with the same modules.
 - **The course Path release** (review S1 changed one family's content): the release is now
-  **`course-path-v2-fdcfdcd711e6401f`** (was `course-path-v2-11197c7a838bb8a3`). It reaches students only after a root
+  **`course-path-v2-01d45bb15d913284`** (was `course-path-v2-11197c7a838bb8a3`; see the last section). It reaches students only after a root
   admin publishes it (Administration → My Math Path content coverage, `publishCoursePathReleaseV2`), after Hosting.
 - No rules, no indexes.
 
@@ -396,3 +396,41 @@ exit 0
 | `mathEntryContract` · `fractionTemplateGrading` | pass · pass |
 | `questionFamilyCases` | all 36 journeys pass |
 | quadratic probe (Path and secure, 200 draws) | 200 / 200 right, 0 wrong accepted |
+
+## The old key's form stays right (integrator, after `94a27828`)
+
+**Question.** S1 keeps `familyVersion`. A p = 0 attempt that typed the old key's own form, `x^2+0x-5=0`, is wrong
+against the new key `x^2- 5=0` on every grader. Would a re-grade lower it?
+
+**Recorded attempts keep their key.** Path and secure tests grade against the private grading stored with the issued
+question, never against the template:
+
+- Path: `functions/index.js:16595`, `mathPath.gradePathToolResponse(currentQuestion.privateGrading, …)`, the session's
+  stored current question;
+- secure: `functions/lib/secureItems.js:342`, `gradeItem(readStoredItem(storedItem)?.privateGrading …)`, the stored
+  item (`secureItemStorage.js`).
+
+So an attempt already recorded is re-graded against `x^2+ 0x- 5=0`, its own key. The one place I found that
+regenerates from the template is the Test Cycle preview regrade (`functions/index.js` ~24860). It is limited to a
+teacher's preview seed, not a student record.
+
+**The belt anyway.** The old spelling is an accepted form beside the new key, in all four copies:
+`"accepted": ["x^2{{p|signed}}x{{q|signed}}=0"]`. A regeneration from the template keeps the base verdicts. For p ≠ 0
+it is the key itself. It is content, not a grader `0x` rule.
+
+- The release is now **`course-path-v2-01d45bb15d913284`** (it replaces `course-path-v2-fdcfdcd711e6401f` in Deploy).
+  `release:path:verify` passes, and only this family's hash moved.
+- Probe, 200 draws, through `mathPath.gradeResponse` and `secureItems.gradeItem`:
+
+  | Draws | Old form right | New form right |
+  | --- | --- | --- |
+  | p = 0 (38) | 38 / 38 on both graders | 38 / 38 on both graders |
+  | p ≠ 0 (162) | 162 / 162 on both graders | 162 / 162 on both graders |
+
+  - Natural answers in all four fields: 200 / 200 right on both graders.
+  - 600 wrong reduced forms were accepted 0 times: the old form with another constant, another x-coefficient, and
+    another constant without the x-term.
+  - 800 other wrong variants were accepted 0 times.
+- Pinned in `pass3GraderGaps` over 60 draws: the old form is right, and the old form with another constant is wrong.
+  Removing the accepted form turns it red.
+

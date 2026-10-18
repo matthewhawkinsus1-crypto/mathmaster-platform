@@ -253,6 +253,11 @@ test('quadratic-formula-exact: natural answers in all four fields are right on e
       assert.equal((await grade(right)).isCorrect, true, `draw ${draw}: ${JSON.stringify(right)}`);
       assert.equal((await grade({ ...right, plus: right.minus })).isCorrect, false, `draw ${draw}: the minus pair twice`);
       assert.equal((await grade({ ...right, reduced: `x^2${signedTerm(p + 2, 'x')}${signedTerm((p * p - d) / 4)}=0` })).isCorrect, false, `draw ${draw}: another reduced equation`);
+      // The old key's own form (`x^2+0x-5=0` when p = 0) stays right: it is an
+      // accepted form, so a regeneration from the template keeps base verdicts.
+      const oldForm = `x^2${p < 0 ? '-' : '+'}${Math.abs(p)}x${signedTerm((p * p - d) / 4) || '+0'}=0`;
+      assert.equal((await grade({ ...right, reduced: oldForm })).isCorrect, true, `draw ${draw}: the old form ${oldForm}`);
+      assert.equal((await grade({ ...right, reduced: `x^2${p < 0 ? '-' : '+'}${Math.abs(p)}x${signedTerm((p * p - d) / 4 - 1) || '+0'}=0` })).isCorrect, false, `draw ${draw}: the old form, another constant`);
     }
   }
   assert.ok(seenP.has(0), 'the draws include p = 0, the case the old key refused');
