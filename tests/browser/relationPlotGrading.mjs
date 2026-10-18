@@ -49,7 +49,7 @@ const place = async (page, task, [x, y]) => {
 };
 
 const submit = async (page) => {
-  const button = page.getByRole('button', { name: 'Submit Answer' }).first();
+  const button = page.getByRole('button', { name: /^Submit — / }).first();
   const enabled = await button.isEnabled();
   if (enabled) await button.click();
   await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 5000 }).catch(() => {});

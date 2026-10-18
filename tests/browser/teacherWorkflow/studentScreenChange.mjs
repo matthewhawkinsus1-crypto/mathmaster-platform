@@ -214,7 +214,16 @@ for (const viewport of VIEWPORTS) {
   await page.goto(`${ORIGIN}/assignments/a-today/classwork/99?${asStudent}`);
   const toast = page.locator('.mm-toast').filter({ hasText: 'That question has moved' }).first();
   if (expect(`S7 ${tag}`, await toast.waitFor({ timeout: 60_000 }).then(() => true, () => false), 'no "That question has moved" toast')) {
-    await page.waitForTimeout(800);
+    // The notice is raised as the assignment starts opening, so Home can still
+    // be on screen for a few seconds (on the base too). Measure once the
+    // workspace's action bar is there, while the notice (10 s) still shows.
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
+      if (!button.getClientRects().length || !/^(Submit|Check)\b/.test((button.innerText || '').trim())) return false;
+      const box = button.getBoundingClientRect();
+      return box.bottom > 0 && box.top < window.innerHeight;
+    }), null, { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    expect(`S7 ${tag}`, await toast.isVisible(), 'the notice was gone before the workspace opened, so nothing was measured');
     const hit = await page.evaluate(() => {
       const buttons = [...document.querySelectorAll('button')].filter((button) => button.getClientRects().length
         && /^(Submit|Check)\b/.test((button.innerText || '').trim()));

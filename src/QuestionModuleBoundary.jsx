@@ -1,8 +1,32 @@
-import { Component } from 'react';
+import { Component, useState } from 'react';
 import RecoveryPanel from './components/common/RecoveryPanel.jsx';
 import { isChunkLoadError, recentlyReloadedForChunk, reloadForCurrentBuild } from './platform/runtime/chunkLoadRecovery.js';
 import { QUESTION_DIAGNOSTIC_MESSAGE_LIMIT, recordClientDiagnostic } from './platform/runtime/clientDiagnostics.js';
 import { questionDraftEnvelopeVersion } from './questionDraftStorage.js';
+import { formatClientDiagnostics } from './platform/runtime/clientDiagnostics.js';
+
+// The same "Copy details for your teacher" the other recovery panels offer
+// (RecoveryPanel.jsx): the scrubbed device diagnostic, to paste in a message.
+function CopyDetailsForTeacher() {
+  const [copied, setCopied] = useState('');
+  const copy = async () => {
+    const text = formatClientDiagnostics();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied('Copied. Paste it into a message to your teacher.');
+    } catch {
+      setCopied(text);
+    }
+  };
+  return (
+    <div style={{ marginTop: '12px' }}>
+      <button type="button" onClick={copy} style={{ minHeight: '44px', padding: '9px 16px', borderRadius: '999px', border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 700, cursor: 'pointer' }}>
+        Copy details for your teacher
+      </button>
+      {copied ? <p role="status" style={{ margin: '8px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{copied}</p> : null}
+    </div>
+  );
+}
 
 /*
  * Last line of defence around a single question's response module.
@@ -70,6 +94,7 @@ export default class QuestionModuleBoundary extends Component {
       pin: context.pinKind ? `${context.pinKind}${context.pinRef ? `:${context.pinRef}` : ''}` : 'none',
     };
     console.error('Question module crashed:', this.props.questionType, where, error, info);
+    this.props.onFailureChange?.(true);
     recordClientDiagnostic({
       kind: isChunkLoadError(error) ? 'chunk-load' : 'question-module-error',
       message: `${this.props.questionType || 'unknown type'}: ${error?.message || error} | ${where.assignmentId} ${where.questionId} family=${where.family} role=${where.activityRole} lifecycle=${where.lifecycle} variant=${where.variant} attempts=${where.attempts} origin=${where.origin} pin=${where.pin} draft=v${where.draftVersion}`,
@@ -84,6 +109,7 @@ export default class QuestionModuleBoundary extends Component {
     // assignment.
     if (previousProps.resetKey !== this.props.resetKey && this.state.error) {
       this.setState({ error: null });
+      this.props.onFailureChange?.(false);
     }
   }
 
@@ -147,9 +173,11 @@ export default class QuestionModuleBoundary extends Component {
             </button>
           </>
         ) : null}
-        <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
-          Details for your teacher: {this.props.questionType || 'unknown type'} &mdash; {String(this.state.error?.message || this.state.error)}
-        </p>
+        {/* No raw error on the student's screen (RUN-16): it read "Details
+            for your teacher: <type> — <error.message>". The device's
+            diagnostic (componentDidCatch) carries both, with where the
+            question stands, and is copied only when the student asks. */}
+        <CopyDetailsForTeacher />
       </div>
     );
   }

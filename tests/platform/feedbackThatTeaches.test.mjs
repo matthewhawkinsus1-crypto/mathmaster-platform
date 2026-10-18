@@ -293,7 +293,7 @@ test('3. a DOL\'s per-item right/wrong release never opens the worked solution (
 });
 
 test('3. a closed question points at a worked solution only when there is one', () => {
-  assert.match(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), /final allowed attempt \(3 total\)\. This response is locked\. The worked solution is below\.$/);
+  assert.match(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), /^That was your last try \(3 in all\)\. Your answer is locked\. The worked solution is below\.$/);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 3, reviewAvailable: false }), /below|review/i);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 3, reviewAvailable: false, allowReplacement: true }), /below|review/i);
   assert.match(closedAttemptText({ maximumAttempts: 2, reviewAvailable: true, allowReplacement: true }), /request a new question/);

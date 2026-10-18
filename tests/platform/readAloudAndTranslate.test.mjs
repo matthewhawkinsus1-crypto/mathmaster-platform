@@ -42,6 +42,7 @@ import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExa
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { missOutcomeText } from '../../src/platform/student/submitCost.js';
 import { normalizeEvidenceDetails } from '../../functions/shared/supportEvidenceModel.mjs';
 import { PLATFORM_FAMILY_IDS, defaultFamilyVersion, getPlatformQuestionFamily } from '../../functions/shared/questionFamilyRegistry.mjs';
 import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
@@ -315,9 +316,12 @@ test('every miss message, generic hint and outcome sentence MathMaster writes is
     ...Object.values(MISCONCEPTION_STUDENT_MESSAGES),
     ...Object.values(GENERIC_MISS_MESSAGES),
     ...buildQuestionHints({ type: 'multiAnswer', prompt: 'x' }).map((hint) => hint.text),
-    'Not quite. You have 2 attempts remaining on this version.',
-    'Not quite. You have 1 attempt remaining on this version.',
-    closedAttemptText({ maximumAttempts: 3, reviewAvailable: true, allowReplacement: true }),
+    // Built from the functions that write them, so a new wording cannot ship
+    // untranslated (pass 3: the pack once held only the old sentences).
+    ...[3, 2, 1].map((left) => missOutcomeText(left)),
+    ...[1, 3].flatMap((maximumAttempts) => [false, true].flatMap((reviewAvailable) => [false, true].map((allowReplacement) => (
+      closedAttemptText({ maximumAttempts, reviewAvailable, allowReplacement })
+    )))),
   ];
   texts.forEach((text) => {
     const result = translateWithPack(text, pack);

@@ -5,7 +5,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import { resolveSpecialCaseReport } from './algebraicOutcomeModel.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -1998,7 +1998,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           {readyToSubmit ? (
             // A reduced subsystem submits nothing: its solution goes up to the
             // 3×3 workflow, which verifies in the original equations.
-            subsystem ? null : <button type="button" onClick={check} style={actionStyle}>Check my work</button>
+            subsystem ? null : <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
           ) : null}
           {feedback ? (
             <div style={{ marginTop: 14 }}>

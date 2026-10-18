@@ -15,6 +15,7 @@ import stepAlgebra2Grader, {
 } from '../../../functions/shared/serverGrading/tools/stepAlgebra2.mjs';
 import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -228,7 +229,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
           </div>
 
           <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 12, width: '100%', background: solved ? '#137333' : '#1a73e8' }}>
-            Check solution
+            <SubmitText>Check solution</SubmitText>
           </button>
 
           {feedback ? (

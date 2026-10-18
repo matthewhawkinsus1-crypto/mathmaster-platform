@@ -15,6 +15,7 @@ import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../plat
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
+import { relabelToolPrimaryActions, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
@@ -186,7 +187,14 @@ export default function EnlargeableFigure({
     () => combinePublishedCapabilities(publishedByChild),
     [publishedByChild],
   );
-  const registeredCapabilities = useWorkViewCapabilities(capabilities, publishedCapabilities);
+  // Inside a registry tool, its final action in the rail carries the same
+  // words as its button: Submit and its cost, or the host's (RUN-4, D9).
+  const { submitLabel: hostSubmitLabel, submitCost } = useToolRuntimeContext();
+  const toolCapabilities = useMemo(
+    () => relabelToolPrimaryActions(capabilities, { submitLabel: hostSubmitLabel, submitCost }),
+    [capabilities, hostSubmitLabel, submitCost],
+  );
+  const registeredCapabilities = useWorkViewCapabilities(toolCapabilities, publishedCapabilities);
 
   // CLOSING AN AUTO-OPENED PANEL MEANS IT.
   //
