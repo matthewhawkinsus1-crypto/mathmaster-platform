@@ -138,3 +138,11 @@ export const updateTestCyclePolicy = async () => ({ success: true });
 export const previewTestCycleSecureItems = async () => ({ success: true, items: [] });
 export const gradeTestCyclePreviewItem = async () => ({ success: true });
 export const attachTestCycleContract = async () => ({ success: true });
+// The teacher's Test screen calls (7ebb55b) TestCycleControls imports; the
+// card never calls them, but a missing export is a SyntaxError for the whole
+// harness page.
+export const adjustTestCycleGrade = async () => ({ success: true });
+export const runTestCycleBulkAction = async () => ({ success: true, operationId: null });
+export const getTestCycleOperation = async () => ({ success: true, operation: null });
+export const updateTestCycleAudience = async () => ({ success: true });
+export const updateTestCycleAvailability = async () => ({ success: true });

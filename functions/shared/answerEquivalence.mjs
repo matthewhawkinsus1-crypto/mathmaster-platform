@@ -22,6 +22,23 @@ export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
+// A word group's contents, however deep: MathLive writes an inserted
+// \operatorname{and} back as \operatorname{\mathrm{and}} (the secure
+// inequality keypad's "and" key, student pass 3 H-13), which one pass left
+// as \mathrm{and}. A group that is just "and" or "or" keeps a space either
+// side, so the compound-inequality reader still finds the word in
+// `0\le h\mathrm{and}h\le12`.
+const WORD_GROUP = /\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g;
+const unwrapWordGroups = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 4 && WORD_GROUP.test(text); guard += 1) {
+    WORD_GROUP.lastIndex = 0;
+    text = text.replace(WORD_GROUP, (match, body) => (/^\s*(?:and|or)\s*$/i.test(body) ? ` ${body.trim()} ` : body));
+  }
+  WORD_GROUP.lastIndex = 0;
+  return text;
+};
+
 export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
   .trim()
   // Directional marks and zero-width format characters are not visible math.
@@ -37,7 +54,7 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
   .replace(/\\lparen/g, '(')
   .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
-  .replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
+  .replace(/[\s\S]+/, unwrapWordGroups)
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
   // \rbrace, or the same tokens wrapped in \left/\right. They are the same
   // mathematical delimiters as authored literal { ... } braces.
@@ -63,7 +80,9 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
  * `\frac` before any text comparison is what makes them agree — and it costs
  * nothing, because a division that cannot be read confidently is left alone.
  */
-const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false });
+// π and a square root count as numbers here (stackDivisions.mjs, H-13), so
+// the editor's `\frac{\pi}{2}` and the key `pi/2` meet on one spelling.
+const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
 
 /** `abs(...)` as the bars it means, with the call's own parentheses matched. */
 const absCallsAsBars = (value) => {
@@ -86,6 +105,35 @@ const absCallsAsBars = (value) => {
   return text;
 };
 
+/*
+ * `^{…}` as the group it is: a single number, letter, π or square root
+ * unbraced (`^{2}` is `^2`, `^{\pi}` is `^π`), anything else in brackets (`^{n-1}` is `^(n-1)`).
+ * Braces inside the exponent are matched, so the editor's
+ * `e^{\frac{\sqrt2}{2}}` meets the key `e^(sqrt(2)/2)` (H-13 review): a
+ * flat-brace pattern left a nested exponent braced and the two apart.
+ */
+const SIMPLE_EXPONENT = /^\s*(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})\s*$/;
+const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => {
+  let text = value;
+  for (let index = text.indexOf('^{'); index >= 0; index = text.indexOf('^{', index + 1)) {
+    let depth = 0;
+    let close = -1;
+    for (let cursor = index + 1; cursor < text.length; cursor += 1) {
+      if (text[cursor] === '{') depth += 1;
+      else if (text[cursor] === '}') { depth -= 1; if (depth === 0) { close = cursor; break; } }
+    }
+    if (close < 0) break;
+    const body = text.slice(index + 2, close);
+    // Left braced until the divisions are stacked (normalizeAnswer): a braced
+    // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
+    // written with keeps the reading the renderer shows (H-13 review).
+    if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
+    const group = SIMPLE_EXPONENT.test(body) ? body.trim() : `(${body})`;
+    text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /**
  * One spelling for the same symbol, for the comparisons that read text
  * (Job P). Each rewrite names exactly the same mathematics:
@@ -99,7 +147,7 @@ const absCallsAsBars = (value) => {
  * the same answer agree. It is not applied before the structural parsers
  * (polynomials, intervals, radicals), which keep reading what they always read.
  */
-const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
+const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = false } = {}) => {
   let text = absCallsAsBars(String(value ?? '')
     .replace(/\\(?:lvert|rvert|vert)(?![A-Za-z])/g, '|')
     // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
@@ -111,15 +159,13 @@ const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = text.replace(/\^\{([^{}]+)\}/g, (match, body) => (
-    /^\s*(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
-  ));
+  text = bracedExponentsAsGroups(text, { keepCompoundBraced });
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
-  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
+  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
 };
 
-export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))), { asciiPi: false })
+export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false })
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')

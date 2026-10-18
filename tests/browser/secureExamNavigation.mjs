@@ -55,6 +55,8 @@
 //   - the finished and pause titles do not overlap when they wrap on a phone,
 //     and are readable on their backgrounds, in the light and the dark theme;
 //   - nothing says right, wrong or correct while any question can be answered;
+//   - a student whose plan grants a glossary on a test gets Vocabulary on a
+//     Rich Tool item, terms and definitions without worked examples (H-16);
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -218,6 +220,52 @@ const openPage = async (context, scenario, device, query = '') => {
   return { page, errors };
 };
 
+/* ------------------------- supports on a tool item ------------------------- */
+
+// A student whose plan grants a glossary on a test keeps it on a Rich Tool
+// item: the tray offers Vocabulary, and each term comes with its definition
+// and never the glossary's worked example (student pass 3, H-16).
+const supportsJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'course', device, '&supports=glossary');
+  const label = (name) => `${device.id} supports ${name}`;
+  await page.waitForSelector('[data-secure-start-rules]');
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await next(page);
+  await page.getByText('Write it in notation').waitFor({ timeout: 20000 });
+  const vocabulary = page.locator('[data-rich-question-runtime] [data-support-tool="vocabulary"]').first();
+  const offered = await vocabulary.isVisible().catch(() => false);
+  check(offered, label('the tool item\'s tray offers Vocabulary'));
+  check(await page.locator('[data-rich-question-runtime] [data-support-tool="read-aloud"], [data-rich-question-runtime] [data-support-tool="translate"]').count() > 0, label('Read aloud and Translate are still offered'));
+  check(await page.locator('[data-support-tool="break-it-down"], [data-support-tool="say-it"]').count() === 0, label('nothing a test does not allow'));
+  if (offered) {
+    await vocabulary.click();
+    await page.waitForSelector('[data-support-panel="vocabulary"] dt', { timeout: 10000 });
+    const panel = await page.locator('[data-support-panel="vocabulary"]').first().innerText();
+    const terms = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').count();
+    check(terms > 0, label('the panel lists terms with their definitions'), `${terms} terms`);
+    // The prompt's words only: the interval tool's own list ("boundary") would
+    // define its method (H-16 review B2).
+    const termIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyTerm));
+    check(!termIds.includes('boundary'), label('only the prompt\'s words, not the tool\'s'), termIds.join(', '));
+    check(!/Example/i.test(panel), label('no worked example on a test'), panel.slice(0, 200));
+    check(/·/.test(panel), label('the Spanish term is beside the English one'), panel.slice(0, 120));
+    // A definition may use the word "solution"; what matters is that none
+    // says whether an answer is right.
+    check(!/\b(correct|incorrect|wrong|right answer|answer key)\b/i.test(panel), label('the panel judges nothing'));
+    await shot(page, device, 'supports-01-tool-vocabulary');
+    await layout(page, label('tool item with vocabulary open'));
+    // Close it if it is still open (a full-page screenshot resizes the
+    // viewport, and the engine's tray may already have closed it).
+    if (await vocabulary.getAttribute('aria-expanded') === 'true') await vocabulary.click();
+    const closed = await page.locator('[data-support-panel="vocabulary"]').first().waitFor({ state: 'detached', timeout: 8000 }).then(() => true).catch(() => false);
+    check(closed, label('Vocabulary closes again'));
+  }
+  await noVerdict(page, label('the tool item'));
+  check(!errors.length, label('no page errors'), errors[0] || '');
+  await page.close();
+};
+
 /* ------------------------------ practice test ----------------------------- */
 
 const practiceJourney = async (context, device) => {
@@ -247,6 +295,14 @@ const practiceJourney = async (context, device) => {
   const sheetButton = toolbar.getByRole('button', { name: /Reference sheet/ });
   const graphButton = toolbar.getByRole('button', { name: /Graphing calculator/ });
   check(await sheetButton.isVisible() && await graphButton.isVisible(), label('toolbar has the reference sheet and the graphing calculator'));
+  // ONE calculator (H-19): the toolbar's graphing calculator, named for what
+  // it does — not a second "Calculator" inside the question that says graphs
+  // are not its job.
+  const calculatorControls = await page.locator('button').evaluateAll((buttons) => buttons
+    .filter((button) => button.getBoundingClientRect().width > 0 && /calculator/i.test(`${button.getAttribute('aria-label') || ''} ${button.textContent || ''}`))
+    .map((button) => (button.getAttribute('aria-label') || button.textContent).replace(/\s+/g, ' ').trim()));
+  check(calculatorControls.length === 1 && /Graphing calculator/.test(calculatorControls[0]), label('one calculator, the graphing calculator'), calculatorControls.join(' | '));
+  check(!/Graphs are drawn in the question itself/.test(await bodyText(page)), label('nothing says graphs are not the calculator\'s job'));
   await sheetButton.click();
   const sheet = page.locator('[role="dialog"]').filter({ hasText: /degrees of arc in a circle is 360/ });
   const sheetShown = await sheet.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
@@ -843,7 +899,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {

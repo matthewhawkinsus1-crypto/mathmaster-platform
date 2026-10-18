@@ -205,6 +205,14 @@ const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionN
   return withExit(BASIC_KEYS);
 };
 
+const EMPTY_KEYS = Object.freeze([]);
+
+// A profile's keys with a caller's extra keys after them, and the way out
+// when any of them opens a group.
+const withExtraKeys = (keys, extraKeys) => (extraKeys.length
+  ? withExit(mergeToolKeys(keys.filter((key) => key !== EXIT_GROUP_KEY), extraKeys))
+  : keys);
+
 const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
 
 export default function MathInput({
@@ -230,6 +238,14 @@ export default function MathInput({
   // keyboard types everything these fields take. On a phone the tools ARE the
   // keypad (the native keyboard is suppressed), so they are never hidden there.
   hideToolsToggle = false,
+  // Keys a caller adds to the keypad itself, uncaptioned (a secure test item:
+  // secureAnswerEntry.js). Unlike `requiredSymbols`, nothing here appears in
+  // the "Needed for this answer" row, which on a test would hint at the answer.
+  extraKeys = EMPTY_KEYS,
+  // Never name a symbol the field needs (a secure test item): a symbol no key
+  // types still keeps the phone's own keyboard, but "Additional symbol
+  // needed: …" would tell a student about the answer.
+  hideNeededSymbols = false,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -291,7 +307,7 @@ export default function MathInput({
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
     if (!isMobile) return mergeToolKeys(
-      getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }),
+      withExtraKeys(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), extraKeys),
       requiredTools,
     );
 
@@ -304,11 +320,11 @@ export default function MathInput({
     return buildMobileMathTools({
       toolProfile,
       entryKeys: MOBILE_ENTRY_KEYS,
-      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }),
+      profileKeys: withExtraKeys(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), extraKeys),
       requiredTools,
       backspaceKey: MOBILE_BACKSPACE_KEY,
     });
-  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools]);
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -694,7 +710,7 @@ export default function MathInput({
         </div>
       )}
 
-      {isMobile && unservedRequiredSymbols.length > 0 && (
+      {isMobile && !hideNeededSymbols && unservedRequiredSymbols.length > 0 && (
         <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>
           Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
         </div>

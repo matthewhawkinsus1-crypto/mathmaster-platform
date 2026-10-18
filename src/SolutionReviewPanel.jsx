@@ -26,8 +26,17 @@ import { buildClosedQuestionReview, buildPartReviewRows, partReviewSpeech } from
  * Read aloud reads all of it, the legacy review included (it used to read
  * only the authored and tool reviews).
  *
- * Rendered only by QuestionEngine once the question is closed and outcome
- * feedback is open; it is never given a question that can still be answered.
+ * Rendered by QuestionEngine once the question is closed and outcome feedback
+ * is open, and — given only `{ solutionReview }`, the review the server
+ * released — by a Test's results (SecureExamReview) and Corrections
+ * (RichQuestionRuntime), so every worked solution a student reads has Read
+ * aloud and Translate when they are entitled to them (student pass 3, H-6).
+ * It is never given a question that can still be answered.
+ *
+ * `headingLevel` fits the page it sits in (H-14): 3 under a classroom
+ * question, 4 under a Test result's "Question N". `showIntro` false leaves
+ * out the line about a closed classroom question where the page has already
+ * said whether the answer was right.
  * When there is nothing to show it says so in one line — it never promises a
  * review "below" that is not there.
  */
@@ -44,16 +53,19 @@ export default function SolutionReviewPanel({
   readAloud = null,
   translation = null,
   onSupportEvidence = null,
+  headingLevel = 3,
+  showIntro = true,
 }) {
   const review = buildClosedQuestionReview({ question, isToolQuestion, wasCorrect, legacyContent: legacySolutionReviewContent });
   if (!review) return null;
   const { authored, tool, legacy, hasContent } = review;
   const partRows = hasContent && !isToolQuestion ? buildPartReviewRows({ question, parts: yourParts }) : [];
   const speechText = [partReviewSpeech(partRows), review.speechText].filter(Boolean).join(' ');
+  const Heading = `h${Math.min(6, Math.max(2, Number(headingLevel) || 3))}`;
   return (
     <section aria-label="Worked solution" data-worked-solution={hasContent ? 'present' : 'absent'} style={box}>
-      <h3 style={{ margin: '0 0 6px', color: 'var(--mm-text-strong)' }}>{wasCorrect ? 'Why that works' : 'Worked solution'}</h3>
-      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{review.intro}</p>
+      <Heading style={{ margin: '0 0 6px', color: 'var(--mm-text-strong)' }}>{wasCorrect ? 'Why that works' : 'Worked solution'}</Heading>
+      {(showIntro || !hasContent) && <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{review.intro}</p>}
 
       {partRows.length > 0 && (
         <div data-part-review="" style={{ display: 'grid', gap: 8, marginBottom: 14 }}>

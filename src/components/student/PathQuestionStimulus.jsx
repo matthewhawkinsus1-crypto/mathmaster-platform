@@ -256,7 +256,12 @@ function LabelledItems({ items }) {
   );
 }
 
-export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
+// `headingLevel`: the title's level on the page it sits in — 2 under a Path
+// question's h1, 4 under a Test result's h3 (SecureExamReview). A panel's
+// title is one deeper than its parent's.
+const titleTag = (level) => `h${Math.min(6, Math.max(2, Number(level) || 2))}`;
+
+export const PathQuestionStimulus = ({ stimulus, describeFeatures = null, headingLevel = 2 }) => {
   if (!stimulus) return null;
   const hasContent = Boolean(
     stimulus.graph
@@ -269,6 +274,7 @@ export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
     || stimulus.panels?.length,
   );
   if (!hasContent) return null;
+  const Title = titleTag(headingLevel);
 
   return (
     <section style={shell} aria-label={stimulus.title || 'Question information'}>
@@ -276,8 +282,8 @@ export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
           "Candidate check for $\sqrt{x+1}=x-(-1)$" is a stimulus title in the
           Algebra II bank — so the heading gets the same rendering the rest of
           this component already gave its content. */}
-      {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
-      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} />)}
+      {stimulus.title && <Title style={titleStyle}><MathText>{stimulus.title}</MathText></Title>}
+      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} headingLevel={Math.min(6, headingLevel + 1)} />)}
       <StimulusGraph graph={stimulus.graph} describeFeatures={describeFeatures} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />

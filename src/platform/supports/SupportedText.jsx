@@ -57,8 +57,10 @@ export const translationUnavailableDetails = ({ language, reason } = {}) => ({
 const usableTranslation = (result) => Boolean(result?.text)
   && [TRANSLATION_COVERAGE.FULL, TRANSLATION_COVERAGE.PARTIAL].includes(result.coverage);
 
+// 44px: a student's control like any other (it was 32, under the platform's
+// minimum, wherever a worked solution, hint or feedback carried it).
 const actionStyle = {
-  minHeight: 32,
+  minHeight: 44,
   padding: '4px 10px',
   borderRadius: 999,
   border: '1px solid var(--mm-tint-border)',

@@ -316,6 +316,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         onPracticeSkill={onPracticeSkill}
         skillLabels={card.testSkills}
         backLabel="Back to my assessment"
+        studentSupportProfile={studentProfile}
       />
     );
   }
@@ -332,6 +333,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             corrections={card.corrections}
             reviewExamSessionId={testReviewId}
             testAnswersHeld={card.testAnswersHeld === true}
+            studentSupportProfile={studentProfile}
             onReviewTest={() => openTestReview('corrections')}
             onProgress={load}
             onComplete={backToCard}
@@ -345,6 +347,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             onPracticeSkill={onPracticeSkill}
             skillLabels={card.testSkills}
             backLabel="Back to my corrections"
+            studentSupportProfile={studentProfile}
           />
         )}
       </>
@@ -359,6 +362,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         onPracticeSkill={onPracticeSkill}
         skillLabels={card.testSkills}
         backLabel="Back to my assessment"
+        studentSupportProfile={studentProfile}
       />
     );
   }

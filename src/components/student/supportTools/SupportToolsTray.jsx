@@ -7,6 +7,7 @@ import { LANGUAGE_NAMES, resolveTranslation } from '../../../platform/language/t
 import { loadMathGlossary } from '../../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/language/speechText.js';
 import { questionReadingText } from '../../../platform/language/questionReading.js';
+import { secureVocabularyEntries } from '../../../platform/assessment/secureSupportPanels.js';
 
 /*
  * THE SUPPORT TOOLS TRAY — loaded only for a student entitled to a language
@@ -73,7 +74,14 @@ function TranslatePanel({ tool }) {
   );
 }
 
-function VocabularyPanel({ tool, language, onFailed }) {
+/*
+ * Each term with its definition, and — unless `showExamples` is false — the
+ * glossary's worked example. On a secure test item it is false (RichQuestion-
+ * Runtime's tray entitlement): an example applies the word, and can apply it
+ * to exactly what the item asks, so the terms come through the same
+ * example-free helper the secure field item's tray uses.
+ */
+function VocabularyPanel({ tool, language, onFailed, showExamples = true }) {
   const [glossary, setGlossary] = useState(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -87,6 +95,24 @@ function VocabularyPanel({ tool, language, onFailed }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (failed) return <div role="status" data-support-panel="vocabulary">Vocabulary could not load. Your teacher can see this.</div>;
   if (!glossary) return <div role="status" data-support-panel="vocabulary">Loading vocabulary…</div>;
+  if (!showExamples) {
+    return (
+      <dl data-support-panel="vocabulary" data-vocabulary-examples="none" style={{ margin: 0, display: 'grid', gap: 8 }}>
+        {secureVocabularyEntries(glossary, tool.termIds, { language }).map((entry) => (
+          <div key={entry.id} data-vocabulary-term={entry.id}>
+            <dt style={{ fontWeight: 900 }}>
+              {entry.term}
+              {entry.translation && <span lang={entry.translation.language} style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
+            </dt>
+            <dd style={{ margin: '2px 0 0' }}>
+              <div>{entry.definition}</div>
+              {entry.translation && <div lang={entry.translation.language} style={{ color: 'var(--mm-text)' }}>{entry.translation.definition}</div>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
   const spanish = isSpanish(language);
   return (
     <dl data-support-panel="vocabulary" style={{ margin: 0, display: 'grid', gap: 8 }}>
@@ -320,7 +346,7 @@ export default function SupportToolsTray({
       {open && !partsOpen && open.tool !== SUPPORT_TOOL.READ_ALOUD && (
         <div role="region" aria-label={open.label} style={PANEL}>
           {open.tool === SUPPORT_TOOL.TRANSLATE && <TranslatePanel tool={open} />}
-          {open.tool === SUPPORT_TOOL.VOCABULARY && <VocabularyPanel tool={open} language={entitlement.language} onFailed={() => setGlossaryFailed(true)} />}
+          {open.tool === SUPPORT_TOOL.VOCABULARY && <VocabularyPanel tool={open} language={entitlement.language} showExamples={entitlement.showExamples !== false} onFailed={() => setGlossaryFailed(true)} />}
           {open.tool === SUPPORT_TOOL.SAY_IT && <SayItPanel tool={open} language={entitlement.language} />}
         </div>
       )}

@@ -83,7 +83,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [testCycleKey]);
 
-  if (reviewing) return <SecureExamReview examSessionId={reviewing.examSessionId} onBack={() => { setReviewing(null); load(); }} onPracticeSkill={onPracticeSkill} />;
+  if (reviewing) return <SecureExamReview examSessionId={reviewing.examSessionId} onBack={() => { setReviewing(null); load(); }} studentSupportProfile={studentProfile} onPracticeSkill={onPracticeSkill} />;
 
   // There is intentionally no dashboard/back control while an exam is live.
   // Leaving through a convenient app button would unmount the integrity logger

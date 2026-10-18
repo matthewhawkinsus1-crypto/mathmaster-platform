@@ -265,6 +265,11 @@ function QuestionEngineBody({
   // The assignment's calculator setting (toolPolicy.calculator), above the
   // question's own (calculatorPolicy.js resolveCalculatorPolicy).
   assignmentCalculatorMode = null,
+  // The host already has this question's calculator in its own toolbar (a
+  // Digital SAT or ACT item's graphing calculator, SecureExamContainer): the
+  // engine draws no Calculator of its own, so a student sees one calculator,
+  // not two (student pass 3, H-19).
+  calculatorInToolbar = false,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -2364,7 +2369,7 @@ function QuestionEngineBody({
       disabled: scratchpadLoading,
       title: 'Open the scratchpad without covering the solver controls',
     },
-    calculator: {
+    calculator: calculatorInToolbar ? null : {
       id: 'calculator',
       label: calculatorName,
       // Drawn, not an emoji: 🧮 is a box on devices without a Unicode 11 emoji
@@ -2442,7 +2447,7 @@ function QuestionEngineBody({
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : <><span aria-hidden="true">✎</span><span className="mathmaster-action-label"> Scratchpad</span></>}
       </button>
-      <button
+      {!calculatorInToolbar && <button
         type="button"
         className="mathmaster-work-bar-tool"
         onClick={handleCalculatorControl}
@@ -2465,7 +2470,7 @@ function QuestionEngineBody({
         {calculatorPolicy?.available
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> {calculatorName}</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
-      </button>
+      </button>}
       {helpControlAvailable && (
         <button
           type="button"
@@ -3284,7 +3289,9 @@ function QuestionEngineBody({
         ) : null}
       />
 
-      {(() => {
+      {/* A Digital SAT or ACT item's calculator is in the secure toolbar (H-19): the
+          engine draws neither its keypad nor its graphing calculator. */}
+      {!calculatorInToolbar && (() => {
         const keypadCalculator = (
           <CalculatorPanel
             policy={calculatorPolicy}

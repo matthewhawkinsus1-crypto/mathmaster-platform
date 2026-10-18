@@ -13,6 +13,9 @@
 //                         with a card that does not know the student's extended
 //                         time: "Back to questions", resuming, reading while paused
 //   ?scenario=dashboard   the list with a test in every status a student meets
+//   ?supports=glossary    the student's own plan grants Read aloud, Vocabulary
+//                         and Spanish on a test (course scenario): the Rich
+//                         Tool item's tray must offer Vocabulary, terms only
 //   ?theme=dark           the dark theme
 //
 // Every call goes to the real src/services/secureExamService.js in its
@@ -88,6 +91,12 @@ const COURSE_ITEMS = [
   field('What is $f(-2)$ when $f(x) = x^2 + 1$?', '5', { inputProfile: 'number' }),
 ];
 
+// A support plan as the student profile carries it (secureItemAccess.js reads it).
+const SUPPORT_PROFILES = {
+  glossary: { accommodations: ['text-to-speech', 'glossary-lookup'], translationLanguage: 'es' },
+};
+const supportProfile = SUPPORT_PROFILES[params.get('supports')] || null;
+
 const harness = { scenario, mode: getExecutionMode(), sessionId: null, ready: false };
 window.__secureHarness = harness;
 harness.proctor = (action, extra = {}) => proctorExamAction({ examSessionId: harness.sessionId, action, ...extra });
@@ -116,7 +125,7 @@ const CourseTest = ({ examSessionId, title = 'Unit 4 Test: Linear Equations', de
       key={mountKey}
       examSessionId={examSessionId}
       examType="courseTest"
-      studentSupportProfile={null}
+      studentSupportProfile={supportProfile}
       title={title}
       startLabel="Start Test"
       delivery={delivery}
