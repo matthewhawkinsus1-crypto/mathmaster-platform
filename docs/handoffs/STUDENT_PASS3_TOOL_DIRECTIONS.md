@@ -213,6 +213,7 @@ No blockers. Three small pre-existing items in this area, closed here:
 | `graphingCalculatorModel` "it never runs what was typed as code…" | mathjs is only the parser | the import list is exactly the mathjs line | the mathjs line plus the shared reasons module, which imports nothing |
 | `graphingCalculatorModel` "anything that is not plain mathematics is refused…" | `[1, 2]` is refused with a sentence | code `unsupported` | code `symbol`, naming "[" |
 | browser `secureExamNavigation` | the secure test's calculator never says graphs are not its job | the old sentence | the old sentence or "cannot draw graphs" |
+| browser `toolPolicyGates` (DOL bridge) | the DOL bridge's stages are worked by their fields | `input[aria-label="y-intercept b in general form"]`, `"Zero c in factored form"` | the DOL names "b in general form", "c in factored form", plus a check that no DOL field name says which is the zero or the y-intercept |
 | `secureRichToolRuntimeWiring` "the Data Modeling Lab's teaching notes are hints…" | the notes are withheld where help is | `const teachingNotes = useHintsAllowed();` | `const methodWithheld = useMethodWithheld(); const teachingNotes = !methodWithheld;` (review N3: also where verdicts are withheld with hints on); rendered in `toolDirectionsSplit` |
 
 ## Mutation checks
@@ -236,7 +237,17 @@ Each made once, seen red, restored (node suites unless marked):
 
 ## Gate
 
-Run on the merge of the moved base (`3cb782a9`, merge `498d7627`), one driver at a time against plain
+**Review round** (head after `3c5e5c72`, on the same base):
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,790 / 11,790 (0 skipped in this container; the reviewer's 11,785 + 1 skipped is the shallow-clone provenance test, which skips there) |
+| `toolDirectionsSplit`, `workViewHelpAndMethod`, `secureRichToolRuntimeWiring` | 55 / 55 |
+| `npm run lint` | 0; no new warning in a touched file |
+| `workViewHelpReach` (86), `assessmentLeakGates`, `captureToolResponses dataModelingLab`, `linearMultipleRepresentations`, `systemsWorkspaceStudio` | pass |
+| `toolPolicyGates` | failed once on S1: it found the Bridge's b field by "y-intercept b in general form", which a DOL now names "b in general form". The DOL scene now uses the DOL names and checks that no field name says "Zero c" or "y-intercept b" (red with "Zero c" restored); 54 checks pass |
+
+The full gate below ran before the review round, on the merge of the moved base (`3cb782a9`, merge `498d7627`), one driver at a time against plain
 `npx vite --host 127.0.0.1 --port 5199 --strictPort` with `AUDIT_ORIGIN`, Playwright from `/opt/node22`.
 
 | Check | Result |

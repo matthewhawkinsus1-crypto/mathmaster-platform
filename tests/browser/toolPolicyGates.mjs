@@ -96,6 +96,10 @@ const fill = async (page, label, value) => {
 // -------------------------------------------------------------------- bridge
 const GENERAL = { m: 'Slope m in general form', b: 'y-intercept b in general form', equation: 'Equation in general/slope-intercept form' };
 const FACTORED = { a: 'Coefficient a in factored form', c: 'Zero c in factored form', equation: 'Equation in factored linear form' };
+// On an assessment the b and c fields do not say which is the y-intercept and
+// which the zero (W6-4 review S1): a screen reader hears "b" and "c".
+const DOL_GENERAL = { ...GENERAL, b: 'b in general form' };
+const DOL_FACTORED = { ...FACTORED, c: 'c in factored form' };
 const stageCheck = (page, index) => page.getByRole('button', { name: 'Check this stage' }).nth(index);
 const GENERAL_CHECK = 1; // rate evidence, general form, factored form, graph, meaning
 const FACTORED_CHECK = 2;
@@ -147,8 +151,10 @@ const submitBridge = (page) => page.getByRole('button', { name: /^Submit — / }
   check(/tap two rows to form an interval/.test(await helpDrawers(page)), 'DOL bridge: the drawer says how to work the table', await helpDrawers(page));
   check(!/five connected views|using the b you determine|plot the x-intercept from your factored form/.test(await helpDrawers(page)), 'DOL bridge: the drawer holds neither the tool\'s description nor a method step', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'DOL bridge: the authored hint is NOT in the Work View Help drawer', await helpDrawers(page));
+  const fieldNames = await page.locator('input[aria-label]').evaluateAll((inputs) => inputs.map((input) => input.getAttribute('aria-label')).join(' | '));
+  check(!/Zero c|y-intercept b/.test(fieldNames), 'DOL bridge: no field name says which number is the zero or the y-intercept', fieldNames);
   await fill(page, GENERAL.m, '5');
-  await fill(page, GENERAL.b, '-19');
+  await fill(page, DOL_GENERAL.b, '-19');
   await fill(page, GENERAL.equation, 'y = 5x - 19');
   await stageCheck(page, GENERAL_CHECK).click();
   await page.waitForTimeout(200);
@@ -169,7 +175,7 @@ const submitBridge = (page) => page.getByRole('button', { name: /^Submit — / }
     check(/Not finished yet — fill in every part of this stage\./.test(await bodyText(page)), 'DOL bridge: an unfinished stage says so, and nothing more');
     // Finish the factored form, wrong too (the zero is 4, not 3).
     await fill(page, FACTORED.a, '5');
-    await fill(page, FACTORED.c, '3');
+    await fill(page, DOL_FACTORED.c, '3');
     await fill(page, FACTORED.equation, 'y = 5(x - 3)');
     await stageCheck(page, FACTORED_CHECK).click();
     await page.waitForTimeout(200);
