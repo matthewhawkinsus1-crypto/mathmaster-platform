@@ -4,9 +4,11 @@
  * One request per page, shared by every caller: StrictMode's second effect
  * run, or a teacher signing in again over the same page, gets the same
  * promise, and once it has arrived `loadedTeacherKit()` hands it out with no
- * wait at all. A failed load is forgotten so the next attempt asks again; the
- * caller reports it (App.jsx sends it to AppErrorBoundary, as a failed
- * TeacherWorkspace chunk is).
+ * wait at all. A failed load is forgotten, but a browser caches a failed
+ * dynamic import per URL, so another attempt in the same page fails the same
+ * way: what recovers is a reload. The caller reports it (App.jsx sends it to
+ * AppErrorBoundary, as a failed TeacherWorkspace chunk is, and the boundary's
+ * "Load the new version" reloads the page).
  */
 let loaded = null;
 let pending = null;

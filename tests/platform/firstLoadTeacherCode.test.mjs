@@ -55,7 +55,8 @@ for (const [file, why] of [
 }
 
 // The kit is one request per page; once here, every later reader gets it at
-// once; a failed load is forgotten, so the next attempt asks again.
+// once; a failed load is forgotten (a reload is what recovers: the browser
+// caches a failed dynamic import per URL).
 test('the teacher kit loads once, is handed out at once after that, and exports what App calls', async () => {
   const loader = await import('../../src/app/teacher/teacherKitLoader.js');
   assert.equal(loader.loadedTeacherKit(), null, 'nothing is loaded until someone asks');
