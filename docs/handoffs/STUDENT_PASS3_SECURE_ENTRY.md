@@ -277,9 +277,10 @@ Mutation checks are listed with each item above.
 3. **Read aloud and Translate on a Test's results follow the student's plan for a *test*.** A plan limited to
    practice gets neither on the results, though the test is over. The results are not gated on the SAT practice
    "accommodations confirmed" flag that gates the test itself.
-4. **Vocabulary on a secure tool item includes the tool's own control words** (`TOOL_VOCABULARY`: interval,
-   endpoint …) as well as the prompt's, as the engine tray always did. The secure field tray uses prompt words only.
-   Definitions only, never examples.
+4. **Vocabulary on a secure tool item lists the prompt's words only** (changed in review B2). The tool's own word
+   lists (`TOOL_VOCABULARY`: distribute, elimination, dashed/solid, shade …) carry definitions that walk through
+   the method, so a secure tool item no longer shows them, exactly like the secure field tray. Open for the owner:
+   whether a secure tool item may show the tool's control words as labels without procedural definitions.
 5. **Corrections now receive the student's support profile.** Their own supports (the tray, a calculator
    accommodation) apply to correction questions, not only Read aloud on the worked solution. That is the plan's
    `corrections` role, which supports were always meant to follow; until now the profile was simply never passed.
@@ -287,6 +288,9 @@ Mutation checks are listed with each item above.
    exam. On a secure SAT/ACT item the panel is no longer drawn. W5-7 is bringing the graphing calculator to ordinary
    assignments and owns that panel and its label: the line should go, or name the graphing calculator, once theirs
    lands. W5-4 also edits `CalculatorPanel` (error text), so I left it alone.
+7. **Every secure number field has √ and π keys** (decided by the integrator in review S3; the owner can reverse
+   it). Before, a number field had them only when its metadata named one, so the keypad differed from its
+   neighbours' and hinted at which answers had a root or π.
 
 ## Outside my scope
 
@@ -344,3 +348,27 @@ Re-gate on the merged head, all passing:
 | secureAccessParity (no `--write`) | 26 / 26 |
 | secureResults | 324 / 0 |
 | readAloudTranslate, assessmentLeakGates, closedQuestionEnter | all pass |
+
+## Review of `9cdaeb6`: the fixes
+
+The review is by session_011siVEkL8zpCUMDMoeNPSKU, relayed by the integrator. Each fix has its own commit, and
+each new assertion was mutation-checked.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B1** `constantOperands` let wrong answers through where π met `^`: `\frac{2}{\pi}^2` was right for `2/pi^2` (the editor can write it), and so were `2^\frac{\pi}{2}` for `2^pi/2` and `x^\frac{\pi}{2}` for `x^pi/2` | `c3d847f`: a π denominator refuses a following `^` or `_` (as the root branch already did), and a constant found right after `^` or `_` is not taken, so the power-as-one-operand path keeps it | Each review case pinned, graded and normalised, beside every intended acceptance (`secureMathAnswerRoundTrip`). Two mutations red |
+| B1, the sweep had no coverage (`stackedPiOrRootSpellings 0`) | 110 synthetic fields, each a template with π or a root beside a slash (`a/pi^2`, `x^pi/b`, `e^sqrt(n)/b`, pairs, inequalities …). Each gets its stacked right spellings, plus the stacked spellings that are another number: `\frac{a}{\pi}^2`, `x^\frac{\pi}{b}`, `e^\frac{\sqrt n}{b}`, and numerator and denominator swapped | Against `c350dfc`, 9,440 fields, 261,900 verdicts: **0 right → wrong, 0 near miss → right**. 1,497 right answers newly accepted: 1,263 "and"/"or" word groups and 234 stacked π/√ (`\frac{\pi}{2}` for `pi/2` …), 250 keys stacked. With the B1 fix reverted, the sweep finds 60 near miss → right and exits 1 |
+| **B2** Vocabulary on a secure tool item listed the tool's method words (distribute, inverse operation, like terms; elimination; dashed/solid, shade) | `24aa3ac`: the secure tool tray entitlement carries `promptTermsOnly`, which `supportToolsModel` reads, so only the prompt's words are listed, as on the field tray. Practice keeps the tool's words | The three review prompts list none of those terms, and practice still does (`secureAccessWiring`, two mutations red). Browser `supports` journey: the interval item lists `graph, interval`, no `boundary` |
+| **S1** the nth-root exclusion and the digit-ending-a-name guard had no test | `c3d847f` | `\sqrt[3]{8}/2` is unchanged; `x_2\sqrt{3}/2` becomes `x_2\frac{\sqrt{3}}{2}`. Both mutations red |
+| **S2** a secure field could still say "Additional symbol needed: …" on a phone | `69b3399`: new MathInput prop `hideNeededSymbols`, in its own hunk. It keeps the phone's keyboard for a symbol no key types and never shows the line. `SecureMathAnswerField` sets it | Phone check in `secureAccessParity`: a number field naming `°` keeps the keyboard, with no caption; red without the prop. Source contract, two mutations red |
+| **S3** a number field's π and √ keys depended on its metadata | `69b3399`: every secure number field has √ and π (owner decision 7) | `secureMathAnswerRoundTrip`, mutation red |
+| **S4** Translate's entitlement check and the runtime's `caps.workedSolution` guard had no test | `e74dd24` | A language without Translate gets no translation. The worked solution renders only under the capability and a released review, and secure modes have the capability off. Both mutations red |
+
+**H-19 beside W5-7.** My calculator guards are:
+
+- `QuestionEngine`: the work-bar Calculator button (`{!calculatorInToolbar && <button …>}`), the Work View rail
+  entry (`calculator: calculatorInToolbar ? null : {…}`) and the `CalculatorPanel` mount
+  (`{!calculatorInToolbar && (<CalculatorPanel …/>)}`);
+- `RichQuestionRuntime` `FieldItem`: `{!calculatorInToolbar && <CalculatorPanel …/>}`.
+
+Wrapping W5-7's whole calculator block in `!calculatorInToolbar && (…)` keeps all of them.
