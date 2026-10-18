@@ -194,6 +194,19 @@ test('NAV-26: a lesson done except its exit ticket says what waits; anything els
   const closed = lessonSections({ statusOf: done, dolState: { enabled: true, status: 'notToday', instructionDateKey: '2026-10-01' } });
   assert.equal(closed.sections.find((section) => section.role === 'dol').state, SECTION_STATE.CLOSED);
   assert.equal(onlyExitTicketWaits(closed.sections), false);
+  // A lesson that is only an exit ticket has nothing "mostly done" about it.
+  const dolOnly = describeLessonSections({
+    entries: [{ storageIndex: 0, role: 'dol' }], requiredIndices: [0], statusOf: () => 'unattempted',
+    lifecycle: { isOpen: true }, dolState: later, todayKey: '2026-10-18',
+  });
+  assert.equal(dolOnly.sections[0].state, SECTION_STATE.OPENS_LATER);
+  assert.equal(onlyExitTicketWaits(dolOnly.sections), false);
+  // An exit ticket in Recovery is something to do, not something waiting.
+  const recovery = [
+    { role: 'classwork', finished: true, state: SECTION_STATE.DONE },
+    { role: 'dol', finished: false, state: SECTION_STATE.RECOVERY },
+  ];
+  assert.equal(onlyExitTicketWaits(recovery), false);
   // The wait line uses the same word.
   assert.match(mostlyDone.sections[2].label, /^Exit ticket$/);
 });
