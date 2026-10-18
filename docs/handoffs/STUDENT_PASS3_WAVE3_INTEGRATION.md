@@ -40,6 +40,8 @@ rebased.
     - they open "Show progress" before reading question numbers;
     - the exit-ticket timer checks use a student without extra time, since G gives 910002 extra time;
     - P2 reads the address once a question is on screen.
+- **`5ffc3682` · axis numbers on a phone.** Found by the accessibility part after the push: see the gate table.
+- **`d33b9bd`, `9854e2b` · two driver fixes** for failures that predate wave 3 (lmrProcessMode's page icon; recoveryHoldJourneys' slow-mode wait for the class chooser).
 - **`0688865` · studentScreenChange S7.** The "That question has moved" notice is raised as the assignment starts
   opening, so Home can stay on screen for a few seconds after it. That happens on the base too: Home was showing
   800 ms after the notice in 2 of 3 probes at 1366×768. The check measured at 800 ms and sometimes found no Submit at
@@ -63,13 +65,14 @@ rebased.
 | Real-App journeys, 8 (teacher harness) | `fd3563e` | all pass |
 | Real-App journeys, 11 more | `fd3563e` | 9 pass. studentScreenChange: fixed above. studentNameJourneys N2/N4 fail **on `6accda1` too**: the teacher's Attendance History lists students as "ID 9100xx" (not in CI; wave 5 takes it) |
 | `warmupReopenJourneys --slow` | `0688865` | all pass: 139 checks in 56 min. The base takes 52 min here, so a 30-minute limit in an earlier run was mine, not the app's |
-| `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | `0688865` | running after the push |
-| `npm run certify:accessibility` and the accessibility drivers | `0688865` | running after the push |
+| `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | `f92ee0d` | all pass: dark mode Parts 1, 1B and 2 (192 surfaces, 4 viewports, light and dark); every certified capability |
+| `npm run certify:accessibility` and the accessibility drivers | `f92ee0d`, then `5ffc3682` | 22 of 23 on `f92ee0d`; all pass after `5ffc3682`. The contrast review found the phone plane's x-axis numbers drawn over the x axis, and the origin's 0 across the y axis, once TOOL-11's larger phone text grew them (1.7:1 and 1:1 against the axis line; the base passes the same review). `5ffc3682` places them clear of the axes at any size; review:contrast 0 failing, planePhoneReach (which now checks for it), the graph drivers and dark mode pass |
 | The rest of the full-platform suite: six emulator suites (Classroom regrade report, identity repair, Live Challenge launch, path choice report, path release, Warm-Up reopen) and its audits, plus assignment-v5 foundation | `0688865` | all pass (5, 4, 10, 5, 4 and 1 cases; answer acceptance, path release verify, release authority, challenge DOK and quality, fidelity seeds, authoring boundary, legacy source, authoring v5 tests and validation); no tracked file rewritten |
 | The rest of the journeys job: linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft (both modes), familyPinContainment `--slow`, recoveryHoldJourneys `--slow` | `e822504`, then `9854e2b` | all pass. Two driver fixes, both for failures that predate wave 3: lmrProcessMode's page now names the app's icon (`d33b9bd`). recoveryHoldJourneys `--slow` waits for Grades' class chooser or an enabled picker (`9854e2b`): T2 failed the same way on `6accda1`. After the fixes: 9 of 9 and 450 of 450 checks |
 | `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | `e822504` | all pass. The Live Challenge teaching (58 checks) and projector privacy (86) suites pass in a checkout with its own `node_modules`. In a git worktree whose `node_modules` is a link to another checkout, the dev server they start refuses those files (403, outside its allow list), and they report the 403s as console errors |
 
-The last four rows ran after the push, so that B and wave 5 could start on this base; their results are added to this note as they finish, and anything they find is fixed on this branch.
+The last four rows ran after the push, so that B and wave 5 could start on this base; anything they found is fixed on this
+branch (the commits listed above).
 
 The emulator suites ran before A's last round. They were not re-run after it, because that round and the last commit
 change browser code and tests only.
