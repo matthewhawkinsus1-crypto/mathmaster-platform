@@ -68,6 +68,14 @@ blocking. Each had merged the wave-4 base (`c350dfc`) on its own branch first. N
   other driver that drags, algebraicSubstitutionHandoff, drops onto a target on the first screen and has not
   flaked.
 - **`2d33216` · the first-load baseline is lowered for the student home screen.** See [the budget](#the-first-load-budget).
+- **`6ce0517` · Work View keeps every action on a landscape phone.** The browser gate after the push failed one of
+  workViewCertification's 192 scenes, on `5062cba` and not on `ca1057e`: Graphing 2 at 740×360, "1 controls are
+  clipped". W5-2 (A11Y-12) reworded the tool's first instruction to name the keyboard route. On a short screen Work
+  View carries that instruction in its header, up to two lines, and the new sentence took both: the header grew from
+  49 to 58px. The rail beside it holds seven 44px actions, which fit only under a 49px header, so "Start over" ended
+  at y 366 on a 360px screen. With seven or more actions on a short screen, the header's instruction now keeps to
+  one line and ends in an ellipsis. Its whole sentence stays in the page for a screen reader, and Graphing 2 shows
+  all of it beside the plane. That scene passes again, and so does the whole driver.
 
 ## Checks
 
@@ -80,10 +88,22 @@ blocking. Each had merged the wave-4 base (`c350dfc`) on its own branch first. N
 | `node scripts/check-first-load-budget.mjs` · `firstLoadBudget` test | `2d33216` | pass: studentHome 847.1 KB, signIn 291.2 KB (see below) · 3 of 3 |
 | The grading sweep (`scripts/sweep-equivalence-verdicts.mjs --base c350dfc --draws 3 --check-wrong`) | `a6d66e5` | exit 0. 9,523 fields and 269,994 verdicts: 0 right → wrong, 0 near miss → right, 0 editor spellings refused, 0 wrong stacked spellings accepted. 2,130 right answers newly accepted and 300 near misses newly refused. These are W5-6's own numbers on its branch, so the other sessions' shared changes (W5-5's algebra engine, W5-3's and W5-4's graders) move no verdict |
 | The emulator suites: `test:rules` (both runners), `test:challenge-finish`, `test:canonical-persistence`, `test:test-cycle-certification`, `test:secure-exam-navigation`, `test:grade-authority` | `a6d66e5` | 243 and 220 · 477 · 35 · 38 · 25 · 14, all pass. The same on `3102064` (before W5-5) |
-| The rest of the full-platform suite (six emulator suites and the audits, as in wave 4) | `2d33216` | running at the push; its result follows with the browser parts |
+| The rest of the full-platform suite: six emulator suites (Classroom regrade report, identity repair, Live Challenge launch, path choice report, path release, Warm-Up reopen) and the audits | `2d33216` | all pass. The audits are answer acceptance, path release verify, authoring boundary, legacy source, authoring v5 and its validation, release authority, challenge DOK and quality, and fidelity seeds. No tracked file rewritten |
 | Wave 5's own drivers: assignmentGraphingCalculator, figureDescriptions, mathKeypadToolbar, workViewReference, matrixLabFeedback, day2NonuniqueJourneys, stepAlgebraStructureTools, secureResults | `3102064` (W5-6 merged, before W5-5) | all 8 pass. They run again on the final head below |
 | algebraicSystems3x3, whole driver, with its fix | `3102064` | 19 of 19 journeys, twice |
-| Every browser part (the student drivers, the real-App journeys, the slow journeys, the suites that start their own servers, dark mode and capabilities, accessibility) | the pushed head | running after the push, in seven cloud sessions |
+| Student drivers, 27 (the first group of CI's student-runtime job) | `5062cba` | all pass |
+| Student drivers, 17 more, including algebraicSystems3x3 with its fix | `5062cba`, then `6ce0517` | 16 pass. workViewCertification failed one scene, Graphing 2 at 740×360, new on `5062cba`. `6ce0517` fixes it (above), and the whole driver passes on `6ce0517` |
+| secureAccessParity, studentGradesRaise, studentResultUpNext, the two tool captures, workViewMatrix `--write` | `5062cba` | all pass. workViewMatrix rewrote one line of its fixture, as in wave 4; restored |
+| Wave 5's own drivers, and secureExamNavigation (which CI does not run) | `5062cba` | all 9 pass |
+| Real-App journeys (teacher harness), 20 | `5062cba` | all pass |
+| `warmupReopenJourneys --slow` | `5062cba` | all pass |
+| The rest of the journeys job (linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft both modes, familyPinContainment `--slow`, recoveryHoldJourneys `--slow`) | `5062cba` | all pass; recoveryHoldJourneys `--slow`: 450 checks |
+| `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | `5062cba` | all pass. Load: 30 of 30 students saved, no duplicates, p95 5.6 ms. Class rewards 22, live teaching 58, projector privacy 86 checks |
+| `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | `5062cba` | pass · pass |
+| `npm run certify:accessibility` and the accessibility drivers | `5062cba` | all 22 pass, including review:contrast and the large-text checks |
+
+The browser rows ran after the push, in seven cloud sessions at once, each on a fresh checkout of `5062cba`. One
+scene failed and is fixed on this branch.
 
 The sessions' own gates are in their handoffs. On its own branch W5-5 had two drivers failing, linearMultipleRepresentations
 (`complete`) and algebraicSystems3x3 (the badge). Both fail the same way on `c350dfc`, and this branch already fixes them
