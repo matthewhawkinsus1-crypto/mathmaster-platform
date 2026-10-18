@@ -345,6 +345,11 @@ EOF
 
 ## Not done / noticed
 
+- **Follow-up (from W5-4's reviewer):** the graphing calculator (`GraphingCalculatorPanel` and its model) keeps its own
+  error handling. It does not use W5-4's TOOL-8 reasons (what to change after an Error), and it does not have W5-4's
+  Clear/Error repair for text pasted or committed after Clear. The panel now reaches whole lessons, so its error
+  sentences should be brought onto W5-4's reasons once both are merged.
+
 - **N1, for the owner:** a question authored "graphing" now opens the graphing panel in any QuestionEngine host
   without an assessment context — My Math Path (seed items authored graphing: about 664 Digital SAT, 136 ACT, 30
   Algebra I, 22 Algebra II, per the integrator's count), Live Challenge, Section Recovery and others. Secure exams
