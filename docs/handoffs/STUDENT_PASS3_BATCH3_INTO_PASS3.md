@@ -82,7 +82,7 @@ left after its time ran out stayed open until a teacher finished it. Main's #496
   field, the simulator's definition dropping the kinds.
 - **The grading sweep** (`scripts/sweep-equivalence-verdicts.mjs --base <worktree> --draws 3 --check-wrong`), exit 0
   against `5062cba5` at the merge and against `3cb782a9` after the review: **0 right → wrong, 0 wrong → right, 0 near
-  miss → right** (SWEEP2), 0 editor spellings refused, 0 wrong stacked spellings accepted. Its corpus has no
+  miss → right** (269,994 verdicts each time), 0 editor spellings refused, 0 wrong stacked spellings accepted. Its corpus has no
   comma-grouped spellings.
 - **A thousands probe over the same corpus** (scratch, not committed): every field whose key is one plain number of
   four or more digits (88 fields), graded by four trees (this one, the base, main + Batch 3 `7bb74f8`, and live main
@@ -294,28 +294,33 @@ resume a live Test while `manageAssignmentLifecycle` is deploying" then lasts th
 
 ## Gate
 
-All on this branch (`58ef6c2`, code; the handoff commits after it change only this note), with Vite at
-`127.0.0.1:5199` and the teacher harness at `5188`, one driver at a time.
+**After the review, on the merged head `181baed`** (the code; the handoff commits after it change only this note),
+with Vite at `127.0.0.1:5199` and the teacher harness at `5188`, one driver at a time:
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,848 of 11,848 |
+| `npm run test:platform` | 11,854 of 11,854 |
 | `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail, 1 skipped |
 | `npm run lint` | pass (0 errors; warnings only, none in changed lines) |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | within baseline: **studentHome 851.3 KB** (baseline 847.1, limit 855.1; Batch 3 adds about 4 KB, as expected), signIn 291.3 KB. Baseline not edited |
-| Grading sweep (`--base` worktree of `5062cba5`, `--draws 3 --check-wrong`) | exit 0: 0 right → wrong, 0 wrong → right, 0 near miss → right (269,994 verdicts) |
-| Thousands probe (scratch, three trees) | see item 1: 0 wrong accepted; 36 SAT-box verdicts main accepts and this refuses (decision 1) |
+| `node scripts/check-first-load-budget.mjs` | within baseline: **studentHome 851.5 KB** (baseline 847.1, limit 855.1), signIn 291.3 KB. Baseline not edited |
+| Grading sweep (`--base` worktree of `3cb782a9`, `--draws 3 --check-wrong`) | exit 0: 0 right → wrong, 0 wrong → right, 0 near miss → right (269,994 verdicts) |
+| Thousands probe (scratch, four trees) | 0 wrong accepted by this tree, main + Batch 3 or live; 0 right that live accepts refused here |
 | `test:rules` | 248 of 248 and 221 of 221 |
-| `test:draft-persistence` | every certified family kept the work |
-| `test:test-cycle-device` | all 12 device/stage combinations |
-| `test:challenge-finish` · `test:canonical-persistence` | 477 · 35 |
-| `test:secure-exam-navigation` · `test:grade-authority` · `test:secure-exam-auto-finalize` | 25 · 14 · 11 |
+| `test:secure-exam-auto-finalize` · `test:challenge-finish` · `test:canonical-persistence` | 11 · 477 · 35 |
+| `test:draft-persistence` · `test:test-cycle-device` | every certified family kept the work · all 12 device/stage combinations |
+| submitNotQueued (21 checks), durableOutboxRecovery, composedDraftRestore, duplicateTabs, staleTabRecord | all pass |
+| Teacher harness: draftCrossDeviceJourneys (42), restoredDraftFocusRaceJourneys (164), submitAndFinishJourneys | all pass |
+
+**Before the review, on `58ef6c2`** (the first report; not rerun after the review unless listed above):
+
+| Check | Result |
+| --- | --- |
+| `test:secure-exam-navigation` · `test:grade-authority` | 25 · 14 |
 | testCycleRichToolQa | 490 checks, 0 findings (was 14 findings) |
-| durableOutboxRecovery, composedDraftRestore, draftEditTime, errorRecovery, duplicateTabs, staleTabRecord, submitNotQueued (21 checks) | all pass |
-| warmupReopenDraft, and `--family` | pass, pass |
+| draftEditTime, errorRecovery, warmupReopenDraft and `--family` | all pass |
 | familyPinContainment, and `--slow` | 77 checks each, 0 findings |
-| Teacher harness: draftCrossDeviceJourneys (42), recoveryDraftCrossDeviceJourneys (100), recoveryHoldJourneys (450), restoredDraftFocusRaceJourneys (164), submitAndFinishJourneys | all pass |
+| Teacher harness: recoveryDraftCrossDeviceJourneys (100), recoveryHoldJourneys (450) | all pass |
 | `npm run certify:dark-mode` | pass on the real clock; pass at a faked 23:46 UTC (libfaketime on the runner and Chromium) |
 | Real-App save-line probe (scratch) | 11 of 11 (item 2) |
 | toolDraftSyncSweep (Batch 3 ran it; not in this gate's list) | **1 finding, pre-existing**: `[expressionMeaning] sweep could not run: locator.click: Timeout`. The same on the base `5062cba5` (served from a worktree on its own Vite). Not touched here |
