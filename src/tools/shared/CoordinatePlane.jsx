@@ -11,7 +11,7 @@ import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
-import { planeFontSize } from './planeTextScale.js';
+import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
@@ -739,12 +739,13 @@ export default function CoordinatePlane({
 
         <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>x</text>
         <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">y</text>
-        {originVisible ? <text x={sx(0) - 9} y={sy(0) + 15} fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
+        {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
+        {originVisible ? <text x={sx(0) - 6} y={sy(0) + baselineBelowAxis(svgFont(10), 15, 5)} textAnchor="end" fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
             <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
-            <text x={sx(x)} y={axisY + 17} textAnchor="middle" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
+            <text x={sx(x)} y={axisY + baselineBelowAxis(svgFont(11), 17, 6)} textAnchor="middle" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
           </g>
         ))}
         {yTicks.filter((y) => y !== 0).map((y) => (
