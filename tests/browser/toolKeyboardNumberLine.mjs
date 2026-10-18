@@ -45,6 +45,8 @@ const active = (page) => page.evaluate(() => {
     tag: el?.tagName?.toLowerCase() || '',
     role: el?.getAttribute?.('role') || '',
     label: el?.getAttribute?.('aria-label') || el?.textContent?.trim().slice(0, 60) || '',
+    // What aria-describedby adds: what is drawn, then the keys (Q-8).
+    described: (el?.getAttribute?.('aria-describedby') || '').split(/\s+/).filter(Boolean).map((id) => document.getElementById(id)?.textContent || '').join(' '),
     submit: el?.getAttribute?.('data-mm-enter-action') === 'submit',
   };
 });
@@ -80,7 +82,9 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 
     // The line: a tab stop in its own right, with a visible marker on keyboard focus.
     const line = await tabTo(page, (el) => el.tag === 'svg' && el.role === 'application', 'the number line');
-    assert.match(line.label, /arrow keys/i, `${at}: the line says how to use it from the keyboard`);
+    // Named by the line; its description says what is drawn, then the keys (pass 3, Q-8).
+    assert.match(line.label, /^Number line from /, `${at}: the line is named by what it is`);
+    assert.match(line.described, /^Number line from .+ Nothing is drawn on it yet\. .*arrow keys/i, `${at}: the line says what is drawn, then how to use it from the keyboard`);
     assert.equal(await page.locator('[data-number-line-marker]').count(), 1, `${at}: the placement marker shows on keyboard focus`);
     const keyRing = await focusRing(page);
     assert.ok(keyRing.focusVisible && keyRing.style !== 'none' && keyRing.width >= 2, `${at}: keyboard focus on the line draws a focus ring (${JSON.stringify(keyRing)})`);
