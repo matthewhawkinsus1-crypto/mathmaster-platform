@@ -273,9 +273,9 @@ On the branch head after merging the moved base (`3cb782a9`), unless a row says 
 | Student drivers on plain Vite (AUDIT_ORIGIN 5199) | studentUxPlatform, assignmentMobile, keyboardSweep, readAloudTranslate, studentGradesRaise, studentResultUpNext, reviewMyWork, dolCloseCopy, workBarPrimaryLabel, feedbackTeaches, gradeCenterMobile, afterLastMiss, studentWhatChanged, pathRetention, familyPinContainment: all exit 0 |
 | studentHomeToday | every check passes but "no console errors": Firestore "client is offline" from My Math Path's coverage read, because this sandbox has no network. The base fails the same check the same way |
 | secureExamNavigation (own Vite) | 412 of 412, including the new `toolTries` journey |
-| Teacher harness (5188) | journeys, submitAndFinishJourneys, prerequisiteEarlyJourneys, dolExtraTimeJourneys, studentScreenChange, supportEvidenceJourneys, recoveryHoldJourneys, recoveryDraftCrossDeviceJourneys: exit 0. assignmentChromeJourneys: ACJ_RESULT |
+| Teacher harness (5188) | journeys, submitAndFinishJourneys, prerequisiteEarlyJourneys, dolExtraTimeJourneys, studentScreenChange, supportEvidenceJourneys, recoveryHoldJourneys, recoveryDraftCrossDeviceJourneys: exit 0. assignmentChromeJourneys: all journeys pass (its timer-pill check reads the new "Exit ticket open · 2 min") |
 | studentAccessibleNames | exit 0 |
-| workViewCertification (after the base's Work View fix) | WVC_RESULT |
+| workViewCertification (after the base's Work View fix) | "Stage 4 certified 24 tools on 8 devices", 0 findings. A first run that overlapped my source edits (the dev server reloads pages) reported one "opener is not reachable" on android-landscape complexPlaneLab; the quiet re-run has none. No Work View header text changed here |
 
 keyboardSweep first ran out of a 15-minute timeout while the unit suite and two builds loaded the machine (its browser
 was killed mid-tool, after every tool before that passed). Alone it passes.
