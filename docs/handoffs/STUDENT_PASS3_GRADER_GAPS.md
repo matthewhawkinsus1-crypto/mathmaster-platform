@@ -282,7 +282,7 @@ same checks run on the base too (`…OnBase`), for the record. The shapes:
 | `tests/browser/secureAccessParity.mjs` (emulator Vite, 5203) | 26 / 26, with `--write` and without |
 | `tests/browser/mathEntryContract.mjs` (plain Vite, 5199) | every case holds |
 | `tests/browser/fractionTemplateGrading.mjs` (5199) | all checks pass |
-| `tests/browser/questionFamilyCases.mjs` (5199) | QFC_RESULT |
+| `tests/browser/questionFamilyCases.mjs` (5199) | all 36 journeys pass |
 
 No Firestore rules changed, so I did not run `test:rules`. No other emulator suite reads the changed modules beyond
 those listed.
