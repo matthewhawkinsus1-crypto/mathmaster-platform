@@ -60,24 +60,26 @@ Every new assertion was broken once in the code and seen red, then restored:
 
 ## Gate
 
-**Current: on `e9b78a4f`**, which adds the re-review fixes (R1, R2) to the wave-4 merge `2e6d6145` (base
-`c350dfc`). Everything was run one at a time. Browser drivers ran against
-`npx vite --host 127.0.0.1 --port 5199 --strictPort` (`AUDIT_ORIGIN`); dark mode Part 2 also used the teacherWorkflow
-harness on 5188.
+**Final: on `9f4ea43e`**, the commit the reviewer accepted and the integrator merged as `a6d66e5`. It is the
+final-review fixes on top of `e9b78a4f` and the wave-4 merge `2e6d6145` (base `c350dfc`). Everything was run one at a
+time. Browser drivers ran against `npx vite --host 127.0.0.1 --port 5199 --strictPort` (`AUDIT_ORIGIN`); dark mode
+Part 2 also used the teacherWorkflow harness on 5188.
 
 | Check | Result |
 | --- | --- |
 | `npm run test:platform` | 11690 pass, 0 fail |
-| `node --test tests/tools/*.test.mjs` | 1683 pass, 0 fail |
+| `node --test tests/tools/*.test.mjs` | 1684 pass, 0 fail |
 | `npm run lint` | exit 0 (warnings only) |
-| `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten (`git status` clean after them and at the end) |
-| `node scripts/check-first-load-budget.mjs` | **studentHome 845.8 KB gzip in 186 files**, within its baseline (177.6 KB under; baseline not edited) |
+| `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | **studentHome 845.8 KB gzip in 186 files**, within its baseline (baseline not edited) |
+| `npm run test:test-cycle-certification` (emulator) | 38 pass, 0 fail |
+| `npm run test:grade-authority` (emulator) | 14 pass, 0 fail |
+| `npm run test:challenge-finish` (emulator) | 477 pass, 0 fail |
 | stepAlgebraStructureTools (with divide-negative), toolPolicyGates, assessmentLeakGates, workViewHelpReach, stagedQuestion, graphPointCheck, composedOutcomePolicy, planePhoneReach, focusSafeToolControls, algebraicSubstitutionHandoff, mathSpeech, graphDescription, renderStability, toolAttemptOutcome, toolFocusAndUndo | all exit 0 |
-| `workViewMatrix.mjs` (no `--write`) | exit 0; no tracked file changed |
+| `workViewMatrix.mjs` (no `--write`) | exit 0 |
 | `npm run certify:dark-mode` | passed: Parts 1, 1B and 2 (192 surfaces) |
-| **linearMultipleRepresentations** | exit 1, the same 8 `complete`-journey findings as on the base `c350dfc` ("Submit board" after the question closes). Fixed on the integration branch by `c6e0942`, which is after this branch's base. Not this branch. |
-| **algebraicSystems3x3 ×3 on this branch** | exit 1 in all three runs, the same 2 findings as on the base ("did not route to the 3×3 substitution workspace"). Fixed on the integration branch by `0e6140c`, after this branch's base. Because of it, these journeys stop before the step where the intermittent failure below shows. |
-| **algebraicSystems3x3 ×3 on the integration head** (`ca1057e3` = `3cd1d5b` plus one handoff document, none of this branch) | **1 fail, 2 pass.** The failure is the reviewer's intermittent one: teacherPreview-3x3 "three placements substituted into 0 of 3 original equations", "E1: the numeric right side still has to be retyped", and a `setMathField` timeout. **It fails on the integration head too**, about 1 run in 3 or 4, so it is not this branch. |
+| **linearMultipleRepresentations** | exit 1, the same 8 `complete`-journey findings as on the base `c350dfc` ("Submit board" after the question closes). Fixed on the integration branch by `c6e0942`, after this branch's base. Not this branch. |
+| **algebraicSystems3x3** | exit 1, the same 2 routing findings as on the base `c350dfc`. Fixed on the integration branch by `0e6140c`, after this branch's base. The intermittent teacherPreview failure the reviewer saw was in the driver (a drop target below the fold lost the drop) and also showed on the integration head without this branch (1 in 3 runs). It is fixed there by `31020649`. Not this branch. |
 
 Run before the merge, on `5182472` (they cover files the review round did not change):
 
@@ -126,8 +128,10 @@ minutes. So the release is a cherry-pick:
    and only down to the server's own value, never below it. If any must not move without a regrade report, drop the
    `1\left(` line from the `functions/index.js` and `functions/lib/classroomGradeRuntime.js` hunks below and keep only
    the tie.
-1. **Release 1: the key, nothing else.** On the integration head, make a commit holding only these **three** hunks.
-   They are the whole difference this branch makes to those files:
+1. **Release 1: the key, nothing else.** Release 1 is **what is live** (`main`, or `main` with Batch 3 once PR #497
+   ships) **plus one commit holding only these three hunks**. It is not the integration head: that already contains
+   W5-5 (merged as `a6d66e5`), and nothing from pass 3 is live yet. The three hunks are the whole difference this
+   branch makes to those files:
    - `functions/shared/attemptPolicy.mjs` `compactStepStateKey`: `.replace(/\s+/g, '')` becomes
      `.replace(/[\s~]+/g, '')`, plus its three comment lines.
    - `functions/index.js` `storedAlgebraStepPartialCredit`: its `stateKey` copy becomes
@@ -138,7 +142,8 @@ minutes. So the release is a cherry-pick:
      `assignmentGradeProgress`) and the Classroom section entry grade with it.
 
    ```
-   git diff c350dfc0 claude/pass3-math-display -- functions/shared/attemptPolicy.mjs functions/index.js functions/lib/classroomGradeRuntime.js > release1.patch
+   git diff c350dfc0 9f4ea43e -- functions/shared/attemptPolicy.mjs functions/index.js functions/lib/classroomGradeRuntime.js > release1.patch
+   git checkout <what is live: main, or main with Batch 3>
    git apply --check release1.patch
    git apply --index release1.patch && git commit -m "Step-state key: a TeX tie is spacing (pass 3 release 1)"
    node --test tests/tools/stepAlgebraStepCredit.test.mjs tests/platform/algebraStepCreditAndRuntimeFixes.test.mjs
@@ -147,7 +152,8 @@ minutes. So the release is a cherry-pick:
    ```
 
    Checked: the three-hunk patch passes `git apply --check` on `c350dfc0` and applies cleanly, and the two step-credit
-   suites pass on it (53 pass, 0 fail).
+   suites pass on it (53 pass, 0 fail). The integrator checked `git apply --check` of the same patch on `main`
+   `56a5a5b`, on PR #497's head `7bb74f8` and on the integration head before W5-5 (`3102064`); it passes on all three.
 
    **What release 1 deploys.** The planner names the whole default fleet and `path-admin`, and all of them need it:
    - Every default-codebase function loads `lib/classroomGradeRuntime.js`: the entry `platformEntry.js` loads
@@ -171,13 +177,14 @@ minutes. So the release is a cherry-pick:
      own.
 
    On today's data this is a no-op. Every record today is written with the tie, so dropping it from every key
-   changes no comparison. Push Q's rule is already live in `compactStepStateKey`, and in the `index.js` copy it only
-   affects the records counted in step 0. A Classroom value can flicker once during release 1 while old and new
+   changes no comparison. Push Q's rule is already live in `compactStepStateKey`; in the `functions/index.js` and
+   `functions/lib/classroomGradeRuntime.js` copies it only affects the records counted in step 0. A Classroom value can flicker once during release 1 while old and new
    readers recompute; the next sync settles it.
 2. **Wait.** `node scripts/release-firebase.mjs --whats-live` must show **every** function, `path-admin` included,
    on the release-1 commit, not just `platformBuildInfo`. The verify step asks only the last default group, and
    `path-admin` ships after it. Then allow about 10–15 minutes for old instances to drain.
-3. **Release 2: everything else**, `node scripts/release-firebase.mjs --since <release-1 sha>`, then `--execute`. It
+3. **Release 2: the pass-3 line** (the integration branch, which carries W5-5), planned with
+   `node scripts/release-firebase.mjs --since <release-1 sha>`, then `--execute`. It
    names Hosting, the functions that read the shared engine, and `path-admin`. A rollback of release 2 alone stays
    safe, because every server keeps both renderings as one state.
 
