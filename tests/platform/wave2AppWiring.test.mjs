@@ -62,7 +62,7 @@ test('R2-m4: the copy the workspace now shows for each DOL state', () => {
   assert.match(open.openNotice, /when time ends/);
   assert.equal(open.closeReceipt, '');
   const closedByTeacher = describeDolClose({ status: 'ended', teacherClosed: true, outcome: 'auto-submitted' });
-  assert.match(closedByTeacher.lockMessage, /Your teacher closed this DOL/);
+  assert.match(closedByTeacher.lockMessage, /Your teacher closed this exit ticket/);
   assert.doesNotMatch(`${closedByTeacher.lockMessage} ${closedByTeacher.closeReceipt}`, /timer|when time ends/i);
   const timeUp = describeDolClose({ status: 'ended', outcome: 'incomplete-at-close' });
   assert.match(timeUp.lockMessage, /Time is up/);

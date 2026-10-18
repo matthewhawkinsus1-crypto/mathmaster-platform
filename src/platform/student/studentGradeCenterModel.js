@@ -10,6 +10,7 @@ import {
   splitGradesBySection,
 } from '../teacher/gradeEvidence.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
+import { CLOSED_WORK } from './studentWords.js';
 import {
   buildTestCycleGradeState,
   isTestCycleAssignment,
@@ -118,7 +119,7 @@ export const GRADE_STATUS_LABEL = Object.freeze({
   [GRADE_STATUS.LATE]: 'Late',
   [GRADE_STATUS.EXCUSED]: 'Excused',
   [GRADE_STATUS.REOPENED]: 'Reopened',
-  [GRADE_STATUS.PRACTICE_ONLY]: 'Practice Only',
+  [GRADE_STATUS.PRACTICE_ONLY]: CLOSED_WORK.label,
   [GRADE_STATUS.LOCKED]: 'Not Open Yet',
 });
 

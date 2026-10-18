@@ -347,7 +347,7 @@ const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null }) => {
           sentence and a wrapped second button made the box taller than a
           phone leaves under the task card, and its last line went under the
           action bar (390x844). */}
-      {hint && !similar ? <>A hint is ready if you want one.{' '}</> : null}
+      {hint && !similar ? <>A hint is ready if you want one. {HINT_COST_SENTENCE}{' '}</> : null}
       {hint ? <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button> : null}
       {similar ? <button type="button" data-similar-offer="" onClick={onShowSimilar} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
     </span>

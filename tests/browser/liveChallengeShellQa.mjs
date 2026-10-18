@@ -1479,7 +1479,7 @@ await run('endurance', async (S) => {
     }
   }
   // Leaving the game: the student goes back to the dashboard.
-  for (const student of [s1, s2]) await student.page.getByRole('button', { name: 'Back to Dashboard' }).last().click().catch(() => {});
+  for (const student of [s1, s2]) await student.page.getByRole('button', { name: 'Back to Home' }).last().click().catch(() => {});
   await wait(1_000);
   await sample('students left the final screen');
   const gamesDone = samples.filter((row) => row.label.startsWith('after game'));

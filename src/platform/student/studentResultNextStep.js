@@ -1,4 +1,5 @@
 import { SECTION_STATE, describeSectionWait } from './lessonSections.js';
+import { CLOSED_WORK } from './studentWords.js';
 
 /*
  * WHAT THE RESULT PAGE TELLS A STUDENT TO DO NEXT.
@@ -35,7 +36,7 @@ export const RESULT_STEP = Object.freeze({
   UNKNOWN: 'unknown',
 });
 
-export const TRY_AGAIN_LABEL = 'Try it again — no credit';
+export const TRY_AGAIN_LABEL = CLOSED_WORK.tryAgain;
 export const tryAgainLabel = (sectionLabel = null) => (
   sectionLabel ? `Try ${sectionLabel} again — no credit` : TRY_AGAIN_LABEL
 );

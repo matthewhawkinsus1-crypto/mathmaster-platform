@@ -228,7 +228,7 @@ export function QuestionResolutionFailure({
   const teacherView = TEACHER_SCOPES.has(executionScope);
   const technicalMessage = `${failure?.classification || 'unclassified'} · ${describeContext(signatureContext)}`;
   const savedWork = hasRecordedWork
-    ? 'Your recorded answers, attempts and grade for this question are kept exactly as they are.'
+    ? 'Your recorded answers, tries and grade for this question are kept exactly as they are.'
     : 'Nothing you did caused this, and your grade is not affected.';
   const next = nextButton(onNextQuestion, nextQuestionLabel);
   // A reload that already happened and did not help is offered as a retry:

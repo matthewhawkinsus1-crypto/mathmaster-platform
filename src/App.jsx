@@ -36,6 +36,7 @@ import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerR
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
+import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './platform/student/studentWords.js';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
@@ -5174,8 +5175,8 @@ function App() {
       const firstReminder = lastReminderAt === 0;
       dolOpenAnnouncedRef.current[key] = now;
       toastWarning(
-        firstReminder ? 'DOL is open — start now' : 'DOL reminder — start now',
-        `${assignment.title}: open the DOL now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
+        firstReminder ? `${EXIT_TICKET_SPELLED_OUT} is open — start now` : `${EXIT_TICKET_SPELLED_OUT} reminder — start now`,
+        `${assignment.title}: open the ${exitTicketInSentence} now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
       );
     });
     Object.keys(dolOpenAnnouncedRef.current).forEach((key) => {
@@ -5607,7 +5608,7 @@ function App() {
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (!getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
-      toastInfo('DOL not open yet', 'The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears.');
+      toastInfo(`${EXIT_TICKET_SPELLED_OUT} not open yet`, `The ${exitTicketInSentence} opens in the last minutes of class. Keep working; a banner tells you when it opens.`);
       return;
     }
 
@@ -5970,7 +5971,7 @@ function App() {
       .map((entry) => entry.storageIndex)
       .filter((index) => !studentRequired || studentRequired.has(index));
     if (!includedQuestionIndices.length) {
-      toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
+      toastWarning('Nothing to show yet', 'This assignment has no questions for you right now.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
@@ -6058,8 +6059,8 @@ function App() {
         toastInfo(
           scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
           scopedSectionKey
-            ? 'This section is currently locked or outside its class window.'
-            : 'There is no student-actionable section in this assignment right now.',
+            ? 'This section is not open now. It may open later in class, or it has closed.'
+            : 'Nothing in this assignment is open for you to work on right now.',
         );
         return;
       }
@@ -9825,7 +9826,7 @@ function App() {
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
-      ? `Requesting another DOL question will erase this DOL attempt. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} remaining to submit the replacement.`
+      ? `A new ${exitTicketInSentence} question replaces this one and erases your answer to it. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} left to submit the new one.`
       : '';
 
     if (!includedQuestionIndices.length) {
@@ -9833,13 +9834,13 @@ function App() {
         <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
           <h2>No questions are currently included</h2>
           <p>The teacher has excluded every question from this assignment.</p>
-          <button onClick={() => { setActiveView('dashboard'); setActiveAssignmentId(null); }}>Return to Dashboard</button>
+          <button onClick={() => { setActiveView('dashboard'); setActiveAssignmentId(null); }}>Back to Home</button>
         </div>
       );
     }
 
     const lifecycleBadge = lifecycle.isPracticeOnly
-      ? { label: 'Practice only', background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+      ? { label: CLOSED_WORK.label, background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
       : lifecycle.isLate
         ? { label: 'Late — still open', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
         : lifecycle.isScheduled
@@ -9856,7 +9857,7 @@ function App() {
       warmup: { label: 'Warm-Up', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', border: '#f9ab00' },
       classwork: { label: 'Classwork', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: '#1a73e8' },
       practice: { label: 'Practice', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', border: '#34a853' },
-      dol: { label: 'DOL / Exit Ticket', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '#9334e6' },
+      dol: { label: EXIT_TICKET_SPELLED_OUT, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '#9334e6' },
       checkpoint: { label: 'Checkpoint', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
       quiz: { label: 'Quiz', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
       test: { label: 'Test', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
@@ -9928,9 +9929,10 @@ function App() {
       if (sectionAccessCache.has(cacheKey)) return sectionAccessCache.get(cacheKey);
       const access = describeSectionAccess({
         role: entry?.role,
-        // Read mid-sentence ("Time is up for the Exit ticket (DOL)."); the
-        // model capitalises a sentence that starts with it.
-        label: entry?.role === 'dol' ? 'the Exit ticket (DOL)' : `the ${activitySectionMeta[entry?.role]?.label || entry?.role || 'section'}`,
+        // Read mid-sentence ("Time is up for the exit ticket."); the model
+        // capitalises a sentence that starts with it. The section tab above
+        // has already spelled it out (D9: once per screen).
+        label: entry?.role === 'dol' ? `the ${exitTicketInSentence}` : `the ${activitySectionMeta[entry?.role]?.label || entry?.role || 'section'}`,
         timedDol: Boolean(entry?.isTimedDOLQuestion),
         unrestricted: preview || lifecycle.isPracticeOnly,
         lifecycle,
@@ -9998,7 +10000,7 @@ function App() {
       });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
-      ? 'Exit ticket (DOL)'
+      ? EXIT_TICKET_SPELLED_OUT
       : (activitySectionMeta[section?.role]?.label || section?.role || 'Section');
     // A section tab lands on the first question the student can still work,
     // never on one out of tries while a workable one is left; with nothing
@@ -10093,7 +10095,7 @@ function App() {
         isWorkable: entryIsWorkableNow,
         isComplete: sectionQuestionIsComplete,
         attemptCountOf: (index) => normalizeQuestionRecord(workingTracker?.[index]).attemptCount,
-        sectionLabelOf: (role) => (role === 'dol' ? 'Exit ticket (DOL)' : activitySectionMeta[role]?.label || ''),
+        sectionLabelOf: (role) => (role === 'dol' ? EXIT_TICKET : activitySectionMeta[role]?.label || ''),
       })
       : null;
     const returnsToAssignmentResult = !preview
@@ -10127,10 +10129,10 @@ function App() {
         && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
         key: 'dol',
         tone: 'dol',
-        chip: 'Exit ticket (DOL) open',
-        title: 'The Exit ticket (DOL) is open',
+        chip: `${EXIT_TICKET_SPELLED_OUT} open`,
+        title: `The ${exitTicketInSentence} is open`,
         text: `Finish all ${dolSectionIndices.length} question${dolSectionIndices.length === 1 ? '' : 's'} before time runs out.`,
-        action: { label: 'Go to the Exit ticket (DOL)', onClick: () => { setAssignmentStatusOpenFor(null); changeQuestion(dolSectionIndices[0]); } },
+        action: { label: `Go to the ${exitTicketInSentence}`, onClick: () => { setAssignmentStatusOpenFor(null); changeQuestion(dolSectionIndices[0]); } },
       },
       // Timed windows mean nothing in post-deadline practice.
       !lifecycle.isPracticeOnly && warmupState.status === 'active' && activeQuestionRole !== 'warmup'
@@ -10152,9 +10154,9 @@ function App() {
       lifecycle.isPracticeOnly && {
         key: 'practice',
         tone: 'practice',
-        chip: 'No credit · practice',
-        title: 'Practice only, no credit',
-        text: 'This assignment has closed and your grade is set. You can keep practising with feedback; it does not change your grade. Your practice is saved, and your teacher can see it.',
+        chip: `${CLOSED_WORK.label} · no credit`,
+        title: CLOSED_WORK.bannerTitle,
+        text: CLOSED_WORK.bannerText,
       },
     ].filter(Boolean);
     // Another lesson's open Warm-Up: the banner that offers it is hidden on a phone.
@@ -10358,19 +10360,19 @@ function App() {
 
           {lifecycle.isPracticeOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-surface-control)', border: '2px solid #5f6368', color: 'var(--mm-text)', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>Practice Mode — grading window ended</strong>
-              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Your practice is saved, so you can pick it up again on another Chromebook, and your teacher can see it when they review your work.</span>
+              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>{CLOSED_WORK.bannerTitle}</strong>
+              <span>{CLOSED_WORK.bannerText}</span>
             </section>
           )}
 
           {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
-                <strong style={{ display: 'block', fontSize: 'calc(22 * var(--mm-px))' }}>DOL is available now</strong>
-                <span>The entire DOL section is open. Complete all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
+                <strong style={{ display: 'block', fontSize: 'calc(22 * var(--mm-px))' }}>The {exitTicketInSentence} is open now</strong>
+                <span>Answer all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
                 {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
               </div>
-              <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start DOL Section</button>
+              <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start the {exitTicketInSentence}</button>
             </section>
           )}
 
@@ -10402,7 +10404,7 @@ function App() {
                 {preview && <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>}
               </div>
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
-                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
+                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLine}{dates.finalLine ? <><br />{dates.finalLine}</> : null}</>; })()}
               </div>
               {/* A student who opens the assignment from a Google Classroom link
                   never passes Home or View Results; the assignment itself says
@@ -10428,7 +10430,7 @@ function App() {
                   {preview
                     ? 'Preview progress'
                     : lifecycle.isPracticeOnly
-                      ? 'Frozen recorded grade'
+                      ? CLOSED_WORK.gradeLabel
                       : 'Grade so far'}
                 </div>
                 <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
@@ -10446,7 +10448,7 @@ function App() {
               {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
-                  <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '100 — prerequisite met' : 'In progress'}</div>
+                  <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'Done — 100%' : 'In progress'}</div>
                 </div>
               )}
             </div>
@@ -10454,7 +10456,7 @@ function App() {
 
           <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
-              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel}>←</button>
               {!assignmentNavigationCollapsed ? (
                 <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
@@ -10647,7 +10649,7 @@ function App() {
                 state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">
-                <SectionTimeLeft label="Exit ticket (DOL)" endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
               </div>
             )}
           </nav>

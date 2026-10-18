@@ -267,7 +267,7 @@ const journeys = {
       const rowDue = (await text(row)).match(DUE)?.[1] || null;
       expect('S1', rowDue === nextDue, `${tab} tab shows the student's own due date (${rowDue}; expected ${nextDue})`);
       if (tab === 'Grades') {
-        await row.getByRole('button', { name: 'View Results' }).click();
+        await row.getByRole('button', { name: 'See results' }).click();
         await page.waitForTimeout(1200);
         const resultDue = (await text(page.locator('main').first())).match(DUE)?.[1] || null;
         expect('S1', resultDue === nextDue, `the assignment result shows the student's own due date (${resultDue}; expected ${nextDue})`);

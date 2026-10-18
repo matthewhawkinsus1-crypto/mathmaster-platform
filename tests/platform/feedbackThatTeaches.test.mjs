@@ -293,18 +293,19 @@ test('3. a DOL\'s per-item right/wrong release never opens the worked solution (
 });
 
 test('3. a closed question points at a worked solution only when there is one', () => {
-  assert.match(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), /^That was your last try \(3 in all\)\. Your answer is locked\. The worked solution is below\.$/);
+  assert.match(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), /^That was your last try \(3 in all\)\. The worked solution is below\.$/);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 3, reviewAvailable: false }), /below|review/i);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 3, reviewAvailable: false, allowReplacement: true }), /below|review/i);
   assert.match(closedAttemptText({ maximumAttempts: 2, reviewAvailable: true, allowReplacement: true }), /request a new question/);
   assert.doesNotMatch(closedAttemptText({ maximumAttempts: 2, reviewAvailable: true, allowReplacement: false }), /new question|another problem/);
-  // The legacy intro no longer promises another problem it cannot give, and
-  // uses the panel's words for a closed question (student push J copy pass).
+  // The legacy intro no longer promises another problem it cannot give. It
+  // does not say "closed" again: the card's banner says it once (HELP-24).
   const legacy = executableSource(read('src/SolutionReview.jsx'));
   const intro = legacy.match(/allowReplacement\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/);
   assert.ok(intro, 'the intro depends on allowReplacement');
-  assert.match(intro[1], /^This question is closed\..*request a new question/);
-  assert.match(intro[2], /^This question is closed\./);
+  assert.match(intro[1], /^Review the solution, then you can request a new question/);
+  assert.match(intro[2], /^Compare your work with the solution\.$/);
+  assert.doesNotMatch(`${intro[1]} ${intro[2]}`, /closed/i);
   assert.doesNotMatch(intro[2], /new question|another problem|request/i);
   assert.doesNotMatch(legacy, /problem version is closed/);
 });
@@ -321,7 +322,10 @@ test('3. the review reads the authored solutionReview the compiler already copie
   assert.match(review.speechText, /Subtract 5 from both sides/);
   const empty = buildClosedQuestionReview({ question: { type: 'multiAnswer' } });
   assert.equal(empty.hasContent, false);
-  assert.match(empty.intro, /not available/);
+  // No worked solution: said plainly, and never "Ask" — that button is gone
+  // once the question closes (HELP-24).
+  assert.match(empty.intro, /^There is no worked solution for this question yet\./);
+  assert.doesNotMatch(empty.intro, /\bAsk\b/);
   assert.equal(buildClosedQuestionReview({ question: { type: 'multiAnswer' }, legacyContent: () => ({ hasContent: true }) }).hasContent, true);
 });
 
@@ -527,7 +531,7 @@ test('"40% partial credit so far" says which parts, never what the answers are',
     { id: 'eq', label: 'Equation', isCorrect: false, graded: true },
     { id: 'note', label: 'Notes', graded: false },
   ] };
-  assert.equal(partialCreditBreakdown(record), 'last attempt: 1 of 3 parts right — still to fix: y-intercept, Equation');
+  assert.equal(partialCreditBreakdown(record), 'last try: 1 of 3 parts right — still to fix: y-intercept, Equation');
   assert.equal(partialCreditBreakdown({ partGrades: [] }), '');
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   // Same gate as the miss message: a released quiz or test item that can

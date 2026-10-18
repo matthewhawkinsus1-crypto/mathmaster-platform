@@ -77,7 +77,7 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
 
 test('RUN-10: the DOL and the Warm-Up count down to the lifecycle state\'s own end', () => {
   // Never an end computed here: extra time (D7) moves the lifecycle state's.
-  assert.match(nav, /<SectionTimeLeft label="Exit ticket \(DOL\)" endsAt=\{dolState\.endsAt\}/);
+  assert.match(nav, /<SectionTimeLeft label=\{EXIT_TICKET\} labelInSentence=\{exitTicketInSentence\} endsAt=\{dolState\.endsAt\}/);
   assert.match(nav, /<SectionTimeLeft compact label="Warm-Up" endsAt=\{warmupState\.endsAt\}/);
   // In both navigator states: not inside the compact-only branch (review of
   // 6955c74: with "Show progress" open the Warm-Up's warnings were gone).
@@ -97,7 +97,7 @@ test('RUN-10: SectionTimeLeft announces through a region that is always mounted'
   assert.doesNotMatch(code, /setAlert\(null\)/);
   assert.match(code, /const shownAlert = alert\?\.windowKey === windowKey \? alert : null;/);
   // The region is rendered whether or not there is a warning yet.
-  assert.match(code, /<span role="alert" style=\{SR_ONLY_STYLE\}>\s*\{shownAlert \? `\$\{shownAlert\.words\} on the \$\{label\}\. \$\{UNFINISHED_WORK_LINE\.section\}` : ''\}/);
+  assert.match(code, /<span role="alert" style=\{SR_ONLY_STYLE\}>\s*\{shownAlert \? `\$\{shownAlert\.words\} on the \$\{labelInSentence\}\. \$\{UNFINISHED_WORK_LINE\.section\}` : ''\}/);
   assert.doesNotMatch(code, /\{(shownAlert|alert) && <span role="alert"/);
 });
 

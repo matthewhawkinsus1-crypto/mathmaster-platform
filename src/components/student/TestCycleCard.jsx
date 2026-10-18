@@ -493,7 +493,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         {card.policy?.summary && retestPolicyRelevant(card) && <p style={factStyle}>{card.policy.summary}</p>}
         {due.dueAt && (
           <p data-test-cycle-due="" style={factStyle}>
-            Due {formatDateTime(due.dueAt)}.{due.finalLateDueAt ? ` Late work is still open: final late due ${formatDateTime(due.finalLateDueAt)}.` : ''}
+            Due {formatDateTime(due.dueAt)}.{due.finalLateDueAt ? ` Late work is accepted until ${formatDateTime(due.finalLateDueAt)}.` : ''}
           </p>
         )}
       </div>

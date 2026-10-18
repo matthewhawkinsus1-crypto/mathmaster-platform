@@ -6,7 +6,8 @@ import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
 import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath, missingGradeWarning } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
-import { formatDateTime } from '../../assignmentLifecycle';
+import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
+import { CLOSED_WORK, SEE_RESULTS } from '../../platform/student/studentWords.js';
 
 /*
  * THE STUDENT GRADE CENTER.
@@ -276,7 +277,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <Title id={titleId} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</Title>
           <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-            Due {formatDateTime(entry.dueAt)}
+            {studentDueText(entry.dueAt)}
             {entry.frozen ? ` · Closed ${formatDateTime(entry.lateDueAt)}` : ''}
           </div>
         </div>
@@ -322,14 +323,14 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         )}
         {actions.viewResults && (
           <button type="button" style={actionButton(!actions.start)} onClick={() => onOpenResult?.(entry.assignmentId)}>
-            View Results
+            {SEE_RESULTS}
           </button>
         )}
         {actions.practiceNoCredit && (
           // Voluntary work on a closed assignment. Never called "Practice":
           // in student copy that word means only the lesson's Practice section.
           <button type="button" style={actionButton(false)} onClick={() => onPractice?.(entry.assignmentId)}>
-            Try it again — no credit
+            {CLOSED_WORK.tryAgain}
           </button>
         )}
       </div>

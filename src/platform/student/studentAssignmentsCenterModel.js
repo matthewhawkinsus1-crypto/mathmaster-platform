@@ -4,6 +4,7 @@ import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { findGradeCenterEntry } from './studentGradeCenterModel.js';
 import { normalizeGradingPeriodSettings } from './gradingPeriods.js';
 import { TRY_AGAIN_LABEL } from './studentResultNextStep.js';
+import { CLOSED_WORK } from './studentWords.js';
 
 /*
  * THE ASSIGNMENTS CENTER — WHERE IS ALL MY WORK?
@@ -59,9 +60,10 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
    * The id stays 'practice' (routes, saved tabs and tests key on it), but the
    * WORD is not "Practice": in student copy "Practice" means only the lesson's
    * Practice section. Closed work is something a student can try again for no
-   * credit, and the tab says exactly that.
+   * credit. Its name is the one every student screen uses for closed work
+   * (studentWords.js, NAV-17).
    */
-  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Closed — try again',
+  [ASSIGNMENT_CATEGORY.PRACTICE]: CLOSED_WORK.label,
 });
 
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({

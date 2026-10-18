@@ -56,9 +56,9 @@ export const dolExtraTimeNotice = ({ extendedTime = false, endsAt = null } = {})
 
 const RECEIPT_TEXT = {
   teacher: {
-    'auto-submitted': 'Your latest completed response was submitted when your teacher closed the DOL.',
+    'auto-submitted': 'Your latest completed response was submitted when your teacher closed the exit ticket.',
     'explicitly-submitted': 'Your submitted work has been saved.',
-    'incomplete-at-close': 'No completed response was available to submit when your teacher closed the DOL.',
+    'incomplete-at-close': 'No completed response was available to submit when your teacher closed the exit ticket.',
   },
   timer: {
     'auto-submitted': 'Time is up. Your latest completed response was submitted automatically.',
@@ -68,8 +68,8 @@ const RECEIPT_TEXT = {
 };
 
 const LOCK_TEXT = {
-  teacher: 'Your teacher closed this DOL. Your saved response is available for review, but no new submission is allowed.',
-  timer: 'Time is up for this DOL. Your saved response is available for review, but no new submission is allowed.',
+  teacher: 'Your teacher closed this exit ticket. Your saved response is available for review, but no new submission is allowed.',
+  timer: 'Time is up for this exit ticket. Your saved response is available for review, but no new submission is allowed.',
 };
 
 const PENDING_RECEIPT = 'Checking whether your latest completed response was recorded.';

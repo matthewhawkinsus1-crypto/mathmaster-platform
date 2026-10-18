@@ -181,7 +181,7 @@ const openRunner = async (page) => {
   await openStudentGrades(page);
   const row = gradeRow(page, RECOVERY_CROSS_DEVICE_ASSIGNMENT_TITLE);
   await row.waitFor({ timeout: 30000 });
-  await row.getByRole('button', { name: 'View Results' }).click();
+  await row.getByRole('button', { name: 'See results' }).click();
   const card = page.locator('[data-section-recovery-panel] [data-recovery-section="dol"]');
   await card.waitFor({ timeout: 30000 });
   await card.getByRole('button', { name: 'Continue DOL Recovery' }).click();

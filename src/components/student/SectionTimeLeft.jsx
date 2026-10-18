@@ -25,7 +25,7 @@ const toMillis = (value) => {
  * hides the ticking numbers, not the warnings: a warning is said once, and
  * missing it loses work.
  */
-export default function SectionTimeLeft({ label, endsAt, hideCountdown = false, className = '', compact = false }) {
+export default function SectionTimeLeft({ label, labelInSentence = label, endsAt, hideCountdown = false, className = '', compact = false }) {
   const endMs = toMillis(endsAt);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [alert, setAlert] = useState(null);
@@ -68,7 +68,7 @@ export default function SectionTimeLeft({ label, endsAt, hideCountdown = false, 
       {!compact && <span style={SR_ONLY_STYLE}>{`${label} is open${hideCountdown ? '' : `, ${time} left`}.`}</span>}
       {urgent && !compact && <span className="mathmaster-section-time-left-line">{UNFINISHED_WORK_LINE.section}</span>}
       <span role="alert" style={SR_ONLY_STYLE}>
-        {shownAlert ? `${shownAlert.words} on the ${label}. ${UNFINISHED_WORK_LINE.section}` : ''}
+        {shownAlert ? `${shownAlert.words} on the ${labelInSentence}. ${UNFINISHED_WORK_LINE.section}` : ''}
       </span>
     </span>
   );

@@ -93,3 +93,11 @@ export const triesLeftText = ({ maximumAttempts = 1, remainingAttempts = 0 } = {
   if (left === 1) return `Last try · 1 of ${maximum} left`;
   return `${left} of ${maximum} tries left`;
 };
+
+/*
+ * A miss, then the same answer typed back (HELP-24). The box said "You may
+ * submit the same response again. No answer change is required." — true of
+ * the button, and an invitation to spend a try on an answer already marked
+ * wrong. It says what Submit costs instead (D9: Submit always costs a try).
+ */
+export const SAME_ANSWER_AGAIN = 'This is the same answer as your last try. Submitting it again uses another try.';

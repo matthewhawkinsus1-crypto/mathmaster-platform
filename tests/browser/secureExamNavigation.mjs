@@ -220,6 +220,45 @@ const openPage = async (context, scenario, device, query = '') => {
   return { page, errors };
 };
 
+/* ------------------- no tries counted on a secure tool item ------------------ */
+
+// RUN-21 / H-11: a secure test's tool item said "1 of 1 try left" over a
+// "Save answer" that costs nothing. On a Digital SAT, an ACT and a course
+// test the same tool item names no tries before or after Save answer: the
+// action says "Save answer", the container says the answer is saved, and the
+// answer can change until the test is submitted.
+const TRIES_WORDS = /\btr(?:y|ies)\s+left|\bone try\b|only try|last try|\btries\b|\battempts?\b/i;
+const toolTriesJourney = async (context, device) => {
+  for (const exam of ['digitalSAT', 'act', 'courseTest']) {
+    // eslint-disable-next-line no-await-in-loop
+    const { page, errors } = await openPage(context, 'toolTries', device, `&exam=${exam}`);
+    const label = (name) => `${device.id} toolTries ${exam} ${name}`;
+    /* eslint-disable no-await-in-loop */
+    await page.waitForSelector('[data-secure-start-rules]');
+    await page.getByRole('button', { name: /^Start/ }).first().click();
+    await page.getByText('Write it in notation').waitFor({ timeout: 20000 });
+    const runtime = page.locator('[data-rich-question-runtime]').first();
+    let text = await runtime.innerText();
+    check(!TRIES_WORDS.test(text), label('the tool item counts no tries before Save answer'), (text.match(TRIES_WORDS) || [''])[0]);
+    check(await page.locator('.mathmaster-question-attempt-strip').count() === 0, label('no tries strip over the item'));
+    const notation = page.locator('math-field').first();
+    await notation.click();
+    await page.keyboard.type('[-3,5)');
+    const save = runtime.locator('button', { hasText: 'Save answer' }).first();
+    check(await save.count() === 1 && !/Submit/.test(await save.innerText()), label('the final action is "Save answer", not a Submit that costs a try'));
+    if (await save.isEnabled()) await save.click();
+    await page.waitForSelector('[data-secure-save-state="saved"]', { timeout: 8000 });
+    await wait(400);
+    text = await runtime.innerText();
+    check(!TRIES_WORDS.test(text), label('the tool item counts no tries after Save answer'), (text.match(TRIES_WORDS) || [''])[0]);
+    check(/Answer saved/.test(await bodyText(page)), label('the container says the answer is saved'));
+    await shot(page, device, `toolTries-${exam}`);
+    check(!errors.length, label('no console errors'), errors.join(' | '));
+    await page.close();
+    /* eslint-enable no-await-in-loop */
+  }
+};
+
 /* ------------------------- supports on a tool item ------------------------- */
 
 // A student whose plan grants a glossary on a test keeps it on a Rich Tool
@@ -899,7 +938,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, toolTriesJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {

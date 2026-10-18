@@ -27,13 +27,17 @@
  * "workable" in the workspace; the Recovery lives on the result page.
  */
 
+import { STUDENT_SECTION_LABEL } from './studentWords.js';
+
 export const SECTION_ORDER = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
 
+// The student's names for the sections (studentWords.js, D9): the exit
+// ticket is "Exit ticket" here, and a screen spells out "(DOL)" once.
 export const SECTION_LABEL = Object.freeze({
-  warmup: 'Warm-Up',
-  classwork: 'Classwork',
-  practice: 'Practice',
-  dol: 'DOL',
+  warmup: STUDENT_SECTION_LABEL.warmup,
+  classwork: STUDENT_SECTION_LABEL.classwork,
+  practice: STUDENT_SECTION_LABEL.practice,
+  dol: STUDENT_SECTION_LABEL.dol,
   review: 'Review',
   quiz: 'Quiz',
   test: 'Test',
@@ -267,7 +271,22 @@ export const describeLessonSections = ({
 };
 
 /**
- * "DOL opens at 2:15 PM" / "Classwork — your teacher opens it in class".
+ * NAV-26: the lesson is done except its exit ticket, which has not opened yet
+ * (later today, on its class day, or when the teacher starts it). Home said
+ * "Not open yet" about a lesson that was mostly finished; this is what lets it
+ * say what is waiting instead. A closed exit ticket is not waiting.
+ */
+export const onlyExitTicketWaits = (sections = []) => {
+  const list = Array.isArray(sections) ? sections : [];
+  const unfinished = list.filter((section) => !section.finished);
+  return list.some((section) => section.finished && section.state !== SECTION_STATE.EXCUSED)
+    && unfinished.length > 0
+    && unfinished.every((section) => section.role === 'dol'
+      && (section.state === SECTION_STATE.OPENS_LATER || section.state === SECTION_STATE.LOCKED));
+};
+
+/**
+ * "Exit ticket opens at 2:15 PM" / "Classwork — your teacher opens it in class".
  * Student copy for a section that cannot be worked yet.
  */
 // A class day's date key ("2026-10-21") as a student reads it: "Wed, Oct 21"

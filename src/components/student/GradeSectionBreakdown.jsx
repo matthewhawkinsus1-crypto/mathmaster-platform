@@ -1,5 +1,6 @@
 import React from 'react';
 import { SECTION_GRADE_KEYS } from '../../platform/teacher/gradeEvidence.js';
+import { EXIT_TICKET_SPELLED_OUT } from '../../platform/student/studentWords.js';
 
 // The four lesson-section grades, wrapped so they stack on a phone.
 //
@@ -11,11 +12,13 @@ import { SECTION_GRADE_KEYS } from '../../platform/teacher/gradeEvidence.js';
 // A section with no questions renders nothing: an empty Warm-Up shown as 0%
 // would be a grade the student never had the chance to earn.
 
+// The breakdown is the one place Grades names the exit ticket, so it spells
+// it out (studentWords.js, D9).
 const SECTION_LABEL = {
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'DOL',
+  dol: EXIT_TICKET_SPELLED_OUT,
 };
 
 // `shares` (optional) is the Grade Center entry's sectionShares: each section's

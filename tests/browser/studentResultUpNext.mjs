@@ -148,7 +148,7 @@ for (const viewport of VIEWPORTS) {
     expect(problems, JSON.stringify(upcoming) === JSON.stringify(['Solving Inequalities', 'Slope from Two Points', 'Quadratics Investigation']), `Upcoming order: ${JSON.stringify(upcoming)}`);
     const upcomingText = await textOf(page);
     expect(problems, upcomingText.includes('Practice opens when your teacher starts it in class'), 'locked Practice wait text missing');
-    expect(problems, /DOL opens at/.test(upcomingText), 'DOL wait text missing');
+    expect(problems, /Exit ticket opens at/.test(upcomingText), 'DOL wait text missing');
     const waitingButtons = await page.evaluate(() => [...document.querySelectorAll('article')]
       .filter((article) => /Solving Inequalities|Slope from Two Points/.test(article.innerText))
       .flatMap((article) => [...article.querySelectorAll('button')].map((button) => button.innerText.trim())));
@@ -168,7 +168,7 @@ for (const viewport of VIEWPORTS) {
     expect(problems, recover?.type === 'openResult' && recover.args[0] === 'recovery', `Open Recovery sent ${JSON.stringify(recover)}`);
 
     // Closed tab: try again, never "Practice".
-    expect(problems, await clickButton(page, 'Closed — try again ·') === 'ok', 'could not open the Closed tab');
+    expect(problems, await clickButton(page, 'Practice only ·') === 'ok', 'could not open the Closed tab');
     await page.waitForTimeout(120);
     const closedText = await textOf(page);
     expect(problems, closedText.includes('You can try these again; they no longer change your grade.'), 'Closed hint missing');
@@ -185,7 +185,7 @@ for (const viewport of VIEWPORTS) {
       .filter((article) => article.innerText.includes('Unit 2 Review'))
       .map((article) => ({ text: article.innerText, buttons: [...article.querySelectorAll('button')].map((button) => button.innerText.trim()) }))[0]);
     expect(problems, /excused/i.test(excusedButtons?.text || ''), 'excused row does not say Excused');
-    expect(problems, JSON.stringify(excusedButtons?.buttons) === JSON.stringify(['View Results']), `excused row offers ${JSON.stringify(excusedButtons?.buttons)}`);
+    expect(problems, JSON.stringify(excusedButtons?.buttons) === JSON.stringify(['See results']), `excused row offers ${JSON.stringify(excusedButtons?.buttons)}`);
     problems.push(...await layoutProblems(page));
   });
 
@@ -196,7 +196,7 @@ for (const viewport of VIEWPORTS) {
     }, title);
     // Waiting work (DOL later today, Practice locked): no Start/Continue, and
     // the row says what it is waiting for.
-    for (const [title, wait] of [['Slope from Two Points', /DOL opens at/], ['Solving Inequalities', /Practice opens when your teacher/]]) {
+    for (const [title, wait] of [['Slope from Two Points', /Exit ticket opens at/], ['Solving Inequalities', /Practice opens when your teacher/]]) {
       const row = await rowOf(title);
       expect(problems, row && !row.buttons.some((label) => /^(Start|Continue)$/.test(label)), `${title} offers ${JSON.stringify(row?.buttons)} although nothing is open`);
       expect(problems, row && wait.test(row.text), `${title} does not say what it is waiting for`);
@@ -217,7 +217,7 @@ for (const viewport of VIEWPORTS) {
 
   await scene('resultWaiting', async (problems) => {
     const text = await textOf(page);
-    for (const needle of ['Nothing here is open right now', 'DOL opens at', 'Classwork — done', 'DOL — opens at', 'Up next', 'Systems of Equations']) {
+    for (const needle of ['Nothing here is open right now', 'Exit ticket opens at', 'Classwork — done', 'Exit ticket — opens at', 'Up next', 'Systems of Equations']) {
       expect(problems, text.includes(needle) || text.toLowerCase().includes(needle.toLowerCase()), `missing "${needle}"`);
     }
     // Only the Up next card (another assignment) may offer Continue.

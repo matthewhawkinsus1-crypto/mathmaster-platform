@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
@@ -724,7 +725,7 @@ const exitButton = { minHeight: 44, padding: '11px 20px', border: 0, borderRadiu
  * in words). It is a slot, not game logic: the game's own placement and
  * points beside it are unchanged and never read rewards.
  */
-export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
+export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = BACK_TO_HOME, renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
   // Whether the room on screen came from this device's cache (the server is
   // unreachable), and whether a server copy has arrived since the screen opened.

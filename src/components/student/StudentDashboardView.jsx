@@ -9,7 +9,7 @@ import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
-import { SECTION_STATE, describeSectionWait } from '../../platform/student/lessonSections.js';
+import { SECTION_STATE, describeSectionWait, onlyExitTicketWaits } from '../../platform/student/lessonSections.js';
 import { firstOpenLiveQuestionIndex } from '../../platform/student/liveSectionEntry.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
@@ -27,7 +27,9 @@ import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 import { questionAddressLabel } from '../../app/routes/questionAddress.js';
 import { whatChangedUpdatesLabel } from '../../platform/student/whatChangedModel.js';
-import { studentPeriodLabel } from '../../platform/student/studentWords.js';
+import {
+  CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_WAITS, SEE_RESULTS, firstExitTicketMention, studentPeriodLabel, studentSectionLabel,
+} from '../../platform/student/studentWords.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -196,6 +198,19 @@ export default function StudentDashboardView({
   const secondaryDols = activeDols.filter(({ assignment }) => assignment.id !== carriedAssignmentId);
   const showResumeCard = Boolean(resumeAssignment) && resumeAssignment.id !== carriedAssignmentId;
 
+  // D9: "Exit ticket (DOL)" once on Home, then "Exit ticket". The next-action
+  // card or a live exit-ticket card spells it out when it names one; if
+  // neither does, the first lesson card that lists an exit ticket does.
+  const exitTicketSpelledOutOn = (() => {
+    const ordered = BUCKET_ORDER.flatMap((bucket) => (groups && groups[bucket]) || []);
+    const index = firstExitTicketMention(
+      ordered,
+      (entry) => !entry.testCycle && (entry.lesson?.sections || []).some((section) => section.role === 'dol'),
+      { alreadySpelledOut: Boolean(nextAction?.spellsOutExitTicket) || secondaryDols.length > 0 },
+    );
+    return index >= 0 ? ordered[index].assignment?.id ?? null : null;
+  })();
+
   const resumeGradeText = resumeAssignment && resumeQuestionsAttempted > 0
     ? (resumeFeedbackHeld && !resumeLifecycle?.isClosed ? 'Grade: waiting for your teacher' : `Grade so far: ${resumeRecordedGrade}%`)
     : null;
@@ -238,7 +253,7 @@ export default function StudentDashboardView({
             {isNew && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NEW</span>}
           </div>
           <div style={{ color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>{testCycle.detail}</div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLabel}: {dates.dueText}</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLine}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {testCycle.recordedGrade !== null && (
@@ -272,6 +287,7 @@ export default function StudentDashboardView({
    */
   const renderAssignmentCard = (entry) => {
     if (entry.testCycle) return renderTestCycleCard(entry);
+    const spellsOutExitTicket = Boolean(entry.assignment?.id) && entry.assignment.id === exitTicketSpelledOutOn;
     const {
       assignment, lifecycle, access = {}, recordedGrade, dol = {}, lesson = null,
       feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0, bucket,
@@ -289,13 +305,14 @@ export default function StudentDashboardView({
     const status = excused
       ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Excused' }
       : closed
-        ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Closed' }
+        ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: CLOSED_WORK.label }
         : finished
           ? { border: 'var(--mm-success-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'Finished' }
           : late
             ? { border: '#f9ab00', bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', label: 'Late' }
             : waiting
-              ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Not open yet' }
+              // NAV-26: a lesson done except its exit ticket says what waits.
+              ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: onlyExitTicketWaits(lesson?.sections) ? EXIT_TICKET_WAITS : 'Not open yet' }
               : { border: 'var(--mm-border)', bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', label: 'Open now' };
 
     // What the card is waiting for, in the student's words. Never "Locked"
@@ -332,7 +349,7 @@ export default function StudentDashboardView({
           {sections.length > 0 && (
             <>
               <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
-                {sections.map((section) => section.label).join(' · ')}
+                {sections.map((section) => (section.role === 'dol' ? studentSectionLabel('dol', { spelledOut: spellsOutExitTicket }) : section.label)).join(' · ')}
               </div>
               <ul aria-label="Sections" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {sections.map((section) => {
@@ -344,10 +361,10 @@ export default function StudentDashboardView({
           )}
           <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 6 }}>
             {waitLine && <strong data-wait-line style={{ display: 'block', color: 'var(--mm-text)' }}>{waitLine}</strong>}
-            {!finished && <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>}
-            {finished && !excused && <>{dates.dueLabel}: {dates.dueText}</>}
+            {!finished && <>{dates.dueLine}{dates.finalLine ? ` · ${dates.finalLine}` : ''}</>}
+            {finished && !excused && dates.dueLine}
             {late && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work is still open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}
-            {dolOpensAt && !waitLine && <><br />DOL opens at {dolOpensAt}.</>}
+            {dolOpensAt && !waitLine && <><br />{EXIT_TICKET} opens at {dolOpensAt}.</>}
           </div>
           {questionsTotal > 0 && !finished && (
             <div style={{ marginTop: '10px', maxWidth: '340px' }}>
@@ -385,8 +402,8 @@ export default function StudentDashboardView({
               {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
             </button>
           )}
-          {finished && primaryButton('See results', () => openResult(assignment.id), 'results')}
-          {closed && primaryButton('Try it again — no credit', () => onStartAssignment?.(assignment.id), 'again')}
+          {finished && primaryButton(SEE_RESULTS, () => openResult(assignment.id), 'results')}
+          {closed && primaryButton(CLOSED_WORK.tryAgain, () => onStartAssignment?.(assignment.id), 'again')}
           {isRecovery && primaryButton('Open Recovery', () => openResult(assignment.id), 'recovery')}
           {actionable && !isRecovery && primaryButton(
             questionsAttempted > 0 ? 'Continue' : 'Start',
@@ -528,7 +545,7 @@ export default function StudentDashboardView({
               <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 Continue at {resumeQuestionLabel}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
-                {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}
+                {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : studentDueDateLines(resumeAssignment, resumeLifecycle).dueLine}
               </div>
             </div>
             <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid var(--mm-primary-border)', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>Continue</button>

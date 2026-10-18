@@ -102,7 +102,7 @@ test('the card describes the sitting that is actually ahead, and the dates that 
   assert.doesNotMatch(executableSource(facts), /card\.delivery\.questionCount/);
   // The dates for the stage the student is at (testCycleCardDueFacts, tested below).
   assert.match(card, /const due = testCycleCardDueFacts\(\{ card, dueAt, lateDueAt, classLateDueAt \}\);/);
-  assert.match(facts, /Due \{formatDateTime\(due\.dueAt\)\}\.\{due\.finalLateDueAt \? ` Late work is still open: final late due \$\{formatDateTime\(due\.finalLateDueAt\)\}\.` : ''\}/);
+  assert.match(facts, /Due \{formatDateTime\(due\.dueAt\)\}\.\{due\.finalLateDueAt \? ` Late work is accepted until \$\{formatDateTime\(due\.finalLateDueAt\)\}\.` : ''\}/);
 });
 
 test('the app hands the card THIS student\'s due and final late dates, from the assignment it is showing (PR-19)', () => {

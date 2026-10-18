@@ -114,7 +114,7 @@ const shell = (children) => (
 // extended time is already in `timeLimitMinutes`.
 const EXTENDED_DELIVERY = { timed: true, timeLimitMinutes: 45, baseTimeLimitMinutes: 30, extendedTimeMultiplier: 1.5, calculatorMode: 'none', questionCount: COURSE_ITEMS.length };
 
-const CourseTest = ({ examSessionId, title = 'Unit 4 Test: Linear Equations', delivery = EXTENDED_DELIVERY }) => {
+const CourseTest = ({ examSessionId, title = 'Unit 4 Test: Linear Equations', delivery = EXTENDED_DELIVERY, examType = 'courseTest' }) => {
   const [finished, setFinished] = React.useState(false);
   // Leaving the test and opening it again from the card: a new container.
   const [mountKey, setMountKey] = React.useState(0);
@@ -124,7 +124,7 @@ const CourseTest = ({ examSessionId, title = 'Unit 4 Test: Linear Equations', de
     <SecureExamContainer
       key={mountKey}
       examSessionId={examSessionId}
-      examType="courseTest"
+      examType={examType}
       studentSupportProfile={supportProfile}
       title={title}
       startLabel="Start Test"
@@ -169,6 +169,18 @@ const mount = async () => {
     });
     harness.sessionId = session.examSessionId;
     root.render(shell(<CourseTest examSessionId={session.examSessionId} />));
+  } else if (scenario === 'toolTries') {
+    // RUN-21 / H-11: the same Rich Tool item on a Digital SAT, an ACT and a
+    // course test (?exam=digitalSAT|act|courseTest). Nothing on it may count
+    // tries: an answer is saved and can change until the test is submitted.
+    const examType = ['digitalSAT', 'act', 'courseTest'].includes(params.get('exam')) ? params.get('exam') : 'courseTest';
+    const title = { digitalSAT: 'Digital SAT Math — tool item', act: 'ACT Mathematics — tool item', courseTest: 'Unit 4 Test — tool item' }[examType];
+    const { session } = await createSecureExamSession({
+      studentId: 'harness-student', examType, title, questionCount: 1, timeLimitMinutes: 30,
+      sandboxItems: [intervalTool()], calculatorMode: 'none',
+    });
+    harness.sessionId = session.examSessionId;
+    root.render(shell(<CourseTest examSessionId={session.examSessionId} title={title} examType={examType} delivery={{ timed: true, timeLimitMinutes: 30, calculatorMode: 'none', questionCount: 1 }} />));
   } else if (scenario === 'timeout') {
     // Six seconds: long enough to open the first question, short enough to watch run out.
     const { session } = await createSecureExamSession({

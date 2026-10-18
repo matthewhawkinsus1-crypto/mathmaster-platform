@@ -49,7 +49,7 @@ const check = (ok, label, detail = '') => {
 };
 
 const PROMISE = /will be submitted automatically when time ends/i;
-const CLOSED = /no new submission is allowed|closed this DOL|time is up|timer has ended|time ended/i;
+const CLOSED = /no new submission is allowed|closed this exit ticket|time is up|timer has ended|time ended/i;
 const LEAKS = /DOLCOPY-LEAK|slope is 3\/4/;
 
 const CASES = [
@@ -96,7 +96,7 @@ try {
         check(!PROMISE.test(text), `${label}: a closed DOL never promises a submission "when time ends"`);
         check(/no new submission is allowed/i.test(text), `${label}: the lock says no new submission is allowed`);
         if (kase.teacher) {
-          check(/your teacher closed this DOL/i.test(text), `${label}: says the teacher closed it`);
+          check(/your teacher closed this exit ticket/i.test(text), `${label}: says the teacher closed it`);
           check(!/timer|time is up|time ended/i.test(text), `${label}: never says "timer" or "time is up" for a teacher close`);
         } else {
           check(/time is up/i.test(text), `${label}: says time is up`);

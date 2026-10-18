@@ -292,18 +292,15 @@ test('no teacher note, identity or email ever reaches the output', () => {
 
 /* ---- reopened / extended / excused ------------------------------------- */
 
-test('excused and reopened are untimed state items: listed last, never "new"', () => {
+test('excused is an untimed state item: listed last, never "new"; a bare reopen is not listed (NAV-16)', () => {
   const items = build({
     assignments: [lesson('a1'), lesson('a2'), lesson('a3', { feedbackReleased: true, feedbackReleasedAt: iso(NOW - 5 * DAY) })],
     controlsByAssignmentId: { a1: { excused: true }, a2: { reopened: true } },
   });
-  assert.deepEqual(kinds(items), ['released:a3', 'excused:a1', 'reopened:a2']);
+  assert.deepEqual(kinds(items), ['released:a3', 'excused:a1']);
   assert.equal(items[1].text, 'Lesson a1 is excused');
-  // NAV-14: it says what changed — the lesson is open, and until when.
-  assert.match(items[2].text, /^Lesson a2 is open for you until \w{3}, Oct 2[12],/);
   assert.equal(items[1].at, null);
   assert.equal(items[1].unseen, false);
-  assert.equal(items[2].unseen, false);
 });
 
 test('an excused assignment does not also announce itself as new, extended or another try', () => {
@@ -331,7 +328,7 @@ test('another DOL try is listed with its change time', () => {
     controlsByAssignmentId: { a1: { dolExtraAttempts: 1, dolAttemptGrant: { extraAttempts: 1, changedAt: iso(NOW - HOUR) } } },
   });
   assert.deepEqual(kinds(items), ['moreAttempts:a1']);
-  assert.equal(items[0].text, 'You have another try on the DOL for Lesson a1');
+  assert.equal(items[0].text, 'You have another try on the exit ticket for Lesson a1');
   assert.equal(items[0].at, NOW - HOUR);
 });
 
@@ -504,19 +501,32 @@ test('the kinds are the six decision-6 events plus another DOL try', () => {
 
 /* ---- student pass 3: NAV-14, NAV-6, NAV-7 -------------------------------- */
 
-test('NAV-14: "reopened" is listed only while the student can still work the lesson, and never twice with an extension', () => {
+test('NAV-16: only what really changed is listed — a bare "reopened" never is, and an extension\'s promise is one the lesson keeps', async () => {
+  const { getAssignmentLifecycle } = await import('../../src/assignmentLifecycle.js');
   const closed = lesson('a1', { dueAt: '2026-09-20', lateDueAt: '2026-09-25' });
-  assert.deepEqual(kinds(build({ assignments: [closed], controlsByAssignmentId: { a1: { reopened: true } } })), [],
-    'a reopened flag on closed work opens nothing, so it is not news');
-  const open = build({ assignments: [lesson('a2')], controlsByAssignmentId: { a2: { reopened: true } } });
-  assert.deepEqual(kinds(open), ['reopened:a2']);
-  assert.doesNotMatch(open[0].text, /was reopened/);
-  // With an extension, the extension's own line says it.
-  const both = build({
-    assignments: [closed],
-    controlsByAssignmentId: { a1: { reopened: true, lateDueAt: '2026-10-30T17:00:00Z', extension: { grantedAt: NOW - HOUR } } },
-  });
+  // Closed work: the flag opens nothing (studentAssignmentOverrides.mjs), so
+  // nothing may say it did.
+  const onClosed = build({ assignments: [closed], controlsByAssignmentId: { a1: { reopened: true } } });
+  assert.deepEqual(kinds(onClosed), [], 'a reopened flag on closed work opens nothing, so it is not news');
+  // Open work: the flag moves no date, so "open for you until <the class's
+  // date>" was true of the whole class — nothing changed for this student.
+  const onOpen = build({ assignments: [lesson('a2')], controlsByAssignmentId: { a2: { reopened: true } } });
+  assert.deepEqual(kinds(onOpen), []);
+  [...onClosed, ...onOpen].forEach((item) => assert.doesNotMatch(item.text, /reopen|open for you/i));
+
+  // A real extension on closed work: listed, in the student's words, with the
+  // date the lifecycle actually applies to this student.
+  const control = { reopened: true, lateDueAt: '2026-10-30T17:00:00Z', extension: { grantedAt: NOW - HOUR } };
+  const both = build({ assignments: [closed], controlsByAssignmentId: { a1: control } });
   assert.deepEqual(kinds(both), ['extended:a1']);
+  assert.match(both[0].text, /^You have more time on Lesson a1 — now due \w{3}, Oct 30,/);
+  // ...and the lesson honours it: for this student it is open again (late
+  // work, still counting) while the class's copy stays closed.
+  const forStudent = { ...closed, studentOverrides: { 'stu-1': control } };
+  const own = getAssignmentLifecycle(forStudent, NOW, { studentId: 'stu-1' });
+  assert.equal(own.isPracticeOnly, false, 'the extension the line names really reopens the lesson for this student');
+  assert.equal(own.creditEligible, true);
+  assert.equal(getAssignmentLifecycle(closed, NOW, { studentId: 'stu-1' }).isPracticeOnly, true, 'without it the lesson is closed');
 });
 
 test('NAV-6: Home counts what is new as "N updates"', () => {

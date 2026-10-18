@@ -7,7 +7,7 @@ import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoun
 import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
 import { PRACTICE_SKILL_LABEL, RESULT_STEP, describeResultNextStep, resultTryAgainLabel } from '../../platform/student/studentResultNextStep.js';
 import { OPEN_NOTICE, describeOpenNotice } from '../../platform/student/studentOpenGate.js';
-import { formatDateTime } from '../../assignmentLifecycle';
+import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
 
 /*
  * ONE ASSIGNMENT'S RESULT — AND WHAT TO DO NEXT.
@@ -175,7 +175,7 @@ export default function StudentAssignmentResult({
     ? `Assignment closed ${formatDateTime(entry.lateDueAt)}`
     : entry.lifecycle?.isLate
       ? `Late work open until ${formatDateTime(entry.lateDueAt)}`
-      : `Due ${formatDateTime(entry.dueAt)}`;
+      : studentDueText(entry.dueAt);
 
   return (
     <main
