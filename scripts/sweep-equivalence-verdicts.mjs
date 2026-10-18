@@ -235,6 +235,38 @@ for (const [denominator, power] of [['2', 'pi'], ['3', 'x'], ['5', '2'], ['4', '
     wrong: [`\\left(\\frac{2}{${Number(denominator) + 1}}\\right)^{${latexPower}}`, `(2/${Number(denominator) + 1})^${power}`],
   }]);
 }
+// The review of wave 6 (B1, B2, S2, S3, N3):
+//   a negative power in a denominator is the same number however it is read;
+//   a pair with no root keeps its old reading (no mixed numbers, no
+//   unsimplified arithmetic, no root against a plain number);
+//   a pair key that is not two constants matches its own text;
+//   (1/2)^x^2 is not (1/2^x)^2;
+//   an ASCII B^-E/N is read as drawn, B^(-E/N): a lowered verdict against a
+//   braced key, kept until the owner decides the B^(E)/N reading.
+for (const [numerator, base, power] of [['3', 'x', '2'], ['1', 'x', '2'], ['3', '2', 'x'], ['5', 'y', '3']]) {
+  gapKeys.push([`${numerator}/${base}^{-${power}}`, 'expression', {
+    right: [`${numerator}/${base}^-${power}`, `\\frac{${numerator}}{${base}^{-${power}}}`],
+    wrong: [`\\frac{${numerator}}{${base}^{${power}}}`, `\\frac{${numerator}}{${base}}^{-${power}}`, `${numerator}/${base}^-${power}1`],
+  }]);
+}
+gapKeys.push(['3/x^{-2}y', 'expression', { right: ['3/x^-2y'], wrong: ['3/x^-2'] }]);
+for (const [key, wrongPairs, rightPairs] of [
+  ['(\\frac{1}{2},4)', ['(1\\frac{1}{2},4)'], ['(0.5,4)', '(1/2,4)']],
+  ['(\\frac{3}{2},1)', ['(3\\frac{1}{2},1)'], ['(1.5,1)']],
+  ['(-1,4)', ['(-2\\frac{1}{2},4)'], []],
+  ['(1,4)', ['(2 1/2,4)'], []],
+  ['(3,4)', ['(1+2,4)'], []],
+  ['(2,3)', ['(6/2,8-4)', '(-(-2),3)'], []],
+  ['(8,1)', ['(2^3,1)'], []],
+  ['(2,1)', ['(\\sqrt{4},1)'], []],
+  ['(\\pi,\\sqrt{2})', ['(\\pi,\\sqrt{3})'], ['(π,\\sqrt{2})']],
+  ['(x+\\sqrt{2},1)', ['(x+\\sqrt{3},1)'], ['(x+\\sqrt{2},1)', '(x+sqrt(2),1)']],
+  ['(1,root(3)(2))', ['(1,\\sqrt[3]{3})', '(1,\\sqrt{2})'], ['(1,\\sqrt[3]{2})']],
+]) gapKeys.push([key, 'orderedPair', { right: rightPairs, wrong: wrongPairs }]);
+gapKeys.push(['(1/2)^x^2', 'expression', { right: [], wrong: ['\\frac{1}{2^x}^2'] }]);
+for (const [key, drawn] of [['10^{-3}/2', '10^-3/2'], ['2x^{-1}/5', '2x^-1/5'], ['y=2^{-x}/3', 'y=2^-x/3'], ['P=100(2)^{-t}/5', 'P=100(2)^-t/5'], ['x^{-a}/b', 'x^-a/b']]) {
+  gapKeys.push([key, key.includes('=') ? 'equation' : 'expression', { right: [], wrong: [drawn] }]);
+}
 // mm_A2_3C_v2_quadratic-formula-exact: x = (-P ± sqrt(D))/2 with D = 4t, so
 // x = h ± sqrt(t) and y = Mx + B = (Mh + B) ± M sqrt(t).
 const signed = (value) => (value < 0 ? `-${-value}` : `+${value}`);
@@ -274,7 +306,9 @@ for (const p of [-4, -2, 0, 2, 4]) {
 const gapChecks = new Map();
 gapKeys.forEach(([key, inputProfile, checks]) => {
   addField('synthetic: wave-6 grader gaps', { expected: key, inputProfile });
-  gapChecks.set(key, checks);
+  // A key listed twice (N2's `10^{-3}/2` and S2's) keeps both lists.
+  const known = gapChecks.get(key);
+  gapChecks.set(key, known ? { right: [...known.right, ...checks.right], wrong: [...known.wrong, ...checks.wrong] } : checks);
 });
 
 // --- spellings and near misses -------------------------------------------------

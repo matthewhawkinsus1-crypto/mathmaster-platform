@@ -24,9 +24,9 @@ const tokenize = (text) => {
   const tokens = [];
   for (let index = 0; index < text.length;) {
     const rest = text.slice(index);
+    // A decimal point is not a token, so `1.5` (and every decimal) is refused.
     const number = /^\d+/.exec(rest);
     if (number) {
-      if (rest[number[0].length] === '.') return null;
       tokens.push({ kind: 'number', value: Number(number[0]) });
       index += number[0].length;
       continue;
@@ -104,8 +104,10 @@ const parse = (tokens) => {
 
   // A factor may follow another without a sign (`2\sqrt{2}`, `2(1+\sqrt{3})`),
   // but a number never follows a number: `2 3` is not a product.
-  const startsFactor = (previous) => ['(', '{', 'sqrt', 'frac'].includes(peek())
-    || (peek() === 'number' && previous !== 'number');
+  // A `\frac` right after a number is a mixed number to a student
+  // (`1\frac{1}{2}` is 1½), never a product, so it is not read at all.
+  const startsFactor = (previous) => ['(', '{', 'sqrt'].includes(peek())
+    || ((peek() === 'number' || peek() === 'frac') && previous !== 'number');
 
   const term = () => {
     let value = unary();

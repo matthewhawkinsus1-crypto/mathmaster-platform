@@ -64,6 +64,31 @@ test('N2: a braced negative exponent stays one group, so the slash after it divi
   await right('x^{-1}', 'x^-1');
 });
 
+test('N2 beside a denominator: an ASCII negative power after a slash is still the same answer', async () => {
+  // The slash comes before the power, so every reading is one number (review
+  // B1): these were right on the base and must stay right.
+  await right('3/x^-2', '3/x^{-2}');
+  await right('1/x^-2', '1/x^{-2}');
+  await right('3/2^-x', '3/2^{-x}');
+  await right('\\frac{3}{x^{-2}}', '3/x^{-2}');
+  await right('\\frac{3}{x^{-2}}', '3/x^-2');
+  await wrong('\\frac{3}{x^{2}}', '3/x^-2');
+  await wrong('\\frac{3}{x}^{-2}', '3/x^-2');
+  await wrong('3/x^-3', '3/x^{-2}');
+  // Braced only when a slash follows: `3/x^{-2}y` meets the typed `3/x^-2y`
+  // (the denominator read does not take a power with a letter after it).
+  await right('3/x^-2y', '3/x^{-2}y');
+});
+
+test('an ASCII B^-E/N is read as it is drawn, B^(-E/N): a lowered verdict, for the owner', async () => {
+  // The renderer draws `10^-3/2` as 10^{-3/2}. The base took it for the braced
+  // key 10^{-3}/2; it is graded as drawn now (review S2, owner decision 1).
+  for (const [response, key] of [['10^-3/2', '10^{-3}/2'], ['2x^-1/5', '2x^{-1}/5'], ['y=2^-x/3', 'y=2^{-x}/3'], ['x^-a/b', 'x^{-a}/b']]) {
+    await wrong(response, key);
+  }
+  assert.equal(stackDivisions('10^-3/2'), '10^-\\frac{3}{2}');
+});
+
 test('N2 beside the ASCII B^(E)/N rule: e^(-x)/2 is still read as the renderer draws it', async () => {
   // stackDivisions (no options) draws an ASCII `e^(-x)/2` as e^{\frac{-x}{2}}
   // and W5-6 grades it as drawn; which reading an author means is the owner's
@@ -78,6 +103,8 @@ test('an ASCII nth root is the editor\'s \\sqrt[n]{…}, and only the same root'
   await wrong('x^{\\sqrt{2}}', 'x^(root(3)(2))');
   await wrong('x^{\\sqrt[3]{3}}', 'x^(root(3)(2))');
   await wrong('x^{\\sqrt[4]{2}}', 'x^(root(3)(2))');
+  // root(2)(m) is the square root.
+  assert.equal(normalizeAnswer('root(2)(3)'), normalizeAnswer('\\sqrt{3}'));
 });
 
 test('a subscripted name over a number is one numerator, and x^{2}_{1} is x_1^2', async () => {
@@ -89,6 +116,8 @@ test('a subscripted name over a number is one numerator, and x^{2}_{1} is x_1^2'
   await right('\\frac{x^{2}_{1}}{3}', 'x_1^2/3');
   await wrong('x_1^{\\frac{2}{3}}', 'x_1^2/3');
   await wrong('x^{2_{1}}/3', 'x_1^2/3');
+  // Only a number power is moved: a letter power keeps whatever it meant.
+  await wrong('x^{n}_{1}', 'x_1^n');
   // Grading only: the renderer leaves these slashes alone, as before.
   assert.equal(stackDivisions('x_2^3/4'), 'x_2^3/4');
   assert.equal(stackDivisions('x_2^3/4', { skipAsciiCalls: false, constantOperands: true }), '\\frac{x_2^3}{4}');
@@ -108,12 +137,19 @@ test('a power of a unit fraction is one over the power; any other fraction keeps
   // (2/3)^π is 2^π/3^π, not 2/3^π; (1/x)^2 is left alone.
   await wrong('\\left(\\frac{2}{3}\\right)^{\\pi}', '2/3^pi');
   assert.equal(normalizeAnswer('(1/x)^2'), '(\\frac{1}{x})^2');
+  // Not over zero, and not a power that is itself raised: (1/2)^x^2 is
+  // 1/2^(x^2), never (1/2^x)^2.
+  assert.equal(normalizeAnswer('(1/0)^2'), '(\\frac{1}{0})^2');
+  await wrong('(1/2)^x^2', '\\frac{1}{2^x}^2');
 });
 
 test('exactConstantValue reads exact constants only', () => {
   assert.equal(exactConstantValue(normalizeAnswer('(-(-2)-sqrt(8))/2')).value, 1 - Math.SQRT2);
   assert.deepEqual(exactConstantValue(normalizeAnswer('5-2\\sqrt{2}')), { value: 5 - 2 * Math.SQRT2, radical: true });
   assert.deepEqual(exactConstantValue(normalizeAnswer('2*(3)+1')), { value: 7, radical: false });
+  // A \\frac after a number is a mixed number to a student, not a product.
+  assert.equal(exactConstantValue(normalizeAnswer('1\\frac{1}{2}')), null);
+  assert.equal(exactConstantValue('1.5'), null);
   for (const refused of ['-0.414', 'x+1', '\\pi', '\\sqrt{-1}', '\\frac{1}{0}', '\\sqrt[3]{2}', '2^{x}', '2^{100}']) {
     assert.equal(exactConstantValue(normalizeAnswer(refused)), null, refused);
   }
@@ -136,6 +172,29 @@ test('quadratic-formula-exact: the simplified exact pair is right, and only the 
   // A pair of plain numbers is compared as before.
   assert.equal(sameNumericPair('(0.5,3)', '(1/2,3)'), true);
   assert.equal(sameNumericPair('(0.5,4)', '(1/2,3)'), false);
+});
+
+test('a pair with no root keeps its old reading: no mixed numbers, no unsimplified arithmetic', async () => {
+  // Review B2: these were wrong on the base and the exact reader let them
+  // through. The exact value is read only when both sides have a root.
+  for (const [sent, key] of [['(1\\frac{1}{2},4)', '(\\frac{1}{2},4)'], ['(3\\frac{1}{2},1)', '(\\frac{3}{2},1)'], ['(-2\\frac{1}{2},4)', '(-1,4)'],
+    ['(2 1/2,4)', '(1,4)'], ['(1+2,4)', '(3,4)'], ['(6/2,8-4)', '(2,3)'], ['(-(-2),3)', '(2,3)'], ['(2^3,1)', '(8,1)'],
+    // A root against a plain number is not read either (review S4).
+    ['(\\sqrt{4},1)', '(2,1)']]) {
+    await wrong(sent, key, 'orderedPair');
+  }
+  await wrong('(1+2,4)', '(3,4)');
+});
+
+test('a pair key that is not two constants matches its own text on every grader', async () => {
+  // Review S3: the assignment matcher refused identical text here.
+  await right('(π,\\sqrt{2})', '(\\pi,\\sqrt{2})', 'orderedPair');
+  await right('(x+\\sqrt{2},1)', '(x+\\sqrt{2},1)', 'orderedPair');
+  await right('(1,\\sqrt[3]{2})', '(1,root(3)(2))', 'orderedPair');
+  await wrong('(1,\\sqrt[3]{3})', '(1,root(3)(2))', 'orderedPair');
+  // A key not written as a pair is still not one the pair box takes (as
+  // before; kSteps_linesAndSlope relies on it to withhold that explanation).
+  assert.equal(matchesFieldAnswer('none', { answer: 'none', answerFormat: 'orderedPair' }), false);
 });
 
 test('quadratic-formula-exact, drawn from the real Algebra II seed and graded by the secure grader', async () => {
@@ -162,4 +221,39 @@ test('quadratic-formula-exact, drawn from the real Algebra II seed and graded by
       assert.equal((await secureItems.gradeItem(grading, response(`(${other},${y})`))).isCorrect, false, `${draw} ${id}: the other root`);
     }
   }
+});
+
+test('quadratic-formula-exact: natural answers in all four fields are right on every draw, wrong ones are not', async () => {
+  // Review S1: with p = 0 the reduced equation was keyed `x^2+ 0x- 5=0`, and
+  // `x^2-5=0` was refused. The key now uses the zero-aware `xterm` filter.
+  const seed = JSON.parse(readFileSync(new URL('../../functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json', import.meta.url), 'utf8'));
+  const documents = Array.isArray(seed) ? seed : (seed.documents || seed.items || seed.questions);
+  const document = compilePathRecordForStorage({ ...documents.find((entry) => entry.id === 'mm_A2_3C_v2_quadratic-formula-exact'), active: true }).document;
+  const radical = (constant, coefficient, t) => {
+    const magnitude = Math.abs(coefficient) === 1 ? `\\sqrt{${t}}` : `${Math.abs(coefficient)}\\sqrt{${t}}`;
+    return constant === 0 ? `${coefficient < 0 ? '-' : ''}${magnitude}` : `${constant}${coefficient < 0 ? '-' : '+'}${magnitude}`;
+  };
+  const signedTerm = (value, suffix = '') => (value === 0 ? '' : `${value < 0 ? '-' : '+'}${Math.abs(value)}${suffix}`);
+  const seenP = new Set();
+  for (let draw = 0; draw < 60; draw += 1) {
+    const question = generatePathInstanceWithRetries(document, `natural-${draw}`, 4).question;
+    const [, m, b] = /\$y=(-?\d+)x([+-]\s*\d+)\$/.exec(question.prompt).map((part) => part?.replace(/\s+/g, '')).map(Number);
+    const [, p, d] = /\(-\((-?\d+)\)[-+]sqrt\((\d+)\)\)\/2/.exec(question.responseFields.find((field) => field.id === 'minus').expected).map(Number);
+    seenP.add(p);
+    const h = -p / 2;
+    const t = d / 4;
+    const right = {
+      reduced: `x^2${signedTerm(p, 'x')}${signedTerm((p * p - d) / 4)}=0`,
+      disc: String(d),
+      minus: `(${radical(h, -1, t)},${radical(m * h + b, -m, t)})`,
+      plus: `(${radical(h, 1, t)},${radical(m * h + b, m, t)})`,
+    };
+    const grading = mathPath.privateGradingDefinition(question);
+    for (const grade of [(responses) => mathPath.gradeResponse(grading, { responses }), (responses) => secureItems.gradeItem(grading, { responses })]) {
+      assert.equal((await grade(right)).isCorrect, true, `draw ${draw}: ${JSON.stringify(right)}`);
+      assert.equal((await grade({ ...right, plus: right.minus })).isCorrect, false, `draw ${draw}: the minus pair twice`);
+      assert.equal((await grade({ ...right, reduced: `x^2${signedTerm(p + 2, 'x')}${signedTerm((p * p - d) / 4)}=0` })).isCorrect, false, `draw ${draw}: another reduced equation`);
+    }
+  }
+  assert.ok(seenP.has(0), 'the draws include p = 0, the case the old key refused');
 });

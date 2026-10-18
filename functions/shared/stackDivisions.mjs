@@ -297,6 +297,13 @@ const operandAfter = (text, start, options = {}) => {
       const close = matchForwards(text, end + 1);
       return close < 0 ? null : { end: close + 1, text: text.slice(index, close + 1) };
     }
+    // …and so is a negated number or letter (`3/x^-2`, `3/2^-x`): the slash
+    // comes before the power, so every reading is the same number (student
+    // pass 3). Anything longer after the minus is left as written.
+    if (options.constantOperands && text[end + 1] === '-') {
+      const negated = /^-(?:\d+|[A-Za-z])(?![\w.^_{(\\])/.exec(text.slice(end + 1));
+      if (negated) return { end: end + 1 + negated[0].length, text: text.slice(index, end + 1 + negated[0].length) };
+    }
     const exponent = operandAfter(text, end + 1, options);
     if (!exponent) return null;
     return { end: exponent.end, text: text.slice(index, exponent.end) };

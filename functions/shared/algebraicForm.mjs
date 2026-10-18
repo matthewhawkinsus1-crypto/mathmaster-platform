@@ -165,8 +165,10 @@ export const expandLatexShorthand = (value, { keepNegativeExponentGroups = false
   // A negative exponent is two tokens. Unbraced, `10^{-3}/2` reads as
   // `10^-3/2`, where the `/` binds into the exponent: the grader then took
   // `10^-\frac{3}{2}` for the key (student pass 3, N2). The answer
-  // normaliser keeps it braced (one group) until its divisions are stacked.
-  .replace(keepNegativeExponentGroups ? /(_)\{(-?[A-Za-z0-9])\}|(\^)\{([A-Za-z0-9])\}/g : /([\^_])\{(-?[A-Za-z0-9])\}()()/g,
+  // normaliser keeps it braced (one group) when a `/` follows, until its
+  // divisions are stacked. Anywhere else it is unbraced as before, so a
+  // denominator's `3/x^{-2}` still meets the typed `3/x^-2`.
+  .replace(keepNegativeExponentGroups ? /(_)\{(-?[A-Za-z0-9])\}|(\^)\{(-?[A-Za-z0-9])\}(?!\s*\/)/g : /([\^_])\{(-?[A-Za-z0-9])\}()()/g,
     (match, mark, token, power, powerToken) => (power ? `^${powerToken}` : `${mark}${token}`));
 
 /**

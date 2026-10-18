@@ -89,16 +89,18 @@ would need a new family version, three seed copies and a bank release, and would
 
 - New `functions/shared/exactConstantValue.mjs` reads an exact constant:
   - it reads integers, `+ − × ÷`, brackets, integer powers up to 12, `\frac` and square roots;
-  - it refuses a decimal point, a letter, π, an nth root, a negative radicand and a zero denominator.
-- `sameNumericPair` falls back to it when a coordinate is not a plain number. When either side has a root:
-  - both sides must have one, and neither may be a decimal;
+  - it refuses a decimal point, a letter, π, an nth root, a negative radicand, a zero denominator, and a `\frac`
+    right after a number (`1\frac{1}{2}` is a mixed number to a student, never a product).
+- `sameNumericPair` falls back to it only when a coordinate is not a plain number **and each side has a coordinate
+  with a root**. A pair of plain numbers keeps its old reading, so `(1+2,4)` is still not `(3,4)` (review B2). Then:
+  - a coordinate with a root must meet one with a root (never a decimal);
   - the values must agree to 1e-9 relative.
   So the other root, swapped coordinates, decimals (short or long), a long fraction, and `1-\sqrt{2}+\frac{1}{10000}`
-  all stay wrong.
-- A coordinate with no root takes its exact value with the field's tolerance, as before. So an unsimplified rational
-  key such as `2*(3)+1` accepts `7`.
+  all stay wrong. `(\sqrt{4},1)` against `(2,1)` stays wrong too, as on the base (review S4).
 - `matchesFieldAnswer`'s `answerFormat: 'orderedPair'` branch returned false for any key it could not read as two
-  plain numbers. It now falls back to `sameNumericPair`, so every grader gives the same verdict.
+  plain numbers. It now falls back to `sameNumericPair`, and, for a key written as a pair that is not two constants
+  (`(\pi,\sqrt{2})`, `(x+\sqrt{2},1)`), to the same text (review S3). A key not written as a pair (`none`) is still
+  refused there, as before.
 
 **Decimals stay wrong.** The prompt asks for exact pairs. A decimal for an irrational coordinate is refused, even one
 written to eleven places. If the owner wants decimals accepted, that is a separate decision (below).
@@ -115,7 +117,8 @@ key and spellings close to it):
 
 | Family | Key (drawn) | Natural right answer refused | When |
 | --- | --- | --- | --- |
-| `mm_A2_3C_v2_quadratic-formula-exact` (Algebra II) | `((-(-2)-sqrt(8))/2,…)` | `(1-\sqrt{2},5-2\sqrt{2})` | every draw — **fixed here** |
+| `mm_A2_3C_v2_quadratic-formula-exact` (Algebra II) | `((-(-2)-sqrt(8))/2,…)` | `(1-\sqrt{2},5-2\sqrt{2})` | every draw — **fixed here** (grader) |
+| `mm_A2_3C_v2_quadratic-formula-exact`, the `reduced` field | `x^2+ 0x- 5=0` | `x^2-5=0` | draws with p = 0, about a fifth — **fixed here** (content, review S1) |
 | `mm_A2_7G_v2_square-root-variable-power` (Algebra II, expression) | `6*x^1*sqrt(x)` | `6x\sqrt{x}` | draws with power 1 (`6x^3\sqrt{x}` for `6*x^3*sqrt(x)` passes) |
 | `mm_A2_7G_v2_cube-root-variable-power` (Algebra II, expression) | `4*x^1*\sqrt[3]{x^1}` | `4x\sqrt[3]{x}` | draws with power 1 |
 | `mm_A2_3A_v2_graph-linear-quadratic-system` (Algebra II, equation) | `y=(x-(0))^2- 2` | `y=x^2-2` | draws with h = 0 |
@@ -217,7 +220,7 @@ same checks run on the base too (`…OnBase`), for the record. The shapes:
 | `root()` | 9 refused |
 | subscripted names | 27 refused |
 | unit-fraction powers | 40 refused |
-| the decimal guard on a root coordinate | 810 wrong accepted |
+| the root-against-root guard on a coordinate | 810 wrong accepted |
 | the exact pair | 3,240 refused |
 
 ## Proof beyond the sweep
@@ -241,7 +244,7 @@ same checks run on the base too (`…OnBase`), for the record. The shapes:
   - a command letter taken as a name;
   - unit-fraction powers;
   - a non-unit fraction power;
-  - the decimal guard;
+  - the root-against-root guard;
   - a loose root tolerance;
   - the assignment `orderedPair` fallback;
   - the exact pair.
@@ -262,7 +265,7 @@ same checks run on the base too (`…OnBase`), for the record. The shapes:
 - **Nothing tells the student the answer before release.** No student-facing code, hint or result changed.
   `secureAccessParity` checks for evaluated values and verdicts on the page, and it passes (26 of 26).
 
-## Gate (on `claude/pass3-grader-gaps`)
+## Gate (first round, on `096311e8`; the re-gate after the review is in the last section)
 
 | Check | Result |
 | --- | --- |
@@ -297,15 +300,26 @@ those listed.
   codebase in 27 paced groups. Prefer that to hand-picking names: answerEquivalence is loaded too widely.
 - **`functions:path-admin`.** It vendors `functions/shared` (gitignored, written at predeploy).
 - **Hosting**, through `npm run deploy:hosting`. The browser grades Check and practice with the same modules.
-- No rules, no indexes, no bank or seed change.
+- **The course Path release** (review S1 changed one family's content): the release is now
+  **`course-path-v2-fdcfdcd711e6401f`** (was `course-path-v2-11197c7a838bb8a3`). It reaches students only after a root
+  admin publishes it (Administration → My Math Path content coverage, `publishCoursePathReleaseV2`), after Hosting.
+- No rules, no indexes.
 
-**Order.** Functions before Hosting, as the plan does. Hosting must not carry a grader the server does not have.
+**Order.** Default-codebase functions, then `functions:path-admin`, then Hosting, then the admin publish of the new
+release id. Hosting must not carry a grader the server does not have, and Publish is disabled until Hosting names the
+same release.
+
+**Release note: one lowered verdict.** An ASCII `B^-E/N` answer against a braced key, for example `10^-3/2` for
+`10^{-3}/2` (also `2x^-1/5`, `y=2^-x/3`, `P=100(2)^-t/5`, `x^-a/b`), was right on the base and is wrong now. The
+renderer draws `10^-3/2` as 10^(−3/2), and the grader now reads it as drawn (decision 1). No key in the repository has
+the shape.
 
 ## Decisions for the owner
 
 1. **Item 4, the ASCII `B^(E)/N` reading:** the renderer follows standard precedence, or the grader keeps following the
    renderer (today). No authored key in the repository has the shape. The choice also decides `e^(-x)/2` against
-   `e^{-x}/2`.
+   `e^{-x}/2`, and the one verdict this branch lowers: an ASCII `B^-E/N` (`10^-3/2`) against a braced key
+   (`10^{-3}/2`), right on the base, is wrong now because it is graded as it is drawn, 10^(−3/2).
 2. **Decimals for an exact radical pair** (quadratic-formula-exact): refused, because the prompt asks for exact pairs.
    Accepting a decimal to some number of places would be a new, per-family rule.
 3. **The five other families** whose generator text refuses a simplified answer on some draws (table in item 3): fix
@@ -319,6 +333,11 @@ those listed.
   new `generatedAt`; every other trial is byte-identical.
 - `functions/shared/algebraicForm.mjs`: `expandLatexShorthand` takes an option. With the default it behaves exactly as
   before.
+- Content (review S1): `mm_A2_3C_v2_quadratic-formula-exact`'s reduced-equation key and its worked step use
+  `{{p|xterm}}` instead of `{{p|signed}}x`, in all four copies (`functions/seeds`, `seed`, `drafts/algebra2.json`,
+  `drafts/fidelity-v2/algebra2/A2.3C.json`). `familyVersion` is unchanged: the served item differs only in the p = 0
+  key's spelling, and misconception evidence is keyed by family version. The course release manifest and the
+  browser release identity are rebuilt (`npm run release:path:build`); only this family's hash moved.
 
 ## Not done
 
@@ -330,3 +349,50 @@ those listed.
 - Number fields: an unsimplified radical number key (for example `sqrt(8)/2`) is still compared as text, and
   `0.0005` is not read as `10^{-3}/2`. Both are outside these items. Comparing a number field by exact value would
   have to respect "simplify" items, the way pairs do not need to.
+
+## Review of `096311e8`: the fixes
+
+The review is by session_01AsRTxk1SsUyxHkNuS5Sv9j, relayed by the integrator. I merged the new base `3cb782a9`
+first (a merge commit). Verdicts are written as server / assignment / sameValue.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B1** Right answers newly refused: an ASCII negative power in a denominator, `3/x^-2` for `3/x^{-2}`, `1/x^-2`, `3/2^-x` (RRR on the base, www at `096311e8`) | Two parts. (1) The reviewer's fix: `normalizeStructuralMathLive` keeps `^{-T}` braced only when a `/` follows it (`algebraicForm.mjs`). (2) The fuller one: in grading, the stacker reads a denominator's `^-T` (one number or letter, nothing binding after it) as its power (`stackDivisions.mjs`). So `\frac{3}{x^{-2}}` is now right for `3/x^{-2}` and `3/x^-2` as well (www on the base) | The three pairs are back to RRR; `\frac{3}{x^{2}}` and `\frac{3}{x}^{-2}` stay wrong. `3/x^-2y` for `3/x^{-2}y` stays right, which only (1) keeps. Each part's mutation is red |
+| **B2** Wrong answers newly accepted in pairs: mixed numbers (`(1\frac{1}{2},4)` for `(\frac{1}{2},4)`, `(2 1/2,4)` for `(1,4)`), unsimplified arithmetic (`(1+2,4)` for `(3,4)`, `(6/2,8-4)`, `(-(-2),3)`, `(2^3,1)`) | The reviewer's (a) and (b): the exact reading runs only when each side has a coordinate with a root, and `exactConstantValue` never reads a `\frac` after a number. `(2*(3)+1,5)` is no longer read as `(7,5)`: no corpus key has that shape | Every case is back to its base verdict (wrong on all three graders, and in an expression field). Both mutations red |
+| **S1** The family was still unanswerable when p = 0: the `reduced` key `x^2+ 0x- 5=0` refused `x^2-5=0` | Content: `{{p|xterm}}` (the zero-aware filter the bank already uses) in the key and the worked step, all four copies. Release rebuilt: `course-path-v2-fdcfdcd711e6401f` | 200 draws, natural answers in all four fields: **200 of 200 right** through `mathPath.gradeResponse` and through `secureItems.gradeItem` (0 of 200 on `3cb782a9`); 800 wrong variants (a pair twice, another reduced equation, another discriminant, a wrong y), 0 accepted. Pinned over 60 draws including p = 0; reverting the key is red |
+| **S2** A lowered verdict the handoff did not name: ASCII `B^-E/N` against a braced key (`10^-3/2` for `10^{-3}/2`) | Kept: it is graded as drawn. Named under decision 1, in Deploy (release note) | Pinned wrong for `10^-3/2`, `2x^-1/5`, `y=2^-x/3`, `x^-a/b`; in the sweep with `P=100(2)^-t/5` too |
+| **S3** The assignment matcher refused identical text for a pair key that is not two constants (`(\pi,\sqrt{2})`, `(x+\sqrt{2},1)`, `(1,root(3)(2))`) | The orderedPair fallback also takes the same normalised text, for a key written as a pair. A key that is not a pair (`none`) is still refused there, as `kSteps_linesAndSlope` requires | RRR now; `(1,\sqrt[3]{3})` stays wrong; `none` pinned refused. Two mutations red (no fallback; fallback for any key) |
+| **S4** `(\sqrt{4},1)` vs `(2,1)` (www on base and head) | Left as it is, with B2(a): a root is read only against a root | Pinned wrong |
+| **S5** Three mutations stayed green | `x^{n}_{1}` vs `x_1^n` pinned wrong (the script order moves only a number power); `(1/0)^2` pinned unchanged; the decimal-point check was dead (a `.` is not a token anyway): removed, with a comment, and `1.5` pinned refused. The `decimal` guard on a coordinate was dead too: removed | All red when broken |
+| **N3** `(1/2)^x^2` equalled `\frac{1}{2^x}^2` | `(?!\^)` after the exponent in `unitFractionPowers`; `root(2)(m)` is `\sqrt{m}` | Both pinned, both mutations red |
+
+**Sweep against `3cb782a9`** (`--draws 3 --check-wrong`), with the review's shapes added (denominators, the B2 pairs,
+the S3 text pairs, N3, the S2 lowered spellings):
+
+```
+fields 9833, graded 281097
+rightToWrong 0, nearMissNowRight 0, nearMissNowRefused 0
+stackedWrongAccepted 0, editorSpellingsRefused 0
+gapSpellingsRefused 0, gapWrongAccepted 0
+gapSpellingsRefusedOnBase 3358, gapWrongAcceptedOnBase 30
+wrongToRight 60 (all built as right spellings: the editor's stacked negative power, Unicode minus)
+exit 0
+```
+
+**Re-gate on the merged head:**
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,787 pass, 0 fail |
+| `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail, 1 skipped (as before) |
+| `npm run lint` | exit 0 |
+| `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
+| `npm run release:path:verify` | the committed manifest matches the content |
+| first-load budget | within baseline; studentHome **848.2 KB** |
+| grader suites (`*Equivalence*`, `stackDivisions`, `secureMathAnswerRoundTrip`, `orderedPairSemanticGrading`, `pass3GraderGaps`) | 130 pass, 0 fail |
+| `test:challenge-finish` · `test:canonical-persistence` · `test:secure-exam-navigation` · `test:grade-authority` | 477 · 35 · 25 · 14 pass |
+| `npm run audit:answer-acceptance` | PASS, 0 false negatives, 0 unexpected |
+| `secureAccessParity` (no `--write`) | 26 / 26 |
+| `mathEntryContract` · `fractionTemplateGrading` | pass · pass |
+| `questionFamilyCases` | all 36 journeys pass |
+| quadratic probe (Path and secure, 200 draws) | 200 / 200 right, 0 wrong accepted |

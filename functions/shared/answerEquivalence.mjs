@@ -158,7 +158,7 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
     .replace(/(?<![A-Za-z\\])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
     .replace(/\\sqrt\s*([A-Za-z0-9])/g, '\\sqrt{$1}')
     // ASCIIMath's nth root: `root(3)(2)` is the editor's `\sqrt[3]{2}`.
-    .replace(/(?<![A-Za-z\\])root\s*\((\d+)\)\s*\(([^()]*)\)/g, '\\sqrt[$1]{$2}')
+    .replace(/(?<![A-Za-z\\])root\s*\((\d+)\)\s*\(([^()]*)\)/g, (match, index, body) => (index === '2' ? `\\sqrt{${body}}` : `\\sqrt[${index}]{${body}}`))
     // A power and a subscript on one base, in either order: `x^{2}_{1}` is
     // `x_1^2`. Only a number power, so `e^x_1` keeps whatever it meant.
     .replace(/\^(\d|\{\d+\})_(\{[^{}]*\}|[A-Za-z0-9])/g, '_$2^$1')
@@ -182,7 +182,7 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
  * as written.
  */
 const unitFractionPowers = (value) => value.replace(
-  /\(\\frac\{1\}\{(?!0+(?:\.0+)?\})(\d+(?:\.\d+)?)\}\)\^(\d+(?:\.\d+)?|[A-Za-z]|π|\([^()]*\))/g,
+  /\(\\frac\{1\}\{(?!0+(?:\.0+)?\})(\d+(?:\.\d+)?)\}\)\^(\d+(?:\.\d+)?|[A-Za-z]|π|\([^()]*\))(?!\^)/g,
   '\\frac{1}{$1^$2}',
 );
 
@@ -1013,15 +1013,16 @@ const numericPair = (value) => {
  * A coordinate with a square root, compared by its exact value (student pass
  * 3): `1-\sqrt{2}`, `\frac{2-\sqrt{8}}{2}` and a generator's unsimplified
  * `(-(-2)-sqrt(8))/2` are one number. Only exact constants are read
- * (exactConstantValue.mjs). When either side has a root, both must: a decimal
- * or a long fraction is not the exact value an irrational coordinate asks for.
- * Without a root, an unsimplified exact key (`2*(3)+1`) takes the number it is.
+ * (exactConstantValue.mjs), and only for a pair with a root on both sides: a
+ * pair of plain numbers keeps numericPair's reading, so `(1+2,4)` is still not
+ * `(3,4)`. When one coordinate has a root, its partner must too: a decimal or
+ * a long fraction is not the exact value an irrational coordinate asks for.
  */
 const exactCoordinate = (part) => {
   const exact = exactConstantValue(part);
   if (exact) return exact;
   const number = asNumber(part);
-  return number === null ? null : { value: number, radical: false, decimal: true };
+  return number === null ? null : { value: number, radical: false };
 };
 
 const exactPair = (value) => {
@@ -1035,7 +1036,9 @@ const exactPair = (value) => {
 
 const sameExactCoordinate = (a, b, tolerance) => {
   if (a.radical || b.radical) {
-    if (!(a.radical && b.radical) || a.decimal || b.decimal) return false;
+    // (A coordinate with a root is never a decimal: exactConstantValue refuses
+    // a decimal point, so both sides here came from it.)
+    if (!(a.radical && b.radical)) return false;
     return Math.abs(a.value - b.value) <= 1e-9 * Math.max(1, Math.abs(a.value), Math.abs(b.value));
   }
   return Math.abs(a.value - b.value) <= tolerance;
@@ -1047,7 +1050,8 @@ export const sameNumericPair = (left, right, tolerance = 1e-6) => {
   if (a && b) return a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
   const exactA = exactPair(left);
   const exactB = exactPair(right);
-  return Boolean(exactA && exactB) && exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
+  if (!exactA?.some((coordinate) => coordinate.radical) || !exactB?.some((coordinate) => coordinate.radical)) return false;
+  return exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
 };
 
 /**

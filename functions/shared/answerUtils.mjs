@@ -232,8 +232,14 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
       if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair);
       // A key with a root in a coordinate is not a pair of plain numbers:
-      // compared by exact value (sameNumericPair, student pass 3).
-      return typeof acceptedAnswer === 'string' && sameNumericPair(studentAnswer, acceptedAnswer);
+      // compared by exact value (sameNumericPair, student pass 3), or, for a
+      // pair key that is not two constants (`(\pi,\sqrt{2})`,
+      // `(x+\sqrt{2},1)`), as the same text. A key that is not written as a
+      // pair at all ("none") is still not one this box can take.
+      if (typeof acceptedAnswer !== 'string') return false;
+      const key = normalizeAnswer(acceptedAnswer);
+      return sameNumericPair(studentAnswer, acceptedAnswer)
+        || (/^\(.*,.*\)$/.test(key) && normalizeAnswer(studentAnswer) === key);
     });
   }
 
