@@ -32,7 +32,7 @@
 //   intercepts         "Check x-intercept" / "Check y-intercept" and their step credit
 //   relation           the relation solver's graph-your-solution number line
 //   constraint-builder the Constraint-Based Function Builder's live checklist
-//   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
+//   composed-algebra   a composed question's algebra step: its strategic hint is a platform ladder rung in practice, absent on a DOL or test
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
 //   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
 //                      hint offer, worked solution, similar problem, back-up step)
@@ -701,9 +701,17 @@ const composedAlgebra = async () => {
     await scenario(`${role} composed-algebra`, async () => {
       const page = await open(role, 'composed-algebra');
       await page.locator('[data-math-state]').first().waitFor();
-      const offered = /Need a strategic hint\?/.test(await bodyText(page));
-      if (role === 'practice') check(offered, 'practice composed-algebra: the algebra step still offers its strategic hint');
-      else check(!offered, `${role} composed-algebra: the algebra step offers no hint`);
+      // ONE LADDER (student pass 3, TOOL-5): in practice the step's strategic
+      // hint is a rung of the platform's ladder, not a disclosure of its own.
+      const disclosure = /Need a strategic hint\?/.test(await bodyText(page));
+      check(!disclosure, `${role} composed-algebra: no "Need a strategic hint?" beside the platform's Hint`);
+      if (role === 'practice') {
+        await page.locator('button:visible', { hasText: '💡 Hint' }).first().click();
+        const rung = await page.waitForFunction(() => /\btool\b/.test(document.querySelector('[data-hint-panel]')?.dataset.hintSources || ''), null, { timeout: 8000 }).then(() => true, () => false);
+        check(rung, 'practice composed-algebra: the algebra step\'s strategic hint is a rung of the platform ladder');
+      } else {
+        check(!(await page.locator('[data-hint-panel] li[data-hint-source]').count()) && !(await page.getByRole('button', { name: /^Show a hint$/ }).count()), `${role} composed-algebra: the algebra step offers no hint`);
+      }
     });
   }
 };

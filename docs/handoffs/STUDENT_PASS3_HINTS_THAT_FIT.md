@@ -180,7 +180,9 @@ A match is a warning in the existing "Hints that give the answer" panel (`questi
 | `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
 | `node scripts/check-first-load-budget.mjs` | within baseline; **studentHome 847.2 KB gzip in 186 files** |
 | Emulator suites | none touched: no rules, functions, persistence or stored shape |
-| BROWSER_RESULTS |
+| Browser, plain Vite on 5199, one at a time | `hintsThatFit` (new), `toolPolicyGates`, `assessmentLeakGates`, `feedbackTeaches`, `afterLastMiss`, `toolAttemptOutcome`, `composedOutcomePolicy`, `graphPointCheck`, `workViewHelpReach`, `readAloudTranslate`: all pass |
+| Browser, teacher harness on 5188 | `teacherWorkflow/askMyTeacherJourneys`: 58 checks passed |
+| First `assessmentLeakGates` run | one failure, caused by this branch: "practice composed-algebra: the algebra step still offers its strategic hint". The behaviour changed on purpose (TOOL-5). The case now asserts no disclosure on any role, the rung in the platform ladder on practice, and no hint on DOL or test. Whole driver re-run: 0 failures |
 
 Mutation checks (each change made once, seen red, then restored):
 
@@ -193,9 +195,10 @@ Mutation checks (each change made once, seen red, then restored):
   - HintPanel pointer: shown without Ask; shown on a mixed ladder.
   - Solver: the strategic hint not published; the disclosure kept beside the ladder.
   - Spanish: a fallback entry removed.
-- **Browser: 5 of 5 red.**
+- **Browser: 6 of 6 red.**
   - `hintsThatFit`: the old guard; no pointer; the general fallback everywhere; hints on a DOL.
-  - `toolPolicyGates`: the solver disclosure kept and the rung not published.
+  - `toolPolicyGates` and `assessmentLeakGates` composed-algebra: the solver disclosure kept and the rung not
+    published (red in each).
 
 ## Deploy targets
 
@@ -229,7 +232,9 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 - `src/components/teacher/LessonPreflightModal.jsx`: one new panel.
 - `src/platform/language/packs/esSupport.js`: 19 entries in `genericHints`. W6-1 may also add entries here; keep both
   sides.
-- `tests/browser/assessmentLeakGates.mjs`: the pointer and every fallback added to `LADDER_WORDS`.
+- `tests/browser/assessmentLeakGates.mjs`:
+  - the pointer and every fallback added to `LADDER_WORDS`;
+  - the composed-algebra case rewritten for TOOL-5 (see the gate table).
 - `.github/workflows/student-runtime-browser-gates.yml`: a `hintsThatFit` step after `toolPolicyGates`, and its path.
 - Source contracts rewritten per the playbook (the behaviour was intact; the text had moved into `strategicHint`):
   - `toolHintPolicy`: two cases;
