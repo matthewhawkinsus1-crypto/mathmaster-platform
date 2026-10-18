@@ -24,7 +24,7 @@ test('teacher print dialog offers all three resolved-question output modes', () 
 });
 
 test('personalized teacher and key exports require an exact roster student', () => {
-  assert.match(app, /requiresStudent = assignmentNeedsStudentForWorksheet\(assignment\)/);
+  assert.match(app, /requiresStudent = requireTeacherKit\(\)\.assignmentNeedsStudentForWorksheet\(assignment\)/);
   assert.match(dialog, /requiresStudent/);
   assert.match(dialog, /exact MathMaster version/i);
 });
