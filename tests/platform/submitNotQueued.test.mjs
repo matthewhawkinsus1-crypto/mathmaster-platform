@@ -64,7 +64,9 @@ test('App.jsx: a failed queue returns "not submitted", never null', () => {
   assert.match(failure, /setStudentPersistenceStatus\('volatile'\);/);
   assert.match(failure, /return SUBMISSION_NOT_QUEUED;/);
   assert.doesNotMatch(failure, /return null;/);
-  assert.match(failure, /toastWarning\('Not submitted', '[^']*press Submit again\.'\);/);
+  // Said once: the engine's alert carries the message. A toast saying it
+  // again was a second announcement of the same thing (pass 3, wave 6).
+  assert.doesNotMatch(failure, /toast(?:Warning|Error|Info|Success)\(/);
   // Nothing is counted for it: the tracker is only written after the queue.
   assert.ok(submit.indexOf('setTracker(updatedTracker);', enqueue) > submit.indexOf('return SUBMISSION_NOT_QUEUED;'));
 });

@@ -7233,10 +7233,11 @@ function App() {
       // Nothing was recorded anywhere, so nothing was submitted: no verdict,
       // no try used, the question stays open with Submit (RUN-3). A `null`
       // here used to read as "show the device's own verdict" — "Correct!",
-      // locked, and no Submit to press again.
+      // locked, and no Submit to press again. It is said once, by the
+      // question's own alert (SUBMISSION_NOT_QUEUED.message), where Submit is:
+      // no toast repeats it.
       console.error('Could not durably queue this response:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Not submitted', 'This device could not save your answer. No try was used. Keep this tab open and press Submit again.');
       return SUBMISSION_NOT_QUEUED;
     }
 
