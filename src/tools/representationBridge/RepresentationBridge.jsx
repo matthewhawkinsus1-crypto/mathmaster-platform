@@ -101,6 +101,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   // RATE / SLOPE lights m and a together and ZERO / X-INTERCEPT lights c,
   // which says "a is the rate, c is the zero" without a word. There no
   // highlight is offered or drawn.
+  // The same goes for the field names a screen reader says ("Zero c",
+  // "y-intercept b"): on an assessment they are "c" and "b" (review S1).
   const methodWithheld = useMethodWithheld();
   const [activeHighlight, setActiveHighlight] = useState(null);
   const shownHighlight = methodWithheld ? null : activeHighlight;
@@ -511,7 +513,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'start') ? 'var(--mm-warning-text)' : undefined }}>b {revealed.start && shownHighlight === 'start' ? `(= ${generalB})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label={methodWithheld ? 'b in general form' : 'y-intercept b in general form'} />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
@@ -540,7 +542,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'zero') ? 'var(--mm-warning-text)' : undefined }}>c {revealed.zero && shownHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label={methodWithheld ? 'c in factored form' : 'Zero c in factored form'} />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
@@ -561,8 +563,11 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         <Panel title="Graph">
           {stageBlocked('graph') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the factored form stage first.</p> : null}
           <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{methodWithheld
-            // Which points to plot, and how, is the method (W4-1's round-2 note).
-            ? 'Plot points of your line on the graph.'
+            // How to find the points is the method (W4-1's round-2 note); that
+            // the x-intercept is one of them is what the graph stage grades
+            // (graphQuestionFor: requiredAnchor 'xIntercept'), so it is said as
+            // the requirement, the way Graphing2's anchor note is (review S2/N2).
+            ? 'This question requires the x-intercept as one of your points, and a second point on your line.'
             : 'Plot the x-intercept from your factored form, then a second point using the slope.'} {shownHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {shownHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
           <CoordinatePlane
             {...graphBounds}

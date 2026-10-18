@@ -27,7 +27,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
-import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -76,8 +76,11 @@ const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals
 const SECURE_MODE_STEPS = {
   'full': ['Adjust the slope and intercept to fit a line to the data.', 'Read the correlation and describe the association.', 'Compare the model families, then predict and classify.'],
   'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Use the residual plot to judge your line.'],
-  'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Classify the direction and strength of the association.'],
-  'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Classify the prediction.'],
+  // Box instructions since W6-4 (review S3): "Run a correlation calculation …
+  // using statistical technology" and "Use the model to compute the predicted
+  // y" named how the answer is found, and these lists are control steps.
+  'correlation': ['Enter r, to at least the thousandths place, in the Correlation coefficient r box.', 'Classify the direction and strength of the association.'],
+  'prediction': ['Enter the x-value you are predicting at.', 'Enter the predicted y in the Predicted y box.', 'Classify the prediction.'],
   'modelCompare': ['Look at each candidate model against the data.', 'Select the best model.'],
   // The regression modes (student pass 3, W6-4) had no list here, so a test
   // showed no steps at all. Each step names a box and what the screen does;
@@ -92,9 +95,10 @@ const SECURE_MODE_STEPS = {
     ['quadraticFitPrediction', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
     ['exponentialFitPrediction', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
     ['squareRootFitPrediction', 'Enter a, h and k of y = a√(x-h)+k in the three boxes.'],
+  // (No "the residual table redraws from your numbers": that pointed at the
+  // tune-against-the-residuals loop a test does not offer; review S3.)
   ].map(([mode, entry]) => [mode, [
     entry,
-    'The graph and the residual table redraw from the numbers you enter.',
     ...(mode.endsWith('Prediction') ? ['Enter your predicted y in the Predicted y box, then classify the prediction.'] : []),
   ]])),
   'association': ['Choose the direction and the strength of the association.', 'Choose what this observational data can justify.'],
@@ -227,14 +231,17 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // The lab's teaching notes (how to read r, what a residual plot should look
   // like, how to choose a model) answer parts it asks. They are hints: shown
   // where hints are, withheld on a secure item.
-  const teachingNotes = useHintsAllowed();
+  // Withheld wherever the method is (W6-4 review N3): hints off, or verdicts
+  // withheld with hints on.
+  const methodWithheld = useMethodWithheld();
+  const teachingNotes = !methodWithheld;
   // THE ERROR READOUTS ARE A VERDICT (student pass 3, W6-4; found on the base).
   // The live MAE · RMSE under the student's model let them tune until the
   // numbers bottomed out, and each candidate's RMSE · MAE in modelCompare
   // ranks the candidates — nearly the answer to "Select the best model".
   // Where the activity withholds verdicts and the method (an exit ticket,
   // quiz or test before release) neither is shown; practice keeps both.
-  const errorReadouts = !useMethodWithheld();
+  const errorReadouts = !methodWithheld;
   const hostSubmitLabel = useHostSubmitLabel();
   const guideSteps = teachingNotes
     ? (MODE_STEPS[mode] || MODE_STEPS.full)

@@ -162,10 +162,11 @@ test('W6-4: Data Modeling\'s regression modes and association have a secure list
     for (const [mode, entry] of Object.entries(MODEL_ENTRY)) {
       const question = { type: 'dataModelingLab', mode, points: [[1, 2], [2, 3], [3, 5], [4, 5], [5, 7], [6, 8], [7, 10]], predictionX: 9, prompt: 'Model the data.' };
       const dol = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, DOL));
-      const expected = mode.endsWith('Prediction') ? 3 : 2;
+      const expected = mode.endsWith('Prediction') ? 2 : 1;
       assert.equal(stepCount(dol), expected, `${mode}: the secure list on a test (${expected} steps)`);
       assert.ok(dol.includes(entry), `${mode}: names the boxes`);
-      assert.ok(dol.includes('The graph and the residual table redraw from the numbers you enter.'), `${mode}: says what the screen does`);
+      // Not the tune-against-the-residuals loop (review S3).
+      assert.doesNotMatch(dol, /redraw|residual table/, `${mode}: no step points at the residuals`);
       if (mode.endsWith('Prediction')) assert.ok(dol.includes('Enter your predicted y in the Predicted y box, then classify the prediction.'), `${mode}: the prediction boxes`);
       assert.doesNotMatch(dol, ROUTE, `${mode}: no step and no directions sentence names how the coefficients are found`);
       const practice = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, PRACTICE));
@@ -179,7 +180,12 @@ test('W6-4: Data Modeling\'s regression modes and association have a secure list
     // A secure step is a control step, never a whole list `stepsAreControls`:
     // the directions sentence ("Use … regression technology") stays withheld.
     const secure = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', { type: 'dataModelingLab', mode: 'correlation', points: [[1, 2], [2, 3], [3, 5], [4, 5]], prompt: 'Find r.' }, DOL));
-    assert.ok(secure.includes('Record r to at least the thousandths place.'), 'an older secure list still shows');
+    // Correlation and prediction say which box, not how the answer is found (review S3).
+    assert.ok(secure.includes('Enter r, to at least the thousandths place, in the Correlation coefficient r box.'), 'correlation names the box');
+    assert.doesNotMatch(secure, /Run a correlation calculation/);
+    const prediction = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', { type: 'dataModelingLab', mode: 'prediction', points: [[1, 2], [2, 3], [3, 5], [4, 5]], predictionX: 6, prompt: 'Predict.' }, DOL));
+    assert.ok(prediction.includes('Enter the predicted y in the Predicted y box.'), 'prediction names the box');
+    assert.ok(!prediction.includes('Use the model to compute the predicted y'), 'and not how to compute it');
     assert.ok(!secure.includes('Use statistical technology to calculate the correlation coefficient r'), 'and its directions sentence does not');
   });
 });
@@ -204,13 +210,21 @@ test('W6-4 / W4-1 round 2: the Representation Bridge withholds "a is the rate", 
       assert.ok(!dol.includes(line), `DOL withholds: ${line}`);
     }
     assert.ok(dol.includes('Rewrite your own general-form equation as y = a(x − c).'), 'the factored panel still says what to write');
-    assert.ok(dol.includes('Plot points of your line on the graph.'), 'the graph panel still says what to do');
+    // The graph stage grades the x-intercept as an anchor (graphQuestionFor):
+    // a DOL says that requirement, not how to find the points.
+    assert.ok(dol.includes('This question requires the x-intercept as one of your points, and a second point on your line.'), 'the graph panel states what is graded');
     // RATE / SLOPE lights m and a together: the same rule without words.
     const practiceHtml = await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, PRACTICE);
     const dolHtml = await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, DOL);
     assert.match(practiceHtml, /aria-label="Highlight a connection across every panel"/);
     assert.doesNotMatch(dolHtml, /Highlight a connection across every panel|RATE \/ SLOPE|ZERO \/ X-INTERCEPT/);
     assert.ok(!dol.includes('Use the highlight buttons below'), 'the note about the buttons goes with them');
+    // What a screen reader says for the b and c fields (review S1).
+    assert.match(practiceHtml, /aria-label="Zero c in factored form"/);
+    assert.match(practiceHtml, /aria-label="y-intercept b in general form"/);
+    assert.match(dolHtml, /aria-label="c in factored form"/);
+    assert.match(dolHtml, /aria-label="b in general form"/);
+    assert.doesNotMatch(dolHtml, /aria-label="[^"]*(?:Zero c|y-intercept b)[^"]*"/);
   });
   // A highlight chosen before cannot be drawn on an assessment either.
   const bridge = code('src/tools/representationBridge/RepresentationBridge.jsx');
@@ -345,5 +359,43 @@ test('W6-4: Data Modeling shows no error readout where the activity withholds ve
     // The model choice itself is still offered on a test.
     assert.match(words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', questions.compare, runtimeFor('test'))), /Compare model families/);
   });
-  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /const errorReadouts = !useMethodWithheld\(\);/);
+  assert.match(code('src/tools/dataModeling/DataModelingLab.jsx'), /const methodWithheld = useMethodWithheld\(\);[\s\S]*const errorReadouts = !methodWithheld;/);
+});
+
+// Review S2, answered with the grader: the inequality build's slope-intercept
+// sentence ("…plot the y-intercept and use the slope to plot a second point")
+// is that build method's grading requirement, not a route among others, so it
+// stays on every activity (the owner rule with Graphing2's anchor note, N2).
+// Two points on the right line that are not the y-intercept and a slope step
+// from it build no line; the "points" method's own sentence asks only for two
+// points, and that method accepts any two.
+test('W6-4 review S2: the Bridge graph stage requires the x-intercept, as its DOL line says', async () => {
+  const { graphQuestionFor } = await import('../../functions/shared/toolMath/representationBridge/representationBridgeMath.mjs');
+  assert.equal(graphQuestionFor({}, { m: 5, b: -20, zero: 4, rows: [] }).constructionPolicy.requiredAnchor, 'xIntercept');
+});
+
+test('W6-4 review S2: the slope-intercept build sentence states what its grader requires', async () => {
+  const { studentBoundaryLineFromEntry } = await import('../../functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs');
+  const { boundaryInstruction } = await withVite((load) => load('/src/tools/systemsWorkspace/InequalityBuildPanels.jsx'));
+  // The boundary y = 2x + 1.
+  const plotted = (x1, y1, x2, y2, extra) => ({ point1Plotted: true, point2Plotted: true, x1, y1, x2, y2, ...extra });
+  const slopeIntercept = { method: 'slopeIntercept', slope: '2', intercept: '1' };
+  assert.ok(studentBoundaryLineFromEntry(plotted(0, 1, 1, 3, slopeIntercept)), 'the y-intercept, then a slope step: a line');
+  assert.equal(studentBoundaryLineFromEntry(plotted(1, 3, 2, 5, slopeIntercept)), null, 'two other points on the same line: no line');
+  assert.ok(studentBoundaryLineFromEntry(plotted(1, 3, 2, 5, { method: 'points' })), 'the points method takes any two');
+  assert.match(boundaryInstruction('slopeIntercept'), /plot the y-intercept and use the slope to plot a second point/);
+  assert.equal(boundaryInstruction('points'), 'Tap the grid to plot two points on the boundary line.');
+});
+
+// Review N3: Data Modeling's teaching notes followed hints alone, so where
+// verdicts are withheld with hints on, "A good residual plot should look
+// randomly scattered…" still showed.
+test('W6-4 review N3: Data Modeling\'s teaching notes are withheld wherever the method is', async () => {
+  const question = { type: 'dataModelingLab', mode: 'full', points: [[1, 2], [2, 3], [3, 5], [4, 5], [5, 7]], predictionX: 8, prompt: 'Model the data.' };
+  await withVite(async (load) => {
+    const NOTE = 'A good residual plot should look randomly scattered';
+    assert.ok(words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, PRACTICE)).includes(NOTE));
+    assert.ok(!words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, { hintsAllowed: true, verdictsWithheld: true })).includes(NOTE), 'verdicts withheld, hints on');
+    assert.ok(!words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, DOL)).includes(NOTE));
+  });
 });

@@ -224,7 +224,9 @@ test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is'
   // item that asks it. The same for reading r and residual plots, and for
   // choosing between models.
   const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
-  assert.match(lab, /const teachingNotes = useHintsAllowed\(\);/);
+  // Since W6-4 (review N3) the notes follow the method gate: withheld where
+  // hints are, and also where verdicts are withheld with hints on.
+  assert.match(lab, /const methodWithheld = useMethodWithheld\(\);\s*const teachingNotes = !methodWithheld;/);
   [
     'Interpret r by its sign',
     'It does not, by itself, prove causation',
