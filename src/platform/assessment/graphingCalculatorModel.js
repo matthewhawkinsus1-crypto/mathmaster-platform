@@ -377,6 +377,164 @@ export const formatNumber = (value) => {
   return text.replace(/-/g, '−');
 };
 
+/*
+ * ZEROS, MINIMUM AND MAXIMUM — WHAT A HANDHELD'S zero / minimum / maximum
+ * COMMANDS FIND, FOR THE PART OF THE GRAPH ON SCREEN.
+ *
+ * Numeric and bounded: the line is sampled at a fixed number of x-values
+ * across the view, every sign change is narrowed by bisection, and every
+ * turning point by golden-section search. A sign change across a break (1/x
+ * at 0, tan x at π/2) is not a zero: the narrowed point must actually be near
+ * y = 0. A turning point that touches y = 0 (x² at 0) is also a zero. A
+ * "turning point" at a break (1/x² at 0) is refused: its value must be a
+ * finite number the calculator can show, and a real turn: the line a sample
+ * step away is strictly higher (or lower) on both sides, so the flat top of
+ * a step function (floor x) is none. A flat stretch of y = 0 has no single
+ * zero. Each list holds at most a few
+ * points; `more` says the view held more (sin x over a wide view).
+ *
+ * Like everything here it reads only the line the student typed.
+ */
+export const GRAPH_FEATURE_LIMITS = Object.freeze({ samples: 480, maxPerKind: 8 });
+
+const bisectZero = (f, a, b, fa) => {
+  let lo = a;
+  let hi = b;
+  let flo = fa;
+  for (let step = 0; step < 64; step += 1) {
+    const mid = (lo + hi) / 2;
+    const fm = f(mid);
+    if (fm === null) return null;
+    if (fm === 0) return mid;
+    if (Math.sign(fm) === Math.sign(flo)) { lo = mid; flo = fm; } else hi = mid;
+  }
+  return (lo + hi) / 2;
+};
+
+const GOLDEN = (Math.sqrt(5) - 1) / 2;
+const goldenTurn = (f, a, b, lowest) => {
+  const score = (x) => {
+    const y = f(x);
+    if (y === null) return Number.NaN;
+    return lowest ? y : -y;
+  };
+  let lo = a;
+  let hi = b;
+  let c = hi - GOLDEN * (hi - lo);
+  let d = lo + GOLDEN * (hi - lo);
+  let fc = score(c);
+  let fd = score(d);
+  for (let step = 0; step < 80; step += 1) {
+    if (!Number.isFinite(fc) || !Number.isFinite(fd)) return null;
+    if (fc < fd) { hi = d; d = c; fd = fc; c = hi - GOLDEN * (hi - lo); fc = score(c); } else { lo = c; c = d; fc = fd; d = lo + GOLDEN * (hi - lo); fd = score(d); }
+  }
+  return (lo + hi) / 2;
+};
+
+// A found x as the calculator reports it: 10 significant digits, and a value
+// within a hair of 0 (relative to the view) is 0.
+const settle = (value, span) => {
+  if (Math.abs(value) < span * 1e-9) return 0;
+  return Number(value.toPrecision(10));
+};
+
+const shortestEquivalent = (x, asGood, gap, span) => {
+  for (let digits = 1; digits <= 9; digits += 1) {
+    const candidate = Number(x.toPrecision(digits));
+    if (Math.abs(candidate - x) < gap / 2 && asGood(candidate)) return settle(candidate, span);
+  }
+  return settle(x, span);
+};
+
+/**
+ * @param entry  a FUNCTION entry from parseGraphEntry
+ * @param view   { xMin, xMax } — the x-range on screen
+ * @returns {{ zeros: number[], minima: {x,y}[], maxima: {x,y}[],
+ *             more: { zeros: boolean, minima: boolean, maxima: boolean } } | null}
+ */
+export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
+  if (entry?.kind !== ENTRY_KINDS.FUNCTION) return null;
+  const left = Number(xMin);
+  const right = Number(xMax);
+  if (!Number.isFinite(left) || !Number.isFinite(right) || right <= left) return null;
+  const limit = GRAPHING_LIMITS.maxCoordinate;
+  if (Math.abs(left) > limit || Math.abs(right) > limit) return null;
+  const f = (x) => entry.evaluate(x);
+  const count = GRAPH_FEATURE_LIMITS.samples;
+  const span = right - left;
+  const gap = span / count;
+  const xs = Array.from({ length: count + 1 }, (unused, index) => left + index * gap);
+  const ys = xs.map((x) => f(x));
+  const finiteYs = ys.filter((y) => y !== null).map(Math.abs).sort((a, b) => a - b);
+  // How big this line's values are in the view, for "near zero".
+  const scale = Math.max(1, finiteYs.length ? finiteYs[Math.floor(finiteYs.length / 2)] : 1);
+  const nearZero = (y) => y !== null && Math.abs(y) <= scale * 1e-7;
+
+  const zeros = [];
+  const addZero = (x) => {
+    const at = settle(x, span);
+    if (!zeros.some((known) => Math.abs(known - at) < gap / 2)) zeros.push(at);
+  };
+  for (let index = 0; index <= count; index += 1) {
+    const y = ys[index];
+    // A sample exactly on y = 0 is a zero; a run of them is a flat stretch
+    // of y = 0 (y = 0 itself, floor(x) on [0, 1)), which has no single zero.
+    if (y === 0) {
+      if (ys[index - 1] !== 0 && ys[index + 1] !== 0) addZero(xs[index]);
+      continue;
+    }
+    const next = ys[index + 1];
+    if (index === count || y === null || next === null || next === undefined || next === 0) continue;
+    if (Math.sign(y) === Math.sign(next)) continue;
+    const root = bisectZero(f, xs[index], xs[index + 1], y);
+    if (root !== null && nearZero(f(root))) addZero(root);
+  }
+
+  const turns = (lowest) => {
+    const found = [];
+    for (let index = 1; index < count; index += 1) {
+      const [a, b, c] = [ys[index - 1], ys[index], ys[index + 1]];
+      if (a === null || b === null || c === null) continue;
+      const isTurn = lowest ? (a > b && b <= c) : (a < b && b >= c);
+      if (!isTurn) continue;
+      const x = goldenTurn(f, xs[index - 1], xs[index + 1], lowest);
+      if (x === null) continue;
+      const turnValue = f(x);
+      if (turnValue === null || Math.abs(turnValue) > limit) continue;
+      // Golden-section search pins x only to about 8 digits (1.000000006 for
+      // 1): take the shortest x within the bracket that is as low (or high).
+      const at = shortestEquivalent(x, (candidate) => {
+        const value = f(candidate);
+        if (value === null) return false;
+        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= scale * 1e-14;
+      }, gap, span);
+      const y = f(at);
+      if (y === null) continue;
+      // A real turn: a step's gap away on both sides the line is strictly
+      // higher (for a minimum) or lower. The flat top of a step, or the edge
+      // of a jump, is not one.
+      const before = f(at - gap);
+      const after = f(at + gap);
+      if (before === null || after === null) continue;
+      if (lowest ? !(before > y && after > y) : !(before < y && after < y)) continue;
+      if (found.some((known) => Math.abs(known.x - at) < gap / 2)) continue;
+      found.push({ x: at, y: nearZero(y) ? 0 : Number(y.toPrecision(10)) });
+      if (nearZero(y)) addZero(at);
+    }
+    return found;
+  };
+  const minima = turns(true);
+  const maxima = turns(false);
+  zeros.sort((a, b) => a - b);
+  const cap = GRAPH_FEATURE_LIMITS.maxPerKind;
+  return {
+    zeros: zeros.slice(0, cap),
+    minima: minima.slice(0, cap),
+    maxima: maxima.slice(0, cap),
+    more: { zeros: zeros.length > cap, minima: minima.length > cap, maxima: maxima.length > cap },
+  };
+};
+
 const clampBox = ([left, top, right, bottom]) => {
   const limit = GRAPHING_LIMITS.maxCoordinate;
   const width = right - left;

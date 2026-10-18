@@ -10746,6 +10746,9 @@ function App() {
               // post-due practice runs as 'practice' but is still a DOL).
               practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
               activityPolicy={runtimeQuestionActivityPolicy}
+              // The assignment's calculator setting (e.g. "graphing"), above the
+              // question's own: calculatorPolicy.js resolveCalculatorPolicy.
+              assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
               feedbackReleased={currentFeedbackReleased}
               assessmentReviewReleased={assignmentFeedbackWasReleased(assignment)}
               replacementWarning={replacementWarning}

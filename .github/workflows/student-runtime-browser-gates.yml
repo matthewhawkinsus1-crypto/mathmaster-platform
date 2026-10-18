@@ -36,6 +36,12 @@ name: Student Runtime Browser Gates
 #                       draw with (the dev server hid that they were missing)
 #   toolAttemptOutcome  after a tool's Check the attempt outcome is beside its
 #                       verdict, on screen, announced once; none on a DOL (PQ-022)
+#   assignmentGraphingCalculator  an assignment's calculator setting reaches the
+#                       student: "graphing" opens a graphing calculator (enter
+#                       f(x), trace, zeros, min, max) from the work bar and over
+#                       Work View, records calculatorUsed, never submits on
+#                       Enter; an exit ticket keeps the stricter rule; secure
+#                       items and no setting unchanged (pass 3, PR-25/PR-26)
 #   assessmentLeakGates nothing before Submit says whether work is right on a
 #                       DOL, quiz or test (systems, inequalities, intercepts,
 #                       relation solver, constraint builder); practice unchanged
@@ -99,6 +105,7 @@ on:
       - "tests/browser/mathFontsProduction.mjs"
       - "tests/browser/toolAttemptOutcome*"
       - "tests/browser/assessmentLeakGates*"
+      - "tests/browser/assignmentGraphingCalculator*"
       - "tests/browser/systemsWorkspaceStudio*"
       - "tests/browser/relationWorkspaceDriver.mjs"
       - "tests/browser/clickMapLetterbox*"
@@ -220,6 +227,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assessmentLeakGates.mjs
+      - name: An assignment's calculator setting reaches the student (graphing calculator)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/assignmentGraphingCalculator.mjs
       - name: The inequality workspace takes a student through every step without hunting
         if: always()
         env:

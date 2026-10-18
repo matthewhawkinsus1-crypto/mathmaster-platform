@@ -121,11 +121,52 @@ const supportSettings = (profile) => {
 
 const defaultForQuestion = () => CALCULATOR_MODES.BASIC;
 
+// How much a calculator can do, for "the stricter of two settings". Basic and
+// Square Root are equally strong: neither has the other's key.
+const MODE_STRENGTH = Object.freeze({
+  [CALCULATOR_MODES.NONE]: 0,
+  [CALCULATOR_MODES.BASIC]: 1,
+  [CALCULATOR_MODES.SQUARE_ROOT]: 1,
+  [CALCULATOR_MODES.SCIENTIFIC]: 2,
+  [CALCULATOR_MODES.GRAPHING]: 3,
+});
+
+// Exit tickets, quizzes and tests: the roles whose outcome feedback waits.
+const ASSESSMENT_ACTIVITY_ROLES = new Set(['dol', 'quiz', 'test']);
+const isAssessmentActivity = (activityPolicy = {}) => (
+  ASSESSMENT_ACTIVITY_ROLES.has(String(activityPolicy?.role || '').toLowerCase())
+  || (typeof activityPolicy?.feedback === 'string' && activityPolicy.feedback !== 'immediate')
+);
+
+/**
+ * WHICH CALCULATOR A STUDENT GETS, IN THIS ORDER (pass 3, PR-25):
+ *
+ *   1. Assessment rules — the active assessment context (a secure exam, a
+ *      course Test's blueprint) decides outright.
+ *   2. The assignment's setting — `toolPolicy.calculator` on the assignment
+ *      ("graphing" for a whole lesson). `inherit` (the schema default) and
+ *      `questionSpecific` mean "no setting here".
+ *   3. The question's setting — its `calculatorPolicy`, the activity's default
+ *      when that inherits, then the mode the item embeds.
+ *   4. The platform default (basic).
+ *
+ * Two stricter rules hold whatever the assignment says:
+ *   - a skill that is assessed without a calculator (the question says
+ *     `none`) gets none — only a documented accommodation that overrides
+ *     computation gives one back;
+ *   - on an exit ticket, quiz or test the assignment setting may narrow the
+ *     question's own authored calculator but never widen it: the stricter of
+ *     the two is used. (An item with no authored mode takes the assignment's.)
+ *
+ * A student's documented calculator accommodation applies after all of this,
+ * exactly as before.
+ */
 export const resolveCalculatorPolicy = ({
   questionSpec = {},
   activityPolicy = {},
   studentSupportProfile = null,
   teacherCalculatorChoice = null,
+  assignmentCalculatorMode = null,
   assessmentContext = null,
 } = {}) => {
   const assessment = normalizeAssessmentContext(assessmentContext);
@@ -152,18 +193,44 @@ export const resolveCalculatorPolicy = ({
     basePolicy = embeddedQuestionMode || defaultForQuestion(questionSpec);
     baseSource = embeddedQuestionMode ? 'questionDesign' : 'platformDefault';
   }
+  let teacherChoiceMissing = false;
   if (basePolicy === CALCULATOR_MODES.TEACHER_CHOICE) {
     const teacherMode = normalizeMode(teacherCalculatorChoice);
-    if (!CONCRETE_MODES.has(teacherMode)) {
-      return { available: false, mode: CALCULATOR_MODES.NONE, source: 'teacherChoice', reason: 'Teacher calculator choice has not been set.' };
-    }
-    basePolicy = teacherMode;
+    teacherChoiceMissing = !CONCRETE_MODES.has(teacherMode);
+    basePolicy = teacherChoiceMissing ? CALCULATOR_MODES.NONE : teacherMode;
     baseSource = 'teacherChoice';
   }
 
-  const support = supportSettings(studentSupportProfile);
   const skillDeclaresNoCalculator = explicitQuestionMode === CALCULATOR_MODES.NONE
     || embeddedQuestionMode === CALCULATOR_MODES.NONE;
+
+  // 2. The assignment's setting, over the question's.
+  const assignmentSetting = normalizeMode(assignmentCalculatorMode);
+  const assignmentMode = assignmentSetting === CALCULATOR_MODES.TEACHER_CHOICE
+    ? normalizeMode(teacherCalculatorChoice)
+    : assignmentSetting;
+  if (CONCRETE_MODES.has(assignmentMode)) {
+    const questionAuthoredMode = baseSource === 'platformDefault' ? null : basePolicy;
+    if (skillDeclaresNoCalculator) {
+      basePolicy = CALCULATOR_MODES.NONE;
+      baseSource = 'questionDesign';
+    } else if (
+      isAssessmentActivity(activityPolicy)
+      && CONCRETE_MODES.has(questionAuthoredMode)
+      && MODE_STRENGTH[questionAuthoredMode] <= MODE_STRENGTH[assignmentMode]
+    ) {
+      // The stricter of the two on an exit ticket, quiz or test: the question's.
+    } else {
+      basePolicy = assignmentMode;
+      baseSource = 'assignmentToolPolicy';
+      teacherChoiceMissing = false;
+    }
+  }
+  if (teacherChoiceMissing) {
+    return { available: false, mode: CALCULATOR_MODES.NONE, source: 'teacherChoice', reason: 'Teacher calculator choice has not been set.' };
+  }
+
+  const support = supportSettings(studentSupportProfile);
   if (support.calculator && (!skillDeclaresNoCalculator || support.overrideComputation)) {
     const accommodationMode = assessment?.mode && assessment.mode !== CALCULATOR_MODES.NONE
       ? assessment.mode
@@ -176,8 +243,17 @@ export const resolveCalculatorPolicy = ({
       available: false,
       mode: CALCULATOR_MODES.NONE,
       source: baseSource,
-      reason: skillDeclaresNoCalculator ? 'No calculator is allowed for this skill.' : 'Calculator disabled by activity/question policy.',
+      reason: skillDeclaresNoCalculator
+        ? 'No calculator is allowed for this skill.'
+        : baseSource === 'assignmentToolPolicy'
+          ? 'Your teacher turned the calculator off for this assignment.'
+          : 'Calculator disabled by activity/question policy.',
     };
   }
-  return { available: true, mode: basePolicy, source: baseSource, reason: 'Calculator allowed by the resolved question policy.' };
+  return {
+    available: true,
+    mode: basePolicy,
+    source: baseSource,
+    reason: baseSource === 'assignmentToolPolicy' ? 'Calculator set by this assignment.' : 'Calculator allowed by the resolved question policy.',
+  };
 };
