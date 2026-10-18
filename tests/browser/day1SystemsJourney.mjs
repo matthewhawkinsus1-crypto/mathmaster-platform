@@ -286,7 +286,9 @@ const verifyAll = async (page, journey, sides) => {
 };
 
 const submitAndGrade = async (page, questionId) => {
-  await workflow(page).getByRole('button', { name: 'Check my work' }).first().click();
+  // The system's final action says Submit and its cost under QuestionEngine
+  // (D9, RUN-4); "Check my work" where no host gives it one.
+  await workflow(page).getByRole('button', { name: /^(Check my work$|Submit — )/ }).first().click();
   await settle(page, 1200);
   const grades = await page.evaluate(() => window.__mm361.grades());
   return grades.filter((grade) => grade.questionId === questionId).pop() || null;
