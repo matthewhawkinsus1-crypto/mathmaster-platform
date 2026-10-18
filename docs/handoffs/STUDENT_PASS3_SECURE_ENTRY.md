@@ -290,7 +290,8 @@ Mutation checks are listed with each item above.
    lands. W5-4 also edits `CalculatorPanel` (error text), so I left it alone.
 7. **Every secure number field has √ and π keys** (decided by the integrator in review S3; the owner can reverse
    it). Before, a number field had them only when its metadata named one, so the keypad differed from its
-   neighbours' and hinted at which answers had a root or π.
+   neighbours' and hinted at which answers had a root or π. One difference remains, by the integrator's call: field
+   metadata naming a symbol outside the profile (i, e, a letter, ∞) still adds that key on that field only.
 
 ## Outside my scope
 
@@ -372,3 +373,90 @@ each new assertion was mutation-checked.
 - `RichQuestionRuntime` `FieldItem`: `{!calculatorInToolbar && <CalculatorPanel …/>}`.
 
 Wrapping W5-7's whole calculator block in `!calculatorInToolbar && (…)` keeps all of them.
+
+## Review round 2: the editor's spelling of a right answer
+
+The integrator relayed the reviewer's findings on `9636fba`. Three right answers, written the way the editor writes
+them, were refused: they were refused on `c350dfc` too, but the editor now produces them. One wrong answer
+passed (N1).
+
+### (a) Live secure items this could touch
+
+**Where the items come from.** Secure items are drawn from the Path bank:
+
+- simulations: `loadBuiltInStarterPathSeed`;
+- course tests: `resolveBlueprintFamilies`, which reads the `pathQuestionBank` collection and falls back to the
+  bundled Path seeds plus `functions/seeds/secureAssessments/algebra1_district_dol2.json`.
+
+The sweep now reads that second seed too, and `--dump-fields` writes its corpus.
+
+**What I counted.** Over the repository's Path bank (three draws per family) and the secure-assessments seed:
+
+- 8,689 response fields;
+- 915 on a math-editor profile;
+- **282 that H-13 moves to the editor** (ordered pairs and inequalities; no number, set or interval field names
+  π, √, % or $).
+
+**What the moved fields hold.**
+
+- **None has an exponent, an indexed root or a braced group.**
+- Six drawn keys hold a root. They are all from one family, `mm_A2_3C_v2_quadratic-formula-exact` (its "minus"
+  and "plus" pair fields), and their keys are unsimplified generator text such as
+  `((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)`.
+- For those six, **no spelling of the right answer grades right**, in the editor or typed:
+  `(1-sqrt(2),5-2sqrt(2))`, `(1-\sqrt{2},5-2\sqrt{2})`, the decimals.
+- This is identical on `c350dfc`. The pair grader compares a coordinate with a root as text, so only the verbatim
+  unsimplified key passes. It is a **pre-existing content/grader defect**, not caused by H-13. It goes to the
+  owner below.
+
+**Result:** H-13 marks **0 additional right answers wrong** in these banks. The live `pathQuestionBank` collection
+can hold families that are not in the repository; I have no production access, so they are not counted.
+
+### (b) What changed (grading only; `stackDivisions` without `constantOperands`, i.e. rendering, is unchanged)
+
+| Case | Before | Now |
+| --- | --- | --- |
+| `\frac{2}{\pi^2}` for `2/pi^2` (MathLive's spelling of 2, /, π, ^2) | wrong | **right**: a π denominator takes its own power (`exponentEnd`); `\frac{2}{\pi}^2` stays wrong |
+| `e^{\frac{\sqrt2}{2}}` for `e^(sqrt(2)/2)` | wrong | **right**: a braced exponent with braces inside is one group (`bracedExponentsAsGroups`, which replaces a flat-brace pattern) |
+| `x^{\pi}/2` and `\frac{x^{\pi}}{2}` for `x^pi/2` | wrong | **right**: π (and a single square root) is a simple exponent like a letter, and a constant after `^` brings its base over the divisor (`withPowerBase`) |
+| **N1** `x^\frac{\pi}{2}` for `x^{\pi}/2`, `2^\frac{\pi}{2}` for `2^{\pi}/2`, `x^\frac{\alpha}{2}` for `x^{\alpha}/2` | **right** (wrong answers let through) | wrong: a bracketed exponent brings its base, whatever it holds |
+
+MathLive braces every superscript (`x^{\frac{1}{2}}`; captured in the browser), so an unbraced `^\frac` is not read
+as one exponent, and the editor never writes one. Typing `x^pi/2` without leaving the exponent gives
+`x^{\frac{\pi}{2}}`, which a student sees as π/2 raised. It is graded as x^(π/2), which is not the key.
+
+### (c) and (d) The sweep (`--base` = `c350dfc`, `--draws 3 --check-wrong`)
+
+- **Right spellings that must pass, outright.** The editor's spelling of every key with π, a root or an exponent:
+  `\sqrt{n}`, `\pi`, braced exponents, a typed `/` stacked over the atom before it, and a one-character power left
+  unbraced as MathLive leaves it. That covers 3,572 keys. `editorSpellingsRefused` must be 0.
+- **Wrong spellings that must fail, outright:**
+  - `(a/π)^n` against `a/π^n`;
+  - `x^(π/n)`, braced and unbraced, against `x^π/n` and `x^{π}/n`;
+  - `e^(√n/b)` against `e^√n/b`;
+  - `x^\frac{2t}{b}` against `x^{2t}/b`;
+  - swapped fractions.
+
+  `stackedWrongAccepted` must be 0.
+- **Synthetic keys.** 128 fields cover these shapes.
+- **Result:**
+  - 9,509 fields, 269,448 verdicts;
+  - **0 right → wrong**, **0 near miss → right**, **0 editor spellings refused**, **0 wrong stacked spellings
+    accepted**;
+  - 216 near misses that the base accepted are now refused (the N1 shapes);
+  - 2,130 newly accepted right spellings, in 30 shapes, each the key's own value: 1,263 "and"/"or" word groups,
+    and the rest stacked or braced π / √ / exponent spellings.
+- **The sweep catches each fix being undone.** Reverting N1, the π-power denominator, the nested-brace exponent or
+  the π/√ simple exponent each makes it exit 1 (54 wrong accepted / 8, 86, 42 editor spellings refused).
+- **The sweep's own counting is fixed.** A near miss that the base accepted and this tree refuses was counted as
+  "right → wrong". It is now `nearMissNowRefused`, listed for review.
+
+**Pins.** `secureMathAnswerRoundTrip`: each case graded and normalised; rendering without `constantOperands` is
+unchanged. Five mutations red.
+
+### For the owner
+
+`mm_A2_3C_v2_quadratic-formula-exact` (Algebra II) cannot be answered right. Its ordered-pair keys are unsimplified
+expressions, and the pair grader matches only that exact text. This is true on Path and on a Test, before H-13 and
+after it. A fix is either the content (simplify the key, or add accepted forms) or the grader (compare a pair
+coordinate with a root by value). Either is outside this branch.

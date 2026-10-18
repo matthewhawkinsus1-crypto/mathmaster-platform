@@ -127,29 +127,60 @@ const withNumberCoefficient = (text, start) => {
   return begin;
 };
 
-// An exponent or a subscript is not an operand of its own: `x^π/2` is x^π
-// over 2 and `e^\sqrt{2}/2` is e^√2 over 2 (the power comes along as one
-// operand, above), so a constant right after `^` or `_` is not taken here.
-const afterPowerOrSubscript = (text, start) => start > 0 && /[\^_]/.test(text[start - 1]);
-
-const constantBefore = (text, index) => {
-  if (text[index] === 'π') {
-    const start = withNumberCoefficient(text, index);
-    return afterPowerOrSubscript(text, start) ? null : { start, text: text.slice(start, index + 1) };
-  }
-  if (text[index] === '}') {
-    const open = matchBackwards(text, index);
-    if (open < 5 || text.slice(open - 5, open) !== '\\sqrt') return null;
-    const start = withNumberCoefficient(text, open - 5);
-    return afterPowerOrSubscript(text, start) ? null : { start, text: text.slice(start, index + 1) };
-  }
-  return null;
+// An exponent is not an operand of its own: `x^π/2` is x^π over 2 and
+// `e^\sqrt{2}/2` is e^√2 over 2, so a constant right after `^` brings its base
+// along (the power comes along as one operand, below). After `_` it is part
+// of a name and not taken at all.
+const withPowerBase = (text, start, options) => {
+  if (start <= 0) return { start };
+  if (text[start - 1] === '_') return null;
+  if (text[start - 1] !== '^') return { start };
+  const base = operandBefore(text, start - 2, options);
+  return base ? { start: base.start } : null;
 };
 
-// A denominator followed by a power or a subscript is not the constant alone:
-// `2/π^2` is 2 over π², never (2/π)².
+const constantBefore = (text, index, options) => {
+  let start = -1;
+  if (text[index] === 'π') start = withNumberCoefficient(text, index);
+  else if (text[index] === '}') {
+    const open = matchBackwards(text, index);
+    if (open < 5 || text.slice(open - 5, open) !== '\\sqrt') return null;
+    start = withNumberCoefficient(text, open - 5);
+  } else return null;
+  const whole = withPowerBase(text, start, options);
+  return whole ? { start: whole.start, text: text.slice(whole.start, index + 1) } : null;
+};
+
+/*
+ * The end of an exponent starting at `start` (just after `^`): a run of
+ * digits, or a bracketed group. -1 when it cannot be read.
+ */
+const exponentEnd = (text, start) => {
+  if (/\d/.test(text[start] || '')) {
+    let end = start;
+    while (/\d/.test(text[end] || '')) end += 1;
+    return end;
+  }
+  if (text[start] === '{' || text[start] === '(') {
+    const close = matchForwards(text, start);
+    return close < 0 ? -1 : close + 1;
+  }
+  return -1;
+};
+
+// A constant denominator takes its own power: `2/π^2` is 2 over π², and the
+// editor writes it \frac{2}{\pi^2}. It is never (2/π)², and a denominator
+// followed by anything else that binds (a letter, a digit, a subscript) is
+// not the constant alone.
 const constantAfter = (text, index) => {
-  if (text[index] === 'π') return /[A-Za-z\d^_]/.test(text[index + 1] || '') ? null : { end: index + 1, text: 'π' };
+  if (text[index] === 'π') {
+    let end = index + 1;
+    if (text[end] === '^') {
+      end = exponentEnd(text, end + 1);
+      if (end < 0) return null;
+    }
+    return /[A-Za-z\d^_]/.test(text[end] || '') ? null : { end, text: text.slice(index, end) };
+  }
   if (text.startsWith('\\sqrt{', index)) {
     const close = matchForwards(text, index + 5);
     if (close < 0 || /[A-Za-z\d^_]/.test(text[close + 1] || '')) return null;
@@ -170,7 +201,7 @@ const operandBefore = (text, end, options = {}) => {
   if (index < 0) return null;
 
   if (options.constantOperands) {
-    const constant = constantBefore(text, index);
+    const constant = constantBefore(text, index, options);
     if (constant) return constant;
   }
 
@@ -178,6 +209,13 @@ const operandBefore = (text, end, options = {}) => {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
     const start = withLeftPrefix(text, open);
+    // Grading: a bracketed exponent brings its base, whatever it holds —
+    // `x^{π}/2` (written `x^(π)/2` by then) is (x^π)/2, never x^(π/2).
+    if (options.constantOperands) {
+      const whole = withPowerBase(text, start, options);
+      if (!whole) return null;
+      return { start: whole.start, text: text.slice(whole.start, index + 1) };
+    }
     return { start, text: text.slice(start, index + 1) };
   }
   // A closing brace is the tail of a `\frac{…}{…}` or a superscript group as

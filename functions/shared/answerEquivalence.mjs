@@ -105,6 +105,31 @@ const absCallsAsBars = (value) => {
   return text;
 };
 
+/*
+ * `^{…}` as the group it is: a single number, letter, π or square root
+ * unbraced (`^{2}` is `^2`, `^{\pi}` is `^π`), anything else in brackets (`^{n-1}` is `^(n-1)`).
+ * Braces inside the exponent are matched, so the editor's
+ * `e^{\frac{\sqrt2}{2}}` meets the key `e^(sqrt(2)/2)` (H-13 review): a
+ * flat-brace pattern left a nested exponent braced and the two apart.
+ */
+const SIMPLE_EXPONENT = /^\s*(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})\s*$/;
+const bracedExponentsAsGroups = (value) => {
+  let text = value;
+  for (let index = text.indexOf('^{'); index >= 0; index = text.indexOf('^{', index + 1)) {
+    let depth = 0;
+    let close = -1;
+    for (let cursor = index + 1; cursor < text.length; cursor += 1) {
+      if (text[cursor] === '{') depth += 1;
+      else if (text[cursor] === '}') { depth -= 1; if (depth === 0) { close = cursor; break; } }
+    }
+    if (close < 0) break;
+    const body = text.slice(index + 2, close);
+    const group = SIMPLE_EXPONENT.test(body) ? body.trim() : `(${body})`;
+    text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /**
  * One spelling for the same symbol, for the comparisons that read text
  * (Job P). Each rewrite names exactly the same mathematics:
@@ -130,12 +155,10 @@ const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = text.replace(/\^\{([^{}]+)\}/g, (match, body) => (
-    /^\s*(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
-  ));
+  text = bracedExponentsAsGroups(text);
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
-  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
+  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
 };
 
 export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))), { asciiPi: false })

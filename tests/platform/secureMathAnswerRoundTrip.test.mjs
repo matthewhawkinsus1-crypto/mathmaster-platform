@@ -200,11 +200,11 @@ test('a constant next to a power is never a stacked operand: (2/π)² is not 2/�
   ]) {
     assert.equal(await grades(sent, key, { profile }), false, `${sent} is not ${key}`);
   }
-  // Normalised: the power stays with its constant, the division is left alone.
-  assert.equal(stackDivisions('2/π^2', { constantOperands: true }), '2/π^2');
-  assert.equal(stackDivisions('x^π/2', { constantOperands: true }), 'x^π/2');
-  assert.equal(stackDivisions('e^\\sqrt{2}/2', { constantOperands: true }), 'e^\\sqrt{2}/2');
-  assert.equal(stackDivisions('x_π/2', { constantOperands: true }), 'x_π/2');
+  // Normalised: the power stays with its constant (round 2 pins the stacked
+  // forms: π² in the denominator, the base over the divisor).
+  assert.notEqual(stackDivisions('2/π^2', { constantOperands: true }), '\\frac{2}{π}^2');
+  assert.notEqual(stackDivisions('x^π/2', { constantOperands: true }), 'x^\\frac{π}{2}');
+  assert.notEqual(stackDivisions('e^\\sqrt{2}/2', { constantOperands: true }), 'e^\\frac{\\sqrt{2}}{2}');
   // Every intended acceptance stands.
   for (const [sent, key, profile = 'number'] of [
     ['\\frac{\\pi}{2}', 'pi/2'], ['\\frac{\\sqrt3}{2}', 'sqrt(3)/2'], ['\\frac{2}{\\sqrt3}', '2/sqrt(3)'],
@@ -213,6 +213,45 @@ test('a constant next to a power is never a stacked operand: (2/π)² is not 2/�
   ]) {
     assert.equal(await grades(sent, key, { profile }), true, `${sent} for ${key}`);
   }
+});
+
+test('the editor\'s own spelling of a π, root or exponent key is a right answer; a fraction in the exponent is not (H-13 review, round 2)', async () => {
+  // What MathLive writes when the key is typed (2, /, π, ^2 gives
+  // \frac{2}{\pi^2}; captured in the browser). Each was refused on c350dfc.
+  for (const [sent, key, profile = 'number'] of [
+    ['\\frac{2}{\\pi^2}', '2/pi^2'],
+    ['\\frac{2}{\\pi^{2}}', '2/pi^2'],
+    ['e^{\\frac{\\sqrt2}{2}}', 'e^(sqrt(2)/2)', 'expression'],
+    ['x^{\\pi}/2', 'x^pi/2', 'expression'],
+    ['\\frac{x^{\\pi}}{2}', 'x^pi/2', 'expression'],
+    ['\\frac{e^{\\sqrt{2}}}{2}', 'e^sqrt(2)/2', 'expression'],
+    ['\\frac{x^{2t}}{3}', 'x^{2t}/3', 'expression'],
+  ]) {
+    assert.equal(await grades(sent, key, { profile }), true, `${sent} for ${key}`);
+  }
+  // The other numbers those keys are not: (2/π)², x^(π/2), e^(√2/2) for
+  // e^√2/2, and a braced exponent stacked over the divisor (N1).
+  for (const [sent, key, profile = 'number'] of [
+    ['\\frac{2}{\\pi}^2', '2/pi^2'],
+    ['x^{\\frac{\\pi}{2}}', 'x^pi/2', 'expression'],
+    ['x^\\frac{\\pi}{2}', 'x^{\\pi}/2', 'expression'],
+    ['2^\\frac{\\pi}{2}', '2^{\\pi}/2'],
+    ['x^\\frac{\\alpha}{2}', 'x^{\\alpha}/2', 'expression'],
+    ['x^\\frac{2t}{3}', 'x^{2t}/3', 'expression'],
+    ['e^{\\frac{\\sqrt2}{2}}', 'e^sqrt(2)/2', 'expression'],
+    ['e^{\\frac{\\sqrt3}{2}}', 'e^(sqrt(2)/2)', 'expression'],
+  ]) {
+    assert.equal(await grades(sent, key, { profile }), false, `${sent} is not ${key}`);
+  }
+  // Normalised: a π denominator takes its power; a constant or a bracketed
+  // exponent brings its base over the divisor.
+  assert.equal(stackDivisions('2/π^2', { constantOperands: true }), '\\frac{2}{π^2}');
+  assert.equal(stackDivisions('2/π^{2}', { constantOperands: true }), '\\frac{2}{π^{2}}');
+  assert.equal(stackDivisions('x^π/2', { constantOperands: true }), '\\frac{x^π}{2}');
+  assert.equal(stackDivisions('e^\\sqrt{2}/2', { constantOperands: true }), '\\frac{e^\\sqrt{2}}{2}');
+  assert.equal(stackDivisions('x^(\\alpha)/2', { constantOperands: true }), '\\frac{x^(\\alpha)}{2}');
+  assert.equal(stackDivisions('x^(\\alpha)/2'), 'x^\\frac{\\alpha}{2}', 'rendering (no constantOperands) is unchanged');
+  assert.equal(stackDivisions('x_π/2', { constantOperands: true }), 'x_π/2', 'a subscript is part of a name');
 });
 
 test('an nth root and a digit that ends a name are not stacked operands (H-13 review S1)', () => {
