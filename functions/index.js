@@ -1816,7 +1816,8 @@ function storedAlgebraStepPartialCredit(record) {
   const currentSteps = steps.filter((step) => Number(step?.variantIndex) === variantIndex);
   if (!currentSteps.length) return 0;
 
-  const stateKey = (value) => String(value || "").replace(/\s+/g, "").replace(/[−–—]/g, "-");
+  // A TeX tie (2~ x, before pass 3 Q-31) is spacing, like the spaces.
+  const stateKey = (value) => String(value || "").replace(/[\s~]+/g, "").replace(/[−–—]/g, "-");
   const expectedTotal = currentSteps.reduce(
     (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
     0
