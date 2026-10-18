@@ -1,4 +1,4 @@
-# Student pass 3 — wave 5, W5-3: Matrix Lab feedback, credit for right models
+# Student pass 3 — wave 5: Matrix Lab feedback: Matrix Lab feedback, credit for right models
 
 Branch `claude/pass3-matrix-lab-feedback`, on `claude/modest-pasteur-xzagn7` at `e822504`.
 Nothing here deploys, writes to a production project or re-grades a recorded attempt. Student words follow D9
@@ -222,7 +222,7 @@ of the pack).
 | Check | Result |
 | --- | --- |
 | `npm run test:platform` | 11 598 / 11 598 pass (after `npm ci` in `functions/` and `functions-path-admin/`) |
-| `node --test tests/tools/*.test.mjs` | GATE_TOOLS |
+| `node --test tests/tools/*.test.mjs` | 1 686 pass, 0 fail, 1 skipped (17 new in `matrixLabFeedback.test.mjs`) |
 | `npm run lint` | exit 0 (warnings only, none in changed files) |
 | `npm run build` | exit 0 |
 | `npm run build:firebase` | exit 0; no tracked file rewritten (`git status` clean) |
@@ -232,11 +232,11 @@ of the pack).
 | `npm run test:rules` (Firestore emulator) | 218 / 218 |
 | Matrix Lab unit/tool tests (`matrixLabSharedGrading`, `matrixLabPlatform`, `algebra2MatricesLesson`, new `matrixLabFeedback`) | all pass |
 | Secure-item storage (A2.3B: `secureItemNestedArrays`, `algebra2FidelityV2Staged`) | pass (in `test:platform`) |
-| `tests/browser/matrixLabFeedback.mjs` (new) | GATE_DRIVER |
+| `tests/browser/matrixLabFeedback.mjs` (new) | every check passed (laptop 1366×768 + phone 390×844 touch, incl. P2-7 and DOL 1–3) |
 | `algebra2MatricesLesson.mjs` | 56 views, 0 findings |
 | `toolPolicyGates`, `assessmentLeakGates`, `toolAttemptOutcome`, `composedOutcomePolicy` | exit 0 each |
 | `workViewMatrix` | exit 0 (480 screenshots) |
-| `studentUxPlatform`, `feedbackTeaches`, `readAloudTranslate`, `stagedQuestion`, `focusSafeToolControls` | GATE_REST |
+| `studentUxPlatform`, `feedbackTeaches`, `readAloudTranslate`, `stagedQuestion`, `focusSafeToolControls` | exit 0 each |
 | `captureToolResponses.mjs matrixLab --debug` | 0 captures: it drives Path tools only, and has no Matrix Lab driver |
 
 Vite ran as the plain `npx vite --host 127.0.0.1 --port 5199 --strictPort` with `AUDIT_ORIGIN`; its cache stays in
