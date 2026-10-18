@@ -33,6 +33,7 @@
  * student's tool, exactly as a handheld calculator is.
  */
 import { parse } from '../math/mathjs.js';
+import { bracketProblem, calculatorErrorMessage, firstUnreadable } from '../policies/calculatorErrorReasons.js';
 
 export const GRAPHING_LIMITS = Object.freeze({
   maxEntries: 6,
@@ -138,6 +139,21 @@ class EntryError extends Error {
 }
 
 const refuse = (code, message) => { throw new EntryError(code, message); };
+
+/*
+ * THE KEYPAD'S REASONS (TOOL-8, shared since W6-4): a character no key makes,
+ * and a bracket left open or closing nothing, say what to change in the same
+ * words the keypad calculator uses (calculatorErrorReasons.js). Before, an
+ * open bracket read "not finished, or has a symbol out of place", "y = 2x;"
+ * read "Use numbers, x, and + − × ÷ ^ with brackets", and "#" — which mathjs
+ * reads as the start of a comment — dropped the rest of the line without a
+ * word. "%", "!" and "_" have sentences of their own below ("This calculator
+ * does not use "%"…", ""x_1" is not something…").
+ */
+// What to change when a value has no real number (1/0, √−4, log 0, tan 90°).
+const UNDEFINED_VALUE = 'That has no number answer. Check for dividing by 0, or a square root or log of a number that is not positive.';
+const NAMED_BELOW = new Set(['%', '!', '_']);
+const refuseFor = (reason, detail = null) => refuse(reason, calculatorErrorMessage({ reason, detail }, { variable: VARIABLE }));
 
 /*
  * Typing, not mathematics: the characters a phone or a math keyboard produces,
@@ -295,14 +311,30 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
       else if (left === 'x') vertical = true;
       else refuse('left-side', 'Start with y =, or x = for a vertical line.');
     }
-    let tree;
-    try {
-      tree = parse(right);
-    } catch {
-      refuse('syntax', 'This line is not finished, or has a symbol out of place.');
-    }
     const context = { nodes: 0, usesX: false, degrees: angleMode === ANGLE_MODES.DEGREES };
-    const compiled = compileNode(tree, context, 0);
+    let compiled;
+    try {
+      let tree;
+      try {
+        tree = parse(right);
+      } catch {
+        refuse('syntax', 'This line could not be read.'); // explained below
+      }
+      compiled = compileNode(tree, context, 0);
+    } catch (error) {
+      // Only the two general refusals are explained further; a sentence that
+      // already names the problem (the allowlist's "not a function this
+      // calculator has", "Put brackets after sin") stands.
+      if (!(error instanceof EntryError) || !['syntax', 'unsupported'].includes(error.code)) throw error;
+      const unreadable = firstUnreadable(right);
+      if (unreadable && !NAMED_BELOW.has(unreadable)) refuseFor('symbol', unreadable);
+      if (error.code === 'unsupported') throw error;
+      const brackets = bracketProblem(right);
+      refuseFor(brackets ? `bracket-${brackets}` : 'syntax');
+    }
+    // mathjs reads "#" as the start of a comment, so y = 2x # 3 parsed as
+    // y = 2x. A line is graphed only when all of it was read.
+    if (right.includes('#')) refuseFor('symbol', '#');
     const evaluate = (x) => {
       const value = finite(Number(x));
       return value === null ? null : finite(compiled(value));
@@ -311,7 +343,7 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
     if (vertical) {
       if (context.usesX) refuse('vertical-with-x', 'For a vertical line, put a number after x =.');
       const x = finite(compiled(0));
-      if (x === null) refuse('undefined', 'That value is undefined.');
+      if (x === null) refuse('undefined', UNDEFINED_VALUE);
       if (Math.abs(x) > GRAPHING_LIMITS.maxCoordinate) refuse('too-large', 'That number is too large for this calculator.');
       return { kind: ENTRY_KINDS.VERTICAL, text: original, x };
     }
@@ -319,7 +351,7 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
       return { kind: ENTRY_KINDS.FUNCTION, text: original, label: label || 'y', evaluate };
     }
     const value = finite(compiled(0));
-    if (value === null) refuse('undefined', 'That value is undefined.');
+    if (value === null) refuse('undefined', UNDEFINED_VALUE);
     return { kind: ENTRY_KINDS.VALUE, text: original, value };
   } catch (error) {
     if (error instanceof EntryError) return { kind: ENTRY_KINDS.ERROR, text: original, error: error.message, code: error.code };
@@ -464,6 +496,76 @@ const shortestEquivalent = (x, asGood, gap) => {
   return candidates.find((candidate) => Math.abs(candidate - x) < gap / 2 && asGood(candidate)) ?? Number(x.toPrecision(12));
 };
 
+/*
+ * A FLAT TURN IS PINNED BY ITS SHAPE, NOT BY ITS VALUE (W5-7's review note,
+ * W6-4). Near (x − 2.718)⁶ − 3's minimum every x within about 0.02 of 2.718
+ * computes −3 to the last digit, so "the shortest x that is as low" was 2.7 —
+ * and zoomed in to [2.6, 2.8] that x was not a turn at all, and the minimum
+ * vanished. A turn that rises faster than a parabola's (rise(d) / rise(d/2)
+ * of 8 or more, measured where the rise is well above rounding error) is
+ * anchored at the middle of its basin instead, between the two points where
+ * it has risen by half that much (when a lower level agrees on the middle),
+ * and rounding may move x only about as far as rounding error moves those
+ * points. A parabola, a cubic's turn or a corner (|x|) returns null and is
+ * read as before.
+ *
+ * @returns {{ center, reach, distance } | null}  distance: how far off the
+ *   line has clearly risen, for the "real turn" test
+ */
+const flatTurn = (f, x, turnValue, tolerance, gap, span, lowest) => {
+  const above = (t) => {
+    const value = f(t);
+    return value === null ? null : (lowest ? value - turnValue : turnValue - value);
+  };
+  const rise = (d) => {
+    const leftRise = above(x - d);
+    const rightRise = above(x + d);
+    return leftRise === null || rightRise === null ? null : Math.min(leftRise, rightRise);
+  };
+  const clear = 1000 * tolerance;
+  let d = gap;
+  let risen = rise(d);
+  while (risen !== null && risen <= clear && d * 2 <= span) {
+    d *= 2;
+    risen = rise(d);
+  }
+  if (risen === null || !(risen > clear)) return null;
+  const half = rise(d / 2);
+  if (half === null || !(half > 0)) return null;
+  const order = Math.log2(risen / half);
+  if (!(order >= 3)) return null;
+  // One side of the basin: where the line has risen by `level`.
+  const crossing = (outer, level) => {
+    let near = x;
+    let far = outer;
+    for (let step = 0; step < 80; step += 1) {
+      const mid = (near + far) / 2;
+      const value = above(mid);
+      if (value === null) return null;
+      if (value > level) far = mid; else near = mid;
+    }
+    return (near + far) / 2;
+  };
+  const basin = (level) => {
+    const left = crossing(x - d, level);
+    const right = crossing(x + d, level);
+    if (left === null || right === null) return null;
+    const halfWidth = (right - left) / 2;
+    // Rounding error in the line's value moves each crossing by about
+    // tolerance ÷ slope there; the slope of a rise of order n is n·level/halfWidth.
+    return { middle: (left + right) / 2, drift: (tolerance * halfWidth) / (order * level) };
+  };
+  const high = basin(risen / 2);
+  const low = basin(risen / 16);
+  if (!high || !low) return null;
+  const reach = Math.max(3 * Math.max(high.drift, low.drift), 1e-12 * Math.max(1, Math.abs(x)));
+  // A lopsided basin ((x − 1)⁴ + 0.001(x − 1)³) has no middle that is its
+  // turn: the two levels' middles disagree. There the search's own x stands,
+  // and only how far rounding may move it is capped.
+  const symmetric = Math.abs(high.middle - low.middle) <= reach;
+  return { center: symmetric ? high.middle : x, reach, distance: d };
+};
+
 /**
  * @param entry  a FUNCTION entry from parseGraphEntry
  * @param view   { xMin, xMax } — the x-range on screen
@@ -545,18 +647,23 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       // and 50. The line's typical size on screen stands in for its terms.
       const local = Math.max(...[f(x - gap), f(x + gap)].filter((value) => value !== null).map((value) => Math.abs(value - turnValue)), 0);
       const tolerance = 1e-14 * Math.max(1, Math.abs(turnValue), local, viewScale);
-      const at = shortestEquivalent(x, (candidate) => {
+      // A flat turn (a sixth power's) is anchored at its basin's middle and
+      // rounded only as far as its shape allows; see flatTurn.
+      const flat = flatTurn(f, x, turnValue, tolerance, gap, span, lowest);
+      const at = shortestEquivalent(flat ? flat.center : x, (candidate) => {
         const value = f(candidate);
         if (value === null) return false;
         return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= tolerance;
-      }, gap);
+      }, flat ? 2 * flat.reach : gap);
       const y = f(at);
       if (y === null) continue;
       // A real turn: a step's gap away on both sides the line is strictly
       // higher (for a minimum) or lower. The flat top of a step, or the edge
-      // of a jump, is not one.
-      const before = f(at - gap);
-      const after = f(at + gap);
+      // of a jump, is not one. A flat turn is tested where it has clearly
+      // risen: a step away it computes the same value.
+      const probe = flat ? Math.max(gap, flat.distance) : gap;
+      const before = f(at - probe);
+      const after = f(at + probe);
       if (before === null || after === null) continue;
       if (lowest ? !(before > y && after > y) : !(before < y && after < y)) continue;
       if (found.some((known) => Math.abs(known.x - at) < gap / 2)) continue;

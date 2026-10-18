@@ -1216,7 +1216,9 @@ export default function InteractiveGraphWorkspace({
       ? { label: 'Place and move points', studentState: true }
       : null,
     tableData: studentChoosesX && constructionEnabled ? { label: 'Chosen x-values' } : null,
-    instruction: { text: currentInstruction },
+    // The stage the workspace has opened (plot, draw, mark the ends, an
+    // analysis part's own label): controls, kept on a DOL (W6-4).
+    instruction: { text: currentInstruction, controlsOnly: true },
     task: { text: String(question.prompt || '').trim() || (pointOnly ? 'Plot every point from your table.' : 'Construct the function and complete every requested analysis part.') },
   };
 

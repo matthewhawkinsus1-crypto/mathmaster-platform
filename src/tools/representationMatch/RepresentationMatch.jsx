@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import './RepresentationMatch.css';
-import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 
 const CardSetStack = ({ children }) => (
   <div className="mathmaster-tool-card-set-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}>{children}</div>
@@ -92,7 +93,10 @@ const MODE_STEPS = {
   findMismatch: ['Pick a couple of input values.', 'Work out what each card predicts for those inputs.', 'The card that disagrees with the other two is the mismatch.'],
   tableAudit: ['Substitute each row’s x into the rule.', 'Compare the result with the y in that row.', 'Select the one row where they disagree.'],
   graphMatch: ['Find the key features of the equation: where it crosses the axes and how fast it grows.', 'Look for those same features in each graph.', 'Select the graph that has all of them.'],
-  linearConnections: ['Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.', 'Choose the next group and repeat.', 'Compare the numbers each card gives you rather than how the card looks.'],
+  // The first two say how the board works (a group button, then card taps),
+  // so an exit ticket, quiz or test keeps them; the third is how to decide
+  // which cards belong together, the method (student pass 3, W6-4).
+  linearConnections: [controlStep('Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -134,6 +138,8 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
    * question.
    */
   const mode = representationMatchMode(questionData);
+  // An exit ticket, quiz or test before release withholds the method (R-10).
+  const methodWithheld = useMethodWithheld();
   const sets = useMemo(() => representationSetsFor({ mode, sets: questionData.sets }), [questionData.sets, mode]);
   const targetId = representationTargetId(questionData, sets);
   const graphMatchBounds = useMemo(() => graphMatchBoundsFor(sets, questionData.graphBounds), [sets, questionData.graphBounds]);
@@ -516,11 +522,17 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       </Panel>
 
       {/* Left-aligned text: the question runtime centres text, which put the
-          bullets at the left edge and each sentence in the middle. */}
-      <Panel title="Representation reasoning" collapsible>
-        <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
-        <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
-      </Panel>
+          bullets at the left edge and each sentence in the middle.
+          THE FOLD IS METHOD (student pass 3, W6-4; W4-1's round-2 note): what
+          each representation shows and "check them against each other" is
+          how these items are solved, so an exit ticket, quiz or test before
+          release does not show it, the same as the card's method steps. */}
+      {methodWithheld ? null : (
+        <Panel title="Representation reasoning" collapsible>
+          <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
+          <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
+        </Panel>
+      )}
     </Layout>
   </ToolShell>;
 }

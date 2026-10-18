@@ -10,7 +10,7 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
-import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, deleteKeyClearsError, typedKeyReplacesPlaceholder, valueWithoutPlaceholder } from './calculatorKeys.js';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, deleteKeyClearsError, keypadGraphingNote, typedKeyReplacesPlaceholder, valueWithoutPlaceholder } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -36,7 +36,11 @@ export const CalculatorPanel = ({
   onOpenChange = null,
   showLauncher = true,
   launcherStyle = null,
+  // True where the keypad stands in for a graphing calculator that could not
+  // load (QuestionEngine); it says so instead of offering graphs (W6-4).
+  graphingUnavailable = false,
 }) => {
+  const graphingNote = keypadGraphingNote({ mode: policy?.mode, graphingUnavailable });
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen == null ? internalOpen : Boolean(controlledOpen);
   const setOpen = useCallback((nextValue) => {
@@ -612,7 +616,7 @@ export const CalculatorPanel = ({
               <span data-calculator-result-announcement="" role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
                 {resultAnnouncement.text ? `${resultAnnouncement.text}${resultAnnouncement.count % 2 ? '' : '\u00a0'}` : ''}
               </span>
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
+              {graphingNote ? <p data-calculator-graphing-note="" style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{graphingNote}</p> : null}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button

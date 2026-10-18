@@ -224,7 +224,9 @@ test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is'
   // item that asks it. The same for reading r and residual plots, and for
   // choosing between models.
   const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
-  assert.match(lab, /const teachingNotes = useHintsAllowed\(\);/);
+  // Since W6-4 (review N3) the notes follow the method gate: withheld where
+  // hints are, and also where verdicts are withheld with hints on.
+  assert.match(lab, /const methodWithheld = useMethodWithheld\(\);\s*const teachingNotes = !methodWithheld;/);
   [
     'Interpret r by its sign',
     'It does not, by itself, prove causation',
@@ -264,12 +266,17 @@ test('Data Modeling: the guide steps on a secure item repeat no withheld teachin
   });
   // Chosen by the hint permission; an unknown mode falls back to secure steps.
   assert.match(source, /const guideSteps = teachingNotes\s*\? \(MODE_STEPS\[mode\] \|\| MODE_STEPS\.full\)\s*: \(SECURE_MODE_STEPS\[mode\] \|\| MODE_STEPS\[mode\] \|\| SECURE_MODE_STEPS\.full\);/);
-  assert.match(source, /const taskSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
+  assert.match(source, /const wordedSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
   assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\}[^>]*\/>/);
   // The secure lists say what to do, not how to judge it, so the card shows
-  // them where the method is withheld (R-10); a mode with no secure list falls
-  // back to teaching steps and is withheld.
-  assert.match(source, /steps=\{taskSteps\} stepsAreControls=\{!teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\)\} \/>/);
+  // them where the method is withheld (R-10). Since W6-4 each secure step is a
+  // control step rather than the whole list `stepsAreControls`, so the
+  // directions sentence ("Use … regression technology", the route) does not
+  // come back beside them; a mode with no secure list falls back to teaching
+  // steps and is withheld. Rendered per mode in toolDirectionsSplit.test.mjs.
+  assert.match(source, /const secureSteps = !teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\);/);
+  assert.match(source, /const taskSteps = secureSteps \? wordedSteps\.map\(controlStep\) : wordedSteps;/);
+  assert.doesNotMatch(source, /<TaskCard [^>]*stepsAreControls/);
 });
 
 test('only the student\'s own work is autosaved, and only a host that keeps live tool work is sent it', () => {

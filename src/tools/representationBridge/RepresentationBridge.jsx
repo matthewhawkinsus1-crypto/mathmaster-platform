@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
+import ToolShell, { controlStep, Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useMethodWithheld, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -96,7 +96,16 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   // UI emphasis only — never mathematical answer state, so none of this
   // participates in the draft/undo history (see toolStatePersistence.js).
   const [selectedRows, setSelectedRows] = useState([]);
+  // On an exit ticket, quiz or test before release the method is withheld
+  // (R-10). The highlight buttons are part of it (student pass 3, W6-4):
+  // RATE / SLOPE lights m and a together and ZERO / X-INTERCEPT lights c,
+  // which says "a is the rate, c is the zero" without a word. There no
+  // highlight is offered or drawn.
+  // The same goes for the field names a screen reader says ("Zero c",
+  // "y-intercept b"): on an assessment they are "c" and "b" (review S1).
+  const methodWithheld = useMethodWithheld();
   const [activeHighlight, setActiveHighlight] = useState(null);
+  const shownHighlight = methodWithheld ? null : activeHighlight;
   const [activeMeaningRow, setActiveMeaningRow] = useState(MEANING_ROWS[0]);
   const [notice, setNotice] = useState('');
   const [redoDepth, setRedoDepth] = useState(0);
@@ -337,8 +346,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           key={concept}
           type="button"
           onClick={() => setActiveHighlight((current) => (current === concept ? null : concept))}
-          aria-pressed={activeHighlight === concept}
-          style={{ ...button, minHeight: 44, background: activeHighlight === concept ? '#b06000' : 'var(--mm-surface)', color: activeHighlight === concept ? '#fff' : 'var(--mm-text-strong)' }}
+          aria-pressed={shownHighlight === concept}
+          style={{ ...button, minHeight: 44, background: shownHighlight === concept ? '#b06000' : 'var(--mm-surface)', color: shownHighlight === concept ? '#fff' : 'var(--mm-text-strong)' }}
         >
           {HIGHLIGHT_LABEL[concept]}
         </button>
@@ -352,25 +361,26 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   // both panel rows instead of stacking them within the available width.
   const gridTwoColumn = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))', gap: 16, marginTop: 16 };
 
-  // On an assessment the card keeps only how to work each panel (R-10):
-  // the method steps go, and nothing else says the table is tapped in pairs.
-  const methodWithheld = useMethodWithheld();
-
   return (
     <ToolShell
       title="Representation Bridge"
       subtitle="One linear relationship, five connected views: the table, the rate of change, general and factored equations, the graph, and what every part means. Work moves between panels; nothing here replaces the whole screen."
       badge="Connected linear representations"
     >
+      {/* One list, each step marked (student pass 3, W6-4). The two control
+          steps say how the table is worked and that the panels open in
+          order, and stay on an exit ticket, quiz or test (without them
+          nothing says rows are tapped in pairs). The plain strings are the
+          method: how m, b and c are found, what to plot, what to connect. The
+          note is about the highlight buttons, which are method too, and goes
+          with them. */}
       <TaskCard
         question={questionData}
         task="Build the same linear relationship across every representation, then check that they all agree."
-        stepsAreControls={methodWithheld}
-        steps={methodWithheld ? [
-          'Table: tap two rows to form an interval, enter Δx, Δy and the rate, and record it. Record more than one.',
-          'Then fill in each panel below in order: the equations, the graph, and what the parts mean.',
-        ] : [
-          'Table: select two rows, compute Δx, Δy, and the rate yourself, and record it. Repeat, then conclude whether the rate is constant and state m.',
+        steps={[
+          controlStep('Table: tap two rows to form an interval, enter Δx, Δy and the rate, and record it. Record more than one.'),
+          'Work out each value yourself, then conclude whether the rate is constant and state m.',
+          controlStep('Then fill in each panel below in order: the equations, the graph, and what the parts mean.'),
           'General form: write y = mx + b using the b you determine yourself.',
           'Factored form: rewrite your equation as y = a(x − c).',
           'Graph: plot the x-intercept from your factored form, then a second point using the slope.',
@@ -379,7 +389,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         note="Use the highlight buttons below to see how one concept — rate, start, or zero — shows up in every panel at once."
       />
 
-      {highlightControls}
+      {methodWithheld ? null : highlightControls}
 
       <Panel title="Context">
         <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px' }}>
@@ -393,8 +403,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
             {derived.rows.map((row, index) => {
               const selected = selectedRows.includes(index);
-              const startMatch = activeHighlight === 'start' && revealed.start && Math.abs(row.x) < 1e-9;
-              const zeroMatch = activeHighlight === 'zero' && revealed.zero && Math.abs(row.y) < 1e-9;
+              const startMatch = shownHighlight === 'start' && revealed.start && Math.abs(row.x) < 1e-9;
+              const zeroMatch = shownHighlight === 'zero' && revealed.zero && Math.abs(row.y) < 1e-9;
               return (
                 <button
                   key={index}
@@ -443,7 +453,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             {tableEvidence.length ? (
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
                 {tableEvidence.map((entry, index) => {
-                  const rateMatch = activeHighlight === 'rate';
+                  const rateMatch = shownHighlight === 'rate';
                   return (
                     <li key={`${entry.i}-${entry.j}`} style={{
                       display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--mm-tint-border)', borderRadius: 8, padding: '7px 9px',
@@ -479,8 +489,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           {!readyToConclude ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Record {requiredComparisons - distinctPairCount} more interval(s) before concluding.</p> : null}
 
           <label style={{ display: 'block', maxWidth: 220 }}>
-            <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m (your slope)</span>
-            <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={studentSlope} onChange={(event) => { setStudentSlope(event.target.value); clearFeedback(); }} aria-label="Your slope m" />
+            <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m (your slope)</span>
+            <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={studentSlope} onChange={(event) => { setStudentSlope(event.target.value); clearFeedback(); }} aria-label="Your slope m" />
           </label>
 
           {feedbackTiming !== 'submitOnly' ? (
@@ -498,12 +508,12 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Your slope from the table stage: <strong>{studentSlope || '—'}</strong>. Determine b yourself — it is never filled in for you.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m</span>
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
               </label>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'start') ? 'var(--mm-warning-text)' : undefined }}>b {revealed.start && activeHighlight === 'start' ? `(= ${generalB})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'start') ? 'var(--mm-warning-text)' : undefined }}>b {revealed.start && shownHighlight === 'start' ? `(= ${generalB})` : ''}</span>
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label={methodWithheld ? 'b in general form' : 'y-intercept b in general form'} />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
@@ -521,15 +531,18 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, opacity: stageBlocked('factoredForm') ? 0.7 : 1 }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>Factored linear form: y = a(x − c)</div>
             {stageBlocked('factoredForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the general form stage first.</p> : null}
-            <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Rewrite your own general-form equation: a is the rate, c is the zero/x-intercept.</p>
+            <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>{methodWithheld
+              // Which number is a and which is c is the method (W4-1's round-2 note).
+              ? 'Rewrite your own general-form equation as y = a(x − c).'
+              : 'Rewrite your own general-form equation: a is the rate, c is the zero/x-intercept.'}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>a</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>a</span>
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
               </label>
               <label>
-                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, activeHighlight === 'zero') ? 'var(--mm-warning-text)' : undefined }}>c {revealed.zero && activeHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
+                <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'zero') ? 'var(--mm-warning-text)' : undefined }}>c {revealed.zero && shownHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
+                <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label={methodWithheld ? 'c in factored form' : 'Zero c in factored form'} />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
@@ -549,7 +562,13 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       <div style={gridTwoColumn}>
         <Panel title="Graph">
           {stageBlocked('graph') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the factored form stage first.</p> : null}
-          <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Plot the x-intercept from your factored form, then a second point using the slope. {activeHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {activeHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
+          <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{methodWithheld
+            // How to find the points is the method (W4-1's round-2 note); that
+            // the x-intercept is one of them is what the graph stage grades
+            // (graphQuestionFor: requiredAnchor 'xIntercept'), so it is said as
+            // the requirement, the way Graphing2's anchor note is (review S2/N2).
+            ? 'This question requires the x-intercept as one of your points, and a second point on your line.'
+            : 'Plot the x-intercept from your factored form, then a second point using the slope.'} {shownHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {shownHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
           <CoordinatePlane
             {...graphBounds}
             onPlot={stageBlocked('graph') ? undefined : plotPoint}
@@ -590,8 +609,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
                   aria-label={`Edit the meaning of ${meaningRowLabel[rowId]}`}
                   style={{
                     ...button, minHeight: 44,
-                    border: activeMeaningRow === rowId ? '3px solid #1a73e8' : highlightBorder(true, activeHighlight === highlightKey) || '1px solid var(--mm-tint-border)',
-                    background: complete ? 'var(--mm-success-bg)' : (highlightBackground(true, activeHighlight === highlightKey) || 'var(--mm-surface)'),
+                    border: activeMeaningRow === rowId ? '3px solid #1a73e8' : highlightBorder(true, shownHighlight === highlightKey) || '1px solid var(--mm-tint-border)',
+                    background: complete ? 'var(--mm-success-bg)' : (highlightBackground(true, shownHighlight === highlightKey) || 'var(--mm-surface)'),
                   }}
                 >
                   {meaningRowLabel[rowId]}

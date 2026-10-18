@@ -344,7 +344,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const workspaceCapabilities = {
     undo: undoHistory.capability,
     equationInput: { label: studentLine && showLineReadout ? `Your line: ${lineReadoutText(studentLine)}` : 'Your line', studentState: true },
-    instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel) },
+    // Where to click and how many points: controls (W6-4), kept on a DOL.
+    instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel), controlsOnly: true },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
     // renders nothing, so publishing it would leave a Help button over an

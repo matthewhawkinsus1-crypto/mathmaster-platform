@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useOwnHintLadder, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
@@ -128,7 +128,8 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     undo: undoHistory.capability,
     numericControls: { label: 'Family and parameters', studentState: true },
     equationInput: { label: builderEquation(model), studentState: true },
-    instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
+    // The controls and the finish line, no route (W6-4): kept on a DOL.
+    instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.', controlsOnly: true },
     task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
     // The hints ARE this Help: published only where the activity allows them,
     // so a DOL does not show a Help button over an empty drawer — and only
@@ -146,13 +147,17 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
       <TaskCard
         question={questionData}
         task="Choose a family and adjust its parameters until the graph satisfies every constraint. Then submit your constructed model."
+        // Each step marked (student pass 3, W6-4). Choosing and setting the
+        // family's parameters, and submitting, name the controls: kept on an
+        // exit ticket, quiz or test. Ruling families out from the
+        // characteristics, and how to read the checklist, are the method.
         steps={[
           'Read the characteristics first — identify which families are even possible.',
-          'Choose a family, then adjust the coefficients/parameters while watching the graph update.',
+          controlStep('Choose a family, then adjust the coefficients/parameters while watching the graph update.'),
           showImmediateFeedback !== false
             ? 'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.'
             : 'Use the constraint checklist as your target: every characteristic on it must be true of your model. It is checked when you submit.',
-          'Submit when every constraint is satisfied.',
+          controlStep('Submit when every constraint is satisfied.'),
         ]}
       />
 

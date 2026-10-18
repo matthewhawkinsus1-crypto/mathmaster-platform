@@ -3,6 +3,7 @@ import MathText from './MathText.jsx';
 import {
   WorkViewCapabilityPortProvider,
   combinePublishedCapabilities,
+  instructionShown,
   toggleWorkViewDrawer,
   useHasParentWorkView,
   usePublishWorkViewCapabilities,
@@ -15,7 +16,7 @@ import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../plat
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
-import { relabelToolPrimaryActions, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
+import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
@@ -190,6 +191,7 @@ export default function EnlargeableFigure({
   // Inside a registry tool, its final action in the rail carries the same
   // words as its button: Submit and its cost, or the host's (RUN-4, D9).
   const { submitLabel: hostSubmitLabel, submitCost } = useToolRuntimeContext();
+  const methodWithheld = useMethodWithheld();
   const toolCapabilities = useMemo(
     () => relabelToolPrimaryActions(capabilities, { submitLabel: hostSubmitLabel, submitCost }),
     [capabilities, hostSubmitLabel, submitCost],
@@ -482,7 +484,11 @@ export default function EnlargeableFigure({
   const referenceNode = reference && enlarged
     ? <div role="group" aria-label="Information you need" data-work-view-reference="">{typeof reference === 'string' ? <MathText>{reference}</MathText> : reference}</div>
     : null;
-  const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
+  // A tool's own banner on an exit ticket, quiz or test: only one marked
+  // `controlsOnly` (W6-4; instructionShown). Under QuestionEngine the merge
+  // has already decided; this covers a tool shell with no question around it.
+  const shownInstruction = instructionShown(registeredCapabilities.instruction, methodWithheld);
+  const instruction = shownInstruction?.content || shownInstruction?.text;
   // Task, Help and the current instruction have their own places in the shell,
   // and anything with an `onAction` becomes a button below. What is left is the
   // set of things this workspace can do that have no control of their own —

@@ -1,5 +1,6 @@
 import { evaluate, fraction, parse } from '../math/mathjs.js';
 import { calculatorModeAllowsExpression } from './calculatorPolicy.js';
+import { bracketProblem, firstUnreadable } from './calculatorErrorReasons.js';
 
 const SAFE_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs']);
 // The calculator shows 12 significant digits.
@@ -90,12 +91,6 @@ export const groupBuiltFractions = (ascii) => {
  */
 const refusal = (message, reason, detail = null) => Object.assign(new Error(message), { reason, detail });
 
-/** The first character the calculator has no key for, as typed. */
-const firstUnreadable = (text) => {
-  const match = /[=;[\]{}:_]|[^0-9a-zA-Z+\-*/^().,\s]/.exec(text);
-  return match ? match[0] : null;
-};
-
 const prepareCalculatorExpression = (expression, mode = null) => {
   const raw = String(expression ?? '').trim();
   if (!raw) throw refusal('Enter a shorter calculation.', 'empty');
@@ -126,17 +121,6 @@ const prepareCalculatorExpression = (expression, mode = null) => {
     throw refusal('Unsupported calculator function.', 'name', unknown);
   }
   return normalized;
-};
-
-/** Brackets in order: 'open' when one is never closed, 'close' when one closes nothing. */
-const bracketProblem = (text) => {
-  let depth = 0;
-  for (const char of text) {
-    if (char === '(') depth += 1;
-    if (char === ')') depth -= 1;
-    if (depth < 0) return 'close';
-  }
-  return depth > 0 ? 'open' : null;
 };
 
 export const evaluateCalculatorExpression = (expression, mode = null) => {

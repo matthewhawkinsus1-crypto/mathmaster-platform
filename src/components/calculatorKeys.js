@@ -8,6 +8,7 @@
  * result is announced: "equals 3.75, exactly 15 over 4".
  */
 import { spokenMathLabel } from '../platform/language/mathSpeechLabel.js';
+import { calculatorErrorMessage } from '../platform/policies/calculatorErrorReasons.js';
 
 const DIGIT = /^\d$/;
 
@@ -49,31 +50,14 @@ export const calculatorButtonsFor = (keys) => {
  * showed a bare "Error"; it now says why, in the same words a screen reader
  * hears. `error` is what evaluateCalculatorExpression threw (its `reason` and
  * `detail`, calculatorExpression.js); anything else gets the general sentence.
+ * The sentences live with the diagnosis, shared with the graphing calculator
+ * (calculatorErrorReasons.js, W6-4).
  */
-const GENERAL_ERROR = 'The calculator could not work that out. Check the expression.';
-export const calculatorErrorMessage = (error = null) => {
-  const detail = typeof error?.detail === 'string' && error.detail.trim() ? error.detail.trim() : null;
-  switch (error?.reason) {
-    case 'empty': return 'Type a calculation first.';
-    case 'tooLong': return 'That calculation is too long. Work it out in smaller steps.';
-    case 'symbol': return detail
-      ? `It could not read “${detail}”. Use numbers, + − × ÷, brackets and the function keys.`
-      : 'It could not read a symbol. Use numbers, + − × ÷, brackets and the function keys.';
-    case 'name': return detail
-      ? `It could not read “${detail}”. Use the function keys for √, sin, cos, tan, log and ln.`
-      : GENERAL_ERROR;
-    case 'mode': return 'This calculator does not have that key on this question.';
-    case 'notFinite': return 'That has no number answer. Check for dividing by 0.';
-    case 'bracket-open': return 'A bracket is not closed. Add the missing “)”.';
-    case 'bracket-close': return 'A “)” has no “(” to match it.';
-    case 'syntax': return 'It could not read that. Check for a missing number, or two signs side by side.';
-    default: return GENERAL_ERROR;
-  }
-};
+export { calculatorErrorMessage } from '../platform/policies/calculatorErrorReasons.js';
 
 /** What the calculator says after "=": "equals 3.75, exactly 15 over 4". */
 export const calculatorResultAnnouncement = ({ decimal = null, fraction = null, error = false } = {}) => {
-  if (error) return typeof error === 'string' ? error : GENERAL_ERROR;
+  if (error) return typeof error === 'string' ? error : calculatorErrorMessage(null);
   const value = String(decimal ?? '').trim();
   if (!value) return '';
   const said = spokenMathLabel(value);
@@ -115,3 +99,21 @@ export const valueWithoutPlaceholder = (value = '', { placeholderShown = false }
 export const deleteKeyClearsError = (event = {}, value = '') => (
   (event.key === 'Backspace' || event.key === 'Delete') && value === 'Error'
 );
+
+/*
+ * WHAT THE KEYPAD SAYS WHEN THE CALCULATOR SETTING IS "GRAPHING" (W6-4).
+ *
+ * It used to say "Graphs are drawn in the question itself. Use this calculator
+ * for the arithmetic." — from before an assignment had a graphing calculator
+ * (W5-7). The keypad now shows under a graphing setting only where no
+ * graphing calculator is drawn: on an assignment when the graphing calculator
+ * could not load (the keypad is its stand-in), and on hosts that draw none (a
+ * Path session, an assessment item whose test has no graphing tool). Neither
+ * draws graphs "in the question itself", so the line says what is true.
+ */
+export const keypadGraphingNote = ({ mode = null, graphingUnavailable = false } = {}) => {
+  if (mode !== 'graphing') return null;
+  return graphingUnavailable
+    ? 'The graphing calculator could not load, so this calculator stands in. It does the arithmetic but cannot draw graphs.'
+    : 'This calculator does the arithmetic. It cannot draw graphs.';
+};

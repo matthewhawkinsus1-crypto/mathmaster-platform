@@ -302,7 +302,8 @@ const practiceJourney = async (context, device) => {
     .filter((button) => button.getBoundingClientRect().width > 0 && /calculator/i.test(`${button.getAttribute('aria-label') || ''} ${button.textContent || ''}`))
     .map((button) => (button.getAttribute('aria-label') || button.textContent).replace(/\s+/g, ' ').trim()));
   check(calculatorControls.length === 1 && /Graphing calculator/.test(calculatorControls[0]), label('one calculator, the graphing calculator'), calculatorControls.join(' | '));
-  check(!/Graphs are drawn in the question itself/.test(await bodyText(page)), label('nothing says graphs are not the calculator\'s job'));
+  // (The keypad's graphing line reads "…cannot draw graphs." since W6-4.)
+  check(!/Graphs are drawn in the question itself|cannot draw graphs/.test(await bodyText(page)), label('nothing says graphs are not the calculator\'s job'));
   await sheetButton.click();
   const sheet = page.locator('[role="dialog"]').filter({ hasText: /degrees of arc in a circle is 360/ });
   const sheetShown = await sheet.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false);

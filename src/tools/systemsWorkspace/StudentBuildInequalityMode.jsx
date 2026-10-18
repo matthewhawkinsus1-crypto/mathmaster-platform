@@ -819,7 +819,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       pointEditing: { label: 'Boundary points, shading side, test points and vertices', studentState: true },
       // The step being worked on, so the enlarged view's header says what the
       // graph is waiting for.
-      instruction: { text: currentInstruction },
+      // The build stage the tool has opened, in the order it enforces; the same
+      // process-only words as the controls-only steps (R-10, W6-4).
+      instruction: { text: currentInstruction, controlsOnly: true },
       primaryActions: [{ id: 'check-student-build', label: submitActionLabel, onAction: finalCheck }],
     }}>
       <InequalityLayout

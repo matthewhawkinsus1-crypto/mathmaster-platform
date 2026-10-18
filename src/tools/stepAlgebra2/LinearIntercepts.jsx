@@ -3,7 +3,7 @@ import MathInput from '../../MathInput.jsx';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell.jsx';
+import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid, controlStep } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
 import { InteractiveStandardEquation } from './linearInterceptsConceptualUi.jsx';
 import {
@@ -283,10 +283,17 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={targetPrompt(kind)}
+        // Each step marked (student pass 3, W6-4). Which coordinate is 0 at
+        // an intercept is what the item measures: method, withheld on an exit
+        // ticket, quiz or test. The rest name the controls (the 0 to place,
+        // Substitute and solve, the operation buttons, Return to
+        // substitution, the point boxes and the stage's Check, which never
+        // uses a try) and stay there.
         steps={[
           `Decide which coordinate is always 0 at the ${stageLabel(kind)}.`,
-          'Pick up the 0 and place it on the variable you are replacing.',
-          'Commit the substitution, solve the one-variable equation, then write the ordered pair.',
+          controlStep('Place the 0 on a variable (drag it, or tap the 0 and then the variable), then press Substitute and solve.'),
+          controlStep('Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.'),
+          controlStep(`Write the ${stageLabel(kind)} as an ordered pair and press Check ${stageLabel(kind)}.`),
         ]}
         note="MathMaster will let you make a mathematically meaningful wrong substitution. Use the equation and the axis meaning to decide whether your path matches the intercept you were asked to find."
       />

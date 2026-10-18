@@ -191,6 +191,42 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   console.log('closed question: the calculator stays closed, ok');
 }
 
+// What to change after a refused line, in the keypad calculator's words (TOOL-8,
+// shared since W6-4), shown under the line and said by the polite region; a
+// "#" refuses the line instead of graphing what came before it. The lines
+// hold only what the student typed: no placeholder "0" or "Error" for a paste
+// to land after (W5-4's Clear/Error repair has nothing to repair here).
+{
+  const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing');
+  await page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
+  await page.locator(PANEL).waitFor();
+  const line = page.getByRole('textbox', { name: 'Line 1', exact: true });
+  const status = page.locator('[data-graphing-line="1"] [data-graphing-status]');
+  for (const [text, said] of [
+    ['y = (x + 2', 'A bracket is not closed. Add the missing “)”.'],
+    ['y = 2x)', 'A “)” has no “(” to match it.'],
+    ['y = 2x # 3', 'It could not read “#”. Use x, numbers, + − × ÷, brackets and the function keys.'],
+  ]) {
+    await line.fill(text);
+    await page.waitForFunction(({ s, t }) => document.querySelector(s)?.textContent?.trim() === t, { s: '[data-graphing-line="1"] [data-graphing-status]', t: said });
+    assert.equal(await status.getAttribute('data-graphing-status'), 'error', `${text}: refused, not graphed`);
+    assert.equal(await line.getAttribute('aria-invalid'), 'true', `${text}: the line is marked invalid`);
+    await page.waitForFunction((t) => [...document.querySelectorAll('[data-graphing-calculator] [aria-live="polite"]')].some((node) => node.textContent.includes(t)), said, { timeout: 5000 });
+  }
+  // Emptied after an error, then a paste: it reads what was pasted.
+  await line.fill('');
+  await line.focus();
+  await page.keyboard.insertText('(2+3)*2');
+  await page.waitForFunction((s) => document.querySelector(s)?.textContent?.trim() === '= 10', '[data-graphing-line="1"] [data-graphing-status]');
+  assert.equal(await line.inputValue(), '(2+3)*2', 'the line holds the paste and nothing before it');
+  // Removing the only line gives an empty one.
+  await page.getByRole('button', { name: 'Remove line 1' }).click();
+  assert.equal(await page.getByRole('textbox', { name: 'Line 1', exact: true }).inputValue(), '');
+  assert.deepEqual(errors, [], 'reasons: no page errors');
+  await page.close();
+  console.log('assignment graphing calculator: refusals say what to change, ok');
+}
+
 // The calculator's code cannot load: the keypad stands in, and the control is named for it.
 {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
@@ -202,6 +238,10 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.locator(`${BAR}[aria-label="Graphing calculator"]`).count(), 0, 'failed load: not called a graphing calculator');
   await page.locator(`${BAR}[aria-label="Calculator"]`).click();
   await page.locator(KEYPAD).waitFor();
+  // The keypad says it stands in (W6-4), never that the question draws graphs.
+  assert.equal((await page.locator(`${KEYPAD} [data-calculator-graphing-note]`).textContent()).trim(),
+    'The graphing calculator could not load, so this calculator stands in. It does the arithmetic but cannot draw graphs.', 'failed load: the keypad says why it is here');
+  assert.doesNotMatch(await page.locator(KEYPAD).innerText(), /drawn in the question/);
   assert.deepEqual(errors, [], 'failed load: no page errors');
   await page.close();
   console.log('assignment graphing calculator, code that cannot load: keypad, ok');
@@ -254,6 +294,10 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   assert.equal(await page.locator(`${BAR}[aria-label="Graphing calculator"]`).count(), 0, 'secure SAT item: no engine graphing calculator');
   assert.equal(await page.locator(`${BAR}[aria-label="Calculator"]`).count(), 1);
   assert.equal(graphingCodeRequested(requested), false);
+  // A host that draws no graphing calculator: the keypad says what it does (W6-4).
+  await page.locator(`${BAR}[aria-label="Calculator"]`).click();
+  await page.locator(KEYPAD).waitFor();
+  assert.equal((await page.locator(`${KEYPAD} [data-calculator-graphing-note]`).textContent()).trim(), 'This calculator does the arithmetic. It cannot draw graphs.', 'assessment context: the keypad line');
   assert.deepEqual(errors, []);
   await page.close();
   console.log('assessment context: unchanged, ok');
