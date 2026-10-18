@@ -37,6 +37,24 @@ test before release (D2), and the proof is listed for each item.
 - W5-7's `claude/pass3-calculator-setting` was not on origin when this was done (fetch: no such ref). The change is
   limited to the keydown path and `setCalculatorValue`.
 
+### Calculator, second review round (F1, N1, N2)
+
+- **F1 (wrong number):** text that arrives with no keydown, such as a paste, an IME or dictation commit, a phone's keyboard or a
+  tablet-mode Chromebook's keyboard, still landed after the panel's 0: after Clear, a paste of `(2+3)` gave `0(2+3)`, "equals 0".
+  On `input`, `valueWithoutPlaceholder` now drops the panel's own 0 when anything but a digit or a decimal point follows it
+  (`07` is 7, `0.5` is kept), and drops a leading "Error". MathLive dispatches the paste's `input` a moment after the value
+  changes, so a student who pastes and presses Enter at once could, in principle, still evaluate the 0. A person cannot
+  press that fast, but the driver can, so it waits for the repaired value.
+- **N1:** only Clear writes the placeholder (`setCalculatorValue('0', { placeholder: true })`). A 0 computed with "=" is a
+  result, the same as one computed with Enter: `2-2` "=" then `*5` is `0·5`.
+- **N2:** Backspace or Delete on "Error" clears it to 0, so the field never becomes "Erro". AltGr layouts (Ctrl+Alt) reach the
+  input-side repair too.
+- **Proof:** `calculatorErrorReasons` (the rules and their wiring). `calculatorKeyboard` at both sizes: Clear then
+  `insertText("(2+3)")` gives equals 5; a real Ctrl/Cmd+V paste (clipboard permission granted) gives equals 5; Backspace on Error
+  then 5 gives equals 5; `2-2` "=" then `*5` keeps the 0. Mutations: input repair off fails at "committed text after Clear replaces
+  the 0"; N2 off fails at "Backspace on Error, then 5"; Clear not marked as the placeholder fails at "typing after Clear
+  replaces the 0".
+
 ## Item 5: survey of other generic refusals (nothing fixed)
 
 These are tools or surfaces where the student gets a generic line while the grader already knows something more
@@ -60,6 +78,18 @@ inequality, Expression Meaning, Linear Table Workbench, LMR board, Transformatio
 Operations, Complex Plane, Polynomial Workshop, Exponential/Log Bridge, Sequence Explorer, Parabola Geometry, Open Sort
 and Graph Scenario Match have only per-part booleans. Function Operations' "Some parts are correct…" also shows when no
 part is correct, which is a wording issue.
+
+## Gate after merging the base `cbeff6a` (merge `85e8466`, plus one test re-anchor)
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,612 / 11,612. The first run after the merge had 1 failure: `calculatorKeyboardRoute` "the opener is captured … before focus moves into it" located the focusing effect by the first `moveToMathfieldEnd`, and F1's input repair added an earlier one. The behaviour was intact, so the assertion now anchors to the effect that focuses the field (`requestAnimationFrame` → `focus({ preventScroll: true })`). Mutation: moving the opener capture after that effect → red. |
+| `node --test tests/tools/*.test.mjs` | 1,678: 1,677 pass, 1 skipped, 0 fail |
+| lint / build / build:firebase | 0 / 0 / 0; no tracked file rewritten |
+| first-load budget | studentHome 1049.1 KB (over the 1023.4 KB baseline, as on the base) |
+| sweep `--check-wrong` vs `cbeff6a` | 251,811 gradings, 0 / 0 / 0 |
+| emulators | grade-authority 14/14, canonical-persistence 35/35; authoring-v5 686/686 |
+| browser (one at a time, 5199) | all 14 pass: the 13 listed below plus `planePhoneReach` (the base changed the plane's phone labels): `graphPointCheck`, `relationPlotGrading`, `graphKeyboardRoute`, `composedOutcomePolicy`, `composedDraftRestore`, `stagedQuestion`, `toolPolicyGates`, `toolAttemptOutcome`, `assessmentLeakGates`, `feedbackTeaches`, `afterLastMiss`, `calculatorKeyboard` (with F1/N1/N2 steps; the paste case runs), `readAloudTranslate` |
 
 ## Gate after the review round (on `9eb0c62` + this doc; base for comparisons `e822504`)
 
