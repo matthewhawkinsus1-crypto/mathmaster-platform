@@ -52,6 +52,15 @@ const toolCase = (name, toolId, question, work, expected) => {
   return { name, question, response: toolResponse, familyValues: null, expected };
 };
 
+/** One multiAnswer equation field, labelled, keyed and answered. */
+const lineFormCase = (name, label, answer, typed, expected) => ({
+  name,
+  question: { type: 'multiAnswer', prompt: 'A line is shown.', answerFields: [{ id: 'eq', label, answer, inputProfile: 'equation' }] },
+  response: fieldsResponse({ eq: typed }),
+  familyValues: null,
+  expected,
+});
+
 /** The server's grading of a fixture — what ingestion would hand the classifier. */
 export const gradeFixture = (fixture) => gradeServerResponse({ question: fixture.question, response: fixture.response });
 
@@ -184,6 +193,17 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   // --- Phase 2: table workbench, composition, relation mapping, constructed
   // graphs, data modeling, student-build inequalities, representations board.
   ...MISCONCEPTION_FIXTURES_PHASE2,
+  // --- ordinary / multiAnswer: right line, wrong form (student pass 3, R-3) -------------
+  lineFormCase('line form: correct', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y=-3x+5', []),
+  lineFormCase('line form: point-slope for slope-intercept', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y-5=-3\\left(x-0\\right)', ['line-wrong-form-slope-intercept']),
+  lineFormCase('line form: standard for slope-intercept, asked by y = mx + b', 'Write the line as y = mx + b', 'y=-3x+5', '3x+y=5', ['line-wrong-form-slope-intercept']),
+  lineFormCase('line form: slope-intercept for point-slope', 'Equation in point-slope form', 'y-2=4(x-1)', 'y=4x-2', ['line-wrong-form-point-slope']),
+  lineFormCase('line form: slope-intercept for standard', 'Equation in standard form', '4x-y=2', 'y=4x-2', ['line-wrong-form-standard']),
+  lineFormCase('line form: no form named, the key\'s form decides', 'Equation of the line', 'y=-3x+5', 'y-5=-3(x-0)', ['line-wrong-form-slope-intercept']),
+  lineFormCase('line form: a different line is not named', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y-5=-3(x-1)', []),
+  lineFormCase('line form: the asked form, wrong line, is not named', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y=-3x+4', []),
+  lineFormCase('line form: label and key disagree, so the form is not named', 'Equation in standard form', 'y=-3x+5', 'y-5=-3(x-0)', []),
+  lineFormCase('line form: a multiple in standard form is not a wrong form', 'Equation in standard form', '3x+y=5', '6x+2y=10', []),
 ]);
 
 /*

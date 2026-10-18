@@ -69,6 +69,10 @@ const missMessages = [
   ['In {1} the vertex x-coordinate is {2}, which has the opposite sign of the number written inside the parentheses; from standard form, {3}.', 'En {1}, la coordenada x del vértice es {2}, que tiene el signo opuesto al número escrito dentro de los paréntesis; desde la forma estándar, {3}.'],
   ['Check the signs of your zeros.', 'Revisa los signos de tus ceros.'],
   ['A zero is the x-value that makes a factor equal {1}, so set each factor equal to {2} and solve.', 'Un cero es la coordenada x que hace que un factor sea igual a {1}; así que iguala cada factor a {2} y resuelve.'],
+  // Right line, wrong form (pass 3, R-3).
+  ['Right line, wrong form: write it as {1} mx {2}.', 'La recta es correcta, pero la forma no: escríbela como {1} mx {2}.'],
+  ['Right line, wrong form: write it as {1}₁ {2}({3}₁).', 'La recta es correcta, pero la forma no: escríbela como {1}₁ {2}({3}₁).'],
+  ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
 
   // src/platform/supports/feedback/genericMissChecks.js
   ['Check the order of your coordinates.', 'Revisa el orden de tus coordenadas.'],
