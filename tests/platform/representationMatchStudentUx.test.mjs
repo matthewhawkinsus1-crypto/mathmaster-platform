@@ -30,6 +30,7 @@ import {
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
+import { spokenLinearCard } from '../../src/tools/representationMatch/linearCardLabels.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -120,12 +121,18 @@ test('every card is announced with what it says', () => {
   ]) {
     assert.doesNotMatch(spoken(card), /[=/*()]|-\d/, `${card.kind} is spoken, not program text`);
   }
+  // The card's whole spoken name: its kind, then that speech. A point card's
+  // kind already says what it is, so it is not "the point" twice (TOOL-7).
+  assert.equal(spokenLinearCard({ kind: 'slopeIntercept', value: 'y = -2/3x + 4' }, { bounds }), 'Slope-intercept equation: y equals negative 2 over 3 x plus 4');
+  assert.equal(spokenLinearCard({ kind: 'xIntercept', value: [2, 0] }, { bounds }), 'x-intercept: 2, 0');
+  assert.equal(spokenLinearCard({ kind: 'point', value: [-1, 3] }, { bounds }), 'Point: negative 1, 3');
+  assert.doesNotMatch(spokenLinearCard({ kind: 'yIntercept', value: [0, -4] }, { bounds }), /the point/i);
   // The board's card button names itself through that same speech: bound to
   // the line-card button, so another aria-label in the file cannot satisfy it.
   const source = executableSource(read('src/tools/representationMatch/RepresentationMatch.jsx'));
   const cardButton = region(source, 'className="mathmaster-line-card"', 'style={{', 'the line-card button');
-  assert.match(cardButton, /aria-label=\{`\$\{LINEAR_KIND_LABELS\[card\.kind\]\}: \$\{spokenMathLabel\(describeLinearCard\(card, \{ bounds: linearGraphBounds \}\)\)\}\./);
-  assert.match(source, /import \{ spokenMathLabel \} from '\.\.\/\.\.\/platform\/language\/mathSpeechLabel\.js';/);
+  assert.match(cardButton, /aria-label=\{`\$\{spokenLinearCard\(card, \{ bounds: linearGraphBounds \}\)\}\./);
+  assert.match(source, /import \{[^}]*\bspokenLinearCard\b[^}]*\} from '\.\/linearCardLabels\.js';/);
 });
 
 test('cards are laid out in bands of like size, and the deck keeps its shuffle', () => {

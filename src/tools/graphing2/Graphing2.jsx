@@ -396,6 +396,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
           </div>
           <CoordinatePlane
             {...bounds}
+            // Authored per question (graphBounds.equalUnits, R-1): a line
+            // figure where the angle is the point. Coordinates are unchanged.
+            equalUnits={bounds.equalUnits === true}
             onPlot={plot}
             plotProgress={`${points.length} of ${requiredPointCount} ${requiredPointCount === 1 ? 'point' : 'points'} plotted.`}
             onMovePoint={movePoint}

@@ -13,11 +13,9 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
-import { spokenMathLabel } from '../../platform/language/mathSpeechLabel.js';
 import representationMatchGrader from '../../../functions/shared/serverGrading/tools/representationMatch.mjs';
 import {
   buildLinearConnectionCards,
-  describeLinearCard,
   linearConnectionsCardKinds,
   linearConnectionsTask,
   linearGroupLabels,
@@ -37,7 +35,7 @@ import {
   tableAuditFunction,
   tableAuditRows,
 } from './representationMath';
-import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS } from './linearCardLabels.js';
+import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS, spokenLinearCard } from './linearCardLabels.js';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -445,7 +443,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         aria-pressed={assignedSlot === activeLineSlot}
                         // Spoken, not program text (A11Y-3): "y equals negative 2 over 3 x
                         // plus 4", which is also what a voice-control student says.
-                        aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${spokenMathLabel(describeLinearCard(card, { bounds: linearGraphBounds }))}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
                           border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',

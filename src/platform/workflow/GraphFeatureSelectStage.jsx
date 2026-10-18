@@ -222,6 +222,10 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
     <div>
       <CoordinatePlane
         {...viewWindow}
+        // The fit chose equal units for this figure (R-1): the plane's height
+        // follows the window so the frame looks as it did in the static step.
+        // The window and every marked coordinate are the same either way.
+        equalUnits={graph.equalUnits === true}
         // The graph the student is reading is drawn in blue; what they mark is
         // drawn in red, so a mark never reads as part of the figure. SVG paints
         // later points above earlier ones, so fixed authored points go first and

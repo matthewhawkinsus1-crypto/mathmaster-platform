@@ -134,9 +134,11 @@ const unwrapSingleLetterUnits = (latex) => String(latex).replace(/\\mathrm\{([A-
 
 const cleanImplicitMultiplicationLatex = (latex) => {
   // A hidden implicit product is joined with a TeX tie, -2~ x, which draws as
-  // a space: the balance board read "−2 x" (pass 3, Q-31). The tie is the
-  // same product as \cdot, so it takes the same rules below: -2x, 2(-y).
-  let text = unwrapSingleLetterUnits(latex).replace(/\s*~\s*/g, ' \\cdot ');
+  // a space: the balance board read "−2 x" (pass 3, Q-31). A plain space is
+  // ignored in math mode, so -2 x draws as -2x, and it still separates the
+  // factors for every reader of this LaTeX: latexToExpression reads b h back
+  // as b times h (never the symbol bh), and \pi r stays \pi then r.
+  let text = unwrapSingleLetterUnits(latex).replace(/\s*~\s*/g, ' ');
   let guard = 40;
 
   while (text.includes('\\cdot') && guard > 0) {
@@ -497,7 +499,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
   // rebuilds or grades the side.
   const written = withoutParenthesisWrapper(node);
   const writtenFraction = written?.type === 'OperatorNode' && written.fn === 'divide'
-    && written.args?.[0]?.type === 'ParenthesisNode' && !/^-/.test(originalLatex);
+    && written.args?.[0]?.type === 'ParenthesisNode' && !originalLatex.startsWith('-');
   const shownSign = writtenFraction ? (sign < 0 ? -1 : 1) : effectiveSign;
   const shownLatex = writtenFraction ? originalLatex : magnitudeLatex;
   return {

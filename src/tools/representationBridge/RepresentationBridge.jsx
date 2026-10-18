@@ -11,7 +11,9 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import LinearMultipleRepresentationsBoard from './LinearMultipleRepresentationsBoard.jsx';
 import { intervalTruth, pairKey } from '../linearTableWorkbench/linearTableWorkbenchMath.js';
 import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS } from '../expressionMeaning/expressionMeaningMath.js';
-import { formatLine, lineFromPoints } from '../graphing2/graphingMath.js';
+import { lineFromPoints } from '../graphing2/graphingMath.js';
+import { lineReadoutLatex, lineReadoutText } from '../graphing2/lineReadout.js';
+import MathDisplay from '../../MathDisplay';
 import {
   bridgeMeaningQuestion,
   deriveLinearBridge,
@@ -552,7 +554,9 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             ariaLabel="Coordinate plane for the graph representation"
             enlargeable={false}
           />
-          <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', fontWeight: 700 }}>Your line: {studentGraphLine ? formatLine(studentGraphLine) : 'Plot two different points'}</p>
+          {/* Written as a teacher would, the way Graphing writes it (TOOL-7):
+              y = (2/3)x + 2, never y = 0.66666667x + 2 or y = 1x + 0. */}
+          <p data-line-readout={studentGraphLine ? lineReadoutText(studentGraphLine) : ''} style={{ margin: '8px 0 0', color: 'var(--mm-text)', fontWeight: 700 }}>Your line: {studentGraphLine ? <MathDisplay value={lineReadoutLatex(studentGraphLine)} format="latex" inline /> : 'Plot two different points'}</p>
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
               <button data-mm-enter-action="card" type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>

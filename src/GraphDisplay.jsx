@@ -177,6 +177,7 @@ const axisTitle = (label, unit) => {
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   if (!graph) return null;
 
+  // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
   const displayGraph = fitStaticGraphViewport(graph);
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
@@ -191,8 +192,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
   const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
-  const xStep = clampRange(displayGraph.xStep, niceStep(xMax - xMin));
-  const yStep = clampRange(displayGraph.yStep, niceStep(yMax - yMin));
+  // Equal units (R-1): one labelled step on both axes, so the grid's squares
+  // read as squares.
+  const sharedStep = displayGraph.equalUnits === true ? niceStep(Math.max(xMax - xMin, yMax - yMin)) : null;
+  const xStep = clampRange(displayGraph.xStep, sharedStep ?? niceStep(xMax - xMin));
+  const yStep = clampRange(displayGraph.yStep, sharedStep ?? niceStep(yMax - yMin));
   const xTicks = majorTicks(xMin, xMax, xStep);
   const yTicks = majorTicks(yMin, yMax, yStep);
   // Sparse labels keep the axes readable, but exact-value assessment still

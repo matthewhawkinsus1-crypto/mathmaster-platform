@@ -60,7 +60,7 @@ const ticks = (min, max, requested) => {
   return values;
 };
 
-const normalizeGraph = (source = {}) => {
+const normalizeGraph = (source = {}, plotAspect = undefined) => {
   const graph = {
     ...source,
     functions: Array.isArray(source.functions)
@@ -74,7 +74,7 @@ const normalizeGraph = (source = {}) => {
   if (Number.isFinite(Number(source.m)) || Number.isFinite(Number(source.b))) {
     graph.functions.push({ type: 'line', m: Number(source.m || 0), b: Number(source.b || 0) });
   }
-  return fitStaticGraphViewport(graph);
+  return fitStaticGraphViewport(graph, { plotAspect });
 };
 
 const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
@@ -97,7 +97,8 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
   }
 
   const source = blank ? { ...(visual.bounds || {}) } : (visual.graph || {});
-  const graph = normalizeGraph(source);
+  // The printed plot's own proportions, so equal units stay equal (R-1).
+  const graph = normalizeGraph(source, compact ? (280 - 60) / (210 - 60) : (430 - 76) / (300 - 76));
   let xMin = finite(graph.xMin, -10);
   let xMax = finite(graph.xMax, 10);
   let yMin = finite(graph.yMin, -10);

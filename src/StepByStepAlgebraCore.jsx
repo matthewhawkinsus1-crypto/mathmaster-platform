@@ -88,7 +88,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
@@ -377,11 +377,10 @@ export default function StepByStepAlgebra({
   // The ACTIVITY's policy, not "this tool has no answer key": Step Algebra
   // judges a move from the equation it was applied to, so Corrections and
   // practice keep their coaching under server grading.
-  const runtime = useToolRuntimeContext();
-  const verdictsShown = runtime.verdictsWithheld !== true;
+  const verdictsShown = useToolRuntimeContext().verdictsWithheld !== true;
   // The support level is the teacher's setting. Its badge and sentence are
   // shown only in a teacher's preview (pass 3, Q-12).
-  const teacherView = runtime.teacherView === true;
+  const teacherView = useTeacherView();
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal
