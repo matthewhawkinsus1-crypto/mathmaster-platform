@@ -14,7 +14,8 @@ Batch 3's own detail is in its two handoffs, now on this line: [STUDENT_PASS3_BA
 | `b342437` | The merge, and its two conflicts |
 | `c0c6ba2` | Item 3: a submission the device could not queue is announced once |
 | `cb9bf2e` | Item 2: the save lines agree with Batch 3's unsaved-work notice |
-| GATE_COMMITS | Items 4 and 5: the dark-mode certification's clock; the rich-tool driver's item and its submit |
+| `c24ce4a` | Item 4: the dark-mode certification runs on the school's clock |
+| `58ef6c2` | Item 5: the rich-tool driver reads the open item where a navigable test keeps it, and submits from the review page |
 | this note | the handoff |
 
 ## 1. The merge (`b342437`)
@@ -119,7 +120,7 @@ plain text, not a live region (session B's rule), so it is not a second announce
 a `toastWarning` put back turns it red). The real-App probe above counts the live regions that carry "Not submitted":
 one.
 
-## 4. The dark-mode certification runs on the school's clock (GATE_COMMIT_4)
+## 4. The dark-mode certification runs on the school's clock (`c24ce4a`)
 
 **Before.** Part 2 (the real App) opened its browsers on the runner's clock in UTC. The fixture builds the bell
 schedule from that clock: near midnight UTC its period is clamped to end at 23:55, and the pack-up banner, DOL
@@ -133,9 +134,9 @@ it certified a different school day on every run.
 teacher-harness journey runs. Part 1 (the Work View harness) builds no schedule and is unchanged.
 
 **Proof.** At the same faked 23:46 UTC the pinned driver passes, and its scenes read "Good morning · Wednesday,
-October 7", Period 3 11:03 AM. DARK_NOW_RESULT
+October 7", Period 3 11:03 AM. `npm run certify:dark-mode` also passes on the real clock (192 application surfaces, both parts).
 
-## 5. The rich-tool driver lost track of the item, twice (GATE_COMMIT_5)
+## 5. The rich-tool driver lost track of the item, twice (`58ef6c2`)
 
 **Before.** `testCycleRichToolQa` reported 14 findings, the same on `e822504`: every tool's "reload reopens the same
 item" read `Cannot read properties of null (reading 'questionInstanceId')`.
@@ -154,8 +155,8 @@ session from before navigation), its draft from the same document, and submits t
 review page and its "Submit test", as `secureExamNavigation.mjs` does. A new check fails when the item cannot be read
 back at all, so the reload check can no longer pass on two missing ids.
 
-**Proof.** RICH_RESULT A reload reopens the same item for all seven tools on Chromebook and iPad, and the work survives
-it; the autosaved construction is recorded on submit; nothing is left on the device.
+**Proof.** The whole driver: 490 checks, 0 findings (it was 434 checks and 14 findings with the reload fix alone, and 14 findings before it). A reload reopens the same item for all seven tools on Chromebook and iPad, and the work survives
+it; the autosaved construction is recorded on submit; nothing is left on the device. Mutation: the driver reading the item at the wrong position turns the new check, the reload check and the submit check red.
 
 ## 6. The release order
 
@@ -240,11 +241,36 @@ resume a live Test while `manageAssignmentLifecycle` is deploying" then lasts th
 
 ## Gate
 
-GATE_TABLE
+All on this branch (`58ef6c2`, code; the handoff commits after it change only this note), with Vite at
+`127.0.0.1:5199` and the teacher harness at `5188`, one driver at a time.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,848 of 11,848 |
+| `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail, 1 skipped |
+| `npm run lint` | pass (0 errors; warnings only, none in changed lines) |
+| `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | within baseline: **studentHome 851.3 KB** (baseline 847.1, limit 855.1; Batch 3 adds about 4 KB, as expected), signIn 291.3 KB. Baseline not edited |
+| Grading sweep (`--base` worktree of `5062cba5`, `--draws 3 --check-wrong`) | exit 0: 0 right → wrong, 0 wrong → right, 0 near miss → right (269,994 verdicts) |
+| Thousands probe (scratch, three trees) | see item 1: 0 wrong accepted; 36 SAT-box verdicts main accepts and this refuses (decision 1) |
+| `test:rules` | 248 of 248 and 221 of 221 |
+| `test:draft-persistence` | every certified family kept the work |
+| `test:test-cycle-device` | all 12 device/stage combinations |
+| `test:challenge-finish` · `test:canonical-persistence` | 477 · 35 |
+| `test:secure-exam-navigation` · `test:grade-authority` · `test:secure-exam-auto-finalize` | 25 · 14 · 11 |
+| testCycleRichToolQa | 490 checks, 0 findings (was 14 findings) |
+| durableOutboxRecovery, composedDraftRestore, draftEditTime, errorRecovery, duplicateTabs, staleTabRecord, submitNotQueued (21 checks) | all pass |
+| warmupReopenDraft, and `--family` | pass, pass |
+| familyPinContainment, and `--slow` | 77 checks each, 0 findings |
+| Teacher harness: draftCrossDeviceJourneys (42), recoveryDraftCrossDeviceJourneys (100), recoveryHoldJourneys (450), restoredDraftFocusRaceJourneys (164), submitAndFinishJourneys | all pass |
+| `npm run certify:dark-mode` | pass on the real clock; pass at a faked 23:46 UTC (libfaketime on the runner and Chromium) |
+| Real-App save-line probe (scratch) | 11 of 11 (item 2) |
+| toolDraftSyncSweep (Batch 3 ran it; not in this gate's list) | **1 finding, pre-existing**: `[expressionMeaning] sweep could not run: locator.click: Timeout`. The same on the base `5062cba5` (served from a worktree on its own Vite). Not touched here |
 
 ## Not done
 
 - `tests/browser/submitNotQueued.mjs` (Batch 3's real-engine driver) is in no CI workflow; it ran here.
+- `toolDraftSyncSweep`'s expressionMeaning journey times out on the base too (gate table): for the integrator.
 - In Work View, a result the engine shows outside the tool (the not-submitted alert among them) is under Work View.
   That is not new with Batch 3 (every outcome outside the tool) and not changed here.
 - Batch 3's own "left for later" list stands (client handoff): a Step Algebra step the device cannot queue still
