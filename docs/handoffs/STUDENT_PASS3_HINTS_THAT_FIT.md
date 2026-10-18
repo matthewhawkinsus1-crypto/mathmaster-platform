@@ -1,6 +1,6 @@
 # Student pass 3, wave 6 (W6-3): hints that fit
 
-Branch `claude/pass3-hints-that-fit`, from `claude/modest-pasteur-xzagn7` at `5062cba5`. IDs come from
+Branch `claude/pass3-hints-that-fit`, from `claude/modest-pasteur-xzagn7` at `5062cba5`; the base at `3cb782a9` is merged in (review round 1). IDs come from
 [03-help-and-self-correction.md](../qa/student-experience-pass-3/03-help-and-self-correction.md) (HELP-16, HELP-23,
 "Also noted") and [04-tools-and-accessibility.md](../qa/student-experience-pass-3/04-tools-and-accessibility.md)
 (TOOL-5).
@@ -43,17 +43,23 @@ In the browser, on the base, in the real QuestionEngine:
     student already reads, quoted whole:
     - an expression with a variable whose text is in the prompt or a field label ("3x − 8" in "g(x) = 3x − 8");
     - a point that is in the prompt or a field label ("(−2, 9)").
+  - "Quoted whole" means a whole token, and the expression must be mathematics (review B1):
+    - "3x − 8" is not quoted by "13x − 8", and "2x + 1" is not quoted by "12x + 1";
+    - an expression needs an operator, a bracket or a number against a letter, so "a 3" (the word "a") is prose.
   - Numbers are read **by value**:
     - "12", "1/2", "2.5" and "−2" do not write 2;
     - "3/1" writes 3;
     - "x/2" writes 2;
     - "−1/n" (a numerator over a variable) does not write −1;
-    - a minus after an operand is subtraction, so "x − 2" writes 2.
+    - a minus after an operand is subtraction, so "x − 2" writes 2;
+    - "3/(1)" writes 3: only a numerator over a letter is skipped, not one over a bracket.
   - **Never excepted:**
     - a point, an expression, an equation or a word answer;
     - a number stated on its own: "the slope is 3", "multiply by −2", "= −8/5";
     - a coefficient the problem does not show: "7 = −2(−2) + b" names the slope −2.
-  - When unsure, the value counts (fail closed).
+  - When unsure, the value counts (fail closed). An empty list of matches is never "quoted". If the shared guard matched
+    and no number in the hint could be the value as text, the value counts ("4/3" inside "14/3"). It is "not written"
+    only when every textual match is shown to be a different number (a sign, a fraction, a numerator over a variable).
 - `questionHints.js`:
   - The guard now reads a **table's answer cells** (`question.table.answers`). L2 CW 9's third hint, "(4/5)(−2) = −8/5
     and (5/4)(−2) = −5/2", states two of the cells the student fills in, and the base showed it.
@@ -66,7 +72,18 @@ In the browser, on the base, in the real QuestionEngine:
   - It lists hints only on activities that offer hints. A DOL, quiz or test offers none, so nothing is listed there.
   - Like the panels beside it, it is not a readiness diagnostic. Pinned: it is not in `diagnostics` or `warnings`.
 
-**Every hint whose verdict changed** (probe over the 17 files; unit test `hintsThatFit` pins the exact lists):
+**Every hint whose verdict changed.** The sweep (scratchpad `probes/verdict-sweep.mjs`) reads the 17 lesson files and every
+bank (`drafts/*.json` and `functions/seeds/pathQuestionBank/*_seed.json`). That is 10,773 documents; 66 do not compile.
+Each bank document goes through `bankDocumentToV5Intent` and is generated 3 times, as the K sweep does: 32,121
+instances and 31,961 teacher hints. Comparing the base `3cb782a9` with the new head gives **11 changes**: 5 in the
+lessons (below; the unit test pins them) and one bank item, `mm_A2_7C_v2_cubic-quadratic-exact`. That item is in
+`drafts/algebra2.json` and in the seed, 3 draws each, so 6 instances:
+
+- The hint is "Divide leading terms first: 3x^3 ÷ x^2 gives the first quotient term." → **shown**.
+- "3x^3" is quoted from the prompt. The hint never writes the coefficient 3, the constant or the quotient; it is the
+  method, which practice allows.
+
+Base totals: 31,800 shown and 161 dropped. Head: 31,807 shown and 154 dropped.
 
 | Question | Hint | Before → after | Why |
 | --- | --- | --- | --- |
@@ -111,11 +128,12 @@ listed in Pre-Flight (31 lines over the 17 files). The 28 that stay dropped are 
   graph (graphing, transformations, plane tools), build (representationBridge), choice (multipleChoice, or every field
   a choice), and general (the old two, kept for numeric and equation items).
 - Each rung is about reading or checking the student's own work. A test asserts that no rung names a method these items
-  grade (eliminate, substitute, reciprocal, slope, inverse, row operation, stretch, intercept…) and that none carries a
-  number.
+  grade (eliminate, substitute, reciprocal, slope, inverse, row operation, stretch, intercept…), in English or in its
+  Spanish (review N3: the matrix rung's "sustitúyela" became "vuelve a ponerla"), and that none carries a number.
 - When every rung is a fallback, the Hint panel says **"These hints are general, not written for this question. For
   help with this one, ask your teacher with the button below."** It appears only when Ask is wired, so it never points
-  at a button that is not there.
+  at a button that is not there. It is also hidden while the hand is up, because the button below then reads "Cancel my
+  help request" (review N4).
 - Spanish for every new rung is in `packs/esSupport.js`. `readAloudAndTranslate` now requires full coverage of every
   kind.
 
@@ -145,20 +163,41 @@ exact next move.
 
 - Inside a question (a host with the platform ladder, `useToolHintPublisher`), the strategic hint is **published as the
   solver's rung** (`toolHintChannel`), like a registry tool's HintPanel.
-- It is released one try at a time, read through the leak guard, counted with the other hints (`hintsRevealed` and
-  `recordHintUse`), and shown as read in Work View Help, which is the same panel.
+- It is a **standing** rung (review S1): `{ text, standing: true }` through `toolHintChannel.publishableHints`.
+  - It comes first in the ladder and is open from the start, as "Need a strategic hint?" was.
+  - It takes no other rung's place: `hintRelease` opens `standing + 1 + tries` rungs, so the k-th family rung still
+    opens after try k − 1, exactly as on the base.
+  - What is new: it is read through the leak guard, recorded like every hint (`hintsRevealed` and `recordHintUse`),
+    and shown as read in Work View Help, which is the same panel.
+  - A plain tool rung keeps the one-per-try rule (HELP-10).
 - It follows the equation on screen.
 - The disclosure is rendered only where there is no platform ladder (the tools lab, a server-graded host), exactly as
   registry tools do.
 - Nothing changes on a DOL, quiz or test: the rung exists only where hints are allowed.
 
-The ladder's order is still B4's: authored, then family, then tool. On the policy fixture (2x + 3 = 11) the family's
-second rung already says "subtract 3 from both sides", so the solver's rung comes fifth. See the owner decisions.
+**Why not simply put it last or first.** In the first version it came fifth, after four family rungs, so on a 3-try
+item it never opened (review S1: LMR CW 1–3 and PR 1–2, 3×3 Day 1 WU 1–2 and PR 6). Putting it first without its own
+place would push family rung 3 out of reach. The standing place meets the bar: no practice or classwork student loses
+help they had.
 
-**Proof.** Browser `toolPolicyGates` (practice): no "Need a strategic hint?", the hint is not on screen before it is
-asked for, and the ladder's sources end in `tool`. On DOL and test there is still no strategic hint. Contract
-`toolHintPolicy` asserts the publisher import beside its call, the publish effect, and that the disclosure renders only
-without a publisher.
+**Proof.**
+
+- `hintsThatFit.test` runs over those 8 real items:
+  - the solver's rung is first and open before the first try;
+  - after 0, 1, 2 and 3 tries the family rungs that open are exactly the base's;
+  - nothing opens on an assessment;
+  - a plain tool rung is not open early.
+- Browser `toolPolicyGates`, practice:
+  - there is no "Need a strategic hint?";
+  - before any try, "Show a hint" opens the strategic hint, the family's first hint still opens, and its second waits
+    for a try.
+  - On DOL and test there is still no strategic hint.
+- Browser `assessmentLeakGates` composed-algebra (review S2): on DOL and test the move "Look for a move that cancels a
+  term" is nowhere in the document, in any element, not only in the disclosure's summary.
+- Contract `toolHintPolicy` asserts:
+  - the publisher import beside its call;
+  - the standing publish;
+  - the disclosure renders only without a publisher.
 
 ## "Also noted": a slope described in words
 
@@ -173,6 +212,14 @@ A match is a warning in the existing "Hints that give the answer" panel (`questi
 
 | Check | Result |
 | --- | --- |
+Round 1 (on the merged head, after the review fixes):
+
+GATE_ROUND1
+
+Before the review (at `dde646de`):
+
+| Check | Result |
+| --- | --- |
 | `npm run test:platform` | 11,783 / 11,783 pass |
 | `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail, 1 skipped (pre-existing) |
 | `npm run test:authoring-v5` | 686 / 686 |
@@ -184,7 +231,25 @@ A match is a warning in the existing "Hints that give the answer" panel (`questi
 | Browser, teacher harness on 5188 | `teacherWorkflow/askMyTeacherJourneys`: 58 checks passed |
 | First `assessmentLeakGates` run | one failure, caused by this branch: "practice composed-algebra: the algebra step still offers its strategic hint". The behaviour changed on purpose (TOOL-5). The case now asserts no disclosure on any role, the rung in the platform ladder on practice, and no hint on DOL or test. Whole driver re-run: 0 failures |
 
-Mutation checks (each change made once, seen red, then restored):
+Mutation checks (each change made once, seen red, then restored).
+
+**Round 1:**
+
+- **Node: 14 of 14 red.**
+  - B1: a substring quotation; prose counted as mathematics; the "/(" skip; an empty list fails open; an empty list
+    always stated (which loses CW 2 and CW 4).
+  - S1: the standing rung takes a place; it comes last; every rung is standing; the channel drops standing rungs; any
+    object counts as standing; the solver's rung is not standing.
+  - N4: the pointer shown with the hand up.
+  - N3: the Spanish method word.
+- **Browser: 2 of 2 red.**
+  - S2: the method line rendered on every role turns DOL and test red.
+  - S1: with the standing place removed, the family's first hint before any try goes red.
+- Two round-1 assertions were first green under their mutation and were tightened, then seen red:
+  - the "a 3" case: the whole-token rule alone caught it;
+  - the Spanish pattern `sustitu`, which misses "sustitú".
+
+**First version:**
 
 - **Node: 21 of 21 red.**
   - Quotations: none allowed; any point allowed; a bare number treated as an expression.
@@ -218,27 +283,40 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
    question"). Keeping the old behaviour would mean showing a hint that fills two cells.
 3. **The 28 hints still hidden** are the author's to reword. The guard does not try to tell "stretches by 2" in a
    general rule from "stretches by 2" as an answer. The L2 Practice rule hint (PR 1–6) is the biggest group: 6 items.
-4. **Ladder order and the 6-rung cap (TOOL-5).** A tool's rungs come after the authored and family hints, and the
-   ladder keeps 6. One more rung opens per try, so on a 3-try item only the first 3 can ever open. On L2 PR 1 (2
-   authored + 4 family) the Transformations Lab's own rungs never reach the ladder, and the solver's strategic hint is
-   rung 5 on a family item. That is B4's order and I did not change it. If tool rungs should come first while a tool is
-   on screen, the change is one line in `questionHintAudit`.
+4. **Ladder order and the 6-rung cap (TOOL-5).**
+   - A registry tool's rungs come after the authored and family hints, and the ladder keeps 6.
+   - One more rung opens per try, so on a 3-try item only the first 3 can ever open. On L2 PR 1 (2 authored + 4 family)
+     the Transformations Lab's own rungs never reach the ladder. That is B4's order and I did not change it.
+   - The one exception is the step solver's strategic hint. It is a **standing** rung: first, open from the start, and
+     taking no other rung's place, because it was open from the start before it joined the ladder (review S1).
+   - If other tool rungs should also be standing while their tool is on screen, a tool marks a rung
+     `{ text, standing: true }` when it publishes it. Doing that for many rungs would reopen HELP-10 (a ladder tapped
+     through with no try), so it is a per-rung decision.
 5. **The Spanish** for the 19 new sentences needs the same review by a Spanish-speaking teacher as the rest of
    `esSupport.js`.
 
 ## Touched outside my scope
 
 - `src/StepByStepAlgebraCore.jsx`: the strategic hint block only (TOOL-5).
+- `src/tools/shared/toolHintChannel.js`: standing rungs (S1).
 - `src/components/teacher/LessonPreflightModal.jsx`: one new panel.
 - `src/platform/language/packs/esSupport.js`: 19 entries in `genericHints`. W6-1 may also add entries here; keep both
   sides.
 - `tests/browser/assessmentLeakGates.mjs`:
   - the pointer and every fallback added to `LADDER_WORDS`;
-  - the composed-algebra case rewritten for TOOL-5 (see the gate table).
+  - the composed-algebra case rewritten for TOOL-5 (see the gate table), and on DOL and test it now also asserts the
+    method line is nowhere in the document (review S2; the gap was on the base too).
 - `.github/workflows/student-runtime-browser-gates.yml`: a `hintsThatFit` step after `toolPolicyGates`, and its path.
 - Source contracts rewritten per the playbook (the behaviour was intact; the text had moved into `strategicHint`):
   - `toolHintPolicy`: two cases;
   - `stepAlgebraEntryUx`: the region's end anchor.
+
+## Noted by the review, not changed
+
+- N1, gaps in the base guard's value reading: 0.5 vs 1/2, "4 / 3", a sign after ")", "4/2" vs 2. These are not
+  regressions; this branch only refines the shared guard where it already matched.
+- N7: 22 of the reviewer's 8,939 bank intents do not compile. My own sweep counts 66 of 10,773 documents across
+  `drafts/` and the seed banks.
 
 ## Not done
 
