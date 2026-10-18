@@ -164,6 +164,11 @@ test('a hint that states an answer is still dropped: a value, a point, an expres
   assert.deepEqual(statedAnswers('Compare with y = 2x + 1.', { answers: ['2'], visibleText: 'Slope of y = 12x + 1' }), ['2'], 'nor "2x + 1" in "12x + 1"');
   assert.deepEqual(statedAnswers('The answer is a 3.', { answers: ['3'], visibleText: 'Rows: a 3, b 4.' }), ['3'], 'the word "a" and a number are not mathematics, even where the prompt writes "a 3" whole');
   assert.deepEqual(statedAnswers('The slope is 3/(1).', { answers: ['3'], visibleText: '' }), ['3'], 'a number over a bracket is a number');
+  // Review R1: a minus glued to its number after a one-letter word or ")" is a sign.
+  assert.deepEqual(statedAnswers('Its slope is a -2.', { answers: ['-2'], visibleText: '' }), ['-2']);
+  assert.deepEqual(statedAnswers('The slope (m) -2 means down 2.', { answers: ['-2'], visibleText: '' }), ['-2']);
+  assert.deepEqual(statedAnswers('The y-intercept is a -8.', { answers: ['-8'], visibleText: '' }), ['-8']);
+  assert.deepEqual(statedAnswers('The y-intercept (b) -8 is where the line starts.', { answers: ['-8'], visibleText: '' }), ['-8']);
   // An empty list of matches is never "quoted": the shared guard matched
   // "4/3" inside "14/3", which no number in the hint is, so the value counts.
   assert.deepEqual(statedAnswers('Try 14/3 first.', { answers: ['4/3'], visibleText: 'y = 14/3 x' }), ['4/3']);
@@ -392,6 +397,17 @@ test('the solver\'s strategic hint is open before the first try, and every famil
     });
   });
   assert.equal(checked, 8);
+  // Review R2: where the solver's rung is the only other rung, the fallbacks
+  // stay, and open as they did before it joined.
+  const bare = compileAuthoringIntentV5(JSON.parse(read('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json'))).package.sections
+    .flatMap((section) => section.questions).find((entry) => entry.questionId === '3x3-d1-cw-1');
+  const alone = buildQuestionHints(bare, { toolHints: [{ text: STRATEGIC, standing: true }] });
+  assert.deepEqual(alone.map((hint) => hint.source), ['tool', 'generic', 'generic']);
+  for (const tries of [0, 1, 2, 3]) assert.deepEqual(openAfter(alone, tries).filter((hint) => hint !== STRATEGIC), openAfter(buildQuestionHints(bare), tries));
+  // The standing rung sits outside the 6 cap: six other rungs all stay.
+  const six = ['one', 'two', 'three', 'four', 'five', 'six'].map((word) => `Rung ${word}.`);
+  const capped = buildQuestionHints({ prompt: 'Solve.', hints: six }, { toolHints: [{ text: STRATEGIC, standing: true }] });
+  assert.deepEqual(capped.map((hint) => hint.text), [STRATEGIC, ...six]);
   // A plain tool rung keeps the one-per-try rule (HELP-10): it is not open early.
   const plain = buildQuestionHints({ prompt: 'Solve 2x + 3 = 11.' }, { toolHints: ['tool one', 'tool two', 'tool three'] });
   assert.deepEqual(openAfter(plain, 0), ['tool one']);

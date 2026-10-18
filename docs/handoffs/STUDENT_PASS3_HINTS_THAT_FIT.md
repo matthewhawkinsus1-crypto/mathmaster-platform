@@ -52,7 +52,10 @@ In the browser, on the base, in the real QuestionEngine:
     - "x/2" writes 2;
     - "−1/n" (a numerator over a variable) does not write −1;
     - a minus after an operand is subtraction, so "x − 2" writes 2;
-    - "3/(1)" writes 3: only a numerator over a letter is skipped, not one over a bracket.
+    - "3/(1)" writes 3: only a numerator over a letter is skipped, not one over a bracket;
+    - a minus glued to its number with a space before it is a sign, even after a one-letter word or ")" ("is a -2",
+      "(m) -2"; review round 2, R1). "3x − 8", spaced on both sides, stays subtraction. The one side effect is that
+      "x -5 = 0" against −5 is dropped, which is fail closed and the same as on the base.
   - **Never excepted:**
     - a point, an expression, an equation or a word answer;
     - a number stated on its own: "the slope is 3", "multiply by −2", "= −8/5";
@@ -170,6 +173,8 @@ exact next move.
   - What is new: it is read through the leak guard, recorded like every hint (`hintsRevealed` and `recordHintUse`),
     and shown as read in Work View Help, which is the same panel.
   - A plain tool rung keeps the one-per-try rule (HELP-10).
+  - It sits outside the 6-rung cap. Where it is the only other rung (a systems stage with no tool HintPanel), the two
+    fallbacks stay beside it and open as before (review round 2, R2).
 - It follows the equation on screen.
 - The disclosure is rendered only where there is no platform ladder (the tools lab, a server-graded host), exactly as
   registry tools do.
@@ -257,6 +262,12 @@ Mutation checks (each change made once, seen red, then restored).
 - Two round-1 assertions were first green under their mutation and were tightened, then seen red:
   - the "a 3" case: the whole-token rule alone caught it;
   - the Spanish pattern `sustitu`, which misses "sustitú".
+
+**Round 2:** 3 of 3 red.
+
+- R1: the glued minus read as subtraction.
+- R2: the fallbacks dropped beside the standing rung.
+- The pin: the standing rung moved inside the 6 cap.
 
 **First version:**
 

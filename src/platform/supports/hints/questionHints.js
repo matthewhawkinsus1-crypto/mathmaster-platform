@@ -194,7 +194,9 @@ export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
   // rungs after it open at the same try they did before it joined the ladder.
   const standing = shown.filter((hint) => hint.standing);
   const ladder = shown.filter((hint) => !hint.standing);
-  if (!ladder.length && !standing.length) ladder.push(...fallbackHints(question).map((value) => ({ text: value, source: 'generic' })));
+  // The fallbacks stay when the solver's rung is the only other one: it is a
+  // standing extra, not a replacement for them.
+  if (!ladder.length) ladder.push(...fallbackHints(question).map((value) => ({ text: value, source: 'generic' })));
   return [...standing, ...ladder.slice(0, MAX_HINTS)];
 };
 

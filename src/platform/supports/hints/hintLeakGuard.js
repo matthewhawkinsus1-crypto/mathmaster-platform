@@ -71,7 +71,10 @@ const signBefore = (haystack, index) => {
   while (before >= 0 && /\s/.test(haystack[before])) before -= 1;
   const operand = before >= 0 && (/[\d.)\]]/.test(haystack[before])
     || (/[a-z]/i.test(haystack[before]) && !/[a-z]/i.test(haystack[before - 1] || '')));
-  return operand ? null : at;
+  // A minus glued to its number with a space before it is a sign ("is a -2",
+  // "(m) -2"); "3x − 8", spaced on both sides, stays subtraction.
+  const glued = at === index - 1 && /\s/.test(haystack[at - 1] || '');
+  return operand && !glued ? null : at;
 };
 // Every number the hint writes that could be this one as TEXT — the whole
 // token, its numerator or its denominator spelled the same — and, of those,
