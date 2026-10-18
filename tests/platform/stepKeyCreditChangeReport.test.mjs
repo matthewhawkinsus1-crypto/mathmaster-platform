@@ -14,6 +14,7 @@ import {
   parseReportArgs,
   releaseStateKey,
   runStepKeyCreditReport,
+  teacherOverrideApplies,
 } from '../../scripts/report-step-key-credit-changes.mjs';
 
 const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
@@ -84,18 +85,47 @@ test('no change where the stored credit already decides, the answer is correct, 
   assert.equal(counts.recordsWithSteps, 3);
 });
 
-test('push Q\'s two renderings are found and listed; a teacher override is marked', () => {
-  const mixed = record([step('1\\left(x+1\\right)=3'), step('\\left(x+1\\right)=3'), step('x=2')]);
+test('push Q\'s two renderings are found and listed; a teacher override is marked only where the server applies it', () => {
+  const mixed = record([step('1\\left(x+1\\right)=3'), step('\\left(x+1\\right)=3'), step('x=2')], { totalAttempts: 2, lastSubmissionId: 'sub-2' });
   assert.equal(mixesPushQRenderings(mixed), true);
   assert.equal(mixesPushQRenderings(record([step('1\\left(x\\right)=3'), step('x=3')])), false);
-  const { changes, counts } = gradeDocumentChanges('s2', {
-    gradesByAssignment: { a9: { 2: mixed } },
-    teacherGradeOverridesByAssignment: { a9: { 2: { active: true, score: 100 } } },
-  });
-  assert.equal(counts.recordsMixingPushQ, 1);
-  assert.equal(changes.length, 1);
-  assert.equal(changes[0].overridden, true);
-  assert.equal(changes[0].questionIndex, '2');
+  const thisAttempt = { active: true, score: 100, totalAttempts: 2, variantIndex: 0, submissionId: 'sub-2' };
+  const run = (overrides) => gradeDocumentChanges('s2', { gradesByAssignment: { a9: { 2: mixed } }, teacherGradeOverridesByAssignment: { a9: overrides } });
+  const applied = run({ 2: thisAttempt });
+  assert.equal(applied.counts.recordsMixingPushQ, 1);
+  assert.equal(applied.changes.length, 1);
+  assert.equal(applied.changes[0].questionIndex, '2');
+  assert.equal(applied.changes[0].overridden, true);
+  assert.equal(applied.changes[0].assignmentOverridden, false);
+  // An override issued for an earlier attempt, or on another variant, or with no
+  // finite score, decides nothing: the changed credit reaches the grade.
+  assert.equal(run({ 2: { ...thisAttempt, totalAttempts: 1 } }).changes[0].overridden, false);
+  assert.equal(run({ 2: { ...thisAttempt, variantIndex: 1 } }).changes[0].overridden, false);
+  assert.equal(run({ 2: { ...thisAttempt, submissionId: 'sub-1' } }).changes[0].overridden, false);
+  assert.equal(run({ 2: { ...thisAttempt, score: 'n/a' } }).changes[0].overridden, false);
+  assert.equal(run({ 2: { active: true, score: 100 } }).changes[0].overridden, false);
+  // A section zero is persistent; an assignment-wide grade decides the whole assignment.
+  assert.equal(run({ 2: { active: true, score: 0, persistent: true, source: 'teacher-section-zero' } }).changes[0].overridden, true);
+  const assignmentWide = run({ __assignment: { active: true, score: 85 } });
+  assert.equal(assignmentWide.changes[0].overridden, false);
+  assert.equal(assignmentWide.changes[0].assignmentOverridden, true);
+});
+
+test('the override rule is the server\'s, field for field', () => {
+  const record = { totalAttempts: 3, variantIndex: 1, lastAttemptAt: '2026-10-01T10:00:00Z' };
+  const base = { active: true, score: 70, totalAttempts: 3, variantIndex: 1, lastAttemptAt: '2026-10-01T10:00:00Z' };
+  assert.equal(teacherOverrideApplies(record, base), true);
+  assert.equal(teacherOverrideApplies(record, { ...base, active: false }), false);
+  assert.equal(teacherOverrideApplies(record, { ...base, lastAttemptAt: '2026-10-02T10:00:00Z' }), false);
+  assert.equal(teacherOverrideApplies({ ...record, lastAttemptAt: undefined, academicOccurredAt: '2026-10-01T10:00:00Z' }, base), true);
+  assert.equal(teacherOverrideApplies(record, { ...base, lastAttemptAt: '' }), false);
+  // Every field the server compares is compared here too.
+  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const body = server.slice(server.indexOf('function teacherOverrideAppliesToRecord('), server.indexOf('const ASSIGNMENT_GRADE_OVERRIDE_KEY'));
+  for (const field of ['teacher-section-zero', 'totalAttempts', 'attemptCount', 'variantIndex', 'submissionId', 'lastSubmissionId', 'lastAttemptAt', 'academicOccurredAt', 'persistent']) {
+    assert.ok(body.includes(field), `the server's rule names ${field}`);
+    assert.ok(SOURCE.includes(field), `this report's rule names ${field}`);
+  }
 });
 
 test('the report reads grades with a field mask, pages by id, and never writes', async () => {

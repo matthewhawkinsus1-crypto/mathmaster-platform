@@ -110,10 +110,40 @@ export const mixesPushQRenderings = (record) => {
   return afters.some((value) => !PUSH_Q_ONE.test(value) && withoutTheOne.has(value));
 };
 
+// teacherOverrideAppliesToRecord (functions/index.js), rule for rule: a
+// question's override decides its grade only for the attempt it was issued
+// against. An older one, or one without a finite score, decides nothing.
+export const teacherOverrideApplies = (record, override) => {
+  if (!record || override?.active !== true || !Number.isFinite(Number(override.score))) return false;
+  if (override.persistent === true && override.source === 'teacher-section-zero') return true;
+  const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
+  const overrideAttempts = Number(override.totalAttempts);
+  if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
+  const recordVariant = Number(record.variantIndex ?? 0);
+  const overrideVariant = Number(override.variantIndex);
+  if (!Number.isFinite(overrideVariant) || overrideVariant !== recordVariant) return false;
+  const overrideSubmissionId = String(override.submissionId || '');
+  if (overrideSubmissionId) return overrideSubmissionId === String(record.lastSubmissionId || '');
+  const overrideLastAttemptAt = String(override.lastAttemptAt || '');
+  return Boolean(overrideLastAttemptAt)
+    && overrideLastAttemptAt === String(record.lastAttemptAt || record.academicOccurredAt || '');
+};
+
+// activeAssignmentGradeOverride (functions/index.js): a teacher's grade for the
+// whole assignment, which replaces the grade its questions add up to.
+export const ASSIGNMENT_GRADE_OVERRIDE_KEY = '__assignment';
+export const assignmentOverrideActive = (overrides) => {
+  const override = overrides?.[ASSIGNMENT_GRADE_OVERRIDE_KEY] || null;
+  return override?.active === true && Number.isFinite(Number(override.score));
+};
+
 /**
  * One grades document's records whose credit release 1 changes, plus counts.
- * A record under an active teacher override keeps the override's score; it is
- * listed with `overridden: true` because its derived value still changes.
+ * A record whose question override applies (`overridden`), or whose assignment
+ * has an active grade override (`assignmentOverridden`), keeps the teacher's
+ * grade; it is still listed, because its derived value changes. A section's
+ * integrity zero is not modelled: such a record is listed as changing, which
+ * can only overstate the impact.
  */
 export const gradeDocumentChanges = (studentId, data) => {
   const counts = { assignmentTrackers: 0, records: 0, recordsWithSteps: 0, recordsWithTie: 0, recordsMixingPushQ: 0, parityMismatches: 0 };
@@ -137,7 +167,7 @@ export const gradeDocumentChanges = (studentId, data) => {
       if (derivedStepCredit(normalized, releaseStateKey) !== runtime.storedAlgebraStepPartialCredit(normalized)
         || Math.abs(release / 100 - runtime.getQuestionCredit(record)) > 1e-9) counts.parityMismatches += 1;
       if (live === release) return;
-      const override = overridesByAssignment?.[assignmentId]?.[questionIndex] || null;
+      const assignmentOverrides = overridesByAssignment?.[assignmentId] || {};
       changes.push({
         studentId,
         assignmentId,
@@ -149,7 +179,8 @@ export const gradeDocumentChanges = (studentId, data) => {
         liveCredit: live,
         releaseCredit: release,
         direction: release < live ? 'down' : 'up',
-        overridden: override?.active === true,
+        overridden: teacherOverrideApplies(record, assignmentOverrides[questionIndex] || null),
+        assignmentOverridden: assignmentOverrideActive(assignmentOverrides),
       });
     });
   });
@@ -200,7 +231,7 @@ export const runStepKeyCreditReport = async ({
     creditChanges: changes.length,
     down: changes.filter((change) => change.direction === 'down').length,
     up: changes.filter((change) => change.direction === 'up').length,
-    underTeacherOverride: changes.filter((change) => change.overridden).length,
+    underTeacherOverride: changes.filter((change) => change.overridden || change.assignmentOverridden).length,
     students: new Set(changes.map((change) => change.studentId)).size,
     assignments: new Set(changes.map((change) => change.assignmentId)).size,
   };
@@ -214,7 +245,7 @@ export const runStepKeyCreditReport = async ({
     notes: [
       'Credits are percents: getQuestionCredit with the live key (liveCredit) and with release 1\'s key (releaseCredit), on the record as functions/lib/classroomGradeRuntime.js normalizes it.',
       'The same records feed assignment grades, Classroom sync, Test Cycle Review and Classroom section grades.',
-      'overridden: an active teacher override decides that question\'s grade, so the student\'s grade does not move, though the derived value does.',
+      'overridden: a teacher override that applies to this attempt (teacherOverrideAppliesToRecord) decides the question\'s grade; assignmentOverridden: an active assignment-wide grade override decides the assignment\'s grade. Either way the grade does not move, though the derived value does. An override for an earlier attempt decides nothing, so its record counts as changing.',
       'parityMismatches must be 0: it counts records where this report\'s copy of the derivation disagrees with the release\'s own code.',
     ],
     totals,
