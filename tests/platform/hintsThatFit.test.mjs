@@ -215,7 +215,7 @@ test('Pre-Flight lists every hint students will not see, with the reason, and on
     .reduce((count, { question }) => count + authoredOf(question).filter((hint) => !shownTexts(question).has(hint)).length, 0);
   assert.equal(warnings.length, l2Dropped, 'one line per dropped hint');
   const xIntercept = warnings.find((warning) => warning.includes('lands at'));
-  assert.match(xIntercept, /^Question \d+, hint 3 \(“S1 = \(−2, −2\) lands at \(−2, 4\)\.”\) is never shown to students: it names “−2”, “4”, “\(-2, 4\)”, which are answers to this question or parts of them\./);
+  assert.match(xIntercept, /^Question \d+, hint 3 \(“S1 = \(−2, −2\) lands at \(−2, 4\)\.”\) is never shown to students: it names “−2”, “4”, “\(−2, 4\)”, which are answers to this question or parts of them\./);
   assert.ok(warnings.every((warning) => /is never shown to students: (it names .+|it repeats an earlier hint)\./.test(warning)), warnings.join('\n'));
   assert.ok(!warnings.some((warning) => warning.includes('solve 0 = 3x − 8')), 'a hint that is shown is not listed');
   // Advisory: never a readiness finding (assignmentAuthoringState reads diagnostics).

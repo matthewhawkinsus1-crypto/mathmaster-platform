@@ -55,6 +55,7 @@ import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2N
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -730,7 +731,10 @@ const threePlaneReveal = async () => {
 const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
   // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
   // rung, and the sentence beside every hint offer.
-  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking'];
+  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking',
+  // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
+  // every fallback (none may reach a DOL or test).
+  'These hints are general', ...Object.values(FALLBACK_HINTS).flat()];
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
   const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];

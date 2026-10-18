@@ -166,7 +166,7 @@ export const statedAnswers = (hint, { answers = [], visibleText = '' } = {}) => 
 };
 
 // The author reads each value once, with a real minus sign.
-const shownValue = (value) => `“${text(value).replace(/^-/, '−')}”`;
+const shownValue = (value) => `“${text(value).replace(/(^|[(,\s])-(?=[\d.(a-z])/gi, '$1−')}”`;
 
 /** The verdict, with the author's reason: null when the hint states no answer. */
 export const hintAnswerLeak = (hint, options = {}) => {
