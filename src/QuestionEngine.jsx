@@ -45,6 +45,7 @@ import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/
 import { prefersReducedMotion, scrollMotion } from './motionPreference.js';
 import { isSubmissionNotQueued } from './platform/student/submissionNotQueued.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
+import { clearDraftSaveProblemsForFamily } from './platform/persistence/draftSaveHealth.js';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
@@ -1282,6 +1283,9 @@ function QuestionEngineBody({
         setFeedback(result);
         return;
       }
+      // Submitted (not blocked): the work is in the device queue, so a draft that
+      // could not be saved is no longer the student's only copy.
+      if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,
         status: answerState.isCorrect ? 'correct' : 'attempted',
@@ -1492,6 +1496,7 @@ function QuestionEngineBody({
           setFeedback(result);
           return;
         }
+        if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
         const gradedFeedback = result || {
           isCorrect: attemptInputs.isCorrect,
           status: attemptInputs.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
@@ -1531,6 +1536,7 @@ function QuestionEngineBody({
         setFeedback(result);
         return;
       }
+      if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
       const nextFeedback = result || {
         isCorrect: Boolean(payload?.isCorrect),
         status: payload?.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
