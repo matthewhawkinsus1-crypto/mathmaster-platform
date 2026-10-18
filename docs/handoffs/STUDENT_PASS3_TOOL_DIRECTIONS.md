@@ -241,7 +241,7 @@ Each made once, seen red, restored (node suites unless marked):
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,790 / 11,790 (0 skipped in this container; the reviewer's 11,785 + 1 skipped is the shallow-clone provenance test, which skips there) |
+| `npm run test:platform` | 11,790 / 11,790 (0 skipped in this container; the reviewer's run counted 11,785 pass + 1 skipped, so one test skips in that environment and not here) |
 | `toolDirectionsSplit`, `workViewHelpAndMethod`, `secureRichToolRuntimeWiring` | 55 / 55 |
 | `npm run lint` | 0; no new warning in a touched file |
 | `workViewHelpReach` (86), `assessmentLeakGates`, `captureToolResponses dataModelingLab`, `linearMultipleRepresentations`, `systemsWorkspaceStudio` | pass |
