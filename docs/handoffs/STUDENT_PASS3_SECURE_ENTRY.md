@@ -8,7 +8,10 @@ H-19, and the note "SecureExamReview shows a question's prompt but never its gra
 Nothing here writes to production or deploys. The grader change (H-13) needs a functions release; see
 **Deploy targets**.
 
-Commits: `f277331` (H-13), `6b1db8a` (H-16), `333663b` (H-6, H-14, item 4), `99bc928` (H-19), then this doc.
+Commits: `f277331` (H-13), `6b1db8a` (H-16), `333663b` (H-6, H-14, item 4), `99bc928` (H-19), `01b2565` (a
+journey fix), then this doc. The base was merged in once, when it moved to `cbeff6a` (`85525ce`: a merge commit, no
+conflicts, none of its files are mine). The gate below ran before that merge. The checks marked † ran again on
+the merged head.
 
 ## Each item still reproduced on the base
 
@@ -210,7 +213,39 @@ The second one's panel read "SCIENTIFIC CALCULATOR … Graphs are drawn in the q
 
 ## Gate
 
-GATE_TABLE
+All on this machine, Chromium from `/opt/pw-browsers`, emulators only. Nothing reached a network
+(every driver reports 0 non-local requests or aborts them).
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` † | **11,611 pass, 0 fail** on the merged head (11,610 before the merge) |
+| `node --test tests/tools/*.test.mjs` | **1,671 pass, 0 fail** |
+| `npm run lint` † | exit 0, no errors. The remaining warnings are pre-existing; one in a line of my driver was fixed |
+| `npm run build` † / `npm run build:firebase` † | both pass; `git status` clean afterwards (no tracked file rewritten) |
+| `node scripts/check-first-load-budget.mjs` † | **studentHome 1048.3 KB** gzip (194 files), 24.9 KB over the 1023.4 KB baseline. **The base is over too: 1048.6 KB** (196 files) on `e822504`, so this branch is 0.3 KB smaller. `first-load-baseline.json` untouched. signIn 291.4 KB, unchanged |
+| Bank sweep (`scripts/sweep-equivalence-verdicts.mjs --draws 3 --check-wrong`, base `e822504`) | 9,330 fields, 256,482 verdicts: **0 right → wrong, 0 near miss → right**, 1,263 right answers newly accepted ("and"/"or" word groups) |
+| `npm run test:rules` | 218 pass, 0 fail |
+| `npm run test:secure-exam-navigation` | 25 pass, 0 fail |
+| `npm run test:canonical-persistence` | 35 pass, 0 fail |
+| `npm run test:test-cycle-certification` | 35 pass, 0 fail |
+| `npm run test:grade-authority` | 14 pass, 0 fail |
+| `npm run test:authoring-v5` | 686 pass, 0 fail |
+| `npm run test:challenge-finish` (integration, graders) | 453 pass, 0 fail |
+| `npm run test:classroom-regrade-report:emulator` | 5 pass, 0 fail |
+| `tests/browser/secureAccessParity.mjs --write` † | **26 / 26 checks**, Chromebook 1366×768 and phone 390×844; 71 answers captured, all graded correct by the server grader |
+| `tests/browser/secureResults.mjs` † | **324 passed, 0 failed** (both devices). Its stub and two stale checks were repaired; on the base the page was a SyntaxError |
+| `tests/browser/secureExamNavigation.mjs` (all 8 journeys) † | 359 / 360 before the journey fix (my own close step), then `supports` 28 / 28. On the merged head: 337 / 339. The two failures were "Escape inside the list closes it", and then a timeout, in the SAT `practice` journey on the first run against a just-started Vite (the same happened once earlier, also after files changed under it). The `practice` journey then passed 5 runs in a row, 118 / 118: three on a warm server and two on a server the driver started cold. The base `cbeff6a` passed it cold, 114 / 114. Nothing I changed is in the question list. I report it as a cold-start flake, not proven otherwise |
+| `tests/browser/assessmentLeakGates.mjs` | exit 0 |
+| `tests/browser/readAloudTranslate.mjs` | all checks passed |
+| student-runtime-browser-gates.yml, every driver, one at a time on `vite --port 5199` with AUDIT_ORIGIN | all exit 0: mathEntryContract, renderStability, errorRecovery, duplicateTabs, graphPointCheck, phoneToolPanelReach, undoTyping, toolFocusAndUndo, composedOutcomePolicy, toolPolicyGates, relationPlotGrading, toolAttemptOutcome, assessmentLeakGates, systemsWorkspaceStudio, clickMapLetterbox, stagedQuestion, unansweredChoiceGates, graphKeyboardRoute, planePhoneReach, focusSafeToolControls, composedDraftRestore, draftEditTime, fractionTemplateGrading |
+| student-teacher-journeys.yml `student` job (5199) | all exit 0: studentUxPlatform, linearMultipleRepresentations, lmrProcessMode (9 journeys), familyPinContainment (77 checks), feedbackTeaches, readAloudTranslate, reviewMyWork, warmupReopenDraft (both) |
+| teacherWorkflow harness (5188) | all exit 0: journeys (A–K and retry at 1440 and 1024), supportEvidenceJourneys (22 runs), appUrlJourneys, studentScreenChange, recoveryDraftCrossDeviceJourneys (100 checks) |
+| `tests/browser/testCycleSecureWorkflowQa.mjs` | 170 passed, 0 findings |
+| `npm run test:test-cycle-lifecycle` | 71 passed, 0 findings |
+| `npm run test:test-cycle-device` | exit 0 |
+| `tests/browser/testCycleRichToolQa.mjs` | 364 passed, **14 findings, identical on the base `e822504`** (364 / 14): every tool's "reload reopens the same item" reads `Cannot read properties of null (reading 'questionInstanceId')` (the driver's `current` is null). Pre-existing, not in my files; reported to the integrator |
+
+Mutation checks are listed with each item above.
 
 ## Deploy targets
 
