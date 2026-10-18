@@ -330,7 +330,41 @@ keeps the place; the exit returns there. The suite also asserts that nothing ope
 - Browser drivers: see the gate.
 
 
+## Review round (reviewer on `cf0d5893`)
+
+W6-5 (`claude/pass3-batch3-into-pass3` at `85abaee1`, Batch 3 in pass 3) was merged in first, as a merge commit with
+no conflicts. B2's fix reads its draft save health.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B1** The lobby invite (banner, phone chip, announcement) showed on an open exit ticket and on any quiz or test section. Pressing it left the DOL while its clock ran. | `studentWorkspaceHoldsOutcome()` in App applies the navigator's own rule to the question the student is on: `outcomeWithheld` with that role's feedback policy, the release and the question's record. While it holds, the workspace banner, the phone chip and the announcement are all off. Classwork and Practice keep them; Home and the other screens are unchanged. The running hand-off banner, which is pre-existing and deliberate, is untouched. | `studentLiveChallengePlace` "review B1" (the rule; all three uses; the running banner without it), mutation-checked. Browser: `dolExtraTimeJourneys` X5, on the reviewer's scenario. Student 910001 is on the open DOL and `liveChallengeInvites/910001` is invited. There is no banner, no chip and nothing said; in Classwork the invite shows. With the gate removed, X5 fails at both sizes (banner at 1366×768, chip at 390×844, announcement at both). |
+| **B2** The pack-up line said "your work is saved" with drafts failing (Batch 3's QuotaExceededError) or an answer rejected. | One save status for Home and the pack-up line: `studentSaveStatusNow()` is W6-5's `describeSaveStatus` with `draftsUnsaved`, and Home's status line now calls the same helper. `packUpLine.js` gives the sentence. "Finish up — your work is saved." appears only when the tone is saved. A queued or offline owed state gives "…some work has not been sent yet, so keep this tab open." Rejected, volatile, needs-review, drafts not saved, or anything unknown gives "Finish up — some work is not saved yet, so keep this tab open and tell your teacher." | `packUpLine.test.mjs`: rejected, `draftsUnsaved`, a queued submission, owed progress, offline, nothing pending, unknown. Wiring in `studentIdentityFoundation`, `draftSaveFailureNotice` and `studentTodayAppWiring`. Mutation-checked. Browser: `dolExtraTimeJourneys` X6, the reviewer's quota scenario. Every `mathmaster:draft*` `setItem` throws QuotaExceededError, and the classmate types in Classwork during pack-up. The line is not "saved", while Batch 3's "not being saved" alert shows. With the old sentence it fails at both sizes ("your work is saved"). |
+| **S1** A closed question's Work View showed a live-looking mirrored Check (`button.disabled` misses a `<fieldset disabled>` / `inert` ancestor). | `toolCheckButtonDisabled` reads `:disabled` and an `inert` ancestor, in the label and in the press. The observer watches from the question's work area, so the fieldset's change is seen. No mirrored Check at all while the question is closed (`useQuestionLifecycle().terminal`). | `workViewToolCheck` "review S1": fieldset-disabled and inert cases are shown disabled and a press does nothing; the closed-question wiring. Mutation-checked. |
+| **S2** A cold Classroom link raised the detour toast and "That question is not open right now" inside `startAssignment`, over Home and the loading screen. | Both go through `showWhenWorkspaceOpens`. The pending notice is now a list, so an arrival can carry two, each shown once. | `appUrlArrival` (the list, once each, the start's two notices, no direct toast), mutation-checked. S7/S8 pass. |
+| **S3** The Spotlight sentence was said in a secure exam. | Gated like the challenge. | `studentLiveChallengePlace`, mutation-checked. |
+| **S4** Copy. | The announcement says the news only: "Your teacher opened the Live Challenge lobby." / "The Live Challenge is running now." It no longer names a button the screen may call something else. The Test Cycle card says "Opens at 10:36 AM." today, using `opensWhenPhrase`. | `studentLiveChallengePlace`, `studentWhen`, mutation-checked. |
+| **N3** Export PDF gone from finished cards took away printing a done lesson to study. | It is on the result page (See results) for every result, beside the results, with "Preparing PDF…" while it builds. Home's finished cards stay uncluttered. Decision 1 is reworded. | `studentOneWayBack` "review N3", mutation-checked. |
+| **N4** Under the mutation, S6 died on an uncaught `fill` timeout. | `fillSearch` unfolds the phone filters if needed, and reports a finding instead of throwing. | — |
+
+Noted by the integrator, no action here: N1 (graphing2 practice has 8 rail actions at 740×360, no spare row), N5 (dates
+follow the device's time zone, as before), N6 (a queued arrival notice is not cleared if the workspace never commits).
+
 ## Gate
+
+### After the review fixes, on the merged head (base `3cb782a9` + W6-5 `85abaee1` + the fixes)
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,887 of 11,887 |
+| `node --test tests/tools/*.test.mjs` | 1,710 tests: 1,709 pass, 0 fail, 1 skipped |
+| `npm run lint` | exit 0; 494 warnings, the same count as W6-5's head `85abaee1` |
+| `npm run build` · `npm run build:firebase` · `npm run audit:theme-colors` | pass · pass, no tracked file rewritten · pass |
+| `node scripts/check-first-load-budget.mjs` | within baseline. **studentHome 853.9 KB**, which includes W6-5. Against W6-5's head built the same way (851.4 KB), this branch adds **+2.5 KB**: `App.js` +2.0 KB (114.9 → 116.9), `testCycleDiscovery.js` +0.3 KB, nothing else. The review fixes account for 0.3 KB of it |
+| Plain Vite 5199: studentUxPlatform, assignmentMobile, workViewHelpReach, workViewCertification (whole), toolPolicyGates, assessmentLeakGates, closedQuestionEnter | all pass |
+| teacherWorkflow 5188: studentScreenChange, appUrlJourneys, assignmentChromeJourneys, dolExtraTimeJourneys (with X5 and X6) | all pass |
+| Browser mutations for the blockers | X5 and X6 fail at both sizes with B1's gate and B2's save status removed |
+
+### First gate (before the review)
 
 Every check ran on this branch. The browser drivers ran one at a time. Drivers that run after the base merge are said so in their rows.
 
@@ -396,9 +430,9 @@ branch, never a raw `firebase deploy --only hosting`. This branch adds no releas
 
 ## Decisions for the owner
 
-1. **Export PDF only on cards with work to do** (NAV-20). A finished or closed Home card no longer offers the
-   printable worksheet. If teachers use it to print finished work for portfolios, put it back on finished cards only,
-   under "See results".
+1. **Export PDF moves for finished work** (NAV-20, review N3). Home's cards offer it only while there is work to do. For
+   finished and closed work it is on the result page (See results), so a student can still print a done lesson's
+   questions to study.
 2. **Grades' "← Home" is gone** (NAV-20). Session C left it as an owner decision because a test pinned it. I took
    "one way back per screen" as the decision: the nav's Home is on every size.
 3. **Nav destinations stay buttons** (NAV-23). Links would add open-in-new-tab, but each new tab is a second
