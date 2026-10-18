@@ -81,6 +81,7 @@ const secureExam = require("./lib/secureExam");
 const secureItems = require("./lib/secureItems");
 const secureExamNavigation = require("./lib/secureExamNavigation");
 const secureExamItems = require("./lib/secureExamItems");
+const secureExamAutoFinalize = require("./lib/secureExamAutoFinalize");
 // The Test Cycle rules are shared ESM; this is the CommonJS bridge to them.
 const testCycleLib = require("./lib/testCycle");
 const adminPolicy = require("./lib/admin");
@@ -16772,7 +16773,14 @@ exports.startSecureExamSession = onCall(async (request) => {
     if (secureExam.TERMINAL_STATES.has(current.status)) return current;
     if (secureExam.LOCKED_STATES.has(current.status)) return current;
     if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
-    if (current.status === "in_progress") return current;
+    if (current.status === "in_progress") {
+      // A resume of a session started before the finalizer's hint existed
+      // stores it now, derived the way every call derives the deadline.
+      if (current.autoFinalizeAt !== undefined) return current;
+      const resumed = { ...current, autoFinalizeAt: secureExam.autoFinalizeAtFor(current, Date.now()) };
+      transaction.set(ref, { autoFinalizeAt: resumed.autoFinalizeAt }, { merge: true });
+      return resumed;
+    }
     // The course gate again, through this transaction: a pause or archive that
     // lands while the start is in flight is seen here (or retries it), so a
     // Test never starts on a closed assessment, where no clock hold would
@@ -16789,7 +16797,7 @@ exports.startSecureExamSession = onCall(async (request) => {
         extendedTimeMultiplier: timeMultiplier,
       }
       : {};
-    const next = {
+    const started = {
       ...current,
       ...accommodated,
       navigation: secureExamNavigation.navigationOf(current),
@@ -16797,6 +16805,8 @@ exports.startSecureExamSession = onCall(async (request) => {
       startedAt: now,
       updatedAt: now,
     };
+    // Where the abandoned-test finalizer will look (secureExam.autoFinalizeAtFor).
+    const next = { ...started, autoFinalizeAt: secureExam.autoFinalizeAtFor(started, now) };
     transaction.set(ref, next);
     return next;
   });
@@ -17564,7 +17574,8 @@ async function finalizeSecureSessionInTransaction(transaction, ref, session, { s
   const openItems = await secureExamItems.readOpenItems(transaction, ref, upgrade.session);
   upgrade.writes.forEach((write) => { if (!openItems.has(write.ref.id)) openItems.set(write.ref.id, write.data); });
   const graded = await secureExamItems.finalizeOpenItems(upgrade.session, openItems, now);
-  return { ...graded, status, submittedAt: now, updatedAt: now };
+  // A finished test leaves the abandoned-test finalizer's sight.
+  return { ...graded, status, submittedAt: now, updatedAt: now, autoFinalizeAt: null };
 }
 
 /** Student submit / verified timer autosubmit. */
@@ -17619,6 +17630,158 @@ exports.finalizeSecureExam = onCall(async (request) => {
   await syncTestCycleSessionState(db, next);
   const released = await autoReleaseSecureSession(db, next);
   return { success: true, session: secureExam.publicSession(released || next) };
+});
+
+/*
+ * AN EXPIRED, ABANDONED TIMED TEST IS FINISHED BY THE SERVER.
+ *
+ * A student who walks away from a secure Test, Retest or practice test after
+ * its time ran out used to leave it "in progress" until they came back or a
+ * teacher force-submitted it, holding their own results and, for a course
+ * Test, the class's released answers and worked solutions. This finishes it
+ * exactly as the student's own time-up would (`finalizeSecureExam` with
+ * `timeExpired`): every saved draft is graded on the server as it was saved,
+ * status `time_expired`, then the Test Cycle record is synced (the card, the
+ * teacher's table and the answer hold read it) and a practice test with
+ * automatic release is released.
+ *
+ * Never early: the session is read in a transaction and finished only when
+ * `secureExam.autoFinalizeDue` says its time is up by the rule every call uses
+ * and the grace has passed. A student still working, one with extended time
+ * left, a test a teacher's pause stopped, and one a proctor paused are not
+ * finished; a stale hint is written back true instead.
+ *
+ * Exactly once: the transaction sees a session submitted meanwhile (by the
+ * student, a proctor or a reset) and writes nothing to it, and Firestore re-runs
+ * it if anyone writes the session first. Our own finalize keeps its hint until
+ * the record sync and release after it have run, so a failure there is finished
+ * by the next run; then the hint is cleared and a second run finds nothing.
+ */
+async function settleAutoFinalizedSecureSession(db, ref, session) {
+  await syncTestCycleSessionState(db, session);
+  await autoReleaseSecureSession(db, session);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.data() || {};
+    if (!secureExam.TERMINAL_STATES.has(current.status)) return;
+    if (current.autoFinalizeAt !== null && current.autoFinalizeAt !== undefined) transaction.set(ref, { autoFinalizeAt: null }, { merge: true });
+  });
+}
+
+async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly = false } = {}) {
+  const snapshot = await ref.get();
+  if (!snapshot.exists) return "missing";
+  const before = snapshot.data() || {};
+  if (legacyOnly && before.autoFinalizeAt !== undefined) return "hinted";
+  // A course-test session a reset replaced is the teacher's, as it is for the
+  // student's own Submit (finalizeSecureExam). It leaves the finalizer's sight.
+  const replaced = secureExam.isCourseTestSession(before)
+    && !secureExam.TERMINAL_STATES.has(before.status)
+    && !(await courseTestSessionIsCurrent(db, before));
+  const result = await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(ref);
+    if (!fresh.exists) return { outcome: "missing" };
+    const session = fresh.data() || {};
+    if (secureExam.TERMINAL_STATES.has(session.status)) {
+      // Finished by us on an earlier run whose follow-ups did not complete.
+      if (Number(session.autoFinalizedAt) > 0 && session.autoFinalizeAt !== null && session.autoFinalizeAt !== undefined) {
+        return { outcome: "settled", session };
+      }
+      // Finished some other way: nothing of the student's is touched. A hint
+      // left by a path that did not clear it (a previous build) is dropped.
+      if (session.autoFinalizeAt !== null && session.autoFinalizeAt !== undefined) {
+        transaction.set(ref, { autoFinalizeAt: null }, { merge: true });
+      }
+      return { outcome: "alreadyFinished" };
+    }
+    if (legacyOnly && session.autoFinalizeAt !== undefined) return { outcome: "hinted" };
+    if (!replaced && secureExam.autoFinalizeDue(session, now)) {
+      const finalized = await finalizeSecureSessionInTransaction(transaction, ref, session, { status: "time_expired", now });
+      // The hint stays (cleared once the follow-ups below have run).
+      const updated = { ...finalized, autoFinalizedAt: now, autoFinalizeAt: now };
+      transaction.set(ref, updated);
+      return { outcome: "finalized", session: updated };
+    }
+    const hint = replaced ? null : secureExam.autoFinalizeAtFor(session, now);
+    if (session.autoFinalizeAt === hint) return { outcome: "notDue" };
+    transaction.set(ref, { autoFinalizeAt: hint }, { merge: true });
+    return { outcome: hint === null ? "leftForTeacher" : "rehinted" };
+  });
+  if (result.session) await settleAutoFinalizedSecureSession(db, ref, result.session);
+  return result.outcome;
+}
+
+async function autoFinalizeSecureSessionSafely(db, ref, options, outcomes) {
+  try {
+    const outcome = await autoFinalizeSecureSession(db, ref, options);
+    outcomes[outcome] = (outcomes[outcome] || 0) + 1;
+    return outcome;
+  } catch (error) {
+    // One session that cannot be finished must not stop the batch. It is
+    // looked at again after the backoff, so it cannot hold the batch's places.
+    outcomes.failed = (outcomes.failed || 0) + 1;
+    logger.error("Could not finalize an abandoned secure exam", { examSessionId: ref.id, message: error?.message || String(error) });
+    const retryAt = Date.now() + secureExamAutoFinalize.RETRY_BACKOFF_MS;
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      const current = snapshot.data() || {};
+      if (!snapshot.exists || !(Number(current.autoFinalizeAt) > 0 || current.autoFinalizeAt === undefined)) return;
+      transaction.set(ref, { autoFinalizeAt: retryAt }, { merge: true });
+    }).catch((backoffError) => logger.error("Could not defer an abandoned secure exam", { examSessionId: ref.id, message: backoffError?.message || String(backoffError) }));
+    return "failed";
+  }
+}
+
+async function finalizeAbandonedSecureExamBatch(db, now = Date.now()) {
+  const outcomes = {};
+  const due = await db.collection("examSessions")
+    .where("autoFinalizeAt", "<=", now)
+    .orderBy("autoFinalizeAt")
+    .limit(secureExamAutoFinalize.MAIN_BATCH_LIMIT)
+    .get();
+  for (const doc of due.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await autoFinalizeSecureSessionSafely(db, doc.ref, { now }, outcomes);
+  }
+
+  // Sessions started before the hint existed: one page per run, derived.
+  const sweepRef = db.collection("platformMigrations").doc(secureExamAutoFinalize.SWEEP_DOC_ID);
+  const sweepSnapshot = await sweepRef.get();
+  const state = secureExamAutoFinalize.sweepStateOf(sweepSnapshot.exists ? sweepSnapshot.data() : null, now);
+  let legacy = 0;
+  if (state) {
+    let page = db.collection("examSessions")
+      .where("status", "in", secureExamAutoFinalize.SWEEP_STATES)
+      .orderBy(FieldPath.documentId())
+      .limit(secureExamAutoFinalize.SWEEP_PAGE_LIMIT);
+    if (state.cursor) page = page.startAfter(state.cursor);
+    const sessions = await page.get();
+    for (const doc of sessions.docs) {
+      if (doc.data()?.autoFinalizeAt !== undefined) continue;
+      legacy += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await autoFinalizeSecureSessionSafely(db, doc.ref, { now, legacyOnly: true }, outcomes);
+    }
+    const next = secureExamAutoFinalize.nextSweepState(state, {
+      now, returned: sessions.size, lastId: sessions.docs[sessions.size - 1]?.id || null, foundLegacy: legacy,
+    });
+    const stored = sweepSnapshot.exists ? secureExamAutoFinalize.sweepStateOf(sweepSnapshot.data(), now) : null;
+    if (!stored || !secureExamAutoFinalize.sameSweepState(stored, next)) {
+      await sweepRef.set({ ...next, updatedAt: now }, { merge: true });
+    }
+  }
+  if (due.size || legacy) logger.info("Abandoned secure exam batch complete", { examined: due.size, legacy, ...outcomes });
+  return { examined: due.size, legacy, outcomes };
+}
+
+exports.finalizeAbandonedSecureExams = onSchedule({
+  schedule: "every 5 minutes",
+  timeoutSeconds: 300,
+  // Server infrastructure, private like the other schedulers: the global
+  // public invoker exists for client callables only.
+  invoker: "private",
+}, async () => {
+  await finalizeAbandonedSecureExamBatch(getFirestore(), Date.now());
 });
 
 /** Teacher-only live monitor summaries. No answer payloads are returned. */
@@ -17803,6 +17966,8 @@ exports.proctorExamAction = onCall(async (request) => {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
     }
+    // A pause, a resume and added time all move the deadline the finalizer reads.
+    if (action !== "forceSubmit") updated = { ...updated, autoFinalizeAt: secureExam.autoFinalizeAtFor(updated, now) };
     // Every open draft is graded exactly as a student's own submit grades it.
     if (action === "forceSubmit") updated = { ...(await finalizeSecureSessionInTransaction(transaction, ref, updated, { status: "force_submitted", now })), lastProctorActionBy: teacherUid };
     transaction.set(ref, updated);
@@ -19575,7 +19740,7 @@ exports.teacherTestCycleAction = onCall(TEST_CYCLE_ACTION_OPTIONS, async (reques
           // because `attempt` is part of the plan seed.
           transaction.set(
             db.collection("examSessions").doc(current.examSessionId),
-            { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now() },
+            { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now(), autoFinalizeAt: null },
             { merge: true },
           );
         }
@@ -20408,7 +20573,7 @@ async function syncTestCycleSessionState(db, session) {
         const now = Date.now();
         transaction.set(
           db.collection("examSessions").doc(String(record.retest.examSessionId)),
-          { status: "force_submitted", supersededByOriginalTest: true, supersededAt: now, updatedAt: now },
+          { status: "force_submitted", supersededByOriginalTest: true, supersededAt: now, updatedAt: now, autoFinalizeAt: null },
           { merge: true },
         );
       }
@@ -24535,7 +24700,12 @@ async function holdCourseTestClocks(db, assignmentId) {
       const closed = assignment.archived === true || assignment.unpublished === true;
       const now = Date.now();
       const change = closed ? secureExam.withPauseHold(session, "assignment", now) : secureExam.withoutPauseHold(session, "assignment", now);
-      if (Object.keys(change).length) transaction.set(doc.ref, { ...change, updatedAt: now }, { merge: true });
+      // The hold stops or restarts the clock, so the finalizer's deadline moves with it.
+      if (Object.keys(change).length) {
+        transaction.set(doc.ref, {
+          ...change, autoFinalizeAt: secureExam.autoFinalizeAtFor({ ...session, ...change }, now), updatedAt: now,
+        }, { merge: true });
+      }
     })));
 }
 
