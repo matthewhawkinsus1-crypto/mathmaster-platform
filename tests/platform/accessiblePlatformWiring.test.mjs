@@ -89,7 +89,7 @@ test('the document title names the screen', () => {
 
 // WCAG 2.4.1: the first Tab stop on a student screen skips the navigation.
 test('a student screen starts with a skip link past the navigation', () => {
-  const shell = region(app, 'const renderStudentIdentityShell', '\n  );', 'the student shell');
+  const shell = region(app, 'const renderStudentIdentityShell', '\n  };', 'the student shell');
   assert.match(shell, /<div data-authenticated-student-shell=[^>]*>\s*<SkipToContent \/>/, 'first in the shell');
   // The skip link's fallback anchor exists on every screen: the shell's own
   // main (a screen without one, NAV-15), or the empty anchor before a screen

@@ -25,6 +25,11 @@
 //   S6  Assignments: a search survives View Results → browser Back.
 //   S7  A toast shown inside an assignment ("That question has moved") never
 //       covers Submit / Check: the button is what a tap at its centre hits.
+//       The notice appears with the workspace, never over Home or the loading
+//       screen before it (wave-3 gate).
+//   S8  A Classroom post for the exit ticket, tapped before it opens (NAV-22):
+//       the student lands where they can work now and is told why ("The exit
+//       ticket (DOL) opens at 11:35 AM — here is Classwork meanwhile.").
 //
 // Exit code 1 on any finding.
 
@@ -213,10 +218,17 @@ for (const viewport of VIEWPORTS) {
   // S7 — a toast over the workspace leaves the action bar pressable.
   await page.goto(`${ORIGIN}/assignments/a-today/classwork/99?${asStudent}`);
   const toast = page.locator('.mm-toast').filter({ hasText: 'That question has moved' }).first();
+  // Watch, from the first paint, whether the notice ever shows without the
+  // workspace (its sticky navigator) under it.
+  const early = page.waitForFunction(() => {
+    const shown = [...document.querySelectorAll('.mm-toast')].some((node) => /That question has moved/.test(node.textContent || ''));
+    if (!shown) return false;
+    return { workspace: Boolean(document.querySelector('.mathmaster-assignment-unified-nav')), home: /Welcome, /.test(document.body.innerText) };
+  }, null, { timeout: 60_000, polling: 50 }).then((handle) => handle.jsonValue(), () => null);
   if (expect(`S7 ${tag}`, await toast.waitFor({ timeout: 60_000 }).then(() => true, () => false), 'no "That question has moved" toast')) {
-    // The notice is raised as the assignment starts opening, so Home can still
-    // be on screen for a few seconds (on the base too). Measure once the
-    // workspace's action bar is there, while the notice (10 s) still shows.
+    const first = await early;
+    expect(`S7 ${tag}`, first?.workspace === true && first?.home === false, `the notice first showed without the workspace under it: ${JSON.stringify(first)}`);
+    // Measure once the workspace's action bar is there, while the notice (10 s) still shows.
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
       if (!button.getClientRects().length || !/^(Submit|Check)\b/.test((button.innerText || '').trim())) return false;
       const box = button.getBoundingClientRect();
@@ -239,6 +251,16 @@ for (const viewport of VIEWPORTS) {
     if (expect(`S7 ${tag}`, hit.found, 'no Submit or Check button on screen')) {
       expect(`S7 ${tag}`, hit.hits, `a tap on "${hit.label}" lands on ${hit.covering}, not the button`);
     }
+  }
+
+  // S8 — a Classroom DOL post before the DOL opens says why it opened Classwork.
+  await page.goto(`${ORIGIN}/?launch=a-today&classroomSection=dol&${asStudent}`);
+  const detour = page.locator('.mm-toast').filter({ hasText: /exit ticket \(DOL\) is not open right now/ }).first();
+  if (expect(`S8 ${tag}`, await detour.waitFor({ timeout: 60_000 }).then(() => true, () => false), 'a Classroom DOL link before the DOL opens said nothing')) {
+    const text = (await detour.innerText()).replace(/\s+/g, ' ');
+    expect(`S8 ${tag}`, /The exit ticket \(DOL\) opens at \d{1,2}:\d{2}\s?[AP]M — here is (Classwork|Practice|the Warm-Up) meanwhile\./.test(text), `the notice reads "${text}"`);
+    await page.waitForFunction(() => /\/assignments\/a-today\/(classwork|practice|warmup)\//.test(location.pathname), null, { timeout: 20_000 }).catch(() => {});
+    expect(`S8 ${tag}`, /\/assignments\/a-today\/(classwork|practice|warmup)\//.test(new URL(page.url()).pathname), `landed on ${new URL(page.url()).pathname}`);
   }
 
   expect(`${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);

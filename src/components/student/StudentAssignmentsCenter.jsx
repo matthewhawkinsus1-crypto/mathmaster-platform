@@ -63,7 +63,8 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          {/* Under the screen's h1 with nothing between: h2 (NAV-23; it was an h3). */}
+          <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h2>
           {/* Named as one thing, because it is one thing. A student who sees
               four stages listed as four assignments starts asking which of
               them counts. */}
@@ -160,6 +161,10 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
   );
 }
 
+// The category tabs and the one panel they control (NAV-23).
+const ASSIGNMENTS_PANEL_ID = 'assignments-panel';
+const assignmentsTabId = (categoryId) => `assignments-tab-${categoryId}`;
+
 export default function StudentAssignmentsCenter({
   dashboard,
   gradeCenter,
@@ -194,6 +199,19 @@ export default function StudentAssignmentsCenter({
 
   const { categories, activeCategory, activePeriodId, periodOptions, isSearching, visibleEntries, totalCount } = center;
   const activeGroup = categories.find((group) => group.id === activeCategory) || null;
+  // Left/Right (and Up/Down), Home and End select the neighbouring tab and
+  // move focus to it.
+  const moveBetweenTabs = (event) => {
+    const index = categories.findIndex((group) => group.id === activeCategory);
+    if (index < 0 || !categories.length) return;
+    const last = categories.length - 1;
+    const next = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const target = categories[(next + categories.length) % categories.length];
+    setCategory(target.id);
+    document.getElementById(assignmentsTabId(target.id))?.focus();
+  };
 
   return (
     <div
@@ -300,15 +318,21 @@ export default function StudentAssignmentsCenter({
             {visibleEntries.length} result{visibleEntries.length === 1 ? '' : 's'} across every tab and marking period.
           </p>
         ) : (
-          <div role="tablist" aria-label="Assignment categories" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          // Real tabs (NAV-23): each controls the one panel below; the selected
+          // tab is the one Tab stop, and the arrow keys, Home and End move
+          // between them (and select, as the pattern's automatic activation).
+          <div role="tablist" aria-label="Assignment categories" onKeyDown={moveBetweenTabs} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {categories.map((group) => {
               const active = group.id === activeCategory;
               return (
                 <button
                   key={group.id}
+                  id={assignmentsTabId(group.id)}
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-controls={ASSIGNMENTS_PANEL_ID}
+                  tabIndex={active ? 0 : -1}
                   onClick={() => setCategory(group.id)}
                   style={{
                     appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
@@ -326,6 +350,11 @@ export default function StudentAssignmentsCenter({
           </div>
         )}
 
+        <div
+          id={ASSIGNMENTS_PANEL_ID}
+          role={isSearching ? undefined : 'tabpanel'}
+          aria-labelledby={isSearching ? undefined : assignmentsTabId(activeCategory)}
+        >
         {!isSearching && activeGroup?.hint && (
           <p style={{ margin: '0 0 12px', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
         )}
@@ -351,6 +380,7 @@ export default function StudentAssignmentsCenter({
             />
           ))
         )}
+        </div>
 
         <BuildStamp />
       </div>
