@@ -52,12 +52,24 @@ test('D9: the exit ticket is spelled out at the first item that names one — no
 });
 
 test('NAV-17: closed work has one name on every screen, and the result button one word', () => {
-  assert.equal(CLOSED_WORK.label, 'Closed — no credit');
-  // Never "Practice": that word is the lesson's Practice section.
-  assert.doesNotMatch(`${CLOSED_WORK.label} ${CLOSED_WORK.groupLabel} ${CLOSED_WORK.bannerTitle}`, /Practice/);
-  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], CLOSED_WORK.label);
-  assert.equal(GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY], CLOSED_WORK.label);
-  assert.ok(BUCKET_LABEL[BUCKET.PRACTICE].startsWith(CLOSED_WORK.label), BUCKET_LABEL[BUCKET.PRACTICE]);
+  // The state's one name. It sits beside a real grade on Home, Grades and in
+  // the workspace, so it never says "no credit" (that reads as "you earned
+  // none"); "no credit" is said of trying it again, where it is true.
+  assert.equal(CLOSED_WORK.label, 'Closed');
+  assert.equal(GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY], 'Closed');
+  for (const shownBesideAGrade of [CLOSED_WORK.label, CLOSED_WORK.gradeLabel, GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY]]) {
+    assert.doesNotMatch(shownBesideAGrade, /no credit/i, shownBesideAGrade);
+  }
+  for (const aboutTheRetry of [CLOSED_WORK.groupLabel, CLOSED_WORK.tryAgain, CLOSED_WORK.bannerTitle]) {
+    assert.match(aboutTheRetry, /no credit/, aboutTheRetry);
+  }
+  assert.equal(CLOSED_WORK.groupLabel, 'Closed — try again (no credit)');
+  assert.equal(CLOSED_WORK.tabLabel, 'Closed — try again');
+  assert.equal(CLOSED_WORK.bannerTitle, 'Closed — practice here earns no credit');
+  // Never "Practice …" as a name: that word is the lesson's Practice section.
+  assert.doesNotMatch(`${CLOSED_WORK.label} ${CLOSED_WORK.groupLabel} ${CLOSED_WORK.tabLabel}`, /Practice/);
+  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], CLOSED_WORK.tabLabel);
+  assert.equal(BUCKET_LABEL[BUCKET.PRACTICE], CLOSED_WORK.groupLabel);
   assert.equal(TRY_AGAIN_LABEL, CLOSED_WORK.tryAgain);
   assert.equal(SEE_RESULTS, 'See results');
   // No teacher words in what closed work says to a student.
@@ -104,7 +116,7 @@ const STUDENT_FILES = [
 // Each was printed to a student before this pass (NAV-17, NAV-18, HELP-24).
 const OLD_WORDS = [
   /Regular due/, /Final late due/, /final late due/, /'Not set'/,
-  /Practice Mode — grading window ended/, /teacher gradebook, mastery evidence/, /'Closed — try again/,
+  /Practice Mode — grading window ended/, /teacher gradebook, mastery evidence/, /'Practice only/, /'Closed — no credit/,
   /View Results/, /Back to Dashboard/, /Return to Dashboard/,
   /Retention concern/, /CCMR standard or skill/, /assessment identifier/,
   /100 — prerequisite met/, /Frozen recorded grade/, /DOL \/ Exit Ticket/, /DOL is available now/, /Start DOL Section/,

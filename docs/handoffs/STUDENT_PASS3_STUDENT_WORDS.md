@@ -19,7 +19,7 @@ said with the evidence.
 | `STUDENT_SECTION_LABEL`, `studentSectionLabel(role, { spelledOut })` | Warm-Up, Classwork, Practice, Exit ticket, Quiz, Test | `lessonSections.SECTION_LABEL` (so every wait line and chip), Home's section line |
 | `firstExitTicketMention(items, namesExitTicket, { alreadySpelledOut })` | which item on a screen spells "(DOL)" out | Home |
 | `EXIT_TICKET_WAITS` | "Exit ticket opens in class" | Home's status chip (NAV-26) |
-| `CLOSED_WORK` | `label`, `groupLabel` and `bannerTitle` "Closed — no credit"; `bannerText`; `tryAgain` "Try it again — no credit"; `gradeLabel` "Your grade (closed)" | Home chip and group, Assignments tab, Grades status, the workspace badge, phone chip and banner, the result page's try-again |
+| `CLOSED_WORK` | `label` "Closed" (the state); `groupLabel` "Closed — try again (no credit)"; `tabLabel` "Closed — try again"; `bannerTitle` "Closed — practice here earns no credit"; `bannerText`; `tryAgain` "Try it again — no credit"; `gradeLabel` "Your grade (closed)" | Home chip and group, Assignments tab, Grades status, the workspace badge, phone chip and banner, the result page's try-again |
 | `RECOVERY_NAME` | "DOL Recovery", "Warm-Up Recovery" (unchanged: decision 1) | the next-action card |
 | `SEE_RESULTS`, `HOME`, `BACK_TO_HOME` | "See results", "Home", "Back to Home" | Home, Assignments, Grades, Live Challenge's default exit |
 | `triesCount(n)` | "1 try", "3 tries" | (for later screens) |
@@ -55,10 +55,13 @@ it out once, then says "Exit ticket"**:
   status chip and the toasts (each is read on its own); every sentence says "exit ticket".
 - Grades: the section breakdown. Login page: the subhead ("daily exit tickets (DOL)").
 
-Closed work's one name is **"Closed — no credit"**, never "Practice …". In student copy "Practice" means only the
-lesson's Practice section (an existing contract in `studentAssignmentsCenterToday.test.mjs` says so), and a closed
-card showed "PRACTICE ONLY" beside its own "Practice — Closed" chip. My first pass used "Practice only"; that test
-caught it.
+Closed work's state has one name, **"Closed"**: the Home chip, the Grades status, the workspace badge and the phone
+chip. "No credit" is said only of the action, where it is true: Home's group "Closed — try again (no credit)", the
+Assignments tab "Closed — try again", the button "Try it again — no credit", and the workspace banner "Closed —
+practice here earns no credit". Each state label can sit beside a real grade (82%), and "no credit" there read as
+"you earned none" (the integrator's review question; the first version of this branch said "Closed — no credit"
+everywhere). Never "Practice …" as a name: in student copy "Practice" is only the lesson's Practice section (an
+existing contract in `studentAssignmentsCenterToday.test.mjs`), and a closed card already shows a "Practice" chip.
 
 What stayed "DOL": "DOL Recovery" and its buttons ("Start DOL Recovery", "Practice for DOL Recovery"). It is a named
 feature that teachers, Pre-Flight and the Recovery journeys use, and renaming it touches about 40 assertions in eight
@@ -74,15 +77,15 @@ files, among them the Recovery journeys outside this scope. It is decision 1 bel
 | `src/components/student/GradeSectionBreakdown.jsx:21` | DOL | Exit ticket (DOL) |
 | `src/components/student/StudentDashboardView.jsx:356` | Classwork · DOL | Classwork · Exit ticket (DOL) on the first card, Exit ticket after |
 | `src/components/student/StudentDashboardView.jsx:367` | DOL opens at 2:15 PM. | Exit ticket opens at 2:15 PM. |
-| `src/components/student/StudentDashboardView.jsx:308` | Closed | Closed — no credit |
+| `src/components/student/StudentDashboardView.jsx:308` | Closed | Closed (from the list) |
 | `src/components/student/StudentDashboardView.jsx:314` (NAV-26) | Not open yet (a lesson done but for its exit ticket) | Exit ticket opens in class |
 | `src/components/student/StudentDashboardView.jsx:405-406` | See results / Try it again — no credit | the same words, from the list |
-| `src/studentDashboardModel.js:72` | Closed — try again (no credit) | Closed — no credit (the group's hint under it is unchanged) |
+| `src/studentDashboardModel.js:72` | Closed — try again (no credit) | the same words, from the list |
 | `src/studentDashboardModel.js` (locked Recovery card) | Practice to unlock your DOL Recovery | unchanged (it would have become "Exit ticket Recovery" through the section label; `RECOVERY_NAME` keeps it) |
 | `src/studentDashboardModel.js` (dol card) | Your exit ticket (DOL) is open | unchanged words, from the list |
 | `src/studentDashboardModel.js` (assignedSoon) | … — DOL opens at 10:38 AM. | … — Exit ticket (DOL) opens at 10:38 AM. |
-| `src/platform/student/studentAssignmentsCenterModel.js:66` | Closed — try again | Closed — no credit |
-| `src/platform/student/studentGradeCenterModel.js:122` | Practice Only | Closed — no credit |
+| `src/platform/student/studentAssignmentsCenterModel.js:66` | Closed — try again | the same words, from the list |
+| `src/platform/student/studentGradeCenterModel.js:122` | Practice Only | Closed |
 | `src/components/student/StudentAssignmentsCenter.jsx:146`, `StudentGradeCenter.jsx:326` | View Results | See results |
 | `src/platform/student/whatChangedModel.js:277` | You have another try on the DOL for … | You have another try on the exit ticket for … |
 | `src/platform/assessment/dolCloseCopy.js:59,61,71,72` | … closed the DOL / this DOL | … closed the exit ticket / this exit ticket |
@@ -92,13 +95,13 @@ files, among them the Recovery journeys outside this scope. It is decision 1 bel
 | `src/App.jsx:5611` | DOL not open yet — "The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears." | Exit ticket (DOL) not open yet — "The exit ticket opens in the last minutes of class. Keep working; a banner tells you when it opens." |
 | `src/App.jsx:9829` | Requesting another DOL question will erase this DOL attempt. You will have only … remaining to submit the replacement. | A new exit ticket question replaces this one and erases your answer to it. You will have only … left to submit the new one. |
 | `src/App.jsx:9837` | Return to Dashboard | Back to Home |
-| `src/App.jsx:9843` | Practice only (badge) | Closed — no credit |
+| `src/App.jsx:9843` | Practice only (badge) | Closed |
 | `src/App.jsx:9860` | DOL / Exit Ticket (section tab) | Exit ticket (DOL) |
 | `src/App.jsx:9935` | Time is up for the Exit ticket (DOL). | Time is up for the exit ticket. |
 | `src/App.jsx:10098` | Exit ticket (DOL) (Up next's section name) | Exit ticket |
 | `src/App.jsx:10132-10135` | Exit ticket (DOL) open / The Exit ticket (DOL) is open / Go to the Exit ticket (DOL) | Exit ticket (DOL) open / The exit ticket is open / Go to the exit ticket |
-| `src/App.jsx:10157-10159` | No credit · practice / Practice only, no credit / "This assignment has closed and your grade is set. You can keep practising…" | Closed — no credit / Closed — no credit / `CLOSED_WORK.bannerText` |
-| `src/App.jsx:10363-10364` | Practice Mode — grading window ended / "Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. …" | Closed — no credit / "Your grade on it stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it." |
+| `src/App.jsx:10157-10159` | No credit · practice / Practice only, no credit / "This assignment has closed and your grade is set. You can keep practising…" | Closed / Closed — practice here earns no credit / `CLOSED_WORK.bannerText` |
+| `src/App.jsx:10363-10364` | Practice Mode — grading window ended / "Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. …" | Closed — practice here earns no credit / "Your grade stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it." |
 | `src/App.jsx:10371-10375` | DOL is available now / "The entire DOL section is open. Complete all N questions before the timer reaches zero." / Start DOL Section | The exit ticket is open now / "Answer all N questions before the timer reaches zero." / Start the exit ticket |
 | `src/App.jsx:10433` | Frozen recorded grade | Your grade (closed) |
 | `src/App.jsx:10652` + `SectionTimeLeft.jsx:28,71` | Exit ticket (DOL) open; "2 minutes left on the Exit ticket (DOL)." | Exit ticket open; "2 minutes left on the exit ticket." |
@@ -120,7 +123,7 @@ Session B's Submit words (`submitActionLabel`, `submitTryCost`, `missOutcomeText
 Assignments tab, Grades, Home's group and the try-again label; the first-mention rule; Home's ladder and section line
 wired to it; the workspace banner reading `CLOSED_WORK`; a scan of 17 student modules for 33 old phrasings (none
 left). `tests/browser/studentHomeToday.mjs` now checks, on the real dashboard at 1366×768 and 390×844, that "Exit
-ticket (DOL)" appears exactly once on Home and no bare "DOL" is printed, that closed work says "Closed — no credit", and
+ticket (DOL)" appears exactly once on Home and no bare "DOL" is printed, that closed work's chip says "Closed", and
 the wait line "Exit ticket opens at …". Screens: Home before (base) and after are in the session's scratchpad; see
 "Browser evidence" below.
 
@@ -267,7 +270,7 @@ On the branch head after merging the moved base (`3cb782a9`), unless a row says 
 | `npm run lint` | exit 0, no errors (warnings only, none in a line this branch added) |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
 | `node scripts/check-first-load-budget.mjs` | within baseline: studentHome **847.8 KB** (186 files), signIn 291.8 KB (27 files) |
-| Mutation checks (every new assertion) | 21 mutations, 21 red (`studentWords`, `studentWhatChanged`; listed below) |
+| Mutation checks (every new assertion) | 23 mutations, 23 red (`studentWords`, `studentWhatChanged`; listed below) |
 | `npm run test:rules` (emulator) | 243 of 243 and 220 of 220 (a sanity run; no rules change) |
 | Other emulator suites | not run: nothing here touches Functions, rules or indexes |
 | Student drivers on plain Vite (AUDIT_ORIGIN 5199) | studentUxPlatform, assignmentMobile, keyboardSweep, readAloudTranslate, studentGradesRaise, studentResultUpNext, reviewMyWork, dolCloseCopy, workBarPrimaryLabel, feedbackTeaches, gradeCenterMobile, afterLastMiss, studentWhatChanged, pathRetention, familyPinContainment: all exit 0 |
@@ -283,7 +286,7 @@ was killed mid-tool, after every tool before that passed). Alone it passes.
 **Mutations (each turned the named test red, then restored):** reopened emitted again; NAV-26 chip back to "Not open
 yet"; the helper without "something finished"; the helper counting a non-waiting exit ticket; the waiting card not
 spelling "(DOL)"; Home ignoring the primary card's spelling; `firstExitTicketMention` ignoring `alreadySpelledOut`;
-closed work back to "Practice only"; Grades back to "View Results"; "Regular due" back; a missing date printed;
+closed work back to "Practice only"; the state saying "no credit"; the group losing "(no credit)"; Grades back to "View Results"; "Regular due" back; a missing date printed;
 an equal last day printed; the retention banner red; "Your answer is locked." back; "Ask your teacher" back; the
 same-answer line back; the miss box, the one-try line and the tool shell each losing the hint sentence; "last
 attempt"; "another try on the DOL". Browser: `showTriesCount` forced on → `toolTries` red on all three exams.
@@ -315,8 +318,8 @@ sentence is also shorter. The baseline file is not edited.
 2. **What "reopened" means** (wave 3's list, C). What changed no longer mentions the flag; Grades still shows the
    status "Reopened" while the lesson is open. If "reopened" should open closed work, that is a server change
    (`studentAssignmentOverrides.mjs`), and What changed can then say it.
-3. **Closed work's name**: "Closed — no credit" on the chip, the tab, the status, the badge and the banner, with "Try
-   it again — no credit" as its button. If the owner wants a different word, it is one constant (`CLOSED_WORK`).
+3. **Closed work's words**: "Closed" for the state; "no credit" only on trying it again. If the owner wants other
+   words, they are one constant (`CLOSED_WORK`).
 4. **Spanish**: no new sentence of mine is on a Read aloud or Translate path. The closed-attempt sentence Translate
    covers now has fewer sentences, and every remaining one was already in `esSupport.js`.
 

@@ -60,10 +60,9 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
    * The id stays 'practice' (routes, saved tabs and tests key on it), but the
    * WORD is not "Practice": in student copy "Practice" means only the lesson's
    * Practice section. Closed work is something a student can try again for no
-   * credit. Its name is the one every student screen uses for closed work
-   * (studentWords.js, NAV-17).
+   * credit, and the tab says what can still be done (studentWords.js, NAV-17).
    */
-  [ASSIGNMENT_CATEGORY.PRACTICE]: CLOSED_WORK.label,
+  [ASSIGNMENT_CATEGORY.PRACTICE]: CLOSED_WORK.tabLabel,
 });
 
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({

@@ -44,8 +44,8 @@ const SCENES = [
   // accuracy (product decision 4), so the two classwork lessons whose every
   // question is answered or out of tries count as Completed alongside the two
   // practice-only ones — the same four the Grade Center lists as Graded.
-  // (Inequalities Review is closed, so it is also under "Closed — no credit".)
-  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 4', 'Closed — no credit · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
+  // (Inequalities Review is closed, so it is also under "Closed — try again".)
+  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 4', 'Closed — try again · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
   // Everything has closed, so the default Active tab is empty. An empty tab on
   // a screen whose job is finding things has to say where the work went.
   { name: 'assignmentsCenterClosed', mustContain: ['My Assignments', 'All marking periods'], mustReach: ['Grades'] },
@@ -54,7 +54,7 @@ const SCENES = [
   {
     name: 'assignmentsCenterClosed',
     as: 'assignmentsCenterPracticeTab',
-    clickText: 'Closed — no credit ·',
+    clickText: 'Closed — try again ·',
     mustContain: ['Try it again — no credit', 'See results'],
     mustReach: ['Try it again — no credit'],
   },

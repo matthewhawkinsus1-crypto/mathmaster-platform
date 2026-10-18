@@ -79,18 +79,23 @@ export const firstExitTicketMention = (items = [], namesExitTicket = () => false
 
 /*
  * Work past its last day to turn in. It can still be opened and practiced, and
- * nothing done there changes the grade. One name for it everywhere: the card
- * chip, Home's group, the Assignments tab, the Grades status, the workspace
- * badge and its banner. Never "Practice …": in student copy "Practice" is only
- * the lesson's Practice section, and a closed card already shows a "Practice"
- * chip of its own.
+ * nothing done there changes the grade.
+ *
+ * The STATE has one name, "Closed": the card chip, the Grades status, the
+ * workspace badge and the phone chip. Each can sit beside a real grade (82%),
+ * so none of them says "no credit" — that would read as "you earned none".
+ * "No credit" is said only of the ACTION, where it is true: trying it again.
+ * Never "Practice …": in student copy "Practice" is only the lesson's Practice
+ * section, and a closed card already shows a "Practice" chip of its own.
  */
 export const CLOSED_WORK = Object.freeze({
-  // The chip, the badge, the Grades status, the Assignments tab, Home's group.
-  label: 'Closed — no credit',
-  groupLabel: 'Closed — no credit',
-  // The workspace banner's heading and sentence.
-  bannerTitle: 'Closed — no credit',
+  // The state: the chip, the badge, the Grades status, the phone chip.
+  label: 'Closed',
+  // Lists of closed work, named by what can still be done with it.
+  groupLabel: 'Closed — try again (no credit)',
+  tabLabel: 'Closed — try again',
+  // The workspace banner's heading (the work in front of the student now) and sentence.
+  bannerTitle: 'Closed — practice here earns no credit',
   bannerText: 'Your grade stays as it is. You can keep practicing with feedback; nothing here changes your grade. Your practice is saved, and your teacher can see it.',
   // The button that opens it again.
   tryAgain: 'Try it again — no credit',

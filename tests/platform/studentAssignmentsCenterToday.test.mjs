@@ -128,9 +128,9 @@ test('closed work is "Try it again — no credit", never "Practice"', () => {
   assert.doesNotMatch(rowActions, />\s*Practice\s*</, 'no bare "Practice" button label on a row');
 });
 
-test('the closed tab keeps its id and says closed work\'s one name, "Closed — no credit" (NAV-17)', () => {
+test('the closed tab keeps its id and says "Closed — try again"', () => {
   assert.equal(ASSIGNMENT_CATEGORY.PRACTICE, 'practice', 'the id is stable');
-  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], 'Closed — no credit');
+  assert.equal(ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.PRACTICE], 'Closed — try again');
   assert.equal(
     ASSIGNMENT_CATEGORY_HINT[ASSIGNMENT_CATEGORY.PRACTICE],
     'Past the final deadline. You can try these again; they no longer change your grade.',
@@ -139,7 +139,7 @@ test('the closed tab keeps its id and says closed work\'s one name, "Closed — 
     assert.doesNotMatch(text, /\bpractis|\bPractice\b/, `"${text}" must not use Practice for closed work`);
   }
   const tab = result.categories.find((group) => group.id === ASSIGNMENT_CATEGORY.PRACTICE);
-  assert.equal(tab.label, 'Closed — no credit');
+  assert.equal(tab.label, 'Closed — try again');
 });
 
 test('Upcoming is sorted soonest due first', () => {

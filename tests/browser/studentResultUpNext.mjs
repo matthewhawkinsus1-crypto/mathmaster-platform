@@ -168,7 +168,7 @@ for (const viewport of VIEWPORTS) {
     expect(problems, recover?.type === 'openResult' && recover.args[0] === 'recovery', `Open Recovery sent ${JSON.stringify(recover)}`);
 
     // Closed tab: try again, never "Practice".
-    expect(problems, await clickButton(page, 'Closed — no credit ·') === 'ok', 'could not open the Closed tab');
+    expect(problems, await clickButton(page, 'Closed — try again ·') === 'ok', 'could not open the Closed tab');
     await page.waitForTimeout(120);
     const closedText = await textOf(page);
     expect(problems, closedText.includes('You can try these again; they no longer change your grade.'), 'Closed hint missing');

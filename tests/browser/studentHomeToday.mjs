@@ -134,7 +134,7 @@ for (const viewport of VIEWPORTS) {
   check(yNext > 0 && yNext < yGroup && yGroup < yChanged, tag(`today: order next=${yNext} groups=${yGroup} changed=${yChanged}`));
 
   const chip = async (id) => (await page.locator(`[data-assignment-card="${id}"] [data-status-chip]`).textContent())?.trim();
-  for (const [id, expected] of [['finished', 'Finished'], ['excused', 'Excused'], ['closed', 'Closed — no credit'], ['pastdue-started', 'Late'], ['pastdue', 'Late'], ['locked', 'Not open yet'], ['dolwait', 'Exit ticket opens in class']]) {
+  for (const [id, expected] of [['finished', 'Finished'], ['excused', 'Excused'], ['closed', 'Closed'], ['pastdue-started', 'Late'], ['pastdue', 'Late'], ['locked', 'Not open yet'], ['dolwait', 'Exit ticket opens in class']]) {
     check(await chip(id) === expected, tag(`today: ${id} chip is "${await chip(id)}", expected "${expected}"`));
   }
   for (const id of ['finished', 'excused', 'closed']) {
