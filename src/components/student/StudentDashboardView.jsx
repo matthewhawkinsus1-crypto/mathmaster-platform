@@ -383,7 +383,10 @@ export default function StudentDashboardView({
               )}
             </div>
           )}
-          {onExportAssignmentPdf && !waiting && (
+          {/* A paper copy helps while there is work to do (NAV-20). A
+              finished or closed card's action is its results, so it no
+              longer also offers Export PDF beside See results and Try again. */}
+          {onExportAssignmentPdf && actionable && (
             <button
               type="button"
               disabled={exportingAssignmentId === assignment.id}

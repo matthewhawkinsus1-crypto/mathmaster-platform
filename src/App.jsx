@@ -8950,10 +8950,20 @@ function App() {
     }
   };
 
-  const renderStudentPackUpBanner = () => {
+  /*
+   * THE PACK-UP LINE (student pass 3, NAV-24): the last five minutes of the
+   * period. It used to be a fixed 125–160px banner over the top of every
+   * screen, which covered the assignment's sticky navigator (section tabs,
+   * Previous/Next) for a student finishing their work. It is now a slim row of
+   * the identity bar (StudentIdentityBar `notice`): it pins with it, and its
+   * height moves every sticky surface under it down instead of covering it.
+   * Work saves as it is entered, so it says so — unless this device still holds
+   * work that has not been sent (the same check Log Out asks about), which it
+   * says instead. A secure exam and a student on DOL extra time (D7) are not
+   * interrupted by it.
+   */
+  const renderStudentPackUpNotice = ({ logoutRisk = null } = {}) => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Drawn above everything, including a secure exam's lock overlay; a
-    // student mid-Test is not interrupted by it.
     if (secureExamActive) return null;
     const packUp = getClassPackUpState({
       schedule: classSchedule,
@@ -8962,37 +8972,28 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
-    // Nor is a student still on their exit ticket's extra time (D7).
     if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
 
     return (
-      <aside
-        role="alert"
-        aria-live="assertive"
+      <div
+        data-pack-up-notice={logoutRisk ? 'unsent' : 'saved'}
         style={{
-          position: 'fixed',
-          top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
-          left: 0,
-          right: 0,
-          zIndex: 20000,
-          background: '#fbbc04',
-          color: 'var(--mm-text-strong)',
-          borderBottom: '5px solid #d93025',
-          boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
-          padding: '18px 24px',
-          textAlign: 'center',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
+          // Dark text on the yellow in both themes: the bar's colours are fixed.
+          background: '#fbbc04', color: '#202124', borderBottom: '2px solid #b06000',
+          padding: '5px clamp(10px, 3vw, 22px)', textAlign: 'center', lineHeight: 1.3,
+          fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(14 * var(--mm-px))',
         }}
       >
-        <div style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05 }}>
-          ⏰ PACK UP & RETURN TECHNOLOGY
-        </div>
-        <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
-          {/* No "Save your work": work saves as it is entered, and the save
-              line says when it could not be (student pass 3). */}
-          Finish up, sign out, and return your device now. The bell is in{' '}
-          <DOLCountdown endsAt={packUp.endsAt} />.
-        </div>
-      </aside>
+        <strong role="alert" style={{ fontWeight: 900 }}>
+          {logoutRisk
+            ? 'Finish up — some work has not been sent yet, so keep this tab open.'
+            : 'Finish up — your work is saved.'}
+        </strong>
+        <span style={{ fontWeight: 700 }}>
+          Pack up and return your device. The bell is in <DOLCountdown endsAt={packUp.endsAt} />.
+        </span>
+      </div>
     );
   };
 
@@ -10107,7 +10108,9 @@ function App() {
         ? 'Back to Assignments'
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
-          : 'Back to Home';
+          : studentDashboardMode === 'testCycle'
+            ? 'Back to the Test Cycle'
+            : 'Back to Home';
     /*
      * ONE STATUS CHIP ON A PHONE (pass 3, NAV-5). A phone hides the header and
      * every banner above the work, so a late deadline, "no credit" and a live
@@ -10293,7 +10296,6 @@ function App() {
             onAssignmentRefresh={fetchAssignments}
           />
         )}
-        {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
         {!preview && shouldShowWarmupWaitingPanel({ decision: warmupChallengeDecision, invite: liveChallengeInvite }) && (
           <WarmupChallengeGate decision={warmupChallengeDecision} />
@@ -10378,12 +10380,18 @@ function App() {
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
-                <button
-                  onClick={leaveAssignment}
-                  style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
-                >
-                  &larr; {preview ? 'Back to Instructor Dashboard' : studentAssignmentBackLabel}
-                </button>
+                {/* One way back per screen (NAV-20): a student's is the
+                    sticky navigator's "←", named for where it goes, which
+                    stays on screen as the work scrolls. The teacher preview
+                    keeps its labelled exit here. */}
+                {preview && (
+                  <button
+                    onClick={leaveAssignment}
+                    style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                  >
+                    &larr; Back to Instructor Dashboard
+                  </button>
+                )}
                 {preview && !isLiveTeachingThisAssignment && (
                   <button
                     type="button"
@@ -10455,7 +10463,7 @@ function App() {
 
           <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
-              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel} title={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel}>←</button>
               {!assignmentNavigationCollapsed ? (
                 <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
@@ -10934,7 +10942,14 @@ function App() {
   // in one (NAV-15) — Home, Assignments, Grades, Rewards, Live Challenge,
   // Test Cycle and Recovery. Screens that draw their own <main> (the result
   // page, My Math Path, Tests & Exams, the assignment) keep the empty anchor.
-  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => (
+  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => {
+    const studentShellLogoutRisk = preview ? null : describeLogoutRisk({
+      outboxDepth: studentOutboxDepth,
+      pendingGradeCount: studentPendingGradeCount,
+      needsReviewCount: studentNeedsReviewCount,
+      persistenceStatus: studentPersistenceStatus,
+    });
+    return (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
       <SkipToContent />
       {/* NAV-3: the new screen's name, said once after a screen change. */}
@@ -10949,12 +10964,9 @@ function App() {
         classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
         // Unsent work still queued: Log Out asks first (logoutGuard.js).
-        logoutRisk={preview ? null : describeLogoutRisk({
-          outboxDepth: studentOutboxDepth,
-          pendingGradeCount: studentPendingGradeCount,
-          needsReviewCount: studentNeedsReviewCount,
-          persistenceStatus: studentPersistenceStatus,
-        })}
+        logoutRisk={studentShellLogoutRisk}
+        // The pack-up line rides in the pinned stack (NAV-24).
+        notice={preview ? null : renderStudentPackUpNotice({ logoutRisk: studentShellLogoutRisk })}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
         <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
@@ -10980,7 +10992,8 @@ function App() {
         </>
       )}
     </div>
-  );
+    );
+  };
 
   // A student screen with no main landmark of its own (NAV-15).
   const renderStudentScreen = (content) => renderStudentIdentityShell(content, { main: true });
@@ -11381,7 +11394,6 @@ function App() {
     if (studentDashboardMode === 'liveChallenge') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
@@ -11410,7 +11422,6 @@ function App() {
     if (studentDashboardMode === 'mathPath') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <MyMathPathApp
@@ -11437,7 +11448,6 @@ function App() {
     if (studentDashboardMode === 'assignmentsCenter') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
@@ -11461,7 +11471,6 @@ function App() {
     if (studentDashboardMode === 'rewards') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentRewardsCenter
@@ -11485,13 +11494,11 @@ function App() {
     if (studentDashboardMode === 'grades') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
-            onBackToHome={() => openStudentDashboardMode('assignments')}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
@@ -11528,7 +11535,6 @@ function App() {
         : null;
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {/* The shell's <main> holds this screen (NAV-15). */}
           <div style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
@@ -11566,7 +11572,6 @@ function App() {
     if (studentDashboardMode === 'secureExams') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {/* Tests & Exams teaches the same navigation as every other
               student destination (it had none of its own). */}
@@ -11575,7 +11580,6 @@ function App() {
           </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
-          onExit={() => setStudentDashboardMode('assignments')}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
@@ -11605,7 +11609,6 @@ function App() {
     });
     return renderStudentScreen(
       <>
-        {renderStudentPackUpBanner()}
         {/* No Warm-Up banner on Home: the next-action card (or its compact
             Warm-Up card) is the one place the Warm-Up is offered here. */}
         <StudentDashboardView
@@ -11722,7 +11725,6 @@ function App() {
     }
     return renderStudentIdentityShell(
       <>
-        {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
         <StudentAssignmentResult

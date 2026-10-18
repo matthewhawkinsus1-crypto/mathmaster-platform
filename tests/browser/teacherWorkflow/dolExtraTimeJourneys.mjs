@@ -55,7 +55,7 @@ const EXTENDED = '910001';
 const CLASSMATE = '910003';
 const LESSON = 'a-today';
 const SCENARIO = 'd7=1&p3StartMin=40&p3EndMin=3&questions=real';
-const PACK_UP = /PACK UP & RETURN TECHNOLOGY/;
+const PACK_UP = /Pack up and return your device/;
 const EXTRA_TIME_LINE = /Your exit ticket closes at (\d{1,2}):(\d{2}) — extra time\./;
 
 const findings = [];

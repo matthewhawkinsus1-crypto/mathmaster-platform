@@ -192,11 +192,18 @@ test('Grades is reachable from Home, and Home is reachable from Grades', () => {
   assert.match(openGradeCenter, /setStudentDashboardMode\(mode\)/);
   assert.match(openGradeCenter, /setActiveView\('dashboard'\)/);
 
+  // The way back to Home is the shared nav (NAV-20): Grades renders it with
+  // App's navigateStudent, Home is one of its phone-primary places, and
+  // navigateStudent opens Home for it.
   assertCapability(
     gradeCenter,
-    [/onBackToHome\?\.\(\)/],
+    [/<StudentGlobalNav\s+current=\{STUDENT_DESTINATION\.GRADES\}\s+onNavigate=\{onNavigate\}/],
     'The Grade Center must offer a route back to Home.',
   );
+  const phonePrimary = region(fs.readFileSync(new URL('../../src/platform/student/navigationModel.js', import.meta.url), 'utf8'), 'export const STUDENT_PHONE_PRIMARY = Object.freeze([', ']);', 'phone primary');
+  assert.match(phonePrimary, /STUDENT_DESTINATION\.HOME/);
+  // Home is navigateStudent's last case: every other destination returned earlier.
+  assert.match(navigate, /\n\s*return openStudentDashboardMode\('assignments'\);\s*\n\s*\};/);
 });
 
 test('the Assignment Result screen can always reach the full Grade Center', () => {

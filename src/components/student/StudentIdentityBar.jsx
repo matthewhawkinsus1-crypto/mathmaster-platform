@@ -8,6 +8,8 @@ import './StudentIdentityBar.css';
 
 export const STUDENT_IDENTITY_STACK_OFFSET = '--mm-student-identity-stack-offset';
 export const STUDENT_IDENTITY_Z_INDEX = 21000;
+// The bar's own height, under which a notice row (the pack-up line) sticks.
+export const STUDENT_IDENTITY_BAR_HEIGHT = '--mm-student-identity-bar-height';
 
 const periodLabel = (value) => {
   const period = String(value || '').trim();
@@ -28,9 +30,16 @@ const periodLabel = (value) => {
  * src/platform/student/logoutGuard.js says this device still holds work that
  * has not been sent — Log Out asks first. It never blocks: "Log out anyway"
  * is always one press away.
+ *
+ * `notice` is a slim row pinned right under the bar (the pack-up line in the
+ * last minutes of class, NAV-24). It is part of the pinned stack: its height
+ * is added to STUDENT_IDENTITY_STACK_OFFSET, so every sticky surface that sits
+ * under the bar (the assignment navigator with its section tabs and
+ * Previous/Next, the Warm-Up banner) moves down by it instead of being covered.
  */
-export default function StudentIdentityBar({ student = null, preview = false, classPointsBalance = null, onLogout = null, logoutRisk = null }) {
+export default function StudentIdentityBar({ student = null, preview = false, classPointsBalance = null, onLogout = null, logoutRisk = null, notice = null }) {
   const barRef = useRef(null);
+  const noticeRef = useRef(null);
   const stayRef = useRef(null);
   const logoutRef = useRef(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
@@ -60,20 +69,25 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
     : formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL });
   const context = preview ? 'Student View' : periodLabel(student?.classPeriod);
 
+  const hasNotice = Boolean(notice);
   useLayoutEffect(() => {
     const bar = barRef.current;
     if (!bar || typeof document === 'undefined') return undefined;
     const publishHeight = () => {
-      document.documentElement.style.setProperty(STUDENT_IDENTITY_STACK_OFFSET, `${bar.offsetHeight}px`);
+      const noticeHeight = noticeRef.current?.offsetHeight || 0;
+      document.documentElement.style.setProperty(STUDENT_IDENTITY_BAR_HEIGHT, `${bar.offsetHeight}px`);
+      document.documentElement.style.setProperty(STUDENT_IDENTITY_STACK_OFFSET, `${bar.offsetHeight + noticeHeight}px`);
     };
     publishHeight();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishHeight) : null;
     observer?.observe(bar);
+    if (noticeRef.current) observer?.observe(noticeRef.current);
     return () => {
       observer?.disconnect();
       document.documentElement.style.removeProperty(STUDENT_IDENTITY_STACK_OFFSET);
+      document.documentElement.style.removeProperty(STUDENT_IDENTITY_BAR_HEIGHT);
     };
-  }, []);
+  }, [hasNotice]);
 
   // Layout that changes on a phone (wrapping, gaps, truncation) lives in the
   // stylesheet, where a media query can reach it; inline style would win.
@@ -120,6 +134,16 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
           </span>
         )}
       </aside>
+      {notice && (
+        <div
+          ref={noticeRef}
+          className="mm-identity-notice"
+          data-identity-notice
+          style={{ position: 'sticky', top: `var(${STUDENT_IDENTITY_BAR_HEIGHT}, 38px)`, zIndex: STUDENT_IDENTITY_Z_INDEX - 1, boxSizing: 'border-box', width: '100%' }}
+        >
+          {notice}
+        </div>
+      )}
         {!preview && onLogout && confirmingLogout && logoutRisk && (
           // The shared Dialog (job F): focus starts on the safe action, Tab
           // stays inside, Escape means "Stay", and focus returns to Log Out.

@@ -62,8 +62,12 @@ test('What changed items are built once in App from records the student reads, w
 
 test('Log Out warns about unsent work on the one identity bar', () => {
   assert.match(app, /import \{ describeLogoutRisk \} from '\.\/platform\/student\/logoutGuard\.js'/);
+  // The shell reads the risk once (the pack-up line, NAV-24, reads it too) and
+  // hands it to the one identity bar; a teacher preview has none.
+  const shell = region(app, 'const renderStudentIdentityShell = ', '<StudentIdentityBar', 'identity shell');
+  assert.match(shell, /const studentShellLogoutRisk = preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
   const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
-  assert.match(bar, /logoutRisk=\{preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
+  assert.match(bar, /logoutRisk=\{studentShellLogoutRisk\}/);
 });
 
 test('Home is wired without the support flag, with results, save status and What changed', () => {
