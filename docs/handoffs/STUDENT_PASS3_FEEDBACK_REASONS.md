@@ -71,7 +71,7 @@ part is correct, which is a wording issue.
 | first-load budget | studentHome 1049.1 KB (unchanged by the review round; the base is 1048.6 KB, both over the 1023.4 KB baseline) |
 | sweep `--check-wrong` vs `e822504` | 251,811 gradings, 0 / 0 / 0 |
 | emulators | grade-authority 14/14, canonical-persistence 35/35; authoring-v5 686/686 |
-| browser | `graphPointCheck` (with the new self-check block), `relationPlotGrading`, `graphKeyboardRoute`, `composedOutcomePolicy`, `composedDraftRestore`, `stagedQuestion` pass; the rest of the list below is re-run and reported to the integrator |
+| browser (one at a time, 5199) | all 13 pass: `graphPointCheck` (with the new self-check block), `relationPlotGrading`, `graphKeyboardRoute`, `composedOutcomePolicy`, `composedDraftRestore`, `stagedQuestion`, `toolPolicyGates`, `toolAttemptOutcome`, `assessmentLeakGates`, `feedbackTeaches`, `afterLastMiss`, `calculatorKeyboard` (with the Clear and after-Error checks), `readAloudTranslate` |
 
 ## Gate, first round (run on `5c6e6fc` + this doc; the base for comparisons is `e822504`)
 
