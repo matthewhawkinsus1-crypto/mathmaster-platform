@@ -32,6 +32,16 @@
 //   graphing, server-graded practice  no "Hints are not part of this
 //                     activity"; the tool's own "Stuck? Show a hint" is the
 //                     Help (review B2)
+//   mixed lists (W6-4) Linear Table Workbench, the Constraint Function
+//                     Builder, Data Modeling's regression mode, the
+//                     Representation Bridge, Representation Match's grouping
+//                     board, Rewrite Linear Form and Linear Intercepts: Help
+//                     keeps the control steps on a DOL and holds no method
+//                     step; the method banners (Linear Intercepts, Rewrite
+//                     Linear Form, the intercept orchestrator) are withheld;
+//                     Graphing2's plotting banner stays; the Bridge's "a is
+//                     the rate", plotting route and highlight buttons and
+//                     Match's "Representation reasoning" fold are not shown
 // "Show a hint", the tool's hint and "Ask my teacher" are checked on the
 // drawer's FIRST screen, without scrolling (review S1): the directions arrive
 // folded above them.
@@ -62,14 +72,14 @@ const POINT_MAP_STEP = 'undo the inside multiplier b';
 const PLOT_STEP = 'Click the grid to plot a point';
 
 const run = Date.now();
-const open = async (role, tool, grading = '') => {
+const open = async (role, tool, grading = '', ready = '.mathmaster-tool-task-card') => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${role}/${tool}: page error ${error.message}`));
   await page.goto(`${ORIGIN}/tests/browser/workViewHelpReach.html?role=${role}&tool=${tool}&run=${run}${grading ? `&grading=${grading}` : ''}`, { waitUntil: 'networkidle' });
   // Something the TOOL renders, so absence checks below are not vacuous.
   // Attached, not visible: on an assessment the card is the authored prompt
   // alone, which the question already shows, so the card draws nothing.
-  await page.locator('.mathmaster-tool-task-card').first().waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator(ready).first().waitFor({ state: 'attached', timeout: 20000 });
   return page;
 };
 const taskCardSummary = (page) => page.locator('.mathmaster-tool-task-card button[aria-expanded]').first().innerText().catch(() => '');
@@ -243,6 +253,78 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
   await openHelp(page);
   check(await drawerShows(page, 'inverse operations in reverse order'), 'balance practice: the tool\'s own Help stays, below the platform\'s');
   await page.close();
+}
+
+// --------------------------------- Mixed step lists, banners (W6-4, items 1-3)
+// Each tool's card on practice and on a DOL, read in Work View's Help (the
+// phone's way to the steps): the control steps on both, the method steps only
+// on practice; the Work View banner never states the method on a DOL.
+const SPLIT = [
+  { tool: 'table', control: 'Tap two rows to form an interval.', method: 'Work out each value yourself from the two rows' },
+  { tool: 'constraint', control: 'Choose a family, then adjust the coefficients/parameters', method: 'Read the characteristics first' },
+  { tool: 'regression', control: 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.', method: 'Run a linear regression on the data.', dolOnly: true },
+  { tool: 'bridge', control: 'Table: tap two rows to form an interval', method: 'Factored form: rewrite your equation as y = a(x − c).' },
+  { tool: 'match', control: 'Choose the next group and repeat.', method: 'Compare the numbers each card gives you' },
+  // A server-graded host (My Math Path, Corrections) reaches the registry
+  // forms; an assignment opens the mature engine (its own banner below).
+  { tool: 'rewrite', grading: 'server', control: '+ − × ÷ do the same thing to both sides.', method: 'Get y alone on the left', banner: 'Apply balanced operations and structural steps' },
+  { tool: 'intercepts', grading: 'server', control: 'Place the 0 on a variable', method: 'Decide which coordinate is always 0', banner: 'Choose which variable becomes zero' },
+];
+const bannerText = (page) => page.locator('.mathmaster-work-view-instruction').allInnerTexts().then((texts) => texts.join(' | '));
+for (const { tool, grading = '', control, method, banner = null, dolOnly = false } of SPLIT) {
+  for (const role of dolOnly ? ['dol'] : ['practice', 'dol']) {
+    const page = await open(role, tool, grading);
+    await openWorkView(page);
+    await openHelp(page);
+    await openDirections(page);
+    const shows = await drawerShows(page, control);
+    check(shows, `${tool} ${role}: Help says how to work the tool ("${control.slice(0, 40)}…")`);
+    const text = await drawerText(page);
+    if (role === 'practice') check(text.includes(method), `${tool} practice: Help keeps the method step`, text.slice(0, 160));
+    else {
+      check(!text.includes(method), `${tool} DOL: Help holds no method step`, text.slice(0, 200));
+      check(!(await showHint(page).count()), `${tool} DOL: Help offers no hint`);
+    }
+    if (banner) {
+      const shown = await bannerText(page);
+      check(role === 'practice' ? shown.includes(banner) : !shown.includes(banner), `${tool} ${role}: the method banner is ${role === 'practice' ? 'shown' : 'withheld'}`, shown);
+    }
+    await page.close();
+  }
+}
+{
+  // The intercept orchestrator an assignment opens: its banner was the method.
+  const page = await open('dol', 'intercepts', '', '[data-algebra-route]');
+  await openWorkView(page);
+  await page.waitForTimeout(400);
+  const shown = await bannerText(page);
+  check(!/Choose which variable becomes zero/.test(shown), 'intercepts DOL (assignment): no method banner', shown);
+  await page.close();
+}
+{
+  // A banner that only says where to click stays on a DOL.
+  const page = await open('dol', 'graphing');
+  await openWorkView(page);
+  await page.waitForFunction(() => /Plot your first point/.test(document.querySelector('.mathmaster-work-view-instruction')?.textContent || ''), null, { timeout: 8000 })
+    .then(() => check(true, 'graphing DOL: the plotting banner stays'), () => check(false, 'graphing DOL: the plotting banner stays'));
+  await page.close();
+}
+{
+  // Representation Bridge and Match: the method in the body (W4-1 round 2).
+  const bridge = await open('dol', 'bridge');
+  const bridgeText = await bridge.evaluate(() => document.body.textContent);
+  check(!/a is the rate|second point using the slope/.test(bridgeText), 'bridge DOL: no "a is the rate", no plotting route');
+  check(!(await bridge.getByRole('group', { name: 'Highlight a connection across every panel' }).count()), 'bridge DOL: no highlight buttons');
+  await bridge.close();
+  const bridgePractice = await open('practice', 'bridge');
+  check(await bridgePractice.getByRole('group', { name: 'Highlight a connection across every panel' }).count() === 1, 'bridge practice: the highlight buttons stay');
+  await bridgePractice.close();
+  const match = await open('dol', 'match');
+  check(!(await match.evaluate(() => document.body.textContent.includes('Representation reasoning'))), 'match DOL: no "Representation reasoning" fold');
+  await match.close();
+  const matchPractice = await open('practice', 'match');
+  check(await matchPractice.evaluate(() => document.body.textContent.includes('Representation reasoning')), 'match practice: the fold stays');
+  await matchPractice.close();
 }
 
 await browser.close();
