@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  TOOL_CHECK_SELECTOR, findToolCheckButton, readToolCheck, sameToolCheck, toolCheckRailAction,
+  TOOL_CHECK_SELECTOR, findToolCheckButton, readToolCheck, sameToolCheck, toolCheckButtonDisabled, toolCheckRailAction,
 } from '../../src/tools/shared/toolCheckMirror.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -46,6 +46,23 @@ test('TOOL-13: a disabled Check is disabled in the rail, and a press does nothin
   assert.equal(sameToolCheck({ label: 'a', disabled: false }, { label: 'a', disabled: true }), false);
 });
 
+test('TOOL-13 review S1: a button closed by its question (fieldset disabled, inert) is disabled in the rail', () => {
+  const inside = (selector) => ({ textContent: 'Check set', disabled: false, clicks: 0, getClientRects: () => [{}],
+    matches: (query) => query === ':disabled' && selector === 'fieldset',
+    closest: (query) => (query === '[inert]' && selector === 'inert' ? {} : null),
+    click() { this.clicks += 1; } });
+  for (const where of ['fieldset', 'inert']) {
+    const closed = inside(where);
+    assert.equal(toolCheckButtonDisabled(closed), true, where);
+    const root = rootWith([closed]);
+    const action = toolCheckRailAction(readToolCheck(root), root);
+    assert.equal(action.disabled, true, `${where}: shown disabled`);
+    action.onAction();
+    assert.equal(closed.clicks, 0, `${where}: a press does nothing`);
+  }
+  assert.equal(toolCheckButtonDisabled(inside('open')), false);
+});
+
 test('TOOL-13: every wrapped tool\'s Check carries a mark the mirror finds', () => {
   assert.match(TOOL_CHECK_SELECTOR, /button\[data-primary-answer-action="true"\]/);
   assert.match(TOOL_CHECK_SELECTOR, /button\[data-mm-enter-action="submit"\]/);
@@ -65,8 +82,13 @@ test('TOOL-13: the wrapper mirrors it into its published primary action', () => 
   const effect = region(wrapper, 'useEffect(() => {', '}, []);', 'mirror effect');
   assert.match(effect, /const root = markerRef\.current\?\.parentElement;/);
   assert.match(effect, /new MutationObserver\(read\)/);
-  assert.match(effect, /attributeFilter: \['disabled', 'hidden', 'style', 'class'\]/);
-  assert.match(wrapper, /const checkAction = toolCheckRailAction\(toolCheck, markerRef\.current\?\.parentElement\);\s*if \(checkAction\) capabilities\.primaryActions = \[checkAction\];/);
+  assert.match(effect, /observer\.observe\(watched,/);
+  // None while a closed question is reviewed (review S1).
+  assert.match(wrapper, /const \{ terminal: questionClosed \} = useQuestionLifecycle\(\);/);
+  assert.match(wrapper, /const checkAction = questionClosed \? null : toolCheckRailAction\(toolCheck, markerRef\.current\?\.parentElement\);\s*if \(checkAction\) capabilities\.primaryActions = \[checkAction\];/);
+  // Watched from the question's work area: its fieldset and `inert` close the button.
+  assert.match(effect, /const watched = root\.closest\?\.\('\[data-work-view-area\]'\) \|\| root;/);
+  assert.match(effect, /attributeFilter: \['disabled', 'hidden', 'style', 'class', 'inert'\]/);
   assert.match(wrapper, /<span ref=\{markerRef\} hidden data-tool-check-marker \/>\s*\{children\}/);
   // The hooks run before the early return for an unmigrated tool.
   assert.ok(wrapper.indexOf('const markerRef = useRef(null);') < wrapper.indexOf("if (!inventory || inventory.status !== 'migrated') return children;"));

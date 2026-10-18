@@ -6,6 +6,7 @@ import { useRenderPerformance } from '../../platform/performance/useRenderPerfor
 import { useHintUseReporter, useOwnHintLadder } from './ToolRuntimeContext';
 import { HintPanel } from './ToolShell';
 import { readToolCheck, sameToolCheck, toolCheckRailAction } from './toolCheckMirror.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 
 // Sentence case for the rail labels: `numericControls` used to read
 // "numeric Controls" to the student.
@@ -61,9 +62,15 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
     read();
     if (typeof MutationObserver !== 'function') return undefined;
     const observer = new MutationObserver(read);
-    observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'hidden', 'style', 'class'] });
+    // From the question's work area when there is one: its <fieldset disabled>
+    // and `inert` close the tool's button without touching the button itself.
+    const watched = root.closest?.('[data-work-view-area]') || root;
+    observer.observe(watched, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'hidden', 'style', 'class', 'inert'] });
     return () => observer.disconnect();
   }, []);
+  // A closed question reviewed in Work View offers no Check at all (TOOL-13
+  // review S1): nothing there can be checked.
+  const { terminal: questionClosed } = useQuestionLifecycle();
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -94,7 +101,7 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
     .filter((key) => !['primaryActions', 'secondaryActions', 'undo', 'fitView', 'panZoom'].includes(key))
     .filter((key) => !(key === 'help' && !helpText))
     .map((key) => [key, capabilityDescriptor(key, { taskText, helpText })]));
-  const checkAction = toolCheckRailAction(toolCheck, markerRef.current?.parentElement);
+  const checkAction = questionClosed ? null : toolCheckRailAction(toolCheck, markerRef.current?.parentElement);
   if (checkAction) capabilities.primaryActions = [checkAction];
 
   return (

@@ -61,7 +61,8 @@ test('NAV-19: every student screen that prints an opening time uses the shared w
   assert.match(home, /access\.open === false \? earlierWorkWaitLine\(assignment\.releaseAt\)/);
   assert.doesNotMatch(home, /or on \$\{formatDateTime/);
   const card = executableSource(readFileSync(new URL('../../src/components/student/TestCycleCard.jsx', import.meta.url), 'utf8'));
-  assert.match(card, /Opens \{describeWhen\(availability\.opensAt\)\.text\}\./);
+  // "Opens at 10:36 AM." today, "Opens on Wed, Oct 21, 2:15 PM." another day (review S4).
+  assert.match(card, /Opens \{opensWhenPhrase\(availability\.opensAt\)\}\./);
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   assert.match(app, /import \{ whenDateTimeText \} from '\.\/platform\/student\/studentWhen\.js';/);
   assert.equal((app.match(/opensAtText: whenDateTimeText\(assignmentData\.releaseAt\)/g) || []).length, 2, 'both "not open yet" notices');

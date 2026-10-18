@@ -218,6 +218,8 @@ test('App: the save line gives way to the notice, and Home is told', () => {
   const shown = region(app, 'const studentSaveLineShown = ', ';\n');
   assert.match(shown, /^const studentSaveLineShown = studentPersistenceStatus !== 'idle'\s*&& !\(studentDraftSaveProblem && saveLineIsAboutDrafts\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount \}\)\)$/);
   assert.match(app, /\{!preview && studentSaveLineShown && \(\s*<p data-save-line=""/);
-  const home = region(app, 'saveStatus={describeSaveStatus({', '})}');
+  // Home and the pack-up line read one save status (NAV-24 review B2).
+  assert.match(app, /saveStatus=\{studentSaveStatusNow\(\)\}/);
+  const home = region(app, 'const studentSaveStatusNow = () => describeSaveStatus({', '});');
   assert.match(home, /draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean\(describeDraftSaveProblems\(draftSaveProblemsForStudent\(user\?\.id\)\)\)/);
 });

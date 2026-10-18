@@ -5,8 +5,8 @@
  * screen the student is on, with no focus move and no announcement: a
  * screen-reader student never knew either was there. This picks the one
  * polite sentence for what has newly appeared; the shell's live region says
- * it. Nothing is said for what was already there, and nothing for the
- * Live Challenge during a secure exam (the invite is not shown there).
+ * it. Nothing is said for what was already there, and nothing at all during
+ * a secure exam (the invite is not shown there).
  *
  * Pure: no React.
  */
@@ -19,7 +19,8 @@ export const classroomAnnouncementState = ({ invite = null, spotlightRequested =
   const live = !secureExamActive && ['invited', 'joined', 'running'].includes(status);
   return {
     challenge: live ? `${clean(invite?.roomId)}|${status === 'running' ? 'running' : 'lobby'}` : '',
-    spotlight: Boolean(spotlightRequested),
+    // Neither is said during a secure exam (review S3).
+    spotlight: !secureExamActive && Boolean(spotlightRequested),
   };
 };
 
@@ -31,9 +32,11 @@ export const classroomAnnouncement = (previous, next) => {
     parts.push('Your teacher would like to show your work to the class. Choose Present Now or Not Now at the top of the screen.');
   }
   if (next?.challenge && next.challenge !== before.challenge) {
+    // The news only: the button's own name differs by screen ("Enter Challenge
+    // Lobby", "Join Challenge Now", "Join Live Challenge"), review S4.
     parts.push(next.challenge.endsWith('|running')
-      ? 'The Live Challenge is running now. Join it from the Live Challenge button.'
-      : 'Your teacher opened the Live Challenge lobby. Enter it from the Live Challenge button.');
+      ? 'The Live Challenge is running now.'
+      : 'Your teacher opened the Live Challenge lobby.');
   }
   return parts.join(' ');
 };

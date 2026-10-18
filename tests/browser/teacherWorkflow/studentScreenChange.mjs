@@ -205,6 +205,17 @@ for (const viewport of VIEWPORTS) {
   await settled(page, 'Assignments');
   const toggle = page.locator('button.mm-assignments-filters__toggle');
   if (await toggle.isVisible()) await toggle.click();
+  // Typing in the search reports a finding instead of throwing (a timeout used
+  // to end the run with no message, review N4). On a phone an empty search
+  // folds the filters: unfold them first.
+  const fillSearch = async (value) => {
+    const box = page.locator('#assignments-search');
+    if (!(await box.isVisible().catch(() => false)) && await toggle.isVisible().catch(() => false)) await toggle.click().catch(() => {});
+    return box.fill(value, { timeout: 5000 }).then(() => true, (error) => {
+      expect(`S6 ${tag}`, false, `could not type ${JSON.stringify(value)} in the search: ${String(error?.message || error).split('\n')[0]}`);
+      return false;
+    });
+  };
   // A marking period other than the one shown, and a tab other than Active.
   const period = page.locator('#assignments-period');
   const periodValues = await period.locator('option').evaluateAll((options) => options.map((option) => option.value));
@@ -228,7 +239,7 @@ for (const viewport of VIEWPORTS) {
     });
     expect(`S6 ${tag}`, panel.role === 'tabpanel' && panel.labelledBy === panel.tabId, `the tab's panel: ${JSON.stringify(panel)}`);
   }
-  await page.locator('#assignments-search').fill('Elimination');
+  await fillSearch('Elimination');
   await page.waitForTimeout(200);
   const resultsButton = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
   if (expect(`S6 ${tag}`, await resultsButton.count(), 'no View Results after searching')) {
@@ -241,7 +252,7 @@ for (const viewport of VIEWPORTS) {
     const keptPeriod = await page.locator('#assignments-period').inputValue().catch(() => null);
     expect(`S6 ${tag}`, keptPeriod === chosenPeriod, `the marking period came back as ${JSON.stringify(keptPeriod)}, not ${JSON.stringify(chosenPeriod)}`);
     // The tabs return once the search is cleared, on the tab that was chosen.
-    await page.locator('#assignments-search').fill('');
+    await fillSearch('');
     await page.waitForTimeout(200);
     if (chosenTab) {
       const keptTab = await page.getByRole('tab', { selected: true }).innerText().catch(() => null);
@@ -249,8 +260,7 @@ for (const viewport of VIEWPORTS) {
     }
     // A fresh visit from the nav starts clean. (On a phone, an empty search
     // folds the filters again: unfold them to type.)
-    if (!(await page.locator('#assignments-search').isVisible())) await toggle.click();
-    await page.locator('#assignments-search').fill('Elimination');
+    await fillSearch('Elimination');
     await page.waitForTimeout(200);
     await pressDestination(page, 'Home', phone);
     await settled(page, 'Home');

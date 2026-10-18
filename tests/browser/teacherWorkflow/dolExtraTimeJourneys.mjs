@@ -25,6 +25,10 @@
 //       pinned stack under the identity bar and never covers the sticky
 //       assignment navigator — its section tabs and Previous/Next stay
 //       pressable, also after scrolling.
+//   X5  (NAV-25 review B1) the teacher opens a Live Challenge lobby while that
+//       student is on their open exit ticket: no lobby invite on the DOL — no
+//       banner, no phone chip, nothing said — so nothing offers to leave a DOL
+//       whose clock runs. The same student in Classwork does get the invite.
 //   X3  the teacher's Live view lists the students still working with extra
 //       time on the DOL — 910001 among them — counting down to the last close.
 //
@@ -127,6 +131,27 @@ const run = async (viewport) => {
   expect(`X1 ${tag}`, await page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).count() > 0, 'no answer field: the DOL is not workable');
   expect(`X1 ${tag}`, !PACK_UP.test(studentText), 'the pack-up banner tells a student mid-DOL (on extra time) to sign out');
   await page.screenshot({ path: path.join(ARTIFACTS, `X1-student-extra-time-${tag}.png`) });
+
+  // X5 — a lobby opened while the exit ticket is open: not offered on the DOL.
+  await page.evaluate(() => window.__mmHarnessStore.set('liveChallengeInvites/910001', { status: 'invited', roomId: 'room-probe', title: 'Probe challenge' }));
+  await page.waitForTimeout(1500);
+  const onDol = await page.evaluate(() => ({
+    banner: [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0),
+    chip: /Challenge lobby open/.test(document.body.innerText),
+    said: document.querySelector('[data-classroom-announcement]')?.textContent || '',
+  }));
+  expect(`X5 ${tag}`, !onDol.banner && !onDol.chip, `the lobby invite shows on the open exit ticket: ${JSON.stringify(onDol)}`);
+  expect(`X5 ${tag}`, !/lobby/i.test(onDol.said), `the lobby was announced on the open exit ticket: "${onDol.said}"`);
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${EXTENDED}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  const onClasswork = await page.evaluate(() => ({
+    banner: [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0),
+    chip: /Challenge lobby open/.test(document.body.innerText),
+    path: location.pathname,
+  }));
+  expect(`X5 ${tag}`, onClasswork.banner || onClasswork.chip, `no lobby invite in Classwork either: ${JSON.stringify(onClasswork)}`);
+  await page.evaluate(() => window.__mmHarnessStore.remove('liveChallengeInvites/910001'));
 
   // X2 — a classmate, same moment: the class window.
   await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });

@@ -39,7 +39,7 @@ test('NAV-22: App passes the post\'s section to the start, and explains a detour
   assert.match(app, /import \{ DETOUR_SECTION_LABEL, describeSectionDetour \} from '\.\/platform\/student\/sectionDetour\.js';/);
   const launch = region(app, 'startAssignment(target.assignmentId, target.questionIndex, {', '});', 'Classroom launch start');
   assert.match(launch, /launchedSectionKey: target\.sectionKey \|\| null/);
-  const detour = region(app, "const launchedRole = String(options?.launchedSectionKey || '')", 'if (detour) toastInfo(detour.title, detour.body);', 'detour');
+  const detour = region(app, "const launchedRole = String(options?.launchedSectionKey || '')", 'if (detour) showWhenWorkspaceOpens(detour);', 'detour');
   assert.match(detour, /if \(DETOUR_SECTION_LABEL\[launchedRole\] && !roleIsActionable\(launchedRole\)\)/);
   assert.match(detour, /landingRole: stageEntries\.find\(\(entry\) => entry\.storageIndex === actionableIndex\)\?\.logicalRole/);
   assert.match(detour, /access: describeSectionAccess\(\{\s*role: launchedRole,/);

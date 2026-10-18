@@ -180,11 +180,18 @@ test('App hands the arrival its real actions, each declared before the call (no 
 test('the arrival notice about the work waits for the workspace commit, and the start says when it opened it', () => {
   const start = region(appCode, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const openStudentDashboardMode = ', 'startAssignment');
   assert.match(start, /setActiveView\('assignment'\);\s*return true;\s*\};\s*$/);
-  const notice = region(appCode, 'const [workspaceArrivalNotice, setWorkspaceArrivalNotice] = useState(null);', '}, [workspaceArrivalNotice, activeView, toastInfo]);', 'workspace notice effect');
-  assert.match(notice, /if \(!workspaceArrivalNotice \|\| activeView !== 'assignment'\) return;\s*if \(shownArrivalNoticeRef\.current === workspaceArrivalNotice\) return;\s*shownArrivalNoticeRef\.current = workspaceArrivalNotice;\s*toastInfo\(workspaceArrivalNotice\.title, workspaceArrivalNotice\.body\);\s*setWorkspaceArrivalNotice\(null\);/);
+  const notice = region(appCode, 'const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);', '}, [workspaceArrivalNotices, activeView, toastInfo]);', 'workspace notice effect');
+  assert.match(notice, /const showWhenWorkspaceOpens = useCallback\(\(notice\) => \{\s*if \(notice\?\.title\) setWorkspaceArrivalNotices\(\(current\) => \[\.\.\.current, notice\]\);/);
+  assert.match(notice, /if \(!workspaceArrivalNotices\.length \|\| activeView !== 'assignment'\) return;/);
+  assert.match(notice, /if \(shownArrivalNoticesRef\.current\.has\(notice\)\) return;\s*shownArrivalNoticesRef\.current\.add\(notice\);\s*toastInfo\(notice\.title, notice\.body\);/);
+  assert.match(notice, /setWorkspaceArrivalNotices\(\[\]\);/);
+  // The start's own notices wait for the workspace too (review S2).
+  assert.match(start, /showWhenWorkspaceOpens\(\{ title: 'That question is not open right now', body: 'It opened where you can work now\.' \}\);/);
+  assert.match(start, /if \(detour\) showWhenWorkspaceOpens\(detour\);/);
+  assert.doesNotMatch(start, /toastInfo\('That question is not open right now'/);
   const call = region(appCode, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
-  assert.match(call, /showWhenWorkspaceOpens: setWorkspaceArrivalNotice,/);
-  assert.ok(appCode.indexOf('const [workspaceArrivalNotice, setWorkspaceArrivalNotice]') < appCode.indexOf('useUrlArrival({'));
+  assert.match(call, /showWhenWorkspaceOpens,/);
+  assert.ok(appCode.indexOf('const showWhenWorkspaceOpens = useCallback(') < appCode.indexOf('useUrlArrival({'));
 });
 
 test('startAssignment still redirects every Test Cycle to its card, before any requested question', () => {

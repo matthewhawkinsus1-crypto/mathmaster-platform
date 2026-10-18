@@ -300,6 +300,7 @@ import { whenDateTimeText } from './platform/student/studentWhen.js';
 import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
 import { liveChallengeExitLabel, liveChallengeReturnPlace } from './platform/liveChallenge/liveChallengeReturn.js';
 import { classroomAnnouncement, classroomAnnouncementState } from './platform/student/classroomAnnouncements.js';
+import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
   readRouteOwner,
   readStudentRouteState,
@@ -6103,7 +6104,8 @@ function App() {
       }
       if (options?.keepRequestedQuestion && actionableIndex !== safeQuestionIndex) {
         // A question's address names a question whose section is not open now.
-        toastInfo('That question is not open right now', 'It opened where you can work now.');
+        // Said once the workspace is on screen, not over Home (review S2).
+        showWhenWorkspaceOpens({ title: 'That question is not open right now', body: 'It opened where you can work now.' });
       }
       // A Classroom post for a section that is not open yet opens where the
       // student can work now; say why, in the navigator's words (NAV-22).
@@ -6123,7 +6125,7 @@ function App() {
             nowValue: entryNow,
           }),
         });
-        if (detour) toastInfo(detour.title, detour.body);
+        if (detour) showWhenWorkspaceOpens(detour);
       }
       safeQuestionIndex = actionableIndex;
     }
@@ -9052,12 +9054,23 @@ function App() {
    * Previous/Next) for a student finishing their work. It is now a slim row of
    * the identity bar (StudentIdentityBar `notice`): it pins with it, and its
    * height moves every sticky surface under it down instead of covering it.
-   * Work saves as it is entered, so it says so — unless this device still holds
-   * work that has not been sent (the same check Log Out asks about), which it
-   * says instead. A secure exam and a student on DOL extra time (D7) are not
+   * It says "your work is saved" only when nothing is owed: it reads the same
+   * save status as Home's line (unsent work, a rejected answer, drafts that are
+   * not being saved each say so instead; packUpLine.js). A secure exam and a student on DOL extra time (D7) are not
    * interrupted by it.
    */
-  const renderStudentPackUpNotice = ({ logoutRisk = null } = {}) => {
+  // The student's save status, as Home's status line shows it (Batch 3: drafts
+  // that are not being saved count). The pack-up line reads the same one, so
+  // the two never disagree (NAV-24 review B2).
+  const studentSaveStatusNow = () => describeSaveStatus({
+    persistenceStatus: studentPersistenceStatus,
+    outboxDepth: studentOutboxDepth,
+    pendingGradeCount: studentPendingGradeCount,
+    online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+    draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
+  });
+
+  const renderStudentPackUpNotice = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
     if (secureExamActive) return null;
     const packUp = getClassPackUpState({
@@ -9068,10 +9081,12 @@ function App() {
     });
     if (packUp.status !== 'active') return null;
     if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
+    // "Saved" only when nothing is owed (packUpLine.js).
+    const workLine = packUpWorkLine(studentSaveStatusNow());
 
     return (
       <div
-        data-pack-up-notice={logoutRisk ? 'unsent' : 'saved'}
+        data-pack-up-notice={workLine.kind}
         style={{
           display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
           // The theme's warning pair, readable in both themes (the old banner put
@@ -9082,9 +9097,7 @@ function App() {
         }}
       >
         <strong role="alert" style={{ fontWeight: 900 }}>
-          {logoutRisk
-            ? 'Finish up — some work has not been sent yet, so keep this tab open.'
-            : 'Finish up — your work is saved.'}
+          {workLine.sentence}
         </strong>
         <span style={{ fontWeight: 700 }}>
           Pack up and return your device. The bell is in <DOLCountdown endsAt={packUp.endsAt} />.
@@ -10224,7 +10237,7 @@ function App() {
         text: `${liveChallengeInvite?.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.`,
       },
       // The lobby is open, the game not started (NAV-25): offered here too.
-      shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+      !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
         key: 'liveChallenge',
         tone: 'live',
         chip: '⚡ Challenge lobby open',
@@ -10456,7 +10469,7 @@ function App() {
               <button type="button" onClick={joinLiveChallenge} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
             </section>
           )}
-          {!preview && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
+          {!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             // The lobby invite, wherever the student is (NAV-25); the game's
             // exit brings them back to this question.
             <section className="mathmaster-assignment-banner" aria-label="Live Challenge" data-live-challenge-invite style={{ marginBottom: '16px', padding: '12px 18px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', textAlign: 'left' }}>
@@ -11098,7 +11111,7 @@ function App() {
         // Unsent work still queued: Log Out asks first (logoutGuard.js).
         logoutRisk={studentShellLogoutRisk}
         // The pack-up line rides in the pinned stack (NAV-24).
-        notice={preview ? null : renderStudentPackUpNotice({ logoutRisk: studentShellLogoutRisk })}
+        notice={preview ? null : renderStudentPackUpNotice()}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
         // Not a dialog (NAV-23): it takes no focus and blocks nothing; it is a
@@ -11151,10 +11164,34 @@ function App() {
    * polite sentence in the shell's live region when either newly appears,
    * cleared after a few seconds so a screen change does not repeat it.
    */
+  /*
+   * NOT ON AN EXIT TICKET, QUIZ OR TEST (NAV-25 review B1). Inside an
+   * assignment the lobby invite (banner, phone chip, announcement) is offered
+   * only where the question the student is on does not withhold its outcome —
+   * the navigator's own rule (outcomeWithheld): never on a DOL, quiz or test
+   * before it is released or finished; Classwork and Practice keep it. Home and
+   * the other screens are unchanged.
+   */
+  const studentWorkspaceHoldsOutcome = () => {
+    if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return false;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment) return false;
+    if (getAssignmentLifecycle(assignment, now, { studentId: user.id }).isPracticeOnly) return false;
+    const role = projectCurrentAssignmentContent(assignment).entries
+      .find((entry) => entry.storageIndex === currentQuestionIndex)?.logicalRole || null;
+    if (!role) return false;
+    return outcomeWithheld({
+      feedbackMode: getEffectiveActivityPolicy(role).feedback,
+      released: assignmentFeedbackWasReleased(assignment),
+      record: tracker?.[activeAssignmentId]?.[currentQuestionIndex],
+    });
+  };
+  const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome();
+
   const [classroomAnnouncementText, setClassroomAnnouncementText] = useState('');
   const classroomAnnouncementRef = useRef(null);
   const currentClassroomState = classroomAnnouncementState({
-    invite: user?.role === 'student' ? liveChallengeInvite : null,
+    invite: user?.role === 'student' && !lobbyInviteHeldHere ? liveChallengeInvite : null,
     spotlightRequested: user?.role === 'student' && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED,
     secureExamActive,
   });
@@ -11170,17 +11207,24 @@ function App() {
   }, [currentClassroomState.challenge, currentClassroomState.spotlight]);
   useEffect(() => () => clearTimeout(classroomAnnouncementTimerRef.current), []);
 
-  const [workspaceArrivalNotice, setWorkspaceArrivalNotice] = useState(null);
-  const shownArrivalNoticeRef = useRef(null);
+  // A list: an arrival can bring two (the question moved, and the start's own
+  // "not open right now" or a Classroom detour, review S2).
+  const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);
+  const shownArrivalNoticesRef = useRef(new WeakSet());
+  const showWhenWorkspaceOpens = useCallback((notice) => {
+    if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
+  }, []);
   useEffect(() => {
-    if (!workspaceArrivalNotice || activeView !== 'assignment') return;
-    // Once, even where the effect runs twice for the same notice (StrictMode,
-    // a suspended tree shown again).
-    if (shownArrivalNoticeRef.current === workspaceArrivalNotice) return;
-    shownArrivalNoticeRef.current = workspaceArrivalNotice;
-    toastInfo(workspaceArrivalNotice.title, workspaceArrivalNotice.body);
-    setWorkspaceArrivalNotice(null);
-  }, [workspaceArrivalNotice, activeView, toastInfo]);
+    if (!workspaceArrivalNotices.length || activeView !== 'assignment') return;
+    // Once each, even where the effect runs twice for the same notices
+    // (StrictMode, a suspended tree shown again).
+    workspaceArrivalNotices.forEach((notice) => {
+      if (shownArrivalNoticesRef.current.has(notice)) return;
+      shownArrivalNoticesRef.current.add(notice);
+      toastInfo(notice.title, notice.body);
+    });
+    setWorkspaceArrivalNotices([]);
+  }, [workspaceArrivalNotices, activeView, toastInfo]);
 
   useUrlArrival({
     urlArrival,
@@ -11199,7 +11243,7 @@ function App() {
       isTestCycle: isTestCycleAssignment,
       questionEntriesFor: studentQuestionEntriesFor,
       startAssignment,
-      showWhenWorkspaceOpens: setWorkspaceArrivalNotice,
+      showWhenWorkspaceOpens,
       openStudentAssignmentResult,
       openStudentDashboardMode,
       setActiveTestCycleAssignmentId,
@@ -11800,13 +11844,7 @@ function App() {
         student={{ ...studentRecord, ...user }}
         // From Home, Back on the result page says "← Home" and goes there (NAV-9).
         onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: NAV_LEVEL.HOME })}
-        saveStatus={describeSaveStatus({
-          persistenceStatus: studentPersistenceStatus,
-          outboxDepth: studentOutboxDepth,
-          pendingGradeCount: studentPendingGradeCount,
-          online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
-          draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
-        })}
+        saveStatus={studentSaveStatusNow()}
         whatChangedPanel={renderWhatChangedPanel(true)}
         whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}
         waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
@@ -11939,6 +11977,8 @@ function App() {
           changes={whatChangedItems.filter((item) => item.assignmentId === assignmentResultRoute.assignmentId)}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          // The printable worksheet lives with the results (NAV-20 review N3).
+          onExportPdf={exportAssignmentWorksheetPdf}
           // Decision 3: once the work is closed for this student and feedback
           // is released, their own answers beside the worked solutions. The
           // callable re-checks every gate; this only decides whether to show it.

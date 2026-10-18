@@ -37,9 +37,24 @@ test('NAV-25: the lobby invite is offered in an assignment; the running banner k
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'running', roomId: 'r1' } }), false, 'running is the hand-off banner');
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'invited', roomId: 'r1' }, warmupDecision: { roomId: 'r1' } }), false, "this lesson's own Warm-Up game has its own lobby");
   assert.equal(shouldShowChallengeHandoffBanner({ invite: { status: 'invited', roomId: 'r1' } }), false);
-  const workspace = region(app, '{!preview && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</section>', 'workspace lobby invite');
+  const workspace = region(app, '{!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</section>', 'workspace lobby invite');
   assert.match(workspace, /onClick=\{joinLiveChallenge\}/);
-  assert.match(app, /shouldShowChallengeLobbyInvite\(\{ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision \}\) && \{\s*key: 'liveChallenge',/, 'and the phone status chip');
+  assert.match(app, /!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(\{ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision \}\) && \{\s*key: 'liveChallenge',/, 'and the phone status chip');
+});
+
+test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is withheld', () => {
+  // The navigator's rule for the question the student is on (outcomeWithheld).
+  const rule = region(app, 'const studentWorkspaceHoldsOutcome = () => {', '\n  };', 'the workspace rule');
+  assert.match(rule, /if \(user\?\.role !== 'student' \|\| activeView !== 'assignment' \|\| !activeAssignmentId\) return false;/);
+  assert.match(rule, /\.isPracticeOnly\) return false;/);
+  assert.match(rule, /\.find\(\(entry\) => entry\.storageIndex === currentQuestionIndex\)\?\.logicalRole/);
+  assert.match(rule, /return outcomeWithheld\(\{\s*feedbackMode: getEffectiveActivityPolicy\(role\)\.feedback,\s*released: assignmentFeedbackWasReleased\(assignment\),\s*record: tracker\?\.\[activeAssignmentId\]\?\.\[currentQuestionIndex\],\s*\}\);/);
+  assert.match(app, /const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome\(\);/);
+  // The banner, the phone chip and the announcement all use it; the running
+  // hand-off banner (pre-existing, deliberate) does not.
+  assert.equal((app.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
+  assert.match(app, /invite: user\?\.role === 'student' && !lobbyInviteHeldHere \? liveChallengeInvite : null,/);
+  assert.doesNotMatch(app, /lobbyInviteHeldHere && shouldShowChallengeHandoffBanner/);
 });
 
 test('NAV-25: every way into the game keeps the place, and the game\'s exit returns there', () => {
@@ -67,6 +82,11 @@ test('NAV-23: the invite and a Spotlight request are said once, when they newly 
   assert.match(classroomAnnouncement(lobby, classroomAnnouncementState({ invite: { status: 'running', roomId: 'r1' } })), /^The Live Challenge is running now\./);
   assert.equal(classroomAnnouncement(none, classroomAnnouncementState({ invite: { status: 'invited', roomId: 'r1' }, secureExamActive: true })), '', 'never during a secure exam');
   assert.match(classroomAnnouncement(none, classroomAnnouncementState({ spotlightRequested: true })), /show your work to the class/);
+  // Review S3: no Spotlight sentence in a secure exam either.
+  assert.equal(classroomAnnouncement(none, classroomAnnouncementState({ spotlightRequested: true, secureExamActive: true })), '');
+  // Review S4: the news, without naming a button the screen may call something else.
+  assert.equal(classroomAnnouncement(none, lobby), 'Your teacher opened the Live Challenge lobby.');
+  assert.doesNotMatch(classroomAnnouncement(lobby, classroomAnnouncementState({ invite: { status: 'running', roomId: 'r1' } })), /button/);
   const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'shell');
   assert.match(shell, /<div role="status" aria-live="polite" aria-atomic="true" data-classroom-announcement className="mm-visually-hidden">\s*\{classroomAnnouncementText\}/);
   // The Spotlight request is a labelled region now, not a dialog that never takes focus.

@@ -63,10 +63,13 @@ test('classroom alerts stack below the measured identity bar instead of competin
   assert.match(noticeRow, /position: 'sticky', top: `var\(\$\{STUDENT_IDENTITY_BAR_HEIGHT\}, 38px\)`/);
   // Every student screen gets it through the one shell, never a teacher preview.
   const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'identity shell');
-  assert.match(shell, /notice=\{preview \? null : renderStudentPackUpNotice\(\{ logoutRisk: studentShellLogoutRisk \}\)\}/);
+  assert.match(shell, /notice=\{preview \? null : renderStudentPackUpNotice\(\)\}/);
   assert.doesNotMatch(app, /renderStudentPackUpBanner/);
   // Work saves itself, so it says so, unless this device still holds unsent work.
-  assert.match(packUp, /logoutRisk\s*\?\s*'Finish up — some work has not been sent yet, so keep this tab open\.'\s*:\s*'Finish up — your work is saved\.'/);
+  // Its words come from the save status Home shows (review B2; packUpLine.test.mjs has the cases).
+  assert.match(packUp, /const workLine = packUpWorkLine\(studentSaveStatusNow\(\)\);/);
+  assert.match(packUp, /data-pack-up-notice=\{workLine\.kind\}/);
+  assert.match(packUp, /<strong role="alert" style=\{\{ fontWeight: 900 \}\}>\s*\{workLine\.sentence\}\s*<\/strong>/);
   // A student mid-Test is never interrupted by it.
   const guards = region(app, 'const renderStudentPackUpNotice =', 'return (', 'Pack-Up guards');
   assert.match(guards, /if \(secureExamActive\) return null;/);

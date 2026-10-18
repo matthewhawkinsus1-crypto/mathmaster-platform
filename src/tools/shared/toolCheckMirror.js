@@ -26,6 +26,18 @@ const onScreen = (button) => {
   try { return button.getClientRects().length > 0; } catch { return false; }
 };
 
+// Disabled for real: its own `disabled`, a `<fieldset disabled>` around it, or
+// an `inert` ancestor (a closed question's work area is both). `button.disabled`
+// alone reads the first only, so a closed question's Check looked live.
+export const toolCheckButtonDisabled = (button) => {
+  if (!button) return true;
+  if (button.disabled) return true;
+  try {
+    if (typeof button.matches === 'function' && button.matches(':disabled')) return true;
+  } catch { /* an old engine without :disabled on buttons */ }
+  return Boolean(typeof button.closest === 'function' && button.closest('[inert]'));
+};
+
 export const findToolCheckButton = (root) => {
   if (!root?.querySelectorAll) return null;
   return [...root.querySelectorAll(TOOL_CHECK_SELECTOR)].find(onScreen) || null;
@@ -37,7 +49,7 @@ export const readToolCheck = (root) => {
   if (!button) return null;
   const label = String(button.textContent || '').replace(/\s+/g, ' ').trim();
   if (!label) return null;
-  return { label, disabled: Boolean(button.disabled) };
+  return { label, disabled: toolCheckButtonDisabled(button) };
 };
 
 export const sameToolCheck = (a, b) => (a === b) || Boolean(a && b && a.label === b.label && a.disabled === b.disabled);
@@ -51,6 +63,6 @@ export const toolCheckRailAction = (check, root) => (check ? {
   spendsTry: false,
   onAction: () => {
     const button = findToolCheckButton(root);
-    if (button && !button.disabled) button.click();
+    if (button && !toolCheckButtonDisabled(button)) button.click();
   },
 } : null);

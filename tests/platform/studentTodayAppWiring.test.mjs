@@ -74,7 +74,9 @@ test('Home is wired without the support flag, with results, save status and What
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
   assert.doesNotMatch(home, /inclusionStatus/);
   assert.match(home, /onOpenResult=\{\(assignmentId\) => openStudentAssignmentResult\(assignmentId/);
-  assert.match(home, /saveStatus=\{describeSaveStatus\(\{/);
+  // The shared save status (Home and the pack-up line read the same one).
+  assert.match(home, /saveStatus=\{studentSaveStatusNow\(\)\}/);
+  assert.match(app, /const studentSaveStatusNow = \(\) => describeSaveStatus\(\{/);
   assert.match(home, /whatChangedPanel=\{renderWhatChangedPanel\(true\)\}/);
   assert.match(app, /import \{[^}]*\bdescribeSaveStatus\b[^}]*\} from '\.\/platform\/student\/saveStatusModel\.js'/);
   const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
