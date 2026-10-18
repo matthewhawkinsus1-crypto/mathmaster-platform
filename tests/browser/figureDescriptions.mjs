@@ -25,6 +25,9 @@
  *               placed (with its coordinates).
  *   analysis    its given graph is "a graph is drawn", no positions.
  *   story       the Graph Story sketch says how many strokes were drawn.
+ *
+ * At 390x844 it also checks A11Y-10: beside Submit, Undo and Reset keep a
+ * word under their icons.
  */
 import assert from 'node:assert/strict';
 
@@ -113,6 +116,22 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     const after = await axNode(page, GROUP);
     assert.match(after.description, new RegExp(`Selected: ${label.replace(/^Select /, '').replace('-', '−')}\\.$`), after.description);
     assert.equal(await first.getAttribute('aria-pressed'), 'true', 'the chosen mark is pressed');
+  });
+
+  // A11Y-10: on a phone the work bar drops its words beside Submit, and Undo
+  // (↶) and Reset (↺) were two near-identical arrows. Each keeps its word as a
+  // caption under the icon; the other tools stay icon-only.
+  if (phone) await step(at, 'work bar: Undo and Reset keep a caption beside Submit', async () => {
+    await open(page, 'numberLine');
+    const captions = await page.evaluate(() => [...document.querySelectorAll('.portrait-action-bar[data-has-primary="true"] .mathmaster-action-label')].map((label) => {
+      const box = label.getBoundingClientRect();
+      return { text: label.textContent.trim(), shown: box.width > 8 && box.height > 6 };
+    }));
+    const shown = captions.filter((caption) => caption.shown).map((caption) => caption.text.replace(/ Question$/, ''));
+    assert.deepEqual(shown, ['Undo', 'Reset'], `only Undo and Reset show their word: ${JSON.stringify(captions)}`);
+    for (const name of ['Undo', 'Reset Question']) {
+      assert.equal(await page.locator('.portrait-action-bar').getByRole('button', { name, exact: true }).count(), 1, `"${name}" keeps its accessible name`);
+    }
   });
 
   await step(at, 'static question graph: kinds while open, positions once closed', async () => {

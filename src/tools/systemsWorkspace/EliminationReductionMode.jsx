@@ -33,6 +33,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import { planePairs } from './spatialFeedback.js';
+import { scrollMotion } from '../../motionPreference.js';
 import MathDisplay from '../../MathDisplay';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import AlgebraicSystemMode, {
@@ -174,7 +175,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   React.useEffect(() => { mountedRef.current = true; }, []);
   const revealOnAppear = useCallback((element) => {
     if (!element || !mountedRef.current || typeof window === 'undefined') return;
-    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
   }, []);
 
   // A classification (and the plane relationships stated after it) belongs to

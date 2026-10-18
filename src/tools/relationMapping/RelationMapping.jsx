@@ -126,7 +126,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   const guidePoint = hoverPoint || keyboardCursor;
   const liveText = hoverPoint
     ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.`
-    : keyboardMessage || 'Move the pointer over the grid to see the exact coordinate before you click.';
+    : keyboardMessage || 'Move the pointer over the grid, or focus it and use the arrow keys, to see the exact coordinate before you plot.';
 
   return (
     <div>
@@ -334,7 +334,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     const checks = Object.fromEntries((feedback.metadata?.parts || []).map((part) => [part.id, part.isCorrect]));
     if (checks.plot === false && !plottedPoints.length) return 'No points plotted yet. Plot each ordered pair on the coordinate plane.';
     if (checks.plot === false) return 'The coordinate plot does not match the relation yet. Check each ordered pair (x, y).';
-    if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Click a value on the left, then the value on the right it maps to.';
+    if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Choose a value on the left, then the value on the right it maps to.';
     if (checks.mapping === false) return 'The arrows do not match the relation. Work through the ordered pairs one at a time — each pair is one arrow.';
     if (checks.domain === false) return 'The domain is not right. It is the set of every x-value that appears, listed once each.';
     if (checks.range === false) return 'The range is not right. It is the set of every y-value that appears, listed once each.';
@@ -364,8 +364,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         question={questionData}
         task={questionData.prompt || `Build the mapping diagram for {${pairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}}.`}
         steps={[
-          ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you click.'] : []),
-          ...(ask.includes('mapping') ? ['Click a value in the left column, then click the value on the right it maps to.', 'Click an arrow again to remove it.'] : []),
+          ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you plot.'] : []),
+          ...(ask.includes('mapping') ? ['Choose a value in the left column, then the value on the right it maps to (click or tap, or Tab to a value and press Enter).', 'To remove an arrow, choose its two values again or press its button under the diagram.'] : []),
           'Then answer the questions about the relation.',
         ]}
       />
@@ -404,11 +404,11 @@ export default function RelationMapping({ questionData = {}, onAction }) {
           {plottedPoints.length ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
               {plottedPoints.map(([x, y]) => (
-                <button key={`${x}|${y}`} type="button" onClick={() => togglePlottedPoint(x, y)} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }} aria-label={`Remove plotted point ${x}, ${y}`}>
+                <button key={`${x}|${y}`} type="button" onClick={() => togglePlottedPoint(x, y)} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }} aria-label={`Remove plotted point ${x}, ${y}`}>
                   ({x}, {y}) ×
                 </button>
               ))}
-              <button type="button" onClick={() => { clearFeedback(); setPlottedPoints([]); }} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }}>Clear plot</button>
+              <button type="button" onClick={() => { clearFeedback(); setPlottedPoints([]); }} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }}>Clear plot</button>
             </div>
           ) : null}
         </Panel>

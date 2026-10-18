@@ -370,8 +370,8 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                     </span>
                   ) : null}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
-                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 9px' }}>Remove</button>
+                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
+                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 9px' }}>Remove</button>
                   </div>
                 </li>
               );

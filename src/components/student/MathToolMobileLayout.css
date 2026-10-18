@@ -412,6 +412,54 @@
     }
   }
 
+  /* UNDO AND RESET KEEP A WORD UNDER THEIR ICON (student pass 3, A11Y-10).
+     Icon-only, ↶ and ↺ are two near-identical arrows side by side, and one
+     of them throws the question's work away. Wherever the rules above hide
+     the tools' words, these two keep theirs as a small caption; the others
+     (✎, the calculator, 💡) are distinct on their own. Same selectors as the
+     rules that hide, plus one class, so this wins in both. */
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] .mathmaster-work-bar-tool:has(> .mathmaster-action-label--kept),
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] .mathmaster-universal-undo {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] .mathmaster-action-label.mathmaster-action-label--kept {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    font-size: calc(10 * var(--mm-px));
+    line-height: 1;
+  }
+
+  @media (max-width: 384px) {
+    .mathmaster-question-container.mode-portrait .portrait-action-bar .mathmaster-work-bar-tool:has(> .mathmaster-action-label--kept),
+    .mathmaster-question-container.mode-portrait .portrait-action-bar .mathmaster-universal-undo {
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+      line-height: 1;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar .mathmaster-action-label.mathmaster-action-label--kept {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip: auto;
+      font-size: calc(10 * var(--mm-px));
+      line-height: 1;
+    }
+  }
+
   /* THE NUMBER KEYPAD IS OPEN: IT IS THE KEYBOARD, AND THE BAR IS UNDER IT.
      The keypad is fixed over the bottom of the screen, so the bar beneath it
      could not be reached anyway; hiding it gives its row back to the work.

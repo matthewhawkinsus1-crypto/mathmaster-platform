@@ -38,7 +38,7 @@ import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
-import { prefersReducedMotion } from './motionPreference.js';
+import { prefersReducedMotion, scrollMotion } from './motionPreference.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
@@ -1624,7 +1624,7 @@ function QuestionEngineBody({
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
-    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
   }, [hintPanelOpen, hintsRevealed, similarOpen]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
@@ -2282,8 +2282,9 @@ function QuestionEngineBody({
           aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {/* "Question" drops on a phone so the work bar fits one row. */}
-          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
+          {/* "Question" drops on a phone so the work bar fits one row; "Reset"
+              stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
+          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
         </button>
       ) : null}
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>

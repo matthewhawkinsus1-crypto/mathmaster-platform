@@ -65,7 +65,7 @@ const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 // so the pill must not invite a "check".
 const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => (
   plottedCount === 0
-    ? 'Click the grid to plot your first point.'
+    ? 'Plot your first point: click or tap the grid, or focus it and use the arrow keys and Enter.'
     : plottedCount < requiredCount
       ? `Now plot point ${plottedCount + 1} of ${requiredCount} on the same line.`
       : finalLabel

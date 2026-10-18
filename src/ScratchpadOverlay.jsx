@@ -4,6 +4,7 @@ import useUndoHistory from './useUndoHistory';
 import { useActiveUndoOwner } from './platform/workView/useMathUndoHistory.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import Dialog from './ui/Dialog.jsx';
+import { prefersReducedMotion } from './motionPreference.js';
 import {
   MAX_SCRATCHPAD_PAGES,
   canAddScratchpadPage,
@@ -416,7 +417,8 @@ export default function ScratchpadOverlay({
         background: 'var(--mm-surface-sunken)',
         display: 'grid',
         gridTemplateRows: 'auto minmax(0, 1fr) auto',
-        animation: 'scratchpadSlideUp 220ms ease-out',
+        // No slide for a student who asked for less motion (A11Y-11).
+        animation: prefersReducedMotion() ? 'none' : 'scratchpadSlideUp 220ms ease-out',
       }}
     >
       <header
@@ -550,7 +552,7 @@ export default function ScratchpadOverlay({
         {readOnly ? (
           <strong style={{ color: 'var(--mm-text-muted)' }}>Read-only saved student work</strong>
         ) : <>
-        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'pen' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>✎ Pen</button>
+        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'pen' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>✎ Pen</button>
         {COLORS.map((item) => (
           <button
             type="button"
@@ -559,8 +561,9 @@ export default function ScratchpadOverlay({
             aria-label={`${item.label} ink`}
             onClick={() => { setColor(item.value); setTool('pen'); }}
             style={{
-              width: '38px',
-              height: '38px',
+              // 44px, the phone target size (A11Y-11): 38 was under it.
+              width: '44px',
+              height: '44px',
               borderRadius: '50%',
               border: color === item.value && tool === 'pen' ? '4px solid #f9ab00' : '3px solid var(--mm-border-soft)',
               outline: `1px solid ${item.value}`,
@@ -568,9 +571,9 @@ export default function ScratchpadOverlay({
             }}
           />
         ))}
-        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'eraser' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>▱ Eraser</button>
+        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'eraser' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>▱ Eraser</button>
         <UniversalUndoButton controller={scratchpadUndoController} disabled={readOnly} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }} />
-        <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>Clear All</button>
+        <button type="button" onClick={clearAll} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>Clear All</button>
         <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
         </>}
