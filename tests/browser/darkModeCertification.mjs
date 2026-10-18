@@ -15,7 +15,8 @@
  * the graph background; and (new) no tool paints a pale surface in dark mode.
  *
  * PART 2 — THE APPLICATION. The real App.jsx (firebase/* replaced by in-memory
- * fakes; synthetic school) signed in as a teacher and as a student, at iPhone,
+ * fakes; synthetic school, on the school's clock: a Wednesday 11:00 in Chicago,
+ * whatever the runner's time) signed in as a teacher and as a student, at iPhone,
  * large iPhone, iPad and desktop widths. Every surface below is opened through
  * the UI — dashboard, class selector, Live Class Walkthrough, student drawer,
  * quick-search dialog, assignment menu, assignments, library, classes,
@@ -42,6 +43,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { auditFailures, auditTheme } from './themeAudit.mjs';
+import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -357,7 +359,11 @@ const ADMIN_STEPS = [
 const REFERENCE_SHOTS = new Set(['admin-teacher-view-toggle', 'administration-workspace', 'teacher-dashboard', 'live-walkthrough', 'class-selector-open', 'assignment-menu-open', 'student-home', 'student-my-math-path']);
 
 const certify = async ({ role, steps, viewport, theme }) => {
-  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: theme });
+  // The school's clock and zone, as every teacher-harness journey runs
+  // (teacherWorkflow/schoolClock.mjs). On the runner's own clock the fixture's
+  // bell schedule follows the time of day: near midnight UTC its period is
+  // clamped to end at 23:55, and the pack-up banner joins every scene.
+  const context = await newSchoolContext(browser, { viewport: { width: viewport.width, height: viewport.height }, colorScheme: theme });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));

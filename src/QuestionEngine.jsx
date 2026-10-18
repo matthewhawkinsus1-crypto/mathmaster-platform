@@ -43,7 +43,9 @@ import { partialCreditBreakdown } from './platform/supports/feedback/partialCred
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
 import { prefersReducedMotion, scrollMotion } from './motionPreference.js';
+import { isSubmissionNotQueued } from './platform/student/submissionNotQueued.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
+import { clearDraftSaveProblemsForFamily } from './platform/persistence/draftSaveHealth.js';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
@@ -1275,6 +1277,15 @@ function QuestionEngineBody({
         // with the attempt so the server re-grades exactly that work.
         { partialCreditPercent: answerState.partialCreditPercent ?? null, toolResponse: answerState.toolResponse || null },
       );
+      // The device could not queue it: not submitted, so no verdict and no
+      // attempt — the question stays open and Submit stays (RUN-3).
+      if (isSubmissionNotQueued(result)) {
+        setFeedback(result);
+        return;
+      }
+      // Submitted (not blocked): the work is in the device queue, so a draft that
+      // could not be saved is no longer the student's only copy.
+      if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,
         status: answerState.isCorrect ? 'correct' : 'attempted',
@@ -1327,7 +1338,9 @@ function QuestionEngineBody({
 
   const handleSubmit = async () => {
     if (!answerState.isComplete || submitting || locked || pausedByAnotherTab) return;
-    if (sameIncorrectResponse && isMultipart) {
+    // Resubmitting what the device could not queue is not "the same answer
+    // again": no try was used on it.
+    if (sameIncorrectResponse && isMultipart && !isSubmissionNotQueued(feedback)) {
       setUnchangedConfirmOpen(true);
       return;
     }
@@ -1478,6 +1491,12 @@ function QuestionEngineBody({
           toolResponse?.value || JSON.stringify(payload?.response ?? {}),
           { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
         );
+        // Not queued, so not submitted: no verdict in the tool's slot either.
+        if (isSubmissionNotQueued(result)) {
+          setFeedback(result);
+          return;
+        }
+        if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
         const gradedFeedback = result || {
           isCorrect: attemptInputs.isCorrect,
           status: attemptInputs.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
@@ -1513,6 +1532,11 @@ function QuestionEngineBody({
         responseKey,
         { partialCreditPercent, toolResponse },
       );
+      if (isSubmissionNotQueued(result)) {
+        setFeedback(result);
+        return;
+      }
+      if (!result?.blocked) clearDraftSaveProblemsForFamily(draftKey);
       const nextFeedback = result || {
         isCorrect: Boolean(payload?.isCorrect),
         status: payload?.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',

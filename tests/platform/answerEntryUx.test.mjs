@@ -113,7 +113,8 @@ test('App records the cursor before a restore remount, for that question only, a
   const engine = readFileSync('src/QuestionEngine.jsx', 'utf8');
   // The branch that remounts after the server read wrote drafts in — a
   // restore, or a fresh workspace settled against the server's copy.
-  const restoreStart = app.indexOf('const restored = restoreQuestionDrafts(restorable);');
+  // (The restore leaves out drafts already settled answer by answer, Batch 3.)
+  const restoreStart = app.indexOf('const restored = restoreQuestionDrafts(restorable');
   assert.notEqual(restoreStart, -1, 'the server read still restores drafts');
   const restoreBranch = app.slice(restoreStart, app.indexOf('sync.noteServerCopy(entries);', restoreStart));
   assert.match(restoreBranch, /setDraftRestoreFocus\(\{\s*questionIndex: currentQuestionIndexRef\.current,\s*position: answerFocusPosition\(assignmentQuestionStageRef\.current\),\s*\}\);\s*setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/);

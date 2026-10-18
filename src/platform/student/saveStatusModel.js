@@ -41,6 +41,9 @@ export const describeSaveStatus = ({
   outboxDepth = 0,
   pendingGradeCount = 0,
   online = true,
+  // Unfinished work that is not being saved (Batch 3, draftSaveHealth.js):
+  // never "All work saved" while the assignment screen says it is not.
+  draftsUnsaved = false,
 } = {}) => {
   const status = String(persistenceStatus || 'idle');
   const owed = count(outboxDepth) + count(pendingGradeCount);
@@ -52,6 +55,9 @@ export const describeSaveStatus = ({
   }
   if (status === 'rejected') {
     return { tone: SAVE_TONE.ATTENTION, text: SAVE_STATUS_TEXT.rejected };
+  }
+  if (draftsUnsaved) {
+    return { tone: SAVE_TONE.ATTENTION, text: SAVE_STATUS_TEXT.attention };
   }
   if (status === 'offline' || (online === false && (owed > 0 || ['capturing', 'queued', 'syncing'].includes(status)))) {
     return { tone: SAVE_TONE.OFFLINE, text: SAVE_STATUS_TEXT.offline };
@@ -144,5 +150,39 @@ export const describeRuntimeSaveLine = ({
       return subject?.lastRecorded === SAVE_SUBJECT.ANSWER ? 'Answer recorded by MathMaster.' : 'Draft saved.';
     default:
       return null;
+  }
+};
+
+/*
+ * A DRAFT LINE GIVES WAY WHILE UNFINISHED WORK IS NOT BEING SAVED (Batch 3
+ * into pass 3).
+ *
+ * "Draft saved on this device" and "Draft saved." are about the student's
+ * progress in the device queue. Batch 3 tells the student, in its own alert,
+ * when their unfinished work itself could not be saved (draftSaveHealth.js:
+ * storage full, a backup that refused it or is full). Read together, "Draft
+ * saved on this device" over "Your work is not being saved on this device"
+ * says both things at once. While that alert stands, a line about drafts is
+ * not shown: the alert is the one sentence. A line about an answer the student
+ * sent stays (that answer is in the queue or recorded), and so do offline,
+ * needs-review, refused and not-stored, which ask something of the student.
+ */
+export const saveLineIsAboutDrafts = ({
+  persistenceStatus = 'idle',
+  subject = initialSaveSubject(),
+  pendingGradeCount = 0,
+} = {}) => {
+  const status = String(persistenceStatus || 'idle');
+  const answer = Boolean(subject?.pendingAnswer) || count(pendingGradeCount) > 0;
+  switch (status) {
+    case 'capturing':
+    case 'queued':
+    case 'syncing':
+      return !answer;
+    case 'durable':
+    case 'submitted':
+      return subject?.lastRecorded !== SAVE_SUBJECT.ANSWER;
+    default:
+      return false;
   }
 };
