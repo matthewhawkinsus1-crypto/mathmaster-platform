@@ -287,6 +287,14 @@ const practiceJourney = async (context, device) => {
   const sheetButton = toolbar.getByRole('button', { name: /Reference sheet/ });
   const graphButton = toolbar.getByRole('button', { name: /Graphing calculator/ });
   check(await sheetButton.isVisible() && await graphButton.isVisible(), label('toolbar has the reference sheet and the graphing calculator'));
+  // ONE calculator (H-19): the toolbar's graphing calculator, named for what
+  // it does — not a second "Calculator" inside the question that says graphs
+  // are not its job.
+  const calculatorControls = await page.locator('button').evaluateAll((buttons) => buttons
+    .filter((button) => button.getBoundingClientRect().width > 0 && /calculator/i.test(`${button.getAttribute('aria-label') || ''} ${button.textContent || ''}`))
+    .map((button) => (button.getAttribute('aria-label') || button.textContent).replace(/\s+/g, ' ').trim()));
+  check(calculatorControls.length === 1 && /Graphing calculator/.test(calculatorControls[0]), label('one calculator, the graphing calculator'), calculatorControls.join(' | '));
+  check(!/Graphs are drawn in the question itself/.test(await bodyText(page)), label('nothing says graphs are not the calculator\'s job'));
   await sheetButton.click();
   const sheet = page.locator('[role="dialog"]').filter({ hasText: /degrees of arc in a circle is 360/ });
   const sheetShown = await sheet.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false);

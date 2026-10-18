@@ -142,7 +142,7 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -235,7 +235,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         </form>
         <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} supportProfile={rawStudentSupportProfile || studentSupportProfile} />
       </section>
-      <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
+      {/* One calculator (H-19): where the exam toolbar has the graphing
+          calculator, the item draws no second, scientific one. */}
+      {!calculatorInToolbar && <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />}
     </main>
   );
 };
@@ -260,7 +262,7 @@ const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   return { tools: entitlement.tools, language: entitlement.language, showExamples: false };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -391,6 +393,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
       {policy.secure && <div style={{ ...sectionLabelStyle, margin: '0 4px 8px' }}>Secure exam question</div>}
       <Suspense fallback={<p role="status" style={{ padding: 30, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Opening the math workspace…</p>}>
         <QuestionEngine
+          calculatorInToolbar={calculatorInToolbar}
           question={engineQuestion}
           questionRecord={{
             status: Number(attempt?.used || 0) > 0 ? 'attempted' : 'unattempted',
@@ -443,6 +446,8 @@ export default function RichQuestionRuntime({
   // A secure test the student moves around in (see the header): no
   // per-question record step, and `onSubmit` only saves a draft.
   navigationMode = false,
+  // The host's toolbar has the item's calculator (SecureExamContainer).
+  calculatorInToolbar = false,
   onSubmit,
   onDraftChange,
 }) {
@@ -492,6 +497,7 @@ export default function RichQuestionRuntime({
         attempt={attempt}
         executionScope={executionScope}
         navigationMode={navigationMode}
+        calculatorInToolbar={calculatorInToolbar}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />
@@ -509,6 +515,7 @@ export default function RichQuestionRuntime({
       closed={closed}
       feedback={feedback}
       navigationMode={navigationMode}
+      calculatorInToolbar={calculatorInToolbar}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

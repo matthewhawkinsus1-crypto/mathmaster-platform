@@ -246,6 +246,11 @@ function QuestionEngineBody({
   assessmentReviewReleased = false,
   assessmentContext = null,
   teacherCalculatorChoice = null,
+  // The host already has this question's calculator in its own toolbar (a
+  // Digital SAT or ACT item's graphing calculator, SecureExamContainer): the
+  // engine draws no Calculator of its own, so a student sees one calculator,
+  // not two (student pass 3, H-19).
+  calculatorInToolbar = false,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -2226,7 +2231,7 @@ function QuestionEngineBody({
       disabled: scratchpadLoading,
       title: 'Open the scratchpad without covering the solver controls',
     },
-    calculator: {
+    calculator: calculatorInToolbar ? null : {
       id: 'calculator',
       label: 'Calculator',
       // Drawn, not an emoji: 🧮 is a box on devices without a Unicode 11 emoji
@@ -2289,7 +2294,7 @@ function QuestionEngineBody({
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : <><span aria-hidden="true">✎</span><span className="mathmaster-action-label"> Scratchpad</span></>}
       </button>
-      <button
+      {!calculatorInToolbar && <button
         type="button"
         className="mathmaster-work-bar-tool"
         onClick={handleCalculatorControl}
@@ -2312,7 +2317,7 @@ function QuestionEngineBody({
         {calculatorPolicy?.available
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> Calculator</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
-      </button>
+      </button>}
       {helpControlAvailable && (
         <button
           type="button"
@@ -3050,14 +3055,16 @@ function QuestionEngineBody({
         ) : null}
       />
 
-      <CalculatorPanel
-        policy={calculatorPolicy}
-        estimationRequired={processedQuestion?.estimationRequired === true}
-        onCalculatorOpened={markCalculatorOpened}
-        open={calculatorOpen}
-        onOpenChange={setCalculatorOpen}
-        showLauncher={false}
-      />
+      {!calculatorInToolbar && (
+        <CalculatorPanel
+          policy={calculatorPolicy}
+          estimationRequired={processedQuestion?.estimationRequired === true}
+          onCalculatorOpened={markCalculatorOpened}
+          open={calculatorOpen}
+          onOpenChange={setCalculatorOpen}
+          showLauncher={false}
+        />
+      )}
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>

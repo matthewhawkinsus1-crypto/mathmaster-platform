@@ -66,6 +66,27 @@ test('the engine tray\'s Vocabulary panel leaves the examples out when the entit
   assert.ok(panel.indexOf('if (!showExamples) {') < panel.indexOf('entry.example'), 'the example-free branch returns before any example is drawn');
 });
 
+test('one calculator on an exam item: where the toolbar has the graphing calculator, the item draws none (H-19)', () => {
+  const container = componentSource('src/components/assessment/SecureExamContainer.jsx');
+  assert.match(region(container, '<SecureExamQuestionPlayer', '/>', 'player'), /calculatorInToolbar=\{tools\.graphingCalculator\}/);
+  const player = componentSource('src/components/assessment/SecureExamQuestionPlayer.jsx');
+  assert.match(region(player, '<RichQuestionRuntime', '/>', 'runtime'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
+  assert.match(region(root, '<ToolItem', '/>', 'ToolItem props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  assert.match(region(root, '<FieldItem', '/>', 'FieldItem props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  const field = region(runtime, 'const FieldItem = (', '\n};\n', 'FieldItem');
+  assert.match(field, /\{!calculatorInToolbar && <CalculatorPanel policy=\{calculatorPolicy\}/);
+  assert.equal((executableSource(field).match(/<CalculatorPanel/g) || []).length, 1);
+  const tool = region(runtime, 'const ToolItem = (', '\n};\n', 'ToolItem');
+  assert.match(region(tool, '<QuestionEngine', '/>', 'engine props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  // The engine: no work-bar button, no Work View rail entry, no panel.
+  const engine = componentSource('src/QuestionEngine.jsx');
+  assert.match(engine, /calculator: calculatorInToolbar \? null : \{\n\s*id: 'calculator',/);
+  assert.match(engine, /\{!calculatorInToolbar && <button\n\s*type="button"\n\s*className="mathmaster-work-bar-tool"\n\s*onClick=\{handleCalculatorControl\}/);
+  assert.match(engine, /\{!calculatorInToolbar && \(\n\s*<CalculatorPanel\n\s*policy=\{calculatorPolicy\}/);
+  assert.equal((executableSource(engine).match(/<CalculatorPanel/g) || []).length, 1);
+});
+
 test('the toolbar carries the tools the exam policy grants, and the question is padded clear of them', () => {
   assert.match(container, /^import \{ resolveSecureExamTools \} from '\.\.\/\.\.\/platform\/assessment\/secureExamTools\.js';$/m);
   assert.match(container, /^import SatReferenceSheet from '\.\/SatReferenceSheet\.jsx';$/m);
