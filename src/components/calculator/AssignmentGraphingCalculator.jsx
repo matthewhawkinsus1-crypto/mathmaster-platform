@@ -22,10 +22,10 @@ import { useExamToolRoom } from '../assessment/examToolDrawerHooks.js';
  * no key, no grade. Whether it lists zeros, minimum and maximum (`keyPoints`)
  * is the calculator policy's `keyPointsAllowed`: not on an exit ticket, quiz
  * or test before release unless the item itself authored graphing, where a
- * listed vertex would be the answer. On an exit ticket, quiz or test it computes only what the
- * student types, exactly as a handheld would; whether a graphing calculator is
- * allowed there at all is the calculator policy's decision, made before this
- * file is ever loaded.
+ * listed vertex would be the answer. On an exit ticket, quiz or test it
+ * computes only what the student types, exactly as a handheld would; whether
+ * a graphing calculator is allowed there at all is the calculator policy's
+ * decision, made before this file is ever loaded.
  *
  * ROOM. On a wide screen the panel docks at the left edge, as it does in a
  * secure test, and the question moves clear of it: `roomRef` is the element

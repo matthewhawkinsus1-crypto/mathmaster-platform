@@ -1,7 +1,8 @@
 # Student pass 3, wave 5: the assignment's calculator setting and a graphing calculator (PR-25, PR-26)
 
 Branch `claude/pass3-calculator-setting`, on `claude/modest-pasteur-xzagn7` at `e822504`, then merged with the base at
-`cbeff6a` (merge commit) for the integrator's review round (see "Review round", below).
+`cbeff6a` (merge commit) for the integrator's review round (see "Review round", below), then with the base at
+`c350dfc` (wave 4 and W5-1's first load; merge commit `55942111`, no conflicts; see "Merge of wave 4").
 Nothing here deploys or writes to a production project. Open PR #239 was read (diff and body) and not touched on GitHub.
 Student words follow D9; no new sentence is covered by Read aloud or Translate (see "Spanish", below).
 
@@ -203,6 +204,45 @@ Merged the base at `cbeff6a` (clean), then:
   the chunk is aborted, the keypad opens, no page errors; mutation red).
 
 Mutation totals now: 30 node mutations, all red; 13 browser mutations, all red.
+
+## Merge of wave 4 (base `c350dfc`, merge commit `55942111`)
+
+No textual conflicts. Checked semantically:
+
+- **W4-1 Work View Help and its withheld method.** `methodWithheldHere = !toolHintsAllowed || !showOutcomeFeedback`
+  gates Help's method; the graphing calculator's key points are gated by `keyPointsAllowed || showOutcomeFeedback`,
+  so on a DOL/quiz/test before release both are withheld, and on practice with immediate outcomes the calculator
+  lists key points while Help follows its own hint policy. The calculator is not part of Help and passes no method;
+  the Work View rail still shows "Graphing calculator" and opens it focusable on top (driver case, after the merge).
+- **B's closed questions.** On a question the answer closes, a calculator the student had open stays as it was —
+  exactly as the keypad drawer does on the base (measured both) — and once closed it does not come back: not on
+  Enter on the closed card (B's way-on shortcut is `shouldAdvanceOnEnter`, which skips `[role="dialog"]` and
+  `calculatorOwnsEnter`), not on a re-render. New driver case "closed question: the calculator stays closed".
+
+**Exactly what this branch changes in `src/QuestionEngine.jsx`** (for the W5-6 conflict; 61 lines added, 16 changed
+against the base, nothing else in the file):
+
+1. imports: `lazy` from react; `CALCULATOR_MODES` next to `resolveCalculatorPolicy`;
+2. module level, after the imports: `GraphingCalculatorUnavailable` (the stand-in when the chunk cannot load) and
+   `const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx').catch(…))`;
+3. props: `assignmentCalculatorMode = null` (after `teacherCalculatorChoice`);
+4. the `calculatorPolicy` memo: `assignmentCalculatorMode` passed in and in its dependency list;
+5. right after the memo: `graphingCalculatorFailed` state, `graphingCalculatorOffered` (available ∧ graphing ∧ no
+   `assessmentContext`), `calculatorShowsGraphing`, and `calculatorName` ("Graphing calculator" | "Calculator");
+6. the Calculator control's label and title (work bar button and `workspaceActions.calculator`) use `calculatorName`;
+7. where `<CalculatorPanel …/>` was mounted: the same element, kept as `keypadCalculator`, rendered unless
+   `graphingCalculatorOffered`, in which case `<Suspense><AssignmentGraphingCalculator open onOpenChange roomRef
+   keyPoints fallback onUnavailable/></Suspense>`.
+
+**Gate on the wave-4 merge** (head after `55942111`): `test:platform` 11695 / 11695; `tests/tools` 1681 pass, 1
+skipped, 0 fail; lint 0 errors; build ok; `assignmentGraphingCalculator` all checks passed (with the new closed-question
+case); `toolPolicyGates` and `assessmentLeakGates` passed. First load: studentHome **845.3 KB on `c350dfc` (built in a
+separate worktree) → 845.6 KB here (+0.3 KB, `calculatorPolicy.js`)**; the budget script reports studentHome 177.7 KB
+below its baseline after W5-1 (baseline not edited — that lowering is W5-1's / the integrator's).
+
+With W5-6's `calculatorInToolbar` (SAT/ACT items, one calculator): this branch offers nothing when an
+`assessmentContext` is present, so the two should compose by keeping both conditions — the graphing panel only
+outside an assessment context, the keypad otherwise, and W5-6's toolbar rule for SAT/ACT.
 
 ## Before Hosting goes out: assignments whose stored setting changes behaviour (S3)
 

@@ -167,6 +167,30 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   console.log('assignment graphing calculator, code arriving late: ok');
 }
 
+// A closed question: a calculator open when the answer closed it stays as the
+// student left it (as the keypad does), and once closed it does not come back
+// on its own — not on Enter on the closed card, not on a re-render.
+{
+  const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing');
+  await page.getByLabel('Positive zero').first().click();
+  await page.keyboard.type('2');
+  const opener = page.locator(`${BAR}[aria-label="Graphing calculator"]`);
+  await opener.click();
+  await page.locator(PANEL).waitFor();
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => /^Submit/.test(button.textContent.trim()) && button.getClientRects().length).click());
+  await page.waitForFunction(() => window.__mmGraded.length === 1);
+  await page.getByRole('button', { name: 'Close graphing calculator' }).click();
+  await page.waitForFunction((s) => !document.querySelector(s), PANEL);
+  await page.mouse.click(1300, 400);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1200);
+  assert.equal(await page.locator(PANEL).count(), 0, 'closed question: the calculator does not reopen');
+  assert.equal(await opener.getAttribute('aria-expanded'), 'false');
+  assert.deepEqual(errors, [], 'closed question: no page errors');
+  await page.close();
+  console.log('closed question: the calculator stays closed, ok');
+}
+
 // The calculator's code cannot load: the keypad stands in, and the control is named for it.
 {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
