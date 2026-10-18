@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 // The outcome is drawn below the fix list (CheckRow), not inside the pill.
 import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
@@ -195,20 +195,38 @@ export function YesNo({ value, onChange, label }) {
  * matrix as it was given (P2-10). It describes only what the student typed,
  * so it is shown on an exit ticket too.
  *
+ * `confirm` asks once before a Check that would spend a try on work the
+ * student has not touched (an authored start left as given): the first press
+ * shows it, a second press checks. Never a dead end — an item published with
+ * a right start stays answerable.
+ *
  * Nothing here renders while the activity withholds outcome feedback:
  * `feedback` is null there (useToolSubmission), so no line can reveal a key.
  */
-export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], blocker = null }) {
+export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], blocker = null, confirm = null }) {
+  // The confirmation answered for this exact message; any edit that changes
+  // or clears it asks again.
+  const [confirmed, setConfirmed] = useState(null);
+  useEffect(() => { if (!confirm) setConfirmed(null); }, [confirm]);
+  const asking = Boolean(confirm) && confirmed === confirm;
+  const press = () => {
+    if (confirm && !asking) { setConfirmed(confirm); return; }
+    setConfirmed(null);
+    onCheck();
+  };
   const lines = feedback && !feedback.isCorrect ? fixList : [];
   const lineText = (line) => line.text || `Reconsider: ${line.labels.join(', ')}`.replace(/([^.?!])$/, '$1.');
   const verdict = feedback ? (feedback.isCorrect ? 'Correct' : 'Not yet — see what to fix') : null;
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={onCheck} disabled={!enabled} style={primaryStyle(enabled)}>{label}</button>
+        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={press} disabled={!enabled} style={primaryStyle(enabled)}>{label}</button>
         {/* stageCheck: the outcome is drawn below the list, not inside the pill. */}
         {feedback ? <ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill> : null}
       </div>
+      {asking ? (
+        <p role="status" data-matrix-confirm-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{confirm}</p>
+      ) : null}
       {blocker ? (
         <p role="status" data-matrix-format-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{blocker}</p>
       ) : null}

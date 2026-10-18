@@ -93,7 +93,7 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.go('l3m-cw-7');
   await s.fillSystem([[2, '-', -2, 3], [3, 1, -2, 11], [-2, -1, 1, -8]]);
   check(!(await s.checkButton().isEnabled()), 'Check is off while a cell holds only "-"');
-  check(/alone is not a number.*Nothing has been checked yet/.test(await s.formatMessage() || ''), `the format message says why: ${await s.formatMessage()}`);
+  check(/alone is not a number.*No try has been used/.test(await s.formatMessage() || ''), `the format message says why: ${await s.formatMessage()}`);
   await s.fill('Coefficient matrix A, row 1, coefficient of y', '-1');
   check(await s.checkButton().isEnabled(), 'writing −1 turns Check on');
   check((await s.record('l3m-cw-7')) === null, 'no try was spent');
@@ -101,8 +101,13 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
 
   journey = 'CW 8 untouched prefill (P2-10)';
   await s.go('l3m-cw-8');
-  check(!(await s.checkButton().isEnabled()), 'Nicky\'s matrix as given cannot be checked');
-  check(/as it was given/.test(await s.formatMessage() || ''), 'and the student is told why');
+  // S3: asked once, never blocked — an item published with a right start stays answerable.
+  check(await s.checkButton().isEnabled(), 'Nicky\'s matrix as given can still be checked');
+  await s.checkButton().click();
+  await page.waitForTimeout(500);
+  const asked = await page.evaluate(() => document.querySelector('[data-matrix-confirm-message]')?.textContent || '');
+  check(/as it was given.*press Check again/.test(asked), `the first press asks: ${asked}`);
+  check((await s.record('l3m-cw-8')) === null, 'and spends no try');
 
   journey = 'CW 9 missing variable as 1 (P2-3)';
   await s.go('l3m-cw-9');

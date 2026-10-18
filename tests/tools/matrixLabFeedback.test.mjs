@@ -121,6 +121,30 @@ test('PR-33: a refused row on a hidden system gives the same reason whether or n
   for (const value of ['15', '35', '30', '80', '2086']) assert.doesNotMatch(trueLine, new RegExp(`\\b${value}\\b`), `no key value (${value}) in the reason`);
 });
 
+test('S1: on a printed system a refused row reads the same whether or not it is true at the solution', () => {
+  // CW 7's solution has x = 2. "1x + 0y + 0z = k" must not single out k = 2.
+  const lineFor = (k) => fixText(grade(CW7, { A: [['1', '0', '0'], ['3', '1', '-2'], ['-2', '-1', '1']], B: [k, '11', '-8'] }))[0];
+  const lines = ['1', '2', '3', '4'].map(lineFor);
+  assert.equal(new Set(lines).size, 1, lines.join(' | '));
+  // CW 9 (x, y, z = 1, −5/3, …): a value row reads the same too.
+  const cw9Line = (k) => fixText(grade(CW9, { A: [['0', '1', '0'], ['0', '1', '1'], ['1', '2', '4']], B: [k, '-5', '-17'], classification: 'one', values: ['1', '1', '1'] }))[0];
+  assert.equal(cw9Line('-3'), cw9Line('-4'));
+  // A real combination of two printed equations still says so.
+  assert.match(fixText(grade(CW7, { A: [['5', '0', '-4'], ['3', '1', '-2'], ['-2', '-1', '1']], B: ['14', '11', '-8'] }))[0], /combines two of the equations/);
+});
+
+test('S2: the hidden-system rule is "at most n − 1 facts" at every size', () => {
+  const twoByTwo = { type: 'matrixLab', mode: 'solve', showEquations: false, variables: ['x', 'y'], equations: ['x + y = 30', 'y = 2x'] };
+  const rows2 = (A, B) => rowVerdicts(grade(twoByTwo, { A, B, classification: 'one', values: ['10', '20'] }));
+  assert.deepEqual(rows2([['1', '0'], ['0', '1']], ['10', '20']), [false, false], '2 × 2: the answer written as rows');
+  assert.deepEqual(rows2([['2', '2'], ['-2', '1']], ['60', '0']), [true, true], '2 × 2: the facts, multiplied');
+  const fourByFour = { type: 'matrixLab', mode: 'solve', showEquations: false, variables: ['w', 'x', 'y', 'z'], equations: ['w + x + y + z = 7', 'x = 2w', 'y = 3w', 'z - w = 0'] };
+  const rows4 = (A, B) => rowVerdicts(grade(fourByFour, { A, B, classification: 'one', values: ['1', '2', '3', '1'] }));
+  assert.deepEqual(rows4([['6', '0', '0', '1'], ['-2', '1', '0', '0'], ['-3', '0', '1', '0'], ['-1', '0', '0', '1']], ['7', '0', '0', '0']), [true, true, true, true], '4 × 4: 6w + z = 7 is x = 2w and y = 3w substituted into the count (three facts)');
+  assert.equal(rows4([['7', '0', '0', '0'], ['-2', '1', '0', '0'], ['-3', '0', '1', '0'], ['-1', '0', '0', '1']], ['7', '0', '0', '0'])[0], false, '4 × 4: 7w = 7 needs all four facts — it is the value of w');
+  assert.deepEqual(rows4([['1', '0', '0', '0'], ['0', '1', '0', '0'], ['0', '0', '1', '0'], ['0', '0', '0', '1']], ['1', '2', '3', '1']).filter(Boolean).length, 0, '4 × 4: the answer written as rows');
+});
+
 /* ------------------------------------------------------------------- P2-2 */
 
 test('P2-2: a singular decision needs its reason, read from the student\'s own rows', () => {
@@ -133,6 +157,16 @@ test('P2-2: a singular decision needs its reason, read from the student\'s own r
   assert.equal(grade(CW10, { ...base, classification: 'none', singularReason: { ...reason, constant: 'breaks' } }).isCorrect, false, '"breaks" is false of these constants');
   assert.equal(grade(CW10, { ...base, classification: 'none', singularReason: reason }).isCorrect, false, 'a reason that says "follows" does not support "none"');
   assert.equal(grade(CW10, { ...base, singularReason: { row: '1', otherRow: '3', factor: '1/3', constant: 'follows' } }).isCorrect, true, 'either direction, with its multiple');
+  // Part level (S4): the reason part itself, not only the whole verdict.
+  const reasonPart = (state) => grade(CW10, state).parts.find((part) => part.id === 'singularReason');
+  assert.equal(reasonPart({ ...base, classification: 'none', singularReason: { ...reason, constant: 'breaks' } }).isCorrect, false, '"breaks" is false of these constants, whatever the decision');
+  assert.equal(reasonPart({ ...base, classification: 'none', singularReason: reason }).isCorrect, false, 'a true reason that contradicts the decision chosen');
+  assert.equal(reasonPart({ ...base, singularReason: reason }).isCorrect, true);
+  // DOL 3's wrong read ("many" + a reason saying the constants follow) earns the
+  // rows only: 3 of 5 parts.
+  const dol3 = { type: 'matrixLab', mode: 'solve', justifySingular: true, equations: ['x - 2y + 3z = 4', '2x + y - z = 1', '-3x + 6y - 9z = 12'] };
+  const misread = grade(dol3, { A: [['1', '-2', '3'], ['2', '1', '-1'], ['-3', '6', '-9']], B: ['4', '1', '12'], classification: 'many', singularReason: { row: '3', otherRow: '1', factor: '-3', constant: 'follows' } });
+  assert.equal(misread.score, 3 / 5);
 });
 
 test('P2-2: a question that does not ask for the reason grades exactly as before, and its work carries no new field', () => {
@@ -242,11 +276,22 @@ test('P2-10: in every view Check waits for a readable cell and an edited start; 
     assert.match(body, /const complete = !blocker && /, `${start}: Check is off while a cell is not a number`);
     assert.match(body, /blocker=\{blocker\}/, `${start} says why`);
   });
-  assert.match(region(lab, 'function EquationMode', 'function SolveMode'), /untouchedStart\(model, initial, A, B\) \? UNTOUCHED_START/);
+  // S3: an untouched start asks once, it never blocks — in both views that build A · X = B.
+  for (const [start, end] of [['function EquationMode', 'function SolveMode'], ['function SolveMode', 'function CompleteSystemMode']]) {
+    const view = region(lab, start, end);
+    assert.match(view, /const confirm = (model\.buildEquation && )?untouchedStart\(model, initial, A, B\) \? UNTOUCHED_START : null;/, `${start} asks about an untouched start`);
+    assert.match(view, /confirm=\{confirm\}/, `${start} hands it to Check`);
+    assert.doesNotMatch(region(view, 'const blocker', ';'), /UNTOUCHED_START/, `${start}: an untouched start does not keep Check off`);
+  }
+  const ui = executableSource(read('src/tools/matrixLab/matrixLabUi.jsx'));
+  assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ setConfirmed\(confirm\); return; \}/, 'the first press asks; the second checks');
+  assert.match(ui, /onClick=\{press\}/);
   assert.match(region(lab, 'const formatProblem', 'const gridFields'), /SIGN_ONLY\.test\(raw\)/);
   const start = { type: 'matrixLab', mode: 'equation', variables: ['x', 'y'], equations: ['x + y = 2', 'x - y = 0'] };
   assert.equal(validateMatrixLabQuestion({ ...start, startFrom: { A: [[1, 1], [1, -1]], B: [2, 0] } }).length, 1, 'a start that is already right');
   assert.deepEqual(validateMatrixLabQuestion({ ...start, startFrom: { A: [[1, 1], [1, 1]], B: [2, 0] } }), [], 'a start with a mistake');
+  // A hidden system's start is judged by the hidden rule: a substituted model is already right.
+  assert.equal(validateMatrixLabQuestion({ ...BASKETS, startFrom: { A: [[3, 1, 0], [63, 100, 130], [2, 0, -1]], B: [80, 8345, 0] } }).length, 1, 'a right model on a hidden system');
 });
 
 /* ------------------------------------------------------------------ P2-12 */

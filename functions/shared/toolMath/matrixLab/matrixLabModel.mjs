@@ -306,33 +306,55 @@ export const matchEquationRows = (studentRows, keyRows) => {
   return best ? best.assignment : studentRows.map(() => null);
 };
 
+// Every subset of `size` rows of a system (in order), for the span tests below.
+const rowSubsets = (rows, size) => {
+  if (size <= 0) return [];
+  if (size >= rows.length) return [rows];
+  const out = [];
+  const walk = (start, picked) => {
+    if (picked.length === size) { out.push(picked); return; }
+    for (let i = start; i < rows.length; i += 1) walk(i + 1, [...picked, rows[i]]);
+  };
+  walk(0, []);
+  return out;
+};
+
+/**
+ * Whether a row is a combination of at most `size` of a system's rows (a
+ * multiple of one of them included). Uses only the rows given, so on a printed
+ * system it says nothing a student could not work out from the printed
+ * equations without solving them.
+ */
+export const inSpanOfFewRows = (row, keyRows, size) => rowSubsets(keyRows, size)
+  .some((subset) => rank([...subset, row]) === rank(subset));
+
 /**
  * Match each row of the student's [A | B] to the SITUATION, on a modeling item
  * whose system is hidden (PR-33, the walkthrough's R-4). The student chooses
  * the equations, so a right row is any fact the situation states — a count, a
- * total, a comparison — written any way, or two of those facts combined, as
- * when "z = 2x" is substituted into the count (x + y + z = 80 → 3x + y = 80).
+ * total, a comparison — written any way, or facts combined, as when "z = 2x"
+ * is substituted into the count (x + y + z = 80 → 3x + y = 80).
  *
- * A row is right when it lies in the span of at most TWO of the key's rows and
- * adds something the student's earlier right rows did not say. Rows that pass
- * are independent and each true of the situation, so a full set of them has
- * exactly the situation's solution set. "At most two" is what keeps the answer
- * out: x = 15 is true of the baskets too, but only as a combination of all
- * three facts — it is the solution written as a row, not a model.
+ * A row is right when it combines at most n − 1 of the key's n rows (two of
+ * three, one of two, three of four) and adds something the student's earlier
+ * right rows did not say. Rows that pass are independent and each true of the
+ * situation, so a full set of them has exactly the situation's solution set.
+ * "At most n − 1" is what keeps the answer out at every size: a row that
+ * isolates a variable (x = 15) is true of the situation, but in a system with
+ * one solution it generally needs all n facts — it is the solution written as
+ * a row, not a model. With one fewer, every honest substitution of one fact
+ * into others still passes (6w + z = 10 in a 4 × 4 is a combination of three).
  *
  * Returns, per student row, true or false (a row with a blank or a
  * non-number is false).
  */
 export const matchSituationRows = (studentRows, keyRows) => {
-  const pairs = [];
-  keyRows.forEach((first, i) => keyRows.forEach((second, j) => { if (j > i) pairs.push([first, second]); }));
-  if (keyRows.length === 1) pairs.push([keyRows[0]]);
-  const fromTwoFacts = (row) => pairs.some((pair) => rank([...pair, row]) === rank(pair));
+  const size = Math.max(1, keyRows.length - 1);
   const accepted = [];
   return studentRows.map((row) => {
     if (!row) return false;
     if (row.slice(0, -1).every(isZero)) return false;
-    if (!fromTwoFacts(row)) return false;
+    if (!inSpanOfFewRows(row, keyRows, size)) return false;
     if (rank([...accepted, row]) === accepted.length) return false;
     accepted.push(row);
     return true;
@@ -530,15 +552,19 @@ export const validateMatrixLabQuestion = (question = {}) => {
     if (model.keyA.length > 4 || model.variables.length > 4) errors.push('matrixLab equation supports up to four equations in up to four variables.');
   }
 
-  // The lab will not check a prefilled matrix the student has not changed
-  // (P2-10: it is not an answer yet), so a start that is already right could
-  // never be submitted.
+  // The lab asks before it checks a prefilled matrix the student has not
+  // changed (P2-10), so a start that is already right would make every student
+  // confirm a matrix they were never asked to fix. Refused here instead.
   if (['equation', 'solve'].includes(model.mode) && model.keyA && model.keyB && model.startA.length) {
     const count = model.keyA.length;
     const width = model.keyA[0].length;
     const start = studentAugmentedRows(model.startA, model.startB, count, width);
-    if (start.every(Boolean) && matchEquationRows(start, keyAugmentedRows(model.keyA, model.keyB)).every((entry) => entry !== null)) {
-      errors.push(`matrixLab ${model.mode}: startFrom is already a right matrix equation. A student must change a cell before Check, so they could never submit it — start from a matrix with the mistake you want found.`);
+    const keyRows = keyAugmentedRows(model.keyA, model.keyB);
+    const right = model.hiddenSystem
+      ? matchSituationRows(start, keyRows)
+      : matchEquationRows(start, keyRows).map((entry) => entry !== null);
+    if (start.every(Boolean) && right.every(Boolean)) {
+      errors.push(`matrixLab ${model.mode}: startFrom is already a right matrix equation, so there is nothing for the student to find — start from a matrix with the mistake you want found.`);
     }
   }
 

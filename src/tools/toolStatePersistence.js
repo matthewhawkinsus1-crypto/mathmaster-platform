@@ -183,6 +183,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   // draft-backed matrices, so pressing its button again reproduces it.
   matrixLab: entry(['matrixLab/MatrixLab.jsx', 'matrixLab/MatrixCalculator.jsx', 'matrixLab/matrixLabUi.jsx'], {
     activeId: 'Which element (a_ij) a tap will place next. Selection, not an answer; the tapped cells themselves are draft-backed.',
+    confirmed: 'Whether Check is asking "check the matrix as it was given?" after one press. A prompt, not work; it asks again after a reload.',
     focus: 'Which product cell has focus, so its row and column light up. Presentation.',
     result: 'What the matrix calculator last printed. Recomputed from the draft-backed matrices by pressing the command again.',
     view: 'Whether the calculator shows fractions or decimals. Presentation.',

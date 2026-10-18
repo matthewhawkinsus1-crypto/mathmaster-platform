@@ -20,7 +20,7 @@
 import declaration from '../declarations/matrixLab.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult } from '../gradingResult.mjs';
-import { SOLUTION_TYPES, classifySystem, formatRational, parseCell, rank, sub, toNumber } from '../../toolMath/matrixLab/matrixMath.mjs';
+import { SOLUTION_TYPES, classifySystem, formatRational, parseCell, sub, toNumber } from '../../toolMath/matrixLab/matrixMath.mjs';
 import {
   SINGULAR_CONSTANT,
   cellIsBlank,
@@ -30,6 +30,7 @@ import {
   equationRowDiagnosis,
   keyAugmentedRows,
   matchEquationRows,
+  inSpanOfFewRows,
   matchSituationRows,
   ownRowReason,
   readMatrixLabQuestion,
@@ -226,7 +227,10 @@ const gradeSolve = (question, work) => {
   // A singular system's decision needs its reason (P2-2): with three buttons
   // and three tries, "none or many" could be passed on a second guess. The
   // reason is read against the matrices the student holds — their own A and B,
-  // or the given ones — and must also lead to the right decision.
+  // or the given ones — and must be true of them and agree with the decision
+  // the student CHOSE ("follows" with many, "breaks" with none). So a right
+  // reason about wrong rows earns this part (carried-error credit) while the
+  // rows and the decision are marked on their own parts.
   if (model.justifySingular && model.classification.type !== SOLUTION_TYPES.ONE) {
     const reason = singularReasonOf(work);
     const { A, B } = model.buildEquation
@@ -470,7 +474,13 @@ export const matrixLabFixList = (question, work = {}, parts = []) => {
       let reason = diagnoses[index] || (missing ? `missing:${missing}` : null) || ownRowReason(rows, index);
       if (!reason && row) {
         if (model.hiddenSystem) reason = 'notAFact';
-        else if (rank([...keyRows, row]) === rank(keyRows)) reason = 'combines';
+        // A combination of TWO printed equations, judged from those two rows
+        // alone. Never "in the span of the whole system": for a system with
+        // one solution that span is every row true at the solution, so the
+        // reason would confirm a guessed value ("1x + 0y + 0z = 2") — an
+        // oracle (S1, integration review). Fewer than n rows for the same
+        // reason: two rows of a 2 × 2 already span everything.
+        else if (inSpanOfFewRows(row, keyRows, Math.min(2, keyRows.length - 1))) reason = 'combines';
       }
       take([id], rowReasonText(model, reason, index));
     });

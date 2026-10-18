@@ -83,15 +83,18 @@ const formatProblem = (fields = []) => {
     if (!raw) continue;
     const readable = field.whole ? /^\d+$/.test(raw) : Boolean(parseCell(raw));
     if (readable) continue;
-    if (SIGN_ONLY.test(raw)) return `${field.label}: “${raw}” alone is not a number. For a term like ${raw === '+' ? '+y' : '−y'}, write ${raw === '+' ? '1' : '−1'}. Nothing has been checked yet.`;
-    if (field.whole) return `${field.label}: “${raw}” is not a whole number. Nothing has been checked yet.`;
-    return `${field.label}: “${raw}” is not a number yet. Write an integer, a decimal or a fraction such as 2/3. Nothing has been checked yet.`;
+    if (SIGN_ONLY.test(raw)) return `${field.label}: “${raw}” alone is not a number. For a term like ${raw === '+' ? '+y' : '−y'}, write ${raw === '+' ? '1' : '−1'}. No try has been used.`;
+    if (field.whole) return `${field.label}: “${raw}” is not a whole number. No try has been used.`;
+    return `${field.label}: “${raw}” is not a number yet. Write an integer, a decimal or a fraction such as 2/3. No try has been used.`;
   }
   return null;
 };
 const gridFields = (cells, label) => cells.flatMap((row, i) => row.map((value, j) => ({ value, label: label(i, j) })));
 const sameCells = (left, right) => JSON.stringify(left) === JSON.stringify(right);
-const UNTOUCHED_START = 'This is the matrix equation as it was given. Change what needs fixing, then check.';
+// An authored start the student has not changed is not refused — an item
+// published with a right start must stay answerable — but Check asks once
+// before it spends a try on it (S3, integration review).
+const UNTOUCHED_START = 'This is the matrix equation as it was given. Change what needs fixing — or press Check again to check it as it is.';
 
 function useLabUndo(questionData, state, restore, clearFeedback, label) {
   return useMathUndoHistory({
@@ -423,7 +426,8 @@ function EquationMode({ questionData, model, onAction }) {
     setA(restored.A || initial.A);
     setB(restored.B || initial.B);
   }, clearFeedback, 'Undo the last matrix-equation change');
-  const blocker = formatProblem(equationFields(model, A, B)) || (untouchedStart(model, initial, A, B) ? UNTOUCHED_START : null);
+  const blocker = formatProblem(equationFields(model, A, B));
+  const confirm = untouchedStart(model, initial, A, B) ? UNTOUCHED_START : null;
   const complete = !blocker && A.every((row) => row.every((cell) => String(cell).trim())) && B.every((cell) => String(cell).trim());
   return (
     <>
@@ -434,7 +438,7 @@ function EquationMode({ questionData, model, onAction }) {
       <Step number={1} title="Write the matrix equation">
         <MatrixEquationBuilder model={model} A={A} B={B} onA={(i, j, value) => { clearFeedback(); setA(setCell(A, i, j, value)); }} onB={(i, value) => { clearFeedback(); setB(B.map((cell, index) => (index === i ? value : cell))); }} />
       </Step>
-      <CheckRow label="Check the matrix equation" onCheck={check} enabled={complete} feedback={feedback} fixList={fixList} blocker={blocker} />
+      <CheckRow label="Check the matrix equation" onCheck={check} enabled={complete} feedback={feedback} fixList={fixList} blocker={blocker} confirm={confirm} />
     </>
   );
 }
@@ -530,7 +534,8 @@ function SolveMode({ questionData, model, onAction }) {
     ...(model.askInverse ? gridFields(inverse, (i, j) => `A⁻¹, row ${i + 1}, column ${j + 1}`) : []),
     ...(classification === SOLUTION_TYPES.ONE ? values.map((value, index) => ({ value, label: `The value of ${model.variables[index]}` })) : []),
     ...(asksReason ? [{ value: singularReason.factor, label: 'The multiple' }] : []),
-  ]) || (model.buildEquation && untouchedStart(model, initial, A, B) ? UNTOUCHED_START : null);
+  ]);
+  const confirm = model.buildEquation && untouchedStart(model, initial, A, B) ? UNTOUCHED_START : null;
   const complete = !blocker && built && inverseDone && answered;
   const editReason = (patch) => { clearFeedback(); setSingularReason({ ...EMPTY_REASON, ...singularReason, ...patch }); };
   const meaning = (variable) => model.variableMeanings?.[variable] || null;
@@ -608,7 +613,7 @@ function SolveMode({ questionData, model, onAction }) {
           </div>
         ) : null}
       </Step>
-      <CheckRow label="Check the solution" onCheck={check} enabled={Boolean(complete)} feedback={feedback} fixList={fixList} blocker={blocker} />
+      <CheckRow label="Check the solution" onCheck={check} enabled={Boolean(complete)} feedback={feedback} fixList={fixList} blocker={blocker} confirm={confirm} />
     </>
   );
 }

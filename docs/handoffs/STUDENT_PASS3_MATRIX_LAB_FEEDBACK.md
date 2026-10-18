@@ -1,6 +1,7 @@
 # Student pass 3 — wave 5: Matrix Lab feedback: Matrix Lab feedback, credit for right models
 
-Branch `claude/pass3-matrix-lab-feedback`, on `claude/modest-pasteur-xzagn7` at `e822504`.
+Branch `claude/pass3-matrix-lab-feedback`, on `claude/modest-pasteur-xzagn7` at `e822504`, with the base at `cbeff6a`
+merged in (merge commit). The integration review's S1–S4 and notes are addressed in the last section.
 Nothing here deploys, writes to a production project or re-grades a recorded attempt. Student words follow D9
 ("tries", "Check" never costs a try, "Exit ticket (DOL)").
 
@@ -20,19 +21,24 @@ the code was restored (18 mutations, table at the end).
 `2x − z = 0`: 86 %, "Reconsider: Row 1 of the matrix equation", nothing to fix.
 
 **Changed.** `matchSituationRows` (`functions/shared/toolMath/matrixLab/matrixLabModel.mjs`). On a `solve` item whose
-system is hidden (`showEquations: false`, now `model.hiddenSystem`), a row is right when it lies in the span of **at
-most two** of the situation's facts and adds something the student's earlier right rows do not. A full set of such
+system is hidden (`showEquations: false`, now `model.hiddenSystem`), a row is right when it combines **at most
+n − 1** of the situation's n facts (two of three; one of two; three of four) and adds something the student's earlier
+right rows do not. A full set of such
 rows has exactly the situation's solution set. Where the system is printed (CW 7, CW 8, PR 4) the task is to write
 *that* system, so `matchEquationRows` (one equation per row) still decides.
 
-"At most two" is deliberate: `x = 15` is true of the baskets too, but only as a combination of all three facts. It is
-the answer written as rows, and the walkthrough recorded it as rightly refused. The literal R-4 (any rows with the
+"At most n − 1" is deliberate: `x = 15` is true of the baskets too, but in a system with one solution a row that
+isolates a variable generally needs all n facts. It is the answer written as rows, and the walkthrough recorded it as
+rightly refused. This holds at 2 × 2 and 4 × 4 too (a fixed "at most two" let the 2 × 2 answer through and refused an
+honest 4 × 4 double substitution; S2). The literal R-4 (any rows with the
 key's solution set and a full-rank A) would accept it. See decision 3.
 
 A refused row says why, and **the reason is computed from the student's own work only**, so it adds nothing to the
 verdict the row already has: "has no variable" (0x + 0y + 0z), "repeats what the other rows already say" (the
 student's own A is rank-deficient), or, on a hidden system, "is not one of the situation's facts…". On a printed
-system, a row that combines two equations says so.
+system, a row that combines two printed equations says so. That test uses only pairs of printed rows (`inSpanOfFewRows`,
+at most two and fewer than n), never the span of the whole system, which for one solution is every row true at the
+solution and would have confirmed a guessed value (S1).
 
 **Server.** The same pure grader runs in the browser and on the server (`functions/shared/serverGrading/tools/
 matrixLab.mjs`, reached through `gradingManifest` → `serverResponseGrading`). See "Deploy targets" for the functions.
@@ -43,6 +49,10 @@ matrixLab.mjs`, reached through `gradingManifest` → `serverResponseGrading`). 
   serialized tool response) must agree on verdict, score and every part. This is the re-grade agreement test.
 - The answer as rows, the count written twice and `0 = 0` are refused.
 - A printed system still refuses a combination, and the list says "combines two of the equations".
+- The same no-leak property on printed systems: CW 7's `1x + 0y + 0z = k` reads the same for k = 1, 2, 3, 4 (x = 2);
+  so does a value row on CW 9 (S1).
+- At 2 × 2 the answer as rows is refused; at 4 × 4 `6w + z = 7` (three facts) is accepted and `7w = 7` (all four) is
+  not (S2).
 - The no-leak property: `x = 15` (true) and `x = 14` (false) get the identical line, and the line holds no key value.
 
 Browser: `matrixLabFeedback.mjs` "PR 10 substitution model" scores 100 %.
@@ -55,7 +65,9 @@ buttons, three tries.
 **Changed.** An authored `justifySingular: true` on a `solve` item adds a reason the student gives once they choose
 "none" or "many": "In A, row [3] is [3] times row [1]. The constants in B [follow the same multiple / do not
 follow it]." It is graded as a part (`singularReason`) against the matrices the student holds (their own A and B, or
-the given ones). It must be true and must lead to the decision chosen. Check stays off until it is filled.
+the given ones). It must be true of those matrices and agree with the decision the student chose ("follows" with
+many, "breaks" with none), so a right reason about wrong rows earns this part as carried-error credit. Check stays off
+until it is filled.
 - On for CW 10, PR 8 and DOL 3 in the repo's lesson JSON.
 - Off everywhere else. The work shape gains `singularReason` only where asked, so published items grade as before.
 - Pre-Flight refuses `justifySingular` on a singular A with no two proportional rows (the reason could not be given).
@@ -136,16 +148,18 @@ untouched prefill: Check on.
 
 **Changed.** Every view computes `formatProblem(...)` over its fields, and `complete = !blocker && …`. A cell that is
 not a number keeps Check off and says, under Check, before anything is counted:
-- "Row 1 of A, coefficient of y: “-” alone is not a number. For a term like −y, write −1. Nothing has been checked yet."
+- "Row 1 of A, coefficient of y: “-” alone is not a number. For a term like −y, write −1. No try has been used."
 - Dimensions and row/column numbers must be whole numbers.
-- An authored start the student has not changed: "This is the matrix equation as it was given. Change what needs
-  fixing, then check."
 
-The message describes only what was typed, so it also shows on an exit ticket. Pre-Flight refuses a `startFrom` that
-is already right, since it could never be submitted.
+An authored start the student has not changed is **asked about, never blocked** (S3): the first press of Check says
+"This is the matrix equation as it was given. Change what needs fixing — or press Check again to check it as it is."
+and spends nothing; a second press checks. An item already published with a right start therefore stays answerable.
+Pre-Flight refuses a new `startFrom` that is already right (judged by the hidden-system rule on a hidden system).
+
+The messages describe only what was typed, so they also show on an exit ticket.
 
 **Proof.** Unit "P2-10…" (all five views, the sign rule, the Pre-Flight error). Browser: CW 7 (laptop `-`, phone `+`)
-and CW 8, with no record written.
+and CW 8 (Check on, the first press asks, no record written).
 
 ### P2-6 (R-11) — hints that state the answer
 
@@ -221,8 +235,8 @@ of the pack).
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11 598 / 11 598 pass (after `npm ci` in `functions/` and `functions-path-admin/`) |
-| `node --test tests/tools/*.test.mjs` | 1 686 pass, 0 fail, 1 skipped (17 new in `matrixLabFeedback.test.mjs`) |
+| `npm run test:platform` | 11 599 / 11 599 pass (after `npm ci` in `functions/` and `functions-path-admin/`) |
+| `node --test tests/tools/*.test.mjs` | 1 688 pass, 0 fail, 1 skipped (19 new in `matrixLabFeedback.test.mjs`) |
 | `npm run lint` | exit 0 (warnings only, none in changed files) |
 | `npm run build` | exit 0 |
 | `npm run build:firebase` | exit 0; no tracked file rewritten (`git status` clean) |
@@ -266,6 +280,13 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
 | M16 | panel back to "4 places" | 1 |
 | M17 | solve calculator does not report | 1 |
 | M18 | the lesson does not ask for the reason | 1 |
+| S1 | "combines" judged by the whole system's span | 1 |
+| S2 | "at most two" at every size | 1 |
+| C | `singularReasonHolds` ignores the constant | 1 (part-level) |
+| D | the reason no longer has to agree with the decision | 1 (part-level) |
+| J | the solve view no longer asks about an untouched start | 1 |
+| S3 | the first press checks instead of asking | 1 |
+| S3 | the hidden start judged by the printed rule | 1 |
 
 ## Deploy targets
 
@@ -281,12 +302,16 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
   `submitSecureExamResponse` and `submitTestCycleCorrectionResponse` (separate Path/secure-item graders).
   Path-admin: its four exports load none of these modules; its vendored copy is re-synced by the build and needs no
   redeploy.
-  `node scripts/release-firebase.mjs --since e822504` (plan only) maps any `functions/shared` change to the whole
-  default fleet plus `functions:path-admin`, the conservative release.
+  **Follow the planner:** `node scripts/release-firebase.mjs --since e822504` (plan only) maps the change to the whole
+  default fleet plus `functions:path-admin`. The list above is a reading aid, not the deploy list: the content-upgrade
+  and teacher-repair paths (`lib/assignmentContentVersion.js`, `lib/teacherQuestionRepair.js`) also load shared
+  grading, per the integration review (N4).
 - **Rules**: none. **Indexes**: none.
 - **Content**: the lesson JSON (`teacher-import-jsons/…/T2_L3_Solving_Systems_with_Matrices.json`) is deployed by
   nothing. It reaches classes when a teacher re-imports it. Assignments already published keep their compiled copy,
-  their hints and their grading.
+  their hints and their grading: the nine rewritten hints and `justifySingular` are `fundamental` changes, so a
+  published copy keeps the leaking hints until the teacher re-imports (N3). Teachers of this lesson should re-import.
+  Adding `justifySingular` to a published DOL 3 retires its existing work rather than re-grading it.
 
 ## Decisions for the owner
 
@@ -297,13 +322,16 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
    - On for the repo's three singular items. Make it the default for every singular `solve` item?
    - DOL 3: a wrong read now scores 3 of 5 parts (60 %, was 75 %). Should the decision weigh more, e.g. a part weight?
    - `questionValue` (grade weight) does not count the new step.
-3. **PR-33's "at most two facts".** It accepts substitution (the walkthrough's case and PR 11's) and refuses the
-   answer as rows. It would also refuse an honest row combining all three facts. The literal R-4 (any full-rank system
-   with the solution set) accepts the answer as rows.
+3. **PR-33's "at most n − 1 facts".** It accepts substitution (the walkthrough's case and PR 11's) and refuses the
+   answer as rows at every size. It would also refuse an honest row combining all n facts. The literal R-4 (any
+   full-rank system with the solution set) accepts the answer as rows.
 4. **Hint lint is advisory**, like attempt feedback, so it never hides an assignment. Should a Matrix Lab row leak
    block publishing instead?
-5. **An untouched prefill cannot be checked** (P2-10). Pre-Flight refuses a right `startFrom`, so no real item is
-   affected, but "check whether Nicky is right" items must start wrong.
+5. **An untouched prefill asks before it is checked** (P2-10, S3). Pre-Flight refuses a new right `startFrom`; a
+   published one stays answerable with one extra press.
+8. **The reason panel shows only on `justifySingular` items** (N6). Choosing "No solution" on DOL 2 (no panel) vs
+   DOL 3 (panel) hints that DOL 3 is singular — weak, since the calculator's "no inverse" already says so. Showing it on
+   every none/many choice would ask for work that is not graded on other items; left for you.
 6. The pill now reads "Not yet — see what to fix" (was "…to reconsider").
 7. Spanish entries need a Spanish-speaking teacher's review.
 
@@ -319,9 +347,9 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
 - `src/platform/language/packs/esSupport.js`: the `matrixLabFixes` block.
 - `src/tools/shared/reviews/matrixLabReview.js`: the worked solution submits the singular reason.
 - **Expected conflict with b5** (`claude/pass3-b5-submit-and-finish`): one hunk in `matrixLabUi.jsx` `CheckRow`.
-  b5 wraps the button label in `<SubmitText>`; this branch changes the pill on the next line. Resolve by keeping
-  b5's button line and this branch's pill line (`<ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill>`
-  and its comment). No other wave-4 branch conflicts with this branch's changes.
+  b5 wraps the button label in `<SubmitText>`; this branch changes the button's `onClick` to `press` (the S3 confirm)
+  and the pill on the next line. Resolve with b5's button line using `onClick={press}`, plus this branch's pill line
+  (`<ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill>`) and its comment. No other wave-4 branch conflicts with this branch's changes.
 
 ## Not done
 
@@ -333,3 +361,15 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
   thousands separator in multi-answer fields (P0-1), and the P3 list.
 - The new browser driver is not added to `.github/workflows/student-runtime-browser-gates.yml`. Run it as its header
   says; adding it is the integrator's call.
+
+## Integration review round (S1–S4, notes)
+
+- **S1** (the oracle): fixed as above. Property tests on printed systems (CW 7, CW 9) and mutation S1.
+- **S2**: "at most n − 1 facts"; every 3 × 3 result is unchanged. Tests at 2 × 2 and 4 × 4, mutation S2.
+- **S3**: soft confirm; Pre-Flight's start check uses the hidden rule on a hidden system. Tests and mutations J, S3.
+- **S4**: part-level asserts for the constant (C) and the decision agreement (D); DOL 3's wrong read scores 3 / 5.
+- **N1**: policy chosen and written in `gradeSolve`: the reason must agree with the decision the student chose
+  (carried-error credit for this part only).
+- `toolStatePersistence.js` declares the confirm prompt's `confirmed` state as presentation (the transient-state contract).
+- Re-run on the merged tree (`cbeff6a` in): test:platform, tools, lint, build, build:firebase (tree clean), budget (unchanged), and the drivers matrixLabFeedback, algebra2MatricesLesson, toolPolicyGates, assessmentLeakGates, toolAttemptOutcome, composedOutcomePolicy — all green.
+- **N3, N4, N6**: in "Deploy targets" and decision 8. **N8**: the format message now ends "No try has been used."
