@@ -29,7 +29,7 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
@@ -291,7 +291,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -3251,6 +3251,14 @@ function App() {
     if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
   }, [studentSaveSubject, studentSaveSubjectState]);
   const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  // Unfinished work on this assignment that is not being saved (Batch 3,
+  // draftSaveHealth.js), re-read whenever its health changes. While it
+  // stands, the line does not also say "Draft saved" (saveLineIsAboutDrafts).
+  const studentDraftSaveProblem = draftSaveHealthVersion >= 0
+    ? describeDraftSaveProblems(draftSaveProblemsFor({ studentId: user?.id, assignmentId: activeAssignmentId }))
+    : null;
+  const studentSaveLineShown = studentPersistenceStatus !== 'idle'
+    && !(studentDraftSaveProblem && saveLineIsAboutDrafts({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount }));
   // What the save line says aloud: only when the student must act.
   const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
     ? 'This change was not accepted because the assignment is no longer available.'
@@ -10895,7 +10903,7 @@ function App() {
                 {studentSaveLineAnnouncement}
               </span>
             )}
-            {!preview && studentPersistenceStatus !== 'idle' && (
+            {!preview && studentSaveLineShown && (
               <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 {/* A draft is "Draft saved"; only an answer the student sent
                     is ever "Answer recorded", and only once the server has it
@@ -10916,14 +10924,11 @@ function App() {
                 Storage full, a record the backup refuses, or a backup at its
                 caps: the student is told where the work is and what to do,
                 in one plain sentence, until it is saved again. */}
-            {!preview && draftSaveHealthVersion >= 0 && (() => {
-              const problem = describeDraftSaveProblems(draftSaveProblemsFor({ studentId: user?.id, assignmentId: activeAssignmentId }));
-              return problem ? (
-                <p role="alert" data-draft-save-problem={problem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
-                  {problem.text}
-                </p>
-              ) : null;
-            })()}
+            {!preview && studentDraftSaveProblem && (
+              <p role="alert" data-draft-save-problem={studentDraftSaveProblem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
+                {studentDraftSaveProblem.text}
+              </p>
+            )}
             {!preview && studentReportingError && (
               <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
@@ -11662,6 +11667,7 @@ function App() {
           outboxDepth: studentOutboxDepth,
           pendingGradeCount: studentPendingGradeCount,
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+          draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
         whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}

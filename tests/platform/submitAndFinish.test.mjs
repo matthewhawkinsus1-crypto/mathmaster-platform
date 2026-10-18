@@ -242,7 +242,7 @@ test('the save line: moving between questions saves a draft, and only a sent ans
 
 test('App wires the save line: the model it imports, an answer marked as sent on submit, the line from the model', () => {
   const app = code('src/App.jsx');
-  assert.match(app, /import \{ describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject \} from '\.\/platform\/student\/saveStatusModel\.js';/);
+  assert.match(app, /import \{ describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject(?:, [A-Za-z]+)* \} from '\.\/platform\/student\/saveStatusModel\.js';/);
   assert.match(app, /const studentSaveSubject = nextSaveSubject\(studentSaveSubjectState, \{ type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount \}\);/);
   assert.match(app, /const studentSaveLine = describeRuntimeSaveLine\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject,/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
@@ -258,7 +258,10 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   assert.match(app, /if \(actions\.some\(isGradeBearingAction\)\) markAnswerSent\(\);\s*setStudentPersistenceStatus\('queued'\);/, 'after a reload, a queued answer is an answer');
   assert.match(app, /import \{[^}]*\bisGradeBearingAction\b[^}]*\} from '\.\/platform\/performance\/durableActionOutbox\.js';/);
   assert.match(app, /useEffect\(\(\) => \{\s*setStudentSaveSubject\(initialSaveSubject\(\)\);\s*\}, \[activeAssignmentId, user\?\.id\]\);/, 'per assignment and student');
-  const saveLine = region(app, '{!preview && studentPersistenceStatus !== \'idle\' && (', '</p>', 'the save line');
+  // Shown whenever there is a status (and not as a draft line beside Batch 3's
+  // unsaved-work notice: draftSaveFailureNotice.test.mjs).
+  assert.match(region(app, 'const studentSaveLineShown = ', ';\n', 'when the line shows'), /^const studentSaveLineShown = studentPersistenceStatus !== 'idle'/);
+  const saveLine = region(app, '{!preview && studentSaveLineShown && (', '</p>', 'the save line');
   assert.match(saveLine, /\{studentSaveLine\s*\? studentSaveLine\s*: studentPersistenceStatus === 'rejected'/);
   assert.doesNotMatch(saveLine, /Recorded by MathMaster|Syncing ·/);
   // A routine save is not a second announcement of the result: the shown line
@@ -269,7 +272,7 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   assert.match(region2, /\{studentSaveLineAnnouncement\}/);
   const said = region(app, 'const studentSaveLineAnnouncement = ', ";\n", 'what is said');
   assert.match(said, /\['offline', 'needs-review'\]\.includes\(studentPersistenceStatus\) \? studentSaveLine \|\| '' : ''/);
-  assert.doesNotMatch(said, /volatile/, 'not stored: the question and a toast say it already');
+  assert.doesNotMatch(said, /volatile/, 'not stored: the question\'s alert says it already');
 });
 
 /* ------------------------------------------------------------- RUN-12 */

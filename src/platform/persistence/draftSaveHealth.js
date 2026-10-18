@@ -113,6 +113,13 @@ export const draftSaveProblemsFor = ({ studentId, assignmentId } = {}) => {
   return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
 };
 
+/* Every problem of one student, on any assignment: what Home's status line reads. */
+export const draftSaveProblemsForStudent = (studentId) => {
+  if (!studentId) return Object.fromEntries(KINDS.map((kind) => [kind, 0]));
+  const prefix = `mathmaster:draft:v2::${encodeURIComponent(String(studentId))}:`;
+  return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
+};
+
 export const describeDraftSaveProblems = (counts = snapshot()) => {
   const kind = KINDS.find((each) => Number(counts?.[each]) > 0);
   return kind ? { kind, text: DRAFT_SAVE_PROBLEM_TEXT[kind] } : null;

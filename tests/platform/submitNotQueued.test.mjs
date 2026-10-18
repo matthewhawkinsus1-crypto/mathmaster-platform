@@ -72,7 +72,7 @@ test('App.jsx: a failed queue returns "not submitted", never null', () => {
 });
 
 test('the save line has its own words for an unqueued change, never "saved"', () => {
-  const line = region(app, "{!preview && studentPersistenceStatus !== 'idle' && (", '</p>');
+  const line = region(app, '{!preview && studentSaveLineShown && (', '</p>');
   const volatile = line.match(/studentPersistenceStatus === 'volatile'\s*\?\s*'([^']*)'/)?.[1];
   assert.ok(volatile, 'volatile has a branch of its own');
   assert.match(volatile, /^Not saved/);
