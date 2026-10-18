@@ -234,9 +234,14 @@ after(async () => {
     );
   }
   const FieldValue = (await import('./testCycleCertificationHarness.mjs')).admin.firestore.FieldValue;
-  cleanup.push(db.collection('settings').doc('classSchedule').set({
-    modifiedSchedules: Object.fromEntries([dayKey(-1), todayKey(), dayKey(1)].map((dateKey) => [dateKey, FieldValue.delete()])),
-  }, { merge: true }));
+  // Only this file's periods come out: the schedule document is shared with
+  // the integration files running beside this one (dolExtraTimeServer,
+  // testCycleCertification), and a whole day taken out took their meetings too.
+  const { FieldPath } = (await import('./testCycleCertificationHarness.mjs')).admin.firestore;
+  cleanup.push(db.collection('settings').doc('classSchedule').update(
+    ...[dayKey(-1), todayKey(), dayKey(1), dayKey(3)].flatMap((dateKey) => [PERIOD_A, PERIOD_B, PERIOD_W]
+      .flatMap((period) => [new FieldPath('modifiedSchedules', dateKey, 'periods', period), FieldValue.delete()])),
+  ).catch(() => {}));
   await Promise.allSettled([
     ...cleanup,
     ...families().map((family) => db.collection('pathQuestionBank').doc(family.id).delete()),

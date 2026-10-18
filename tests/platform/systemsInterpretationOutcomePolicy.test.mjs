@@ -304,7 +304,7 @@ test('the interpretation screen asks the gate what a press records and what to s
 });
 
 test('the elimination screen derives classification and readiness from one gate fed by the runtime policy, and submits the record it reads', () => {
-  assert.match(parent, /import \{ useToolRuntimeContext \} from '\.\.\/shared\/ToolRuntimeContext';/);
+  assert.match(parent, /import \{[^}]*\buseToolRuntimeContext\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
   assert.match(parent, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   const gate = region(parent, 'const interpretation = useMemo(() => resolveInterpretationGate({', '}), [', 'interpretation gate');
   assert.match(gate, /\n\s*showImmediateFeedback,/);

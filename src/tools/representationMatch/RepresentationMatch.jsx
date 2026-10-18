@@ -38,6 +38,7 @@ import {
   tableAuditRows,
 } from './representationMath';
 import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS } from './linearCardLabels.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -376,25 +377,25 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           {selectRepresentation('Equation', equation, setEquation)}
           {selectRepresentation('Table', table, setTable)}
           {selectRepresentation('Context', context, setContext)}
-          <button type="button" onClick={check} style={buttonStyle}>Check set</button>
+          <button type="button" onClick={check} style={buttonStyle}><SubmitText>Check set</SubmitText></button>
         </> : null}
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
           <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchKind === card.kind ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
-          <button type="button" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
+          <button type="button" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}><SubmitText>Check mismatch</SubmitText></button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
           <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: badRow === index ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
-          <button type="button" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}>Check row</button>
+          <button type="button" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}><SubmitText>Check row</SubmitText></button>
         </> : null}
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
           <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: graphId === item.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
-          <button type="button" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
+          <button type="button" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}><SubmitText>Check graph</SubmitText></button>
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
@@ -466,7 +467,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               );
             })}
           </div>
-          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check groups</SubmitText></button>
         </div> : null}
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
@@ -494,7 +495,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               </select>
             </label>
           ) : null}
-          <button type="button" onClick={check} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}>Check answer</button>
+          <button type="button" onClick={check} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}><SubmitText>Check answer</SubmitText></button>
         </> : null}
 
         {feedback ? (() => {

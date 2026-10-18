@@ -4,6 +4,7 @@ import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { ResultPill } from '../shared/ToolShell';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
@@ -220,7 +221,7 @@ export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], bloc
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={press} disabled={!enabled} style={primaryStyle(enabled)}>{label}</button>
+        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={press} disabled={!enabled} style={primaryStyle(enabled)}><SubmitText>{label}</SubmitText></button>
         {/* stageCheck: the outcome is drawn below the list, not inside the pill. */}
         {feedback ? <ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill> : null}
       </div>

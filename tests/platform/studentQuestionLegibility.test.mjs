@@ -193,7 +193,8 @@ test('the attempt strip states one fact once', () => {
   assert.doesNotMatch(source, /attempts on this question/);
   assert.doesNotMatch(source, /Variant \{record\.variantIndex/);
   assert.match(source, /mathmaster-question-attempt-strip/);
-  assert.match(source, /tries'\} left/);
+  // The count, in tries (submitCost.triesLeftText, student pass 3).
+  assert.match(source, /: triesLeftText\(\{ maximumAttempts: resolvedMaximumAttempts, remainingAttempts \}\)\}/);
 });
 
 test('every control in the work bar clears the Chromebook touch minimum', () => {

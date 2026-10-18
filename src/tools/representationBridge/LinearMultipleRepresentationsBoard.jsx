@@ -4,7 +4,7 @@ import ToolShell, { AttemptOutcome } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
@@ -1848,7 +1848,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               disabled={questionTerminal}
               style={{ ...primaryButton, minHeight: 48, padding: '10px 22px', fontSize: 'calc(16 * var(--mm-px))', opacity: questionTerminal ? 0.6 : 1 }}
             >
-              Submit board
+              <SubmitText>Submit board</SubmitText>
             </button>
           </div>
 

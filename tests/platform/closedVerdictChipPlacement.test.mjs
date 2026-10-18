@@ -21,7 +21,9 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 const engine = executableSource(read('src/QuestionEngine.jsx'));
 
-const CHIP_LABEL = "aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}";
+// The chip's own class: since student pass 3 it carries no role or label of
+// its own (one announcement per result — the closed card says the verdict).
+const CHIP_LABEL = 'className="mathmaster-closed-verdict"';
 const GATE = '{isExpired && showOutcomeFeedback && (';
 
 // From the chip's own gate to the end of its wording: the whole chip.
@@ -39,7 +41,8 @@ test('the verdict chip is shown only once the question is closed and outcome fee
   // that encloses the chip is exactly "closed (out of attempts) and outcome
   // feedback allowed" — a DOL or an open item never shows it.
   assert.doesNotMatch(block.slice(GATE.length), /\{[^{}]*&&\s*\(/, 'no other condition sits between the gate and the chip');
-  assert.match(block, /role="status"/);
+  // Shown, not announced: the closed card's region says the verdict once.
+  assert.doesNotMatch(block, /role="status"|aria-live/);
   // The region ends at "' — review below' : ''}", so its wording is part of the match.
   assert.match(block, /\{expiredAlmost \? 'Almost' : 'Incorrect'\}\{reviewAvailable && feedbackOpen \? $/);
   // One chip, not a second copy left floating somewhere else.

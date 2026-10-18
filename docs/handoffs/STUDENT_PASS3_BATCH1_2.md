@@ -138,15 +138,15 @@ Launched on 2026-10-16 from `37ec6ce`, each on its own branch:
 Wave 3, launched on 2026-10-16 from `a7dddc7`: seven of its eight sessions are merged (the assignment chrome, getting
 around, the keyboard tools, what tools say and show, Read aloud and Translate, extra time on the exit ticket, D10 Phase 0);
 see [STUDENT_PASS3_WAVE3_INTEGRATION.md](STUDENT_PASS3_WAVE3_INTEGRATION.md) for what the merge changed, its gate, and how
-it ships. Submit and finishing (`claude/pass3-b5-submit-and-finish`) is reviewed and merges with wave 4.
+it ships. Submit and finishing merged with wave 4.
 
-Wave 4, each on its own branch and reviewed: Work View help on phones and exit tickets that keep the method to themselves
-(`claude/pass3-b6-work-view-help`), Test Cycle dates (`claude/pass3-test-cycle-dates`), Live Challenge rounds that always
-finish (`claude/pass3-live-challenge-rounds`) and Systems tools that never strand a student (`claude/pass3-systems-tools`).
-Wave 5 follows on this base: the student first load back within its budget (required before this branch goes to main),
-descriptions for non-graph figures and the VPAT, Matrix Lab feedback, reasons that name the fix, Step Algebra's board and
-equal-unit planes, secure-test answer entry, and the assignment's calculator setting. The D9 word pass and the hint fixes
-come after wave 4.
+Wave 4 is merged, with Submit and finishing and wave 5's first-load session: Work View help on phones and exit tickets
+that keep the method to themselves, Test Cycle dates, Live Challenge rounds that always finish, Systems tools that never
+strand a student, and the student first load back within its budget. See
+[STUDENT_PASS3_WAVE4_INTEGRATION.md](STUDENT_PASS3_WAVE4_INTEGRATION.md). The rest of wave 5 is under review on its own
+branches: descriptions for non-graph figures and the VPAT, Matrix Lab feedback, reasons that name the fix, Step Algebra's
+board and equal-unit planes, secure-test answer entry, and the assignment's calculator setting. The D9 word pass and the
+hint fixes come after wave 5.
 
 ## Left for later
 

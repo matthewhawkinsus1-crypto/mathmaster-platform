@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -120,7 +120,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
             Teacher preview — correct solution: {expectedPieces.length ? expectedPieces.map(formatSolutionPiece).join(' ∪ ') : '∅'}
           </p>
         ) : null}
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check selected intervals</SubmitText></button>
         {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[
@@ -197,7 +197,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           <li>Substitute into the <strong>original</strong> equation, before any squaring.</li>
           <li>Reject any value that squaring introduced.</li>
         </ol>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check candidates</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check candidates</SubmitText></button>
         {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[

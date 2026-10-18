@@ -97,6 +97,13 @@ const attemptOutcome = [
   ['That was the final allowed try ({1} total).', 'Ese fue el último intento permitido ({1} en total).'],
   ['That was your last try ({1} total).', 'Ese fue tu último intento ({1} en total).'],
   ['This response is locked.', 'Esta respuesta está cerrada.'],
+  // The wording of pass 3, Batch 5 (submitCost.js missOutcomeText,
+  // attemptFeedbackPlan.js closedAttemptText): tries, the last one named.
+  ['You have {1} tries left.', 'Te quedan {1} intentos.'],
+  ['You have {1} try left — your last one.', 'Te queda {1} intento: el último.'],
+  ['That was your only try.', 'Ese fue tu único intento.'],
+  ['That was your last try ({1} in all).', 'Ese fue tu último intento ({1} en total).'],
+  ['Your answer is locked.', 'Tu respuesta está cerrada.'],
   ['The worked solution is below.', 'La solución resuelta está abajo.'],
   ['Review it, then request a new question to continue.', 'Revísala y luego pide una pregunta nueva para continuar.'],
   ['Request a new question to continue.', 'Pide una pregunta nueva para continuar.'],

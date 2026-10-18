@@ -16,7 +16,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
@@ -570,7 +570,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             </label>
           )))}
           <button type="button" onClick={check} style={{ marginTop: 14, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 }}>
-            Check my answer
+            <SubmitText>Check my answer</SubmitText>
           </button>
           {feedback ? (
             <div style={{ marginTop: 14 }}>
