@@ -91,7 +91,7 @@ export const CLOSED_WORK = Object.freeze({
   groupLabel: 'Closed — no credit',
   // The workspace banner's heading and sentence.
   bannerTitle: 'Closed — no credit',
-  bannerText: 'Your grade on it stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it.',
+  bannerText: 'Your grade stays as it is. You can keep practicing with feedback; nothing here changes your grade. Your practice is saved, and your teacher can see it.',
   // The button that opens it again.
   tryAgain: 'Try it again — no credit',
   // Beside the grade it keeps.
@@ -121,7 +121,8 @@ export const triesCount = (count) => {
  * What a hint costs, said the same way everywhere one is offered (HELP-17).
  * hintCopy.js offers it as HINT_COST_SENTENCE, beside Recovery's one
  * exception. On an exit ticket, quiz or test no hint is offered at all, so it
- * never appears there. (This module imports nothing: the sign-in page loads it.)
+ * never appears there. (This module imports nothing: the sign-in page loads it,
+ * and with it in the entry chunk Home pays less than for a chunk of its own.)
  */
 export const HINT_COST = 'Hints never lower your score. Your teacher can see you used one.';
 
