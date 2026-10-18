@@ -105,3 +105,15 @@ test('the form is read from the label or prompt, else from the key; when they di
   assert.equal(sameLine('y=-3x+4', 'y=-3x+5'), false);
   assert.equal(sameLine('y=x^2', 'y=x'), false);
 });
+
+test('the ordinary classifier never reads a question graded by another surface (review S5b)', () => {
+  // A registry tool graded on a question whose type is multiAnswer: the
+  // grading names the tool's surface, so the field classifier must stay out.
+  const grading = { graded: true, isCorrect: false, surfaceId: 'graphing2', mode: 'someMode', parts: [{ id: 'eqB2', isComplete: true, isCorrect: false, response: POINT_SLOPE }] };
+  const classified = classifyMisconceptions({ question, response: null, grading });
+  assert.equal(classified.classifier, null);
+  assert.deepEqual(classified.findings, []);
+  // The same parts with the ordinary surface, or with none (the device), are read.
+  assert.equal(classifyMisconceptions({ question, grading: { ...grading, surfaceId: 'multiAnswer', mode: null } }).classifier, 'ordinary:multiAnswer');
+  assert.equal(classifyMisconceptions({ question, grading: { ...grading, surfaceId: undefined, mode: undefined } }).classifier, 'ordinary:multiAnswer');
+});

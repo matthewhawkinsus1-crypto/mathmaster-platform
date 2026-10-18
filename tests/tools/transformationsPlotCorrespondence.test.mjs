@@ -38,7 +38,7 @@ test('every image found, plotted in reverse: the score is unchanged, the feedbac
   assert.equal(graded.isCorrect, false);
   assert.equal(graded.score, 0.2, 'the grade is the grader\'s, unchanged');
   assert.equal(plottedPointCorrespondence({ plotted: reversed, images, spec: resolved.investigationSpec }), 'reordered');
-  assert.equal(message(reversed), 'You found every point. Match each image to its original: S1 to P1, S2 to P2, S3 to P3, and so on. Plot them in that order, or drag each point to its place.');
+  assert.equal(message(reversed), 'You found every image, but not in order. P1 must be the image of S1, P2 the image of S2, and so on. Check which original each of your points came from.');
   // Two swapped is the same finding.
   const swapped = [images[1], images[0], ...images.slice(2)];
   assert.equal(plottedPointCorrespondence({ plotted: swapped, images, spec: resolved.investigationSpec }), 'reordered');
@@ -56,7 +56,12 @@ test('the right line through the wrong points (moved up 3, not left 3): says the
 test('anything else keeps the lab\'s own sentence: a correct plot, a point off the line, a doubled image', () => {
   assert.equal(message(images), null, 'correct');
   assert.equal(message([...images.slice(0, 4), [0, 0]]), null, 'a point off the line');
-  assert.equal(plottedPointCorrespondence({ plotted: [images[0], images[0], ...images.slice(2)], images, spec: resolved.investigationSpec }), 'sameGraph', 'a doubled image is not "every point found"');
+  // A doubled image is not "every point found" (and with points in place it
+  // keeps the lab's count sentence).
+  assert.equal(plottedPointCorrespondence({ plotted: [images[0], images[0], ...images.slice(2)], images, spec: resolved.investigationSpec }), null, 'a doubled image is not "every point found"');
+  // Out of place with one image doubled (and one missing): on the line, none
+  // its own image — "same line", never "every point found".
+  assert.equal(plottedPointCorrespondence({ plotted: [images[1], images[0], images[1], images[4], images[3]], images, spec: resolved.investigationSpec }), 'sameGraph');
   assert.equal(message(images.slice(0, 4)), null, 'not every point plotted');
   assert.equal(correspondenceList(2), 'S1 to P1, S2 to P2');
 });
@@ -67,4 +72,26 @@ test('the lab uses it on a plot miss, and its order hint says P1 is S1\'s image'
   assert.match(plotBranch, /const correspondence = plotTransformMissMessage\(\{ plotted: feedback\.response\?\.plottedPoints, images: expectedTransformedPoints/);
   assert.match(plotBranch, /if \(correspondence\) return correspondence;/);
   assert.match(source, /'plotTransform': \[[^\]]*Order matters: P1 is the image of S1/);
+});
+
+test('some images already in place: the lab keeps its count sentence, never "not the images of their own points" (review S2)', () => {
+  // Four in place, the fifth slid along the line (score 0.8); three in place, two slid.
+  const slid = ([x, y]) => [x + 1, y + 1];
+  const fourOfFive = [...images.slice(0, 4), slid(images[4])];
+  const threeOfFive = [...images.slice(0, 3), slid(images[3]), slid(images[4])];
+  assert.equal(grade(fourOfFive).score, 0.8);
+  assert.equal(grade(threeOfFive).score, 0.6);
+  [fourOfFive, threeOfFive].forEach((plotted) => {
+    assert.equal(plottedPointCorrespondence({ plotted, images, spec: resolved.investigationSpec }), null);
+    assert.equal(message(plotted), null, 'the lab says "N of 5 defining points are in the correct transformed locations…"');
+  });
+});
+
+test('"the right line" is only said of the graph the student was shown: images off it are never "same graph" (review S5d)', () => {
+  // Source points that are not on the parent f(x) = x: their images are not on
+  // t(x) either, so a plot along t(x) is not "the right line".
+  const offSource = [[0, 5], [1, 7]];
+  const offImages = transformedSourcePoints(offSource, resolved.investigationSpec);
+  const alongT = [[0, 3], [1, 4]];
+  assert.equal(plottedPointCorrespondence({ plotted: alongT, images: offImages, spec: resolved.investigationSpec }), null);
 });

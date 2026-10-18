@@ -53,10 +53,18 @@ const toolCase = (name, toolId, question, work, expected) => {
 };
 
 /** One multiAnswer equation field, labelled, keyed and answered. */
-const lineFormCase = (name, label, answer, typed, expected) => ({
+const lineFormCase = (name, label, answer, typed, expected, { prompt = 'A line is shown.', accepted = undefined, before = null } = {}) => ({
   name,
-  question: { type: 'multiAnswer', prompt: 'A line is shown.', answerFields: [{ id: 'eq', label, answer, inputProfile: 'equation' }] },
-  response: fieldsResponse({ eq: typed }),
+  question: {
+    type: 'multiAnswer',
+    prompt,
+    answerFields: [
+      // An earlier, answered field, so the prompt is not this field's alone.
+      ...(before ? [{ id: 'first', label: before.label, answer: before.answer, inputProfile: 'equation' }] : []),
+      { id: 'eq', label, answer, ...(accepted ? { acceptedAnswers: accepted } : {}), inputProfile: 'equation' },
+    ],
+  },
+  response: fieldsResponse({ ...(before ? { first: before.typed ?? before.answer } : {}), eq: typed }),
   familyValues: null,
   expected,
 });
@@ -204,6 +212,25 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   lineFormCase('line form: the asked form, wrong line, is not named', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y=-3x+4', []),
   lineFormCase('line form: label and key disagree, so the form is not named', 'Equation in standard form', 'y=-3x+5', 'y-5=-3(x-0)', []),
   lineFormCase('line form: a multiple in standard form is not a wrong form', 'Equation in standard form', '3x+y=5', '6x+2y=10', []),
+  // Review S1: a vertical line has no y = mx + b form, and another field's
+  // instruction in the prompt is not this field's.
+  lineFormCase('line form: a vertical line is not told to use slope-intercept form', 'Vertical line through (4, 1)', 'x=4', 'x-4=0', [], {
+    prompt: 'Write line A in slope-intercept form. Then write the equation of the vertical line through (4, 1).',
+    before: { label: 'Line A', answer: 'y=2x+1' },
+  }),
+  lineFormCase('line form: a vertical line, one field, slope-intercept asked: not named', 'Equation', 'x=4', 'x-4=0', [], { prompt: 'Write the equation in slope-intercept form.' }),
+  lineFormCase('line form: one field, the prompt names the form', 'Equation', 'y=2x+1', 'y-1=2(x-0)', ['line-wrong-form-slope-intercept'], { prompt: 'Write the line in slope-intercept form.' }),
+  lineFormCase('line form: two fields, the prompt names another field\'s form, the key\'s form decides', 'Line B', 'y=2x+1', 'y-1=2(x-0)', ['line-wrong-form-slope-intercept'], {
+    prompt: 'Write line A in standard form.',
+    before: { label: 'Line A', answer: '3x+y=5' },
+  }),
+  // Review S5a: a CORRECT field written in another accepted form is never classified.
+  // Another field is wrong, so the question is graded wrong and the
+  // classifier runs: only the per-part gate keeps the correct field out.
+  lineFormCase('line form: an accepted alternate form is correct, not named', 'Equation of the line', 'y=-3x+5', '3x+y=5', [], {
+    accepted: ['3x+y=5'],
+    before: { label: 'Slope', answer: '-3', typed: '3' },
+  }),
 ]);
 
 /*

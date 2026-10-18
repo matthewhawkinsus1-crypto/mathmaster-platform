@@ -25,7 +25,9 @@ export const plotTransformMissMessage = ({ plotted = [], images = [], spec = {},
   const count = images.length;
   const correspondence = plottedPointCorrespondence({ plotted, images, spec });
   if (correspondence === 'reordered') {
-    return `You found every point. Match each image to its original: ${correspondenceList(count)}. Plot them in that order, or drag each point to its place.`;
+    return count > 2
+      ? 'You found every image, but not in order. P1 must be the image of S1, P2 the image of S2, and so on. Check which original each of your points came from.'
+      : 'You found every image, but not in order. P1 must be the image of S1, and P2 the image of S2. Check which original each of your points came from.';
   }
   if (correspondence === 'sameGraph') {
     const graph = family === 'linear' ? 'line' : 'graph';

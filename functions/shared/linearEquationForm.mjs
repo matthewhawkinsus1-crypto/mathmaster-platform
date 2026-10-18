@@ -79,6 +79,12 @@ export const sameLine = (first, second) => {
   return true;
 };
 
+/** A vertical line (x = c): it has no y term, so it has no y = mx + b form. */
+export const isVerticalLine = (value) => {
+  const coefficients = lineCoefficients(value);
+  return Boolean(coefficients) && Math.abs(coefficients[1]) < EPSILON;
+};
+
 const bareY = (side) => /^\s*y\s*$/i.test(text(side).replace(/\\left|\\right|[{}]/g, ''));
 const has = (poly, key) => Math.abs(coefficient(poly, key)) > EPSILON;
 const onlyConstant = (poly) => !has(poly, 'x') && !has(poly, 'y');

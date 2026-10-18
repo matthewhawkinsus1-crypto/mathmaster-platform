@@ -43,7 +43,7 @@
  * only the helpers each grader itself uses to read the same work.
  */
 import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
-import { LINE_FORMS, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
+import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
 import { lineFeatureKey } from './serverGrading/tools/graphing.mjs';
@@ -835,11 +835,19 @@ const LINE_FORM_CODES = Object.freeze({
   [LINE_FORMS.STANDARD]: 'line-wrong-form-standard',
 });
 
+// The field's own words first; the question's prompt only when this is its
+// one answer field (a prompt asking for "slope-intercept form" for line A
+// says nothing about the vertical line in the next box). A form the key's
+// line cannot take — a vertical line has no slope — is never named.
 const fieldLineForm = (question, field) => {
-  const asked = requestedLineForm([field?.label, field?.prompt, field?.placeholder, field?.instructions, question?.prompt]);
-  const keyForm = writtenLineForm(answerCandidatesForField(field)[0]);
+  const onlyField = list(question?.answerFields).filter((entry) => entry?.id).length === 1;
+  const asked = requestedLineForm([field?.label, field?.prompt, field?.placeholder, field?.instructions, ...(onlyField ? [question?.prompt] : [])]);
+  const key = answerCandidatesForField(field)[0];
+  const keyForm = writtenLineForm(key);
   if (asked && keyForm && asked !== keyForm) return null;
-  return asked || keyForm;
+  const form = asked || keyForm;
+  if (isVerticalLine(key) && (form === LINE_FORMS.SLOPE_INTERCEPT || form === LINE_FORMS.POINT_SLOPE)) return null;
+  return form;
 };
 
 const multiAnswerLineFormFindings = ({ question, grading }) => {
