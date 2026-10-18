@@ -46,13 +46,34 @@ test("a secure Rich Tool item's own tray offers the student's secure supports, V
   assert.match(entitlement, /const entitlement = secureAccessEntitlement\(rawStudentSupportProfile\);/);
   // Every secure tool the plan grants on a test — Vocabulary included, so a
   // glossary accommodation reaches tool items — and the glossary's examples off.
-  assert.match(entitlement, /return \{ tools: entitlement\.tools, language: entitlement\.language, showExamples: false \};/);
+  // …and the PROMPT's words only, never the tool's own list (H-16 review B2).
+  assert.match(entitlement, /return \{ tools: entitlement\.tools, language: entitlement\.language, showExamples: false, promptTermsOnly: true \};/);
   assert.doesNotMatch(executableSource(entitlement), /filter\(/, 'no tool is taken away from the plan\'s secure set');
   const tool = region(runtime, 'const ToolItem = (', '\n};\n', 'ToolItem');
   assert.match(tool, /\(\) => \(policy\.secure \? secureToolTrayEntitlement\(rawStudentSupportProfile\) : null\)/);
   assert.match(region(tool, '<QuestionEngine', '/>', 'engine props'), /supportEntitlement=\{trayEntitlement\}/);
   const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
   assert.match(region(root, '<ToolItem', '/>', 'ToolItem props'), /rawStudentSupportProfile=\{studentSupportProfile\}/);
+});
+
+test('a secure tool item\'s Vocabulary lists the prompt\'s words, never the tool\'s method words (H-16 review B2)', async () => {
+  const { supportToolsForItem } = await import('../../src/platform/language/supportToolsModel.js');
+  // The entitlement RichQuestionRuntime hands the engine on a secure tool item.
+  const secure = { tools: ['vocabulary'], language: null, showExamples: false, promptTermsOnly: true };
+  const METHOD = ['distribute', 'inverse-operation', 'like-terms', 'elimination', 'substitution', 'dashed', 'solid', 'shade', 'boundary'];
+  for (const [prompt, toolType] of [
+    ['Solve $3(x+2)=18$.', 'stepAlgebra'],
+    ['Solve the system $x+y=5$ and $x-y=1$.', 'systemsWorkspace'],
+    ['Graph $y<2x-3$.', 'graphing2'],
+  ]) {
+    const terms = supportToolsForItem({ entitlement: secure, prompt, toolType }).tools[0].termIds;
+    assert.deepEqual(terms.filter((id) => METHOD.includes(id)), [], `${toolType}: ${terms.join(', ')}`);
+    // A practice surface keeps the tool's words.
+    const practice = supportToolsForItem({ entitlement: { tools: ['vocabulary'], language: null }, prompt, toolType }).tools[0].termIds;
+    assert.ok(practice.some((id) => METHOD.includes(id)), `${toolType}: practice keeps its tool words`);
+  }
+  // The prompt's own words stay.
+  assert.ok(supportToolsForItem({ entitlement: secure, prompt: 'Graph $y<2x-3$.', toolType: 'graphing2' }).tools[0].termIds.includes('graph'));
 });
 
 test('the engine tray\'s Vocabulary panel leaves the examples out when the entitlement says so (H-16)', () => {

@@ -244,6 +244,10 @@ const supportsJourney = async (context, device) => {
     const panel = await page.locator('[data-support-panel="vocabulary"]').first().innerText();
     const terms = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').count();
     check(terms > 0, label('the panel lists terms with their definitions'), `${terms} terms`);
+    // The prompt's words only: the interval tool's own list ("boundary") would
+    // define its method (H-16 review B2).
+    const termIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyTerm));
+    check(!termIds.includes('boundary'), label('only the prompt\'s words, not the tool\'s'), termIds.join(', '));
     check(!/Example/i.test(panel), label('no worked example on a test'), panel.slice(0, 200));
     check(/·/.test(panel), label('the Spanish term is beside the English one'), panel.slice(0, 120));
     // A definition may use the word "solution"; what matters is that none

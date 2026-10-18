@@ -250,16 +250,18 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  * On a secure Rich Tool item the engine's own support tray offers what a
  * secure item allows — Read aloud, Translate and Vocabulary, from the
  * student's own plan for a test — and nothing else: no Break it down and no
- * Help me say it. Vocabulary shows each term's definition WITHOUT the
- * glossary's worked example (`showExamples: false`, read by the tray's
- * Vocabulary panel): an example applies the word, and can apply it to exactly
- * what the item asks. A student with a glossary accommodation kept the terms
+ * Help me say it. Vocabulary lists the PROMPT's words only
+ * (`promptTermsOnly`: a tool's own word list — distribute, elimination,
+ * shade — defines its method), each with its definition and WITHOUT the
+ * glossary's worked example (`showExamples: false`): an example applies the
+ * word, and can apply it to exactly what the item asks. Both match the secure
+ * field item's tray. A student with a glossary accommodation kept the terms
  * on a field item but lost them on a tool item (student pass 3, H-16). A
  * practice surface keeps its tray, examples included.
  */
 const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   const entitlement = secureAccessEntitlement(rawStudentSupportProfile);
-  return { tools: entitlement.tools, language: entitlement.language, showExamples: false };
+  return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
 const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
