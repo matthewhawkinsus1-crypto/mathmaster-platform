@@ -214,7 +214,16 @@ A match is a warning in the existing "Hints that give the answer" panel (`questi
 | --- | --- |
 Round 1 (on the merged head, after the review fixes):
 
-GATE_ROUND1
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,784 / 11,784 pass |
+| `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail, 1 skipped (pre-existing) |
+| `npm run test:authoring-v5` | 686 / 686 |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | within baseline; **studentHome 847.2 KB gzip in 186 files** |
+| Browser, plain Vite on 5199, one at a time | `hintsThatFit`, `assessmentLeakGates` (all surfaces), `toolPolicyGates`, `feedbackTeaches`, `afterLastMiss`, `composedOutcomePolicy`, `workViewHelpReach`, `readAloudTranslate`: all pass, 0 failures |
+| Browser, teacher harness on 5188 | `teacherWorkflow/askMyTeacherJourneys`: 58 checks passed |
+| Content sweep, base `3cb782a9` against the head | 11 verdict changes (above); none of the newly shown hints states an answer |
 
 Before the review (at `dde646de`):
 
