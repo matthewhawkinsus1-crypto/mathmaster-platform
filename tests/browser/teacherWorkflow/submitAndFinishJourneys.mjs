@@ -83,7 +83,25 @@ const submit = async (page) => {
   await settle(page, 1200);
 };
 const goTo = async (page, label) => {
-  await page.locator('select').filter({ has: page.locator('option', { hasText: label }) }).first().selectOption({ label });
+  // The assignment chrome (pass 3): the visible question picker, or on a phone,
+  // whose compact navigator has none, "Show progress", the section's tab and
+  // its numbered question ("Practice question 2: …"), closed again after.
+  const picker = page.locator('select[aria-label="Choose a question"]:visible').filter({ has: page.locator('option', { hasText: label }) });
+  if (await picker.count()) {
+    await picker.first().selectOption({ label });
+  } else {
+    const [section, number] = label.split(' Q');
+    const toggle = page.locator('.mathmaster-focus-view-button:visible').first();
+    await toggle.click();
+    const question = page.getByRole('button', { name: new RegExp(`^${section} question ${number}:`) }).first();
+    if (!(await question.count())) {
+      await page.locator('.mathmaster-section-tab:visible', { hasText: section }).first().click();
+      await settle(page, 600);
+    }
+    await question.click();
+    await settle(page, 300);
+    if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click();
+  }
   await page.locator('math-field').first().waitFor({ timeout: 15000 });
   await settle(page, 900);
 };
