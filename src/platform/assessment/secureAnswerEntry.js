@@ -86,6 +86,9 @@ const formatWords = (format) => clean(format).replace(/([a-z])([A-Z])/g, '$1 $2'
 /*
  * Keys a profile adds on a secure item, identical on every item of it.
  *
+ *   number       √ and π: a number answer can be 2√3 or 3π/4, and a key on
+ *                one number box but not the next would say which answers
+ *                have one (decided in the H-13 review; the owner can reverse).
  *   orderedPair  √ and π, which the pair keypad lacks and a coordinate can
  *                hold; the text box this replaces took `sqrt(3)` too.
  *   inequality   a fraction, |x|, a power, √ and π, and "and" / "or" for a
@@ -109,6 +112,7 @@ const tool = (label, command, ariaLabel) => Object.freeze({ label, command, aria
 const ROOT_KEY = tool('√', '\\sqrt{#0}', 'Insert square root');
 const PI_KEY = tool('π', '\\pi', 'Insert pi');
 export const SECURE_PROFILE_KEYS = Object.freeze({
+  number: Object.freeze([ROOT_KEY, PI_KEY]),
   orderedPair: Object.freeze([ROOT_KEY, PI_KEY]),
   inequality: Object.freeze([
     tool('a⁄b', '\\frac{#0}{#?}', 'Insert stacked fraction'),

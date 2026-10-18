@@ -241,6 +241,10 @@ export default function MathInput({
   // secureAnswerEntry.js). Unlike `requiredSymbols`, nothing here appears in
   // the "Needed for this answer" row, which on a test would hint at the answer.
   extraKeys = EMPTY_KEYS,
+  // Never name a symbol the field needs (a secure test item): a symbol no key
+  // types still keeps the phone's own keyboard, but "Additional symbol
+  // needed: …" would tell a student about the answer.
+  hideNeededSymbols = false,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -697,7 +701,7 @@ export default function MathInput({
         </div>
       )}
 
-      {isMobile && unservedRequiredSymbols.length > 0 && (
+      {isMobile && !hideNeededSymbols && unservedRequiredSymbols.length > 0 && (
         <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>
           Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
         </div>

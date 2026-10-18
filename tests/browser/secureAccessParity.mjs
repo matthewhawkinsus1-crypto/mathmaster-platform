@@ -475,6 +475,12 @@ for (const device of DEVICES) {
         expectKeys.filter((label) => !all.includes(label)).forEach((label) => problems.push(`${field.inputProfile}: no ${label} key on the phone keypad`));
         if (rich.inputMode !== 'none') problems.push(`${field.inputProfile}: the phone math field asks for a keyboard (${rich.inputMode})`);
       }
+      // A symbol no key types (°) keeps the phone's own keyboard, and the
+      // field never says "Additional symbol needed: °" (H-13 review S2).
+      const unserved = await keypadFor({ inputProfile: 'number', requiredSymbols: ['°'] });
+      if (unserved.inputMode === 'none') problems.push('number naming °: the phone keyboard is shut, with no key for it');
+      const caption = await page.evaluate(() => /Additional symbol needed|Needed for this answer/.test(document.querySelector('[data-secure-answer-editor]')?.closest('fieldset')?.innerText || ''));
+      if (caption) problems.push('number naming °: the field names a symbol the answer needs');
       await keypadFor({ inputProfile: 'inequality' }, H_PROMPT.prompt);
       await shot(page, device, 'answer-inequality-keypad');
     }

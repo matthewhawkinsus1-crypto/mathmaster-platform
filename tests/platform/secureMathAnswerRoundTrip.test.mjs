@@ -234,24 +234,28 @@ test('a field naming π, √, % or $ gets the math editor; π and √ are keys i
   assert.equal(await grades('25', '25%'), true);
   assert.equal(await grades('25.50', '$25.50'), true);
   const labels = (entry) => entry.keys.map((key) => key.label);
-  for (const [field, expected] of [
-    [{ inputProfile: 'number', requiredSymbols: ['π'] }, ['π']],
-    [{ inputProfile: 'number', requiredSymbols: ['pi'] }, ['π']],
-    [{ inputProfile: 'number', requiredSymbols: ['\\sqrt'] }, ['√']],
-    [{ inputProfile: 'number', answerFormat: 'exactPi' }, ['π']],
-    [{ inputProfile: 'number', answerFormat: 'simplest radical' }, ['√']],
-    [{ inputProfile: 'number', requiredSymbols: ['%'] }, []],
-    [{ inputProfile: 'number', answerFormat: 'currency' }, []],
-    [{ inputProfile: 'set', inputContract: { requiredSymbols: ['π'] } }, ['π']],
+  // A NUMBER field has √ and π whatever its metadata says (H-13 review S3):
+  // a key on one number box but not the next would say which answers have
+  // one. Metadata adds only what the profile lacks.
+  const numberKeys = labels(secureAnswerEntryFor({ inputProfile: 'number' }));
+  assert.deepEqual(numberKeys, ['√', 'π']);
+  for (const field of [
+    { inputProfile: 'number', requiredSymbols: ['π'] },
+    { inputProfile: 'number', requiredSymbols: ['pi'] },
+    { inputProfile: 'number', requiredSymbols: ['\\sqrt'] },
+    { inputProfile: 'number', answerFormat: 'exactPi' },
+    { inputProfile: 'number', answerFormat: 'simplest radical' },
+    { inputProfile: 'number', requiredSymbols: ['%'] },
+    { inputProfile: 'number', answerFormat: 'currency' },
+    ...['orderedPair', 'piecewise', 'interval', 'fraction', ''].map((answerFormat) => ({ inputProfile: 'number', answerFormat })),
   ]) {
     const entry = secureAnswerEntryFor(field);
     assert.equal(entry.editor, SECURE_ANSWER_EDITORS.MATH, JSON.stringify(field));
-    assert.deepEqual(labels(entry), expected, JSON.stringify(field));
+    assert.deepEqual(labels(entry), numberKeys, `${JSON.stringify(field)}: the same keys as every number field`);
   }
-  // Whole words only: these formats name none of them.
-  for (const answerFormat of ['orderedPair', 'piecewise', 'interval', 'fraction', '']) {
-    assert.deepEqual(labels(secureAnswerEntryFor({ inputProfile: 'number', answerFormat })), [], answerFormat || '(none)');
-  }
+  // A set has no π or √ of its own: a field that names one gets the key.
+  assert.deepEqual(labels(secureAnswerEntryFor({ inputProfile: 'set', inputContract: { requiredSymbols: ['π'] } })), ['π']);
+  assert.deepEqual(labels(secureAnswerEntryFor({ inputProfile: 'set' })), []);
 });
 
 test('the keypad says nothing about the answer: nothing captioned "Needed for this answer", keys the same on every item of a profile', () => {
@@ -260,7 +264,7 @@ test('the keypad says nothing about the answer: nothing captioned "Needed for th
   // own keyboard stays), and those show no key.
   const named = secureAnswerEntryFor({ inputProfile: 'number', requiredSymbols: ['a⁄b', 'π', '−', '°'] });
   assert.deepEqual(named.unservedSymbols, ['°']);
-  assert.deepEqual(named.keys.map((key) => key.label), ['a⁄b', 'π', '−']);
+  assert.deepEqual(named.keys.map((key) => key.label), ['√', 'π', 'a⁄b', '−']);
   for (const profile of SECURE_MATH_EDITOR_PROFILES) {
     assert.deepEqual(secureAnswerEntryFor({ inputProfile: profile }).unservedSymbols, [], profile);
   }

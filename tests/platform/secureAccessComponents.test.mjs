@@ -37,6 +37,12 @@ test('the keypad says nothing about the answer: no symbol captioned "Needed for 
   assert.match(input, /\n\s*requiredSymbols=\{entry\.unservedSymbols\}/);
   assert.match(input, /\n\s*extraKeys=\{entry\.keys\}/);
   assert.doesNotMatch(executableSource(math), /requiredSymbols=\{entry\.(?:requiredSymbols|keys)/);
+  // …and never names a symbol it needs (H-13 review S2): the phone keeps its
+  // own keyboard for an unserved symbol, without "Additional symbol needed".
+  assert.match(input, /\n\s*hideNeededSymbols\n/);
+  const mathInput = read('src/MathInput.jsx');
+  assert.match(mathInput, /\{isMobile && !hideNeededSymbols && unservedRequiredSymbols\.length > 0 && \(/);
+  assert.match(mathInput, /\n\s*hideNeededSymbols = false,\n/);
 });
 
 test('what the editor holds is what is passed up — unchanged, and never while the answer is held', () => {

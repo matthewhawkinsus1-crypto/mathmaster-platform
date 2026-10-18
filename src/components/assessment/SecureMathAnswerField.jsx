@@ -152,6 +152,7 @@ function MathEditor({ entry, value, emit, readOnly, readOnlyRef, autoFocus, labe
         // keys go into the keypad itself. A symbol no key types is passed on
         // only so MathInput keeps the phone's own keyboard for it.
         requiredSymbols={entry.unservedSymbols}
+        hideNeededSymbols
         extraKeys={entry.keys}
         ariaLabel={label}
         focusSignal={autoFocus ? 1 : 0}
