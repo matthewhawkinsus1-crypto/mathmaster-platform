@@ -91,7 +91,11 @@ test('QuestionEngine refreshes a paused tab from the saved work when its record 
   const afterGuard = body.slice(guard);
   assert.match(afterGuard, /setQuestionResetVersion\(/, 'the response module must remount to re-read the saved work');
   assert.match(afterGuard, /setAnswerState\(\s*EMPTY_ANSWER_STATE\s*\)/, 'the answer this tab held must be dropped');
-  assert.match(engine, /<QuestionModuleBoundary[\s\S]{0,200}?key=\{`[^`]*\$\{questionResetVersion\}/, 'the reset version must be part of the module key, or the bump remounts nothing');
+  // The key is named once (moduleBoundaryKey) so the module's failure can be
+  // held for that module alone (student pass 3, Batch 5 review).
+  const boundaryKey = engine.match(/<QuestionModuleBoundary[\s\S]{0,200}?key=\{(\w+)\}/);
+  assert.ok(boundaryKey, 'the module boundary must be keyed');
+  assert.match(engine, new RegExp(`const\\s+${boundaryKey[1]}\\s*=\\s*\`[^\`]*\\$\\{questionResetVersion\\}`), 'the reset version must be part of the module key, or the bump remounts nothing');
 });
 
 test('the refresh never saves, submits, checkpoints or takes back the question', () => {

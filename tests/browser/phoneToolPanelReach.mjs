@@ -51,8 +51,13 @@ const gridPoint = (page, x, y) => page.evaluate(([x, y]) => {
 
 // Scroll a control into view as the browser would, then report what a tap at
 // its centre would land on.
+// The tool's final action spends a try, so it reads "Submit — uses 1 of 3
+// tries" (student pass 3, D9) where it once read "Check construction" or
+// "Check graph": it is found by that, among the buttons a student can see.
 const reach = (page, label) => page.evaluate((label) => {
-  const button = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === label);
+  const shown = (b) => b.getClientRects().length > 0 && getComputedStyle(b).visibility !== 'hidden';
+  const button = [...document.querySelectorAll('button')].find((b) => shown(b) && /^Submit — /.test(b.innerText.trim()))
+    || [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === label);
   if (!button) return { found: false };
   button.scrollIntoView({ block: 'center' });
   const r = button.getBoundingClientRect();

@@ -11,7 +11,9 @@
  *     the Test included) — and while the Test is ahead too, so "what happens
  *     if I am absent?" has an answer on the card;
  *   - neither once the cycle is finished for them: a closing time is not news
- *     to a student who passed.
+ *     to a student who passed;
+ *   - not the home window while their Test is still ahead and its day is
+ *     stranded (waiting for a new day): nothing there is open to them yet.
  *
  * A cycle with no window set shows nothing: nothing is enforced, and a card
  * that announced "no window" to every student would be noise.
@@ -44,7 +46,12 @@ export const studentScheduleBlocks = (card) => {
     && !missed && [...TEST_AHEAD, TEST_CYCLE_STAGE.AWAITING_RELEASE].includes(card.stage)
     && card.stage !== TEST_CYCLE_STAGE.AWAITING_RELEASE;
   if (testShown) blocks.push(block('test', 'Test', schedule.test));
-  if (schedule.followUp?.enforced) {
+  // While this student's Test is still ahead and its day is stranded, the
+  // home window (open for whoever did sit it) is nothing to them yet: saying
+  // "Corrections and Retest: open now" beside "Waiting for a new Test day"
+  // would tell them something is open that is not.
+  const testAheadStranded = !missed && TEST_AHEAD.includes(card.stage) && schedule.test?.stranded === true;
+  if (schedule.followUp?.enforced && !testAheadStranded) {
     blocks.push(block(
       'followUp',
       missed ? 'Retest' : 'Corrections and Retest',

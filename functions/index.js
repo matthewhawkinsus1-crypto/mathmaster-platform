@@ -4555,6 +4555,8 @@ exports.createStudentAccount = onCall(async (request) => {
       "The student account could not be created. The server logged the exact cause so it can be diagnosed without guessing.",
     );
   }
+  // A student created straight into a class whose Live Challenge is on.
+  if (membership.classId || assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
 
   return {
     studentId,
@@ -4596,6 +4598,7 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
+  if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return { studentId, assignedTeacherEmail, classPeriod };
 });
 
@@ -6542,6 +6545,9 @@ exports.setStudentClass = onCall(async (request) => {
     teacherOfRecord: classRecord?.teacherOfRecord || null,
     reauthorized,
   });
+  // The new class's Live Challenge, if one is on (lobby or running) — after
+  // the audit, so nothing it waits on can come between the move and its record.
+  if (classRecord) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return {
     studentId,
     classId: classRecord?.classId || null,
@@ -10875,7 +10881,7 @@ async function graphFeatureRushRules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10891,9 +10897,10 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
       import("./shared/liveChallengePlayerSummary.mjs"),
+      import("./shared/liveChallengeServerSweep.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep,
     };
   }
   return liveChallengeEngineModules;
@@ -11265,6 +11272,123 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
     ownedInvites.slice(start, start + 450).forEach((invite) => batch.set(invite.ref, fields, { merge: true }));
     // eslint-disable-next-line no-await-in-loop
     await batch.commit();
+  }
+}
+
+/*
+ * A STUDENT ADDED TO A CLASS WHILE ITS GAME IS ON.
+ *
+ * createLiveChallenge invites the class as it stands at create time. A student
+ * enrolled after that sat the game out until the next one. Now the roster
+ * change itself invites them into the class's game while it is still in its
+ * lobby or running, exactly as if they had been on the roster and arrived
+ * late (live-challenge-shell.md §10): the next seat and code name, an invite
+ * their screen follows at once, and joinLiveChallenge's late-join rule —
+ * they play from the round that is open now, and no round that closed
+ * before is counted against them. Grand Prix sizes each round's field from
+ * who played it, so a late player changes nobody's earlier rounds.
+ *
+ * Never takes a student out of another game: an invite to a different room
+ * that is still live is left alone. Only a game active in the last 12 hours.
+ * Never fails the roster change.
+ */
+// A game idle longer than this is not "on" for a newly enrolled student.
+const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+async function inviteStudentToClassLiveChallenge(db, studentId) {
+  const id = String(studentId || "").trim();
+  if (!id) return { invited: false, reason: "no_student" };
+  const challenge = await liveChallengeRules();
+  const gradeRef = db.collection("grades").doc(id);
+  const gradeSnapshot = await gradeRef.get();
+  const grade = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+  const teacherEmail = String(grade?.assignedTeacherEmail || "").trim().toLowerCase();
+  if (!teacherEmail) return { invited: false, reason: "no_teacher" };
+  // One active room per teacher: the pointer names it.
+  const pointer = await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail).get();
+  const roomId = String(pointer.data()?.roomId || "").trim();
+  if (!roomId) return { invited: false, reason: "no_game" };
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const playerRef = privateRef.collection("players").doc(id);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(id);
+  const live = (status) => [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(status);
+  return db.runTransaction(async (transaction) => {
+    const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot, latestGrade] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privateRef), transaction.get(playerRef), transaction.get(inviteRef), transaction.get(gradeRef),
+    ]);
+    if (!roomSnapshot.exists || !privateSnapshot.exists) return { invited: false, reason: "no_game" };
+    const room = roomSnapshot.data() || {};
+    const student = latestGrade.data() || {};
+    if (!live(room.status) || room.teacherEmail !== teacherEmail) return { invited: false, reason: "no_game" };
+    // Today's game, not a lobby left open since yesterday: measured from the
+    // room's latest activity — its round's start, its last change — so a game
+    // created last night and started this morning is today's.
+    const activeMs = Math.max(
+      ...[room.createdAt, room.updatedAt, room.startsAt, room.roundStartedAt, room.roundClosedAt]
+        .map((value) => toDate(value)?.getTime() ?? 0),
+    );
+    if (Date.now() - activeMs > LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS) return { invited: false, reason: "stale_game" };
+    // The same membership rule as loadChallengeRoster.
+    const inClass = room.classId
+      ? String(student.classId || "") === String(room.classId)
+      : Boolean(room.classPeriod) && !student.classId && String(student.classPeriod || "") === String(room.classPeriod);
+    if (!inClass || String(student.assignedTeacherEmail || "").trim().toLowerCase() !== teacherEmail) {
+      return { invited: false, reason: "not_in_class" };
+    }
+    if (playerSnapshot.exists) return { invited: false, reason: "already_invited", roomId };
+    const otherRoomId = inviteSnapshot.exists ? String(inviteSnapshot.data()?.roomId || "") : "";
+    if (otherRoomId && otherRoomId !== roomId) {
+      const otherRoom = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      if (otherRoom.exists && live(otherRoom.data()?.status)) return { invited: false, reason: "in_another_game" };
+    }
+    // The next seat, and its code name from the room's own seed — the one
+    // createLiveChallenge would have given the next student.
+    const slot = Math.max(0, Number(room.eligibleCount) || 0);
+    const aliasSeed = parseInt(crypto.createHash("sha256").update(roomId).digest("hex").slice(0, 6), 16);
+    const player = { playerKey: crypto.randomUUID(), slot, alias: challenge.challengeAlias(slot, aliasSeed) };
+    transaction.set(playerRef, {
+      ...player,
+      joined: false,
+      score: 0,
+      correctCount: 0,
+      roundsAnswered: 0,
+      streak: 0,
+      answeredRound: -1,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(inviteRef, {
+      roomId,
+      title: room.title || null,
+      teacherEmail,
+      assignmentId: room.assignmentId || null,
+      classId: room.classId || null,
+      classPeriod: room.classPeriod || null,
+      className: room.className || null,
+      courseId: room.courseId || null,
+      alias: player.alias,
+      playerKey: player.playerKey,
+      slot,
+      // A running game's invites say so (startLiveChallenge set the rest).
+      status: room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING ? "running" : "invited",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    // The console's "Joined X of N" and its roster read follow the class.
+    transaction.set(roomRef, { eligibleCount: slot + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { invited: true, roomId, status: room.status };
+  });
+}
+
+/** After a roster change: invite the student to their class's game, if one is on. Never throws. */
+async function inviteStudentToClassLiveChallengeSafely(db, studentId) {
+  try {
+    const outcome = await inviteStudentToClassLiveChallenge(db, studentId);
+    if (outcome.invited) logger.info("liveChallenge.lateInvite", { roomId: outcome.roomId, status: outcome.status });
+    return outcome;
+  } catch (error) {
+    logger.error("liveChallenge.lateInvite.failed", { message: error?.message || String(error) });
+    return { invited: false, reason: "failed" };
   }
 }
 
@@ -12138,6 +12262,9 @@ function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
     .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
 }
 
+/** A sweep due time as Firestore stores it: a Date, or null for "never". */
+const liveChallengeSweepDate = (ms) => (Number.isFinite(ms) ? new Date(ms) : null);
+
 /** Open a round inside a transaction. Room and private state move together. */
 function applyLiveChallengeRoundOpening(transaction, {
   engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs, players = [],
@@ -12169,6 +12296,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     currentRound: roundIndex,
     roundVersion,
     roundToken,
+    // When the server closes this round if no host screen does
+    // (liveChallengeServerSweep.mjs). None for a Pace Race: no deadline.
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs })),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   transaction.set(roomRef, {
@@ -12631,7 +12761,8 @@ function applyLiveChallengeMatchFinalization(transaction, {
     // list stays on the server-only result, for rewards and each recap).
     ...(finished ? { recognitions: engine.recognitions.classVisibleRecognitions(recognitions, { warmup: Boolean(room.assignmentId) }) } : {}),
   }, { merge: true });
-  transaction.set(privateRef, terminal, { merge: true });
+  // A terminal match is never swept again.
+  transaction.set(privateRef, { ...terminal, serverSweepDueAt: null }, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
   // THE RECAP: a finished match publishes every solution it held. Nothing can
   // be answered any more. A cancelled match publishes nothing.
@@ -12918,8 +13049,15 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
  * Finish or cancel a match. Idempotent: the first call makes the room terminal
  * and writes its result; any later or concurrent call finds it terminal and
  * only resumes outstanding effects.
+ *
+ * `stillWanted`, when given, is asked inside the transaction (it may read
+ * more through the transaction it is handed), with the room and private
+ * state as it read them, whether this finish should still happen
+ * (the server's finish of an abandoned game: not if the teacher opened a
+ * round or was heard since). No: nothing is written, `{ skipped: true }`.
+ * `endedBy` is recorded on the room ("hostAway": the server ended it).
  */
-async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }) {
+async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status, stillWanted = null, endedBy = null }) {
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
   const roomId = roomRef.id;
@@ -12942,6 +13080,9 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const plan = lifecycle.planLifecycleCommand({ command, room: currentRoom });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (stillWanted && !(await stillWanted({ transaction, room: currentRoom, privateState: privateSnapshot.exists ? privateSnapshot.data() || {} : {} }))) {
+      return { skipped: true };
+    }
     const pointsHere = Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId);
     const hadRound = Number.isInteger(Number(currentRoom.currentRound)) && Number(currentRoom.currentRound) >= 0;
 
@@ -12985,9 +13126,11 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     applyLiveChallengeMatchFinalization(transaction, {
       engine, db, roomRef, privateRef, pointerRef, pointsHere, room: currentRoom, privateState, players, status, nowMs,
     });
+    if (endedBy) transaction.set(roomRef, { endedBy }, { merge: true });
     return { finalized: true };
   });
 
+  if (outcome.skipped) return { roomId, skipped: true };
   if (outcome.staleCancelled) {
     await updateLiveChallengeInvitesByRoom(db, {
       roomId,
@@ -13091,6 +13234,42 @@ exports.joinLiveChallenge = onCall(async (request) => {
   return { roomId, joined: true, playerKey: joined.playerKey, rejoined: joined.rejoined, timeMultiplier: joined.timeMultiplier };
 });
 
+/*
+ * THE HOST'S HEARTBEAT. A console calibrates its clock every 30 s while its
+ * game is live; that call is how the server knows a host screen is still on
+ * the game, so the sweep never ends results a teacher is talking through
+ * (liveChallengeServerSweep.mjs). Written to the server-only private state —
+ * nothing a student listens to — at most once a minute per room, and from
+ * this instance's memory first, so four of a calibration's five samples skip
+ * the read and the clock estimate (a median) is untouched. Never fails the
+ * calibration.
+ */
+const liveChallengeHostHeardInInstance = new Map();
+async function recordLiveChallengeHostHeard(request, roomId, nowMs) {
+  try {
+    const { serverSweep } = await liveChallengeEngine();
+    const teacherEmail = callerEmail(request);
+    const instanceKey = `${roomId}|${teacherEmail}`;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: liveChallengeHostHeardInInstance.get(instanceKey) ?? null, nowMs })) return;
+    if (liveChallengeHostHeardInInstance.size > 500) liveChallengeHostHeardInInstance.clear();
+    liveChallengeHostHeardInInstance.set(instanceKey, nowMs);
+    const privateRef = getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+    const privateSnapshot = await privateRef.get();
+    if (!privateSnapshot.exists) return;
+    const privateState = privateSnapshot.data() || {};
+    if (privateState.teacherEmail !== teacherEmail && !authLib.isRootAdminEmail(teacherEmail)) return;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: privateState.hostHeardAt ?? null, nowMs })) return;
+    // update, not set: a finished game's private state, deleted meanwhile,
+    // is never brought back.
+    await privateRef.update({ hostHeardAt: new Date(nowMs) });
+  } catch (error) {
+    // NOT_FOUND: the game ended and its private state is gone.
+    if (error?.code !== 5) {
+      logger.warn("liveChallenge.hostHeard.failed", { roomId, message: error?.message || String(error) });
+    }
+  }
+}
+
 // A deliberately tiny calibration endpoint. Calling it several times lets the
 // browser estimate offset/RTT without granting it any scoring authority.
 exports.calibrateLiveChallengeClock = onCall(async (request) => {
@@ -13099,6 +13278,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
   if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
+  if (isTeacher && roomId) await recordLiveChallengeHostHeard(request, roomId, serverAt);
   if (studentId && roomId && (request.data?.quality || request.data?.launchReport)) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
@@ -13269,12 +13449,23 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  return closeLiveChallengeRoundForRoom(db, {
+    roomRef, expected: expectedRoundFromRequest(request.data, room), force: request.data?.force === true,
+  });
+});
+
+/**
+ * The close itself, for the host's command and for the server's own close of
+ * an overdue round (closeOverdueLiveChallengeRounds): one transaction, so a
+ * console and the sweep arriving together close the round once and the other
+ * is told it is already closed.
+ */
+async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = false }) {
+  const roomId = roomRef.id;
   const challenge = await liveChallengeRules();
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
-  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  const expected = expectedRoundFromRequest(request.data, room);
-  const force = request.data?.force === true;
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
 
   const outcome = await db.runTransaction(async (transaction) => {
@@ -13336,6 +13527,9 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     }, { merge: true });
     transaction.set(privateRef, {
       roundState: lifecycle.ROUND_STATE.CLOSED,
+      // Results nobody moves on from, with no host screen heard, end the
+      // game (liveChallengeServerSweep.mjs).
+      serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterCloseMs({ nowMs })),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return { roundResult: engine.results.publicRoundSummary(roundResult) };
@@ -13343,6 +13537,147 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
   if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   return { roomId, roundIndex: outcome.roundResult.roundIndex, roundState: lifecycle.ROUND_STATE.CLOSED, roundResult: outcome.roundResult };
+}
+
+/*
+ * THE SERVER CLOSES WHAT NO HOST SCREEN CLOSES (liveChallengeServerSweep.mjs).
+ *
+ * Every minute: the rooms whose private state says they are due. An open
+ * round past its deadline (plus a grace no open console ever reaches) is
+ * closed by the console's own close; results that have stood with no host
+ * screen heard for the host-away window are ended by the console's own
+ * Finish, which writes the match result, standings and rewards once. Each
+ * decision is re-checked inside the command's own transaction, so a console,
+ * a retry or a second run arriving at the same moment changes nothing twice.
+ */
+async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
+  const engine = await liveChallengeEngine();
+  const { serverSweep, lifecycle } = engine;
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(privateDoc.id);
+  const roomSnapshot = await roomRef.get();
+  const room = roomSnapshot.exists ? roomSnapshot.data() || {} : null;
+  const privateState = privateDoc.data() || {};
+  const plan = serverSweep.planServerSweep({ room, privateState, nowMs, settings });
+  const seenDueMs = toDate(privateState.serverSweepDueAt)?.getTime() ?? null;
+  // Moves this room's due time only if nothing (a close, an opening, another
+  // run) has moved it since this run read it. A move that fails pushes the
+  // room back instead — still only if the document is exactly as this run's
+  // query read it — so a room that cannot be written never holds the batch
+  // every minute, and a fresh due time an opening just set is never lost.
+  // Resolves to the outcome this run reports.
+  const reschedule = (nextDueMs, outcome) => db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(privateDoc.ref);
+    if (!latest.exists) return;
+    if ((toDate(latest.data()?.serverSweepDueAt)?.getTime() ?? null) !== seenDueMs) return;
+    transaction.update(privateDoc.ref, { serverSweepDueAt: liveChallengeSweepDate(nextDueMs) });
+  }).then(() => outcome, async (error) => {
+    logger.error("liveChallenge.serverSweep.rescheduleFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+    await privateDoc.ref.update({
+      serverSweepDueAt: liveChallengeSweepDate(nowMs + serverSweep.SERVER_RESCHEDULE_FAILURE_BACKOFF_MS),
+    }, { lastUpdateTime: privateDoc.updateTime }).catch(() => {});
+    return "backedOff";
+  });
+
+  if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null, "cleared");
+  if (plan.action === serverSweep.SWEEP_ACTION.RESCHEDULE) return reschedule(plan.nextDueMs, "rescheduled");
+  try {
+    if (plan.action === serverSweep.SWEEP_ACTION.CLOSE) {
+      const closed = await closeLiveChallengeRoundForRoom(db, { roomRef, expected: plan.expected });
+      if (!closed.alreadyApplied) {
+        logger.info("liveChallenge.serverClose", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+      }
+      return closed.alreadyApplied ? "alreadyClosed" : "closed";
+    }
+    const finished = await finalizeLiveChallengeMatch(db, {
+      roomRef,
+      room,
+      command: lifecycle.LIFECYCLE_COMMAND.FINISH,
+      status: lifecycle.SESSION_STATUS.FINISHED,
+      // The switch is read again here, in the finish's own transaction: a
+      // flip during a long run is honoured by the very next finish.
+      stillWanted: async ({ transaction, room: latestRoom, privateState: latestPrivate }) => {
+        const latestSwitch = await transaction.get(liveChallengeSweepSwitchRef(db, serverSweep));
+        return serverSweep.stillAbandoned({
+          room: latestRoom,
+          privateState: latestPrivate,
+          expected: plan.expected,
+          nowMs: Date.now(),
+          settings: serverSweep.sweepSettingsFrom(latestSwitch.exists ? latestSwitch.data() : null),
+        });
+      },
+      endedBy: "hostAway",
+    });
+    if (finished.skipped) {
+      // The teacher came back (or moved on): look again after the window.
+      await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS, "kept");
+      return "kept";
+    }
+    if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+    return finished.alreadyApplied ? "alreadyFinished" : "finished";
+  } catch (error) {
+    // The round is still running (a student with extended time is inside
+    // their own deadline): look again soon. Anything else: back off.
+    const stillRunning = error?.details?.lifecycle === lifecycle.LIFECYCLE_REJECTION.ROUND_IN_PROGRESS;
+    if (!stillRunning) {
+      logger.error("liveChallenge.serverSweep.failed", { roomId: roomRef.id, action: plan.action, message: error?.message || String(error) });
+    }
+    await reschedule(nowMs + (stillRunning ? serverSweep.SERVER_RECHECK_MS : serverSweep.SERVER_FAILURE_BACKOFF_MS), null);
+    return stillRunning ? "stillRunning" : "failed";
+  }
+}
+
+const liveChallengeSweepSwitchRef = (db, serverSweep) => db
+  .collection(serverSweep.SWEEP_SETTINGS_COLLECTION)
+  .doc(serverSweep.SWEEP_SETTINGS_FLAG);
+
+async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() }) {
+  const { serverSweep } = await liveChallengeEngine();
+  // The switch, read on every run: off, the run does nothing (and says so).
+  const switchSnapshot = await liveChallengeSweepSwitchRef(db, serverSweep).get();
+  const settings = serverSweep.sweepSettingsFrom(switchSnapshot.exists ? switchSnapshot.data() : null);
+  if (!settings.enabled) {
+    logger.info("liveChallenge.serverSweep.disabled", { flag: `${serverSweep.SWEEP_SETTINGS_COLLECTION}/${serverSweep.SWEEP_SETTINGS_FLAG}` });
+    return { scanned: 0, disabled: true, outcomes: {} };
+  }
+  // One single-field range: no composite index, and an idle minute is one read.
+  // Only the two fields the sweep reads: never a room's questions or solutions.
+  const due = await db.collection(LIVE_CHALLENGE_PRIVATE)
+    .where("serverSweepDueAt", "<=", new Date(Math.min(dueByMs, nowMs)))
+    .orderBy("serverSweepDueAt")
+    .select("serverSweepDueAt", "hostHeardAt")
+    .limit(serverSweep.SERVER_SWEEP_LIMIT)
+    .get();
+  const outcomes = {};
+  for (const privateDoc of due.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await sweepLiveChallengeRoom(db, privateDoc, nowMs, settings).catch((error) => {
+      logger.error("liveChallenge.serverSweep.roomFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+      return "failed";
+    });
+    outcomes[privateDoc.id] = outcome;
+  }
+  return { scanned: due.size, outcomes };
+}
+
+exports.closeOverdueLiveChallengeRounds = onSchedule({
+  schedule: "every 1 minutes",
+  invoker: "private",
+  // One run at a time, with room for up to SERVER_SWEEP_LIMIT finishes and
+  // their effects. A run that still overlapped the next would be safe —
+  // every decision is re-checked in its command's transaction — only slower.
+  maxInstances: 1,
+  timeoutSeconds: 300,
+}, async (event) => {
+  // A run takes the rooms that were due by the time it was scheduled for
+  // (a late run is no different); each room's decision uses the real now.
+  const scheduledMs = Date.parse(event?.scheduleTime || "");
+  const nowMs = Date.now();
+  const result = await sweepOverdueLiveChallengeRooms(getFirestore(), {
+    dueByMs: Number.isFinite(scheduledMs) ? scheduledMs : nowMs,
+    nowMs,
+  });
+  if (result.scanned) logger.info("liveChallenge.serverSweep", result);
+  return result;
 });
 
 exports.advanceLiveChallenge = onCall(async (request) => {
@@ -13942,6 +14277,14 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
     // FAILED_PRECONDITION: the room changed since it was read — another answer
     // already started the closing countdown, or the round moved on.
     if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
+  }
+  if (compressed) {
+    // The new deadline is when the server closes it if no host screen does —
+    // the first deadline a Pace Race round has.
+    const { serverSweep } = await liveChallengeEngine();
+    await getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id).update({
+      serverSweepDueAt: liveChallengeSweepDate(serverSweep.sweepDueAfterOpeningMs({ endsAtMs: targetEndsAtMs })),
+    }).catch((error) => logger.warn("liveChallenge.compress.sweepDue.failed", { roomId: roomRef.id, message: error?.message || String(error) }));
   }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
@@ -18018,6 +18361,8 @@ function publicTestCycleSchedule(shared, schedule, { audience = "student", misse
     opensAt: status.opensAt ?? null,
     closesAt: status.closesAt ?? null,
     workFromHome: status.workFromHome === true,
+    // The Test day never got class time and waits for a new one.
+    ...(status.stranded === true ? { stranded: true } : {}),
     // A student who missed the Test has a Retest and no Corrections.
     ...describe(status, { timeZone, audience, retestOnly: missedTest === true }),
   });
@@ -18999,6 +19344,11 @@ function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
 exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
+  // A READ-ONLY LOOK, for Tests & Exams listing a Test whose session is not
+  // open yet: the same question-free card, but opening nothing (no stand-in
+  // Retest for a missed Test) and reading no Corrections. Only the card itself,
+  // opened by the student, does those.
+  const preview = request.data?.preview === true;
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
 
   const [gradeSnapshot, recordSnapshot] = await Promise.all([
@@ -19041,7 +19391,8 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
    * was stranded. Past the Review gate, with the home window not yet over and
    * the assessment open, opening their card opens their Retest.
    */
-  if (state.missedTest
+  if (!preview
+    && state.missedTest
     && state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST_READY
     && availability.open
     && schedule?.followUp?.state !== shared.schedule.WINDOW_STATE.CLOSED) {
@@ -19055,7 +19406,7 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   }
 
   let corrections = null;
-  const inCorrections = state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  const inCorrections = !preview && state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
   if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
@@ -19078,6 +19429,10 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
   return {
     success: true,
     assignmentId,
+    // A look also says whether this student has ANY secure session for the
+    // cycle, from their record — the complete answer, where the session list
+    // (capped, unordered) may not be.
+    ...(preview ? { preview: true, hasSecureSession: Boolean(record.test.examSessionId || record.retest.examSessionId) } : {}),
     title: blueprint.title || assignment?.title || "Test Cycle",
     stage: state.stage,
     secure: state.secure,
@@ -19900,7 +20255,27 @@ async function loadTestCycleRoster(db, { assignment, assignmentId, recordsByStud
  * times read from the bell schedule, whether students may work from home, and
  * the next days the class sits — so a Test day is picked, never typed.
  */
-async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now() }) {
+/**
+ * Per class (the one whose windows each student follows): how many have
+ * started the Test, and how many are still waiting to start it — Test ahead,
+ * not missed. What the windows panel needs to say a stranded day honestly.
+ */
+function classSittingsOf(shared, rows) {
+  const stages = shared.stages.TEST_CYCLE_STAGE;
+  const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+  const byClass = new Map();
+  rows.forEach((row) => {
+    const classId = row.sitsWithClassId || row.classId;
+    if (!classId) return;
+    const entry = byClass.get(classId) || { started: 0, waiting: 0 };
+    if (!notStarted.includes(row.test?.state || shared.record.SESSION_STATE.NONE)) entry.started += 1;
+    else if (!row.missedTest && [stages.REVIEW, stages.TEST].includes(row.stage)) entry.waiting += 1;
+    byClass.set(classId, entry);
+  });
+  return byClass;
+}
+
+async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
   if (policy.externalAssessment) return null;
   const timeZone = shared.timeZone;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -19916,7 +20291,7 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
     const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
     const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
     const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
-    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone });
+    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
     return {
       classId,
       name: String(classRecord.name || classRecord.period || classId).slice(0, 160),
@@ -19928,7 +20303,13 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         opensAt: test.opensAt ?? null,
         closesAt: test.closesAt ?? null,
         workFromHome: test.workFromHome === true,
-        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher" }),
+        // The Test day passed without class time (or was set after the class
+        // met, or no longer resolves): somebody is still waiting to start it,
+        // and cannot until the teacher sets a new day. A finished class is not
+        // flagged, and one where anybody started is not told the day never
+        // happened (classSittingsOf).
+        needsNewDay: shared.schedule.classNeedsNewTestDay(test, classSittings.get(classId)),
+        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null }),
       },
       followUp: {
         state: followUp.state,
@@ -19949,7 +20330,9 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         extended: window.extended === true,
         label: window.resolved
           ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
-          : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+          : window.reason === "endedBeforeSet"
+            ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
+            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
       })),
       // The next days this class sits, straight from the bell schedule.
       upcomingDays: upcoming.days.map((day) => ({
@@ -20154,7 +20537,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
-    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now }),
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
     // Who this Test is for: its classes, anyone added on their own, and the
     // record of every addition.
     audience: {
@@ -25165,13 +25548,25 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       throw new HttpsError("failed-precondition", "This class has no period, so the bell schedule cannot say when it meets. Set the class's period, or reopen the window between two times instead.");
     }
     const day = sched.resolveClassPeriodDay({ schedule: bell, classPeriod, dateKey, timeZone });
+    const nextMeetings = () => sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone, now }).days
+      .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
     if (!day.resolved && !day.pending) {
-      const next = sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone }).days
-        .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
+      const next = nextMeetings();
       throw new HttpsError(
         "failed-precondition",
         `${classPeriod} does not meet on ${sched.formatSchoolDate(dateKey, timeZone)} according to the bell schedule.${next.length ? ` It next meets: ${next.join("; ")}.` : ""}`,
         { reason: day.reason },
+      );
+    }
+    // Today's period after its bell: a window that is already closed would mark
+    // every student in the class as having missed the Test and move them to a
+    // Retest. Refuse it, and say when the class meets next.
+    if (day.resolved && day.closesAt <= now) {
+      const next = nextMeetings();
+      throw new HttpsError(
+        "failed-precondition",
+        `${classPeriod} already met today (${sched.formatSchoolRange(day.opensAt, day.closesAt, timeZone)}), so that class time has ended.${next.length ? ` It next meets: ${next.join("; ")}.` : ""} To give the Test today anyway, reopen the window between two times.`,
+        { reason: "meetingEnded" },
       );
     }
     notes.push(day.resolved
@@ -25187,8 +25582,18 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
     for (const classId of audienceClassIds) {
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
+      // A class whose window has already opened (it sat the Test, or is
+      // sitting it) is kept: moving it would put its Corrections back behind a
+      // new window and un-miss its absent students. Its own row moves it.
+      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
+        .filter((window) => window.resolved && window.opensAt <= now)
+        .sort((left, right) => right.opensAt - left.opensAt)[0];
+      if (ran) {
+        notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
+        continue;
+      }
       const first = classPeriod
-        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone }).days[0]
+        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;
       if (first) {
         chosen.push({ classId, dateKey: first.dateKey });
@@ -25197,7 +25602,11 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
         notes.push(`${classPeriod || classId}: no meeting found on the bell schedule from that day, so no window was set.`);
       }
     }
-    if (!chosen.length) throw new HttpsError("failed-precondition", "None of this Test's classes meets on the bell schedule from that day.");
+    if (!chosen.length) {
+      throw new HttpsError("failed-precondition", notes.some((note) => note.includes(": kept — "))
+        ? `No class was moved. ${notes.join(" ")}`
+        : "None of this Test's classes meets on the bell schedule from that day.");
+    }
     audit = { action, fromDateKey, classDays: chosen };
     edit = (current) => chosen.reduce(
       (next, entry) => sched.withClassTestDay(next, { ...entry, by: actor, at: now, replace: true }),

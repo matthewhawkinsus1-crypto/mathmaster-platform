@@ -37,7 +37,8 @@ test('the attempt outcome is announced, and only when outcome feedback is shown'
   assert.match(engine, /const showOutcomeFeedback = /);
   // The words exist once, and the box and the tool both read them.
   const words = region(engine, 'const attemptOutcomeText = feedback', 'const attemptOutcomeFocus', 'the outcome words');
-  assert.match(words, /`Not quite\. You have \$\{remainingAttempts\}/);
+  // A miss with tries left: "Not quite. You have 2 tries left." (submitCost.js).
+  assert.match(words, /: missOutcomeText\(remainingAttempts\)\)\)/);
 });
 
 test('a tool shows the outcome only behind the same gate, and then the box does not', () => {

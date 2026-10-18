@@ -97,7 +97,7 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
   await page.keyboard.type(answer, { delay: 30 });
   await page.waitForTimeout(250);
   const typed = await field.evaluate((element) => element.value);
-  const submit = page.getByRole('button', { name: 'Submit Answer' }).first();
+  const submit = page.getByRole('button', { name: /^Submit — / }).first();
   if (device.touch) await submit.tap();
   else await submit.click();
   await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 8000 }).catch(() => {});

@@ -18,6 +18,9 @@
 //                      or a full reload at every checkpoint #341 lists
 //   preview-negated    Teacher Preview: isolating y puts -(…) into E2; the
 //                      group must stay whole with the -1 offered to distribute
+//   strip-fit-*        Q-24: with a solver open, every equation in the strip
+//                      above it shows whole (1366×768 at 100%, 110% and 125%
+//                      text with Isolate x and with R₁ simplifying; 390×844)
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -114,6 +117,26 @@ const solver = (page) => page.locator('.mathmaster-systems-embedded-step-algebra
 const errorText = (page) => page.locator('.mathmaster-systems-substitution-feedback.is-error:visible').allInnerTexts();
 
 const expect = (journey, condition, detail) => { if (!condition) note(journey, detail); return Boolean(condition); };
+
+/**
+ * Q-24: while a solver is open the originals (and derived equations) are a
+ * strip above it. Every equation in it must show whole — no box in a card
+ * narrower than what it holds. Returns the clipped ones.
+ */
+const clippedStripEquations = (page) => page.evaluate(() => (
+  [...document.querySelectorAll('.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-equation-card')]
+    .flatMap((card) => [card, ...card.querySelectorAll('*')]
+      // A 1px box is the visually hidden spoken text, not a clipped equation.
+      .filter((element) => element.clientWidth > 1 && element.scrollWidth > element.clientWidth + 1)
+      .map((element) => `${card.innerText.replace(/\s+/g, ' ').trim()} (${element.scrollWidth}px in ${element.clientWidth}px)`))
+));
+const expectStripFits = async (page, journey, where) => {
+  const strip = await page.locator('.mathmaster-reduction-layout.has-active-solver').count();
+  expect(journey, strip === 1, `${where}: the originals are not a strip above an active solver`);
+  const clipped = await clippedStripEquations(page);
+  expect(journey, !clipped.length, `${where}: equations cut short in the strip: ${JSON.stringify(clipped)}`);
+  return clipped;
+};
 
 /** Run one step of a journey; a failure is recorded with a screenshot and ends the journey. */
 const step = async (page, journey, name, action) => {
@@ -399,6 +422,8 @@ const runFull3x3 = async (context, scope) => {
   if (!(await step(page, journey, 'standardize R1 (leave mid-solve)', async () => {
     await standardizeR1(page, {
       pauseAfterDistribution: async () => {
+        // A substituted equation is the widest card the strip holds.
+        await expectStripFits(page, journey, 'standardizing R1');
         const mid = await mathState(solver(page));
         await leaveAndReturn(page);
         const back = await mathState(solver(page));
@@ -493,7 +518,7 @@ const runFull3x3 = async (context, scope) => {
   }))) { report.push(observed); await page.close(); return; }
 
   await step(page, journey, 'check my work', async () => {
-    await workflow(page).locator('button', { hasText: 'Check my work' }).click();
+    await workflow(page).locator('button', { hasText: /^Submit — / }).first().click();
     await settle(page, 800);
     observed.result = await page.locator('text=Correct').count();
     expect(journey, observed.result > 0, 'the completed 3×3 was not graded correct');
@@ -693,6 +718,57 @@ if (wanted('student-3x3')) await runFull3x3(context, 'student');
 if (wanted('teacherPreview-3x3')) await runFull3x3(context, 'teacherPreview');
 if (wanted('student-reset')) await runReset(context);
 await context.close();
+
+// Q-24: the strip of originals above an open solver shows every equation
+// whole — at 1366×768 with 100% and 125% browser text, and on a phone.
+if (wanted('strip-fit')) {
+  const rootFonts = {};
+  const settings = [
+    ['laptop', { width: 1366, height: 768 }, 1],
+    ['laptop-110', { width: 1366, height: 768 }, 1.1],
+    ['laptop-125', { width: 1366, height: 768 }, 1.25],
+    ['phone', { width: 390, height: 844 }, 1],
+  ];
+  for (const [name, viewport, textScale] of settings) {
+    const scaled = await browser.newContext({ viewport });
+    // Q4 and Q5 with Isolate x open; on a laptop also Q1 while R₁ is
+    // simplified — R₁ = 2(−y − z + 6) − y + 3z = 9 is the widest card.
+    for (const q of viewport.width > 1000 ? [3, 4, 0] : [3, 4]) {
+      // A page per question: the browser text size did not survive a second
+      // navigation of the same page.
+      const page = await scaled.newPage();
+      if (textScale !== 1) {
+        const cdp = await scaled.newCDPSession(page);
+        await cdp.send('Page.setFontSizes', { fontSizes: { standard: Math.round(16 * textScale), fixed: Math.round(13 * textScale) } });
+      }
+      const journey = `strip-fit-${name}-q${q}`;
+      await step(page, journey, q === 0 ? 'simplify R₁' : 'isolate x in Equation 1', async () => {
+        await open(page, { scope: 'student', q });
+        if (q === 0) {
+          await isolateXInEquationOne(page, journey);
+          await useFormAsToken(page);
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 2: choose where"] [data-variable="x"]'));
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 3: choose where"] [data-variable="x"]'));
+          await page.locator('button', { hasText: 'Simplify R₁' }).click();
+        } else {
+          await page.locator('button[aria-label="Isolate x in Equation 1"]').click();
+        }
+        await solver(page).waitFor({ timeout: 15000 });
+        await settle(page, 400);
+        // The app's own root size differs by width; 125% text must scale the laptop's.
+        const rootFont = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+        rootFonts[name] = rootFont;
+        if (textScale !== 1) expect(journey, rootFont >= rootFonts.laptop * (textScale - 0.02), `browser text did not grow: ${rootFont}px against ${rootFonts.laptop}px at 100%`);
+        const clipped = await expectStripFits(page, journey, `${viewport.width}×${viewport.height} at ${textScale * 100}% text`);
+        const solverWidth = await solver(page).evaluate((element) => Math.round(element.getBoundingClientRect().width));
+        await shoot(page, journey);
+        report.push({ journey, rootFont, solverWidth, clipped: clipped.length });
+      });
+      await page.close();
+    }
+    await scaled.close();
+  }
+}
 
 // A Chromebook-width and a phone-width look at the finished workspace.
 for (const [name, viewport] of wanted('layout') ? [['chromebook', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]] : []) {

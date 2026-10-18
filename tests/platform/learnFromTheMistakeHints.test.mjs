@@ -245,9 +245,16 @@ test('QuestionEngine feeds the tool\'s rungs into its ladder, and hands every to
 });
 
 test('the Work View copies step aside where the platform ladder is the Help', () => {
+  // The wrapper offers the authored hints only where it holds the ladder
+  // itself (hints allowed, no platform ladder: useOwnHintLadder), and declares
+  // no Help at all otherwise — under the platform's ladder it would be a
+  // second copy (HELP-10); with nothing to offer it used to be a generic
+  // sentence that took the platform's "Ask my teacher" away (TOOL-3).
   const view = code('src/tools/shared/RegisteredToolWorkView.jsx');
-  assert.match(view, /const platformLadder = Boolean\(useToolHintPublisher\(\)\);/);
-  assert.match(region(view, 'const capabilities = Object.fromEntries', ';', 'the capabilities'), /\.filter\(\(key\) => !\(platformLadder && key === 'help'\)\)/);
+  assert.match(view, /const ownLadder = useOwnHintLadder\(\);/);
+  assert.match(view, /const authoredHints = ownLadder && Array\.isArray\(questionData\?\.hints\)/);
+  assert.match(view, /const helpText = authoredHints\.length\s*\?\s*<HintPanel [\s\S]*?\/>\s*:\s*null;/);
+  assert.match(region(view, 'const capabilities = Object.fromEntries', ';', 'the capabilities'), /\.filter\(\(key\) => !\(key === 'help' && !helpText\)\)/);
 });
 
 const ON_LINE = (target, [x, y]) => Math.abs(target.m * x + target.b - y) < 1e-9;

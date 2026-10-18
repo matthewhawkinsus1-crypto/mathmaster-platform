@@ -458,7 +458,7 @@ const journeys = {
     check(!(await page.locator('text=✓').count()), 'no tick anywhere: nothing says whether it is right');
     await shot(strip(page), 'saved');
     check(await strip(page).getByRole('button', { name: 'Change x-intercept' }).count(), 'a saved fact can be changed');
-    await page.getByRole('button', { name: 'Submit board' }).click();
+    await page.getByRole('button', { name: /^Submit — / }).click();
     await settle(page);
     await page.getByRole('button', { name: 'Submit anyway' }).click();
     await settle(page, 1500);

@@ -115,6 +115,41 @@ round-scoped close command when `roundCloseDue` says so:
   (`alreadyApplied`). A close the server refuses because the round is
   genuinely still running (`round_in_progress`) is retried a few seconds later.
 
+**With no host screen open** (the laptop slept, the tab closed) the server
+does the same through the same commands — `closeOverdueLiveChallengeRounds`,
+every minute (`functions/shared/liveChallengeServerSweep.mjs`):
+
+- an open round `SERVER_CLOSE_GRACE_MS` (10 s) past its deadline is closed by
+  the console's own close transaction — never forced, so a student with
+  extended time still inside their own deadline is waited for. An open
+  console always closes first (1.5 s); if both arrive, one closes it and the
+  other is told it is already closed. A student waits at most about 70 s on
+  "Time is up! The results are coming." instead of until the teacher returns;
+- **only when the owner switches it on** (`platformFlags/liveChallengeServerSweep`,
+  `finishAbandonedGames`, default off): results that have stood
+  `HOST_AWAY_FINISH_MS` (30 min) with no host screen heard for as long are
+  ended by the console's own Finish (End Game: answers given count; one match
+  result, its standings and rewards). Never a game that writes a grade (a
+  Warm-Up), and never one whose host the server has not heard at least once.
+  The console's 30-second clock calibration is its heartbeat (`hostHeardAt`,
+  private state, written at most once a minute), so a teacher talking the
+  round through is never ended; the finish re-checks the round, the heartbeat
+  and the switch inside its transaction, so a Next Round that lands first is
+  played. The room records `endedBy: "hostAway"` (readable by the class).
+  Otherwise results wait for the teacher, as before.
+
+On the same switch, `enabled` set to anything but the boolean `true` (`false`,
+`"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run
+logs that it did nothing. That is the first step of a rollback
+(`docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md`). The switch is read
+at the start of every run and again inside each finish's transaction.
+
+The sweep reads only rooms whose private state is due (`serverSweepDueAt`, set
+when a round opens and closes, cleared at the finish): one single-field range
+query, no composite index, nothing a student listens to. A Pace Race round
+has no deadline until its closing threshold sets one; a paused round and a
+lobby are the host's.
+
 Every mode then shows its **results**, and the next round starts only when the
 teacher presses **Next Round** (or **Finish & Show Final Standings** after the
 last; **Continue** when Second Chance may follow). Nothing auto-advances: the
@@ -382,7 +417,13 @@ game stops calibrating.
 ## 10. Joining, leaving, coming back
 
 - **Who can join**: the class roster at create time (`createLiveChallenge`
-  invites each student; nobody else can join a room). Game names are handed
+  invites each student; nobody else can join a room) — and a student added
+  to the class while its game is in the lobby or running (and active in the
+  last 12 hours)
+  (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
+  `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
+  their screen follows at once, and the late-join rule below. A student whose
+  invite is for another class's game that is still live is left in it. Game names are handed
   out in a shuffled order, so a name's number says nothing about who holds
   it, and a Warm-Up link must be one of the class's own assignments.
 - **Late join**: a rostered student who arrives after the start joins at once
@@ -477,13 +518,12 @@ GC) flat across them.
 - **A pause control.** The timer models pause/resume and the stage exists, but
   no control sends it: a pause that only some devices honoured would be worse
   than none.
-- **A server-side close** for a round whose deadline passed with no host screen
-  open (today students wait on "Time's up! The results are coming." until a
-  console or projector is opened).
 - **Choosing a scoring strategy for the classic modes** in the console (the
   server and every results screen already support Grand Prix and Correct
   Count; only the setup control is missing).
-- **Teacher removal of a student** from a running game, and a roster-change
-  (adding a student to the class mid-game) re-invite.
+- **Teacher removal of a student** from a running game (removal happens
+  through account deletion). Adding a student mid-game invites them (§10).
+- **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
+  server (§4); it waits for the teacher to finish or cancel it.
 - **Sound for the countdown**: the audio director's cues are tied to the
   deadline, not to `startsAt`.
