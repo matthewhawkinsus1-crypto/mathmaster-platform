@@ -37,8 +37,9 @@ test('NAV-25: the lobby invite is offered in an assignment; the running banner k
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'running', roomId: 'r1' } }), false, 'running is the hand-off banner');
   assert.equal(shouldShowChallengeLobbyInvite({ invite: { status: 'invited', roomId: 'r1' }, warmupDecision: { roomId: 'r1' } }), false, "this lesson's own Warm-Up game has its own lobby");
   assert.equal(shouldShowChallengeHandoffBanner({ invite: { status: 'invited', roomId: 'r1' } }), false);
-  const workspace = region(app, '{!preview && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</section>', 'workspace lobby invite');
-  assert.match(workspace, /onClick=\{joinLiveChallenge\}/);
+  const workspace = region(app, '{!preview && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (', '</Suspense>', 'workspace lobby invite');
+  assert.match(workspace, /<Suspense fallback=\{null\}>\s*<WorkspaceLobbyInvite onJoin=\{joinLiveChallenge\} \/>/);
+  assert.match(read('src/components/student/StudentClassroomNotices.jsx'), /<button type="button" onClick=\{onJoin\}[^>]*>Enter Challenge Lobby<\/button>/);
   assert.match(app, /shouldShowChallengeLobbyInvite\(\{ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision \}\) && \{\s*key: 'liveChallenge',/, 'and the phone status chip');
 });
 

@@ -341,7 +341,9 @@ import {
   QuestionEngine,
   ReviewMyWork,
   SectionRecoveryRunner,
+  PackUpLine,
   StudentSecureExamDashboard,
+  WorkspaceLobbyInvite,
   TeacherQuestionReviewPanel,
   TeacherWorkspace,
   TestCycleCard,
@@ -5458,6 +5460,8 @@ function App() {
     const prefetch = () => {
       questionEnginePrefetchedRef.current = true;
       import('./QuestionEngine.jsx').catch(() => { /* the real open retries */ });
+      // The class notices (pack-up line, lobby invite) are ready before they are needed.
+      import('./components/student/StudentClassroomNotices.jsx').catch(() => { /* loaded when shown */ });
     };
     if (typeof window.requestIdleCallback === 'function') {
       const id = window.requestIdleCallback(prefetch, { timeout: 5000 });
@@ -9034,27 +9038,11 @@ function App() {
     if (packUp.status !== 'active') return null;
     if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
 
+    // Its own chunk (StudentClassroomNotices.jsx): never in Home's first load.
     return (
-      <div
-        data-pack-up-notice={logoutRisk ? 'unsent' : 'saved'}
-        style={{
-          display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
-          // The theme's warning pair, readable in both themes (the old banner put
-          // --mm-text-strong on a fixed yellow: light on yellow in dark mode).
-          background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', borderBottom: '3px solid #f9ab00',
-          padding: '5px clamp(10px, 3vw, 22px)', textAlign: 'center', lineHeight: 1.3,
-          fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(14 * var(--mm-px))',
-        }}
-      >
-        <strong role="alert" style={{ fontWeight: 900 }}>
-          {logoutRisk
-            ? 'Finish up — some work has not been sent yet, so keep this tab open.'
-            : 'Finish up — your work is saved.'}
-        </strong>
-        <span style={{ fontWeight: 700 }}>
-          Pack up and return your device. The bell is in <DOLCountdown endsAt={packUp.endsAt} />.
-        </span>
-      </div>
+      <Suspense fallback={null}>
+        <PackUpLine unsent={Boolean(logoutRisk)} endsAt={packUp.endsAt} />
+      </Suspense>
     );
   };
 
@@ -10423,11 +10411,10 @@ function App() {
           )}
           {!preview && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             // The lobby invite, wherever the student is (NAV-25); the game's
-            // exit brings them back to this question.
-            <section className="mathmaster-assignment-banner" aria-label="Live Challenge" data-live-challenge-invite style={{ marginBottom: '16px', padding: '12px 18px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', textAlign: 'left' }}>
-              <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}><span aria-hidden="true">⚡ </span>Your teacher opened the Live Challenge lobby. Your work is saved, and you come back to this question after the game.</span>
-              <button type="button" onClick={joinLiveChallenge} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>Enter Challenge Lobby</button>
-            </section>
+            // exit brings them back to this question. Its own chunk.
+            <Suspense fallback={null}>
+              <WorkspaceLobbyInvite onJoin={joinLiveChallenge} />
+            </Suspense>
           )}
           {lifecycle.isLate && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left' }}>

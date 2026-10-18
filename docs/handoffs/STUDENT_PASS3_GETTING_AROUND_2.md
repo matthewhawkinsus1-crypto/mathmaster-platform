@@ -1,6 +1,7 @@
 # Student pass 3, wave 6, W6-2: getting around, part 2 (NAV-19 … NAV-25, the arrival notice, TOOL-13)
 
-Branch `claude/pass3-getting-around-2`, from `claude/modest-pasteur-xzagn7` at `5062cba5`. Nothing here deploys,
+Branch `claude/pass3-getting-around-2`, from `claude/modest-pasteur-xzagn7` at `5062cba5`, with the base merged in
+again at `3cb782a9` (a merge commit, no conflicts; it holds the Work View short-header fix `6ce0517`). Nothing here deploys,
 writes to a production project or re-grades anything. No new Firestore path, no rules or index change.
 
 Every item was first checked against the base, by reading the code and, where it is visual, in the real App (the
@@ -331,19 +332,19 @@ keeps the place; the exit returns there. The suite also asserts that nothing ope
 
 ## Gate
 
-Every check ran on this branch (`a2a5c7c` and its parents). The browser drivers ran one at a time.
+Every check ran on this branch. The browser drivers ran one at a time. Drivers that run after the base merge are said so in their rows.
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,799 of 11,799 pass (`a2a5c7c`'s parent `fc27957`; `a2a5c7c` changes only colours) |
+| `npm run test:platform` | 11,799 of 11,799 pass (on `fc27957`, and again on the final tree after the base merge and the lazy notices) |
 | `node --test tests/tools/*.test.mjs` | 1,710 tests: 1,709 pass, 0 fail, 1 skipped |
 | `npm run lint` | exit 0; 493 warnings, the same count as the base `5062cba5` |
 | `npm run audit:theme-colors` | pass. My first version gave the pack-up line a fixed `#202124`; the audit flagged it, and it now uses the warning tokens |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | within baseline. **studentHome 849.4 KB gzip** (186 files; baseline 847.1 KB, limit 855.1 KB), signIn 291.3 KB. `scripts/first-load-baseline.json` untouched |
+| `node scripts/check-first-load-budget.mjs` | within baseline. **studentHome 849.1 KB gzip** (186 files; baseline 847.1 KB, limit 855.1 KB). `scripts/first-load-baseline.json` untouched. By module, against the base `3cb782a9` built the same way (`--report`): `App.js` +1.6 KB (114.3 → 115.9), `testCycleDiscovery.js` +0.3 KB (3.9 → 4.2, where the shared `studentWhen.js` lands), nothing else. The pack-up line and the workspace lobby invite were moved into their own lazy chunk (`StudentClassroomNotices.jsx`, see below), which took 0.1 KB off |
 | Emulator suites | none touched. No file in `functions/`, `firestore.rules` or an index changes, and no `tests/integration` or `tests/rules` suite imports a changed file. Not run |
 | Plain Vite 5199: studentUxPlatform, assignmentMobile, workViewTerminalTransition, workViewHelpReach, toolPolicyGates, assessmentLeakGates, closedQuestionEnter | all pass |
-| workViewCertification | **1 finding, pre-existing**: "android-landscape · graphing2: 1 controls are clipped". The same finding on the base `5062cba5` (its own worktree and server, filtered to that device and tool), and on this branch with the new work-area reveal removed. Not caused here; for the integrator |
+| workViewCertification | **pass, whole driver, after merging `3cb782a9`**. The rail Check adds an action to 15 tools, and the integrator asked for this run because of `6ce0517`; no control is clipped anywhere. Before the merge it reported "android-landscape · graphing2: 1 controls are clipped", the same on the base `5062cba5` and on this branch with the work-area reveal removed; `6ce0517` fixed it |
 | teacherWorkflow 5188: appUrlJourneys, studentScreenChange (S1–S8), assignmentChromeJourneys, prerequisiteEarlyJourneys, warmupReopenJourneys, enduranceJourneys | all pass |
 | dolExtraTimeJourneys (with the new X4) | pass. A first run failed once at 390×844 (X1 "read no extra-time line") while the tools suite was loading the machine; it passed alone, and again in the mutation runs |
 | `npm run certify:dark-mode` | pass, 192 surfaces, run at 11:23 UTC |
@@ -361,6 +362,24 @@ Browser mutations, each seen red at both sizes:
 
 The S6 mutation (the view carried on push) stays green in dev, because StrictMode re-runs the screen's write effect.
 That rule is proved by the unit test (see NAV-21).
+
+## The first load
+
+The integrator measured all six wave-6 heads merged at 8.1 KB over the studentHome baseline, against an 8.0 KB
+allowance. This branch's share is +2.0 KB (above). What was tried:
+
+- **The notices that appear only when something happens in class are a lazy chunk.** That is the pack-up line and the
+  workspace lobby invite (`src/components/student/StudentClassroomNotices.jsx`, `lazyScreens.js` `PackUpLine`,
+  `WorkspaceLobbyInvite`).
+  - Each renders inside its own `<Suspense fallback={null}>`, so a notice still loading never suspends the screen,
+    which would otherwise fall back to "Loading your MathMaster workspace…".
+  - The chunk is prefetched when Home goes idle, with the workspace's code, so it is there before the last five
+    minutes.
+  - Tests pin the boundary, the words in the chunk and the prefetch. dolExtraTime X2 and X4 pass with it.
+  - Saved 0.1 KB.
+- **Not moved.** What is left is App's own wiring: the effects, the join/leave handlers, the detour call and the shell
+  live region. Each of those runs on every render or inside `startAssignment`. Moving the detour sentence behind a
+  dynamic import would save well under 0.1 KB, so I left it.
 
 ## Deploying (not done)
 
@@ -409,6 +428,9 @@ branch, never a raw `firebase deploy --only hosting`. This branch adds no releas
   `workViewPhoneChrome`.
 - **Browser drivers:** `dolExtraTimeJourneys.mjs`, whose pack-up regex now matches the new words, plus the new X4.
 
+**`StudentClassroomNotices.jsx`** is a new file holding the pack-up line and the workspace lobby invite (see "The
+first load").
+
 **Spanish (Read aloud / Translate).** None of the new sentences is support text that `SupportedText` covers. They are
 toasts, a live region, the pack-up line, the rail and labels. So no entries were added to the Spanish pack.
 
@@ -417,6 +439,8 @@ toasts, a live region, the pack-up line, the rail and labels. So no entries were
 - **Registry tools used standalone** (the tools lab): their Work View is still named "`<toolId>` workspace, Work View",
   with the raw id. Inside a question it is nested and never the dialog.
 - **Q-97:** a closed question's work area is still `inert`, inside Work View too (owner decision 4).
+- **The workspace lobby invite has no browser driver.** The harness has no Live Challenge invite scene. It is covered by
+  unit and wiring tests: the rule, the render behind Suspense, and the join keeping the place.
 - **The rail mirror on an assessment**, browser-checked: on the DOL scene the rail shows "Submit — your only try",
   disabled until the work is filled. That the rail's press is the tool's own press is proved by `toolCheckMirror`'s
   unit test (it calls the button's `click()`). No driver presses it through to a withheld verdict on a DOL.
