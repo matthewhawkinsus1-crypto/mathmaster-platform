@@ -1101,8 +1101,9 @@ service cloud.firestore {
      *   - only the student writes their own question (one per question of an
      *     assignment — the id is student__assignment__questionIndex — and
      *     only to the teacher of record on their roster row), about a real
-     *     assignment of the class on that row: an id made up for the purpose
-     *     is refused, so a student cannot fill their teacher's list;
+     *     question of a real assignment of the class on that row: an id or a
+     *     position made up for the purpose is refused, so a student cannot fill
+     *     their teacher's list;
      *   - only that student and their teacher read it (the teacher it was sent
      *     to, or the student's current teacher of record for a single read
      *     after the class changed hands);
@@ -1112,6 +1113,25 @@ service cloud.firestore {
      */
     function teacherQuestionTextValid(value, maxLength) {
       return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    // How many questions an assignment has, numbered the way the app numbers
+    // them (the index a question is asked about): a v5 assignment's sections'
+    // questions one after another (functions/lib/assignmentRuntime.js
+    // runtimeQuestionsFromAssignment), anything older its own list. Counted over
+    // at most eight sections; the largest assignment in the repository has four.
+    function sectionQuestionCount(sections, index) {
+      return sections.size() > index ? sections[index].get('questions', []).size() : 0;
+    }
+
+    function assignmentQuestionCount(assignment) {
+      let sections = assignment.get('sections', []);
+      return assignment.get('schemaVersion', 0) in [5, '5']
+        ? sectionQuestionCount(sections, 0) + sectionQuestionCount(sections, 1)
+          + sectionQuestionCount(sections, 2) + sectionQuestionCount(sections, 3)
+          + sectionQuestionCount(sections, 4) + sectionQuestionCount(sections, 5)
+          + sectionQuestionCount(sections, 6) + sectionQuestionCount(sections, 7)
+        : assignment.get('questions', []).size();
     }
 
     function teacherQuestionCreateValid(questionId) {
@@ -1131,7 +1151,12 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/assignments/$(data.assignmentId))
         && get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data
           .get('assignedClassIds', []).hasAny([roster.get('classId', '')])
-        && data.questionIndex is int && data.questionIndex >= 0 && data.questionIndex < 1000
+        // One of the assignment's own questions: a made-up position would let one
+        // student fill the teacher's waiting list (it shows 100) with questions
+        // about questions that do not exist.
+        && data.questionIndex is int && data.questionIndex >= 0
+        && data.questionIndex < assignmentQuestionCount(
+          get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data)
         && questionId == data.studentId + '__' + data.assignmentId + '__' + string(data.questionIndex)
         && data.teacherEmail is string
         && data.teacherEmail == roster.get('assignedTeacherEmail', null)

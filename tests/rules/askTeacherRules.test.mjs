@@ -102,8 +102,21 @@ before(async () => {
     await setDoc(doc(db, 'grades/AQ_STUDENT_C'), { displayName: 'Student C', classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active' });
     // The assignments questions are about: A1 is class A's (and class B's,
     // for the handover below), A3 another class's.
-    await setDoc(doc(db, 'assignments/A1'), { title: 'Lesson 4: Slope', assignedClassIds: ['class-a', 'class-b'] });
-    await setDoc(doc(db, 'assignments/A3'), { title: 'Another class', assignedClassIds: ['class-z'] });
+    // A1 numbers its questions 0–7 across two sections, as the app does.
+    await setDoc(doc(db, 'assignments/A1'), {
+      schemaVersion: 5,
+      title: 'Lesson 4: Slope',
+      assignedClassIds: ['class-a', 'class-b'],
+      sections: [
+        { id: 'cw', role: 'classwork', questions: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }, { id: 'c4' }] },
+        { id: 'pr', role: 'practice', questions: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }] },
+      ],
+    });
+    await setDoc(doc(db, 'assignments/A3'), { schemaVersion: 5, title: 'Another class', assignedClassIds: ['class-z'], sections: [{ id: 'cw', role: 'classwork', questions: [{ id: 'z1' }] }] });
+    // An older assignment keeps one flat list of three questions.
+    await setDoc(doc(db, 'assignments/OLD'), { title: 'Before v5', assignedClassIds: ['class-a'], questions: [{ id: 'o1' }, { id: 'o2' }, { id: 'o3' }] });
+    // A v5 assignment with no questions yet.
+    await setDoc(doc(db, 'assignments/EMPTY'), { schemaVersion: 5, title: 'Draft', assignedClassIds: ['class-a'], sections: [] });
     // Student A's hand is raised on A1 (what the heartbeat writes).
     await setDoc(doc(db, 'presence/AQ_STUDENT_A'), { studentId: 'AQ_STUDENT_A', classId: 'class-a', assignmentId: 'A1', helpRequestedAt: HAND_AT, helpQuestionIndex: 2 });
     await setDoc(doc(db, 'presence/AQ_STUDENT_B'), { studentId: 'AQ_STUDENT_B', classId: 'class-b', assignmentId: 'A2' });
@@ -165,6 +178,24 @@ test('a question is about a real assignment of the student\'s own class — not 
   // The teacher's waiting list holds none of them.
   const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
   assert.equal(inbox.docs.some((entry) => /NO_SUCH|junk7|__A3__/.test(entry.id)), false);
+});
+
+test('a question is about one of the assignment\'s own questions — not a position made up to fill a teacher\'s list', async () => {
+  // A1 has eight questions over two sections: the last is index 7, in the
+  // second section, and nothing lies past it.
+  await assertSucceeds(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A1__7'), rawQuestion({ questionIndex: 7 })));
+  for (const index of [8, 9, 40, 999]) {
+    await assertFails(setDoc(questionRef(studentA(), `AQ_STUDENT_A__A1__${index}`), rawQuestion({ questionIndex: index })));
+  }
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A1__-1'), rawQuestion({ questionIndex: -1 })));
+  // An older assignment numbers its own flat list.
+  await assertSucceeds(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__OLD__2'), rawQuestion({ assignmentId: 'OLD', questionIndex: 2 })));
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__OLD__3'), rawQuestion({ assignmentId: 'OLD', questionIndex: 3 })));
+  // An assignment with no questions takes none.
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__EMPTY__0'), rawQuestion({ assignmentId: 'EMPTY', questionIndex: 0 })));
+  // So one student's questions on A1 can number eight at most.
+  const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
+  assert.equal(inbox.docs.filter((entry) => /^AQ_STUDENT_A__A1__/.test(entry.id) && Number(entry.id.split('__')[2]) >= 8).length, 0);
 });
 
 /* ------------------------------------------------- reading a question */

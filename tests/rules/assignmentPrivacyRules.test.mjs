@@ -110,7 +110,7 @@ before(async () => {
     });
     await setDoc(doc(db, 'grades/S_UNPLACED'), { status: 'active', gradesByAssignment: { a4: {} } });
     await setDoc(doc(db, 'grades/S_B'), { classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {} });
-    await setDoc(doc(db, 'assignments/a1'), { title: 'Class A lesson', assignedClassIds: ['class-a'] });
+    await setDoc(doc(db, 'assignments/a1'), { schemaVersion: 5, title: 'Class A lesson', assignedClassIds: ['class-a'], sections: [{ id: 'cw', role: 'classwork', questions: [{ id: 'q1' }] }] });
     await setDoc(doc(db, 'assignments/a2'), { title: 'Class B lesson', assignedClassIds: ['class-b'] });
     await setDoc(doc(db, 'assignments/a3'), { title: 'Library copy', assignedClassIds: [] });
     await setDoc(doc(db, 'assignments/a4'), { title: 'Earlier class lesson', assignedClassIds: ['class-old'], questions: [{ type: 'algebra', alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' }] }] });
