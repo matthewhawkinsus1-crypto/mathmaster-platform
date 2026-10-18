@@ -55,16 +55,11 @@ test('only real student credit work records evidence; previews and post-deadline
 });
 
 test('launch records come from the shared rules, and every called module is imported', () => {
-  // The store loads with the first write, not with Home (first load 2,
-  // platform/supportEvidence/loadSupportEvidenceStore.js).
-  assert.match(app, /^import \{ loadSupportEvidenceStore \} from '\.\/platform\/supportEvidence\/loadSupportEvidenceStore\.js';$/m);
+  assert.match(app, /import \{ recordStudentSupportEvidence as saveStudentSupportEvidence \} from '\.\/platform\/supportEvidence\/supportEvidenceStore\.js';/);
   // The live-class signal writer (studentSupportStore) keeps its own name; the
-  // two must never collide in App.jsx (the store's writer is renamed where it
-  // is loaded).
+  // two must never collide in App.jsx (a duplicate import fails only the build).
   const recorder = region(app, 'const recordStudentSupportEvidence = (', '\n  };', 'student recorder');
-  assert.match(recorder, /loadSupportEvidenceStore\(\)\.then\(\(\{ recordStudentSupportEvidence: saveStudentSupportEvidence \}\) => saveStudentSupportEvidence\(\{/);
-  // A failed load or write is dropped and the next one tries again.
-  assert.match(recorder, /\}\)\)\.catch\(\(\) => \{ supportEvidenceSeenRef\.current\.delete\(key\); \}\);/);
+  assert.match(recorder, /saveStudentSupportEvidence\(\{/);
   assert.match(app, /import \{ launchSupportRecords, studentMayRecordSupport, usedRecordKey \} from '\.\/platform\/supportEvidence\/studentSupportTelemetry\.js';/);
   const launch = region(app, 'const launchedSupportKeyRef = useRef', '// eslint-disable-line', 'launch effect');
   assert.match(launch, /if \(!isStudentAssignment \|\| !activeAssignmentData \|\| isPracticeMode\) return;/);

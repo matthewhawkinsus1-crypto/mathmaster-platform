@@ -7,14 +7,18 @@ Branch `claude/pass3-first-load-2`, from the integration branch `claude/modest-p
 
 | Path | Base `3cb782a9` | This branch | Change |
 | --- | --- | --- | --- |
-| studentHome | 847.0 KB gzip, 186 files | **828.6 KB, 184 files** | **−18.4 KB** |
+| studentHome | 847.0 KB gzip, 186 files | **830.3 KB, 184 files** | **−16.7 KB** |
 | signIn | 291.2 KB, 27 files | 291.2 KB, 27 files | 0 |
 
 Measured with `npm run build && node scripts/check-first-load-budget.mjs --report` on both trees. (`npm run
 build:firebase` stamps the commit into the bundle, so after it signIn reads 291.3 KB on either tree.) The integrator's
 trial merge of the six other wave-6 branches was 855.8 KB against a limit of 855.1 KB. Those branches add about 8.7 KB,
-so with this branch the merge should come to about 837 KB: 18 KB under the limit. That is an estimate. The real
+so with this branch the merge should come to about 839 KB: 16 KB under the limit. That is an estimate. The real
 number is the integrator's measurement after the merge.
+
+The first push (`8f946670`) also loaded the support-evidence store on demand, for 18.4 KB in all. That move was
+reverted at the integrator's request because it could drop a student's evidence (see "The support-evidence store:
+tried and reverted").
 
 A student and a teacher see and can do exactly what they could before (proof under each item, and the side-by-side
 probe below). Only the time a module's code arrives changed.
@@ -38,10 +42,10 @@ only 1.5 K characters of `automaticClassroomPublishing.js` itself.
 | `teacherWorksheetEligibility` 1.3 | App only (teacher worksheet export) | No | Teacher kit |
 | `automaticClassroomPublishing` (1.5 K chars of a 13.2 KB chunk) | App only (`autoPublishAssignmentPackageToClassroom`) | No. The rest of the chunk is student code and stays | Teacher kit |
 | `assignmentAuthoringState` 1.9 | `assignmentAvailability.js`, which a student's Home does need (`studentDashboardModel`, `whatChangedModel`), but only for the four `AUTHORING_STATES` names | Only the constant | Constant split out |
-| `supportEvidenceStore` 6.8 | App (`recordStudentSupportEvidence`) and `useEngagementLedger.js` (`recordEngagementMinute`) | No. Both writes happen inside an assignment, never on Home | Loaded with the first write |
+| `supportEvidenceStore` 6.8 | App (`recordStudentSupportEvidence`) and `useEngagementLedger.js` (`recordEngagementMinute`) | No. Both writes happen inside an assignment, never on Home | **Tried, then reverted**: stays static (below) |
 | `studentSupportSignals` 4.2 | App, `studentSupportStore.js`, `returnCheckIn.js` (← App and `extensionReconciliation.js`), `teacherActionCenter.js` | No before Home. A student runs `summarizeRapidCorrectness` for the live status inside an assignment | **Not moved** (see "Not done") |
 
-### The teacher kit (5 modules, −8.4 KB in isolation)
+### The teacher kit (5 modules, −8.5 KB in isolation)
 
 **What changed.**
 
@@ -82,14 +86,31 @@ re-exports it, so every existing importer gets the same object (the test checks 
 `assignmentAvailability.js` imports it from the new file, so the authoring and repair-triage logic
 (`assignmentRepairTriage.js`) leaves the first load.
 
-### The support-evidence store (−1.9 KB in isolation)
+### The support-evidence store: tried and reverted (it stays in the first load)
 
-`src/platform/supportEvidence/loadSupportEvidenceStore.js` is `import('./supportEvidenceStore.js')`. A failure is
-logged and the promise rejects. Its two callers already dropped a failed write and let the next one retry: App's
-recorder deletes its de-duplication key, and the ledger hook clears the minute it tried. They keep doing that, so a
-failed load is reported and retried, never swallowed. The ledger passes the `nowMs` its tick saw. The rules accept
-the server's current minute or the one before, and after the first write the module is cached. `supportEvidenceModel`
-(4.9 KB) stays, because `useEngagementLedger` and `studentSupportTelemetry` need it.
+**Tried** in `8f946670`. `loadSupportEvidenceStore.js` did `import('./supportEvidenceStore.js')`, called from App's
+recorder and from `useEngagementLedger`. That was −1.9 KB in isolation.
+
+**Why it was reverted.** `src/firebase.js` uses `persistentLocalCache`. With the store imported along with App, every
+evidence write goes straight into Firestore's durable write queue: offline, on a flaky network, or in a tab older than
+the last deploy. It syncs later. Loaded on demand, the import has to succeed first, and when it failed the caller
+dropped the write:
+
+- A student offline at their first evidence write in a page, before the chunk was ever fetched. The worst case is the
+  launch records ("available"/"provided"), which fire once per launch (`launchedSupportKeyRef`) and so were lost until
+  that assignment was launched again. A "used" record could be lost if there was no next use.
+- A tab opened before a deploy. Hosting no longer serves the old hashed chunk, so every evidence write in that tab
+  failed until a reload.
+
+I found this while the reviewer was on `8f946670` and reported it to the integrator myself. A warm-up after Home plus
+an in-memory retry queue would narrow the gap but not close it: a page closed before the chunk loads still loses the
+write, and the fix is extra code that has to stay right. Support evidence is a student record, so the integrator
+chose the base's simple guarantee over 1.9 KB.
+
+**Now.** App and `useEngagementLedger.js` import the store statically, exactly as on `3cb782a9`. The loader is
+deleted. `tests/platform/supportTelemetryWiring.test.mjs` is back to the base's version. A new test in
+`firstLoadTeacherCode.test.mjs` pins the store in the first load: the graph reaches it, both static imports are
+present, and there is no `import()` of it. It goes red with an on-demand load in the hook or in App (both checked).
 
 ## Item 2 · the two teacher stylesheets: left in place
 
@@ -125,8 +146,6 @@ honest measure.
 | `lazyScreens-*.js` (the same chunk minus `automaticClassroomPublishing`, renamed) | — | 12.9 | +12.9 |
 | `questionAlignmentInfo-*.js` | 11.0 | — | −11.0 |
 | `questionAssessmentFramework-*.js` (with `misconceptionStudentMessages`, re-split) | — | 2.0 | +2.0 |
-| `supportEvidenceStore-*.js` | 6.8 | — | −6.8 |
-| `supportEvidenceModel-*.js` (what stays of it) | — | 4.9 | +4.9 |
 | `needsAttention-*.js` | 3.0 | — | −3.0 |
 | `teacherActionCenter-*.js` | 2.3 | — | −2.3 |
 | `assignmentAuthoringState-*.js` | 1.9 | — | −1.9 |
@@ -135,16 +154,19 @@ honest measure.
 | `returnCheckIn-*.js` | 4.2 | 3.2 | −1.0 |
 | `classMeetings-*.js`, `familyDelivery-*.js` (re-split out of the chunks above) | — | 1.3, 1.0 | +2.3 |
 | `authoringStates-*.js` | — | 0.1 | +0.1 |
-| `App-*.js` (the loaders, plus small shared modules the bundler now inlines) | 114.3 | 115.9 | +1.6 |
-| **studentHome** | **847.0** | **828.6** | **−18.4** |
+| `App-*.js` (the loader, plus small shared modules the bundler now inlines) | 114.3 | 115.7 | +1.4 |
+| **studentHome** | **847.0** | **830.3** | **−16.7** |
 
 signIn: no file changed.
 
-Each move in isolation, measured as branch head with only that change undone (scratch builds): teacher kit 8.4 KB,
-question alignment 8.9, support-evidence store 1.9, authoring states 1.7. These sum to 20.9, more than the 18.4
-together, because they share chunks.
+Each move in isolation, measured as this branch with only that change undone (scratch builds): teacher kit 8.5 KB,
+question alignment 8.9, authoring states 1.7. These sum to 19.1, more than the 16.7 together, because they share
+chunks.
 
 ## Proof on the running app (teacher-workflow harness, base `3cb782a9` on :5189 beside this branch on :5188)
+
+Run on `8f946670`, before the store revert. The revert puts back the base's own code for the store, so it changes
+nothing these probes compare.
 
 Scratch probe, never committed. Its text was normalised (whitespace collapsed, digits masked, so the live countdowns
 compare):
@@ -164,8 +186,7 @@ More probes on the branch:
 - Before a student's Home shows, none of the moved modules is requested; on the base all nine are. On the dev server
   the branch can still request `questionAlignmentInfo.js` before "Continue". That request comes after
   `QuestionEngine.jsx` (request 683 vs 618), so it is the existing prefetch of the question screen, not Home.
-- A student never requests `teacherKit.js` or `TeacherWorkspace.jsx`, before Home or after opening an assignment. The
-  support-evidence store arrives once the student opens work.
+- A student never requests `teacherKit.js` or `TeacherWorkspace.jsx`, before Home or after opening an assignment.
 - A teacher's `teacherKit.js` request delayed by 6 s: "Loading your MathMaster workspace…" shows, then Teacher Home.
   Nothing partial appears.
 - A teacher's `teacherKit.js` request aborted: AppErrorBoundary shows "MathMaster was just updated … Load the new
@@ -176,8 +197,8 @@ More probes on the branch:
 New, in `tests/platform/firstLoadTeacherCode.test.mjs`, with the walker in `tests/platform/helpers/firstLoadGraph.mjs`
 (the same walk as initialBundleBoundary.test.mjs; that file is untouched):
 
-- Ten modules are not in main.jsx's + App.jsx's static graph: the kit, its five modules, the store,
-  `assignmentAuthoringState`, `questionAlignmentInfo` and `assessmentStandardReferences`. The loaders and the split
+- Nine modules are not in main.jsx's + App.jsx's static graph: the kit, its five modules, `assignmentAuthoringState`,
+  `questionAlignmentInfo` and `assessmentStandardReferences`. The loaders and the split
   modules are reached, which also proves the walk still works.
 - The kit loads once and is shared. App uses exactly the kit's members, always through the kit, and none is
   statically imported again.
@@ -185,7 +206,8 @@ New, in `tests/platform/firstLoadTeacherCode.test.mjs`, with the walker in `test
   the screen. The teacher branch throws a failure and waits on the loading state. `requireTeacherKit` says what is
   wrong.
 - The two memos are guarded on the kit and depend on it.
-- The store loader logs and rethrows. The ledger hook loads through it and resets its minute on failure.
+- The support-evidence store stays in the first load, statically imported by App and the ledger hook (after the
+  revert).
 - `AUTHORING_STATES` and `questionAssessmentFramework` are the same object and the same function from their new
   homes, with behaviour checked on an SAT item.
 
@@ -193,16 +215,13 @@ Re-anchored (the behaviour each protects holds, and each was checked red against
 
 - `appShellSplit.test.mjs`: the teacher branch may hold only the kit wait before `<TeacherWorkspace`. The prop-list
   equality is unchanged.
-- `supportTelemetryWiring.test.mjs`: the store is loaded where it is written, and the retry-on-failure catch is
-  pinned.
 - `teacherActionProductionWiring.test.mjs`: the badge count is read through the kit.
 - `teacherAssignmentPdfWiring.test.mjs`: `requiresStudent` is read through the kit.
 
-**Mutation checks: 20, every one red, each restored.**
+**Mutation checks: every one red, each restored.** On `8f946670` there were 20, including six on the lazy store, which
+are now void. After the revert: an on-demand store load in the hook, and one in App, both red on the new pin.
 
 - A static `needsAttention` import back in App.
-- A static store import back in App.
-- A static store import back in the ledger hook.
 - `assignmentAvailability` importing from `assignmentAuthoringState.js` again.
 - App importing the framework rule from `questionAlignmentInfo.js` again.
 - The `!stopped` check removed.
@@ -215,9 +234,6 @@ Re-anchored (the behaviour each protects holds, and each was checked red against
 - A bare kit call.
 - An export missing from the kit.
 - The loader never forgetting a failure.
-- The store loader swallowing.
-- The ledger hook not resetting its minute.
-- The App recorder not retrying.
 - `AUTHORING_STATES` copied instead of re-exported.
 - The prefetch removed.
 
@@ -260,13 +276,13 @@ deploy:hosting`). No functions, rules or indexes changed. Nothing was deployed f
 
 ## What I touched outside my scope
 
-- Four existing source-contract tests, re-anchored as above: `appShellSplit`, `supportTelemetryWiring`,
-  `teacherActionProductionWiring`, `teacherAssignmentPdfWiring`.
-- `src/platform/supportEvidence/useEngagementLedger.js`: one import, and one call that now goes through the loader.
+- Three existing source-contract tests, re-anchored as above: `appShellSplit`, `teacherActionProductionWiring` and
+  `teacherAssignmentPdfWiring`. (`supportTelemetryWiring` and `useEngagementLedger.js` were changed and then restored
+  to the base with the store revert.)
 - `src/platform/preflight/assignmentAuthoringState.js`, `src/platform/assignments/assignmentAvailability.js` and
   `src/platform/student/questionAlignmentInfo.js`: definitions moved out and re-exported. No exported name changed.
 - App.jsx, for other wave-6 branches merging over it:
-  - the imports at the old lines 39, 267, 442–450, 453 and 474;
+  - the imports at the old lines 267, 442–450, 453 and 474 (line 39, the store, is back as on the base);
   - one new block of state and an effect after `teacherActionOpenCountCache`;
   - six call sites;
   - the two memos;

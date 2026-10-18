@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { epochMinuteOf, isEngagedNow } from '../../../functions/shared/supportEvidenceModel.mjs';
-import { loadSupportEvidenceStore } from './loadSupportEvidenceStore.js';
+import { recordEngagementMinute } from './supportEvidenceStore.js';
 
 /*
  * THE ACTIVE-ENGAGEMENT LEDGER, FROM THE STUDENT'S BROWSER.
@@ -51,7 +51,7 @@ export default function useEngagementLedger({
       const last = lastMinuteRef.current;
       if (last.assignmentId === assignmentId && last.minute === minute) return;
       lastMinuteRef.current = { assignmentId, minute };
-      loadSupportEvidenceStore().then(({ recordEngagementMinute }) => recordEngagementMinute({ db, studentId, assignmentId, nowMs })).catch(() => {
+      recordEngagementMinute({ db, studentId, assignmentId, nowMs }).catch(() => {
         // Let the next engaged tick in this minute try again.
         if (lastMinuteRef.current.minute === minute) lastMinuteRef.current = { assignmentId: null, minute: null };
       });

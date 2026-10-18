@@ -36,7 +36,7 @@ import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerR
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
-import { loadSupportEvidenceStore } from './platform/supportEvidence/loadSupportEvidenceStore.js';
+import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
@@ -3783,7 +3783,7 @@ function App() {
       : usedRecordKey({ assignmentId: activeAssignmentId, questionIndex, supportId });
     if (supportEvidenceSeenRef.current.has(key)) return;
     supportEvidenceSeenRef.current.add(key);
-    loadSupportEvidenceStore().then(({ recordStudentSupportEvidence: saveStudentSupportEvidence }) => saveStudentSupportEvidence({
+    saveStudentSupportEvidence({
       db,
       deterministic,
       variant,
@@ -3799,7 +3799,7 @@ function App() {
         assignedTeacherEmail: user.assignedTeacherEmail,
         details,
       },
-    })).catch(() => { supportEvidenceSeenRef.current.delete(key); });
+    }).catch(() => { supportEvidenceSeenRef.current.delete(key); });
   };
   const launchedSupportKeyRef = useRef('');
   useEffect(() => {

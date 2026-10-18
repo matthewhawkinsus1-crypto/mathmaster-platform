@@ -7,12 +7,12 @@
 //     which App imported for the teacher's screen. They now load as the teacher
 //     kit (src/app/teacher/teacherKit.js) once a teacher is signed in, and the
 //     teacher's screen waits for it;
-//   - the support-evidence store, which a student writes to only inside an
-//     assignment: it loads with the first write;
 //   - the authoring and repair logic, reached by Home only for four state
 //     names (src/platform/preflight/authoringStates.js);
 //   - every assessment standard reference, reached by the question navigator
 //     only for "is this SAT practice" (src/platform/student/questionAssessmentFramework.js).
+//
+// The support-evidence store stays in the first load ON PURPOSE (last test).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,7 +31,6 @@ test('the walker reaches the first load (so an absence below means something)', 
   // What stays, on purpose: the loaders, and the modules Home does read.
   for (const file of [
     'src/app/teacher/teacherKitLoader.js',
-    'src/platform/supportEvidence/loadSupportEvidenceStore.js',
     'src/platform/preflight/authoringStates.js',
     'src/platform/student/questionAssessmentFramework.js',
     'src/platform/assignments/assignmentAvailability.js',
@@ -45,7 +44,6 @@ for (const [file, why] of [
   ['src/platform/authoring/lessonPublishingIntent.js', 'only Assignment Review reads it'],
   ['src/platform/resources/teacherWorksheetEligibility.js', 'only a teacher\'s worksheet export reads it'],
   ['src/platform/classroom/automaticClassroomPublishing.js', 'only a teacher publishes to Classroom'],
-  ['src/platform/supportEvidence/supportEvidenceStore.js', 'a student writes evidence only inside an assignment'],
   ['src/platform/preflight/assignmentAuthoringState.js', 'Home reads only the state names (preflight/authoringStates.js)'],
   ['src/platform/student/questionAlignmentInfo.js', 'the navigator reads only questionAssessmentFramework'],
   ['src/platform/ccmr/assessmentStandardReferences.js', 'the standard references belong to the alignment panel'],
@@ -110,18 +108,6 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(items, /\}, \[teacherKit, /, 'the memo depends on the kit');
 });
 
-test('a student\'s evidence writes load the store first, and a failed load is said and retried', () => {
-  const loader = executableSource(read('src/platform/supportEvidence/loadSupportEvidenceStore.js'));
-  assert.match(loader, /export const loadSupportEvidenceStore = \(\) => import\('\.\/supportEvidenceStore\.js'\)\.catch\(\(error\) => \{\s*console\.error\([^)]*error\);\s*throw error;\s*\}\);/);
-  const hook = executableSource(read('src/platform/supportEvidence/useEngagementLedger.js'));
-  assert.match(hook, /^import \{ loadSupportEvidenceStore \} from '\.\/loadSupportEvidenceStore\.js';$/m);
-  assert.doesNotMatch(hook, /from '\.\/supportEvidenceStore\.js'/);
-  // The minute is the one the tick saw; a failure clears it for the next tick.
-  assert.match(hook, /loadSupportEvidenceStore\(\)\.then\(\(\{ recordEngagementMinute \}\) => recordEngagementMinute\(\{ db, studentId, assignmentId, nowMs \}\)\)\.catch\(\(\) => \{\s*if \(lastMinuteRef\.current\.minute === minute\) lastMinuteRef\.current = \{ assignmentId: null, minute: null \};/);
-  // App's recorder: pinned in supportTelemetryWiring.test.mjs.
-  assert.doesNotMatch(appCode, /from '\.\/platform\/supportEvidence\/supportEvidenceStore\.js'/);
-});
-
 test('the authoring states and the exam-practice rule are the same values from their new homes', async () => {
   const { AUTHORING_STATES } = await import('../../src/platform/preflight/authoringStates.js');
   const authoring = await import('../../src/platform/preflight/assignmentAuthoringState.js');
@@ -135,4 +121,18 @@ test('the authoring states and the exam-practice rule are the same values from t
   const sat = { assessmentContext: { examStyle: true, framework: 'digitalSAT' }, alignments: [{ framework: 'digitalSAT', domainId: 'algebra' }] };
   assert.deepEqual(framework.questionAssessmentFramework(sat), { framework: 'digitalSAT', domainId: 'algebra', examStyle: true });
   assert.deepEqual(framework.questionAssessmentFramework({ assessmentContext: { examStyle: true, framework: 'digitalSAT' } }), { framework: null, domainId: '', examStyle: false });
+});
+
+// Support evidence is a student record. Imported with App, every write goes
+// straight into Firestore's durable queue (src/firebase.js persistentLocalCache),
+// offline or in a tab older than the last deploy. Loaded on demand, a write
+// made before the chunk arrived was dropped instead (tried in first load 2 and
+// reverted). It stays static in App and in the engagement ledger.
+test('the support-evidence store stays in the first load, so evidence is never dropped before it loads', () => {
+  const key = path.join(repo, 'src/platform/supportEvidence/supportEvidenceStore.js');
+  assert.ok(graph.has(key), 'the support-evidence store left the first load: a write before its chunk arrives would be dropped');
+  assert.match(app, /^import \{ recordStudentSupportEvidence as saveStudentSupportEvidence \} from '\.\/platform\/supportEvidence\/supportEvidenceStore\.js';$/m);
+  const hook = executableSource(read('src/platform/supportEvidence/useEngagementLedger.js'));
+  assert.match(hook, /^import \{ recordEngagementMinute \} from '\.\/supportEvidenceStore\.js';$/m);
+  assert.doesNotMatch(appCode + hook, /import\(['"][^'"]*supportEvidenceStore/, 'no on-demand load of the store');
 });
