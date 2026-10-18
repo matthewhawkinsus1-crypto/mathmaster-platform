@@ -19,13 +19,14 @@ said with the evidence.
 | `STUDENT_SECTION_LABEL`, `studentSectionLabel(role, { spelledOut })` | Warm-Up, Classwork, Practice, Exit ticket, Quiz, Test | `lessonSections.SECTION_LABEL` (so every wait line and chip), Home's section line |
 | `firstExitTicketMention(items, namesExitTicket, { alreadySpelledOut })` | which item on a screen spells "(DOL)" out | Home |
 | `EXIT_TICKET_WAITS` | "Exit ticket opens in class" | Home's status chip (NAV-26) |
-| `CLOSED_WORK` | `label` "Practice only"; `groupLabel` "Practice only — closed, no credit"; `bannerTitle` "Practice only — this assignment is closed"; `bannerText`; `tryAgain` "Try it again — no credit"; `gradeLabel` "Your grade (closed)" | Home chip and group, Assignments tab, Grades status, the workspace badge, phone chip and banner, the result page's try-again |
+| `CLOSED_WORK` | `label`, `groupLabel` and `bannerTitle` "Closed — no credit"; `bannerText`; `tryAgain` "Try it again — no credit"; `gradeLabel` "Your grade (closed)" | Home chip and group, Assignments tab, Grades status, the workspace badge, phone chip and banner, the result page's try-again |
+| `RECOVERY_NAME` | "DOL Recovery", "Warm-Up Recovery" (unchanged: decision 1) | the next-action card |
 | `SEE_RESULTS`, `HOME`, `BACK_TO_HOME` | "See results", "Home", "Back to Home" | Home, Assignments, Grades, Live Challenge's default exit |
 | `triesCount(n)` | "1 try", "3 tries" | (for later screens) |
-| `HINT_COST` | re-exports `hintCopy.HINT_COST_SENTENCE`: "Hints never lower your score. Your teacher can see you used one." | one sentence, one source |
+| `HINT_COST` | "Hints never lower your score. Your teacher can see you used one." `hintCopy.HINT_COST_SENTENCE` is this constant | one sentence, one source |
 | `DUE_WORDS` | "Due", "Your due date", "Late work accepted until", "Your last day to turn in", "No due date" | `studentDueDateLines`, `studentDueText` (`assignmentLifecycle.js`) |
 
-`submitCost.js` gains `SAME_ANSWER_AGAIN` (HELP-24): it is about what Submit costs, which is that module's subject.
+The module imports nothing, because the sign-in page loads it (its first-load file count is unchanged). `submitCost.js` gains `SAME_ANSWER_AGAIN` (HELP-24): it is about what Submit costs, which is that module's subject.
 
 ## Per item: what a student saw → what changed → proof
 
@@ -54,6 +55,11 @@ it out once, then says "Exit ticket"**:
   status chip and the toasts (each is read on its own); every sentence says "exit ticket".
 - Grades: the section breakdown. Login page: the subhead ("daily exit tickets (DOL)").
 
+Closed work's one name is **"Closed — no credit"**, never "Practice …". In student copy "Practice" means only the
+lesson's Practice section (an existing contract in `studentAssignmentsCenterToday.test.mjs` says so), and a closed
+card showed "PRACTICE ONLY" beside its own "Practice — Closed" chip. My first pass used "Practice only"; that test
+caught it.
+
 What stayed "DOL": "DOL Recovery" and its buttons ("Start DOL Recovery", "Practice for DOL Recovery"). It is a named
 feature that teachers, Pre-Flight and the Recovery journeys use, and renaming it touches about 40 assertions in eight
 files, among them the Recovery journeys outside this scope. It is decision 1 below.
@@ -68,14 +74,15 @@ files, among them the Recovery journeys outside this scope. It is decision 1 bel
 | `src/components/student/GradeSectionBreakdown.jsx:21` | DOL | Exit ticket (DOL) |
 | `src/components/student/StudentDashboardView.jsx:356` | Classwork · DOL | Classwork · Exit ticket (DOL) on the first card, Exit ticket after |
 | `src/components/student/StudentDashboardView.jsx:367` | DOL opens at 2:15 PM. | Exit ticket opens at 2:15 PM. |
-| `src/components/student/StudentDashboardView.jsx:308` | Closed | Practice only |
+| `src/components/student/StudentDashboardView.jsx:308` | Closed | Closed — no credit |
 | `src/components/student/StudentDashboardView.jsx:314` (NAV-26) | Not open yet (a lesson done but for its exit ticket) | Exit ticket opens in class |
 | `src/components/student/StudentDashboardView.jsx:405-406` | See results / Try it again — no credit | the same words, from the list |
-| `src/studentDashboardModel.js:72` | Closed — try again (no credit) | Practice only — closed, no credit |
+| `src/studentDashboardModel.js:72` | Closed — try again (no credit) | Closed — no credit (the group's hint under it is unchanged) |
+| `src/studentDashboardModel.js` (locked Recovery card) | Practice to unlock your DOL Recovery | unchanged (it would have become "Exit ticket Recovery" through the section label; `RECOVERY_NAME` keeps it) |
 | `src/studentDashboardModel.js` (dol card) | Your exit ticket (DOL) is open | unchanged words, from the list |
 | `src/studentDashboardModel.js` (assignedSoon) | … — DOL opens at 10:38 AM. | … — Exit ticket (DOL) opens at 10:38 AM. |
-| `src/platform/student/studentAssignmentsCenterModel.js:66` | Closed — try again | Practice only |
-| `src/platform/student/studentGradeCenterModel.js:122` | Practice Only | Practice only |
+| `src/platform/student/studentAssignmentsCenterModel.js:66` | Closed — try again | Closed — no credit |
+| `src/platform/student/studentGradeCenterModel.js:122` | Practice Only | Closed — no credit |
 | `src/components/student/StudentAssignmentsCenter.jsx:146`, `StudentGradeCenter.jsx:326` | View Results | See results |
 | `src/platform/student/whatChangedModel.js:277` | You have another try on the DOL for … | You have another try on the exit ticket for … |
 | `src/platform/assessment/dolCloseCopy.js:59,61,71,72` | … closed the DOL / this DOL | … closed the exit ticket / this exit ticket |
@@ -85,13 +92,13 @@ files, among them the Recovery journeys outside this scope. It is decision 1 bel
 | `src/App.jsx:5611` | DOL not open yet — "The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears." | Exit ticket (DOL) not open yet — "The exit ticket opens in the last minutes of class. Keep working; a banner tells you when it opens." |
 | `src/App.jsx:9829` | Requesting another DOL question will erase this DOL attempt. You will have only … remaining to submit the replacement. | A new exit ticket question replaces this one and erases your answer to it. You will have only … left to submit the new one. |
 | `src/App.jsx:9837` | Return to Dashboard | Back to Home |
-| `src/App.jsx:9843` | Practice only (badge) | Practice only, from the list |
+| `src/App.jsx:9843` | Practice only (badge) | Closed — no credit |
 | `src/App.jsx:9860` | DOL / Exit Ticket (section tab) | Exit ticket (DOL) |
 | `src/App.jsx:9935` | Time is up for the Exit ticket (DOL). | Time is up for the exit ticket. |
 | `src/App.jsx:10098` | Exit ticket (DOL) (Up next's section name) | Exit ticket |
 | `src/App.jsx:10132-10135` | Exit ticket (DOL) open / The Exit ticket (DOL) is open / Go to the Exit ticket (DOL) | Exit ticket (DOL) open / The exit ticket is open / Go to the exit ticket |
-| `src/App.jsx:10157-10159` | No credit · practice / Practice only, no credit / "This assignment has closed and your grade is set. You can keep practising…" | Practice only · no credit / Practice only — this assignment is closed / `CLOSED_WORK.bannerText` |
-| `src/App.jsx:10363-10364` | Practice Mode — grading window ended / "Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. …" | Practice only — this assignment is closed / "Your grade on it stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it." |
+| `src/App.jsx:10157-10159` | No credit · practice / Practice only, no credit / "This assignment has closed and your grade is set. You can keep practising…" | Closed — no credit / Closed — no credit / `CLOSED_WORK.bannerText` |
+| `src/App.jsx:10363-10364` | Practice Mode — grading window ended / "Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. …" | Closed — no credit / "Your grade on it stays as it is. You can keep practicing and see feedback, but nothing you do here changes your grade or your Math Path. Your practice is saved, so you can pick it up on another Chromebook, and your teacher can see it." |
 | `src/App.jsx:10371-10375` | DOL is available now / "The entire DOL section is open. Complete all N questions before the timer reaches zero." / Start DOL Section | The exit ticket is open now / "Answer all N questions before the timer reaches zero." / Start the exit ticket |
 | `src/App.jsx:10433` | Frozen recorded grade | Your grade (closed) |
 | `src/App.jsx:10652` + `SectionTimeLeft.jsx:28,71` | Exit ticket (DOL) open; "2 minutes left on the Exit ticket (DOL)." | Exit ticket open; "2 minutes left on the exit ticket." |
@@ -113,7 +120,7 @@ Session B's Submit words (`submitActionLabel`, `submitTryCost`, `missOutcomeText
 Assignments tab, Grades, Home's group and the try-again label; the first-mention rule; Home's ladder and section line
 wired to it; the workspace banner reading `CLOSED_WORK`; a scan of 17 student modules for 33 old phrasings (none
 left). `tests/browser/studentHomeToday.mjs` now checks, on the real dashboard at 1366×768 and 390×844, that "Exit
-ticket (DOL)" appears exactly once on Home and no bare "DOL" is printed, that closed work says "Practice only", and
+ticket (DOL)" appears exactly once on Home and no bare "DOL" is printed, that closed work says "Closed — no credit", and
 the wait line "Exit ticket opens at …". Screens: Home before (base) and after are in the session's scratchpad; see
 "Browser evidence" below.
 
