@@ -43,8 +43,10 @@ test before release (D2), and the proof is listed for each item.
   tablet-mode Chromebook's keyboard, still landed after the panel's 0: after Clear, a paste of `(2+3)` gave `0(2+3)`, "equals 0".
   On `input`, `valueWithoutPlaceholder` now drops the panel's own 0 when anything but a digit or a decimal point follows it
   (`07` is 7, `0.5` is kept), and drops a leading "Error". MathLive dispatches the paste's `input` a moment after the value
-  changes, so a student who pastes and presses Enter at once could, in principle, still evaluate the 0. A person cannot
-  press that fast, but the driver can, so it waits for the repaired value.
+  changes. After the wave-4 merge the driver showed that an Enter right after committed text can arrive **before** those
+  input events (MathLive reports the text late, and its first input still reads "0"). So the same repair now also runs just
+  before evaluating (Enter and "="), and an input that leaves only "0" does not end the placeholder. A scratch loop of the
+  failing sequence went from 4 failures in 12 to 0 in 12, and removing the repair at Enter makes it fail again (3 in 12).
 - **N1:** only Clear writes the placeholder (`setCalculatorValue('0', { placeholder: true })`). A 0 computed with "=" is a
   result, the same as one computed with Enter: `2-2` "=" then `*5` is `0·5`.
 - **N2:** Backspace or Delete on "Error" clears it to 0, so the field never becomes "Erro". AltGr layouts (Ctrl+Alt) reach the
@@ -78,6 +80,20 @@ inequality, Expression Meaning, Linear Table Workbench, LMR board, Transformatio
 Operations, Complex Plane, Polynomial Workshop, Exponential/Log Bridge, Sequence Explorer, Parabola Geometry, Open Sort
 and Graph Scenario Match have only per-part booleans. Function Operations' "Some parts are correct…" also shows when no
 part is correct, which is a wording issue.
+
+## Gate after merging wave 4 (base `c350dfc`, merge `d757cd1`, plus the Enter-time repair)
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,685 / 11,685 |
+| `node --test tests/tools/*.test.mjs` | 1,689: 1,688 pass, 1 skipped, 0 fail |
+| lint / build / build:firebase | 0 / 0 / 0; no tracked file rewritten |
+| first-load budget | **studentHome 845.8 KB**, within baseline (177.6 KB below it; baseline not edited) |
+| sweep `--check-wrong` vs `c350dfc` | 251,811 gradings, 0 / 0 / 0 |
+| emulators | grade-authority 14/14, canonical-persistence 35/35; authoring-v5 686/686 |
+| browser (one at a time, 5199) | `graphPointCheck`, `relationPlotGrading`, `graphKeyboardRoute`, `composedOutcomePolicy`, `composedDraftRestore`, `stagedQuestion`, `toolPolicyGates`, `toolAttemptOutcome`, `assessmentLeakGates`, `closedQuestionEnter`, `feedbackTeaches`, `afterLastMiss`, `readAloudTranslate`, `planePhoneReach` pass. `calculatorKeyboard` failed on the merge ("committed text after Clear replaces the 0": an Enter read before MathLive's late input). After the Enter-time repair it passes four runs in a row |
+
+Wave 4 checked by reading the merged code: the Transformations Lab's "Check graph" is a submit and now says "Submit — uses 1 of N tries" where that applies (`SubmitText`); its correspondence message sits beside that verdict unchanged. "Check Point Placements" and "Which way is each point off?" record no try, so they keep their own words; the opt-in states its hint cost. The opt-in exists only where hints are allowed (`selfCheckAllowed`), and the lab's order hint is a hint, so on an exit ticket, quiz or test both are withheld along with W4-1's `useMethodWithheld` method panels.
 
 ## Gate after merging the base `cbeff6a` (merge `85e8466`, plus one test re-anchor)
 

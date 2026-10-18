@@ -92,8 +92,19 @@ test('text that arrives without a key (paste, IME, dictation, a touch keyboard) 
   assert.equal(deleteKeyClearsError({ key: 'Delete' }, 'Error'), true);
   assert.equal(deleteKeyClearsError({ key: 'Backspace' }, '12'), false);
   const panel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
+  const repair = region(panel, 'const repairPlaceholder = useCallback(', '}, []);', 'repairPlaceholder');
+  assert.match(repair, /valueWithoutPlaceholder\(mathField\.value, \{ placeholderShown: placeholderShownRef\.current \}\)/);
   const input = region(panel, 'const handleInput = () => {', 'setDisplay(', 'handleInput');
-  assert.ok(input.indexOf('valueWithoutPlaceholder(mathField.value, { placeholderShown: placeholderShownRef.current })') > -1
-    && input.indexOf('valueWithoutPlaceholder(') < input.indexOf('placeholderShownRef.current = false;'), 'repaired before the placeholder is forgotten');
+  assert.ok(input.indexOf('repairPlaceholder(mathField);') > -1
+    && input.indexOf('repairPlaceholder(mathField);') < input.indexOf('placeholderShownRef.current = false;'), 'repaired before the placeholder is forgotten');
+  // And again just before evaluating, on both Enter and "=": MathLive reports
+  // committed text late, so Enter can come before the input that repairs it.
+  const enterEval = region(panel, 'const handleKeyDown = (event) => {', 'const preventContextMenu', 'Enter');
+  assert.match(enterEval, /repairPlaceholder\(mathField\);\s*const expression = expressionFromMathField/);
+  const equalsEval = region(panel, "if (button.action === 'equals') {", 'return;', '= key');
+  assert.match(equalsEval, /repairPlaceholder\(mathFieldRef\.current\);\s*const expression = expressionFromMathField/);
+  // An input that leaves only the placeholder "0" (MathLive reports one before
+  // committed text lands) does not end the placeholder.
+  assert.match(input, /if \(mathField\.value !== '0'\) placeholderShownRef\.current = false;/);
   assert.match(region(panel, 'const replacePlaceholder = (event) => {', 'if (!typedKeyReplacesPlaceholder', 'delete on Error'), /if \(deleteKeyClearsError\(event, mathField\.value\)\) \{\s*event\.preventDefault\(\);[\s\S]*mathField\.value = '0';\s*placeholderShownRef\.current = true;/);
 });
