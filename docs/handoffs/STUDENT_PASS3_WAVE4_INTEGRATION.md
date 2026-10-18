@@ -57,6 +57,22 @@ They merged in that order, then wave 3's last gate fixes (`cbeff6a`). Nothing wa
   both checks passed. Otherwise the sweep is held, even with `--continue-after-function-failure`, and the
   finishing command includes it. Four unit cases cover it. Six mutations each turn them red; a seventh, on a
   defensive line that no current path reaches, does not.
+- **Four driver fixes found by the gate after the push.** Each fails on the merged tree and passes on `cbeff6a`. Either
+  B renamed a button these drivers press (RUN-4), or W4-1's Help drawer added a hidden copy of what they count (TOOL-3).
+  Neither session ran these drivers after that change:
+  - `3eab81c` · composedReopenSubmit (`test:draft-persistence`) looked for "Submit" or "Submit Answer". The button's name
+    is now "Submit — uses 1 of 3 tries", so four of its six checks found no Submit. It now takes either form; 6 of 6.
+  - `0e6140c` · algebraicSystems3x3 counted the 3×3 badge's text anywhere on the page. Help's closed "About this tool"
+    repeats it, which the capability certification's two 3×3 rows also tripped on. It now counts the tool header's own
+    badge; 19 of 19 journeys.
+  - `c6e0942` · linearMultipleRepresentations `complete` looked for "Submit — …" on a closed board. B's review notes
+    (`5925ba3`) drop the cost on a closed question, which spends none, so the board reads "Submit board", disabled and
+    inert, as the check wants. It now takes the board's own button; no findings.
+  - `3cd1d5b` · day1SystemsJourney pressed "Check my work". The systems workspace's final action reads "Submit — …"
+    under QuestionEngine, as the other systems drivers already expect; 3 of 3 journeys.
+
+  After these, every driver was searched for the 65 action labels that B's wording can replace; no other stale lookup
+  is left in the drivers CI runs.
 
 ## Checks
 
@@ -73,17 +89,18 @@ They merged in that order, then wave 3's last gate fixes (`cbeff6a`). Nothing wa
 | The rest of the full-platform suite: six emulator suites (Classroom regrade report, identity repair, Live Challenge launch, path choice report, path release, Warm-Up reopen) and the audits | `7d59c1a` | all pass (5, 4, 10, 5, 4 and 1 cases). The audits are answer acceptance, path release verify, release authority, challenge DOK and quality, fidelity seeds, authoring boundary, legacy source, and authoring v5 tests (686) and validation. No tracked file rewritten |
 | `releasePlan` and the release tests | `cd6ae7f` | 73 of 73 |
 | Student drivers, 27 (plain Vite), including W4-1's workViewHelpReach and B's closedQuestionEnter and moduleRecoveryLock | `7d59c1a` | 26 pass. toolFocusAndUndo failed on the how-to count; `282006b` fixes it (the scene passes at both sizes), and the whole driver runs again below |
-| toolFocusAndUndo, whole driver | pushed head | running after the push |
-| Student drivers, 20 more, workViewMatrix and the two tool captures | pushed head | running after the push |
-| Real-App journeys (teacher harness), 20, including B's submitAndFinishJourneys and studentNameJourneys | pushed head | running after the push |
-| `warmupReopenJourneys --slow` | pushed head | running after the push |
-| The rest of the journeys job (linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft both modes, familyPinContainment `--slow`, recoveryHoldJourneys `--slow`) | pushed head | running after the push |
-| `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | pushed head | running after the push |
-| `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | pushed head | running after the push |
-| `npm run certify:accessibility` and the accessibility drivers | pushed head | running after the push |
+| toolFocusAndUndo, whole driver | `c350dfc` | pass |
+| Student drivers, 20 more, workViewMatrix and the two tool captures | `cd6ae7f`, then `3cd1d5b` | all pass after the fixes above. The first 17 ran on `cd6ae7f`: algebraicSystems3x3 and day1SystemsJourney failed (`0e6140c`, `3cd1d5b`), and the run stopped at its two-hour limit. The last six ran on `3cd1d5b`. secureAccessParity failed one check once: the SAT item's Translate button, which appears only after the language pack loads, was read 600 ms after the tray. The same scene then passed 3 of 3, and the whole driver passed 26 of 26 on a fresh server. W5-6 adds a wait for the button. workViewMatrix `--write` changed only its fixture's timestamp, restored |
+| Real-App journeys (teacher harness), 20, including B's submitAndFinishJourneys and studentNameJourneys | `c350dfc` | all pass. studentNameJourneys passes with W5-1's harness-clock fix |
+| `warmupReopenJourneys --slow` | `c350dfc` | all pass (51 min) |
+| The rest of the journeys job (linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft both modes, familyPinContainment `--slow`, recoveryHoldJourneys `--slow`) | `c350dfc`, then `c6e0942` | all pass after `c6e0942` (linearMultipleRepresentations `complete`). recoveryHoldJourneys `--slow`: 450 checks |
+| `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | `c350dfc`, then `3eab81c` | all pass after `3eab81c` (draft-persistence's composedReopenSubmit) |
+| `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | `c350dfc`, then `3cd1d5b` | dark mode passes. Capabilities failed only its two 3×3 rows (algebraicSystems3x3) and passes on `3cd1d5b`: every certified capability |
+| `npm run certify:accessibility` and the accessibility drivers | `c350dfc` | all 23 pass, including review:contrast and the large-text checks |
 
-The rows marked "running after the push" run on the pushed head so that wave 5 can merge this base sooner, as with
-wave 3. Anything they find is fixed on this branch and listed here.
+The rows from toolFocusAndUndo on ran after the push, so that wave 5 could merge this base sooner, as with wave 3. Five
+cloud sessions ran them in parallel, and the last two student groups ran here. What they found is fixed
+on this branch (the four driver fixes above).
 
 The emulator suites ran on `5190e97` (B merged), before W5-1, B's last round and `cbeff6a`. They were not re-run on
 the later commits, because those change browser code, browser tests and documents only, with two exceptions. The two
