@@ -37,7 +37,7 @@ import {
   createCourseWorkCalls, db, fns, patchGradeCalls, readCorrectionPlan, readGradeDoc,
   readRecord, readRetestPlan, readSession, refusal, repo, resetClassroomCalls, runClassroomSync,
   sitSecureExam, studentRequest, teacherRequest,
-  OTHER_TEACHER_EMAIL, TEACHER_EMAIL,
+  OTHER_TEACHER_EMAIL, TEACHER_EMAIL, admin,
 } from './testCycleCertificationHarness.mjs';
 
 const require = createRequire(import.meta.url);
@@ -58,6 +58,24 @@ const sit = (options) => sitSecureExam({
   answerFromPrompt: certAnswerFromPrompt,
   wrongAnswer: CERT_WRONG_ANSWER,
 });
+
+/*
+ * THE BELL SCHEDULE IS SHARED. node --test runs the integration files in
+ * parallel against one emulator, and dolExtraTimeServer and
+ * testCycleSecureWorkflow write settings/classSchedule at the same time. A
+ * test writes only its own period's days into it and takes only those out
+ * again: overwriting or deleting the document took another file's meeting
+ * out from under it (L failed in the full suite and passed alone).
+ */
+const scheduleRef = () => db.collection('settings').doc('classSchedule');
+const putOwnSchedule = (modifiedSchedules) => scheduleRef().set({ modifiedSchedules }, { merge: true });
+const removeOwnSchedule = async (period) => {
+  const days = (await scheduleRef().get()).data()?.modifiedSchedules || {};
+  const own = Object.keys(days).filter((dateKey) => days[dateKey]?.periods?.[period]);
+  if (!own.length) return;
+  const { FieldPath, FieldValue } = admin.firestore;
+  await scheduleRef().update(...own.flatMap((dateKey) => [new FieldPath('modifiedSchedules', dateKey, 'periods', period), FieldValue.delete()]));
+};
 
 /** The record's stage, as the student card would resolve it. */
 const cardFor = (studentId) => fns.getStudentTestCycle.run(
@@ -1088,7 +1106,7 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
       db.collection('grades').doc(STUDENT).delete(),
       db.collection('testCycleRecords').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
       db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
-      db.collection('settings').doc('classSchedule').delete(),
+      removeOwnSchedule(PERIOD),
       ...sessions.docs.map((doc) => doc.ref.delete()),
     ]);
   };
@@ -1102,14 +1120,9 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
     gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   });
   await db.collection('assignments').doc(ASSIGNMENT).set({ ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT });
-  await db.collection('settings').doc('classSchedule').set({
-    version: 2,
-    daySchedules: {},
-    weeklyDayTypes: {},
-    modifiedSchedules: {
-      [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } },
-      [dayKey(1)]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } },
-    },
+  await putOwnSchedule({
+    [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } },
+    [dayKey(1)]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } },
   });
   const opened = await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }));
   assert.equal(opened.createdSessions, 1);
@@ -1201,7 +1214,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
       db.collection('grades').doc(STUDENT).delete(),
       recordRef.delete(),
       db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${STUDENT}`).delete(),
-      db.collection('settings').doc('classSchedule').delete(),
+      removeOwnSchedule(PERIOD),
       ...sessions.docs.map((doc) => doc.ref.delete()),
     ]);
   });
@@ -1214,10 +1227,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
     gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   });
   await db.collection('assignments').doc(ASSIGNMENT).set({ ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT });
-  await db.collection('settings').doc('classSchedule').set({
-    version: 2, daySchedules: {}, weeklyDayTypes: {},
-    modifiedSchedules: Object.fromEntries([-1, 1].map((offset) => [dayKey(offset), { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } }])),
-  });
+  await putOwnSchedule(Object.fromEntries([-1, 1].map((offset) => [dayKey(offset), { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '23:59' } } }])));
   const preview = () => fns.getStudentTestCycle.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT, preview: true }));
 
   // Assigned, Test day tomorrow, no session opened: the list has nothing for it.
@@ -1287,7 +1297,7 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
     await Promise.allSettled([
       db.collection('assignments').doc(ASSIGNMENT).delete(),
       db.collection('classes').doc(CLASS).delete(),
-      db.collection('settings').doc('classSchedule').delete(),
+      removeOwnSchedule(PERIOD),
       ...sessions.docs.map((doc) => doc.ref.delete()),
       ...[SAT, ABSENT].flatMap((studentId) => [
         db.collection('grades').doc(studentId).delete(),
@@ -1309,10 +1319,7 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
       gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
     });
   }
-  await db.collection('settings').doc('classSchedule').set({
-    version: 2, daySchedules: {}, weeklyDayTypes: {},
-    modifiedSchedules: { [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } } },
-  });
+  await putOwnSchedule({ [today]: { periods: { [PERIOD]: { enabled: true, start: '00:00', end: '00:01' } } } });
   // Old-bug data: today's day, stored after its class had met.
   await db.collection('assignments').doc(ASSIGNMENT).set({
     ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT,
