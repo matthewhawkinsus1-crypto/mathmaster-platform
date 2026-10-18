@@ -36,7 +36,7 @@ import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerR
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
-import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
+import { loadSupportEvidenceStore } from './platform/supportEvidence/loadSupportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
@@ -264,7 +264,6 @@ import {
   resolveCurrentContentStorageIndex,
 } from './platform/assignments/currentContentProjection.js';
 import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
-import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 
@@ -351,7 +350,7 @@ import {
   teacherRouteSignature,
   writeTeacherRouteState,
 } from './platform/teacher/teacherBrowserHistory.js';
-import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
+import { questionAssessmentFramework } from './platform/student/questionAssessmentFramework.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
 import {
   STUDENT_SELF_NEUTRAL_LABEL,
@@ -439,18 +438,12 @@ import {
 import { PRINT_OUTPUT_MODES } from './platform/resources/printOutputModes.js';
 import { buildAssignmentWorksheetModel, buildTeacherAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
-import {
-  assignmentNeedsStudentForWorksheet,
-  eligibleStudentsForTeacherWorksheet,
-} from './platform/resources/teacherWorksheetEligibility.js';
-import {
-  classroomPostingMode,
-  mappedCourseIdsForAssignment,
-  shouldAutoPublishClassroomPackage,
-} from './platform/classroom/automaticClassroomPublishing.js';
+// The teacher-only logic App runs (needs attention, the Action Center,
+// Assignment Review's publishing intent, worksheets, Classroom publishing)
+// loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
+import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './app/teacher/teacherKitLoader.js';
 import { automaticClassroomTopicName } from './platform/classroom/classroomTopicNaming.js';
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
-import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
@@ -471,7 +464,6 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 // made every attendance correction review impossible to resolve.
 import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
-import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
@@ -756,6 +748,29 @@ function App() {
   // Keep only the small badge count after Action Center releases its heavy
   // projections. This preserves the sidebar cue without retaining student history.
   const [teacherActionOpenCountCache, setTeacherActionOpenCountCache] = useState(0);
+  // The teacher kit (app/teacher/teacherKit.js) loads once a teacher is signed
+  // in; the teacher's screen waits for it (the teacher branch of the render).
+  // A teacher who leaves before it arrives is never handed it, and a failed
+  // load reaches AppErrorBoundary, like a failed TeacherWorkspace chunk.
+  const [teacherKit, setTeacherKit] = useState(loadedTeacherKit);
+  const [teacherKitError, setTeacherKitError] = useState(null);
+  useEffect(() => {
+    if (user?.role !== 'teacher' || teacherKit) return undefined;
+    let stopped = false;
+    prefetchTeacherWorkspace();
+    loadTeacherKit()
+      .then((kit) => { if (!stopped) setTeacherKit(kit); })
+      .catch((error) => {
+        console.error('The teacher workspace could not load:', error);
+        if (!stopped) setTeacherKitError(error);
+      });
+    return () => { stopped = true; };
+  }, [user?.role, teacherKit]);
+  // Only the teacher's screen calls these, and it renders only with the kit.
+  const requireTeacherKit = () => {
+    if (!teacherKit) throw new Error('The teacher workspace has not finished loading. Try again in a moment.');
+    return teacherKit;
+  };
   const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
   const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
@@ -2584,6 +2599,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
+    const { classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -3767,7 +3783,7 @@ function App() {
       : usedRecordKey({ assignmentId: activeAssignmentId, questionIndex, supportId });
     if (supportEvidenceSeenRef.current.has(key)) return;
     supportEvidenceSeenRef.current.add(key);
-    saveStudentSupportEvidence({
+    loadSupportEvidenceStore().then(({ recordStudentSupportEvidence: saveStudentSupportEvidence }) => saveStudentSupportEvidence({
       db,
       deterministic,
       variant,
@@ -3783,7 +3799,7 @@ function App() {
         assignedTeacherEmail: user.assignedTeacherEmail,
         details,
       },
-    }).catch(() => { supportEvidenceSeenRef.current.delete(key); });
+    })).catch(() => { supportEvidenceSeenRef.current.delete(key); });
   };
   const launchedSupportKeyRef = useRef('');
   useEffect(() => {
@@ -4659,14 +4675,14 @@ function App() {
   }, [teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
 
   const teacherActionItems = useMemo(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return buildTeacherActionItems({
+    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return teacherKit.buildTeacherActionItems({
       students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
       returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
       retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
     });
-  }, [teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const currentTeacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  }, [teacherKit, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
+  const currentTeacherActionOpenCount = teacherKit ? teacherKit.openTeacherActionCount(teacherActionItems) : 0;
   const teacherActionOpenCount = teacherTab === 'actionCenter'
     ? currentTeacherActionOpenCount
     : teacherActionOpenCountCache;
@@ -5783,7 +5799,7 @@ function App() {
   };
 
   const teacherWorksheetStudentsFor = (assignment) => (
-    eligibleStudentsForTeacherWorksheet(assignment, allStudents)
+    requireTeacherKit().eligibleStudentsForTeacherWorksheet(assignment, allStudents)
       .slice()
       .sort(compareStudentsByName)
   );
@@ -5836,7 +5852,7 @@ function App() {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
-    const requiresStudent = assignmentNeedsStudentForWorksheet(assignment);
+    const requiresStudent = requireTeacherKit().assignmentNeedsStudentForWorksheet(assignment);
     const students = teacherWorksheetStudentsFor(assignment);
     if (requiresStudent && !students.length) {
       toastInfo(
@@ -7481,7 +7497,7 @@ function App() {
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
       ));
-      const publishingIntent = normalizeLessonPublishingIntentV5({
+      const publishingIntent = requireTeacherKit().normalizeLessonPublishingIntentV5({
         classroom: assignmentV5.classroomIntegration,
         lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
       }, assignmentV5.assignment, []);
@@ -7630,7 +7646,7 @@ function App() {
   const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
 
   const needsAttentionQueue = useMemo(() => {
-    if (!['home', 'classesWorkspace'].includes(teacherTab)) return [];
+    if (!teacherKit || !['home', 'classesWorkspace'].includes(teacherTab)) return [];
     const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
     const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
@@ -7655,7 +7671,7 @@ function App() {
     const day = new Date(queueDayStart).getDay();
     const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 6));
 
-    return buildNeedsAttentionQueue({
+    return teacherKit.buildNeedsAttentionQueue({
       students: scoped.map((student) => ({ ...student, displayName: formatStudentName(student) })),
       profilesByStudentId: teacherLearningProfiles,
       weeklyByStudentId,
@@ -7669,7 +7685,7 @@ function App() {
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab, teacherKit,
   ]);
 
   const profileDrawerRosterStudent = useMemo(
@@ -11042,6 +11058,13 @@ function App() {
   }
 
   if (user.role === 'teacher') {
+    // Until the teacher kit is here, the same "Loading your MathMaster
+    // workspace…" AppShell shows while this screen's chunk loads: nothing the
+    // screen shows is ever computed without the kit.
+    if (teacherKitError) throw teacherKitError;
+    if (!teacherKit) {
+      return <SessionGate authStatus="loading" hydrationError={null} hydrating launchAssignment={null} onSignOut={() => { resetAddressToHome(); auth.signOut(); }} />;
+    }
     // The teacher's screen, verbatim, in its own chunk (app/teacher/TeacherWorkspace.jsx):
     // every input it reads is passed by name. Like the other teacher screens
     // it suspends to AppShell's boundary while its chunk first loads.
