@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CHECKPOINT_DEBOUNCE_MS, responseSignature, studentChangedResponse } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
@@ -62,7 +62,7 @@ import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { getEffectiveActivityPolicy, isActivityRole } from './platform/policies/activityPolicies';
-import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
+import { CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
@@ -122,6 +122,16 @@ import { toolsEntitlementFromProfile } from './platform/language/supportToolsEnt
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+
+// The graphing calculator (pass 3, PR-26) loads only for a question whose
+// calculator is graphing. If its chunk cannot load, the keypad drawer stands
+// in rather than the question failing, and the control is named for it.
+const GraphingCalculatorUnavailable = ({ fallback = null, onUnavailable = null }) => {
+  useEffect(() => { onUnavailable?.(); }, [onUnavailable]);
+  return fallback;
+};
+const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
+  .catch(() => ({ default: GraphingCalculatorUnavailable })));
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -252,6 +262,9 @@ function QuestionEngineBody({
   assessmentReviewReleased = false,
   assessmentContext = null,
   teacherCalculatorChoice = null,
+  // The assignment's calculator setting (toolPolicy.calculator), above the
+  // question's own (calculatorPolicy.js resolveCalculatorPolicy).
+  assignmentCalculatorMode = null,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -1067,8 +1080,19 @@ function QuestionEngineBody({
     activityPolicy: resolvedActivityPolicy,
     studentSupportProfile: studentProfile,
     teacherCalculatorChoice,
+    assignmentCalculatorMode,
     assessmentContext,
-  }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assessmentContext]);
+  }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assignmentCalculatorMode, assessmentContext]);
+  // A graphing calculator is a real one (enter f(x), trace, zeros, min, max),
+  // opened by the same control. Not inside an assessment context: a secure
+  // test brings its own (SecureExamContainer), and must not get a second.
+  const [graphingCalculatorFailed, setGraphingCalculatorFailed] = useState(false);
+  const markGraphingCalculatorFailed = useCallback(() => setGraphingCalculatorFailed(true), []);
+  const graphingCalculatorOffered = Boolean(calculatorPolicy?.available)
+    && calculatorPolicy.mode === CALCULATOR_MODES.GRAPHING
+    && !assessmentContext;
+  const calculatorShowsGraphing = graphingCalculatorOffered && !graphingCalculatorFailed;
+  const calculatorName = calculatorShowsGraphing ? 'Graphing calculator' : 'Calculator';
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
   useEffect(() => {
     if (calculatorPolicy?.available) reportSupportEvidence('calculator', 'available');
@@ -2342,13 +2366,13 @@ function QuestionEngineBody({
     },
     calculator: {
       id: 'calculator',
-      label: 'Calculator',
+      label: calculatorName,
       // Drawn, not an emoji: 🧮 is a box on devices without a Unicode 11 emoji
       // font (CalculatorIcon.jsx). The Work View rail renders `icon` before the label.
       icon: <CalculatorIcon unavailable={!calculatorPolicy?.available} />,
       onClick: handleCalculatorControl,
       disabled: false,
-      title: calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason,
+      title: calculatorPolicy?.available ? `Open the ${calculatorName.toLowerCase()}` : calculatorUnavailableReason,
       unavailable: !calculatorPolicy?.available,
     },
     // Work View's Help drawer carries the same Hint panel as the work bar,
@@ -2423,8 +2447,8 @@ function QuestionEngineBody({
         onClick={handleCalculatorControl}
         aria-expanded={calculatorPolicy?.available ? calculatorOpen : false}
         aria-disabled={!calculatorPolicy?.available}
-        aria-label={calculatorPolicy?.available ? 'Calculator' : `Calculator unavailable. ${calculatorUnavailableReason}`}
-        title={calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason}
+        aria-label={calculatorPolicy?.available ? calculatorName : `Calculator unavailable. ${calculatorUnavailableReason}`}
+        title={calculatorPolicy?.available ? `Open the ${calculatorName.toLowerCase()}` : calculatorUnavailableReason}
         style={{
           minHeight: '44px',
           padding: '9px 14px',
@@ -2438,7 +2462,7 @@ function QuestionEngineBody({
         }}
       >
         {calculatorPolicy?.available
-          ? <><CalculatorIcon /><span className="mathmaster-action-label"> Calculator</span></>
+          ? <><CalculatorIcon /><span className="mathmaster-action-label"> {calculatorName}</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {helpControlAvailable && (
@@ -3249,14 +3273,32 @@ function QuestionEngineBody({
         ) : null}
       />
 
-      <CalculatorPanel
-        policy={calculatorPolicy}
-        estimationRequired={processedQuestion?.estimationRequired === true}
-        onCalculatorOpened={markCalculatorOpened}
-        open={calculatorOpen}
-        onOpenChange={setCalculatorOpen}
-        showLauncher={false}
-      />
+      {(() => {
+        const keypadCalculator = (
+          <CalculatorPanel
+            policy={calculatorPolicy}
+            estimationRequired={processedQuestion?.estimationRequired === true}
+            onCalculatorOpened={markCalculatorOpened}
+            open={calculatorOpen}
+            onOpenChange={setCalculatorOpen}
+            showLauncher={false}
+          />
+        );
+        return graphingCalculatorOffered ? (
+          <Suspense fallback={null}>
+            <AssignmentGraphingCalculator
+              open={calculatorOpen}
+              onOpenChange={setCalculatorOpen}
+              roomRef={questionEngineRef}
+              // Zeros, minimum and maximum: not where they would state the
+              // answer before the assessment is released (calculatorPolicy.js).
+              keyPoints={calculatorKeyPointsShown({ policy: calculatorPolicy, assessmentReviewReleased })}
+              fallback={keypadCalculator}
+              onUnavailable={markGraphingCalculatorFailed}
+            />
+          </Suspense>
+        ) : keypadCalculator;
+      })()}
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
