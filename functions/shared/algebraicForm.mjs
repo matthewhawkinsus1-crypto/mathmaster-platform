@@ -131,7 +131,7 @@ const UNICODE_MINUS = /[−–—]/g;
  * Exported because answer normalization needs the same expansion: the fix has
  * to be in one place, or the two will drift the way the delimiter scanners did.
  */
-export const expandLatexShorthand = (value) => String(value ?? '')
+export const expandLatexShorthand = (value, { keepNegativeExponentGroups = false } = {}) => String(value ?? '')
   // `\left` and `\right` are sizing hints with no mathematical content, and
   // they sit between every other rule here and the thing it needs to match —
   // `\sqrt{\left(2\right)}` is `\sqrt{(2)}` is `\sqrt{2}`. Removed first so the
@@ -161,7 +161,13 @@ export const expandLatexShorthand = (value) => String(value ?? '')
   .replace(/(\\[dt]?frac\{[^{}]*\})\{\(([^()]*)\)\}/g, '$1{$2}')
   // `x^{2}` and `x^{2}` are the same power as `x^2`; braces round a single
   // token are MathLive's bookkeeping, not the student's meaning.
-  .replace(/([\^_])\{(-?[A-Za-z0-9])\}/g, '$1$2');
+  //
+  // A negative exponent is two tokens. Unbraced, `10^{-3}/2` reads as
+  // `10^-3/2`, where the `/` binds into the exponent: the grader then took
+  // `10^-\frac{3}{2}` for the key (student pass 3, N2). The answer
+  // normaliser keeps it braced (one group) until its divisions are stacked.
+  .replace(keepNegativeExponentGroups ? /(_)\{(-?[A-Za-z0-9])\}|(\^)\{([A-Za-z0-9])\}/g : /([\^_])\{(-?[A-Za-z0-9])\}()()/g,
+    (match, mark, token, power, powerToken) => (power ? `^${powerToken}` : `${mark}${token}`));
 
 /**
  * LaTeX in, ordinary algebra out.

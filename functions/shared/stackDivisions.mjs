@@ -189,6 +189,19 @@ const constantAfter = (text, index) => {
   return null;
 };
 
+/*
+ * Grading: a one-letter name with its subscript (`x_2`, `x_{12}`), whose
+ * subscript ends just before `subscriptStart + length`. `x_2^3/4` is
+ * (x_2^3)/4, the editor's `\frac{x_2^3}{4}` (student pass 3). The letter must
+ * stand alone: `\alpha_1` and `log_4` are not names this reads.
+ */
+const subscriptedName = (text, underscore) => {
+  const letter = underscore - 1;
+  if (letter < 0 || !/[A-Za-z]/.test(text[letter])) return null;
+  if (letter > 0 && /[A-Za-z\\]/.test(text[letter - 1])) return null;
+  return letter;
+};
+
 /**
  * The operand ending at `end` (inclusive), or null when it cannot be read.
  *
@@ -219,6 +232,10 @@ const operandBefore = (text, end, options = {}) => {
   if (text[index] === '}') {
     if (!options.constantOperands) return null;
     const open = matchBackwards(text, index);
+    if (open > 1 && text[open - 1] === '_') {
+      const name = subscriptedName(text, open - 1);
+      return name === null ? null : { start: name, text: text.slice(name, index + 1) };
+    }
     if (open < 1 || text[open - 1] !== '^') return null;
     const whole = withPowerBase(text, open, options);
     return whole ? { start: whole.start, text: text.slice(whole.start, index + 1) } : null;
@@ -239,8 +256,13 @@ const operandBefore = (text, end, options = {}) => {
     if (!base) return null;
     return { start: base.start, text: text.slice(base.start, index + 1) };
   }
-  // A subscript is part of a name, not an operand of its own.
-  if (start > 0 && text[start - 1] === '_') return null;
+  // A subscript is part of a name, not an operand of its own; in grading the
+  // name and its one-character subscript come along together.
+  if (start > 0 && text[start - 1] === '_') {
+    if (!options.constantOperands || start !== index) return null;
+    const name = subscriptedName(text, start - 1);
+    return name === null ? null : { start: name, text: text.slice(name, index + 1) };
+  }
   return { start, text: text.slice(start, index + 1) };
 };
 
