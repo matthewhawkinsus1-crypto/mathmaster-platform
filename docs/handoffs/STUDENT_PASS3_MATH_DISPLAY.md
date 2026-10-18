@@ -60,8 +60,8 @@ Every new assertion was broken once in the code and seen red, then restored:
 
 ## Gate
 
-**Current: on merge commit `2e6d6145`**. That is the review fixes (`68b845f`) with the base merged in at `c350dfc`
-(wave 4 and W5-1's first load). Everything was run one at a time. Browser drivers ran against
+**Current: on `e9b78a4f`**, which adds the re-review fixes (R1, R2) to the wave-4 merge `2e6d6145` (base
+`c350dfc`). Everything was run one at a time. Browser drivers ran against
 `npx vite --host 127.0.0.1 --port 5199 --strictPort` (`AUDIT_ORIGIN`); dark mode Part 2 also used the teacherWorkflow
 harness on 5188.
 
@@ -71,12 +71,13 @@ harness on 5188.
 | `node --test tests/tools/*.test.mjs` | 1683 pass, 0 fail |
 | `npm run lint` | exit 0 (warnings only) |
 | `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten (`git status` clean after them and at the end) |
-| `node scripts/check-first-load-budget.mjs` | **studentHome 845.7 KB gzip in 186 files**, within its baseline (177.6 KB under; baseline not edited); signIn 291.3 KB |
+| `node scripts/check-first-load-budget.mjs` | **studentHome 845.8 KB gzip in 186 files**, within its baseline (177.6 KB under; baseline not edited) |
 | stepAlgebraStructureTools (with divide-negative), toolPolicyGates, assessmentLeakGates, workViewHelpReach, stagedQuestion, graphPointCheck, composedOutcomePolicy, planePhoneReach, focusSafeToolControls, algebraicSubstitutionHandoff, mathSpeech, graphDescription, renderStability, toolAttemptOutcome, toolFocusAndUndo | all exit 0 |
 | `workViewMatrix.mjs` (no `--write`) | exit 0; no tracked file changed |
 | `npm run certify:dark-mode` | passed: Parts 1, 1B and 2 (192 surfaces) |
-| **linearMultipleRepresentations** | exit 1, 8 findings, all in the `complete` journey: "after a correct submission the board's Submit button is not on the page" and "…cannot be resubmitted (null)" for lmr-cw-2, cw-3, pr-1 and pr-2. **Identical on the base `c350dfc`** (same 8 findings, run from a worktree on its own server). It came in with wave 4: the driver looks for a "Submit — …" button after the question closes. Not this branch; not fixed here. |
-| **algebraicSystems3x3** | exit 1, 2 findings: "the 3×3 question did not route to the 3×3 substitution workspace" (student and teacherPreview). **Identical on the base `c350dfc`.** It came in with wave 4 (Systems tools). Not this branch; not fixed here. |
+| **linearMultipleRepresentations** | exit 1, the same 8 `complete`-journey findings as on the base `c350dfc` ("Submit board" after the question closes). Fixed on the integration branch by `c6e0942`, which is after this branch's base. Not this branch. |
+| **algebraicSystems3x3 ×3 on this branch** | exit 1 in all three runs, the same 2 findings as on the base ("did not route to the 3×3 substitution workspace"). Fixed on the integration branch by `0e6140c`, after this branch's base. Because of it, these journeys stop before the step where the intermittent failure below shows. |
+| **algebraicSystems3x3 ×3 on the integration head** (`ca1057e3` = `3cd1d5b` plus one handoff document, none of this branch) | **1 fail, 2 pass.** The failure is the reviewer's intermittent one: teacherPreview-3x3 "three placements substituted into 0 of 3 original equations", "E1: the numeric right side still has to be retyped", and a `setMathField` timeout. **It fails on the integration head too**, about 1 run in 3 or 4, so it is not this branch. |
 
 Run before the merge, on `5182472` (they cover files the review round did not change):
 
