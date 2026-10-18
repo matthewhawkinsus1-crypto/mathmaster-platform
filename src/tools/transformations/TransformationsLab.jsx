@@ -10,6 +10,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
+import { plotTransformMissMessage } from './plotTransformFeedback.js';
 import {
   TRANSFORMATION_FAMILY_LABELS,
   evaluateParentFunction,
@@ -18,7 +19,6 @@ import {
   studentTransformationSpec,
   transformedSourcePoints,
 } from './transformationsMath';
-import { plotTransformMissMessage } from './plotTransformFeedback.js';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
