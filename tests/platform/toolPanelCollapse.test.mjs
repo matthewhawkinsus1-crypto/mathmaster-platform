@@ -106,8 +106,11 @@ test('the consequence of using a hint is still stated before it is used', async 
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   assert.match(source, /import \{ HINT_COST_SENTENCE \} from '\.\.\/\.\.\/platform\/supports\/hints\/hintCopy\.js';/);
   const panel = region(source, 'export const HintPanel', '\n};', 'the tool hint panel');
-  assert.match(panel, /\n\s*title=\{HINT_COST_SENTENCE\}\n/);
-  assert.match(panel, /\{!used && <span data-hint-cost-note=""[^>]*>\{HINT_COST_SENTENCE\}<\/span>\}/);
+  // The host's sentence when it has one (Recovery's, W6-1 review B2), else
+  // the platform's: on the button and beside it while no hint is used.
+  assert.match(panel, /const hintCost = useToolRuntimeContext\(\)\.hintCost \|\| HINT_COST_SENTENCE;/);
+  assert.match(panel, /\n\s*title=\{hintCost\}\n/);
+  assert.match(panel, /\{!used && <span data-hint-cost-note=""[^>]*>\{hintCost\}<\/span>\}/);
 });
 
 test('revealing a hint still reports it for attempt scoring', () => {
