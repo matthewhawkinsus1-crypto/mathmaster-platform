@@ -65,6 +65,12 @@ test('Read aloud and Translate only for a student whose plan grants them on a te
     supportPlan: { windows: [{ effectiveStart: '2026-01-01', status: 'active', revision: 1, translationLanguage: null, accommodations: [{ id: 'text-to-speech', appliesTo: ['practice'] }] }] },
   };
   assert.equal(workedSolutionSupports(secureAccessEntitlement(practiceOnly), { speechReady: true }).readAloud, null);
+  // A language without Translate is no translation (H-6 review S4). On the
+  // results page secureAccessEntitlement already drops the language; in
+  // Corrections the entitlement can carry one, so the check is this helper's.
+  assert.equal(workedSolutionSupports({ tools: ['read-aloud'], language: 'es' }, { speechReady: true }).translation, null);
+  assert.deepEqual(workedSolutionSupports({ tools: ['translate'], language: 'es' }, { speechReady: true }).translation, { language: 'es' });
+  assert.equal(workedSolutionSupports({ tools: ['translate'], language: '' }, { speechReady: true }).translation, null, 'Translate with no language');
   // Entitled, but this browser cannot speak: no dead button.
   assert.equal(workedSolutionSupports(secureAccessEntitlement({ accommodations: ['text-to-speech'] }), { speechReady: false }).readAloud, null);
 });
@@ -74,4 +80,20 @@ test('a figure\'s title sits at the level it is given: h4 on a Test result, h2 o
   const stimulus = { kind: 'table', title: 'Hours and scores', table: { headers: ['x', 'y'], rows: [['1', '8'], ['2', '13']] } };
   assert.match(renderToStaticMarkup(React.createElement(PathQuestionStimulus, { stimulus, headingLevel: 4 })), /<h4[^>]*>.*Hours and scores/);
   assert.match(renderToStaticMarkup(React.createElement(PathQuestionStimulus, { stimulus })), /<h2[^>]*>.*Hours and scores/, 'the Path keeps its h2');
+});
+
+test('the runtime shows a worked solution only where the mode allows one, and only once it is released (H-6 review S4)', async () => {
+  const { componentSource, executableSource, region } = await import('./helpers/sourceContract.mjs');
+  const runtime = componentSource('src/components/question/RichQuestionRuntime.jsx');
+  const support = region(runtime, 'const InstructionalSupport = (', '\n};\n', 'InstructionalSupport');
+  // Nothing without feedback, and the panel only under the mode's capability
+  // AND a review the server sent back.
+  assert.match(support, /\n\s*if \(!feedback\) return null;/);
+  assert.match(support, /\{caps\.workedSolution && feedback\.solutionReview && \(\s*<SolutionReviewPanel/);
+  assert.equal((executableSource(support).match(/<SolutionReviewPanel/g) || []).length, 1);
+  assert.equal((executableSource(runtime).match(/<SolutionReviewPanel/g) || []).length, 1, 'no other way in');
+  // A secure mode's capability is off: the policy itself says so.
+  const { resolveQuestionRuntimePolicy } = await import('../../src/platform/assessment/questionRuntimePolicy.js');
+  for (const mode of ['secureTest', 'secureRetest']) assert.equal(resolveQuestionRuntimePolicy(mode).capabilities.workedSolution, false, mode);
+  assert.equal(resolveQuestionRuntimePolicy('corrections').capabilities.workedSolution, true);
 });
