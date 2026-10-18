@@ -185,7 +185,7 @@ const axisTitle = (label, unit) => {
  * marks are said, never where they are; a closed question gets the full
  * reading. An authored `graph.accessibleDescription` always wins.
  */
-const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail, axisNumbersHidden }) => {
+const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail, axisNumbersHidden, positionsWithheldText }) => {
   const isLine = (spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
     && Number.isFinite(Number(spec.m ?? spec.slope)) && Number.isFinite(Number(spec.b ?? spec.intercept ?? 0));
   return describeCoordinatePlane({
@@ -194,6 +194,9 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     // step: the description says neither that axis's range nor any position
     // (W5-2 review B1).
     axisNumbersHidden,
+    // A fitted (equal-unit) window can end between ticks: read it at tick precision.
+    windowSteps: { x: xStep, y: yStep },
+    positionsWithheldText,
     // Read no finer than the grid this graph draws: its minor gridlines where
     // both axes draw them at one step, otherwise its labelled ticks.
     snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
@@ -223,7 +226,7 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   const descriptionId = `mm-graph-desc-${useId()}`;
-  const { positionsReadable: questionClosed } = useQuestionLifecycle();
+  const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
   if (!graph) return null;
 
   const displayGraph = fitStaticGraphViewport(graph);
@@ -296,6 +299,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
     asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
     axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
+    // Closed, but its review not shown (an ended DOL, a DOL item before
+    // release): it can no longer be answered, so the sentence says so.
+    positionsWithheldText: questionLocked ? 'Positions are not read out on this question.' : null,
   });
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';

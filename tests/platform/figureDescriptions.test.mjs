@@ -218,24 +218,37 @@ test('B1: an axis that hides its numbers is not read, open or closed', async () 
 test('S1: a locked question reads kinds; a finished one with its outcome shown reads positions', async () => {
   await withGraphDisplay((describe) => {
     const graph = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 2, y: 3, label: 'A' }] };
-    // Ended DOL, waiting Warm-Up, locked section: terminal, nothing shown.
+    // Ended DOL, waiting Warm-Up, locked section, a DOL item before release:
+    // terminal, no review shown. Kinds, said as true of a closed question.
     const locked = describe(graph, { terminal: true });
-    assert.match(locked, /Positions are not read out while this question can be answered\./, locked);
+    assert.match(locked, /Positions are not read out on this question\./, locked);
+    assert.doesNotMatch(locked, /while this question can be answered/);
     assert.doesNotMatch(locked, /\(2, 3\)/);
+    // Open: still "while this question can be answered".
+    assert.match(describe(graph), /Positions are not read out while this question can be answered\./);
     // Correct practice (or a released review): the full reading.
     const finished = describe(graph, { terminal: true, positionsReadable: true });
     assert.match(finished, /A at \(2, 3\)/, finished);
     // Only an explicit true opens it.
     assert.doesNotMatch(describe(graph, { terminal: true, positionsReadable: 'yes' }), /\(2, 3\)/);
   });
-  // QuestionEngine sets it from the outcome being shown, never from assignmentLocked.
+  // S1': QuestionEngine reads positions exactly when the worked solution is
+  // shown — the closedReview gate — never from a lock, and never from
+  // showOutcomeFeedback alone (on a DOL that is true as soon as the item
+  // closes, before the assignment's release; a teacher's extra try reopens it).
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  const provider = engine.match(/<QuestionLifecycleProvider terminal=\{locked\} positionsReadable=\{(.*?)\}>/);
-  assert.ok(provider, 'the engine passes positionsReadable');
-  assert.equal(provider[1], 'Boolean(showOutcomeFeedback && (isCorrect || isExpired))');
+  assert.match(engine, /<QuestionLifecycleProvider terminal=\{locked\} positionsReadable=\{positionsReadable\}>/);
+  assert.match(engine, /^  const positionsReadable = Boolean\(\(isCorrect \|\| isExpired\) && feedbackOpen\);$/m);
+  assert.match(engine, /const closedReview = \(isCorrect \|\| isExpired\) && feedbackOpen \?/, 'the same gate as the worked solution');
+  // feedbackOpen on a closed DOL item: shut until the assignment is released.
+  const { feedbackOpenForItem } = await import('../../src/platform/supports/feedback/attemptFeedbackPlan.js');
+  const dolItem = { showOutcomeFeedback: true, immediateFeedback: false, closed: true, roleKnown: true };
+  assert.equal(feedbackOpenForItem({ ...dolItem, assessmentReleased: false }), false, 'a closed DOL item before release reads no positions');
+  assert.equal(feedbackOpenForItem({ ...dolItem, assessmentReleased: true }), true, 'after release it does');
+  assert.equal(feedbackOpenForItem({ showOutcomeFeedback: true, immediateFeedback: true, closed: true, roleKnown: true }), true, 'correct practice does');
   // Every figure that reads positions reads this flag, not `terminal`.
   for (const file of ['src/GraphDisplay.jsx', 'src/tools/shared/CoordinatePlane.jsx', 'src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx']) {
-    assert.match(executableSource(read(file)), /const \{ positionsReadable: questionClosed \} = useQuestionLifecycle\(\);/, file);
+    assert.match(executableSource(read(file)), /const \{ positionsReadable: questionClosed(?:, terminal: questionLocked)? \} = useQuestionLifecycle\(\);/, file);
   }
 });
 
@@ -250,5 +263,43 @@ test('S2: each arrowhead on a closed static graph says which way it points', asy
     }, { terminal: true, positionsReadable: true });
     assert.match(text, /pointing down and left/, text);
     assert.match(text, /pointing up and right/, text);
+    // A tiny vector (an edge arrow found by bisection, W5-5) still points.
+    const tiny = describe({
+      xMin: -5, xMax: 5, yMin: -5, yMax: 5,
+      endpointRequirements: [{ point: [-4, -4], marker: 'arrow', vector: [-4.6e-14, -1.8e-13] }],
+    }, { terminal: true, positionsReadable: true });
+    assert.match(tiny, /pointing down/, tiny);
+    assert.doesNotMatch(tiny, /pointing right/);
   });
+});
+
+test('a fitted window that ends between ticks is read at tick precision', async () => {
+  await withGraphDisplay((describe) => {
+    // An equal-unit window computed to fit (W5-5) ends at ±6.374046.
+    const text = describe({ xMin: -10, xMax: 10, yMin: -6.374046, yMax: 6.374046, xStep: 2, yStep: 2, points: [] });
+    assert.match(text, /^x from −10 to 10, y from about −6\.4 to about 6\.4\./, text);
+    assert.doesNotMatch(text, /6\.374/);
+    // A window end already at the step's precision is said exactly, even off a labelled tick.
+    assert.match(describe({ xMin: -5, xMax: 5, yMin: -5, yMax: 7, xStep: 2, yStep: 2, points: [] }), /^x from −5 to 5, y from −5 to 7\./);
+  });
+});
+
+test('S4: Review My Work reads its released solution figures in full', () => {
+  const review = executableSource(read('src/components/student/ReviewMyWork.jsx'));
+  assert.match(review, /^import \{ QuestionLifecycleProvider \} from '\.\.\/\.\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
+  assert.match(review, /<QuestionLifecycleProvider terminal positionsReadable>\s*<SolutionReviewPanel\b[\s\S]*?\/>\s*<\/QuestionLifecycleProvider>/, 'the solution panel only');
+  // The practice below is live work (its keypad stays): outside the provider.
+  assert.equal((review.match(/<QuestionLifecycleProvider\b/g) || []).length, 1);
+  assert.ok(review.indexOf('<PracticeLikeThis') > review.indexOf('</QuestionLifecycleProvider>'), 'the practice below stays live');
+});
+
+test('only QuestionEngine marks a reference authoritative (N3)', async () => {
+  const { readdirSync, statSync } = await import('node:fs');
+  const walk = (dir) => readdirSync(new URL(`../../${dir}`, import.meta.url)).flatMap((name) => {
+    const path = `${dir}/${name}`;
+    return statSync(new URL(`../../${path}`, import.meta.url)).isDirectory() ? walk(path) : [path];
+  });
+  const setters = walk('src').filter((file) => /\.(jsx?|mjs)$/.test(file))
+    .filter((file) => executableSource(read(file)).split('\n').some((line) => /\breference:/.test(line) && /\bauthoritative:\s*true\b/.test(line)));
+  assert.deepEqual(setters, ['src/QuestionEngine.jsx']);
 });

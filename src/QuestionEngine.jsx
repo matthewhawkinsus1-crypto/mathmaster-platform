@@ -2904,12 +2904,16 @@ function QuestionEngineBody({
     </div>
   );
 
+  // Figure descriptions read positions exactly when the worked solution is
+  // shown: the closedReview gate (closed AND feedbackOpen, which on a DOL
+  // needs the assignment's release). Never from a lock alone — an ended DOL, a
+  // waiting Warm-Up, a locked section — and never on a closed DOL item before
+  // release, which a teacher's extra try can reopen (W5-2 review S1, S1').
+  const positionsReadable = Boolean((isCorrect || isExpired) && feedbackOpen);
+
   return (
     <DeferredFocusProvider authority={focusAuthority}>
-    // Positions in figure descriptions only once the outcome is on screen and
-    // the question is finished; never from a lock alone (an ended DOL, a
-    // waiting Warm-Up, a locked section: student pass 3, W5-2 review S1).
-    <QuestionLifecycleProvider terminal={locked} positionsReadable={Boolean(showOutcomeFeedback && (isCorrect || isExpired))}>
+    <QuestionLifecycleProvider terminal={locked} positionsReadable={positionsReadable}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
       ref={questionEngineRef}

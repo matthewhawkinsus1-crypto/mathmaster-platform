@@ -305,6 +305,24 @@ The reviewer found everything else clean, probed on real DOL items:
 | **S3.** VPAT accuracy. | The axe scope says 11 screens (as certify prints). The ✓/✗ cite is `QuestionEngine.jsx:2783`. The 4.1.3 Matrix Lab line says W5-3 (`4d3e5ee`) passes the "Reconsider" lines to `AttemptOutcome`'s `role="status"` coaching, to re-check once it is in the base. 1.1.1 states the positions rule and the hidden-axis rule. | — |
 | **N3.** `reference: base.reference \|\| local.reference` would let a tool publish its own text (a method) as "Information you need", which nothing withholds on an assessment. | Only a reference marked `authoritative` (QuestionEngine's) survives a merge; any other is dropped. This is the same convention as `task` and `help`. A plain `base.reference` would have dropped QuestionEngine's own reference too, because the engine is the top provider. | `workViewReference.test.mjs`: a tool's reference is dropped beside the platform's, alone, and through the port. Mutation red. |
 
+### Review round 2 (re-review of `ff77434`: B1, S2, S3 and N3 confirmed)
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B2 (blocker).** The S1 comment sat in JSX children (`// Positions in figure descriptions…`) and rendered as visible text above every question. Lint, build, tests and drivers all passed with it. | The comment moved above `return (`. `react/jsx-no-comment-textnodes` is now an error in `.oxlintrc.json`. On the old code it flags exactly that place; `npm run lint` exits 0 with the rule on. | `figureDescriptions.mjs` asserts that no line of `document.body.innerText` is `//` comment text. Reinserting the comment turns both viewports red. |
+| **S1'.** On a DOL, `showOutcomeFeedback` is true as soon as the item closes, before the assignment's release. Positions were read on a closed DOL item with no worked solution shown, and a teacher's extra try reopens it. | `positionsReadable = Boolean((isCorrect \|\| isExpired) && feedbackOpen)`: the `closedReview` gate exactly, so positions are read when the worked solution shows. | Node: the engine's expression, the shared gate, and `feedbackOpenForItem` (closed DOL before release → false, after → true, correct practice → true). Browser: a closed DOL item before release reads none, and after release reads them. Mutation to the old expression turns node and browser red. |
+| **S4.** Review My Work shows the released solution, but its "Correct graph" said positions were withheld "while this question can be answered". | `ReviewMyWork` wraps the `SolutionReviewPanel` only in `<QuestionLifecycleProvider terminal positionsReadable>`; the "Try one like this" practice stays live. | Node contract, mutation-checked. The `reviewMyWork.mjs` harness has no graph question, so the browser proof is the contract plus the GraphDisplay SSR cases. |
+| **For W5-5:** tiny bisected edge-arrow vectors read "pointing right". | `arrowDirection` treats only an exactly-zero vector as missing. | SSR case with `[−4.6e-14, −1.8e-13]` reads "pointing down". Mutation red. |
+| **For W5-5:** an equal-unit window was read as "y from −6.374046". | `describeCoordinatePlane` takes `windowSteps`. GraphDisplay passes its tick steps. An end already at the step's precision is read exactly (−5 on a step-2 axis); otherwise "about" one decimal finer ("about −6.4"). | SSR cases for both. Mutation red. |
+| **Optional:** "while this question can be answered" was untrue on a closed question with no review. | `positionsWithheldText`: GraphDisplay says "Positions are not read out on this question." when terminal. | SSR and browser (ended DOL, unreleased DOL item). Mutation red. |
+| **Optional:** only QuestionEngine sets `authoritative` on `reference`. | A contract scans `src` for any `reference:` line with `authoritative: true`. | Adding one elsewhere turns it red. |
+
+Gate after round 2:
+- `test:platform` 11,700/0; tools 1,681/0.
+- lint, build and build:firebase exit 0, with no tracked file rewritten.
+- studentHome 845.5 KB.
+- `figureDescriptions`, `graphDescription`, `workViewReference`, `assessmentLeakGates`, `reviewMyWork` and `mathSpeech` pass.
+
 ## Deploy targets
 
 **Hosting only.** Nothing under `functions/`, `firestore.rules`, `firestore.indexes.json` or Firebase config changes;

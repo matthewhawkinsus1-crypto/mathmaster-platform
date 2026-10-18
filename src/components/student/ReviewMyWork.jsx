@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { legacySolutionReviewContent } from '../../SolutionReview.jsx';
 import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
+import { QuestionLifecycleProvider } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { buildToolSolutionReviewModel } from '../../tools/shared/toolSolutionReview.js';
 import { closedQuestionHasReview } from '../../platform/supports/review/closedQuestionReview.js';
 import PracticeLikeThis from '../../platform/supports/workedExample/PracticeLikeThis.jsx';
@@ -134,13 +135,19 @@ function WorkedSolution({ item, supports }) {
         {/* This page keeps every control at the full touch target (tests/browser/reviewMyWork.mjs);
             Read aloud and Translate are smaller beside a question's feedback. */}
         <style>{`.mm-review-solution [data-supported-text-actions] button { min-height: ${MIN_TOUCH_TARGET_PX}px !important; min-width: ${MIN_TOUCH_TARGET_PX}px; }`}</style>
-        <SolutionReviewPanel
-          question={question}
-          isToolQuestion={isToolQuestion}
-          wasCorrect={item.outcome === REVIEW_OUTCOME.CORRECT}
-          readAloud={supports.readAloud}
-          translation={supports.translation}
-        />
+        {/* A released review shows the worked solution, so its figures read
+            their positions (the "Correct graph" said positions were withheld
+            "while this question can be answered": W5-2 review S4). Only the
+            panel: the practice below is live work. */}
+        <QuestionLifecycleProvider terminal positionsReadable>
+          <SolutionReviewPanel
+            question={question}
+            isToolQuestion={isToolQuestion}
+            wasCorrect={item.outcome === REVIEW_OUTCOME.CORRECT}
+            readAloud={supports.readAloud}
+            translation={supports.translation}
+          />
+        </QuestionLifecycleProvider>
         {offerPractice && (
           <PracticeLikeThis question={question} seed={item.index} readAloud={supports.readAloud} translation={supports.translation} label="Try one like this" />
         )}

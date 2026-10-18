@@ -53,8 +53,8 @@ const axNode = async (page, selector) => {
   }
 };
 
-const open = async (page, q, { role = 'practice', closed = false, locked = false } = {}) => {
-  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}`, { waitUntil: 'networkidle' });
+const open = async (page, q, { role = 'practice', closed = false, locked = false, released = false } = {}) => {
+  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}${released ? '&released=1' : ''}`, { waitUntil: 'networkidle' });
   await page.locator(`[data-figure-fixture="${q}"]`).waitFor();
   await page.waitForTimeout(400);
 };
@@ -105,6 +105,10 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 
   await step(at, 'legacy number line: the marks and the student\'s choice', async () => {
     await open(page, 'numberLine');
+    // No source comment leaks onto the page as text (W5-2 review B2: a "//"
+    // comment in JSX children rendered above every question).
+    const leaked = await page.evaluate(() => document.body.innerText.split('\n').filter((line) => /^\s*\/\/|\/\/ [A-Za-z]/.test(line)));
+    assert.deepEqual(leaked, [], 'no comment text on the page');
     const GROUP = '[data-number-line-choices]';
     const before = await axNode(page, GROUP);
     assert.equal(before.role, 'group');
@@ -158,8 +162,22 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
       const svg = document.querySelector(selector);
       return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
     }, GRAPH);
-    assert.match(ended, /Positions are not read out while this question can be answered\./, `an ended DOL reads no positions: ${ended}`);
+    assert.match(ended, /Positions are not read out on this question\./, `an ended DOL reads no positions: ${ended}`);
     assert.doesNotMatch(ended, /\(2, 3\)/);
+    // A closed DOL item before the assignment's review is released: its outcome
+    // is counted but no worked solution shows, and a teacher's extra try can
+    // reopen it. No positions; after release, positions (W5-2 review S1').
+    const readGraph = () => page.evaluate((selector) => {
+      const svg = document.querySelector(selector);
+      return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
+    }, GRAPH);
+    await open(page, 'numberLine', { role: 'dol', closed: true });
+    const unreleased = await readGraph();
+    assert.match(unreleased, /Positions are not read out on this question\./, `a closed DOL item before release reads no positions: ${unreleased}`);
+    assert.doesNotMatch(unreleased, /\(2, 3\)/);
+    await open(page, 'numberLine', { role: 'dol', closed: true, released: true });
+    const releasedText = await readGraph();
+    assert.match(releasedText, /A at \(2, 3\)/, `after release the positions are read: ${releasedText}`);
   });
 
   for (const role of ['practice', 'dol']) {
