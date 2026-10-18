@@ -94,3 +94,24 @@ export const typedKeyReplacesPlaceholder = (event = {}, { value = '', placeholde
   if (value === 'Error') return true;
   return value === '0' && placeholderShown === true;
 };
+
+/*
+ * TEXT THAT ARRIVES WITHOUT A KEY (review F1): a paste, an IME or dictation
+ * commit, a phone's or tablet-mode Chromebook's own keyboard. No keydown says
+ * a character is coming, so the text lands after the placeholder: "0(2+3)",
+ * "equals 0". After the fact, on input: the panel's own "0" followed by
+ * anything but a digit or a decimal point is dropped (a following digit is
+ * harmless: 07 is 7), and so is an "Error" with anything after it. Null when
+ * the value is fine as it is.
+ */
+export const valueWithoutPlaceholder = (value = '', { placeholderShown = false } = {}) => {
+  const text = String(value ?? '');
+  if (text.startsWith('Error') && text.length > 'Error'.length) return text.slice('Error'.length);
+  if (placeholderShown && /^0(?![\d.])./.test(text)) return text.slice(1);
+  return null;
+};
+
+/** Backspace or Delete on "Error" clears it back to 0 (review N2), never "Erro". */
+export const deleteKeyClearsError = (event = {}, value = '') => (
+  (event.key === 'Backspace' || event.key === 'Delete') && value === 'Error'
+);

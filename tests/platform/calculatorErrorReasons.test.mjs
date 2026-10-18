@@ -72,6 +72,28 @@ test('a key typed after Clear replaces the placeholder 0, so (2+3 is 5, not 0(2+
   assert.ok(listeners.indexOf("addEventListener('keydown', replacePlaceholder, { capture: true })") > -1
     && listeners.indexOf("addEventListener('keydown', replacePlaceholder, { capture: true })") < listeners.indexOf("addEventListener('keydown', leaveTypedFraction"));
   assert.match(region(panel, 'const replacePlaceholder = (event) => {', '};', 'replacePlaceholder'), /if \(!typedKeyReplacesPlaceholder\(event, \{ value: mathField\.value, placeholderShown: placeholderShownRef\.current \}\)\) return;\s*mathField\.value = '';/);
-  assert.match(region(panel, 'const setCalculatorValue = useCallback(', '}, []);', 'setCalculatorValue'), /placeholderShownRef\.current = next === '0';/);
+  // Only Clear writes the placeholder (review N1): a 0 that "=" computed is a result.
+  assert.match(region(panel, 'const setCalculatorValue = useCallback(', '}, []);', 'setCalculatorValue'), /placeholderShownRef\.current = placeholder;/);
+  assert.match(region(panel, "if (button.action === 'clear') {", 'return;', 'Clear'), /setCalculatorValue\('0', \{ placeholder: true \}\);/);
+  assert.doesNotMatch(panel, /setCalculatorValue\((?:evaluated\.decimal|'Error')\s*,\s*\{ placeholder: true/);
   assert.match(region(panel, 'const handleInput = () => {', '};', 'handleInput'), /placeholderShownRef\.current = false;/);
+});
+
+test('text that arrives without a key (paste, IME, dictation, a touch keyboard) also replaces the placeholder (review F1, N2)', async () => {
+  const { deleteKeyClearsError, valueWithoutPlaceholder } = await import('../../src/components/calculatorKeys.js');
+  assert.equal(valueWithoutPlaceholder('0\\left(2+3\\right)', { placeholderShown: true }), '\\left(2+3\\right)');
+  assert.equal(valueWithoutPlaceholder('0-3\\cdot2', { placeholderShown: true }), '-3\\cdot2');
+  assert.equal(valueWithoutPlaceholder('07', { placeholderShown: true }), null, 'a digit after the 0 is harmless');
+  assert.equal(valueWithoutPlaceholder('0.5', { placeholderShown: true }), null, 'nor a decimal point');
+  assert.equal(valueWithoutPlaceholder('0\\left(2+3\\right)', { placeholderShown: false }), null, 'a 0 the student typed or computed stays');
+  assert.equal(valueWithoutPlaceholder('Error(2+3)', { placeholderShown: false }), '(2+3)');
+  assert.equal(valueWithoutPlaceholder('Error'), null);
+  assert.equal(deleteKeyClearsError({ key: 'Backspace' }, 'Error'), true);
+  assert.equal(deleteKeyClearsError({ key: 'Delete' }, 'Error'), true);
+  assert.equal(deleteKeyClearsError({ key: 'Backspace' }, '12'), false);
+  const panel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
+  const input = region(panel, 'const handleInput = () => {', 'setDisplay(', 'handleInput');
+  assert.ok(input.indexOf('valueWithoutPlaceholder(mathField.value, { placeholderShown: placeholderShownRef.current })') > -1
+    && input.indexOf('valueWithoutPlaceholder(') < input.indexOf('placeholderShownRef.current = false;'), 'repaired before the placeholder is forgotten');
+  assert.match(region(panel, 'const replacePlaceholder = (event) => {', 'if (!typedKeyReplacesPlaceholder', 'delete on Error'), /if \(deleteKeyClearsError\(event, mathField\.value\)\) \{\s*event\.preventDefault\(\);[\s\S]*mathField\.value = '0';\s*placeholderShownRef\.current = true;/);
 });

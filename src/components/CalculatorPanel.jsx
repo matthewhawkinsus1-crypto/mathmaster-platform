@@ -10,7 +10,7 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
-import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, typedKeyReplacesPlaceholder } from './calculatorKeys.js';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, deleteKeyClearsError, typedKeyReplacesPlaceholder, valueWithoutPlaceholder } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -109,6 +109,13 @@ export const CalculatorPanel = ({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
+      // Pasted or committed text (no keydown) that landed after the
+      // placeholder "0" or "Error" (calculatorKeys.js valueWithoutPlaceholder).
+      const repaired = valueWithoutPlaceholder(mathField.value, { placeholderShown: placeholderShownRef.current });
+      if (repaired !== null) {
+        mathField.value = repaired;
+        mathField.executeCommand?.('moveToMathfieldEnd');
+      }
       placeholderShownRef.current = false;
       typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
       setDisplay(mathField.value || '0');
@@ -121,6 +128,14 @@ export const CalculatorPanel = ({
     // Before MathLive inserts the key: a typed character replaces the
     // placeholder "0" or "Error" instead of following it.
     const replacePlaceholder = (event) => {
+      if (deleteKeyClearsError(event, mathField.value)) {
+        event.preventDefault();
+        event.stopPropagation();
+        mathField.value = '0';
+        placeholderShownRef.current = true;
+        setDisplay('0');
+        return;
+      }
       if (!typedKeyReplacesPlaceholder(event, { value: mathField.value, placeholderShown: placeholderShownRef.current })) return;
       mathField.value = '';
       placeholderShownRef.current = false;
@@ -307,9 +322,11 @@ export const CalculatorPanel = ({
     onEstimationComplete?.(value);
   };
 
-  const setCalculatorValue = useCallback((value) => {
+  // `placeholder`: only Clear writes the panel's own "0" (review N1); a 0
+  // that "=" computed is a result, exactly as one Enter computed.
+  const setCalculatorValue = useCallback((value, { placeholder = false } = {}) => {
     const next = String(value ?? '0');
-    placeholderShownRef.current = next === '0';
+    placeholderShownRef.current = placeholder;
     divisionPendingRef.current = false;
     typedFractionRef.current = null;
     setDisplay(next);
@@ -372,7 +389,7 @@ export const CalculatorPanel = ({
 
   const handleCalculatorButton = useCallback((button) => {
     if (button.action === 'clear') {
-      setCalculatorValue('0');
+      setCalculatorValue('0', { placeholder: true });
       return;
     }
     if (button.action === 'equals') {

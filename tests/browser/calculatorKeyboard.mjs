@@ -28,7 +28,8 @@ const panelBox = (page) => page.locator(PANEL).boundingBox();
 
 for (const [width, height] of [[1366, 768], [390, 844]]) {
   const at = `${width}x${height}`;
-  const page = await browser.newPage({ viewport: { width, height } });
+  // Clipboard access, so the paste case below can run.
+  const page = await browser.newPage({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error?.message || error)));
   await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=linearTableWorkbench`, { waitUntil: 'networkidle' });
@@ -91,6 +92,58 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Enter');
   await page.waitForFunction(([s, before]) => (document.querySelector(s)?.textContent || '').replace(/\u00a0/g, ' ').trim() !== before, [`${PANEL} [data-calculator-result-announcement]`, unreadable]);
   assert.equal(await announcement(), 'equals 5', `${at}: typing after Error replaces it`);
+  // Text that arrives with no key — an IME or dictation commit, a touch
+  // keyboard, a paste — replaces the 0 after Clear too (review F1).
+  // The region alternates a trailing no-break space so that the same answer
+  // twice is a new announcement: wait for its raw text to change.
+  const rawAnnouncement = () => page.locator(`${PANEL} [data-calculator-result-announcement]`).textContent();
+  const evaluateTyped = async (typeIt) => {
+    await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+    await page.locator('[data-calculator-expression]').focus();
+    const before = await rawAnnouncement();
+    await typeIt();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(([s, previous]) => document.querySelector(s)?.textContent !== previous, [`${PANEL} [data-calculator-result-announcement]`, before]);
+    return announcement();
+  };
+  assert.equal(await evaluateTyped(() => page.keyboard.insertText('(2+3)')), 'equals 5', `${at}: committed text after Clear replaces the 0`);
+  const pasted = await page.evaluate(async () => {
+    try { await navigator.clipboard.writeText('(2+3)'); return true; } catch { return false; }
+  });
+  console.log(`calculator keyboard ${at}: paste case ${pasted ? 'run' : 'skipped (no clipboard in this browser)'}`);
+  if (pasted) {
+    // A paste lands asynchronously, and MathLive reports it (the input event
+    // that drops the 0) a moment later: wait for both before Enter.
+    const paste = async () => {
+      await page.keyboard.press('ControlOrMeta+v');
+      await page.waitForFunction(() => {
+        const value = document.querySelector('[data-calculator-expression]')?.value || '';
+        return /2\+3/.test(value) && !value.startsWith('0');
+      }, null, { timeout: 3000 }).catch(() => {});
+    };
+    assert.equal(await evaluateTyped(paste), 'equals 5', `${at}: a paste after Clear replaces the 0`);
+  }
+  // Backspace on "Error" clears it (review N2): then 5 is 5.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2+3=5');
+  await page.keyboard.press('Enter');
+  await page.locator(`${PANEL} [data-calculator-error]`).waitFor();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(([s, before]) => (document.querySelector(s)?.textContent || '').replace(/\u00a0/g, ' ').trim() !== before, [`${PANEL} [data-calculator-result-announcement]`, unreadable]);
+  assert.equal(await announcement(), 'equals 5', `${at}: Backspace on Error, then 5`);
+  // A 0 that "=" computed is a result, as one Enter computed (review N1): 2 − 2, then ×5, is 0.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2-2');
+  await page.locator(`${PANEL} button[aria-label="Equals"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.press('End');
+  await page.keyboard.type('*5');
+  const afterEquals = await page.locator('[data-calculator-expression]').evaluate((n) => n.value);
+  assert.ok(/^0/.test(afterEquals), `${at}: the computed 0 stays (${afterEquals})`);
   for (const control of ['Close calculator', 'Move calculator']) {
     const box = await page.locator(`${PANEL} [aria-label="${control}"]`).boundingBox();
     assert.ok(box.width >= 44 && box.height >= 44, `${at}: ${control} is a 44px target (${box.width}×${box.height})`);
