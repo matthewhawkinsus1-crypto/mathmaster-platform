@@ -152,6 +152,12 @@ Sans; the cloud sessions' `system-ui` is Inter), that full navigator pushed step
 opens the copy compact, with App.jsx's compact row. With DejaVu Sans forced through fontconfig the old page fails as
 CI did and the new one passes on all six screens; starting the copy full again brings the finding back.
 
+The next CI run (`293f2e3`) passed that and found a race in **assignmentGraphingCalculator**: "390x844: Close gives
+focus back". The panel's `close()` hands focus back on the next animation frame, and the driver read the focus as soon
+as the panel had gone. Its Escape check already waited. `4f1dbb7` makes the Close check and the Work View one wait
+the same way. With the focus handed back 120 ms late, the old driver fails as CI did and the new one passes; with no
+focus handed back at all, the new one still fails.
+
 ### The first-load budget
 
 Without W6-7, the six other branches came to 855.8 KB against an 855.1 KB limit. The growth was real student
