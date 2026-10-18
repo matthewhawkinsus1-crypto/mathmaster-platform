@@ -4,11 +4,14 @@ import CalculatorPanel from '../CalculatorPanel.jsx';
 import MathText from '../common/MathText.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
-import PathSolutionReview from '../student/PathSolutionReview.jsx';
+import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
 import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { toolsEntitlementFromProfile } from '../../platform/language/supportToolsEntitlement.js';
+import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
+import { speechAvailable } from '../../platform/language/speechText.js';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
@@ -80,8 +83,23 @@ const card = {
 
 const sectionLabelStyle = { color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' };
 
-/** The instructional panels a mode allows, below whichever renderer ran. */
-const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
+/**
+ * The instructional panels a mode allows, below whichever renderer ran. The
+ * worked solution is the one panel every closed question uses
+ * (SolutionReviewPanel), given only the review the server released, with
+ * Read aloud and Translate from the student's own plan for this mode's
+ * activity (Corrections: 'corrections'), and its heading under the item's h1.
+ */
+const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = null }) => {
+  const solutionSupports = useMemo(() => {
+    let entitlement = null;
+    try {
+      entitlement = toolsEntitlementFromProfile(supportProfile, { activityRole: policy.activityRole || null, universalDesignRole: policy.activityRole || null });
+    } catch {
+      entitlement = null;
+    }
+    return workedSolutionSupports(entitlement, { speechReady: speechAvailable() });
+  }, [supportProfile, policy.activityRole]);
   if (!feedback) return null;
   const caps = policy.capabilities;
   return (
@@ -100,7 +118,13 @@ const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
         </div>
       )}
       {caps.workedSolution && feedback.solutionReview && (
-        <PathSolutionReview review={feedback.solutionReview} wasCorrect={Boolean(feedback.isCorrect)} />
+        <SolutionReviewPanel
+          question={{ solutionReview: feedback.solutionReview }}
+          wasCorrect={Boolean(feedback.isCorrect)}
+          headingLevel={2}
+          readAloud={solutionSupports.readAloud}
+          translation={solutionSupports.translation}
+        />
       )}
     </>
   );
@@ -209,7 +233,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               the container's Previous/Next. */}
           {!navigationMode && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
         </form>
-        <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} />
+        <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} supportProfile={rawStudentSupportProfile || studentSupportProfile} />
       </section>
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
     </main>
@@ -392,7 +416,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           onGrade={async () => null}
         />
       </Suspense>
-      <InstructionalSupport policy={policy} feedback={feedback} isToolItem />
+      <InstructionalSupport policy={policy} feedback={feedback} isToolItem supportProfile={rawStudentSupportProfile || supportProfile} />
     </main>
   );
 };

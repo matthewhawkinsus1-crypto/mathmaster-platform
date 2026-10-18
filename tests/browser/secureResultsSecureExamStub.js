@@ -57,7 +57,14 @@ const courseItems = [
     questionInstanceId: 'ct-3', position: 2, alignmentKeys: ['texas:A.3B'], targetId: 't-slope', planWeight: 1, assessmentDomainId: null,
     unanswered: true, pathToolId: null, questionType: 'response', grading: { score: 0, isCorrect: false },
     responsePayload: { responses: {} },
-    questionSnapshot: { prompt: 'A table shows $(1, 2)$, $(2, 5)$ and $(3, 8)$. What is the rate of change?', responseFields: [field('answer', 'Rate of change')], choices: [] },
+    // The question's own figure, as publicReview's snapshot carries it
+    // (mathPath.sanitizeStimulus): the results show it under the prompt.
+    questionSnapshot: {
+      prompt: 'A table shows $(1, 2)$, $(2, 5)$ and $(3, 8)$. What is the rate of change?',
+      responseFields: [field('answer', 'Rate of change')],
+      choices: [],
+      stimulus: { kind: 'table', title: 'Rate-of-change table', table: { headers: ['$x$', '$y$'], rows: [['$1$', '$2$'], ['$2$', '$5$'], ['$3$', '$8$']] } },
+    },
     solution: {
       answers: [{ fieldId: 'answer', label: 'Rate of change', display: '3' }],
       review: { headline: 'Change in y over change in x.', reasoning: ['$y$ goes up by $3$ each time $x$ goes up by $1$.', '$\\frac{3}{1} = 3$'], commonError: null, connection: null, answerSummary: '$3$' },
@@ -91,7 +98,21 @@ const courseItems = [
     questionInstanceId: 'ct-6', position: 5, alignmentKeys: ['texas:A.2A'], targetId: 't-domain-dok3', planWeight: 2.5, assessmentDomainId: null,
     unanswered: false, pathToolId: null, questionType: 'response', grading: { score: 1, isCorrect: true },
     responsePayload: { responses: { answer: '0 ≤ t ≤ 8' } },
-    questionSnapshot: { prompt: 'A tank drains for $8$ hours. Write a reasonable domain for the time $t$.', responseFields: [field('answer', 'Domain')], choices: [] },
+    questionSnapshot: {
+      prompt: 'A tank drains for $8$ hours. Write a reasonable domain for the time $t$.',
+      responseFields: [field('answer', 'Domain')],
+      choices: [],
+      stimulus: {
+        kind: 'graph',
+        graph: {
+          xMin: -1, xMax: 10, yMin: -10, yMax: 90, xTickStep: 1, yTickStep: 10, ariaLabel: 'Water in the tank over time',
+          xAxisLabel: 'Time (hours)', yAxisLabel: 'Water (gallons)', readCoordinates: true,
+          points: [{ x: 0, y: 80, label: 'Start' }, { x: 8, y: 0, label: 'Empty' }],
+          lines: [{ label: 'Water left', boundaryStyle: 'solid', points: [{ x: 0, y: 80 }, { x: 8, y: 0 }] }],
+          curves: [], shading: [],
+        },
+      },
+    },
     solution: { answers: [{ fieldId: 'answer', label: 'Domain', display: '$0 \\le t \\le 8$' }], review: { headline: 'Time starts at 0 and stops when the tank is empty.', reasoning: ['$t$ cannot be negative.', 'After $8$ hours there is nothing left to drain.'], commonError: null, connection: null, answerSummary: '$0 \\le t \\le 8$' } },
   },
   {

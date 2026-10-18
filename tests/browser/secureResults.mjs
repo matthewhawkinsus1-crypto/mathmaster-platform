@@ -197,6 +197,19 @@ for (const device of DEVICES) {
     const articles = page.locator('article[data-result-status]');
     const q2 = await text(articles.nth(1));
     check(/Incorrect/.test(q2) && /Your answer/i.test(q2) && /Correct answer/i.test(q2) && /Multiply 3 by EVERY term/.test(q2), at('a wrong answer shows the right one and the worked solution'), q2.slice(0, 160));
+    // One worked-solution panel, its heading under "Question N" (H-6, H-14):
+    // inside a result only h4s, never a heading above the card's own h3.
+    const outline = await articles.evaluateAll((nodes) => nodes.map((node) => [...node.querySelectorAll('h1, h2, h3, h4, h5, h6')].map((heading) => heading.tagName).join(' ')));
+    check(outline.every((tags) => /^H3( H4)*$/.test(tags)), at('each result\'s headings sit under its h3'), outline.join(' | '));
+    check(/H4/.test(outline[1]) && await articles.nth(1).locator('h4', { hasText: 'Worked solution' }).count() === 1, at('the worked solution is an h4'), outline[1]);
+    // A student with no plan gets the solution and no actions beside it.
+    check(await page.getByRole('button', { name: /Read the worked solution aloud/ }).count() === 0, at('no Read aloud without a plan that grants it'));
+    // The question's figure is in its result (item 4): a table, and a graph.
+    const table = articles.nth(2).locator('[data-result-figure="stimulus"] table');
+    check(await table.count() === 1 && await articles.nth(2).locator('[data-result-figure="stimulus"] h4').count() === 1, at('a table question shows its table, its title an h4'));
+    const graph = articles.nth(5).locator('[data-result-figure="stimulus"] svg');
+    check(await graph.count() >= 1 && (await graph.first().boundingBox())?.width > 150, at('a graph question shows its graph'), `${await graph.count()} svg`);
+    await articles.nth(5).screenshot({ path: path.join(SHOTS, `${device.id}-review-graph-figure.png`) });
     const q3 = await text(articles.nth(2).locator('[data-result-block="yours"]'));
     check(/Left blank/.test(q3), at('a blank question says "Left blank"'), q3);
     const q4 = await text(articles.nth(3));
@@ -223,6 +236,32 @@ for (const device of DEVICES) {
     check(JSON.stringify(practised[0]) === JSON.stringify({ alignmentKey: 'texas:A.3B', framework: null, domainId: null })
       && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'A.3B', tab: null }), at('practise a course skill → My Math Path on the standard'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
     noErrors(errors, at('course results'));
+    await page.close();
+  }
+
+  /* --- the same results for a student whose plan grants supports --------- */
+  // Read aloud and Translate beside each released worked solution (H-6), from
+  // the student's own plan for a test.
+  {
+    const { page, errors } = await openPage(context, 'scene=review&session=course-test&supports=full');
+    await page.waitForSelector('[data-results-score]', { timeout: 15000 });
+    const q2 = page.locator('article[data-result-status]').nth(1);
+    const read = q2.getByRole('button', { name: /Read the worked solution aloud/ });
+    check(await read.count() === 1, at('supports: Read aloud beside the worked solution'));
+    if (await read.count()) {
+      await read.click();
+      await page.waitForTimeout(200);
+      const spoken = await page.evaluate(() => window.__spoken.join(' | '));
+      check(/Distribute|Multiply 3 by EVERY term/i.test(spoken) && !/Your answer|Correct answer/.test(spoken), at('supports: Read aloud reads the worked solution'), spoken.slice(0, 160));
+    }
+    // Translate is offered where the Spanish pack knows the text, and says so
+    // plainly where it does not (SupportedText.jsx) — never a dead button.
+    const solutionText = await q2.locator('[data-worked-solution]').count() ? await text(q2.locator('[data-worked-solution]')) : '';
+    check(/Translate|No Spanish translation for this text yet/.test(solutionText), at('supports: Translate is offered or says why not'), solutionText.slice(-160));
+    await q2.screenshot({ path: path.join(SHOTS, `${device.id}-review-solution-supports.png`) });
+    // The actions beside the solution are a student's controls too.
+    await layout(page, at('supports: results'), ['[data-worked-solution] button']);
+    noErrors(errors, at('supports: results'));
     await page.close();
   }
 
@@ -371,10 +410,16 @@ for (const device of DEVICES) {
     check(/Back to my assessment/.test(await back.innerText()), at('card → Review my Test: back to the card'));
     await back.click();
     await page.waitForSelector('[data-test-cycle-stage="corrections"]', { timeout: 15000 });
-    await page.waitForFunction(() => document.activeElement?.tagName === 'H2', null, { timeout: 5000 }).catch(() => {});
-    check((await focused(page)).startsWith('H2:Unit 3 Test Cycle'), at('card → review → back: focus on the card heading'), await focused(page));
+    // The card's heading is its screen's h1 since the student shell's
+    // one-main-per-screen pass (11ec32c); h2 before that.
+    await page.waitForFunction(() => /^H[12]$/.test(document.activeElement?.tagName || ''), null, { timeout: 5000 }).catch(() => {});
+    check(/^H[12]:Unit 3 Test Cycle/.test(await focused(page)), at('card → review → back: focus on the card heading'), await focused(page));
     // From inside Corrections.
     await cardButton(page, 'Continue Corrections').click();
+    // Corrections now ask first what went wrong (a reflection, optional):
+    // a student may skip it, and the question opens.
+    const skipReflection = page.getByRole('button', { name: 'Skip for now' });
+    if (await skipReflection.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false)) await skipReflection.first().click();
     // The shared runtime's answer field: the math editor for a number, or a text box.
     const answerField = page.locator('section[aria-label="Practice question"] [data-secure-answer-editor]').first();
     await answerField.waitFor({ state: 'visible', timeout: 15000 });

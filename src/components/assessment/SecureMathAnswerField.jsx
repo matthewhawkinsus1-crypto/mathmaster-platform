@@ -84,13 +84,13 @@ function MathEditor({ entry, value, emit, readOnly, readOnlyRef, autoFocus, labe
     const wrapper = wrapperRef.current;
     if (!wrapper) return undefined;
     let cancelled = false;
-    const useWords = () => {
+    const applyWordShortcuts = () => {
       const mathField = wrapper.querySelector('math-field');
       if (cancelled || !mathField || !mathField.inlineShortcuts) return;
       mathField.inlineShortcuts = { ...mathField.inlineShortcuts, ...SECURE_INLINE_SHORTCUTS };
     };
-    useWords();
-    window.customElements?.whenDefined?.('math-field').then(useWords);
+    applyWordShortcuts();
+    window.customElements?.whenDefined?.('math-field').then(applyWordShortcuts);
     return () => { cancelled = true; };
   }, []);
 

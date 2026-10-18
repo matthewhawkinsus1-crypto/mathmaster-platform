@@ -4,6 +4,9 @@
 //   ?scene=review&session=course-test|sat-practice|unreleased
 //   ?scene=card&stage=review|test|testInProgress|corrections|retest|retestAfterPass|retestClosed|passed|complete
 //   ?scene=teacher
+//   &supports=full  the student's own plan grants Read aloud and Spanish on a
+//                test (the worked solutions offer both); speech is recorded
+//                on window.__spoken instead of spoken
 //   &theme=dark  (the app keys dark mode to <html data-theme="dark">)
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,6 +21,22 @@ import { practiceSkillLaunch } from '../../src/platform/assessment/practiceSkill
 const params = new URLSearchParams(window.location.search);
 const scene = params.get('scene') || 'review';
 if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+
+const SUPPORT_PROFILES = { full: { accommodations: ['text-to-speech', 'glossary-lookup'], translationLanguage: 'es' } };
+const supportProfile = SUPPORT_PROFILES[params.get('supports')] || null;
+window.__spoken = [];
+if (supportProfile) {
+  // Headless Chromium has no voices: a speech engine that records instead.
+  const fakeSpeech = {
+    speaking: false,
+    speak(utterance) { window.__spoken.push(String(utterance?.text ?? '')); },
+    cancel() {},
+    getVoices() { return []; },
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  try { Object.defineProperty(window, 'speechSynthesis', { value: fakeSpeech, configurable: true }); } catch { /* keep the real one */ }
+}
 window.__practised = [];
 window.__launches = [];
 window.__backs = 0;
@@ -29,7 +48,7 @@ const onPracticeSkill = (target) => { window.__practised.push(target); window.__
 const Review = () => {
   const [open, setOpen] = useState(true);
   if (!open) return <p data-harness-left-review="">Left the results screen.</p>;
-  return <SecureExamReview examSessionId={params.get('session') || 'course-test'} onBack={() => { window.__backs += 1; setOpen(false); }} onPracticeSkill={onPracticeSkill} />;
+  return <SecureExamReview examSessionId={params.get('session') || 'course-test'} onBack={() => { window.__backs += 1; setOpen(false); }} onPracticeSkill={onPracticeSkill} studentSupportProfile={supportProfile} />;
 };
 
 const Card = () => (

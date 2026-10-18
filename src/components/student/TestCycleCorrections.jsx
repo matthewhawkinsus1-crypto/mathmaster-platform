@@ -67,7 +67,7 @@ const card = {
   padding: 'clamp(16px, 4vw, 26px)',
 };
 
-export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit, reviewExamSessionId = null, onReviewTest = null, testAnswersHeld = false }) => {
+export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, onComplete, onExit, reviewExamSessionId = null, onReviewTest = null, testAnswersHeld = false, studentSupportProfile = null }) => {
   const targets = corrections?.targets || [];
   const reviewTest = reviewExamSessionId && onReviewTest ? (
     <button type="button" onClick={() => onReviewTest(reviewExamSessionId)} style={reviewTestButton}>
@@ -247,6 +247,10 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
               key={question.questionInstanceId}
               question={question}
               mode="corrections"
+              // The student's own plan, for the corrections activity: their
+              // supports reach these practice questions and Read aloud and
+              // Translate reach the worked solution (student pass 3, H-6).
+              studentSupportProfile={studentSupportProfile}
               draftKey={secureItemDraftKey({ surface: 'corrections', sessionId: assignmentId, questionInstanceId: question.questionInstanceId })}
               busy={busy}
               closed={questionClosed}

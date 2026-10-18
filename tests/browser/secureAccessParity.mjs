@@ -368,7 +368,7 @@ for (const device of DEVICES) {
 
     for (const trial of TRIALS) {
       const { profile, keys, equivalence } = trial;
-      await page.evaluate(([field, prompt]) => window.__mmSetField(field, prompt), [{ id: 'answer', label: 'Answer', inputProfile: profile, ...(trial.field || {}) }, trial.prompt || '']);
+      await page.evaluate(([field, prompt]) => window.__mmSetField(field, prompt), [{ id: 'answer', label: 'Answer', inputProfile: profile, ...trial.field }, trial.prompt || '']);
       await page.waitForFunction((p) => document.querySelector(`[data-profile="${p}"] [data-secure-answer-editor]`) !== null, profile);
       const box = await page.evaluate(() => {
         const element = document.querySelector('[data-secure-answer-editor]');
