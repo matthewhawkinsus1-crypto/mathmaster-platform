@@ -393,6 +393,10 @@ Tool and driver files changed only where a name or a target changed:
   - the Live Challenge countdown.
 - **A11Y-12, remaining:** the pointer wording in Graphing 2's TaskCard step, Open Sort and Representation Match; the
   plane's keyboard sentence (shown only after keyboard focus).
+- **Two cosmetic description notes from the final review:**
+  - a point whose label is its own coordinates is read twice ("(1, 3) at (1, 3)");
+  - an authored window end that is off-tick now reads "about" ("x from about −7.5" on a step-2 axis), where the
+    author's exact value could be said.
 - **No real screen-reader pass** (NVDA, JAWS, VoiceOver, ChromeVox). The VPAT lists what one must cover.
 - **First-load budget:** studentHome is over its baseline on the base already. Measured here: base `e822504`
   1048.6 KB, this branch 1048.8 KB (baseline 1023.4 KB, allowance 8 KB). The +0.2 KB is mine; the overage is W5-1's to
