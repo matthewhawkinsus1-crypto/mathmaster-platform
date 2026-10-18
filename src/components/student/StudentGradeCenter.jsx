@@ -7,7 +7,7 @@ import BuildStamp from './BuildStamp.jsx';
 import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath, missingGradeWarning } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
-import { CLOSED_WORK, SEE_RESULTS } from '../../platform/student/studentWords.js';
+import { CLOSED_WORK, SEE_RESULTS, firstExitTicketMention } from '../../platform/student/studentWords.js';
 
 /*
  * THE STUDENT GRADE CENTER.
@@ -248,7 +248,7 @@ function WaysToRaise({ ways, onWayAction }) {
   );
 }
 
-function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = null, headingLevel = 3 }) {
+function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = null, headingLevel = 3, spellExitTicket = false }) {
   const Title = `h${headingLevel}`;
   const titleId = `grade-row-${String(entry.assignmentId || '').replace(/[^A-Za-z0-9_-]/g, '_')}`;
   const tone = TONE[entry.status] || TONE[GRADE_STATUS.NOT_STARTED];
@@ -312,7 +312,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         <p style={{ margin: '10px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
-      <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact />
+      <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact spellExitTicket={spellExitTicket} />
       <TestCycleGradeBreakdown entry={entry} hidden={hidden} compact />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
@@ -344,7 +344,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
  * counts presses of the summary's "N missing →": each opens the group and moves
  * focus to its first missing row (NAV-2).
  */
-function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayByAssignment = null, headingLevel = 2, revealMissing = 0 }) {
+function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayByAssignment = null, headingLevel = 2, revealMissing = 0, exitTicketSpelledOutOn = null }) {
   const [open, setOpen] = useState(group.defaultOpen === true);
   const bodyRef = useRef(null);
   const focusMissing = useRef(false);
@@ -412,6 +412,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
               onStart={onStart}
               today={todayByAssignment?.[entry.assignmentId] || null}
               headingLevel={Math.min(6, headingLevel + 1)}
+              spellExitTicket={entry.assignmentId === exitTicketSpelledOutOn}
             />
           ))}
         </div>
@@ -450,6 +451,13 @@ export default function StudentGradeCenter({
   const [missingRequest, setMissingRequest] = useState(0);
   const { periodGroups = [], currentPeriod, currentSummary, pastPeriodGroups = [], courseLabel } = gradeCenter || {};
   const currentGroup = periodGroups.find((group) => group.period.isCurrent) || null;
+  // D9: "Exit ticket (DOL)" once on Grades — on the first row, in screen order,
+  // whose breakdown shows an exit ticket; "Exit ticket" on every other.
+  const exitTicketSpelledOutOn = (() => {
+    const ordered = [...(currentGroup?.entries || []), ...pastPeriodGroups.flatMap((group) => group.entries || [])];
+    const index = firstExitTicketMention(ordered, (entry) => Number(entry?.sections?.dol?.total) > 0);
+    return index >= 0 ? ordered[index].assignmentId : null;
+  })();
 
   return (
     <div
@@ -499,7 +507,7 @@ export default function StudentGradeCenter({
         <WaysToRaise ways={waysToRaise} onWayAction={onWayAction} />
 
         {currentGroup && (
-          <PeriodGroup group={currentGroup} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} todayByAssignment={todayByAssignment} headingLevel={2} revealMissing={missingRequest} />
+          <PeriodGroup group={currentGroup} exitTicketSpelledOutOn={exitTicketSpelledOutOn} hidden={hidden} onOpenResult={onOpenResult} onPractice={onPractice} onStart={onStart} todayByAssignment={todayByAssignment} headingLevel={2} revealMissing={missingRequest} />
         )}
 
         {pastPeriodGroups.length > 0 && (
@@ -509,6 +517,7 @@ export default function StudentGradeCenter({
               <PeriodGroup
                 key={group.period.id}
                 group={group}
+                exitTicketSpelledOutOn={exitTicketSpelledOutOn}
                 hidden={hidden}
                 onOpenResult={onOpenResult}
                 onPractice={onPractice}

@@ -50,7 +50,7 @@ test('NAV-12: the card prints the close line instead of the due date for a timed
   const lines = region(card, '{nextAction.assignment && TIMED_KINDS.has(nextAction.kind) && describeClosesAt(nextAction.closesAt) ? (', '{nextAction.actionLabel && (');
   // The close line comes first; the late and due lines are only the else branches.
   assert.ok(lines.indexOf('data-next-action-closes') < lines.indexOf('nextAction.lateLine ? ('));
-  assert.ok(lines.indexOf('data-next-action-closes') < lines.indexOf("'Your due date: ' : 'Due '"));
+  assert.ok(lines.indexOf('data-next-action-closes') < lines.indexOf("'Your due date: ' : 'Due: '"));
 });
 
 test('P3: a wait line names the class day as a student reads it, never the raw date key', async () => {

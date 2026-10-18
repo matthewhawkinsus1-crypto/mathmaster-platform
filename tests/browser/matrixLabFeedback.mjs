@@ -238,9 +238,10 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   const dol1 = await page.evaluate(() => document.querySelector('[data-question-id]').innerText);
   check((await s.fixList()).length === 0, 'DOL 1: no list of what to fix');
   check((await s.invalidCells()) === 0, 'DOL 1: no cell marked');
-  // "Correctness feedback is held…" is the platform saying nothing yet.
+  // "Your answer is saved. You will see whether it is right when …" is the
+  // platform saying nothing yet.
   check(!/Not yet|\bCorrect\b(?!ness)|Reconsider|not right yet/.test(dol1), `DOL 1: no verdict (${(dol1.match(/Not yet|\bCorrect\b(?!ness)|Reconsider|not right yet/) || [''])[0]})`);
-  check(/held until/.test(dol1), 'DOL 1: the response is recorded and its verdict held');
+  check(/Your answer is saved\. You will see whether it is right when /.test(dol1), 'DOL 1: the answer is saved and its verdict held');
   await s.go('l3m-dol-2');
   await s.fillSystem([[1, 2, 1, 3], [3, -1, -1, 4], [2, -1, 3, 14]]);
   await page.getByRole('button', { name: /A inverse times B/i }).click();

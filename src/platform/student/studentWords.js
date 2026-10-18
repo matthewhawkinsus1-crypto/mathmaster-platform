@@ -91,6 +91,8 @@ export const firstExitTicketMention = (items = [], namesExitTicket = () => false
 export const CLOSED_WORK = Object.freeze({
   // The state: the chip, the badge, the Grades status, the phone chip.
   label: 'Closed',
+  // Grades: closed with nothing recorded, so it is left out of the average.
+  notCountedLabel: 'Closed — not counted',
   // Lists of closed work, named by what can still be done with it.
   groupLabel: 'Closed — try again (no credit)',
   tabLabel: 'Closed — try again',

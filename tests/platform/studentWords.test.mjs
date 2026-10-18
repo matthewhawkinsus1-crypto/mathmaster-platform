@@ -56,7 +56,9 @@ test('NAV-17: closed work has one name on every screen, and the result button on
   // the workspace, so it never says "no credit" (that reads as "you earned
   // none"); "no credit" is said of trying it again, where it is true.
   assert.equal(CLOSED_WORK.label, 'Closed');
-  assert.equal(GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY], 'Closed');
+  // Grades' status for closed work with nothing recorded (left out of the
+  // average): more exact than "Closed" there, and true.
+  assert.equal(GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY], 'Closed — not counted');
   for (const shownBesideAGrade of [CLOSED_WORK.label, CLOSED_WORK.gradeLabel, GRADE_STATUS_LABEL[GRADE_STATUS.PRACTICE_ONLY]]) {
     assert.doesNotMatch(shownBesideAGrade, /no credit/i, shownBesideAGrade);
   }
@@ -87,6 +89,12 @@ test('NAV-17: Home, Grades, Assignments and the workspace take the closed-work a
   }
   const app = executableSource(read('src/App.jsx'));
   assert.match(app, /^import \{ CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence \} from '\.\/platform\/student\/studentWords\.js';$/m);
+  // The workspace badge and the phone's status chip name the state from the list.
+  const badge = region(app, 'const lifecycleBadge = lifecycle.isPracticeOnly', ': lifecycle.isLate', 'workspace badge');
+  assert.match(badge, /\{ label: CLOSED_WORK\.label, /);
+  const phoneLine = region(app, "lifecycle.isPracticeOnly && {\n        key: 'practice',", '},', 'phone status line');
+  assert.match(phoneLine, /chip: CLOSED_WORK\.label,/);
+  assert.match(phoneLine, /title: CLOSED_WORK\.bannerTitle,/);
   const banner = region(app, '{lifecycle.isPracticeOnly && !preview && (', '</section>', 'closed-work banner');
   assert.match(banner, /\{CLOSED_WORK\.bannerTitle\}/);
   assert.match(banner, /\{CLOSED_WORK\.bannerText\}/);
@@ -154,7 +162,12 @@ test('NAV-18: a card says "Due" and "Late work accepted until", and never "Due N
   assert.equal(none.dueLine, DUE_WORDS.noDue);
   assert.equal(none.finalLine, '');
   assert.equal(studentDueText(null), 'No due date');
-  assert.match(studentDueText('2026-10-20T15:00:00'), /^Due Oct 20, 2026/);
+  // One form wherever a due date is printed: "Due: <date>".
+  assert.match(studentDueText('2026-10-20T15:00:00'), /^Due: Oct 20, 2026/);
+  // Only a last day: that is when it is due (S1), one line.
+  const lastOnly = studentDueDateLines({ lateDueAt: '2026-10-22T10:00:00' }, {});
+  assert.match(lastOnly.dueLine, /^Due: Oct 22, 2026/);
+  assert.equal(lastOnly.finalLine, '');
   // The last day equal to the due date is not a second line.
   assert.equal(studentDueDateLines({ dueAt: '2026-10-20T15:00:00', lateDueAt: '2026-10-20T15:00:00' }, {}).finalLine, '');
 });
@@ -213,6 +226,21 @@ test('NAV-26: a lesson done except its exit ticket says what waits; anything els
   });
   assert.equal(dolOnly.sections[0].state, SECTION_STATE.OPENS_LATER);
   assert.equal(onlyExitTicketWaits(dolOnly.sections), false);
+  // Locked behind earlier classwork is not "opens in class" (the wait line
+  // says what to finish first); locked until the teacher starts it is.
+  const lockedDol = (reason) => [
+    { role: 'classwork', finished: true, state: SECTION_STATE.DONE },
+    { role: 'dol', finished: false, state: SECTION_STATE.LOCKED, reason },
+  ];
+  assert.equal(onlyExitTicketWaits(lockedDol('prerequisite')), false);
+  assert.equal(onlyExitTicketWaits(lockedDol(undefined)), true);
+  // An excused section is not "done": excused work plus a waiting exit ticket
+  // is not a mostly-finished lesson.
+  const excusedOnly = [
+    { role: 'practice', finished: true, state: SECTION_STATE.EXCUSED },
+    { role: 'dol', finished: false, state: SECTION_STATE.OPENS_LATER },
+  ];
+  assert.equal(onlyExitTicketWaits(excusedOnly), false);
   // An exit ticket in Recovery is something to do, not something waiting.
   const recovery = [
     { role: 'classwork', finished: true, state: SECTION_STATE.DONE },
@@ -228,6 +256,45 @@ test('NAV-26: Home\'s waiting chip asks onlyExitTicketWaits, and says so', () =>
   assert.match(home, /^import \{ SECTION_STATE, describeSectionWait, onlyExitTicketWaits \} from '\.\.\/\.\.\/platform\/student\/lessonSections\.js';$/m);
   const ladder = region(home, 'const status = excused', "label: 'Open now' };", 'status ladder');
   assert.match(ladder, /waiting\s*\n?[^]*label: onlyExitTicketWaits\(lesson\?\.sections\) \? EXIT_TICKET_WAITS : 'Not open yet'/);
+});
+
+test('S3: the exit ticket\'s "not open" toast says what is true for its state, from the navigator', () => {
+  const app = executableSource(read('src/App.jsx'));
+  const toast = region(app, 'const dolLifecycle = getAssignmentLifecycle(', 'return;\n    }', 'the exit-ticket toast');
+  assert.match(toast, /const dolAccess = describeSectionAccess\(\{ role: 'dol', label: `the \$\{exitTicketInSentence\}`, timedDol: true, lifecycle: dolLifecycle, dolState, nowValue: Date\.now\(\) \}\);/);
+  assert.match(toast, /dolAccess\.reason \|\|/);
+  assert.doesNotMatch(app, /last minutes of class/);
+});
+
+test('S5: a past-date Test Cycle is never in the closed tab, whose name says "try again"', async () => {
+  const { buildAssignmentRow, ASSIGNMENT_CATEGORY: CATEGORY } = await import('../../src/platform/student/studentAssignmentsCenterModel.js');
+  const lifecycle = { isPracticeOnly: true, isClosed: true };
+  const testCycle = buildAssignmentRow({ entry: {
+    assignment: { id: 't1', title: 'Unit 4 Test', assessmentPolicy: { mode: 'testCycle' } },
+    bucket: 'comingUp', lifecycle,
+    testCycle: { key: 'test', label: 'Test ready', actionLabel: 'Open assessment', tone: 'notStarted' },
+  } });
+  assert.equal(testCycle.isTestCycle, true);
+  assert.equal(testCycle.practiceAvailable, false);
+  assert.equal(testCycle.canPractice, false);
+  assert.ok(!testCycle.categories.includes(CATEGORY.PRACTICE), JSON.stringify(testCycle.categories));
+  // An ordinary closed lesson still is.
+  const lesson = buildAssignmentRow({ entry: { assignment: { id: 'l1', title: 'Lesson 1' }, bucket: 'completed', lifecycle, finished: true } });
+  assert.ok(lesson.categories.includes(CATEGORY.PRACTICE), JSON.stringify(lesson.categories));
+});
+
+test('D9: Grades spells the exit ticket out on one row\'s breakdown, the first in screen order', () => {
+  const breakdown = executableSource(read('src/components/student/GradeSectionBreakdown.jsx'));
+  assert.match(breakdown, /dol: EXIT_TICKET,/);
+  assert.match(breakdown, /\{key === 'dol' && spellExitTicket \? EXIT_TICKET_SPELLED_OUT : SECTION_LABEL\[key\]\}/);
+  const grades = executableSource(read('src/components/student/StudentGradeCenter.jsx'));
+  const pick = region(grades, 'const exitTicketSpelledOutOn = (() => {', '})();', 'Grades first mention');
+  assert.match(pick, /\[\.\.\.\(currentGroup\?\.entries \|\| \[\]\), \.\.\.pastPeriodGroups\.flatMap\(\(group\) => group\.entries \|\| \[\]\)\]/);
+  assert.match(pick, /firstExitTicketMention\(ordered, \(entry\) => Number\(entry\?\.sections\?\.dol\?\.total\) > 0\)/);
+  assert.match(grades, /spellExitTicket=\{entry\.assignmentId === exitTicketSpelledOutOn\}/);
+  assert.match(grades, /<GradeSectionBreakdown [^>]*spellExitTicket=\{spellExitTicket\} \/>/);
+  // Rows default to the short word; only the chosen one spells it out.
+  assert.match(grades, /function GradeRow\(\{[^)]*spellExitTicket = false \}\)/);
 });
 
 /* ---- D9 on Home: spelled out once ----------------------------------------- */
@@ -292,7 +359,12 @@ test('HELP-17: every "A hint is ready" offer is followed by the one cost sentenc
   const shell = executableSource(read('src/tools/shared/ToolShell.jsx'));
   const toolOffers = shell.split('A hint is ready if you want one.').slice(1);
   assert.equal(toolOffers.length, 1);
-  assert.match(toolOffers[0].slice(0, 40), /^ \{HINT_COST_SENTENCE\}/);
+  // The host's sentence (Recovery's in a Recovery runner), else the platform's.
+  assert.match(toolOffers[0].slice(0, 20), /^ \{cost\}/);
+  const offer = region(shell, 'const OutcomeHintOffer = ', '\n};', 'the tool outcome offer');
+  assert.match(offer, /const cost = typeof hintCost === 'string' && hintCost\.trim\(\) \? hintCost\.trim\(\) : HINT_COST_SENTENCE;/);
+  assert.match(offer, /\{hint && similar \? <>\{cost\}\{' '\}<\/> : null\}/, 'with both offers the cost is still said');
+  assert.match(shell, /const hintCost = useToolRuntimeContext\(\)\.hintCost \|\| HINT_COST_SENTENCE;/);
   // No other wording of the cost is left.
   for (const path of ['src/QuestionEngine.jsx', 'src/tools/shared/ToolShell.jsx', 'src/platform/supports/hints/HintPanel.jsx', 'src/InteractiveGraphWorkspace.jsx']) {
     assert.doesNotMatch(executableSource(read(path)), /noted with your attempt|Recorded for your teacher/, path);

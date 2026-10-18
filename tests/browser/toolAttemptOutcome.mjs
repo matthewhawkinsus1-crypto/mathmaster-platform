@@ -305,18 +305,18 @@ for (const tool of ['server', 'literal']) {
 for (const role of ['dol', 'quiz', 'test']) {
   const { context, page } = await open('chromebook', role, 'inverse');
   await attemptWrong(page, 'inverse');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Not yet|Correct!/.test(state.pageText) && !state.verdictPill,
     `chromebook ${role} inverse: nothing about correctness or attempts left, in the tool or below it`, state.count ? state.text : '');
-  check(/Your response is recorded/.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
+  check(/Your answer is saved\. You will see whether it is right when /.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
   await context.close();
 }
 {
   const { context, page } = await open('chromebook', 'dol', 'board');
   await attemptWrong(page, 'board');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Correct!/.test(state.pageText),

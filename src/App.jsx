@@ -5607,8 +5607,16 @@ function App() {
     if (!assignment) return;
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
-    if (!getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
-      toastInfo(`${EXIT_TICKET_SPELLED_OUT} not open yet`, `The ${exitTicketInSentence} opens in the last minutes of class. Keep working; a banner tells you when it opens.`);
+    const dolLifecycle = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+    if (!dolLifecycle.isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
+      // What is true for THIS state (waiting with a real time, another class
+      // day, not scheduled): the navigator's own sentence for the exit ticket,
+      // never one fixed "opens in the last minutes of class".
+      const dolAccess = describeSectionAccess({ role: 'dol', label: `the ${exitTicketInSentence}`, timedDol: true, lifecycle: dolLifecycle, dolState, nowValue: Date.now() });
+      toastInfo(
+        dolAccess.short ? `${EXIT_TICKET_SPELLED_OUT} · ${dolAccess.short}` : `${EXIT_TICKET_SPELLED_OUT} is not open`,
+        dolAccess.reason || `The ${exitTicketInSentence} is not open right now.`,
+      );
       return;
     }
 

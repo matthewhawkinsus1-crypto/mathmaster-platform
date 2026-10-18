@@ -1814,6 +1814,7 @@ function QuestionEngineBody({
   // showOutcomeFeedback alone.
   const withSolverRuntime = (node) => (
     <ToolRuntimeProvider
+      hintCost={hintCostSentence(hintCostNote)}
       showImmediateFeedback={showOutcomeFeedback}
       hintsAllowed={toolHintsAllowed}
       onHintUsed={recordHintUse}
@@ -1980,6 +1981,8 @@ function QuestionEngineBody({
     onEvidence: reportSupportedTextUse,
     onShowHint: attemptHintOffered ? revealNextHint : null,
     onShowSimilar: attemptSimilarOffered ? openSimilarExample : null,
+    // The host's own sentence (Recovery's in a Recovery runner), HELP-17.
+    hintCost: hintCostSentence(hintCostNote),
   } : null;
 
   // The words of the miss box as shown, kept for "Your last try" (HELP-8).
@@ -2021,6 +2024,7 @@ function QuestionEngineBody({
         // panel on a mapping step of a DOL, before the question was submitted.
         // They get exactly what a standalone registry tool gets below.
         <ToolRuntimeProvider
+          hintCost={hintCostSentence(hintCostNote)}
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}

@@ -119,7 +119,8 @@ export const GRADE_STATUS_LABEL = Object.freeze({
   [GRADE_STATUS.LATE]: 'Late',
   [GRADE_STATUS.EXCUSED]: 'Excused',
   [GRADE_STATUS.REOPENED]: 'Reopened',
-  [GRADE_STATUS.PRACTICE_ONLY]: CLOSED_WORK.label,
+  // Closed with nothing recorded: left out of the average, and says so.
+  [GRADE_STATUS.PRACTICE_ONLY]: CLOSED_WORK.notCountedLabel,
   [GRADE_STATUS.LOCKED]: 'Not Open Yet',
 });
 

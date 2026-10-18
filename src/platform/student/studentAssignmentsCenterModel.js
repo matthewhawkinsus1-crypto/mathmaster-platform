@@ -223,7 +223,8 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     bucket: entry.bucket,
     categories: categoriesForRow({
       bucket: entry.bucket,
-      practiceAvailable: actions.practiceAvailable,
+      // A secure Test is never practice (W6-1 review, S5): not in the closed tab.
+      practiceAvailable: actions.practiceAvailable && !testCycle,
       recoveryOpen: openRecovery.length > 0,
     }),
     recovery: openRecovery,
@@ -254,6 +255,9 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     ...(testCycle ? {
       canContinue: entry.testCycle ? entry.testCycle.key !== 'opensLater' : actions.canContinue,
       canPractice: false,
+      // Never in the closed tab, whose name says "try again" (W6-1 review,
+      // S5): a secure Test is never practice.
+      practiceAvailable: false,
       canRecover: false,
       waitText: null,
       // The card asks the server which stage is open; no question index.

@@ -282,7 +282,10 @@ export const onlyExitTicketWaits = (sections = []) => {
   return list.some((section) => section.finished && section.state !== SECTION_STATE.EXCUSED)
     && unfinished.length > 0
     && unfinished.every((section) => section.role === 'dol'
-      && (section.state === SECTION_STATE.OPENS_LATER || section.state === SECTION_STATE.LOCKED));
+      && (section.state === SECTION_STATE.OPENS_LATER
+        // Locked until earlier classwork is finished is not "opens in class":
+        // the wait line under the chip says what to finish first.
+        || (section.state === SECTION_STATE.LOCKED && section.reason !== 'prerequisite')));
 };
 
 /**

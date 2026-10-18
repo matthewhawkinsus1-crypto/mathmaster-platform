@@ -221,10 +221,11 @@ export const formatDateTime = (value) => {
 };
 
 /**
- * "Due Oct 18, 2026, 1:53 PM", or "No due date" — never "Due Not set" (NAV-18).
+ * "Due: Oct 18, 2026, 1:53 PM", or "No due date" — never "Due Not set"
+ * (NAV-18). The same form as a card's `dueLine`.
  */
 export const studentDueText = (value) => (
-  parseLocalDateTime(value, true) ? `${DUE_WORDS.due} ${formatDateTime(value)}` : DUE_WORDS.noDue
+  parseLocalDateTime(value, true) ? `${DUE_WORDS.due}: ${formatDateTime(value)}` : DUE_WORDS.noDue
 );
 
 /**
@@ -252,7 +253,12 @@ export const studentDueDateLines = (assignment, lifecycle) => {
   const dueText = formatDateTime(due);
   const finalText = formatDateTime(final);
   // The last day is worth a line only when it is a different, later moment.
-  const showFinal = Boolean(final && (!due || final.getTime() > due.getTime()));
+  // With no due date the last day IS when it is due (the lifecycle is on time
+  // until then, and closes at it): one line, "Due: <last day>".
+  const showFinal = Boolean(due && final && final.getTime() > due.getTime());
+  const dueLine = due
+    ? `${dueLabel}: ${dueText}`
+    : final ? `${individualizedFinal ? DUE_WORDS.yourDue : DUE_WORDS.due}: ${finalText}` : DUE_WORDS.noDue;
   return {
     dueLabel,
     dueText,
@@ -260,7 +266,7 @@ export const studentDueDateLines = (assignment, lifecycle) => {
     finalText,
     // Whole lines, ready to print: "Due: Oct 18, 1:53 PM" / "No due date",
     // and "Late work accepted until: Oct 22, 9:53 AM" or '' when there is none.
-    dueLine: due ? `${dueLabel}: ${dueText}` : DUE_WORDS.noDue,
+    dueLine,
     finalLine: showFinal ? `${finalLabel}: ${finalText}` : '',
     individualizedDue,
     individualizedFinal,

@@ -392,7 +392,12 @@ test('Teacher Home loads a bounded list, and says where each question was asked 
   // names (a student's device can send any text in both).
   const assignment = { id: 'A1', title: 'Lesson 4: Slope' };
   assert.deepEqual(teacherQuestionPlace({ assignment, questionLabel: 'Classwork · Question 3', questionIndex: 2 }), { title: 'Lesson 4: Slope', label: 'Classwork · Question 3' });
+  // The exit ticket's tab as the workspace names it now (D9), and the old name
+  // for questions stored before.
+  assert.equal(teacherQuestionPlace({ assignment, questionLabel: 'Exit ticket (DOL) · Question 1', questionIndex: 7 }).label, 'Exit ticket (DOL) · Question 1');
   assert.equal(teacherQuestionPlace({ assignment, questionLabel: 'DOL / Exit Ticket · Question 1', questionIndex: 9 }).label, 'DOL / Exit Ticket · Question 1');
+  // App.jsx builds the label from the same tab name the platform names.
+  assert.match(code('src/App.jsx'), /dol: \{ label: EXIT_TICKET_SPELLED_OUT, /);
   for (const sent of ['Call home now', 'MESSAGE FROM THE PRINCIPAL · Question 1', 'Classwork · Question 0', 'Classwork · Question 3 — urgent', '', null]) {
     assert.equal(teacherQuestionPlace({ assignment, questionLabel: sent, questionIndex: 2 }).label, 'Question 3', String(sent));
   }
