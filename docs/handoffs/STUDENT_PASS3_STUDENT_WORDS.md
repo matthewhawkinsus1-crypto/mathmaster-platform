@@ -310,6 +310,21 @@ sentence is also shorter. The baseline file is not edited.
 **Hosting only.** No function, rule or index changes; nothing reads or writes new data. Release through
 `node scripts/release-firebase.mjs` with the rest of the branch, per the wave-5 integration note's two-release plan.
 
+## Review round (reviewer session_01WnqnEPgJXEY9t9Mjgk8Rwi, on `7c3015d5`)
+
+| Finding | Fixed in | What changed |
+| --- | --- | --- |
+| B1 "Closed — no credit" beside a real grade | `687e05bc`, `91b08275` | The state is "Closed"; "no credit" only on the retry (group, tab, button, banner). Grades' status for closed work with nothing recorded is "Closed — not counted" (`CLOSED_WORK.notCountedLabel`) |
+| B2 the tool box's hint sentence false in a Recovery runner | `91b08275` | `QuestionEngine` hands `hintCostSentence(hintCostNote)` to the tool outcome (`hintCost`) and to both tool runtimes (`ToolRuntimeContext.hintCost`). `ToolShell`'s outcome offer and its own hint button say the host's sentence, so Recovery's in a Recovery runner. With a similar problem offered too, the sentence is still said. The handoff was wrong to call this pre-existing: the base box made no cost claim |
+| B3 Ask My Teacher lost the exit ticket's place | `91b08275` | `askTeacher.SECTION_LABELS` has "Exit ticket (DOL)" and keeps "DOL / Exit Ticket" for stored questions. A grep found no other reader that parses stored section labels; the rest build labels from the role |
+| B4 two drivers on the old held-feedback line | `91b08275` | `toolAttemptOutcome` (3 checks) and `matrixLabFeedback` read "Your answer is saved. You will see whether it is right when …", anchored. Every driver and journey was grepped again for every old string (list in the session notes); the remaining matches are test titles, harness props passed explicitly, `mustNotContain` guards and teacher-side words |
+| S1 only a last day | `91b08275` | "Due: <last day>", one line. "Due: <date>" is now the one form on lists, results and the next-action card |
+| S2 surviving mutations | `91b08275` | The workspace badge and phone chip are pinned to `CLOSED_WORK`; an excused section is pinned as not "done" for NAV-26. Both mutations are now red |
+| S3 the exit ticket's toast | `91b08275` | It says `describeSectionAccess`'s sentence for the state: "Opens 3:09 PM / The exit ticket opens at 3:09 PM.", "…opens in class on Wed, Jan 2.", "…was open in class on Thu, Jan 2. It is closed now.", "…opens when your teacher starts it in class." |
+| S4 NAV-26 and a prerequisite lock | `91b08275` | An exit ticket locked behind earlier classwork does not get "Exit ticket opens in class" |
+| S5 a Test Cycle in the closed tab | `91b08275` | `practiceAvailable` is false for a Test Cycle, in its actions and in its tab membership. It still offers "Open assessment" past its date (decision 6) |
+| D9 Grades spelled "(DOL)" on every row | `91b08275` | One row's breakdown spells it out, the first in screen order; the rest say "Exit ticket". A result page's single breakdown spells it out |
+
 ## Decisions for the owner
 
 1. **"DOL Recovery".** The Recovery keeps its name ("Start DOL Recovery", "Practice for DOL Recovery") while every
@@ -322,11 +337,19 @@ sentence is also shorter. The baseline file is not edited.
    words, they are one constant (`CLOSED_WORK`).
 4. **Spanish**: no new sentence of mine is on a Read aloud or Translate path. The closed-attempt sentence Translate
    covers now has fewer sentences, and every remaining one was already in `esSupport.js`.
+5. **"Hints never lower your score"** is true of the grade. But a hint weighs against Mastered (`masteryEngine` ~35)
+   and against a CCMR session pass (`functions/index.js` ~14999). Should the sentence say "grade" ("Hints never lower
+   your grade")? It is one constant (`HINT_COST`).
+6. **A past-date Test Cycle**: what is it to a student? It is no longer in the closed tab, but it still offers "Open
+   assessment" after its final date (a secure Test is never practice; `studentAssignmentsCenterModel.js`).
 
 ## Touched outside my scope
 
 - `src/components/student/SectionTimeLeft.jsx`: an optional `labelInSentence` prop, so the timer's warning says "on
   the exit ticket" (the pill keeps "Exit ticket open").
+- `src/tools/shared/ToolRuntimeContext.jsx`: a `hintCost` field (the host's hint sentence), read by `ToolShell`
+  (review B2).
+- `src/platform/supports/askTeacher.js` (teacher side): the exit ticket's tab name in `SECTION_LABELS` (review B3).
 - `src/platform/supports/hints/hintCopy.js`: `HINT_COST_SENTENCE` is now the word list's constant (same words).
 - `src/components/liveChallenge/LiveChallengeStudent.jsx`: the default exit label.
 - `src/platform/assessment/secureExamNavigationModel.js`: one status word.
@@ -347,9 +370,6 @@ sentence is also shorter. The baseline file is not edited.
 - Grades' "Reopened" status (decision 2).
 - The student worksheet PDF's section titles (`activityTitleForRole`, "DOL") are a teacher export used for students'
   printouts too; not changed.
-- A Recovery runner on a tool item: `ToolShell` says the platform's hint sentence, not Recovery's exception
-  ("…this question then won't count toward unlocking"), because the tool shell is not handed the host's sentence.
-  It predates this branch; the engine's own offers do pass Recovery's sentence.
 - `liveChallengeShellQa` (its exit-button name changed) was not run here: it needs the Live Challenge emulator stack.
 
 
