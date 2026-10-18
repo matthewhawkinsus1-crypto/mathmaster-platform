@@ -250,5 +250,103 @@ says "try/tries/attempt" before or after Save answer, there is no tries strip, t
 Submit with a cost), and the container says "Answer saved". 48 of 48 pass. Mutation: `showTriesCount` forced on →
 "One try" found on all three exams, red.
 
-GATE_PLACEHOLDER
+## Browser evidence
+
+Screens from both servers (base `5062cba5` on 5198, this branch on 5199) were read for each visual item: Home
+(studentHomeToday's scene, 1366×768 and 390×844), the closed card (afterLastMiss), the secure course test's tool item
+(secureExamNavigation). They are in the session's scratchpad, not the repository.
+
+## The gate
+
+On the branch head after merging the moved base (`3cb782a9`), unless a row says otherwise.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 11,789 of 11,789 (on `58e9cc73`, the merge) |
+| `node --test tests/tools/*.test.mjs` | 1,709 pass, 0 fail (1 skipped, as on the base) |
+| `npm run lint` | exit 0, no errors (warnings only, none in a line this branch added) |
+| `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs` | within baseline: studentHome **847.8 KB** (186 files), signIn 291.8 KB (27 files) |
+| Mutation checks (every new assertion) | 21 mutations, 21 red (`studentWords`, `studentWhatChanged`; listed below) |
+| `npm run test:rules` (emulator) | 243 of 243 and 220 of 220 (a sanity run; no rules change) |
+| Other emulator suites | not run: nothing here touches Functions, rules or indexes |
+| Student drivers on plain Vite (AUDIT_ORIGIN 5199) | studentUxPlatform, assignmentMobile, keyboardSweep, readAloudTranslate, studentGradesRaise, studentResultUpNext, reviewMyWork, dolCloseCopy, workBarPrimaryLabel, feedbackTeaches, gradeCenterMobile, afterLastMiss, studentWhatChanged, pathRetention, familyPinContainment: all exit 0 |
+| studentHomeToday | every check passes but "no console errors": Firestore "client is offline" from My Math Path's coverage read, because this sandbox has no network. The base fails the same check the same way |
+| secureExamNavigation (own Vite) | 412 of 412, including the new `toolTries` journey |
+| Teacher harness (5188) | journeys, submitAndFinishJourneys, prerequisiteEarlyJourneys, dolExtraTimeJourneys, studentScreenChange, supportEvidenceJourneys, recoveryHoldJourneys, recoveryDraftCrossDeviceJourneys: exit 0. assignmentChromeJourneys: ACJ_RESULT |
+| studentAccessibleNames | exit 0 |
+| workViewCertification (after the base's Work View fix) | WVC_RESULT |
+
+keyboardSweep first ran out of a 15-minute timeout while the unit suite and two builds loaded the machine (its browser
+was killed mid-tool, after every tool before that passed). Alone it passes.
+
+**Mutations (each turned the named test red, then restored):** reopened emitted again; NAV-26 chip back to "Not open
+yet"; the helper without "something finished"; the helper counting a non-waiting exit ticket; the waiting card not
+spelling "(DOL)"; Home ignoring the primary card's spelling; `firstExitTicketMention` ignoring `alreadySpelledOut`;
+closed work back to "Practice only"; Grades back to "View Results"; "Regular due" back; a missing date printed;
+an equal last day printed; the retention banner red; "Your answer is locked." back; "Ask your teacher" back; the
+same-answer line back; the miss box, the one-try line and the tool shell each losing the hint sentence; "last
+attempt"; "another try on the DOL". Browser: `showTriesCount` forced on → `toolTries` red on all three exams.
+
+### First load, by module
+
+`--report` on this branch against the base `3cb782a9` built the same way (gzip):
+
+| Path | Base | Branch | By module |
+| --- | --- | --- | --- |
+| studentHome | 847.0 KB | 847.8 KB (+0.8) | `index.js` +0.6 (the word list, on the entry chunk because the sign-in page imports it), `StudentDashboardView` +0.2 (the first-mention pick, the waiting chip), `assignmentLifecycle` +0.1 (`dueLine`, `studentDueText`), `App` −0.1 (shorter banner words) |
+| signIn | 291.2 KB | 291.8 KB (+0.6) | `index.js` +0.6, the same bytes |
+
+I tried the integrator's suggestion (the login page importing a three-word module alone). signIn fell to +0.1, but
+the word list then became a chunk of its own on Home (782 B gzip plus a file), and studentHome rose to +1.1. Home is
+the path at its limit and sign-in has 6.5 KB of room, so the list stays on the entry chunk. The closed-work banner's
+sentence is also shorter. The baseline file is not edited.
+
+## Deploy targets
+
+**Hosting only.** No function, rule or index changes; nothing reads or writes new data. Release through
+`node scripts/release-firebase.mjs` with the rest of the branch, per the wave-5 integration note's two-release plan.
+
+## Decisions for the owner
+
+1. **"DOL Recovery".** The Recovery keeps its name ("Start DOL Recovery", "Practice for DOL Recovery") while every
+   other place says "Exit ticket". Rename it "Exit ticket Recovery"? It is about 40 assertions in eight files,
+   Recovery journeys included, and teachers and Pre-Flight say "DOL Recovery" too.
+2. **What "reopened" means** (wave 3's list, C). What changed no longer mentions the flag; Grades still shows the
+   status "Reopened" while the lesson is open. If "reopened" should open closed work, that is a server change
+   (`studentAssignmentOverrides.mjs`), and What changed can then say it.
+3. **Closed work's name**: "Closed — no credit" on the chip, the tab, the status, the badge and the banner, with "Try
+   it again — no credit" as its button. If the owner wants a different word, it is one constant (`CLOSED_WORK`).
+4. **Spanish**: no new sentence of mine is on a Read aloud or Translate path. The closed-attempt sentence Translate
+   covers now has fewer sentences, and every remaining one was already in `esSupport.js`.
+
+## Touched outside my scope
+
+- `src/components/student/SectionTimeLeft.jsx`: an optional `labelInSentence` prop, so the timer's warning says "on
+  the exit ticket" (the pill keeps "Exit ticket open").
+- `src/platform/supports/hints/hintCopy.js`: `HINT_COST_SENTENCE` is now the word list's constant (same words).
+- `src/components/liveChallenge/LiveChallengeStudent.jsx`: the default exit label.
+- `src/platform/assessment/secureExamNavigationModel.js`: one status word.
+- `src/StepByStepAlgebraCore.jsx`, `src/QuestionResolutionBoundary.jsx`, `src/SolutionReview.jsx`: one sentence each.
+- Tests and drivers rewritten to the new words, each still asserting its behaviour: 22 platform tests, and the
+  drivers dolCloseCopy, familyPinContainment, feedbackTeaches, gradeCenterMobile, liveChallengeShellQa,
+  pathRetention, studentGradesRaise, studentHomeToday, studentResultUpNext, and in the teacher harness
+  assignmentChromeJourneys, recoveryDraftCrossDeviceJourneys, recoveryHoldJourneys, studentScreenChange,
+  supportEvidenceJourneys. `secureExamNavigation` and its harness gained the `toolTries` journey.
+- Conflicts W6-2 reported (imports only): `App.jsx` (its back button's title), `StudentDashboardView.jsx`
+  (`studentWhen`), `lessonSections.js` (its NAV-19 formatters). NAV-26's chip is its own words and reads no date;
+  the wait line under it is `describeSectionWait`'s, whose label is now "Exit ticket", so NAV-19's formatted dates
+  read "Exit ticket opens at 10:59 AM" / "Exit ticket opens in class on Wed, Oct 21".
+
+## Not done
+
+- "DOL Recovery" (decision 1), and the case-review, Pre-Flight and teacher screens, which keep "DOL" (teacher words).
+- Grades' "Reopened" status (decision 2).
+- The student worksheet PDF's section titles (`activityTitleForRole`, "DOL") are a teacher export used for students'
+  printouts too; not changed.
+- A Recovery runner on a tool item: `ToolShell` says the platform's hint sentence, not Recovery's exception
+  ("…this question then won't count toward unlocking"), because the tool shell is not handed the host's sentence.
+  It predates this branch; the engine's own offers do pass Recovery's sentence.
+- `liveChallengeShellQa` (its exit-button name changed) was not run here: it needs the Live Challenge emulator stack.
+
 
