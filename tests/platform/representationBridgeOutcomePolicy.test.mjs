@@ -268,7 +268,7 @@ const bridge = executableSource(bridgeSource);
 const classic = region(bridge, 'function ClassicRepresentationBridge', null, 'the classic bridge');
 
 test('the bridge reads whether outcomes are shown from the runtime context and hands it to the gate', () => {
-  assert.match(bridge, /import \{ useToolRuntimeContext \} from '\.\.\/shared\/ToolRuntimeContext';/);
+  assert.match(bridge, /import \{[^}]*\buseToolRuntimeContext\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
   assert.match(classic, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   const gate = region(classic, 'const stageGate = resolveRepresentationBridgeStageGate({', '});', 'the stage gate');
   assert.match(gate, /\n\s*showImmediateFeedback,/);

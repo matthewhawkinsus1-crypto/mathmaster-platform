@@ -76,7 +76,7 @@ await page.getByText(/r = 0\.9812/).waitFor();
 if (await page.locator('[data-regression-graph] line[stroke="#1a73e8"]').count() !== 1) throw new Error('Fitted line is not visible');
 await page.getByLabel('Direction').selectOption('positive');
 await page.getByLabel('Strength').selectOption('strong');
-await page.getByRole('button', { name: 'Submit my regression' }).click();
+await page.getByRole('button', { name: /^Submit — / }).first().click();
 // This harness intentionally runs QuestionEngine in server-grading mode.
 // Local tool feedback is suppressed there, so a correct submission is proven
 // by the real wire payload reaching the server-grading adapter rather than by

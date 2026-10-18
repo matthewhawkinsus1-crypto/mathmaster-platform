@@ -135,3 +135,36 @@ export const formatQuadratic = (quadratic = {}) => {
   if (Math.abs(c) <= 1e-12) return `y = ${left}`;
   return `y = ${left} ${c < 0 ? MINUS : '+'} ${numberText(Math.abs(c))}`;
 };
+
+/**
+ * The line under "Check vertices" where outcomes are shown, when the marks do
+ * not yet cover the region's corners (PR-22). `coverage` is vertexCoverage's
+ * result; `offCornerLetters` the letters (A, B, …) of the marks near no
+ * corner. Null when the coverage is complete.
+ */
+export const vertexCoverageMessage = (coverage, offCornerLetters = []) => {
+  if (!coverage || coverage.complete) return null;
+  if (coverage.total === 0) {
+    return `This solution region has no corners, so there is nothing to mark. Remove ${coverage.marked === 1 ? 'your mark' : 'your marks'}.`;
+  }
+  if (coverage.missing > 0) {
+    const found = coverage.total - coverage.missing;
+    const next = coverage.missing === 1
+      ? 'Tap the place where two boundary lines meet at the corner you have not marked yet.'
+      : 'Tap each place where two boundary lines meet at a corner you have not marked yet.';
+    return `You have found ${found} of the ${coverage.total} ${coverage.total === 1 ? 'corner' : 'corners'} of the solution region. ${next}`;
+  }
+  // Every corner is marked and something else is too: a mark that is no
+  // corner, else a corner marked twice.
+  if (coverage.offCorner > 0 && offCornerLetters.length) {
+    const names = offCornerLetters.map((letter) => `Vertex ${letter}`);
+    const named = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+    return `${named} ${names.length === 1 ? 'is not a corner' : 'are not corners'} of the solution region. Remove ${names.length === 1 ? 'it' : 'them'}.`;
+  }
+  // Every mark is near a corner and every corner is marked: the rest are
+  // repeats, counted.
+  const extra = coverage.marked - coverage.total;
+  return extra === 1
+    ? 'Two of your marks are on the same corner. Remove the extra mark.'
+    : `${extra} of your marks repeat corners you already marked. Remove the extra marks.`;
+};

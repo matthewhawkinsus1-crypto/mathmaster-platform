@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useMethodWithheld, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
@@ -352,6 +352,10 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   // both panel rows instead of stacking them within the available width.
   const gridTwoColumn = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))', gap: 16, marginTop: 16 };
 
+  // On an assessment the card keeps only how to work each panel (R-10):
+  // the method steps go, and nothing else says the table is tapped in pairs.
+  const methodWithheld = useMethodWithheld();
+
   return (
     <ToolShell
       title="Representation Bridge"
@@ -361,7 +365,11 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task="Build the same linear relationship across every representation, then check that they all agree."
-        steps={[
+        stepsAreControls={methodWithheld}
+        steps={methodWithheld ? [
+          'Table: tap two rows to form an interval, enter Δx, Δy and the rate, and record it. Record more than one.',
+          'Then fill in each panel below in order: the equations, the graph, and what the parts mean.',
+        ] : [
           'Table: select two rows, compute Δx, Δy, and the rate yourself, and record it. Repeat, then conclude whether the rate is constant and state m.',
           'General form: write y = mx + b using the b you determine yourself.',
           'Factored form: rewrite your equation as y = a(x − c).',
@@ -638,7 +646,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           disabled={!readyToSubmit}
           style={{ ...button, background: readyToSubmit ? '#1a73e8' : '#dadce0', color: readyToSubmit ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          Submit the bridge
+          <SubmitText>Submit the bridge</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>

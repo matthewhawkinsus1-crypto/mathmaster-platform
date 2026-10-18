@@ -160,7 +160,9 @@ const componentRouting = (() => {
   assert.equal(unchained.length, 1, 'exactly one panel is reached only through the fallback');
   // The fallback Check is that panel's own Check (same label on its button).
   const panelBody = region(code, `{mode === '${unchained[0]}' ? <>`, '</> : null}', `${unchained[0]} panel`);
-  assert.ok(panelBody.includes(`>${finalElse[2]}</button>`), 'the fallback action is the remaining panel\'s Check');
+  // The label may be wrapped in <SubmitText> (student pass 3, D9: it reads "Submit
+  // — uses 1 of 3 tries" where the press spends a try); it is still that label.
+  assert.ok(panelBody.includes(`>${finalElse[2]}</button>`) || panelBody.includes(`><SubmitText>${finalElse[2]}</SubmitText></button>`), 'the fallback action is the remaining panel\'s Check');
   return { fallback, panels, unrecognised: unchained[0] };
 })();
 const componentMode = (question) => {

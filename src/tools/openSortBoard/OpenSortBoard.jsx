@@ -9,6 +9,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/openSortBoard.mjs';
 import { openSortProgress, openSortSettings } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import {
@@ -258,16 +259,17 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         task={controlled
           ? 'Place every card into one of the provided categories. Each card has one correct destination.'
           : 'Sort every card into at least two groups. Name your groups and explain the mathematical feature that makes each group belong together.'}
+        stepsAreControls
         steps={controlled ? [
           'Read or inspect one card.',
           'Tap the category that best describes it.',
           'Tap a placed card to move it back if you want to change your choice.',
-          'Check the sort after every card has been placed.',
+          'When every card is placed, submit your sort.',
         ] : [
           'Tap a card to select it, then tap a group to place it there.',
           'Create another group if your sorting idea needs one.',
           'Name each group and explain the mathematical characteristic you used.',
-          'Check your sort. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
+          'Submit your sort when it is finished. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
         ]}
         note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
@@ -386,7 +388,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       )}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}>Check my sort</button>
+        <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}><SubmitText>Check my sort</SubmitText></button>
         {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
         {feedback && <ResultPill ok={feedback.isCorrect} message={feedback.isCorrect ? null : (controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>

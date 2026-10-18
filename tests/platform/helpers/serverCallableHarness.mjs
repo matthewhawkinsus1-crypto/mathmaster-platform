@@ -325,6 +325,14 @@ export const runServerCallable = async (name, { db, request, auth = fakeAdminAut
     CLASS_COLLECTION: constant('CLASS_COLLECTION'),
     STUDENT_NOT_ON_ROSTER_MESSAGE: constant('STUDENT_NOT_ON_ROSTER_MESSAGE'),
     serializableDate: (value) => value ?? null,
+    // A roster change invites the student to their class's Live Challenge if
+    // one is on. That is Live Challenge machinery (transactions, rooms), run
+    // against the emulator in tests/integration/liveChallengeServerSweep; here
+    // it is only recorded. Like the real one, it never throws into the caller.
+    inviteStudentToClassLiveChallengeSafely: async (_db, studentId) => {
+      (db.liveChallengeLateInvites ||= []).push(studentId);
+      return { invited: false, reason: 'harness' };
+    },
   };
   const factory = new Function(
     ...Object.keys(collaborators),

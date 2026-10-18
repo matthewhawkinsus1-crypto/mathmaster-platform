@@ -45,8 +45,13 @@ test('assigned assignments always enable live question protection even before gr
 
 
 test('current grader corrections remain automatic without making teacher login regrade the whole roster', () => {
-  assert.match(app, /repairAssignmentTrackerForCurrentGrader/);
-  assert.match(app, /persistCurrentGraderCreditRepairs/);
+  // The repair grades with the full math engine and only a teacher's Grades
+  // tab runs it, so it loads there: a static import put mathjs in every
+  // student's first load (tests/platform/initialBundleBoundary.test.mjs).
+  const persist = region(app, 'const persistCurrentGraderCreditRepairs = async', 'if (!repairs.length) return 0;', 'the grader repair');
+  assert.match(persist, /const \{ repairAssignmentTrackerForCurrentGrader \} = await import\('\.\/platform\/assignment\/liveQuestionCorrection\.js'\);[\s\S]*repairGradesByAssignmentWithCurrentGrader\(\{\s*repairAssignmentTrackerForCurrentGrader,/);
+  const repairOne = region(app, 'const repairGradesByAssignmentWithCurrentGrader = (', 'const persistCurrentGraderCreditRepairs', 'one roster repair');
+  assert.match(repairOne, /\(\{\s*repairAssignmentTrackerForCurrentGrader,[\s\S]*const repairedTracker = repairAssignmentTrackerForCurrentGrader\(\{/);
 
   const teacherHydrationStart = app.indexOf("if (session.role === 'teacher') {");
   const teacherHydrationEnd = app.indexOf("if (session.role !== 'student' || !session.studentId)", teacherHydrationStart);

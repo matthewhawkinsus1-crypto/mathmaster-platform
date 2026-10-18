@@ -397,3 +397,23 @@ export const vertexInclusionExpected = (workingVertices = [], vertex = {}) => {
   const match = workingVertices.find((v) => Math.hypot(v.x - vertex.x, v.y - vertex.y) <= 0.15);
   return match ? match.included : null;
 };
+
+/**
+ * How the marked vertices cover the true corners, by the rule the shared
+ * grader's "Every vertex found and judged" part uses: every true corner has a
+ * mark within 0.15 and there are exactly as many marks as corners. `missing`
+ * counts the corners with no mark near them; `offCorner` the marks near none.
+ */
+export const vertexCoverage = (workingVertices = [], vertices = []) => {
+  const missing = workingVertices.filter((expected) => (
+    !vertices.some((vertex) => Math.hypot(vertex.x - expected.x, vertex.y - expected.y) <= 0.15)
+  )).length;
+  const offCorner = vertices.filter((vertex) => vertexInclusionExpected(workingVertices, vertex) == null).length;
+  return {
+    total: workingVertices.length,
+    marked: vertices.length,
+    missing,
+    offCorner,
+    complete: missing === 0 && vertices.length === workingVertices.length,
+  };
+};

@@ -103,14 +103,16 @@ test('HintPanel renders nothing where hints are withheld, before it renders anyt
 
 test('the Work View Help drawer stops printing a question\'s authored hints where hints are withheld', () => {
   const view = code('src/tools/shared/RegisteredToolWorkView.jsx');
-  assert.match(view, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\/ToolRuntimeContext';/);
+  // The gate is useOwnHintLadder: hints allowed (pinned with the context
+  // below) and no platform ladder to hand them to (HELP-10).
+  assert.match(view, /import \{[^}]*\buseOwnHintLadder\b[^}]*\} from '\.\/ToolRuntimeContext';/);
   const body = region(view, 'export default function RegisteredToolWorkView', 'const capabilities', 'the work view');
   // Called before the early return, so the hook order never changes.
-  assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') > -1);
-  assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') < body.indexOf('if (!inventory'));
+  assert.ok(body.indexOf('const ownLadder = useOwnHintLadder();') > -1);
+  assert.ok(body.indexOf('const ownLadder = useOwnHintLadder();') < body.indexOf('if (!inventory'));
   assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') > -1);
   assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') < body.indexOf('if (!inventory'));
-  assert.match(body, /const authoredHints = hintsAllowed && Array\.isArray\(questionData\?\.hints\)/);
+  assert.match(body, /const authoredHints = ownLadder && Array\.isArray\(questionData\?\.hints\)/);
   // Where they are allowed, they are the recorded, one-at-a-time HintPanel —
   // never the whole list printed unrecorded.
   assert.match(body, /const helpText = authoredHints\.length\s*\?\s*<HintPanel hints=\{authoredHints\} onHintUsed=\{\(\) => reportHintUse\?\.\(\)\} \/>/);

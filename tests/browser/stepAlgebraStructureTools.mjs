@@ -405,11 +405,11 @@ async function slopeTwoFourEight(context) {
   const route = await page.locator('[data-algebra-route]').first().getAttribute('data-algebra-route');
   if (route === 'stepAlgebra2.rewriteLinearForm') {
     expect(journey, (await page.locator('text=✓ Written as y = mx + b').count()) === 1, 'slope-intercept goal chip not complete');
-    await page.getByRole('button', { name: 'Check equation' }).click();
+    await page.getByRole('button', { name: /^(Check equation|Submit — )/ }).first().click();
     await settle(page, 500);
   } else {
     expect(journey, route === 'stepAlgebra', `the stored record reached ${route}, not the consolidated Step Algebra engine`);
-    expect(journey, (await page.locator('button:visible', { hasText: 'Submit Solved Equation' }).count()) >= 1, 'the engine did not report the slope-intercept form as finished');
+    expect(journey, (await page.locator('button.mathmaster-bar-submit:visible', { hasText: /^Submit/ }).count()) >= 1, 'the engine did not report the slope-intercept form as finished');
   }
   const grades = await page.evaluate(() => window.__mmStructure.grades());
   report.push({ journey, route, split, final, gradeCount: grades.length });

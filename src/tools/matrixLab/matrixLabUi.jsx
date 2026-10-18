@@ -2,6 +2,7 @@ import React from 'react';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { ResultPill } from '../shared/ToolShell';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
@@ -183,7 +184,7 @@ export function CheckRow({ label, onCheck, enabled, feedback, notes = [] }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={onCheck} disabled={!enabled} style={primaryStyle(enabled)}>{label}</button>
+        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={onCheck} disabled={!enabled} style={primaryStyle(enabled)}><SubmitText>{label}</SubmitText></button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet — see what to reconsider'}</ResultPill> : null}
       </div>
       {feedback && !feedback.isCorrect && (wrong.length || notes.length) ? (

@@ -85,7 +85,9 @@ const platformHint = async (page) => {
 // Where each rung of the platform ladder came from (the panel says, without
 // showing the rungs not yet revealed): the tool's rungs are "tool".
 const ladderSources = (page) => page.evaluate(() => document.querySelector('[data-hint-panel]')?.dataset.hintSources || '');
-const mappingCheck = (page) => page.getByRole('button', { name: 'Check', exact: true });
+// The mapping's final action: on its own it spends a try and says "Submit —
+// …" (student pass 3, D9); as a composed question's step it is a free "Check".
+const mappingCheck = (page) => page.getByRole('button', { name: /^(Check$|Submit — )/ });
 const fill = async (page, label, value) => {
   await page.locator(`input[aria-label="${label}"]`).fill(value);
   await page.waitForTimeout(60);
@@ -97,7 +99,8 @@ const FACTORED = { a: 'Coefficient a in factored form', c: 'Zero c in factored f
 const stageCheck = (page, index) => page.getByRole('button', { name: 'Check this stage' }).nth(index);
 const GENERAL_CHECK = 1; // rate evidence, general form, factored form, graph, meaning
 const FACTORED_CHECK = 2;
-const submitBridge = (page) => page.getByRole('button', { name: 'Submit the bridge' });
+// The bridge's Submit says its cost (student pass 3, D9); its stage checks stay "Check".
+const submitBridge = (page) => page.getByRole('button', { name: /^Submit — / });
 
 {
   const page = await open('practice', 'bridge', (p) => p.locator(`input[aria-label="${GENERAL.m}"]`));
@@ -122,7 +125,7 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
   // a time, recorded — not printed all at once and unrecorded.
   check(await helpDrawerShows(page, 'Show a hint'), 'practice bridge: the Work View Help drawer offers the authored hint as a recorded hint', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'practice bridge: the hint is not printed before the student asks for it', await helpDrawers(page));
-  await page.getByRole('button', { name: /Open Work View/ }).first().click();
+  await page.getByRole('button', { name: /Enlarge question|Open Work View/ }).first().click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Help', exact: true }).first().click();
   await page.waitForTimeout(200);
@@ -134,9 +137,15 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
 
 {
   const page = await open('dol', 'bridge', (p) => p.locator(`input[aria-label="${GENERAL.m}"]`));
-  // The bridge's Work View wrapper has published its Help (its own generic
-  // directions) — and they are not the authored hint.
-  check(await helpDrawerShows(page, 'Use the directions and controls in this workspace'), 'DOL bridge: the Work View Help drawer holds the tool\'s directions', await helpDrawers(page));
+  // The drawer holds the platform's Help, never replaced by the tool's
+  // (student pass 3, TOOL-3) — and on a DOL no tool description and no method
+  // step (R-10, fail-closed), and not the authored hint.
+  check(await helpDrawerShows(page, 'Hints are not part of this activity'), 'DOL bridge: the platform Help is in the drawer, not replaced', await helpDrawers(page));
+  // What it keeps is how to work the panels (stepsAreControls on an
+  // assessment, integrator round 2): not the tool's description and not a
+  // method step.
+  check(/tap two rows to form an interval/.test(await helpDrawers(page)), 'DOL bridge: the drawer says how to work the table', await helpDrawers(page));
+  check(!/five connected views|using the b you determine|plot the x-intercept from your factored form/.test(await helpDrawers(page)), 'DOL bridge: the drawer holds neither the tool\'s description nor a method step', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'DOL bridge: the authored hint is NOT in the Work View Help drawer', await helpDrawers(page));
   await fill(page, GENERAL.m, '5');
   await fill(page, GENERAL.b, '-19');
@@ -220,12 +229,12 @@ for (const role of ['practice', 'dol']) {
 
 // ----------------------------------------------------------- graphing (help)
 for (const role of ['practice', 'dol']) {
-  const page = await open(role, 'graphing', (p) => p.getByRole('button', { name: 'Check construction' }));
+  const page = await open(role, 'graphing', (p) => p.getByRole('button', { name: /^Submit — / }));
   // Graphing2 publishes its Work View capabilities from an effect: wait until
   // its Check construction action is on the Work View rail, so the Help drawer
   // below is the one it published (or chose not to).
   await page.waitForFunction(
-    () => [...document.querySelectorAll('aside[aria-label="Work View controls"]')].some((rail) => (rail.textContent || '').includes('Check construction')),
+    () => [...document.querySelectorAll('aside[aria-label="Work View controls"]')].some((rail) => /Submit — /.test(rail.textContent || '')),
     null,
     { timeout: 8000 },
   ).catch(() => failures.push(`${role} graphing: Graphing2 never published its Work View capabilities`));

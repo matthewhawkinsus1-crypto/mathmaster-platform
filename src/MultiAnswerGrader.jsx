@@ -114,7 +114,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
     <div>
       {/* Classed so the Enlarge button can be given room beside it on a phone
           (WorkViewShell.css, PQ-025). */}
-      <h2 className="mathmaster-multipart-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
+      <h2 className="mathmaster-multipart-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{question.heading || (safeFields.length > 1 ? 'Complete Each Part' : 'Your answer')}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       {/* A data table beside its answer fields where there is room. Stacked,
           the table sat centred with ~370px blank either side on a 1180px

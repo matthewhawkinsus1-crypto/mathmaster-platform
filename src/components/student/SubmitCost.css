@@ -1,0 +1,31 @@
+/* THE SUBMIT BUTTON CARRIES ITS COST (student pass 3, RUN-4).
+   "Submit" on top, what it spends under it ("uses 1 of 3 tries", "last try",
+   "your only try"). Two short lines rather than one long one: a wide label
+   wrapped the Chromebook action bar to two rows, and a phone's one-row bar
+   leaves Submit about 80px beside six icon tools, so a phone shows the short
+   cost ("1 of 3") and every wider screen the whole phrase. */
+.mathmaster-bar-submit.has-try-cost {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.mathmaster-submit-cost {
+  display: block;
+  font-size: calc(12 * var(--mm-px));
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The phone's words for an action whose full words do not fit its one-row
+   bar ("1 of 3", "Go back"); every wider screen shows the
+   .mathmaster-action-label-long words instead. */
+.mathmaster-action-label-short {
+  display: none;
+}
+
+.mathmaster-question-container.mode-portrait .mathmaster-action-label-short {
+  display: inline;
+}

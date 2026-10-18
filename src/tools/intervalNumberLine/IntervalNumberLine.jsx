@@ -569,6 +569,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={questionData.prompt || `Graph the solution on the number line${asksInterval ? ' and write it in interval notation' : asksInequality ? ' and write the matching inequality' : ''}.`}
+        stepsAreControls
         steps={[
           'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',

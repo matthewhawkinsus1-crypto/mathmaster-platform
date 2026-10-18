@@ -51,6 +51,14 @@ const DEFAULT_RUNTIME = {
   // the item. A secure host names the action ("Record answer"); null keeps
   // each tool's own wording everywhere else.
   submitLabel: null,
+  // WHAT THE TOOL'S FINAL ACTION COSTS, when it spends one of the question's
+  // tries (student pass 3, RUN-4; decision D9: "Submit" always spends a try,
+  // "Check" never does). QuestionEngine passes the phrase ("uses 1 of 3
+  // tries", "last try", "your only try") to a standalone registry tool, whose
+  // final action records an attempt; the tool's button then reads "Submit —
+  // uses 1 of 3 tries". A composed question's stage check records nothing, so
+  // it is given no cost and keeps its own "Check …". A host label wins.
+  submitCost: null,
   // WHETHER THE ACTIVITY WITHHOLDS VERDICTS, as the activity says it.
   //
   // `showImmediateFeedback` above is false for two different reasons: the
@@ -69,7 +77,7 @@ const DEFAULT_RUNTIME = {
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, teacherView = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, teacherView = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -83,6 +91,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
     submitLabel: typeof submitLabel === 'string' && submitLabel.trim() ? submitLabel.trim() : null,
+    submitCost: typeof submitCost === 'string' && submitCost.trim() ? submitCost.trim() : null,
     verdictsWithheld: verdictsWithheld === true,
     teacherView: teacherView === true,
   }}>
@@ -103,9 +112,35 @@ export const useTeacherView = () => useContext(ToolRuntimeContext).teacherView =
 // Convenience for every hint affordance. Defaults to allowed outside a provider.
 export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;
 
-// The label of a tool's final Check action: the host's (a secure "Record
-// answer") where one is set, the tool's own everywhere else.
-export const useSubmitLabel = (ownLabel) => useContext(ToolRuntimeContext).submitLabel || ownLabel;
+// The label of a tool's final action: the host's (a secure "Record answer")
+// where one is set; "Submit — <cost>" where the action spends one of the
+// question's tries (D9); the tool's own everywhere else (a composed stage's
+// free check, the tools lab).
+export const useSubmitLabel = (ownLabel) => {
+  const { submitLabel, submitCost } = useContext(ToolRuntimeContext);
+  if (submitLabel) return submitLabel;
+  return submitCost ? `Submit — ${submitCost}` : ownLabel;
+};
+
+// The same words on a JSX button: <SubmitText>Check my sort</SubmitText>
+// reads "Submit — uses 1 of 3 tries" where that press spends a try, and the
+// tool's own words everywhere else.
+export const SubmitText = ({ children }) => useSubmitLabel(children);
+
+/*
+ * A tool's Work View rail carries its final action as `primaryActions`, under
+ * the tool's own words ("Check graph"). Where the host names that action or it
+ * spends a try, the rail says what the button says. An action that does not
+ * record an attempt opts out with `spendsTry: false`.
+ */
+export const relabelToolPrimaryActions = (capabilities, { submitLabel = null, submitCost = null } = {}) => {
+  if (!capabilities || typeof capabilities !== 'object' || (!submitLabel && !submitCost)) return capabilities;
+  const actions = capabilities.primaryActions;
+  if (!actions) return capabilities;
+  const label = submitLabel || `Submit — ${submitCost}`;
+  const relabel = (action) => (action && typeof action === 'object' && action.spendsTry !== false ? { ...action, label } : action);
+  return { ...capabilities, primaryActions: Array.isArray(actions) ? actions.map(relabel) : relabel(actions) };
+};
 
 // The host's label alone (null when the tool keeps its own), for a tool whose
 // wording around that action — a panel title — must not say "Check" either.
@@ -123,6 +158,18 @@ export const useToolHintPublisher = () => useContext(ToolRuntimeContext).publish
 export const useOwnHintLadder = () => {
   const runtime = useContext(ToolRuntimeContext);
   return runtime.hintsAllowed !== false && !runtime.publishHints;
+};
+
+// WHETHER THE TOOL MAY SHOW ITS METHOD (student pass 3, R-10).
+//
+// A TaskCard's "How to do this" steps are the method the item measures —
+// Matrix Lab's exit ticket listed the singular-matrix decision rule. Where the
+// activity withholds hints or verdicts (a DOL, quiz or test, a section
+// recovery), the method is withheld with them: only directions that say how
+// to work the controls stay. Defaults to shown outside a provider.
+export const useMethodWithheld = () => {
+  const runtime = useContext(ToolRuntimeContext);
+  return runtime.hintsAllowed === false || runtime.verdictsWithheld === true;
 };
 
 export default ToolRuntimeContext;
