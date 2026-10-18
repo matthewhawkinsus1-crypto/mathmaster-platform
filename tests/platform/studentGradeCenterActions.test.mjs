@@ -211,7 +211,7 @@ test('the model still computes no question weight or credit of its own', () => {
 const gradeRow = region(gradeCenterSource, 'function GradeRow(', 'function PeriodGroup(', 'GradeRow');
 const screen = region(gradeCenterSource, 'export default function StudentGradeCenter(', null, 'StudentGradeCenter');
 
-test('GradeRow draws Start, View Results and the no-credit re-try from entry.actions only', () => {
+test('GradeRow draws Start, See results and the no-credit re-try from entry.actions only', () => {
   const code = executableSource(gradeRow);
   // entry.actions, narrowed only by the model's applyTodayToGradeActions (the
   // one "Today" rule, tests/platform/studentVerifyFixes.test.mjs).
@@ -220,8 +220,8 @@ test('GradeRow draws Start, View Results and the no-credit re-try from entry.act
   assert.match(code, /onClick=\{pressStart\}[^]*?\{actions\.start\.label\}/);
   const press = region(code, 'const pressStart = () => {', '};', 'pressStart');
   assert.match(press, /onStart\?\.\(entry\.assignmentId\)/);
-  assert.match(code, /\{actions\.viewResults && \([^]*?onOpenResult\?\.\(entry\.assignmentId\)[^]*?View Results/);
-  assert.match(code, /\{actions\.practiceNoCredit && \([^]*?onPractice\?\.\(entry\.assignmentId\)[^]*?Try it again — no credit/);
+  assert.match(code, /\{actions\.viewResults && \([^]*?onOpenResult\?\.\(entry\.assignmentId\)[^]*?\{SEE_RESULTS\}/);
+  assert.match(code, /\{actions\.practiceNoCredit && \([^]*?onPractice\?\.\(entry\.assignmentId\)[^]*?\{CLOSED_WORK\.tryAgain\}/);
   // The row does not re-decide: no status or lifecycle test drives a button.
   assert.doesNotMatch(code, /entry\.practiceAvailable|entry\.status === |lifecycle/);
   // "Practice" alone is never a button label on Grades.

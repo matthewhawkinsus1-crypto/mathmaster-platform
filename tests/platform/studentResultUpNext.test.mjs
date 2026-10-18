@@ -53,10 +53,10 @@ test('open but nothing workable: the wait text and every section\'s status, no S
   const step = stepFor('waiting-dol');
   assert.equal(step.kind, RESULT_STEP.WAITING);
   assert.equal(step.continueLabel, null);
-  assert.match(step.waitText, /^DOL opens at /);
+  assert.match(step.waitText, /^Exit ticket opens at /);
   assert.deepEqual(
     step.sections.map(({ label, text }) => `${label} — ${text}`),
-    ['Classwork — done', 'DOL — opens at 2:15 PM'],
+    ['Classwork — done', 'Exit ticket — opens at 2:15 PM'],
   );
 
   const locked = stepFor('locked-practice');

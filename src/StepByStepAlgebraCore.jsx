@@ -1272,7 +1272,7 @@ export default function StepByStepAlgebra({
 
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
-    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
+    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your tries will not change.');
     if (!confirmed) return;
 
     setEquation(pristineEquation);
@@ -1298,7 +1298,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setHeldToken(null);
-    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your attempt count did not change.' });
+    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your tries did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {

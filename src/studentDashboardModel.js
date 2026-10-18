@@ -8,6 +8,7 @@ import { filterStudentRequiredIndices, studentOmittedIndices } from '../function
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
+import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, RECOVERY_NAME, exitTicketInSentence } from './platform/student/studentWords.js';
 import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
 import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
@@ -68,7 +69,7 @@ export const BUCKET_LABEL = Object.freeze({
   [BUCKET.PAST_DUE]: 'Past due',
   [BUCKET.DO_NOW]: 'Due today',
   [BUCKET.COMING_UP]: 'Assigned — due later',
-  [BUCKET.PRACTICE]: 'Closed — try again (no credit)',
+  [BUCKET.PRACTICE]: CLOSED_WORK.groupLabel,
   [BUCKET.COMPLETED]: 'Finished',
 });
 
@@ -673,7 +674,9 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       // due date, which can be tomorrow while this closes in minutes.
       closesAt: liveWindowClosesAt(activeDol.state),
       questionIndex: firstUnattempted ?? 0,
-      headline: 'Your exit ticket (DOL) is open',
+      headline: `Your ${exitTicketInSentence} (DOL) is open`,
+      // This card is the screen's one spelling of "(DOL)" (D9).
+      spellsOutExitTicket: true,
       // Which lesson: the separate DOL card that named it is not drawn.
       detail: `${activeDol.assignment?.title || 'Your lesson'} — it is timed, so do this one first.`,
       actionLabel: 'Start the exit ticket',
@@ -732,7 +735,7 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
     ...(entry.action === 'recovery' ? (entry.lesson?.recoverySection?.recoveryState === 'locked' ? {
       // A locked Recovery is still available (it keeps the lesson open); the
       // next action is the unlock path, on the result page's Recovery panel.
-      headline: `Practice to unlock your ${entry.lesson.recoverySection.label} Recovery`,
+      headline: `Practice to unlock your ${RECOVERY_NAME[entry.lesson.recoverySection.role] || `${entry.lesson.recoverySection.label} Recovery`}`,
       detail: `${entry.assignment.title} — a little more Practice unlocks a second try.`,
       actionLabel: 'Open Recovery',
     } : {
@@ -813,12 +816,20 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
     .flatMap((bucket) => dashboard?.groups?.[bucket] || [])
     .find((entry) => !entry.excused && entry.finished !== true) || null;
   if (waiting) {
+    // When what waits is the exit ticket, this card is the first place Home
+    // names it, so it spells it out (D9: once per screen).
+    const waitsOnExitTicket = waiting.lesson?.nextOpening?.role === 'dol'
+      && String(waiting.waitText || '').startsWith(EXIT_TICKET);
+    const waitText = waitsOnExitTicket
+      ? `${EXIT_TICKET_SPELLED_OUT}${waiting.waitText.slice(EXIT_TICKET.length)}`
+      : waiting.waitText;
     return {
       kind: 'assignedSoon',
       assignmentId: waiting.assignment.id,
       headline: 'Nothing to start this minute',
-      detail: waiting.waitText
-        ? `${waiting.assignment.title} — ${waiting.waitText}. My Math Path is open until then.`
+      spellsOutExitTicket: waitsOnExitTicket,
+      detail: waitText
+        ? `${waiting.assignment.title} — ${waitText}. My Math Path is open until then.`
         : `${waiting.assignment.title} is assigned but not open yet. My Math Path is open until then.`,
       actionLabel: 'Open My Math Path',
       urgency: 'thisWeek',
@@ -871,7 +882,7 @@ export const resolveNextAction = (args = {}) => {
     ...action,
     // An individualized (extra-time) due date is named as the student's own.
     individualizedDue: lines.individualizedDue,
-    ...(lifecycle.isLate ? { lateLine: `${lines.finalLabel}: ${lines.finalText}` } : {}),
+    ...(lifecycle.isLate ? { lateLine: lines.finalLine || lines.dueLine } : {}),
   };
 };
 

@@ -59,7 +59,7 @@ test('Start/Continue only when the Today rule says the button lands on work open
 
 test('waiting rows show what they are waiting for instead of a button', () => {
   assert.match(rowOf('locked-practice').waitText, /^Practice opens when your teacher starts it in class$/);
-  assert.match(rowOf('waiting-dol').waitText, /^DOL opens at /);
+  assert.match(rowOf('waiting-dol').waitText, /^Exit ticket opens at /);
   assert.equal(rowOf('actionable').waitText, null, 'open work has no wait text');
   assert.equal(rowOf('closed').waitText, null, 'closed work is not "waiting"');
   // The component renders the wait text in the row's action area.

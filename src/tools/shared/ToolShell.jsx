@@ -337,17 +337,21 @@ const HINT_OFFER_BUTTON_STYLE = {
 // With the hint, the worked sibling problem (student pass 3, HELP-9): "See a
 // similar problem worked" opens the same example as the Hint panel's "Try a
 // similar one", recorded the same way. Either may be offered alone.
-const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null }) => {
+// What a hint costs is the host's sentence (Recovery's in a Recovery runner),
+// said wherever a hint is offered (HELP-17); the platform's without a host.
+const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null, hintCost = null }) => {
   const hint = typeof onShowHint === 'function';
   const similar = typeof onShowSimilar === 'function';
   if (!hint && !similar) return null;
+  const cost = typeof hintCost === 'string' && hintCost.trim() ? hintCost.trim() : HINT_COST_SENTENCE;
   return (
-    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: 8, fontWeight: 600 }}>
-      {/* Both offered: the two buttons say it, without the lead-in. The
-          sentence and a wrapped second button made the box taller than a
-          phone leaves under the task card, and its last line went under the
-          action bar (390x844). */}
-      {hint && !similar ? <>A hint is ready if you want one.{' '}</> : null}
+    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: hint && similar ? 2 : 8, fontWeight: 600, ...(hint && similar ? { lineHeight: 1.15 } : null) }}>
+      {/* Both offered: the two buttons say it, without the "A hint is ready"
+          lead-in, which with a wrapped second button made the box taller than
+          a phone leaves under the task card (390x844). The cost is still said,
+          at the size of the tool's own hint note, so the box still fits. */}
+      {hint && !similar ? <>A hint is ready if you want one. {cost}{' '}</> : null}
+      {hint && similar ? <><span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))' }}>{cost}</span>{' '}</> : null}
       {hint ? <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button> : null}
       {similar ? <button type="button" data-similar-offer="" onClick={onShowSimilar} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
     </span>
@@ -374,7 +378,7 @@ export const AttemptOutcomeWords = ({ outcome, toolWords = '', detail = '', sayT
       {toolWords && sayToolWords ? <span data-attempt-outcome-tool-words="" style={SR_ONLY_STYLE}>{` ${toolWords}`}</span> : null}
       {detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{detail}</span> : null}
       {readable ? <OutcomeTextActions outcome={outcome} text={readable} /> : null}
-      <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} />
+      <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} hintCost={outcome.hintCost} />
     </>
   );
 };
@@ -416,7 +420,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = nu
       <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
         {' '}{outcome.text}{detail ? ` ${detail}` : ''}
         {detail ? <OutcomeTextActions outcome={outcome} text={detail} /> : null}
-        <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} />
+        <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} hintCost={outcome.hintCost} />
       </span>
     ) : null;
   }
@@ -668,6 +672,8 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
   const hintsAllowed = useHintsAllowed();
   const publishHints = useToolHintPublisher();
   const rungs = publishableHints(hints);
+  // The host's sentence (Recovery's in a Recovery runner), else the platform's.
+  const hintCost = useToolRuntimeContext().hintCost || HINT_COST_SENTENCE;
   const rungsKey = JSON.stringify(rungs);
   useEffect(() => {
     if (!publishHints || !hintsAllowed) return undefined;
@@ -699,7 +705,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
           type="button"
           onClick={revealNext}
           disabled={revealed >= hints.length}
-          title={HINT_COST_SENTENCE}
+          title={hintCost}
           style={{
             minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
             background: revealed >= hints.length ? 'var(--mm-surface-control)' : 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)',
@@ -708,7 +714,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
         >
           {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
-        {!used && <span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{HINT_COST_SENTENCE}</span>}
+        {!used && <span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{hintCost}</span>}
       </div>
       {used ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>

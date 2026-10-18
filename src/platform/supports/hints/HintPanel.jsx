@@ -134,7 +134,7 @@ export default function HintPanel({
           <button type="button" data-miss-diagnosis-offer="" style={button} onClick={diagnosis.onShow}>What might have gone wrong?</button>
         )}
         {release.waitingForAttempt && (
-          <span role="status" style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Try again with that hint — the next one opens after your next attempt.</span>
+          <span role="status" style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Try again with that hint — the next one opens after your next try.</span>
         )}
         {similar && !similarOpen && (
           <button type="button" style={button} onClick={onOpenSimilar}>Try a similar one</button>

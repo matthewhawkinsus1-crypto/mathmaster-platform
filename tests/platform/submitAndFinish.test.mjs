@@ -102,8 +102,8 @@ test('the words around a try: "tries", never "attempts" or "this version"', () =
   assert.equal(triesLeftText({ maximumAttempts: 3, remainingAttempts: 3 }), '3 of 3 tries left');
   assert.equal(triesLeftText({ maximumAttempts: 3, remainingAttempts: 1 }), 'Last try · 1 of 3 left');
   assert.equal(triesLeftText({ maximumAttempts: 1, remainingAttempts: 1 }), 'One try on this question');
-  assert.equal(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), 'That was your last try (3 in all). Your answer is locked. The worked solution is below.');
-  assert.equal(closedAttemptText({ maximumAttempts: 1 }), 'That was your only try. Your answer is locked.');
+  assert.equal(closedAttemptText({ maximumAttempts: 3, reviewAvailable: true }), 'That was your last try (3 in all). The worked solution is below.');
+  assert.equal(closedAttemptText({ maximumAttempts: 1 }), 'That was your only try.');
   const engine = code('src/QuestionEngine.jsx');
   assert.doesNotMatch(engine, /on this version/, 'RUN-16');
   assert.match(region(engine, 'const attemptOutcomeText = feedback', ': \'\';', 'the outcome text'), /: missOutcomeText\(remainingAttempts\)\)\)/);

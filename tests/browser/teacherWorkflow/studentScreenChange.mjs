@@ -163,8 +163,8 @@ for (const viewport of VIEWPORTS) {
   // S2 — the result page and browser Back.
   await pressDestination(page, 'Assignments', phone);
   await settled(page, 'Assignments');
-  const viewResults = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
-  if (expect(`S2 ${tag}`, await viewResults.count(), 'no View Results on Assignments')) {
+  const viewResults = page.getByRole('button', { name: 'See results' }).filter({ visible: true }).first();
+  if (expect(`S2 ${tag}`, await viewResults.count(), 'no See results on Assignments')) {
     await viewResults.focus();
     await page.keyboard.press('Enter');
     const result = await settled(page, 'Assignment result');
@@ -199,8 +199,8 @@ for (const viewport of VIEWPORTS) {
   if (await toggle.isVisible()) await toggle.click();
   await page.locator('#assignments-search').fill('Elimination');
   await page.waitForTimeout(200);
-  const resultsButton = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
-  if (expect(`S6 ${tag}`, await resultsButton.count(), 'no View Results after searching')) {
+  const resultsButton = page.getByRole('button', { name: 'See results' }).filter({ visible: true }).first();
+  if (expect(`S6 ${tag}`, await resultsButton.count(), 'no See results after searching')) {
     await resultsButton.click();
     await settled(page, 'Assignment result');
     await page.goBack();

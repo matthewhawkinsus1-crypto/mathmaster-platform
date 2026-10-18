@@ -2,6 +2,7 @@ import { assignmentIsForStudent, getAssignmentDate, getIncludedQuestionIndices }
 import { projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
 import { TEST_CYCLE_DISCOVERY, describeTestCycleForStudent } from './testCycleDiscovery.js';
 import { SECTION_LABEL } from './lessonSections.js';
+import { exitTicketInSentence } from './studentWords.js';
 import { assignmentIsArchived, assignmentIsUnpublished } from '../../../functions/shared/assessmentAvailability.mjs';
 import { isUnpublishedDraft } from '../assignments/assignmentAvailability.js';
 
@@ -238,7 +239,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
   return items;
 };
 
-const controlChanges = ({ assignment, control, studentId, nowValue }) => {
+const controlChanges = ({ assignment, control, studentId }) => {
   if (!isObject(control)) return [];
   const title = titleOf(assignment);
   if (control.excused === true) {
@@ -248,23 +249,19 @@ const controlChanges = ({ assignment, control, studentId, nowValue }) => {
   const items = [];
   const extended = Boolean(control.lateDueAt) || Boolean(control.extension);
   /*
-   * "REOPENED" ONLY WHEN THE STUDENT CAN WORK IT (student pass 3, NAV-14).
+   * "REOPENED" IS NOT NEWS BY ITSELF (student pass 3, NAV-14, then NAV-16).
    *
-   * The flag by itself opens nothing (studentAssignmentOverrides.mjs:
-   * "neither opens a closed assignment — only an extension does"), so
-   * "Lesson 3 was reopened" led to a result page saying the grade "can no
-   * longer change". Until the owner decides what "reopened" should do, it is
-   * listed only while the lesson is open for this student, and it says until
-   * when; an extension already says so in its own line, so it is not said twice.
+   * The flag opens nothing and moves no date (studentAssignmentOverrides.mjs:
+   * "neither opens a closed assignment — only an extension does"). "Lesson 3
+   * was reopened" led to a result page saying the grade "can no longer
+   * change"; NAV-14 then listed it only while the lesson was open, as "open
+   * for you until <the class's own date>" — which is true of every student,
+   * so nothing had changed for this one. Until the owner decides what
+   * "reopened" means (wave 3's decision list, C), only a real change is
+   * listed: an extension, in its own line below ("You have more time on …"),
+   * whose date the lifecycle applies to this student. The REOPENED kind stays
+   * for a later decision; nothing emits it.
    */
-  if (control.reopened === true && !extended) {
-    const own = { privateOverride: control };
-    const openUntil = getAssignmentDate(assignment, 'late', studentId, own)?.getTime()
-      ?? getAssignmentDate(assignment, 'due', studentId, own)?.getTime() ?? null;
-    if (openUntil !== null && openUntil > nowValue) {
-      items.push({ kind: WHAT_CHANGED_KIND.REOPENED, at: null, text: `${title} is open for you until ${formatDue(openUntil)}` });
-    }
-  }
   if (extended) {
     const dueAt = getAssignmentDate(assignment, 'late', studentId, { privateOverride: control });
     items.push({
@@ -277,7 +274,7 @@ const controlChanges = ({ assignment, control, studentId, nowValue }) => {
     items.push({
       kind: WHAT_CHANGED_KIND.MORE_ATTEMPTS,
       at: toMillis(control.dolAttemptGrant.changedAt),
-      text: `You have another try on the DOL for ${title}`,
+      text: `You have another try on the ${exitTicketInSentence} for ${title}`,
     });
   }
   return items;

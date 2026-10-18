@@ -151,11 +151,14 @@ test('students see the dates the platform applies to them, with no reason named'
   assert.equal(extra.dueText, formatDateTime(new Date(fridayEndMs).toISOString()));
   assert.notEqual(extra.dueText, formatDateTime(assignment.dueAt));
   const plain = studentDueDateLines(assignment, getAssignmentLifecycle(assignment, Date.parse('2026-10-01T17:00:00Z'), { studentId: 'S2' }));
-  assert.equal(plain.dueLabel, 'Regular due');
-  assert.equal(plain.finalLabel, 'Final late due');
+  // NAV-18: the student's words, not the teacher's two settings.
+  assert.equal(plain.dueLabel, 'Due');
+  assert.equal(plain.finalLabel, 'Late work accepted until');
+  assert.match(plain.dueLine, /^Due: /);
   const withAttendance = { ...assignment, studentOverrides: { S3: { lateDueAt: '2026-10-07T04:59:59.999Z' } } };
   const attended = studentDueDateLines(withAttendance, getAssignmentLifecycle(withAttendance, Date.parse('2026-10-01T17:00:00Z'), { studentId: 'S3' }));
-  assert.equal(attended.dueLabel, 'Regular due', 'an attendance extension does not move the on-time date');
+  assert.equal(attended.dueLabel, 'Due', 'an attendance extension does not move the on-time date');
+  assert.match(attended.finalLine, /^Your last day to turn in: /);
   assert.equal(attended.finalLabel, 'Your last day to turn in');
   [extra, plain, attended].forEach((lines) => assert.doesNotMatch(JSON.stringify(lines), /extra time|IEP|504|accommodat|absen/i));
 });
@@ -164,8 +167,8 @@ test('both student date displays read the student\'s lifecycle, not the class da
   const dashboard = readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8');
   assert.match(dashboard, /import \{ formatDateTime, formatRemainingTime, studentDueDateLines \} from '\.\.\/\.\.\/assignmentLifecycle';/);
   assert.match(dashboard, /const dates = studentDueDateLines\(assignment, lifecycle\);/);
-  assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueText/);
-  assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLabel\}: \{dates\.dueText\}<br \/>\{dates\.finalLabel\}: \{dates\.finalText\}<\/>;/);
+  assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueLine/);
+  assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
   // The name is in App's import block from assignmentLifecycle (wherever in
   // the list): a call with no import passes every other gate (AGENTS.md).
   const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);

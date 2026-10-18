@@ -1,3 +1,4 @@
+import { EXIT_TICKET } from './studentWords.js';
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
 import { getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
 
@@ -73,7 +74,7 @@ const SECTION_ROLE_LABEL = Object.freeze({
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'DOL',
+  dol: EXIT_TICKET,
   quiz: 'Quiz',
   review: 'Review',
   test: 'Test',

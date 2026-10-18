@@ -4,6 +4,7 @@ import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { findGradeCenterEntry } from './studentGradeCenterModel.js';
 import { normalizeGradingPeriodSettings } from './gradingPeriods.js';
 import { TRY_AGAIN_LABEL } from './studentResultNextStep.js';
+import { CLOSED_WORK } from './studentWords.js';
 
 /*
  * THE ASSIGNMENTS CENTER — WHERE IS ALL MY WORK?
@@ -59,9 +60,9 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
    * The id stays 'practice' (routes, saved tabs and tests key on it), but the
    * WORD is not "Practice": in student copy "Practice" means only the lesson's
    * Practice section. Closed work is something a student can try again for no
-   * credit, and the tab says exactly that.
+   * credit, and the tab says what can still be done (studentWords.js, NAV-17).
    */
-  [ASSIGNMENT_CATEGORY.PRACTICE]: 'Closed — try again',
+  [ASSIGNMENT_CATEGORY.PRACTICE]: CLOSED_WORK.tabLabel,
 });
 
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({
@@ -222,7 +223,8 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     bucket: entry.bucket,
     categories: categoriesForRow({
       bucket: entry.bucket,
-      practiceAvailable: actions.practiceAvailable,
+      // A secure Test is never practice (W6-1 review, S5): not in the closed tab.
+      practiceAvailable: actions.practiceAvailable && !testCycle,
       recoveryOpen: openRecovery.length > 0,
     }),
     recovery: openRecovery,
@@ -253,6 +255,9 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
     ...(testCycle ? {
       canContinue: entry.testCycle ? entry.testCycle.key !== 'opensLater' : actions.canContinue,
       canPractice: false,
+      // Never in the closed tab, whose name says "try again" (W6-1 review,
+      // S5): a secure Test is never practice.
+      practiceAvailable: false,
       canRecover: false,
       waitText: null,
       // The card asks the server which stage is open; no question index.

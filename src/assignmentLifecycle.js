@@ -28,6 +28,7 @@ import {
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
 import { resolveStudentDeadlines, resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
+import { DUE_WORDS } from './platform/student/studentWords.js';
 import { evaluateClassworkCompletionRule } from '../functions/shared/assignmentProjections.mjs';
 import { WORKLOAD_STATUS, resolveStudentWorkload } from '../functions/shared/reducedWorkload.mjs';
 
@@ -220,6 +221,14 @@ export const formatDateTime = (value) => {
 };
 
 /**
+ * "Due: Oct 18, 2026, 1:53 PM", or "No due date" — never "Due Not set"
+ * (NAV-18). The same form as a card's `dueLine`.
+ */
+export const studentDueText = (value) => (
+  parseLocalDateTime(value, true) ? `${DUE_WORDS.due}: ${formatDateTime(value)}` : DUE_WORDS.noDue
+);
+
+/**
  * The dates a STUDENT is shown: the ones the platform actually applies to them.
  *
  * `lifecycle` is getAssignmentLifecycle(assignment, now, { studentId }) on the
@@ -235,11 +244,30 @@ export const studentDueDateLines = (assignment, lifecycle) => {
   const final = lifecycle?.lateDueAt || classFinal;
   const individualizedDue = Boolean(due && classDue && due.getTime() > classDue.getTime());
   const individualizedFinal = Boolean(final && classFinal && final.getTime() > classFinal.getTime());
+  // NAV-18: "Regular due" / "Final late due" were the teacher's two settings
+  // read aloud, and a missing date printed "Due Not set". The labels are
+  // the student word list's, and a date that is not set is left out of the
+  // line rather than printed as a value.
+  const dueLabel = individualizedDue ? DUE_WORDS.yourDue : DUE_WORDS.due;
+  const finalLabel = individualizedFinal ? DUE_WORDS.yourLastDay : DUE_WORDS.lastDay;
+  const dueText = formatDateTime(due);
+  const finalText = formatDateTime(final);
+  // The last day is worth a line only when it is a different, later moment.
+  // With no due date the last day IS when it is due (the lifecycle is on time
+  // until then, and closes at it): one line, "Due: <last day>".
+  const showFinal = Boolean(due && final && final.getTime() > due.getTime());
+  const dueLine = due
+    ? `${dueLabel}: ${dueText}`
+    : final ? `${individualizedFinal ? DUE_WORDS.yourDue : DUE_WORDS.due}: ${finalText}` : DUE_WORDS.noDue;
   return {
-    dueLabel: individualizedDue ? 'Your due date' : 'Regular due',
-    dueText: formatDateTime(due),
-    finalLabel: individualizedFinal ? 'Your last day to turn in' : 'Final late due',
-    finalText: formatDateTime(final),
+    dueLabel,
+    dueText,
+    finalLabel,
+    finalText,
+    // Whole lines, ready to print: "Due: Oct 18, 1:53 PM" / "No due date",
+    // and "Late work accepted until: Oct 22, 9:53 AM" or '' when there is none.
+    dueLine,
+    finalLine: showFinal ? `${finalLabel}: ${finalText}` : '',
     individualizedDue,
     individualizedFinal,
   };

@@ -107,15 +107,15 @@ for (const viewport of VIEWPORTS) {
   await page.waitForTimeout(300);
 
   const expectations = [
-    ['Slope from Two Points', ['Start'], ['View Results']],
-    ['Two-Step Equations', ['Start'], ['View Results']],
-    ['Graphing Linear Equations', ['Continue', 'View Results'], ['Start']],
-    ['Distributive Property', ['Continue', 'View Results'], ['Start']],
-    ['Solving One-Step Equations', ['View Results'], ['Start', 'Continue']],
-    ['Writing Expressions', ['View Results'], ['Start', 'Continue']],
-    ['Order of Operations', ['View Results'], ['Start', 'Continue']],
-    ['Integers on a Number Line', ['View Results', 'Try it again — no credit'], ['Start', 'Continue', 'Practice']],
-    ['Inequalities', ['View Results'], ['Start', 'Continue']],
+    ['Slope from Two Points', ['Start'], ['See results']],
+    ['Two-Step Equations', ['Start'], ['See results']],
+    ['Graphing Linear Equations', ['Continue', 'See results'], ['Start']],
+    ['Distributive Property', ['Continue', 'See results'], ['Start']],
+    ['Solving One-Step Equations', ['See results'], ['Start', 'Continue']],
+    ['Writing Expressions', ['See results'], ['Start', 'Continue']],
+    ['Order of Operations', ['See results'], ['Start', 'Continue']],
+    ['Integers on a Number Line', ['See results', 'Try it again — no credit'], ['Start', 'Continue', 'Practice']],
+    ['Inequalities', ['See results'], ['Start', 'Continue']],
   ];
   for (const [title, mustHave, mustNot] of expectations) {
     const buttons = await rowButtons(title);

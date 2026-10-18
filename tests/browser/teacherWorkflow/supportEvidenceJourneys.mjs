@@ -247,9 +247,9 @@ const journeys = {
     // next action is resuming Lesson 3 ('a-today'). Dates are compared as the
     // page prints them, so this holds in any browser time zone.
     const LESSON_3 = 'Systems of Equations — Lesson 3: Elimination';
-    // "Due <date>" on lists and results; the primary "Do this next" card
-    // names an individualized date as "Your due date: <date>".
-    const DUE = /\b(?:Due|Your due date:) (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
+    // "Due: <date>" on lists and results (one form since pass 3, NAV-18); the
+    // primary "Do this next" card names an individualized date as "Your due date: <date>".
+    const DUE = /\b(?:Due:|Your due date:) (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
     const nextCard = await text(page.locator('section[aria-labelledby="what-now-heading"]'));
     const nextDue = nextCard.match(DUE)?.[1] || null;
     const classDue = await page.evaluate((iso) => new Date(iso).toLocaleString(undefined, {
@@ -267,7 +267,7 @@ const journeys = {
       const rowDue = (await text(row)).match(DUE)?.[1] || null;
       expect('S1', rowDue === nextDue, `${tab} tab shows the student's own due date (${rowDue}; expected ${nextDue})`);
       if (tab === 'Grades') {
-        await row.getByRole('button', { name: 'View Results' }).click();
+        await row.getByRole('button', { name: 'See results' }).click();
         await page.waitForTimeout(1200);
         const resultDue = (await text(page.locator('main').first())).match(DUE)?.[1] || null;
         expect('S1', resultDue === nextDue, `the assignment result shows the student's own due date (${resultDue}; expected ${nextDue})`);

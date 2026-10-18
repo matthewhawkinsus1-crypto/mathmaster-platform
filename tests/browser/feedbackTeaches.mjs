@@ -109,7 +109,7 @@ for (const device of DEVICES) {
     const firstHint = panel.locator('li[data-hint-source]').first();
     check((await firstHint.textContent()).includes('change in y divided by the change in x'), `${device.name}: the authored hint comes first`);
     check(await reachable(page, firstHint), `${device.name}: the hint is on screen`);
-    const waiting = panel.getByText(/next one opens after your next attempt/);
+    const waiting = panel.getByText(/next one opens after your next try/);
     check(await waiting.count() === 1, `${device.name}: the next hint waits for another try`, `${await waiting.count()} shown`);
 
     await answer(page, '-\\frac{3}{4}');
@@ -133,7 +133,7 @@ for (const device of DEVICES) {
     await answer(page, '2');
     await submit(page);
     const closed = await outcome(page).textContent();
-    check(/That was your last try \(3 in all\)\. Your answer is locked\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
+    check(/That was your last try \(3 in all\)\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
     const review = page.locator('[aria-label="Worked solution"][data-worked-solution="present"]');
     check(await review.isVisible(), `${device.name}: the worked solution is shown`);
     check((await review.textContent()).includes('Change in y: 5 − 2 = 3.'), `${device.name}: from the authored solutionReview`);

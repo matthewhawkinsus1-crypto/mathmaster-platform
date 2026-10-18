@@ -73,11 +73,15 @@ const DEFAULT_RUNTIME = {
   // sentence, is for them; a student reads student words or nothing (pass 3,
   // Q-12). Defaults to a student, so no surface shows policy by accident.
   teacherView: false,
+  // WHAT A HINT COSTS, in the host's words (HELP-17): the platform's sentence,
+  // or Recovery's own ("…this question then won't count toward unlocking").
+  // Null outside a question; the tool then says the platform's sentence.
+  hintCost: null,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, teacherView = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, teacherView = false, hintCost = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -94,6 +98,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     submitCost: typeof submitCost === 'string' && submitCost.trim() ? submitCost.trim() : null,
     verdictsWithheld: verdictsWithheld === true,
     teacherView: teacherView === true,
+    hintCost: typeof hintCost === 'string' && hintCost.trim() ? hintCost.trim() : null,
   }}>
     {children}
   </ToolRuntimeContext.Provider>

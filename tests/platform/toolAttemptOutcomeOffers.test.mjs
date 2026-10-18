@@ -71,7 +71,8 @@ test('the region says the tool\'s words with the outcome, and offers the hint, R
     }));
     assert.match(platformMiss, /aria-label="Translate the feedback"/);
     assert.doesNotMatch(platformMiss, /No Spanish translation/);
-    assert.match(offered, /A hint is ready if you want one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
+    // With the one sentence on what a hint costs (HELP-17).
+    assert.match(offered, /A hint is ready if you want one\. Hints never lower your score\. Your teacher can see you used one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
 
     // A language with no pack: no dead Translate button, and the student is told.
     const vietnamese = render({ ...MISS, readAloud: { language: 'en' }, translation: { language: 'vi' }, onEvidence: () => {} });
@@ -127,7 +128,7 @@ test('the engine hands a tool what its own box offers, under the same rule', () 
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
   // The box offers the hint under the same rule (beside, since HELP-9, the
   // worked sibling): the button that reveals a hint renders only under it.
-  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\.\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
+  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
 });
 
 test('after a miss, the box and the tool offer the worked sibling beside the hint (HELP-9)', async () => {
@@ -156,12 +157,36 @@ test('after a miss, the box and the tool offer the worked sibling beside the hin
     const both = render({ ...MISS, onShowHint: () => {}, onShowSimilar: () => {} });
     assert.match(both, /Show a hint<\/button><button type="button" data-similar-offer=""[^>]*>See a similar problem worked<\/button>/);
     // Both offered: the two buttons, without the lead-in sentence, so the box
-    // still fits a phone under the task card (tests/browser/toolAttemptOutcome.mjs).
+    // still fits a phone under the task card (tests/browser/toolAttemptOutcome.mjs);
+    // what a hint costs is still said (HELP-17).
     assert.doesNotMatch(both, /A hint is ready/);
+    assert.match(both, /<span data-hint-cost-note=""[^>]*>Hints never lower your score\. Your teacher can see you used one\.<\/span>\s*<button type="button"[^>]*>Show a hint<\/button>/);
     const similarOnly = render({ ...MISS, onShowSimilar: () => {} });
     assert.match(similarOnly, />See a similar problem worked<\/button>/);
     assert.doesNotMatch(similarOnly, /A hint is ready/, 'the sibling alone does not promise a hint');
     assert.doesNotMatch(render({ ...MISS }), /See a similar problem worked/, 'only when the engine hands it over');
+  });
+});
+
+test('HELP-17: the tool box says what a hint costs in the host\'s words — Recovery\'s in a Recovery runner', async () => {
+  const { RECOVERY_HINT_COST_SENTENCE, HINT_COST_SENTENCE } = await import('../../src/platform/supports/hints/hintCopy.js');
+  const engine = code('src/QuestionEngine.jsx');
+  // The engine hands its own sentence (hintCostSentence(hintCostNote): the
+  // host's, else the platform's) to the outcome and to every tool runtime.
+  const handOver = region(engine, 'const toolAttemptOutcome = outcomeInTool ? {', '} : null;', 'the tool hand-over');
+  assert.match(handOver, /hintCost: hintCostSentence\(hintCostNote\),/);
+  assert.equal((engine.match(/<ToolRuntimeProvider\s+hintCost=\{hintCostSentence\(hintCostNote\)\}/g) || []).length, 2, 'both tool runtimes carry the host\'s sentence');
+  // Recovery hands its sentence to the engine.
+  assert.match(code('src/components/student/SectionRecoveryRunner.jsx'), /hintCostNote=\{RECOVERY_HINT_COST_SENTENCE\}/);
+  await withToolShell(({ AttemptOutcomeWords }) => {
+    const render = (outcome) => renderToStaticMarkup(React.createElement(AttemptOutcomeWords, { outcome, toolWords: COACHING, detail: outcome.detail }));
+    const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, '(?:\'|&#x27;)');
+    for (const outcome of [{ ...MISS, onShowHint: () => {} }, { ...MISS, onShowHint: () => {}, onShowSimilar: () => {} }]) {
+      const recovery = render({ ...outcome, hintCost: RECOVERY_HINT_COST_SENTENCE });
+      assert.match(recovery, new RegExp(escaped(RECOVERY_HINT_COST_SENTENCE)), 'Recovery\'s sentence reaches the box');
+      assert.doesNotMatch(recovery, /Hints never lower your score/, 'never the platform\'s promise in a Recovery runner');
+      assert.match(render(outcome), new RegExp(escaped(HINT_COST_SENTENCE)), 'without a host sentence, the platform\'s');
+    }
   });
 });
 

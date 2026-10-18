@@ -56,7 +56,8 @@ test('post-deadline assignments become uncredited in-memory practice instead of 
   assert.equal(lifecycle.creditEligible, false);
   assert.match(appSource, /isPracticeMode = isStudentAssignment && activeLifecycle\.isPracticeOnly/);
   assert.match(appSource, /setPracticeTracker/);
-  assert.match(appSource, /Practice Mode — grading window ended/);
+  // The closed-work banner, in the student word list's words (NAV-17).
+  assert.match(appSource, /\{CLOSED_WORK\.bannerTitle\}/);
   // Practice Mode is kept apart from graded work by its own DRAFT BUCKET, not
   // by throwing the work away. Discarding it was itself a defect: a student who
   // practised after the deadline and turned the Chromebook off started again

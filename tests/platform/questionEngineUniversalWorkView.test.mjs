@@ -20,7 +20,7 @@ test('QuestionEngine exposes a universal reset that remounts the current tool wi
   assert.match(source, /resetQuestionDraftFamily\(draftKey\)/);
   assert.match(source, /forgetToolDrafts\(draftKey\)/);
   assert.match(source, /setQuestionResetVersion\(\(current\) => current \+ 1\)/);
-  assert.match(source, /Your recorded attempts and grade history will not be erased/);
+  assert.match(source, /Your tries and your grade stay as they are/);
   assert.match(source, /↺ Reset Question/);
   assert.match(source, /QuestionModuleBoundary[\s\S]*reset-\$\{questionResetVersion\}/);
 });

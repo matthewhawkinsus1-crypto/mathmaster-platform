@@ -173,14 +173,16 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
   // (release-candidate QA m9 — "Compare each step" over a bare answer).
   const hasSteps = Boolean(list(authored?.reasoning).length || list(tool?.steps).length || (legacy && list(legacyReview?.workflowSolution?.entries).length > 0));
   const intro = !hasContent
-    ? 'A worked solution is not available for this question yet. Ask your teacher to go over it with you.'
+    // HELP-24: Ask is gone once a question closes, so this does not point at
+    // it; the teacher is someone to talk to, not a button.
+    ? 'There is no worked solution for this question yet. Your teacher can go over it with you.'
     : wasCorrect
       ? (hasSteps
         ? 'You got this one. Here is the reasoning behind it, so the next one is not a guess.'
         : 'You got this one. Here is the answer, for reference.')
       : (hasSteps
-        ? 'This question is closed. Compare each step of your work with the worked solution.'
-        : 'This question is closed. Compare your answer with the correct one below.');
+        ? 'Compare each step of your work with the worked solution.'
+        : 'Compare your answer with the correct one below.');
   const speechText = [
     authored?.headline, ...(authored?.reasoning || []), authored?.answerSummary, authored?.commonError,
     ...(tool?.steps || []), ...(tool?.items || []).map((item) => `${item.label}: ${item.value}`), tool?.why ? `Why it works: ${tool.why}` : '',

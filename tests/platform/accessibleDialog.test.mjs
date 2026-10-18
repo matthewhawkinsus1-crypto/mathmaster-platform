@@ -194,7 +194,7 @@ test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a f
   assert.match(code, /^import Dialog from '\.\/ui\/Dialog\.jsx';$/m, 'imported next to its use');
   const confirm = dialogTags(code).find((tag) => tag.includes('aria-labelledby={unchangedConfirmTitleId}')) || '';
   assert.ok(confirm, 'the confirm is a Dialog named by its heading');
-  assert.match(code, /<h2 id=\{unchangedConfirmTitleId\}[^>]*>Your values have not changed<\/h2>/);
+  assert.match(code, /<h2 id=\{unchangedConfirmTitleId\}[^>]*>Your answers have not changed<\/h2>/);
   assert.match(confirm, /onClose=\{\(\) => setUnchangedConfirmOpen\(false\)\}/, 'Escape = Go Back');
   assert.doesNotMatch(confirm, /closeOnEscape/);
   assert.match(confirm, /initialFocusRef=\{unchangedGoBackRef\}/);

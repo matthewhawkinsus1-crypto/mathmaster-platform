@@ -296,11 +296,16 @@ if (wanted('statusChip')) {
       window.__mmHarnessStore.importDoc(`assignments/${lesson}`, { ...stored, dueAt: { __ts: Date.now() - 6 * 86400_000 }, lateDueAt: { __ts: Date.now() - 4 * 86400_000 } });
     },
     // Home offers a closed lesson as practice, in its own group.
-    group: /Closed — try again/,
+    group: /Closed — try again \(no credit\)/,
     button: /Try it again/i,
   });
   const closedChip = await closed.page.locator('.mathmaster-assignment-status-chip').innerText().catch(() => '');
-  check(/No credit · practice/.test(closedChip), `${PHONE.name}: a closed lesson's practice says "no credit" in the chip`, closedChip);
+  check(/^Closed$/i.test(closedChip.trim()), `${PHONE.name}: a closed lesson's chip names the state, "Closed"`, closedChip);
+  // Opening it shows what the work in front of the student earns now.
+  await closed.page.locator('.mathmaster-assignment-status-chip').click();
+  await closed.page.waitForTimeout(300);
+  const closedPanel = await closed.page.locator('#mathmaster-assignment-status-panel').innerText().catch(() => '');
+  check(/Closed — practice here earns no credit/i.test(closedPanel), `${PHONE.name}: the chip opens "Closed — practice here earns no credit"`, closedPanel.slice(0, 200));
   await closed.context.close();
 
   const desktop = await openLesson(CHROMEBOOK, {
@@ -367,14 +372,14 @@ if (wanted('dolTimer')) {
     const { context, page } = await openLesson(device, { prepare: openDolFor, prepareArgs: { seconds: 126 }, student: NO_EXTRA_TIME });
     const alertText = () => page.evaluate(() => [...document.querySelectorAll('[data-section-time-left] [role="alert"]')].map((region) => region.textContent).join(' | '));
     const pill = () => page.locator('.mathmaster-unified-nav-alert [data-section-time-left]').first().innerText().catch(() => '');
-    check(/Exit ticket \(DOL\) open · 2 min/.test(await pill()), `${device.name}: the DOL pill shows the time left`, await pill());
+    check(/^Exit ticket open · 2 min/.test(await pill()), `${device.name}: the DOL pill shows the time left`, await pill());
     let said = '';
     for (let waited = 0; waited < 15 && !/2 minutes left/.test(said); waited += 1) { await page.waitForTimeout(1000); said = await alertText(); }
-    check(/^2 minutes left on the Exit ticket \(DOL\)\. When time ends, only completed answers are turned in/.test(said), `${device.name}: at 2:00 an assertive region says so`, said);
+    check(/^2 minutes left on the exit ticket\. When time ends, only completed answers are turned in/.test(said), `${device.name}: at 2:00 an assertive region says so`, said);
     check(/only completed answers are turned in/.test(await pill()), `${device.name}: the unfinished-work line is on screen`);
     await page.evaluate(openDolFor, { lesson: LESSON, classIds: CLASS_IDS, seconds: 36 });
     for (let waited = 0; waited < 15 && !/30 seconds left/.test(said); waited += 1) { await page.waitForTimeout(1000); said = await alertText(); }
-    check(/30 seconds left on the Exit ticket \(DOL\)/.test(said), `${device.name}: at 0:30 it says so again`, said);
+    check(/30 seconds left on the exit ticket\./.test(said), `${device.name}: at 0:30 it says so again`, said);
     check(/· 0:[0-3]\d/.test(await pill()), `${device.name}: seconds in the last minute`, await pill());
     if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/dol-${device === PHONE ? 'phone' : 'chromebook'}.png` });
     await context.close();

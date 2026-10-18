@@ -25,6 +25,7 @@
  * rides in presence. This module only shapes documents; it writes nothing.
  */
 import { getPeriodWindow, localDateKey } from '../../assignmentLifecycle.js';
+import { EXIT_TICKET_SPELLED_OUT } from '../student/studentWords.js';
 import { buildNonInstructionalSet } from '../path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from '../../curriculum/calendars/schoolYear2026-2027.js';
 
@@ -115,7 +116,10 @@ export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {
  * section and the position App.jsx builds) only in that shape, with a section
  * the platform names. Anything else reads "Question <n>" from the index.
  */
-const SECTION_LABELS = Object.freeze(['Warm-Up', 'Classwork', 'Practice', 'DOL / Exit Ticket', 'Checkpoint', 'Quiz', 'Test']);
+// The workspace's section tabs. The exit ticket's tab is "Exit ticket (DOL)"
+// since student pass 3 (D9, studentWords.js); "DOL / Exit Ticket" stays for
+// questions already stored under the old tab name.
+const SECTION_LABELS = Object.freeze(['Warm-Up', 'Classwork', 'Practice', EXIT_TICKET_SPELLED_OUT, 'DOL / Exit Ticket', 'Checkpoint', 'Quiz', 'Test']);
 const PLACE_PATTERN = /^(.+) · Question ([1-9][0-9]{0,2})$/;
 
 export const teacherQuestionPlace = ({ assignment = null, questionLabel = '', questionIndex = 0 } = {}) => {

@@ -55,10 +55,10 @@ const SCENES = [
     name: 'assignmentsCenterClosed',
     as: 'assignmentsCenterPracticeTab',
     clickText: 'Closed — try again ·',
-    mustContain: ['Try it again — no credit', 'View Results'],
+    mustContain: ['Try it again — no credit', 'See results'],
     mustReach: ['Try it again — no credit'],
   },
-  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home', 'Assignments'] },
+  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'See results'], mustReach: ['← Home', 'Assignments'] },
   // A closed row offers its no-credit re-try, never a bare "Practice".
   { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustReach: ['← Home', 'Try it again — no credit'] },
   // The Classroom receipt is said plainly: never the sync's "checkpoint" or

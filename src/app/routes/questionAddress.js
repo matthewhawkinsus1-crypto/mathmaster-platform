@@ -14,6 +14,7 @@
  * own section, counting from 1.
  */
 import { projectCurrentAssignmentContent } from '../../platform/assignments/currentContentProjection.js';
+import { EXIT_TICKET } from '../../platform/student/studentWords.js';
 
 /**
  * The student's questions in workspace order: the current-content projection
@@ -50,7 +51,7 @@ const SECTION_LABELS = Object.freeze({
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'DOL',
+  dol: EXIT_TICKET,
   checkpoint: 'Checkpoint',
   quiz: 'Quiz',
   test: 'Test',

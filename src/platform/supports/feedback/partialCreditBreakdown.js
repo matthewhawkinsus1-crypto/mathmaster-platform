@@ -21,7 +21,7 @@ export const partialCreditBreakdown = (record = {}) => {
   if (!right.length || !wrong.length) return '';
   const names = wrong.map((part, index) => text(part.label) || `Part ${parts.indexOf(part) + 1 || index + 1}`).slice(0, 4);
   const more = wrong.length > names.length ? `, and ${wrong.length - names.length} more` : '';
-  return `last attempt: ${right.length} of ${parts.length} parts right — still to fix: ${names.join(', ')}${more}`;
+  return `last try: ${right.length} of ${parts.length} parts right — still to fix: ${names.join(', ')}${more}`;
 };
 
 export default partialCreditBreakdown;

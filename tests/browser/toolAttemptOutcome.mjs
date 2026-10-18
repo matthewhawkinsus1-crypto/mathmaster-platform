@@ -163,7 +163,7 @@ for (const device of ['chromebook', 'phone']) {
     const state = await outcomeState(page);
     check(state.text.includes(`You have ${left}`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
     check(state.inTool, `${device} practice inverse, wrong attempt ${attempt}: the outcome is in the tool's result area`, `in tool: ${state.inTool}`);
-    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, visible to ${state.visibleBottom}`);
+    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, bottom ${state.bottom}, visible to ${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice inverse, wrong attempt ${attempt}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
     // The tool knows four parts but this question asks two: only those are
     // named, and by names a student reads (toolSubmissionParts.js).
@@ -305,18 +305,18 @@ for (const tool of ['server', 'literal']) {
 for (const role of ['dol', 'quiz', 'test']) {
   const { context, page } = await open('chromebook', role, 'inverse');
   await attemptWrong(page, 'inverse');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Not yet|Correct!/.test(state.pageText) && !state.verdictPill,
     `chromebook ${role} inverse: nothing about correctness or attempts left, in the tool or below it`, state.count ? state.text : '');
-  check(/Your response is recorded/.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
+  check(/Your answer is saved\. You will see whether it is right when /.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
   await context.close();
 }
 {
   const { context, page } = await open('chromebook', 'dol', 'board');
   await attemptWrong(page, 'board');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Correct!/.test(state.pageText),

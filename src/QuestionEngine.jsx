@@ -29,7 +29,7 @@ import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
-import { missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
@@ -146,7 +146,7 @@ const WorkViewReadySignal = ({ span }) => {
 const UNCHECKABLE_WORK_FEEDBACK = Object.freeze({
   blocked: true,
   isCorrect: false,
-  message: 'MathMaster could not check this answer, so it was not submitted and no attempt was used. Your work is saved. Let your teacher know about this question.',
+  message: 'MathMaster could not check this answer, so it was not submitted and no try was used. Your work is saved. Let your teacher know about this question.',
 });
 
 const EMPTY_ANSWER_STATE = {
@@ -1659,7 +1659,7 @@ function QuestionEngineBody({
 
     const proceed = await confirmAction({
       title: 'Reset this question?',
-      message: 'This clears all work on this question and returns every tool to its starting state. Your recorded attempts and grade history will not be erased.',
+      message: 'This clears all work on this question and returns every tool to its starting state. Your tries and your grade stay as they are.',
       confirmLabel: 'Reset question',
     });
     if (!proceed) return;
@@ -1838,6 +1838,7 @@ function QuestionEngineBody({
   // showOutcomeFeedback alone.
   const withSolverRuntime = (node) => (
     <ToolRuntimeProvider
+      hintCost={hintCostSentence(hintCostNote)}
       showImmediateFeedback={showOutcomeFeedback}
       hintsAllowed={toolHintsAllowed}
       onHintUsed={recordHintUse}
@@ -2004,6 +2005,8 @@ function QuestionEngineBody({
     onEvidence: reportSupportedTextUse,
     onShowHint: attemptHintOffered ? revealNextHint : null,
     onShowSimilar: attemptSimilarOffered ? openSimilarExample : null,
+    // The host's own sentence (Recovery's in a Recovery runner), HELP-17.
+    hintCost: hintCostSentence(hintCostNote),
   } : null;
 
   // The words of the miss box as shown, kept for "Your last try" (HELP-8).
@@ -2045,6 +2048,7 @@ function QuestionEngineBody({
         // panel on a mapping step of a DOL, before the question was submitted.
         // They get exactly what a standalone registry tool gets below.
         <ToolRuntimeProvider
+          hintCost={hintCostSentence(hintCostNote)}
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}
@@ -2324,8 +2328,8 @@ function QuestionEngineBody({
   const expiredAlmost = isExpired && partialPercent >= 50;
   const formulaAnchor = processedQuestion?.formulaAnchor || processedQuestion?.formulaLatex || null;
   const heldFeedbackMessage = resolvedActivityPolicy?.feedback === 'teacherRelease'
-    ? 'Your response is recorded. Your teacher will release correctness feedback.'
-    : 'Your response is recorded. Correctness feedback is held until the activity feedback window opens.';
+    ? 'Your answer is saved. You will see whether it is right when your teacher shares the results.'
+    : 'Your answer is saved. You will see whether it is right when this activity\'s results open.';
 
   const questionAlignmentPanel = showStandardBadge && questionStandardCode ? (
     <StandardBadge
@@ -2607,7 +2611,7 @@ function QuestionEngineBody({
       context={failureContext}
       draftKey={draftKey}
       resetKey={supplementResetKey}
-      fallback={<p role="status" style={{ margin: '10px 0 0' }}>The worked solution for this question could not be shown here. Your answers, attempts and grade are kept exactly as they are.</p>}
+      fallback={<p role="status" style={{ margin: '10px 0 0' }}>The worked solution for this question could not be shown here. Your answers, tries and grade are kept exactly as they are.</p>}
     >
       <SolutionReviewPanel
         question={processedQuestion}
@@ -2629,6 +2633,8 @@ function QuestionEngineBody({
       {oneTryLine && (
         <p data-one-try-notice="" style={{ margin: '0 0 8px', padding: '8px 12px', borderRadius: '8px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)', fontWeight: 700, textAlign: 'left' }}>
           {oneTryLine}
+          {/* HELP-17: the hint's cost, in the one sentence every offer uses. */}
+          {hintState.canRevealNext && <span data-hint-cost-note=""> {hintCostSentence(hintCostNote)}</span>}
           {hintState.canRevealNext && (
             <button type="button" onClick={revealNextHint} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
           )}
@@ -2687,7 +2693,7 @@ function QuestionEngineBody({
       {/* One quiet line in the student's words. It was a full-weight banner in
           grading vocabulary ("records the daily DOL grade during the active
           class window"), louder than the task it sat under. */}
-      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
+      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800 }}>Exit ticket · this question counts toward today&apos;s exit ticket grade.</div>}
       {questionGradeWeight !== 1 && (
         <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>
           Grade weight ×{questionGradeWeight} · this question counts {questionGradeWeight} times a standard-weight question in this section&apos;s grade and in the assignment grade.
@@ -2696,7 +2702,7 @@ function QuestionEngineBody({
 
       {formulaAnchor && supportPresentation.inclusion && (
         <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
-          <strong style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', marginBottom: '4px' }}>Formula anchor</strong>
+          <strong style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', marginBottom: '4px' }}>A formula you can use</strong>
           <MathDisplay value={formulaAnchor} format="latex" />
         </aside>
       )}
@@ -2743,7 +2749,7 @@ function QuestionEngineBody({
         </p>
       )}
       {sameIncorrectResponse && !isMultipart && !locked && (
-        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
+        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>{SAME_ANSWER_AGAIN}</p>
       )}
 
       {/* A question the server cannot grade is not quietly marked wrong: the
@@ -2781,7 +2787,7 @@ function QuestionEngineBody({
           )}
           {(attemptHintOffered || attemptSimilarOffered) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
-              {attemptHintOffered ? <>A hint is ready if you want one.{' '}
+              {attemptHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
               <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
               {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
@@ -2802,7 +2808,7 @@ function QuestionEngineBody({
           {previousMiss.focus ? <div style={{ marginTop: '6px' }}>{previousMiss.focus}</div> : null}
           {(previousMissHintOffered || similarOffered) && (
             <div style={{ marginTop: '8px' }}>
-              {previousMissHintOffered ? <>A hint is ready if you want one.{' '}
+              {previousMissHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
               <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
               {similarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
@@ -3352,11 +3358,11 @@ function QuestionEngineBody({
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <Dialog aria-labelledby={unchangedConfirmTitleId} onClose={() => setUnchangedConfirmOpen(false)} initialFocusRef={unchangedGoBackRef} style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
-            <h2 id={unchangedConfirmTitleId} style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
-            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
+            <h2 id={unchangedConfirmTitleId} style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your answers have not changed</h2>
+            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>These are the same answers as your last try. Submitting them again uses another try. Submit anyway?</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
               <button ref={unchangedGoBackRef} type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
-              <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit Unchanged Values</button>
+              <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit the same answers</button>
             </div>
           </Dialog>
         </div>

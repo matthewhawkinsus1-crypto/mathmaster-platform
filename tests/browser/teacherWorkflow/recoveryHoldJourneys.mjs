@@ -217,7 +217,7 @@ const openResult = async (page, title) => {
   await openStudentGrades(page);
   const row = gradeRow(page, title);
   await row.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  await row.getByRole('button', { name: 'View Results' }).click();
+  await row.getByRole('button', { name: 'See results' }).click();
   const card = page.locator('[data-section-recovery-panel] [data-recovery-section="dol"]');
   await card.waitFor({ timeout: 30000 * SLOW_FACTOR });
   return card;

@@ -8,9 +8,10 @@ import {
   buildStudentAssignmentsCenter,
 } from '../../platform/student/studentAssignmentsCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
-import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { formatDateTime, formatRemainingTime, studentDueText } from '../../assignmentLifecycle';
 import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
 import { readAssignmentsView, writeAssignmentsView } from '../../platform/student/assignmentsCenterMemory.js';
+import { SEE_RESULTS } from '../../platform/student/studentWords.js';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -78,7 +79,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
             </div>
           )}
           <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
-            Due {formatDateTime(row.dueAt)}
+            {studentDueText(row.dueAt)}
             {row.frozen
               ? ` · Closed ${formatDateTime(row.lateDueAt)}`
               : row.lifecycle?.isLate
@@ -142,7 +143,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
         )}
         {row.canViewResults && (
           <button type="button" style={control(!row.canContinue && !row.canRecover)} onClick={() => onOpenResult?.(row.assignmentId)}>
-            View Results
+            {SEE_RESULTS}
           </button>
         )}
         {row.canPractice && (

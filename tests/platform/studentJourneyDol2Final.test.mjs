@@ -317,7 +317,7 @@ test('the Warm-Up banner leaves once every Warm-Up question is finished', () => 
 test('the DOL question note is one quiet line in student words', () => {
   const engine = executableSource(source('src/QuestionEngine.jsx'));
   assert.doesNotMatch(engine, /records the daily DOL grade during the active class window/);
-  assert.match(engine, /DOL exit ticket · this question counts toward today&apos;s DOL grade\./);
+  assert.match(engine, /Exit ticket · this question counts toward today&apos;s exit ticket grade\./);
 });
 
 // The media features App.css uses, evaluated the way a browser does, so the
