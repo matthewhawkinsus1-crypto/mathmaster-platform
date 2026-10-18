@@ -1,6 +1,7 @@
 # Student pass 3, wave 6, W6-5: Batch 3 joins the pass-3 line
 
-Branch `claude/pass3-batch3-into-pass3`, from the integration branch `claude/modest-pasteur-xzagn7` at `5062cba5`.
+Branch `claude/pass3-batch3-into-pass3`, from the integration branch `claude/modest-pasteur-xzagn7` at `5062cba5`,
+with the base `3cb782a9` merged after the review.
 It merges Batch 3 ("never lose work", PR #497, `claude/pass3-b3-release` at `7bb74f8`) into the pass-3 line, with
 main's four commits since `25250b4` (#496, thousands separators). Nothing here deploys, writes to a production project
 or re-grades. Student words follow D9.
@@ -16,6 +17,10 @@ Batch 3's own detail is in its two handoffs, now on this line: [STUDENT_PASS3_BA
 | `cb9bf2e` | Item 2: the save lines agree with Batch 3's unsaved-work notice |
 | `c24ce4a` | Item 4: the dark-mode certification runs on the school's clock |
 | `58ef6c2` | Item 5: the rich-tool driver reads the open item where a navigable test keeps it, and submits from the review page |
+| `8c4c18d` | Review S2: an unsaved-work notice lasts only as long as the work it is about (also applies to PR #497) |
+| `8a902e2` | Review S2: Home's part of it, pass-3 only |
+| `248e422` | Review B1, S1, N2: Digital SAT boxes read a grouped number as live does; Path list fields keep their kind |
+| `181baed` | Merge of the base `3cb782a9` (the Work View CSS fix `6ce0517`, docs) |
 | this note | the handoff |
 
 ## 1. The merge (`b342437`)
@@ -37,40 +42,59 @@ left after its time ran out stayed open until a teacher finished it. Main's #496
     and never across a comma and a space. That reaches every `sameValue` caller, including the Path grader.
   - pass-3 (`b86556b`, batch 2) reads a grouped number on either side, but only in the field, literal and table graders,
     and only when the field expects one number (`fieldAcceptsThousandsSeparators`: never a list, set, interval,
-    point, roster with element credit, or Digital SAT box).
+    point or roster with element credit; at the merge also never a Digital SAT box, which the review reversed, below).
 
   Kept both, so neither side's accepted answers are lost and neither side's refusals are undone:
   - `sameValue` applies #496's rule with pass-3's strict grouping (no leading-zero group: `0,500` is not 500), and
-    takes `{ thousandsSeparators: false }` from a caller that knows its field is comma-separated or a Digital SAT box.
-  - `fieldAcceptsThousandsSeparators` moves into `answerEquivalence.mjs` (`answerUtils` re-exports it), and both the
-    assignment matcher and the Path grader (`mathPath.js` `valuesEquivalent`) pass its answer to `sameValue`.
+    takes `{ thousandsSeparators: false }` from a caller that knows its field is comma-separated.
+  - `fieldAcceptsThousandsSeparators` moves into `answerEquivalence.mjs` (`answerUtils` re-exports it), and the
+    assignment matcher, the Path grader (`mathPath.js` `valuesEquivalent`) and the teacher's Path simulation
+    (`teacherPathRuntime.js`) pass its answer to `sameValue`.
   - `withoutThousandsSeparators` refuses a comma followed by a space (#496's list rule). The pass-3 matcher used to
     accept `1, 250` for 1250.
 
+**After the review (`248e422`).**
+- **Digital SAT boxes read a grouped number, as live does** (review B1; decision 1, the integrator's call). #496 is
+  live today (`56a5a5b`): the live client and server grade `1,280` right in a Digital SAT number box. The pass-3 line
+  refused it, and the server re-grades every queued answer at ingestion, so during release 2 (functions about an hour
+  before Hosting), in a tab not reloaded, or for an answer queued offline before it, a student who saw "Correct!" would
+  have been recorded wrong. `fieldAcceptsThousandsSeparators` no longer excludes SAT boxes; the SAT decimal rule and
+  the strict grouping stay.
+- **Path list fields keep their kind** (review S1). Path's stored private grading (`privateGradingDefinition`, used
+  for Path, Live Challenge, secure tests and Test Cycle) kept only `equivalence` of a field's kind, so a field
+  declared a list through `inputProfile`, `answerFormat`, `notation` or `toolProfile` read `1,250` as 1250 through the
+  real `buildIssuePlan`. New issues now store those four (`fieldFormatOf`); stored items keep what they were issued
+  with. No bank field is affected today.
+- **The teacher's Path simulation** (review N2) builds the same definition (`buildFieldGradingDefinition`) and passes
+  the same switch, so a simulation equals production.
+
 **Proof.**
-- `pGrading_answerEquivalence` (#496's cases) and `thousandsSeparatorGrading` (pass-3's) both pass on the merged tree;
-  before the resolution two failed (`1, 250` accepted by the assignment matcher; `8,050` accepted in a Digital SAT
-  box through `sameValue`). Two new cases: the Path grader reads `8,050` and `$8,050` but not in a Digital SAT box or a
-  list field; the assignment matcher keeps list, roster and SAT fields comma-literal under #496 and refuses `1, 250`.
-  Four mutations, each red: the Path grader ignoring the field, the matcher not passing it on, the comma-space guard
-  removed, #496's hook removed.
-- **The grading sweep** (`scripts/sweep-equivalence-verdicts.mjs --base <worktree of 5062cba5> --draws 3
-  --check-wrong`): exit 0. 9,523 fields, 269,994 verdicts: **0 right → wrong, 0 wrong → right, 0 near miss → right**,
-  0 editor spellings refused, 0 wrong stacked spellings accepted. The sweep's corpus has no comma-grouped spellings,
-  so the merge moves none of its verdicts.
+- `pGrading_answerEquivalence` (#496's cases) and `thousandsSeparatorGrading` (pass-3's) both pass. Before the merge's
+  resolution two failed (`1, 250` accepted by the assignment matcher; `8,050` through `sameValue` where the field
+  said otherwise).
+- New cases go through what production builds: `buildIssuePlan` then `gradeResponse` (a number box reads `8,050`
+  and `$8,050`, a Digital SAT box reads `8,050` but not `80,50`, list/set/pair fields declared each of the four ways
+  refuse `1,250` and accept `1250`, and the kind is stored with the private grading), the SAT box on the assignment
+  matcher (with the SAT decimal rule still applying), list and roster fields on the matcher, and the teacher
+  simulator (`1,250` is one number in a number box, two values in a list).
+- Eight mutations, each red: the Path grader ignoring the field, the matcher not passing it on, the comma-space guard
+  removed, #496's hook removed, `fieldFormatOf` dropped, the SAT exclusion restored, the simulator ignoring the
+  field, the simulator's definition dropping the kinds.
+- **The grading sweep** (`scripts/sweep-equivalence-verdicts.mjs --base <worktree> --draws 3 --check-wrong`), exit 0
+  against `5062cba5` at the merge and against `3cb782a9` after the review: **0 right → wrong, 0 wrong → right, 0 near
+  miss → right** (SWEEP2), 0 editor spellings refused, 0 wrong stacked spellings accepted. Its corpus has no
+  comma-grouped spellings.
 - **A thousands probe over the same corpus** (scratch, not committed): every field whose key is one plain number of
-  four or more digits (88 fields), each graded by this tree, the base and main + Batch 3 (`7bb74f8`), with the Path
-  grader (Digital SAT boxes marked as `mathPath` marks them), the assignment matcher and `sameValue`. Right
-  responses: the key grouped (`8,050`), MathLive's `8{,}050`, and `$8,050`. Wrong: a grouped near miss (`8,051`), a bad
-  grouping (`80,50`), a list (`8, 050`) and a leading-zero group (`0,050`).
-  - Wrong accepted by this tree: **0**.
+  four or more digits (88 fields), graded by four trees (this one, the base, main + Batch 3 `7bb74f8`, and live main
+  `56a5a5b`) with the Path grader (Digital SAT boxes marked as `mathPath` marks them), the assignment matcher and
+  `sameValue`. Right responses: the key grouped (`8,050`), MathLive's `8{,}050`, and `$8,050`. Wrong: a grouped near
+  miss (`8,051`), a bad grouping (`80,50`), a list (`8, 050`) and a leading-zero group (`0,050`).
+  - Wrong accepted by this tree, by main + Batch 3, or by live: **0**.
+  - Right that live accepts and this tree refuses: **0** (36 before the review, all in Digital SAT boxes).
   - Wrong the base accepted and this tree refuses: 82, all a comma and a space (`163, 840` for 163840) in the
-    assignment matcher. #496's rule; pass-3 had accepted them.
-  - Right newly accepted (main + Batch 3 accepted them, the base did not): 246 Path verdicts and 264 `sameValue`
-    verdicts.
-  - Right that main + Batch 3 accepts and this tree refuses: **36, every one a Digital SAT number box** (6 SAT
-    fields × 3 spellings × Path and assignment). Pass-3 refuses commas there on purpose (the SAT's own entry rules) and
-    `thousandsSeparatorGrading` pins it; #496 did not consider SAT boxes. This is decision 1 below.
+    assignment matcher. Live refuses them too (decision 2).
+  - Right this tree accepts that the base did not: 264 Path and 264 `sameValue` verdicts, and 18 assignment verdicts
+    in Digital SAT boxes. Live accepts every one.
 
 ## 2. Batch 3's persistence and session B's save line (`cb9bf2e`)
 
@@ -105,15 +129,38 @@ finding Submit by B's label) touch different code: the merge changed neither. Th
   a correct answer: one "Not submitted…" alert, no toast, no verdict, Submit still "Submit — uses 1 of 3 tries", and
   the line "Not saved · …".
 
+**After the review: the notice lasts only as long as the work it is about (`8c4c18d`, `8a902e2`; review S2).** A
+problem cleared only when the same draft key saved again, or at sign-out. After a failed save, a student who started
+the question over, asked for a new problem, or submitted the answer kept "Your work is not being saved on this
+device…" and Home's "Some work needs attention — keep this tab open" for the rest of the session, about work that was
+gone or already in the device queue. `clearDraftSaveProblemsForFamily` clears every kind for one question's draft
+family; `resetQuestionDraftFamily`, `removeQuestionDraftFamily` and `removeAssignmentDrafts` call it, and so does the
+engine after a submission the device queued (not one it could not queue, and not a blocked refusal). A later failed
+write reports again.
+- `draftSaveProblemLifetime`: one family only (another question's notice, and another assignment whose id starts with
+  this one's, stay); Start over clears it even when the device cannot store the reset either; a new problem and a
+  retired assignment clear theirs; the engine clears after the two guards on all three submit paths; Home returns to
+  "saved". Seven mutations, each red: each of the three storage calls dropped, the family match loosened to a plain
+  prefix, the engine's clear dropped, the clear made unconditional on a blocked result, and (Home) the reset's clear
+  dropped.
+- **The same false alarm is on PR #497's head (`7bb74f8`)**, for the notice (it has no Home part): a scratch probe
+  there reports the problem after New problem and after Start over; on this branch it clears. `8c4c18d` applies to
+  `7bb74f8` (one import hunk with reduced context; a cherry-pick's three-way merge takes it), and on it
+  `draftSaveProblemLifetime`, `draftSaveFailureNotice`, `submitNotQueued`, `fieldRecordDraftMerge` and
+  `fieldRecordReviewRegressions` pass (56 of 56). `8a902e2` is pass-3 only.
+- **The registry is in memory and per tab.** After a reload, or in a second tab, it reads empty until the next write
+  there fails. A device that is still full reports again on the next keystroke; a backup problem on the next save.
+
 ## 3. One announcement for a submission the device could not queue (`c0c6ba2`)
 
 **Before.** Batch 3 said it twice: the engine's `role="alert"` "Not submitted. This device could not save your answer,
 so it was not sent and no try was used. …" in the question, and a toast "Not submitted — This device could not save
 your answer. No try was used. Keep this tab open and press Submit again." in the polite toast region.
 
-**Now.** The alert only. It sits in the question, where Submit is, and is brought into view by the result reveal. The
-toast added nothing a student could not already see: it is on the same page, and it sits under Work View (z-index
-20000 against Work View's 2147483000), so in Work View it was not visible either. The save line's "Not saved · …" is
+**Now.** The alert only. It sits with the question's results, where Submit is, and is brought into view by the result
+reveal. The results render inside Work View's dialog too (`{attemptResults}` inside `EnlargeableFigure`), so a student
+in Work View sees it there. The toast added nothing: it is on the same page, and it sits under Work View (z-index
+20000 against Work View's 2147483000), so in Work View it was not visible at all. The save line's "Not saved · …" is
 plain text, not a live region (session B's rule), so it is not a second announcement.
 
 **Proof.** `submitNotQueued` "a failed queue returns 'not submitted'": the failure branch calls no toast (mutation:
@@ -163,7 +210,7 @@ it; the autosaved construction is recorded on submit; nothing is left on the dev
 Nothing is deployed. W5-5's step-key change must ship in two releases
 ([STUDENT_PASS3_WAVE5_INTEGRATION.md](STUDENT_PASS3_WAVE5_INTEGRATION.md#w5-5-must-ship-in-two-releases)), and Batch 3
 ships from main first. With this merge the pass-3 line carries Batch 3, so releasing it can no longer take Batch 3
-off the site. The order becomes:
+off the site. Main's thousands rule (#496) is live now (`56a5a5b`). The order becomes:
 
 0. **Batch 3 from main**, exactly as [STUDENT_PASS3_BATCH3_RELEASE.md](STUDENT_PASS3_BATCH3_RELEASE.md) says: merge
    PR #497 (open, head `7bb74f8`, mergeable), check `--whats-live` shows `56a5a5b`, then
@@ -197,6 +244,10 @@ off the site. The order becomes:
    (W5-3: teachers re-import it). This branch already holds the three key hunks (the patch reverse-applies here), so
    release 2 changes no step key.
 5. Ask teachers to have students reload after each Hosting release.
+6. **After release 2 the live build is a pass-3 commit that is not on main.** Until the integration branch is merged
+   to main, release only from the integration branch; a hotfix goes there. (Batch 3's release note stops when the
+   live build is not on main; after release 2 that is expected, and releasing from main would take pass 3 off the
+   site.)
 
 `node scripts/release-firebase.mjs --since origin/main` (plan only, on this branch) plans what is expected: 677 files;
 rules, the whole default fleet (27 groups), path-admin and Hosting; no indexes; the matrices lesson JSON unmapped. It
@@ -220,19 +271,21 @@ resume a live Test while `manageAssignmentLifecycle` is deploying" then lasts th
 
 ## Decisions for the owner
 
-1. **Digital SAT number boxes and `8,050`.** Main (#496, and so release 0 and release 1) accepts `1,280` for 1280 in a
-   Digital SAT number box, in Path and assignments. Pass-3 refuses it (the SAT's entry rules take no commas), and
-   release 2 brings that back. Between release 0 and release 2 a student's `1,280` in an SAT box is right; after
-   release 2 it is wrong again. Keep the refusal (as here), or accept grouped numbers in SAT boxes too? The probe found
-   six SAT fields in the banks where it matters.
+1. **Digital SAT boxes accept `1,280` as live does** (decided by the integrator after the review). Main's #496 is live
+   now (`56a5a5b`) and grades it right in a Digital SAT number box; this line now does too, so no release turns a
+   right answer wrong. If the owner wants the SAT's own no-comma entry rule, it belongs at entry (the box declines the
+   keystroke with the SAT's words), never as a right value graded wrong.
 2. **`1, 250` (a comma and a space) is no longer one number** in assignments, as on main. Pass-3 had accepted it for a
    one-number key since batch 2. The sweep's corpus has no such spellings; the probe found 82 that the base accepted.
 3. **The release order above**, and whether to fold Batch 3 into release 1.
 
 ## Outside my scope
 
-- `functions/lib/mathPath.js` (the Path grader passes the field's answer to `sameValue`), `functions/shared/answerUtils.mjs`:
-  W6-6's area (grader gaps). The change is the conflict's resolution and nothing else.
+- `functions/lib/mathPath.js` (the Path grader passes the field's answer to `sameValue`; new issues store the field's
+  kind), `functions/shared/answerUtils.mjs`, `functions/shared/legacyFieldGrading.mjs` and
+  `src/platform/simulation/teacherPathRuntime.js`: W6-6's area (grader gaps). The changes are the conflict's
+  resolution and the review's S1 and N2, nothing else.
+- `src/questionDraftStorage.js` and `src/QuestionEngine.jsx` (review S2: the notice is cleared with its work).
 - `src/platform/student/saveStatusModel.js` (session B's) gains `saveLineIsAboutDrafts` and `describeSaveStatus`'s
   `draftsUnsaved`; `src/App.jsx` reads them.
 - `tests/browser/testCycleRichToolQa.mjs` and `tests/browser/darkModeCertification.mjs` (items 4 and 5, as asked).
@@ -271,7 +324,11 @@ All on this branch (`58ef6c2`, code; the handoff commits after it change only th
 
 - `tests/browser/submitNotQueued.mjs` (Batch 3's real-engine driver) is in no CI workflow; it ran here.
 - `toolDraftSyncSweep`'s expressionMeaning journey times out on the base too (gate table): for the integrator.
-- In Work View, a result the engine shows outside the tool (the not-submitted alert among them) is under Work View.
-  That is not new with Batch 3 (every outcome outside the tool) and not changed here.
+- A Step Algebra step and a replacement the device cannot queue still use toasts ("Step not queued", "Replacement not
+  queued", `App.jsx` `handleStepGrade` and the new-problem handler). Those toasts sit under Work View. Not changed
+  here.
+- The per-answer draft merge stays on the first load (review N5): it is the draft-restore path, and a lazy import
+  there could fail offline exactly when it is needed. W6-7 (`claude/pass3-first-load-2`) takes teacher-only code off
+  the first load instead.
 - Batch 3's own "left for later" list stands (client handoff): a Step Algebra step the device cannot queue still
   returns `null` to the solver; device clocks decide edit times; the rollout window drops `resetAt`.
