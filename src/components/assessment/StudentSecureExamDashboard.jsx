@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import SecureExamContainer from './SecureExamContainer.jsx';
 import SecureExamReview from './SecureExamReview.jsx';
 import { listStudentSecureExamSessions } from '../../services/secureExamService.js';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
-import { assignedTestCycleRow, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
+import { assignedTestCycleRow, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
 import { resultsTimingText, sessionWasReplaced, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
 
@@ -53,10 +53,17 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Only the latest look writes the screen. Two can overlap: the screen opens
+  // before the Test Cycles arrive, then looks again when they do, and an older
+  // look that answers last would put back its empty list.
+  const loadGeneration = useRef(0);
   const load = async () => {
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
     setLoading(true);
     try {
       const result = await listStudentSecureExamSessions();
+      if (!current()) return;
       const listed = result.sessions || [];
       setSessions(listed);
       setError('');
@@ -66,6 +73,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
       // One whose record has a session the capped list did not show gets no
       // row either (assignedTestCycleRow reads `hasSecureSession`).
       const looks = await Promise.allSettled(waiting.map((assignment) => getStudentTestCycle({ assignmentId: assignment.id, preview: true })));
+      if (!current()) return;
       setAssignedTests(waiting.map((assignment, index) => {
         if (looks[index].status !== 'fulfilled') return null;
         const own = (testCycles || []).find((entry) => entry.assignment?.id === assignment.id) || {};
@@ -74,12 +82,12 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
           classLateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
         });
       }).filter(Boolean));
-    } catch (loadError) { setError(loadError.message || 'Could not load your tests.'); }
-    finally { setLoading(false); }
+    } catch (loadError) { if (current()) setError(loadError.message || 'Could not load your tests.'); }
+    finally { if (current()) setLoading(false); }
   };
   // Again when the student's Test Cycles arrive or change (a URL arrival can
-  // open this screen before the lessons are loaded).
-  const testCycleKey = (testCycles || []).map((entry) => entry.assignment?.id || '').join('|');
+  // open this screen before the lessons are loaded), dates and schedule included.
+  const testCycleKey = testCycleRowsKey(testCycles);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [testCycleKey]);
 

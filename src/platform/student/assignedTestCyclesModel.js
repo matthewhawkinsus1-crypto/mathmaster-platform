@@ -84,4 +84,35 @@ export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = n
   };
 };
 
+// A date as the rows see it, the same however it is held (a Firestore
+// Timestamp, a Date, epoch milliseconds or text).
+const stamp = (value) => {
+  if (value == null || value === '') return '';
+  if (typeof value?.toMillis === 'function') return String(value.toMillis());
+  if (value instanceof Date) return String(value.getTime());
+  if (typeof value === 'object' && Number.isFinite(Number(value.seconds))) return `${value.seconds}.${value.nanoseconds || 0}`;
+  return String(value);
+};
+
+/**
+ * Everything the rows are built from, as one string. Tests & Exams looks the
+ * rows up again whenever it changes: a new or removed Test Cycle, and also a
+ * new title, the student's or the class's dates, the Test's schedule or its
+ * policy. Keyed on the assignment ids alone, a moved Test day or due date
+ * stayed on screen until the student left and came back.
+ */
+export const testCycleRowsKey = (testCycles = []) => (testCycles || []).map((entry) => {
+  const assignment = entry?.assignment || {};
+  return [
+    clean(assignment.id),
+    clean(assignment.title),
+    stamp(entry?.dueAt),
+    stamp(entry?.lateDueAt),
+    stamp(assignment.lateDueAt || assignment.lateDueDate),
+    assignment.archived === true ? 'archived' : '',
+    JSON.stringify(assignment.testAvailability ?? null),
+    JSON.stringify(assignment.assessmentPolicy ?? null),
+  ].join('~');
+}).join('|');
+
 export default assignedTestCycleRow;

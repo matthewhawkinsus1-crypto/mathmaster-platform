@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
-import { assignedTestCycleRow, testCycleDeliveryText, testCyclesWithoutSession } from '../../src/platform/student/assignedTestCyclesModel.js';
+import { assignedTestCycleRow, testCycleDeliveryText, testCycleRowsKey, testCyclesWithoutSession } from '../../src/platform/student/assignedTestCyclesModel.js';
 import { getAssignmentLifecycle } from '../../src/assignmentLifecycle.js';
 
 const dashboard = componentSource('src/components/assessment/StudentSecureExamDashboard.jsx');
@@ -117,7 +117,7 @@ test('the length is the card\'s: timed with extended time, and a Retest is not g
 });
 
 test('the screen lists the rows, never offers Start on one, and says "Nothing here yet" only when there is nothing', () => {
-  const load = region(dashboard, 'const load = async () => {', 'finally { setLoading(false); }', 'load');
+  const load = region(dashboard, 'const load = async () => {', 'finally { if (current()) setLoading(false); }', 'load');
   assert.match(load, /testCyclesWithoutSession\(\{ assignments: \(testCycles \|\| \[\]\)\.map\(\(entry\) => entry\.assignment\), sessions: listed \}\)/);
   // A read-only look, never the card's own call that can open a Retest.
   assert.match(load, /getStudentTestCycle\(\{ assignmentId: assignment\.id, preview: true \}\)/);
@@ -142,6 +142,41 @@ test('the service and the server carry `preview`, and the server opens nothing f
   assert.match(handler, /const inCorrections = !preview && state\.stage === shared\.stages\.TEST_CYCLE_STAGE\.CORRECTIONS/);
   // Whether a session exists comes from the record, not the capped session list.
   assert.match(handler, /\.\.\.\(preview \? \{ preview: true, hasSecureSession: Boolean\(record\.test\.examSessionId \|\| record\.retest\.examSessionId\) \} : \{\}\)/);
+});
+
+test('only the latest look writes the screen: an older one that answers last changes nothing', () => {
+  const load = region(dashboard, 'const load = async () => {', 'finally { if (current()) setLoading(false); }', 'load');
+  assert.match(load, /const generation = \+\+loadGeneration\.current;/);
+  // Checked after each wait, before anything is written.
+  assert.match(load, /await listStudentSecureExamSessions\(\);\s*if \(!current\(\)\) return;\s*const listed/);
+  assert.match(load, /preview: true \}\)\)\);\s*if \(!current\(\)\) return;\s*setAssignedTests\(/);
+  assert.match(load, /catch \(loadError\) \{ if \(current\(\)\) setError\(/);
+  assert.match(dashboard, /finally \{ if \(current\(\)\) setLoading\(false\); \}/);
+});
+
+test('the rows are looked up again when a Test Cycle\'s dates, schedule, policy or title change, not only its id', () => {
+  const entry = {
+    assignment: testCycle('T1', { lateDueAt: '2026-11-02T05:00:00Z', testAvailability: { version: 1, classWindows: { c1: [{ dateKey: '2026-10-30' }] } } }),
+    dueAt: new Date('2026-10-31T05:00:00Z'),
+    lateDueAt: null,
+  };
+  const key = testCycleRowsKey([entry]);
+  const changed = (assignmentPatch, entryPatch = {}) => testCycleRowsKey([{ ...entry, ...entryPatch, assignment: { ...entry.assignment, ...assignmentPatch } }]);
+  assert.notEqual(changed({}, { dueAt: new Date('2026-11-01T05:00:00Z') }), key, 'the student\'s due date');
+  assert.notEqual(changed({}, { lateDueAt: new Date('2026-11-05T05:00:00Z') }), key, 'the student\'s late date');
+  assert.notEqual(changed({ lateDueAt: '2026-11-03T05:00:00Z' }), key, 'the class\'s late date');
+  assert.notEqual(changed({ title: 'Unit T1 (moved)' }), key, 'the title');
+  assert.notEqual(changed({ testAvailability: { version: 1, classWindows: { c1: [{ dateKey: '2026-11-04' }] } } }), key, 'the Test day');
+  assert.notEqual(changed({ assessmentPolicy: { ...entry.assignment.assessmentPolicy, timeLimitMinutes: 50 } }), key, 'the policy');
+  assert.notEqual(changed({ archived: true }), key, 'archived');
+  assert.notEqual(testCycleRowsKey([entry, { ...entry, assignment: testCycle('T2') }]), key, 'another Test Cycle');
+  // The same values, held another way, are the same key: no look for nothing.
+  assert.equal(testCycleRowsKey([{ ...entry, dueAt: { toMillis: () => entry.dueAt.getTime() } }]), key);
+  assert.equal(testCycleRowsKey([{ ...entry, assignment: { ...entry.assignment } }]), key);
+  assert.equal(testCycleRowsKey([]), '');
+  // The screen keys its look on it.
+  assert.match(dashboard, /const testCycleKey = testCycleRowsKey\(testCycles\);/);
+  assert.match(dashboard, /useEffect\(\(\) => \{ load\(\); \}, \[testCycleKey\]\);/);
 });
 
 test('App hands Tests & Exams the student\'s own Test Cycles with their own dates', () => {
