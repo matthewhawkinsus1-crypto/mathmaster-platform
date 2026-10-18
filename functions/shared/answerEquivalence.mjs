@@ -270,6 +270,8 @@ export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnsw
  */
 const GROUPED_NUMBER = /^-?(?:\\?\$)?[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?(?:\\?%)?$/;
 export const withoutThousandsSeparators = (value) => {
+  // `1, 250` is a list of two numbers, whatever the normaliser does to the space.
+  if (/,\s/.test(String(value ?? ''))) return null;
   const text = normalizeAnswer(value);
   return GROUPED_NUMBER.test(text) ? text.replace(/,/g, '') : null;
 };
@@ -285,6 +287,53 @@ export const sameNumberWithThousandsSeparators = (left, right, tolerance = 1e-6)
   const b = withoutThousandsSeparators(right);
   if (a === null && b === null) return false;
   return sameNumber(a ?? left, b ?? right, tolerance);
+};
+
+// Field declarations whose answer is several values separated by commas. In
+// these, `1,234` is two entries, never one thousand two hundred thirty-four.
+const COMMA_SEPARATED_FORMATS = new Set([
+  'orderedpair', 'coordinate', 'coordinates', 'point', 'tuple', 'vector',
+  'interval', 'intervalnotation', 'set', 'setnotation', 'setbuilder',
+  'numericset', 'list', 'roster', 'sequence', 'matrix',
+]);
+
+/**
+ * Does this field expect ONE number, so a thousands separator in it (or in its
+ * key) is grouping rather than a separator between values?
+ *
+ * Refused for anything declared comma-separated and for opt-in element
+ * partial credit (a roster). A Digital SAT number box accepts a correctly
+ * grouped number, as it has since #496: `1,280` is right by value, and if the
+ * SAT's own no-comma entry rule is wanted it belongs at entry (the box
+ * declining the keystroke), never as a right value graded wrong. The
+ * assignment matcher (answerUtils), the Path grader (functions/lib/mathPath.js)
+ * and the teacher's Path simulation all ask it, and pass its answer to
+ * sameValue.
+ */
+export const fieldAcceptsThousandsSeparators = (field = {}) => {
+  if (field?.partialCredit === 'matchedElements') return false;
+  return ![
+    field?.equivalence,
+    field?.answerFormat,
+    field?.inputContract?.format,
+    field?.notation,
+    field?.inputMode,
+    field?.inputProfile,
+    field?.toolProfile,
+  ].some((value) => COMMA_SEPARATED_FORMATS.has(String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+};
+
+// #496 (main): the same rule inside sameValue, so every surface that compares
+// one number with sameValue reads the student's grouped number. Only the
+// STUDENT's side (left), only against a key that is one number with no comma,
+// and never across a comma followed by a space (a list). The grouping is the
+// strict one above (no leading zero: `0,500` is not 500). A caller that knows
+// its field is a list, a pair or a roster turns it off
+// (`sameValue(a, b, tolerance, { thousandsSeparators: false })`).
+const sameThousandsGroupedNumber = (student, key, tolerance) => {
+  const plain = withoutThousandsSeparators(student);
+  if (plain === null || normalizeAnswer(key).includes(',') || asNumber(key) === null) return false;
+  return sameNumber(plain, key, tolerance);
 };
 
 /** Parse interval notation only when a caller has declared interval semantics. */
@@ -1179,13 +1228,14 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6) => {
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true } = {}) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
   if (leftSet !== null || rightSet !== null) {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
   if (sameNumericPair(left, right, tolerance)) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;

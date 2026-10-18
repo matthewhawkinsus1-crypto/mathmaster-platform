@@ -29,6 +29,8 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -121,6 +123,7 @@ import {
   clearResumeAction,
   questionDraftSavedAt,
   readResumeAction,
+  reconcileFieldRecordDrafts,
   reconcileToolWorkspaceDrafts,
   removeAssignmentDrafts,
   restoreQuestionDrafts,
@@ -288,7 +291,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -839,6 +842,12 @@ function App() {
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // Unfinished work this device could not save, or the backup could not take
+  // (draftSaveHealth.js). Bumped on every change; the line below reads it.
+  const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
+  useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
+  // A shared Chromebook: the next student never inherits this one's notice.
+  useEffect(() => () => { clearDraftSaveProblems(); }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
@@ -3242,6 +3251,14 @@ function App() {
     if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
   }, [studentSaveSubject, studentSaveSubjectState]);
   const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  // Unfinished work on this assignment that is not being saved (Batch 3,
+  // draftSaveHealth.js), re-read whenever its health changes. While it
+  // stands, the line does not also say "Draft saved" (saveLineIsAboutDrafts).
+  const studentDraftSaveProblem = draftSaveHealthVersion >= 0
+    ? describeDraftSaveProblems(draftSaveProblemsFor({ studentId: user?.id, assignmentId: activeAssignmentId }))
+    : null;
+  const studentSaveLineShown = studentPersistenceStatus !== 'idle'
+    && !(studentDraftSaveProblem && saveLineIsAboutDrafts({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount }));
   // What the save line says aloud: only when the student must act.
   const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
     ? 'This change was not accepted because the assignment is no longer available.'
@@ -3965,6 +3982,10 @@ function App() {
       studentId: user.id,
       assignmentId: activeAssignmentId,
       classId: user.classId || null,
+      // The question's last submission, as the restore reads it: sent with
+      // answer-by-answer drafts so the server merge keeps a submitted attempt's
+      // draft out of the next attempt (workspaceDraftSchema.mjs `canonicalAt`).
+      canonicalSavedAt: (questionIndex) => canonicalResponseSavedAt(normalizeQuestionRecord(trackerRef.current?.[activeAssignmentId]?.[questionIndex])),
       // A save that gets through while the server's copy has never been read
       // means the connection came back without the page hearing of it (no
       // `online` event). Read it then, so this device shows work done on
@@ -3989,22 +4010,29 @@ function App() {
           serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+          // A deadline auto-submit is dated by when its work was captured,
+          // so the backup of that very work is not refused as older than
+          // its own submission (canonicalResponseTime.js).
+          const canonicalSavedAt = (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]));
           const restorable = selectRestorableDraftEntries({
             entries,
             localSavedAt: (key) => questionDraftSavedAt(key),
-            // A deadline auto-submit is dated by when its work was captured,
-            // so the backup of that very work is not refused as older than
-            // its own submission (canonicalResponseTime.js).
-            canonicalSavedAt: (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex])),
+            canonicalSavedAt,
           });
           // A tool workspace this device started from nothing — the student
           // touched it before this read landed — is settled against the
           // server's copy first: merged, so a newer copy is not then swapped
           // in over the student's edits, nor their partial copy kept over the
-          // server's whole one (reconcileToolWorkspaceDrafts).
-          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });
-          const restored = restoreQuestionDrafts(restorable);
-          if (restored || settled) {
+          // server's whole one (reconcileToolWorkspaceDrafts). Multi-answer,
+          // Step Algebra and composed-step drafts this device holds are
+          // settled answer by answer (reconcileFieldRecordDrafts) and are not
+          // then restored whole. Neither settle reads an entry older than the
+          // question's last submitted attempt: its fields are an older
+          // attempt's (PR #458 review).
+          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const fieldRecords = reconcileFieldRecordDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const restored = restoreQuestionDrafts(restorable.filter((entry) => !fieldRecords.keys.has(entry.key)));
+          if (restored || settled || fieldRecords.settled) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),
@@ -6884,7 +6912,9 @@ function App() {
   const familyDeliveriesRef = useRef(new Map());
   const handleFamilyDelivery = useCallback((delivery, renderedQuestion) => {
     if (!delivery?.slot || user?.role !== 'student' || !user?.id || isTeacherPreview) return;
-    writeLocalDeliveryPin({ studentId: user.id, delivery });
+    // A device pin the question dropped (`familyPinNotice`) is replaced by
+    // what was shown instead, so the next render cannot swap it again.
+    writeLocalDeliveryPin({ studentId: user.id, delivery, devicePinDropped: Boolean(renderedQuestion?.familyPinNotice) });
     familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
 
@@ -7208,10 +7238,15 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded anywhere, so nothing was submitted: no verdict,
+      // no try used, the question stays open with Submit (RUN-3). A `null`
+      // here used to read as "show the device's own verdict" — "Correct!",
+      // locked, and no Submit to press again. It is said once, by the
+      // question's own alert (SUBMISSION_NOT_QUEUED.message), where Submit is:
+      // no toast repeats it.
       console.error('Could not durably queue this response:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Response not queued', 'Your answer is still on screen. Keep this tab open and press Submit again.');
-      return null;
+      return SUBMISSION_NOT_QUEUED;
     }
 
     setTracker(updatedTracker);
@@ -10868,7 +10903,7 @@ function App() {
                 {studentSaveLineAnnouncement}
               </span>
             )}
-            {!preview && studentPersistenceStatus !== 'idle' && (
+            {!preview && studentSaveLineShown && (
               <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                 {/* A draft is "Draft saved"; only an answer the student sent
                     is ever "Answer recorded", and only once the server has it
@@ -10877,7 +10912,21 @@ function App() {
                   ? studentSaveLine
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
-                            : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+                            // The device queue could not be written: the last
+                            // change is on screen only (saveStatusModel.js).
+                            // Never "saved" — nothing was (RUN-3).
+                            : studentPersistenceStatus === 'volatile'
+                              ? 'Not saved · this device could not store your last change. Keep this tab open and try it again.'
+                              : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+              </p>
+            )}
+            {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
+                Storage full, a record the backup refuses, or a backup at its
+                caps: the student is told where the work is and what to do,
+                in one plain sentence, until it is saved again. */}
+            {!preview && studentDraftSaveProblem && (
+              <p role="alert" data-draft-save-problem={studentDraftSaveProblem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
+                {studentDraftSaveProblem.text}
               </p>
             )}
             {!preview && studentReportingError && (
@@ -11618,6 +11667,7 @@ function App() {
           outboxDepth: studentOutboxDepth,
           pendingGradeCount: studentPendingGradeCount,
           online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+          draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
         })}
         whatChangedPanel={renderWhatChangedPanel(true)}
         whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}

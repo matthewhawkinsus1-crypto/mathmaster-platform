@@ -9,9 +9,11 @@
  * anywhere said so — the student's work looked saved, the tests were green, and
  * the only symptom was a Chromebook swap that came back empty.
  *
- * This module is the signal. It never relaxes the guard and it never tells a
- * student anything: the local draft is still durable, and a student who cannot
- * act on "forbidden-key at cardChecks.a.isCorrect" should not be shown it.
+ * This module is the developer's signal. It never relaxes the guard and it
+ * never shows a student the detail: a student who cannot act on
+ * "forbidden-key at cardChecks.a.isCorrect" should not be shown it. What the
+ * student IS told — that this work is saved on this device only — is one plain
+ * sentence from draftSaveHealth.js (Batch 3), reported by the sync beside this.
  *
  *   DEVELOPMENT / TEST   `console.error` once per key + reason + path, naming
  *                        the path, the reason and the tool draft key, the

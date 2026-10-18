@@ -166,6 +166,15 @@ export const sanitizeWorkspaceDraftValue = (value) => {
  */
 const editMarker = (entry) => (entry?.savedAtIsEdit === true ? { savedAtIsEdit: true } : {});
 
+const decodeFieldEditedAt = (entry) => {
+  if (typeof entry?.fieldEditedAtJson !== 'string') return null;
+  try {
+    return normalizeFieldEditedAt(JSON.parse(entry.fieldEditedAtJson));
+  } catch {
+    return null;
+  }
+};
+
 /** Decode what was stored, dropping anything that no longer parses. */
 export const readWorkspaceDraftEntries = (document) => (
   (Array.isArray(document?.entries) ? document.entries : []).flatMap((entry) => {
@@ -176,6 +185,11 @@ export const readWorkspaceDraftEntries = (document) => (
         savedAt: Number(entry?.savedAt) || 0,
         // True only when the saving device said its time is an edit's.
         savedAtIsEdit: entry?.savedAtIsEdit === true,
+        // A field-record draft's per-answer edit times, or null (see above).
+        fieldEditedAt: decodeFieldEditedAt(entry),
+        fieldsFresh: entry?.fieldsFresh === true,
+        resetAt: Number(entry?.resetAt) > 0 ? Number(entry.resetAt) : 0,
+        canonicalAt: Number(entry?.canonicalAt) > 0 ? Number(entry.canonicalAt) : 0,
         // `Number(null)` is 0, and 0 is a real question index, so a guard that
         // only tests `Number.isInteger` turns a missing index into question
         // zero. Read nulls as nulls.
@@ -285,6 +299,396 @@ const mergeToolWorkspaceEntries = (current, incoming) => {
   return storableEntry({ ...newer, value });
 };
 
+/*
+ * ANSWERS KEPT FIELD BY FIELD: MULTI-ANSWER, STEP ALGEBRA, COMPOSED STEPS.
+ *
+ * Three drafts hold several answers in one record, and every write saves the
+ * whole record:
+ *
+ *   `…:multi-answer`        one value per answer box, by field id;
+ *   `…:workflow-responses`  one response per step of a composed question, by
+ *                           step id (several steps, often on two devices);
+ *   `…:step-algebra`        the equation and the steps that produced it, which
+ *                           belong together, and the typed prompt answers.
+ *
+ * Merged whole by edit time, a Chromebook that had not yet received the work
+ * (the question opens before the server copy is read, PQ-044) saved its
+ * student's first touch as the newest copy of EVERY answer in the record, and
+ * a second device editing step 2 replaced the step 1 the first device had just
+ * saved. The tool-workspace merge (`__fresh`, above) did not reach them.
+ *
+ * So each copy of such a draft says when each of its answers was last edited:
+ * `fieldEditedAt`, by answer (a "group": a field, a step, or — for Step
+ * Algebra — the whole equation-and-steps work, which can only be taken whole),
+ * in the device's envelope and in the server entry beside `savedAt`. A copy a
+ * device started from nothing — no copy of any kind there, not even a reset's
+ * tombstone — also says `fieldsFresh` until it has been settled against the
+ * server's copy. Two copies of one draft then merge answer by answer
+ * (`mergeFieldRecordCopies`):
+ *
+ *   - the answer edited later wins; an answer whose edit time is unknown (0:
+ *     shown as it opened, or written by an older build) never beats a known one;
+ *   - an answer only one copy holds is kept, unless the other copy removed it
+ *     later;
+ *   - Step Algebra's work begun on a fresh device yields to saved work: it was
+ *     done on the question's starting equation, not on the student's steps,
+ *     and the two cannot be laid over each other;
+ *   - a reset (a tombstone, `null`) keeps only the answers edited after it.
+ *
+ * A copy without `fieldEditedAt` (an older build, or one restored from an
+ * entry it saved) merges by the ordinary rule — newer whole — except against
+ * a fresh copy, which has nothing of its own to lose: the older copy's answers
+ * then count as edited at its `savedAt`. Older builds store and read these
+ * entries as before; they drop the new fields when they rewrite an entry,
+ * which then merges by the ordinary rule again.
+ */
+const FIELD_RECORD_DRAFT_KINDS = Object.freeze(['multi-answer', 'workflow-responses', 'step-algebra']);
+const FIELD_RECORD_KEY = /^mathmaster:draft:v2::(?:[^:]*:){5}(?:[^:]+:)*(multi-answer|workflow-responses|step-algebra)$/;
+
+/** 'multi-answer', 'workflow-responses' or 'step-algebra' for a draft kept field by field; otherwise null. */
+export const fieldRecordDraftKind = (key) => {
+  const text = String(key || '');
+  if (text.includes(':work:') || text.includes(':undo:')) return null;
+  const match = FIELD_RECORD_KEY.exec(text);
+  return match && FIELD_RECORD_DRAFT_KINDS.includes(match[1]) ? match[1] : null;
+};
+
+// Step Algebra: the typed prompt answers stand alone; everything else is the
+// work on the equation, taken whole. Only a change to what the student
+// committed — the equation, its steps, the answers typed into a step — dates
+// that work: arming a tile or typing an operand they have not applied does not.
+const STEP_ALGEBRA_WORK = 'work';
+const STEP_ALGEBRA_STANDALONE = Object.freeze(['promptAnswers']);
+const STEP_ALGEBRA_COMMITTED = Object.freeze(['equation', 'workSteps', 'simplificationAnswers', 'distributionState', 'crossedSides', 'cancelledPairIds']);
+
+/** The group a top-level field of a field-record draft belongs to. */
+const groupOfField = (kind, field) => (
+  kind === 'step-algebra' && !STEP_ALGEBRA_STANDALONE.includes(field) ? STEP_ALGEBRA_WORK : field
+);
+
+/** Groups that can only be taken whole from one copy, and yield to saved work when begun on a fresh device. */
+const isCoupledGroup = (kind, group) => kind === 'step-algebra' && group === STEP_ALGEBRA_WORK;
+
+const stableJson = (value) => {
+  try {
+    return JSON.stringify(value === undefined ? null : value);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Each group of a field-record value, with the signature that says whether
+ * it changed: Map(group -> { fields, signature }). Not a record: no groups.
+ */
+export const fieldRecordGroups = (kind, value) => {
+  const groups = new Map();
+  if (!kind || !isFieldRecord(value)) return groups;
+  Object.keys(value).forEach((field) => {
+    const group = groupOfField(kind, field);
+    if (!groups.has(group)) groups.set(group, { fields: [], signature: null });
+    groups.get(group).fields.push(field);
+  });
+  groups.forEach((entry, group) => {
+    entry.signature = isCoupledGroup(kind, group)
+      ? stableJson(Object.fromEntries(STEP_ALGEBRA_COMMITTED.map((field) => [field, value[field] ?? null])))
+      : stableJson(Object.fromEntries(entry.fields.map((field) => [field, value[field]])));
+  });
+  return groups;
+};
+
+const EMPTY_SIGNATURES = new Set(['null', '""', '[]', '{}']);
+const emptyGroupSignature = (kind, group, signature) => {
+  if (signature === null || signature === undefined) return true;
+  if (isCoupledGroup(kind, group)) return false;
+  // A single field `{ "id": <empty> }`.
+  try {
+    const parsed = JSON.parse(signature);
+    return Object.values(parsed).every((value) => EMPTY_SIGNATURES.has(stableJson(value)) || value === undefined);
+  } catch {
+    return false;
+  }
+};
+
+/*
+ * Field and step ids are the student's data's keys, and they can be anything a
+ * teacher named a box: "__proto__", "constructor", "toString". Every read and
+ * write of a per-answer map goes through these, so an id is always an own
+ * property — never the prototype, never an inherited function read as a time.
+ */
+const own = (record, key) => (record && Object.hasOwn(record, key) ? record[key] : undefined);
+const setOwn = (record, key, value) => {
+  Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true });
+};
+/*
+ * An answer's time is its edit time — or, NEGATIVE, an upper bound: "edited at
+ * or before this", for an answer an older build saved without one
+ * (adoptedFieldEditedAt). `rawTimeOf` keeps the sign; `timeOf` is the moment.
+ */
+const rawTimeOf = (times, group) => {
+  const time = Number(own(times, group));
+  return Number.isFinite(time) && time !== 0 ? time : 0;
+};
+const timeOf = (times, group) => Math.abs(rawTimeOf(times, group));
+
+/** A plain `{ group: editTime }` map (a negative time is an upper bound), dropping anything else. */
+export const normalizeFieldEditedAt = (value) => {
+  if (!isFieldRecord(value)) return null;
+  const out = {};
+  Object.keys(value).forEach((group) => {
+    const time = rawTimeOf(value, group);
+    if (time) setOwn(out, group, time);
+  });
+  return out;
+};
+
+/*
+ * THE RESET A COPY KNOWS ABOUT (`resetAt`).
+ *
+ * Start over writes a tombstone (null). Merged, the tombstone is gone — the
+ * next record replaces it — so a record written over a reset, and every merge
+ * that saw one, carries the reset's time. A copy that did not see the reset
+ * (resetAt older) keeps none of its answers dated at or before it, in every
+ * later merge, in any order, however often the same save is retried.
+ */
+export const resetTimeOf = (copy) => Math.max(
+  Number(copy?.resetAt) > 0 ? Number(copy.resetAt) : 0,
+  copy?.value === null && copy?.savedAtIsEdit === true ? Math.max(0, Number(copy?.savedAt) || 0) : 0,
+);
+
+/**
+ * The per-answer edit times of a copy a device takes in: its own, or — for a
+ * copy an older build saved, which has none — every non-empty answer dated at
+ * the copy's time, when that time is an edit's. Without it the answers of such
+ * a copy counted as never edited, and an older dated copy elsewhere won them
+ * back. An unmarked copy's time may be an opening's: its answers stay undated.
+ *
+ * The copy's time is only an upper bound for each answer in it (it may have
+ * been typed long before the copy's last save), so it is stored negative: such
+ * an answer loses to the other copy's answer when the other copy was saved
+ * after that bound — the rule an older build applied to the whole record,
+ * applied per answer — and an answer only this copy holds is still kept.
+ */
+export const adoptedFieldEditedAt = (kind, copy) => {
+  const times = normalizeFieldEditedAt(copy?.fieldEditedAt);
+  if (times) return times;
+  if (!kind || !isFieldRecord(copy?.value)) return null;
+  // Unmarked: it stays a copy without times, which merges by the ordinary rule.
+  const at = copy?.savedAtIsEdit === true ? Math.max(0, Number(copy?.savedAt) || 0) : 0;
+  if (!at) return null;
+  const out = {};
+  fieldRecordGroups(kind, copy.value).forEach((entry, group) => {
+    if (!emptyGroupSignature(kind, group, entry.signature)) setOwn(out, group, -at);
+  });
+  return out;
+};
+
+/**
+ * The edit times a write of `next` gives each group, from the copy it
+ * replaces (`previous`, with its `previousEditedAt`). An edit dates every
+ * group whose signature changed — including one it removed — except an empty
+ * answer where there was none; a write that is not an edit dates nothing.
+ */
+export const stampFieldRecordEdits = ({ kind, previous, previousEditedAt, next, edit, now }) => {
+  const times = normalizeFieldEditedAt(previousEditedAt) || {};
+  if (!kind || !edit || !isFieldRecord(next)) return times;
+  const before = fieldRecordGroups(kind, previous);
+  const after = fieldRecordGroups(kind, next);
+  new Set([...before.keys(), ...after.keys()]).forEach((group) => {
+    const was = before.get(group)?.signature;
+    const is = after.get(group)?.signature;
+    if (was === is) return;
+    if (was === undefined && emptyGroupSignature(kind, group, is)) return;
+    setOwn(times, group, now);
+  });
+  return times;
+};
+
+/**
+ * Two copies of one field-record draft, merged answer by answer — or null to
+ * apply the ordinary rule (the newer copy, whole).
+ *
+ * A copy: `{ value, savedAt, savedAtIsEdit, fieldEditedAt, fieldsFresh,
+ * resetAt }`. `canonicalAt` is the question's last submitted attempt, when
+ * known: two copies on either side of it never merge answer by answer — the
+ * earlier is the submitted attempt's draft, history, and the later copy wins
+ * whole, exactly as before this merge existed. `prefer` ('a' or 'b') breaks a
+ * tie no other rule decides: the server keeps the incoming write (the same
+ * device re-sending), a device keeps its own. The result is never fresh.
+ */
+export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt = 0 } = {}) => {
+  if (!kind || !a || !b) return null;
+  const aAt = Math.max(0, Number(a.savedAt) || 0);
+  const bAt = Math.max(0, Number(b.savedAt) || 0);
+  const submittedAt = Math.max(0, Number(canonicalAt) || 0);
+  const aRecord = isFieldRecord(a.value);
+  const bRecord = isFieldRecord(b.value);
+  const resetAt = Math.max(resetTimeOf(a), resetTimeOf(b));
+  const resetMarker = resetAt > 0 ? { resetAt } : {};
+
+  // Either side of a submission: the later copy, whole — still without any
+  // answer the latest reset removed, and remembering that reset for every
+  // later merge.
+  if (submittedAt > 0 && (aAt <= submittedAt) !== (bAt <= submittedAt)) {
+    const later = aAt > bAt ? a : b;
+    const laterTimes = normalizeFieldEditedAt(later.fieldEditedAt);
+    const cut = resetTimeOf(later) >= resetAt ? 0 : resetAt;
+    let value = later.value;
+    let fieldEditedAt = laterTimes;
+    if (cut && isFieldRecord(later.value) && laterTimes) {
+      value = {};
+      fieldEditedAt = {};
+      fieldRecordGroups(kind, later.value).forEach((entry, group) => {
+        const time = rawTimeOf(laterTimes, group);
+        if (Math.abs(time) <= cut) return;
+        entry.fields.forEach((field) => setOwn(value, field, own(later.value, field)));
+        setOwn(fieldEditedAt, group, time);
+      });
+    }
+    return {
+      value,
+      savedAt: Math.max(aAt, bAt),
+      savedAtIsEdit: later.savedAtIsEdit === true,
+      fieldEditedAt,
+      fieldsFresh: false,
+      ...resetMarker,
+    };
+  }
+
+  // A reset (null) and a record dated after it: only answers edited after the
+  // reset survive it — unless the record was begun on that reset, when all of
+  // its answers are after it. (A record dated before the reset is older.)
+  if (!aRecord || !bRecord) {
+    let record = null;
+    if (aRecord && b.value === null && b.savedAtIsEdit === true && aAt > bAt) record = a;
+    if (bRecord && a.value === null && a.savedAtIsEdit === true && bAt > aAt) record = b;
+    const recordTimes = record ? normalizeFieldEditedAt(record.fieldEditedAt) : null;
+    if (!record || !recordTimes) return null;
+    const cut = resetTimeOf(record) >= resetAt ? 0 : resetAt;
+    const kept = {};
+    const keptTimes = {};
+    fieldRecordGroups(kind, record.value).forEach((entry, group) => {
+      const time = rawTimeOf(recordTimes, group);
+      if (cut && Math.abs(time) <= cut) return;
+      entry.fields.forEach((field) => setOwn(kept, field, own(record.value, field)));
+      if (time) setOwn(keptTimes, group, time);
+    });
+    return {
+      value: kept,
+      savedAt: Math.max(aAt, bAt),
+      savedAtIsEdit: true,
+      fieldEditedAt: keptTimes,
+      fieldsFresh: false,
+      ...resetMarker,
+    };
+  }
+
+  // Both copies must say when their answers were edited — or one must be a
+  // fresh copy, which then counts the other's answers as edited at its time.
+  const legacyTimes = (copy, at) => {
+    const times = {};
+    fieldRecordGroups(kind, copy.value).forEach((_, group) => setOwn(times, group, at));
+    return times;
+  };
+  let aGroupTimes = normalizeFieldEditedAt(a.fieldEditedAt);
+  let bGroupTimes = normalizeFieldEditedAt(b.fieldEditedAt);
+  if (!aGroupTimes && bGroupTimes && b.fieldsFresh === true) aGroupTimes = legacyTimes(a, aAt);
+  if (!bGroupTimes && aGroupTimes && a.fieldsFresh === true) bGroupTimes = legacyTimes(b, bAt);
+  if (!aGroupTimes || !bGroupTimes) return null;
+
+  // A copy that did not see the latest reset keeps nothing dated at or before it.
+  const aCut = resetTimeOf(a) < resetAt ? resetAt : 0;
+  const bCut = resetTimeOf(b) < resetAt ? resetAt : 0;
+  const aGroups = fieldRecordGroups(kind, a.value);
+  const bGroups = fieldRecordGroups(kind, b.value);
+  const aFresh = a.fieldsFresh === true;
+  const bFresh = b.fieldsFresh === true;
+  const value = {};
+  const fieldEditedAt = {};
+  new Set([...aGroups.keys(), ...bGroups.keys(), ...Object.keys(aGroupTimes), ...Object.keys(bGroupTimes)]).forEach((group) => {
+    let rawA = rawTimeOf(aGroupTimes, group);
+    let rawB = rawTimeOf(bGroupTimes, group);
+    let inA = aGroups.has(group);
+    let inB = bGroups.has(group);
+    if (aCut && Math.abs(rawA) <= aCut) { rawA = 0; inA = false; }
+    if (bCut && Math.abs(rawB) <= bCut) { rawB = 0; inB = false; }
+    const ta = Math.abs(rawA);
+    const tb = Math.abs(rawB);
+    // An upper bound against the other copy: that answer was edited after the
+    // bound, or its copy was saved after it — then it is the newer one.
+    const aBounded = rawA < 0;
+    const bBounded = rawB < 0;
+    const boundedWinner = () => {
+      if (!(inA && inB) || (!aBounded && !bBounded)) return null;
+      if (aBounded && bBounded) return ta === tb ? null : (ta > tb ? 'a' : 'b');
+      if (aBounded) return tb > ta || bAt > ta ? 'b' : 'a';
+      return ta > tb || aAt > tb ? 'a' : 'b';
+    };
+    let winner;
+    if (!inA && !inB) winner = ta >= tb ? 'a' : 'b';
+    // A copy that lacks the answer and never removed it has nothing to say about it.
+    else if (inA && !inB && !tb) winner = 'a';
+    else if (inB && !inA && !ta) winner = 'b';
+    else if (isCoupledGroup(kind, group) && aFresh !== bFresh && (aFresh ? (inB && tb > 0) : (inA && ta > 0))) winner = aFresh ? 'b' : 'a';
+    else if (boundedWinner()) winner = boundedWinner();
+    else if (ta !== tb) winner = ta > tb ? 'a' : 'b';
+    // The same edit time, and one copy lacks the answer: that copy was written
+    // without editing it (a write-back), so the answer is kept.
+    else if (inA !== inB) winner = inA ? 'a' : 'b';
+    else if (aFresh !== bFresh) winner = aFresh ? 'b' : 'a';
+    else if (aAt !== bAt) winner = aAt > bAt ? 'a' : 'b';
+    else winner = prefer === 'a' ? 'a' : 'b';
+    const winnerHolds = winner === 'a' ? inA : inB;
+    if (winnerHolds) {
+      const source = winner === 'a' ? a.value : b.value;
+      const groups = winner === 'a' ? aGroups : bGroups;
+      groups.get(group).fields.forEach((field) => setOwn(value, field, own(source, field)));
+    }
+    // The winner's time, an upper bound staying one; with no bound, the later.
+    const time = aBounded || bBounded ? ((winner === 'a' ? rawA : rawB) || (winner === 'a' ? rawB : rawA)) : Math.max(ta, tb);
+    if (time) setOwn(fieldEditedAt, group, time);
+  });
+  const newer = aAt === bAt ? (prefer === 'a' ? a : b) : (aAt > bAt ? a : b);
+  return {
+    value,
+    savedAt: Math.max(aAt, bAt),
+    savedAtIsEdit: newer.savedAtIsEdit === true || a.savedAtIsEdit === true || b.savedAtIsEdit === true,
+    fieldEditedAt,
+    fieldsFresh: false,
+    ...resetMarker,
+  };
+};
+
+const decodeFieldRecordCopy = (entry) => {
+  let value;
+  try {
+    value = JSON.parse(entry.valueJson);
+  } catch {
+    return null;
+  }
+  return { ...entry, value, fieldEditedAt: decodeFieldEditedAt(entry) };
+};
+
+/**
+ * The stored entry two copies of one field-record draft become, or null to
+ * apply the ordinary rule. Either copy may say when the question was last
+ * submitted (`canonicalAt`); the later of the two applies.
+ */
+const mergeFieldRecordEntries = (kind, current, incoming) => {
+  const a = decodeFieldRecordCopy(current);
+  const b = decodeFieldRecordCopy(incoming);
+  if (!a || !b) return null;
+  const canonicalAt = Math.max(Number(current.canonicalAt) || 0, Number(incoming.canonicalAt) || 0);
+  const merged = mergeFieldRecordCopies({ kind, a, b, prefer: 'b', canonicalAt });
+  if (!merged) return null;
+  // Too big to store merged: a fresh copy holds only what one device touched
+  // before it read this one, so the copy already here is kept whole rather
+  // than replaced by it. Any other copy is newer whole, as for tool records.
+  if (!sanitizeWorkspaceDraftValue(merged.value).ok) return incoming.fieldsFresh === true ? current : null;
+  const { fieldEditedAtJson: _stale, fieldsFresh: _fresh, resetAt: _reset, ...rest } = incoming;
+  return storableEntry({ ...rest, ...merged, canonicalAt, savedAtIsEdit: merged.savedAtIsEdit });
+};
+
 /** Preview, secure Test Cycle and private Path work never reach this collection. */
 export const isSyncableDraftKey = (key) => {
   const text = String(key || '');
@@ -326,7 +730,37 @@ const storableEntry = (entry) => {
     // Absent rather than false when unmarked: a legacy entry and an unmarked
     // one are stored alike, because they mean the same thing.
     ...editMarker(entry),
+    // A field-record draft's per-answer edit times (above), as text for the
+    // same reason as the value: the keys are field and step ids.
+    ...fieldRecordMarkers(key, entry),
   };
+};
+
+/*
+ * `fieldEditedAt` travels as `fieldEditedAtJson` (and `fieldsFresh` only when
+ * true), for field-record drafts only. Absent on every other entry, so those
+ * are stored exactly as before.
+ */
+const positiveTime = (value) => (Number(value) > 0 && Number.isFinite(Number(value)) ? Number(value) : 0);
+const fieldRecordMarkers = (key, entry) => {
+  if (!fieldRecordDraftKind(key)) return {};
+  const markers = {};
+  let times = normalizeFieldEditedAt(entry?.fieldEditedAt);
+  if (!times && typeof entry?.fieldEditedAtJson === 'string') {
+    try { times = normalizeFieldEditedAt(JSON.parse(entry.fieldEditedAtJson)); } catch { times = null; }
+  }
+  const json = times ? stableJson(times) : null;
+  if (json && json.length <= MAX_WORKSPACE_DRAFT_VALUE_BYTES) {
+    markers.fieldEditedAtJson = json;
+    if (entry?.fieldsFresh === true) markers.fieldsFresh = true;
+  }
+  // The latest reset this copy saw, and the question's last submission as the
+  // saving device knew it (mergeFieldRecordCopies).
+  const resetAt = positiveTime(entry?.resetAt);
+  if (resetAt) markers.resetAt = resetAt;
+  const canonicalAt = positiveTime(entry?.canonicalAt);
+  if (canonicalAt) markers.canonicalAt = canonicalAt;
+  return markers;
 };
 
 const normalizeResume = (resume) => (resume
@@ -391,8 +825,16 @@ export const buildWorkspaceDraftPatch = ({
  * Resume uses its own `updatedAt` for the same reason. Practice is merged per
  * question instead (see below).
  */
-export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => {
-  if (!patch) return existing;
+export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => (
+  patch ? mergeWorkspaceDraftDocumentReport({ existing, patch }).document : existing
+);
+
+/**
+ * The merged document, and the keys the caps left out of it (`droppedKeys`).
+ * The document is exactly what mergeWorkspaceDraftDocument stores.
+ */
+export const mergeWorkspaceDraftDocumentReport = ({ existing = null, patch } = {}) => {
+  if (!patch) return { document: existing, droppedKeys: [] };
   const byKey = new Map();
   (Array.isArray(existing?.entries) ? existing.entries : []).forEach((entry) => {
     const stored = storableEntry(entry);
@@ -400,25 +842,40 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
   });
   patch.entries.forEach((entry) => {
     const current = byKey.get(entry.key);
-    // A tool workspace a device started from nothing is merged (above).
-    const merged = current && isToolWorkspaceDraftKey(entry.key) ? mergeToolWorkspaceEntries(current, entry) : null;
+    // A tool workspace a device started from nothing is merged (above), and
+    // a field-record draft is merged answer by answer (above).
+    const fieldKind = fieldRecordDraftKind(entry.key);
+    const merged = !current
+      ? null
+      : isToolWorkspaceDraftKey(entry.key)
+        ? mergeToolWorkspaceEntries(current, entry)
+        : fieldKind ? mergeFieldRecordEntries(fieldKind, current, entry) : null;
     if (merged) {
       byKey.set(entry.key, merged);
       return;
     }
     // Ties go to the incoming write: it is the same device re-sending.
     if (current && current.savedAt > entry.savedAt) return;
-    byKey.set(entry.key, entry);
+    // A field-record entry replaced whole still remembers the latest submission
+    // either copy knew of, so a later merge can tell history from new work.
+    const knownCanonical = fieldKind && current ? Math.max(Number(current.canonicalAt) || 0, Number(entry.canonicalAt) || 0) : 0;
+    byKey.set(entry.key, knownCanonical ? { ...entry, canonicalAt: knownCanonical } : entry);
   });
 
-  // Bounded: newest work is kept when the caps are reached.
+  // Bounded: newest work is kept when the caps are reached. What does not fit
+  // is still on the device that saved it, but no longer reaches another one —
+  // so it is named (`droppedKeys`), and the student is told (App.jsx).
   const ordered = [...byKey.values()].sort((left, right) => right.savedAt - left.savedAt);
   const accepted = [];
+  const droppedKeys = [];
   let total = 0;
   for (const entry of ordered) {
-    if (accepted.length >= MAX_WORKSPACE_DRAFT_ENTRIES) break;
-    if (total + entry.valueJson.length > MAX_WORKSPACE_DOCUMENT_BYTES) break;
-    total += entry.valueJson.length;
+    const bytes = entry.valueJson.length + (entry.fieldEditedAtJson?.length || 0);
+    if (accepted.length >= MAX_WORKSPACE_DRAFT_ENTRIES || total + bytes > MAX_WORKSPACE_DOCUMENT_BYTES) {
+      droppedKeys.push(entry.key);
+      continue;
+    }
+    total += bytes;
     accepted.push(entry);
   }
 
@@ -445,7 +902,7 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
   const practice = incomingPractice ? mergePracticeTrackers(existingPractice || {}, incomingPractice) : existingPractice;
   const practiceChanged = incomingPractice !== null && !samePracticeProgress(existingPractice || {}, practice);
 
-  return {
+  return { droppedKeys, document: {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
     documentId: patch.documentId,
     studentId: patch.studentId,
@@ -462,7 +919,7 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
     practiceUpdatedAt: practiceChanged
       ? Math.max(existingPracticeUpdatedAt, Math.max(0, Number(patch.practiceUpdatedAt) || 0))
       : existingPracticeUpdatedAt,
-  };
+  } };
 };
 
 /**

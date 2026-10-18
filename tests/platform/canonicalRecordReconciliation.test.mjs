@@ -196,9 +196,13 @@ test('the student\'s live grade listener adopts the server\'s records ahead of t
 });
 
 test('both draft readers date the recorded answer the same way', () => {
-  const restore = region(appCode, 'const restorable = selectRestorableDraftEntries({', '});', 'the server draft restore');
-  assert.match(restore, /canonicalSavedAt: \(entry\) => canonicalResponseSavedAt\(normalizeQuestionRecord\(assignmentGrades\[entry\?\.questionIndex\]\)\)/);
-  assert.doesNotMatch(restore, /lastAttemptAt/);
+  // One reader for the server draft read: the restore and both settles take
+  // the same `canonicalSavedAt` (Batch 3 named it once, for all three).
+  const read = region(appCode, 'const readServerCopy = () => {', '.catch((error) => {', 'the server draft read');
+  assert.match(read, /const canonicalSavedAt = \(entry\) => canonicalResponseSavedAt\(normalizeQuestionRecord\(assignmentGrades\[entry\?\.questionIndex\]\)\);/);
+  const restore = region(read, 'const restorable = selectRestorableDraftEntries({', '});', 'the server draft restore');
+  assert.match(restore, /\n\s*canonicalSavedAt,\n/);
+  assert.doesNotMatch(read, /lastAttemptAt/);
   assert.match(engineCode, /const canonicalAnswerSavedAt = canonicalResponseSavedAt\(record\);/);
   assert.match(engineCode, /<ToolDraftScopeProvider draftKey=\{draftKey\} canonicalSavedAt=\{canonicalAnswerSavedAt\}>/);
   assert.match(engineCode, /canonicalSavedAt=\{canonicalAnswerSavedAt\}\n\s*showPrompt=\{false\}/, 'composed questions (WorkflowRunner) too');

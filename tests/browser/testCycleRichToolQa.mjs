@@ -337,9 +337,21 @@ const audit = async (page, { label, prompt, phoneClaimed, device }) => {
   return result;
 };
 
+// The item on the student's screen, and its draft. Since a secure test is
+// navigable (functions/lib/secureExamNavigation.js) the session keeps only the
+// order and the cursor; the open item and its draft are server-only documents
+// in examSessions/{id}/items/{instanceId} (secureExamItems.js), and
+// `currentQuestion` is null. A session from before navigation still holds it.
 const currentItem = async (examSessionId) => {
-  const session = (await db.collection('examSessions').doc(examSessionId).get()).data();
-  return { session, current: readStoredItem(session?.currentQuestion || null) };
+  const sessionRef = db.collection('examSessions').doc(examSessionId);
+  const session = (await sessionRef.get()).data();
+  const navigation = session?.navigation;
+  const instanceId = Array.isArray(navigation?.itemOrder) ? navigation.itemOrder[Number(navigation.cursor) || 0] : null;
+  if (!instanceId) {
+    return { session, current: readStoredItem(session?.currentQuestion || null), draftResponse: session?.currentQuestion?.draftResponse || null };
+  }
+  const stored = (await sessionRef.collection('items').doc(instanceId).get()).data();
+  return { session, current: stored?.item ? readStoredItem(stored.item) : null, draftResponse: stored?.draftResponse || null };
 };
 
 /**
@@ -492,13 +504,14 @@ try {
             // eslint-disable-next-line no-await-in-loop
             const deviceKeys = await page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.startsWith('mm-secure-work:exam:')).length);
             // eslint-disable-next-line no-await-in-loop
-            const stored = (await currentItem(examSessionId)).session.currentQuestion?.draftResponse?.responsePayload || {};
+            const stored = (await currentItem(examSessionId)).draftResponse?.responsePayload || {};
             check(deviceKeys > 0 || Boolean(stored.rawJson), `${label}: the work is kept on the device or the server`, `device keys ${deviceKeys}, server raw ${Boolean(stored.rawJson)}, server drafts ${Boolean(stored.workspaceDraftsJson)}`);
             // eslint-disable-next-line no-await-in-loop
             await shot(page, `${toolId}-${device}-${theme}-worked`);
 
             // RELOAD → the same item, the work kept.
-            const before = current.questionInstanceId;
+            const before = current?.questionInstanceId || null;
+            check(Boolean(before), `${label}: the item on screen is read back from the server`, String(before));
             // eslint-disable-next-line no-await-in-loop
             await page.reload();
             // eslint-disable-next-line no-await-in-loop
@@ -516,11 +529,15 @@ try {
               // eslint-disable-next-line no-await-in-loop
               log('DEBUG after reload', JSON.stringify(await page.evaluate(() => (window.__mmBridgeCalls || []).map((entry) => [entry.name, entry.ok, entry.payload?.responsePayload ? Object.keys(entry.payload.responsePayload) : null, JSON.stringify(entry.payload?.responsePayload?.raw || null).slice(0, 160)]))));
             }
-            // SUBMIT → the autosaved construction is recorded.
+            // SUBMIT → the autosaved construction is recorded. A navigable
+            // test submits from its review page (SecureExamSubmitReview), the
+            // way secureExamNavigation.mjs does it.
+            // eslint-disable-next-line no-await-in-loop
+            await page.locator('[data-secure-nav="review"]').click();
+            // eslint-disable-next-line no-await-in-loop
+            await page.waitForSelector('[data-secure-review="submit"]');
             // eslint-disable-next-line no-await-in-loop
             await page.getByRole('button', { name: 'Submit test' }).click();
-            // eslint-disable-next-line no-await-in-loop
-            await page.getByRole('alertdialog').getByRole('button', { name: 'Submit test' }).click();
             // eslint-disable-next-line no-await-in-loop
             await page.getByRole('heading', { name: 'Test submitted' }).waitFor({ timeout: 30_000 });
             // eslint-disable-next-line no-await-in-loop

@@ -55,6 +55,11 @@ export const buildFieldGradingDefinition = (question = {}) => {
       ? String(field.equivalence)
       : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
         .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
+    // The field's answer kind, as functions/lib/mathPath.js stores it, so a
+    // list or a pair is never read as one grouped number.
+    ...Object.fromEntries(['inputProfile', 'answerFormat', 'notation', 'toolProfile']
+      .filter((key) => typeof field?.[key] === 'string' && field[key].trim())
+      .map((key) => [key, field[key].trim()])),
   }));
   return { ...explicit, fields };
 };
