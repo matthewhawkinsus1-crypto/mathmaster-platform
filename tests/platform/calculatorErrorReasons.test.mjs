@@ -54,3 +54,24 @@ test('the screen shows the reason under "Error", and the announcement says the s
   });
   assert.match(panel, /\{display === 'Error' && errorText \? \(\s*\/\/[^\n]*\n\s*<p data-calculator-error=""[^>]*>\s*\{errorText\}\s*<\/p>/);
 });
+
+test('a key typed after Clear replaces the placeholder 0, so (2+3 is 5, not 0(2+3) = 0', async () => {
+  const { typedKeyReplacesPlaceholder } = await import('../../src/components/calculatorKeys.js');
+  const typed = (key, extra = {}) => ({ key, isComposing: false, ctrlKey: false, metaKey: false, altKey: false, ...extra });
+  assert.equal(typedKeyReplacesPlaceholder(typed('('), { value: '0', placeholderShown: true }), true, 'the panel\'s own 0');
+  assert.equal(typedKeyReplacesPlaceholder(typed('5'), { value: 'Error', placeholderShown: false }), true, 'Error');
+  assert.equal(typedKeyReplacesPlaceholder(typed('.'), { value: '0', placeholderShown: false }), false, 'a 0 the student typed stays (0.5)');
+  assert.equal(typedKeyReplacesPlaceholder(typed('Enter'), { value: '0', placeholderShown: true }), false, 'Enter evaluates, it types nothing');
+  assert.equal(typedKeyReplacesPlaceholder(typed('Backspace'), { value: '0', placeholderShown: true }), false);
+  assert.equal(typedKeyReplacesPlaceholder(typed('c', { ctrlKey: true }), { value: '0', placeholderShown: true }), false, 'a shortcut');
+  assert.equal(typedKeyReplacesPlaceholder(typed('2'), { value: '42', placeholderShown: false }), false, 'a result keeps going');
+  // Wiring: checked before MathLive inserts the key (capture, registered before
+  // the typed-fraction step), the panel's 0 marks the placeholder, and input clears it.
+  const panel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
+  const listeners = region(panel, "mathField.addEventListener('input', handleInput);", "mathField.addEventListener('pointerdown'", 'listeners');
+  assert.ok(listeners.indexOf("addEventListener('keydown', replacePlaceholder, { capture: true })") > -1
+    && listeners.indexOf("addEventListener('keydown', replacePlaceholder, { capture: true })") < listeners.indexOf("addEventListener('keydown', leaveTypedFraction"));
+  assert.match(region(panel, 'const replacePlaceholder = (event) => {', '};', 'replacePlaceholder'), /if \(!typedKeyReplacesPlaceholder\(event, \{ value: mathField\.value, placeholderShown: placeholderShownRef\.current \}\)\) return;\s*mathField\.value = '';/);
+  assert.match(region(panel, 'const setCalculatorValue = useCallback(', '}, []);', 'setCalculatorValue'), /placeholderShownRef\.current = next === '0';/);
+  assert.match(region(panel, 'const handleInput = () => {', '};', 'handleInput'), /placeholderShownRef\.current = false;/);
+});

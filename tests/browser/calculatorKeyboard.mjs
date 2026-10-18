@@ -68,6 +68,23 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.type('2+3');
   await page.locator(`${PANEL} button[aria-label="Equals"]`).click();
   await page.waitForFunction((s) => document.querySelector(s)?.textContent?.trim() === 'equals 5' || document.querySelector(s)?.textContent?.replace(/ /g, '').trim() === 'equals 5', `${PANEL} [data-calculator-result-announcement]`);
+  // After Clear the field shows "0". A key typed on the keyboard replaces it,
+  // as the keypad does: "(2+3" is (2+3) = 5, never 0(2+3) = 0.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('(2+3');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((s) => /equals|could|read|bracket/.test(document.querySelector(s)?.textContent || ''), `${PANEL} [data-calculator-result-announcement]`);
+  assert.equal(await announcement(), 'equals 5', `${at}: typing after Clear replaces the 0`);
+  // What the calculator could not read is shown under "Error" and said (TOOL-8).
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2+3=5');
+  await page.keyboard.press('Enter');
+  await page.locator(`${PANEL} [data-calculator-error]`).waitFor();
+  const unreadable = 'It could not read “=”. Use numbers, + − × ÷, brackets and the function keys.';
+  assert.equal((await page.locator(`${PANEL} [data-calculator-error]`).textContent()).trim(), unreadable, `${at}: the reason is shown`);
+  assert.equal(await announcement(), unreadable, `${at}: and said`);
   for (const control of ['Close calculator', 'Move calculator']) {
     const box = await page.locator(`${PANEL} [aria-label="${control}"]`).boundingBox();
     assert.ok(box.width >= 44 && box.height >= 44, `${at}: ${control} is a 44px target (${box.width}×${box.height})`);

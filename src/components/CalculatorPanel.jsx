@@ -10,7 +10,7 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
-import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement } from './calculatorKeys.js';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, typedKeyReplacesPlaceholder } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -77,6 +77,10 @@ export const CalculatorPanel = ({
   // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
   // 6/3+1 is (6/3) + 1 = 3, not 6/(3 + 1) = 1.5.
   const typedFractionRef = useRef(null);
+  // True while the field shows only the panel's own "0" (on opening, after
+  // Clear) or "Error". The keypad already replaces it; a typed key now does
+  // too, so "(2+3" after Clear is (2+3), not 0(2+3) = 0.
+  const placeholderShownRef = useRef(true);
 
   useEffect(() => {
     setEstimate('');
@@ -105,6 +109,7 @@ export const CalculatorPanel = ({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
+      placeholderShownRef.current = false;
       typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
       setDisplay(mathField.value || '0');
     };
@@ -112,6 +117,13 @@ export const CalculatorPanel = ({
       const step = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
       typedFractionRef.current = step.state;
       if (step.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    };
+    // Before MathLive inserts the key: a typed character replaces the
+    // placeholder "0" or "Error" instead of following it.
+    const replacePlaceholder = (event) => {
+      if (!typedKeyReplacesPlaceholder(event, { value: mathField.value, placeholderShown: placeholderShownRef.current })) return;
+      mathField.value = '';
+      placeholderShownRef.current = false;
     };
     const forgetTypedFraction = () => { typedFractionRef.current = null; };
     const handleKeyDown = (event) => {
@@ -146,12 +158,14 @@ export const CalculatorPanel = ({
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
     // Capture, so the cursor leaves the fraction before MathLive inserts the key.
+    mathField.addEventListener('keydown', replacePlaceholder, { capture: true });
     mathField.addEventListener('keydown', leaveTypedFraction, { capture: true });
     mathField.addEventListener('keydown', handleKeyDown);
     mathField.addEventListener('pointerdown', forgetTypedFraction);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', replacePlaceholder, { capture: true });
       mathField.removeEventListener('keydown', leaveTypedFraction, { capture: true });
       mathField.removeEventListener('keydown', handleKeyDown);
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
@@ -295,6 +309,7 @@ export const CalculatorPanel = ({
 
   const setCalculatorValue = useCallback((value) => {
     const next = String(value ?? '0');
+    placeholderShownRef.current = next === '0';
     divisionPendingRef.current = false;
     typedFractionRef.current = null;
     setDisplay(next);

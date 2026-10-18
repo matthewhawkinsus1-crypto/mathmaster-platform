@@ -19,6 +19,24 @@ test before release (D2), and the proof is listed for each item.
 | HELP-22 (P2) | "Check my points": "(3, 4) — 2 units below the function". That is the correction itself, it could be pressed without limit, it sat beside a second button "Check Point Placements", and it was 11–12 px. | `graphSelfCheck.js` `describeVerticalMiss` says which way and what to work out, never how far: **"too high — find f(3) and compare"** / **"too low — …"**. The distance is no longer carried in the report. **One check:** where outcomes are shown, "Check Point Placements" does both. A miss keeps its free "Revise: …" line and, where hints are allowed, also lists each off point's direction. That is charged as a hint **only when a point is off**, and the cost is said beside the button before the press: "If a point is off, the check says which way. This counts as a hint. …". A correct check is free and commits as before. The separate "Check my points" button remains only where outcomes are withheld (the case where there is no "Check Point Placements"). On a DOL, quiz or test hints are off, so neither appears. The report, cost notes and both buttons are body size (16 px) with a 44 px minimum target. | `graphSelfCheck` (rewritten and new): direction text with no distance in it; checkPoints computes directions only on a miss, only where hints and outcomes are allowed; it charges only when a point is off; there is exactly one "Check my points" control, inside the withheld branch; the report and notes are 16 px. `learnFromTheMistakeHints` region rebound to the withheld branch, plus the merged cost note. Mutations: distance back in the text → red; charge on every check → red; standalone button shown everywhere → red; report at 11 px → red. Browser (`graphPointCheck` harness, real QuestionEngine) at 1366 and 390. Practice: one button, report "(2, 4) — too low — find f(2) and compare" at 16 px with the cost note. DOL: no check, no report, no note. `graphPointCheck`, `graphKeyboardRoute`, `relationPlotGrading` and the composed drivers pass. |
 | TOOL-8 remainder | The calculator showed a bare "Error". Only a screen reader heard more, and only "The calculator could not work that out." | `calculatorExpression.js` refusals carry a `reason` and the `detail` it could not read. Thrown messages and every result are unchanged. `calculatorKeys.js` `calculatorErrorMessage`: "It could not read “=”. Use numbers, + − × ÷, brackets and the function keys.", "It could not read “abc”. …", "A bracket is not closed. Add the missing “)”.", "A “)” has no “(” to match it.", "That has no number answer. Check for dividing by 0.", "It could not read that. Check for a missing number, or two signs side by side.", "This calculator does not have that key on this question.", "Type a calculation first.", "That calculation is too long. …". The panel shows the sentence under "Error" (`data-calculator-error`) while the display still holds it, and the polite result region says the same words. Both Enter and "=" do this. | `calculatorErrorReasons` (new): every reason through the real evaluator; the thrown text is unchanged; Enter and "=" both set and say it; the line is shown only beside "Error". Mutations: one handler's `setErrorText` dropped → red; the line never rendered → red; the reason dropped → red; the bracket diagnosis dropped → red. Browser (work-bar calculator, 1366 and 390): `2+3)`, `2+3=5`, `1/0` each show and announce their sentence. `calculatorKeyboard` passes. |
 
+### Found while proving TOOL-8, then fixed: typing after Clear (integrator's request)
+
+- **Seen on `e822504`** (work-bar calculator, 1366×768): the field shows "0" when it opens and after Clear. The keypad
+  replaced it, but a key typed on a keyboard landed after it. Opening and typing `7` gave `07` (harmless). After Clear,
+  typing `(2+3` and Enter gave `0(2+3)` and "**equals 0**", a wrong number.
+- **Changed:** `calculatorKeys.js` `typedKeyReplacesPlaceholder` decides when a printable key (no Ctrl/Meta/Alt, not
+  composing) replaces the placeholder: the panel's own "0" (tracked by `placeholderShownRef`, set when the panel writes
+  "0", cleared on any input, so a 0 the student typed stays: `0.5`), or "Error". `CalculatorPanel.jsx` checks it in a
+  capture keydown listener registered before the typed-fraction step. That is the same rule the keypad applies in
+  `insertCalculatorCommand`. Results, Enter, Backspace and shortcuts are unchanged.
+- **Proof:** `calculatorErrorReasons` (the rule and its wiring). Mutations: listener removed → red; any "0" replaced →
+  red; the panel's "0" not marked → red. `calculatorKeyboard` (browser, both sizes) now presses Clear, types `(2+3`,
+  Enter, and requires "equals 5". It also checks that the TOOL-8 reason is shown and said. That driver passes on this
+  branch and **fails on `e822504`** at "typing after Clear replaces the 0". `test:platform` calculator files 86/86,
+  lint 0, build and build:firebase 0.
+- W5-7's `claude/pass3-calculator-setting` was not on origin when this was done (fetch: no such ref). The change is
+  limited to the keydown path and `setCalculatorValue`.
+
 ## Item 5: survey of other generic refusals (nothing fixed)
 
 These are tools or surfaces where the student gets a generic line while the grader already knows something more
@@ -110,8 +128,6 @@ part is correct, which is a wording issue.
 ## Not done
 
 - Survey rows 1–7 (item 5 is survey only).
-- Found while checking the calculator, pre-existing and not fixed: after **Clear** the display holds "0" and typed keys
-  go after it, so typing `(2+3` then Enter gives `0(2+3)` = 0 ("equals 0").
 - No form-aware reason for `equationInput` stages in composed workflows (`acceptEquivalentFunctionRule` already
   accepts any form there unless a form is asked for). Their stage `detail` is survey row 1.
 - The first-load budget fails on the base and on this branch (above). The fix belongs to W5-1.

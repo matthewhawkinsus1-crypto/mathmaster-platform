@@ -79,3 +79,18 @@ export const calculatorResultAnnouncement = ({ decimal = null, fraction = null, 
   const said = spokenMathLabel(value);
   return fraction ? `equals ${said}, exactly ${spokenMathLabel(String(fraction))}` : `equals ${said}`;
 };
+
+/*
+ * A TYPED KEY AFTER CLEAR (found in student pass 3, W5-4). The field shows "0"
+ * when it opens and after Clear, and "Error" after a refusal. The keypad
+ * replaces either; a key typed on a keyboard used to land after it, so
+ * "(2+3" became 0(2+3) and Enter said "equals 0". A printable key replaces
+ * the placeholder "0" (only while it is still the panel's own, never a 0 the
+ * student typed) and any "Error".
+ */
+export const typedKeyReplacesPlaceholder = (event = {}, { value = '', placeholderShown = false } = {}) => {
+  if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false;
+  if (typeof event.key !== 'string' || event.key.length !== 1) return false;
+  if (value === 'Error') return true;
+  return value === '0' && placeholderShown === true;
+};
