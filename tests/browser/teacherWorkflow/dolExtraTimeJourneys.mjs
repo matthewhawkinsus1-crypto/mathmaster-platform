@@ -29,6 +29,10 @@
 //       student is on their open exit ticket: no lobby invite on the DOL — no
 //       banner, no phone chip, nothing said — so nothing offers to leave a DOL
 //       whose clock runs. The same student in Classwork does get the invite.
+//   X6  (NAV-24 review B2) the classmate's device cannot save drafts (every
+//       mathmaster:draft* write throws QuotaExceededError) during pack-up:
+//       the line never says "your work is saved" (data-pack-up-notice is not
+//       "saved") while Batch 3 says the work is not being saved.
 //   X3  the teacher's Live view lists the students still working with extra
 //       time on the DOL — 910001 among them — counting down to the last close.
 //
@@ -192,6 +196,31 @@ const run = async (viewport) => {
     expect(`X4 ${tag} scrolled ${scrolled}`, /Finish up — your work is saved\./.test(layout.text), `the line reads "${layout.text}"`);
     expect(`X4 ${tag} scrolled ${scrolled}`, layout.navTop >= layout.noticeBottom - 1, `the navigator (top ${layout.navTop}) is under the pack-up line (bottom ${layout.noticeBottom})`);
     expect(`X4 ${tag} scrolled ${scrolled}`, layout.controls > 0 && layout.covered.length === 0, `covered navigator controls: ${layout.covered.join(', ')}`);
+  }
+  // X6 — drafts cannot be saved on this device during pack-up.
+  await context.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (String(key).startsWith('mathmaster:draft')) throw new DOMException('quota', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  const field = page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).first();
+  if (expect(`X6 ${tag}`, await field.count(), 'no answer field in Classwork to type into')) {
+    await field.click();
+    await page.keyboard.type('12');
+    await page.waitForTimeout(2500);
+    const quota = await page.evaluate(() => ({
+      kind: document.querySelector('[data-pack-up-notice]')?.getAttribute('data-pack-up-notice') || null,
+      text: document.querySelector('[data-pack-up-notice]')?.innerText.replace(/\s+/g, ' ') || '',
+      notSaving: /not being saved/i.test(document.body.innerText),
+    }));
+    expect(`X6 ${tag}`, quota.kind && quota.kind !== 'saved', `the pack-up line says the work is saved while drafts cannot be: ${JSON.stringify(quota)}`);
+    expect(`X6 ${tag}`, !/your work is saved/.test(quota.text), `the pack-up line reads "${quota.text}"`);
+    if (!quota.notSaving) console.log(`  note X6 ${tag}: no "not being saved" alert on screen (${quota.kind})`);
   }
   expect(`errors ${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);
   passed.push(tag);
