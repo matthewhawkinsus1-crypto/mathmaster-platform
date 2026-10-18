@@ -1844,6 +1844,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             </div>
             <button
               type="button"
+              data-work-view-check="true"
               onClick={handleSubmit}
               disabled={questionTerminal}
               style={{ ...primaryButton, minHeight: 48, padding: '10px 22px', fontSize: 'calc(16 * var(--mm-px))', opacity: questionTerminal ? 0.6 : 1 }}

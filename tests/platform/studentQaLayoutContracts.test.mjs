@@ -48,7 +48,8 @@ test('the mobile assignment screen leaves room for the identity bar above it', (
 
   const bar = read('src/components/student/StudentIdentityBar.jsx');
   assert.match(bar, /export const STUDENT_IDENTITY_STACK_OFFSET = '--mm-student-identity-stack-offset'/);
-  assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight\}px`\)/);
+  // The bar's height, with the pack-up line's when it shows (NAV-24).
+  assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
 });
 
 // Desktop QA review: un-scoped html, body scroll padding applied globally across

@@ -150,12 +150,12 @@ test('NAV-3: App imports the module and runs it on every student screen-key chan
   assert.match(effect, /if \(previous && previous !== currentStudentScreenKey\) \{\s*pendingStudentScreenRef\.current = \{ key: currentStudentScreenKey/);
   assert.match(effect, /screenChangeMovesFocus\(pending\.key\) \? focusScreenHeading\(document\) : true/);
   assert.match(effect, /setStudentScreenAnnouncement\(screenAnnouncement\(documentTitleRef\.current\)\);/);
-  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  );');
+  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
   assert.match(shell, /role="status" aria-live="polite"[^>]*data-screen-announcement[^>]*>\s*\{studentScreenAnnouncement\}/);
 });
 
 test('NAV-15: the shell gives a screen with no main of its own one main, and never a second to a screen that has one', () => {
-  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  );');
+  const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
   assert.match(shell, /\{main \? \(\s*(?:\/\/[^\n]*\n\s*)?<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\}/);
   assert.match(app, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
   // Wrapped by the shell: Home, Assignments, Grades, Rewards, Live Challenge, Test Cycle, Recovery.

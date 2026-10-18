@@ -296,6 +296,11 @@ import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRai
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
+import { whenDateTimeText } from './platform/student/studentWhen.js';
+import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
+import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
+import { classroomAnnouncement, classroomAnnouncementState } from './platform/student/classroomAnnouncements.js';
+import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
   readRouteOwner,
   readStudentRouteState,
@@ -492,6 +497,7 @@ import {
   WARMUP_CHALLENGE_ROUTE,
   resolveWarmupChallenge,
   shouldShowChallengeHandoffBanner,
+  shouldShowChallengeLobbyInvite,
   shouldShowWarmupWaitingPanel,
 } from './platform/liveChallenge/warmupChallengeLink.js';
 // The administrator identity comes from the same module the callables enforce,
@@ -1046,6 +1052,8 @@ function App() {
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
+  // Where a student joined the Live Challenge from, to go back to (NAV-25).
+  const [liveChallengeReturn, setLiveChallengeReturn] = useState(null);
   // Which Test Cycle the student has open. One id, because a student is in one
   // assessment at a time and the card asks the server for everything else.
   const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
@@ -1843,6 +1851,9 @@ function App() {
       } else {
         startAssignment(target.assignmentId, target.questionIndex, {
           sectionKey: target.isSectionLaunch ? target.sectionKey : null,
+          // The section the post named: if it is not open yet, the student
+          // is told why they landed elsewhere (NAV-22).
+          launchedSectionKey: target.sectionKey || null,
         });
       }
     } catch (error) {
@@ -5955,7 +5966,7 @@ function App() {
       landOnResult(describeOpenNotice({
         kind: OPEN_NOTICE.PREREQUISITE,
         prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
-        opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '',
+        opensAtText: whenDateTimeText(assignmentData.releaseAt),
       }));
       return;
     }
@@ -5964,7 +5975,7 @@ function App() {
     });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
       if (user?.role === 'student') {
-        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '' }));
+        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: whenDateTimeText(assignmentData.releaseAt) }));
       } else {
         toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
       }
@@ -6118,7 +6129,28 @@ function App() {
       }
       if (options?.keepRequestedQuestion && actionableIndex !== safeQuestionIndex) {
         // A question's address names a question whose section is not open now.
-        toastInfo('That question is not open right now', 'It opened where you can work now.');
+        // Said once the workspace is on screen, not over Home (review S2).
+        showWhenWorkspaceOpens({ title: 'That question is not open right now', body: 'It opened where you can work now.' });
+      }
+      // A Classroom post for a section that is not open yet opens where the
+      // student can work now; say why, in the navigator's words (NAV-22).
+      const launchedRole = String(options?.launchedSectionKey || '').trim().toLowerCase();
+      if (DETOUR_SECTION_LABEL[launchedRole] && !roleIsActionable(launchedRole)) {
+        const detour = describeSectionDetour({
+          requestedRole: launchedRole,
+          landingRole: stageEntries.find((entry) => entry.storageIndex === actionableIndex)?.logicalRole || null,
+          access: describeSectionAccess({
+            role: launchedRole,
+            label: DETOUR_SECTION_LABEL[launchedRole],
+            timedDol: launchedRole === 'dol',
+            lifecycle,
+            warmupState: getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
+            dolState: getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
+            manualState: getSectionAccessState({ assignment: assignmentData, activityRole: launchedRole, ...studentContext, studentId: user.id, nowValue: entryNow }),
+            nowValue: entryNow,
+          }),
+        });
+        if (detour) showWhenWorkspaceOpens(detour);
       }
       safeQuestionIndex = actionableIndex;
     }
@@ -6164,6 +6196,9 @@ function App() {
     }
 
     setActiveView('assignment');
+    // The workspace is opening (a caller that has something to say once it is
+    // on screen waits for this: the arrival notice, below).
+    return true;
   };
 
   /*
@@ -6247,6 +6282,34 @@ function App() {
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
     setActiveView('assignmentResult');
+  };
+
+  /*
+   * JOINING AND LEAVING THE LIVE CHALLENGE (NAV-25). Joining keeps the place
+   * the student is on — the question they were working, a result page, a
+   * screen — and the game's exit returns there instead of to Home.
+   */
+  const joinLiveChallenge = () => {
+    setLiveChallengeReturn(liveChallengeReturnPlace({
+      activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute,
+    }));
+    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
+    openStudentDashboardMode('liveChallenge');
+  };
+  const leaveLiveChallenge = () => {
+    const place = liveChallengeReturn;
+    setLiveChallengeReturn(null);
+    if (place?.kind === 'assignment' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
+      // The question they were on, if its section is still open; otherwise
+      // where they can work now (and a start that cannot open says why).
+      startAssignment(place.assignmentId, place.questionIndex, { keepRequestedQuestion: true });
+      return;
+    }
+    if (place?.kind === 'result' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
+      openStudentAssignmentResult(place.assignmentId, { sectionKey: place.sectionKey, origin: place.origin });
+      return;
+    }
+    openStudentDashboardMode(place?.kind === 'screen' ? place.mode : 'assignments');
   };
 
   /*
@@ -9009,10 +9072,31 @@ function App() {
     }
   };
 
-  const renderStudentPackUpBanner = () => {
+  /*
+   * THE PACK-UP LINE (student pass 3, NAV-24): the last five minutes of the
+   * period. It used to be a fixed 125–160px banner over the top of every
+   * screen, which covered the assignment's sticky navigator (section tabs,
+   * Previous/Next) for a student finishing their work. It is now a slim row of
+   * the identity bar (StudentIdentityBar `notice`): it pins with it, and its
+   * height moves every sticky surface under it down instead of covering it.
+   * It says "your work is saved" only when nothing is owed: it reads the same
+   * save status as Home's line (unsent work, a rejected answer, drafts that are
+   * not being saved each say so instead; packUpLine.js). A secure exam and a student on DOL extra time (D7) are not
+   * interrupted by it.
+   */
+  // The student's save status, as Home's status line shows it (Batch 3: drafts
+  // that are not being saved count). The pack-up line reads the same one, so
+  // the two never disagree (NAV-24 review B2).
+  const studentSaveStatusNow = () => describeSaveStatus({
+    persistenceStatus: studentPersistenceStatus,
+    outboxDepth: studentOutboxDepth,
+    pendingGradeCount: studentPendingGradeCount,
+    online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+    draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
+  });
+
+  const renderStudentPackUpNotice = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Drawn above everything, including a secure exam's lock overlay; a
-    // student mid-Test is not interrupted by it.
     if (secureExamActive) return null;
     const packUp = getClassPackUpState({
       schedule: classSchedule,
@@ -9021,37 +9105,29 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
-    // Nor is a student still on their exit ticket's extra time (D7).
     if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
+    // "Saved" only when nothing is owed (packUpLine.js).
+    const workLine = packUpWorkLine(studentSaveStatusNow());
 
     return (
-      <aside
-        role="alert"
-        aria-live="assertive"
+      <div
+        data-pack-up-notice={workLine.kind}
         style={{
-          position: 'fixed',
-          top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
-          left: 0,
-          right: 0,
-          zIndex: 20000,
-          background: '#fbbc04',
-          color: 'var(--mm-text-strong)',
-          borderBottom: '5px solid #d93025',
-          boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
-          padding: '18px 24px',
-          textAlign: 'center',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
+          // The theme's warning pair, readable in both themes (the old banner put
+          // --mm-text-strong on a fixed yellow: light on yellow in dark mode).
+          background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', borderBottom: '3px solid #f9ab00',
+          padding: '5px clamp(10px, 3vw, 22px)', textAlign: 'center', lineHeight: 1.3,
+          fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(14 * var(--mm-px))',
         }}
       >
-        <div style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05 }}>
-          ⏰ PACK UP & RETURN TECHNOLOGY
-        </div>
-        <div style={{ marginTop: 8, fontSize: 'clamp(calc(16 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', fontWeight: 900 }}>
-          {/* No "Save your work": work saves as it is entered, and the save
-              line says when it could not be (student pass 3). */}
-          Finish up, sign out, and return your device now. The bell is in{' '}
-          <DOLCountdown endsAt={packUp.endsAt} />.
-        </div>
-      </aside>
+        <strong role="alert" style={{ fontWeight: 900 }}>
+          {workLine.sentence}
+        </strong>
+        <span style={{ fontWeight: 700 }}>
+          Pack up and return your device. The bell is in <DOLCountdown endsAt={packUp.endsAt} />.
+        </span>
+      </div>
     );
   };
 
@@ -9079,7 +9155,7 @@ function App() {
         </span>
         {/* openStudentDashboardMode, not the bare mode: from the result page the
             view must change too, and a pending Path launch must not survive. */}
-        <button type="button" onClick={() => openStudentDashboardMode('liveChallenge')} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+        <button type="button" onClick={joinLiveChallenge} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
           {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
         </button>
       </section>
@@ -10167,7 +10243,9 @@ function App() {
         ? 'Back to Assignments'
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
-          : 'Back to Home';
+          : studentDashboardMode === 'testCycle'
+            ? 'Back to the Test Cycle'
+            : 'Back to Home';
     /*
      * ONE STATUS CHIP ON A PHONE (pass 3, NAV-5). A phone hides the header and
      * every banner above the work, so a late deadline, "no credit" and a live
@@ -10183,6 +10261,14 @@ function App() {
         chip: '⚡ Join the challenge',
         title: 'Live Challenge has started',
         text: `${liveChallengeInvite?.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.`,
+      },
+      // The lobby is open, the game not started (NAV-25): offered here too.
+      !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+        key: 'liveChallenge',
+        tone: 'live',
+        chip: '⚡ Challenge lobby open',
+        title: 'Your teacher opened the Live Challenge lobby',
+        text: 'Your assignment work is saved when you switch, and you come back to this question after the game.',
       },
       !lifecycle.isPracticeOnly && dolState.status === 'active' && !dolSectionIndices.includes(currentQuestionIndex)
         && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
@@ -10256,7 +10342,7 @@ function App() {
     // The live challenge line's action leaves the assignment, as its banner does.
     assignmentStatusLines.forEach((line) => {
       if (line.key === 'liveChallenge') {
-        line.action = { label: 'Join Live Challenge', onClick: () => { setAssignmentStatusOpenFor(null); leaveAssignment(); setStudentDashboardMode('liveChallenge'); } };
+        line.action = { label: liveChallengeInvite?.status === 'running' ? 'Join Live Challenge' : 'Enter Challenge Lobby', onClick: () => { setAssignmentStatusOpenFor(null); joinLiveChallenge(); } };
       }
     });
     // A locked tab's reason, while that section is still locked.
@@ -10353,7 +10439,6 @@ function App() {
             onAssignmentRefresh={fetchAssignments}
           />
         )}
-        {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
         {!preview && shouldShowWarmupWaitingPanel({ decision: warmupChallengeDecision, invite: liveChallengeInvite }) && (
           <WarmupChallengeGate decision={warmupChallengeDecision} />
@@ -10407,7 +10492,15 @@ function App() {
           {!preview && shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div><strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
-              <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
+              <button type="button" onClick={joinLiveChallenge} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
+            </section>
+          )}
+          {!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
+            // The lobby invite, wherever the student is (NAV-25); the game's
+            // exit brings them back to this question.
+            <section className="mathmaster-assignment-banner" aria-label="Live Challenge" data-live-challenge-invite style={{ marginBottom: '16px', padding: '12px 18px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', textAlign: 'left' }}>
+              <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}><span aria-hidden="true">⚡ </span>Your teacher opened the Live Challenge lobby. Your work is saved, and you come back to this question after the game.</span>
+              <button type="button" onClick={joinLiveChallenge} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>Enter Challenge Lobby</button>
             </section>
           )}
           {lifecycle.isLate && !preview && (
@@ -10438,12 +10531,18 @@ function App() {
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
-                <button
-                  onClick={leaveAssignment}
-                  style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
-                >
-                  &larr; {preview ? 'Back to Instructor Dashboard' : studentAssignmentBackLabel}
-                </button>
+                {/* One way back per screen (NAV-20): a student's is the
+                    sticky navigator's "←", named for where it goes, which
+                    stays on screen as the work scrolls. The teacher preview
+                    keeps its labelled exit here. */}
+                {preview && (
+                  <button
+                    onClick={leaveAssignment}
+                    style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                  >
+                    &larr; Back to Instructor Dashboard
+                  </button>
+                )}
                 {preview && !isLiveTeachingThisAssignment && (
                   <button
                     type="button"
@@ -10515,7 +10614,7 @@ function App() {
 
           <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
-              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel}>←</button>
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel} title={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel}>←</button>
               {!assignmentNavigationCollapsed ? (
                 <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
@@ -11008,7 +11107,14 @@ function App() {
   // in one (NAV-15) — Home, Assignments, Grades, Rewards, Live Challenge,
   // Test Cycle and Recovery. Screens that draw their own <main> (the result
   // page, My Math Path, Tests & Exams, the assignment) keep the empty anchor.
-  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => (
+  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => {
+    const studentShellLogoutRisk = preview ? null : describeLogoutRisk({
+      outboxDepth: studentOutboxDepth,
+      pendingGradeCount: studentPendingGradeCount,
+      needsReviewCount: studentNeedsReviewCount,
+      persistenceStatus: studentPersistenceStatus,
+    });
+    return (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
       <SkipToContent />
       {/* NAV-3: the new screen's name, said once after a screen change. */}
@@ -11017,21 +11123,26 @@ function App() {
           {studentScreenAnnouncement}
         </div>
       )}
+      {/* NAV-23: the Live Challenge invite or a Spotlight request, said once. */}
+      {!preview && (
+        <div role="status" aria-live="polite" aria-atomic="true" data-classroom-announcement className="mm-visually-hidden">
+          {classroomAnnouncementText}
+        </div>
+      )}
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
         classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
         // Unsent work still queued: Log Out asks first (logoutGuard.js).
-        logoutRisk={preview ? null : describeLogoutRisk({
-          outboxDepth: studentOutboxDepth,
-          pendingGradeCount: studentPendingGradeCount,
-          needsReviewCount: studentNeedsReviewCount,
-          persistenceStatus: studentPersistenceStatus,
-        })}
+        logoutRisk={studentShellLogoutRisk}
+        // The pack-up line rides in the pinned stack (NAV-24).
+        notice={preview ? null : renderStudentPackUpNotice()}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
-        <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
+        // Not a dialog (NAV-23): it takes no focus and blocks nothing; it is a
+        // labelled region, and its arrival is said in the live region above.
+        <section aria-label="Student Spotlight request" data-spotlight-request style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
           <strong style={{ display: 'block', fontSize: 'calc(18 * var(--mm-px))' }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
           <div style={{ marginTop: 5, fontSize: 'calc(13 * var(--mm-px))' }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Not Now</button></div>
@@ -11054,7 +11165,8 @@ function App() {
         </>
       )}
     </div>
-  );
+    );
+  };
 
   // A student screen with no main landmark of its own (NAV-15).
   const renderStudentScreen = (content) => renderStudentIdentityShell(content, { main: true });
@@ -11062,6 +11174,86 @@ function App() {
   // The address the page opened at, opened once the account has loaded
   // (app/routes/useUrlArrival.js). Called after every action it hands on is
   // declared, and before the session guard returns, as a hook must be.
+  /*
+   * A NOTICE ABOUT THE WORKSPACE, SHOWN WITH THE WORKSPACE (wave-3 gate).
+   *
+   * Following a link to a question that has moved ("…so it opened where you
+   * can work now") raised its notice as the assignment started opening, so it
+   * sat over Home and then "Loading your MathMaster workspace…" for seconds
+   * before the work it describes was there. It now waits for the workspace:
+   * this effect is part of the commit that puts the assignment on screen —
+   * while the workspace's code is still loading the App is suspended and the
+   * effect does not run.
+   */
+  /*
+   * THE LIVE CHALLENGE INVITE AND A SPOTLIGHT REQUEST ARE SAID (NAV-23): one
+   * polite sentence in the shell's live region when either newly appears,
+   * cleared after a few seconds so a screen change does not repeat it.
+   */
+  /*
+   * NOT ON AN EXIT TICKET, QUIZ OR TEST (NAV-25 review B1, R1). Inside an
+   * assignment the lobby invite (banner, phone chip, announcement) is offered
+   * only where no question of the section the student is on withholds its outcome —
+   * the navigator's own rule (outcomeWithheld): never on a DOL, quiz or test
+   * before it is released or finished; Classwork and Practice keep it. Home and
+   * the other screens are unchanged.
+   */
+  const studentWorkspaceHoldsOutcome = () => {
+    if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return false;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment) return false;
+    if (getAssignmentLifecycle(assignment, now, { studentId: user.id }).isPracticeOnly) return false;
+    const { entries } = projectCurrentAssignmentContent(assignment);
+    const role = entries.find((entry) => entry.storageIndex === currentQuestionIndex)?.logicalRole || null;
+    // The whole section, not the question on screen (review R1).
+    return sectionHoldsLobbyInvite({
+      entries,
+      role,
+      feedbackMode: role ? getEffectiveActivityPolicy(role).feedback : 'immediate',
+      released: assignmentFeedbackWasReleased(assignment),
+      recordOf: (storageIndex) => tracker?.[activeAssignmentId]?.[storageIndex],
+    });
+  };
+  const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome();
+
+  const [classroomAnnouncementText, setClassroomAnnouncementText] = useState('');
+  const classroomAnnouncementRef = useRef(null);
+  const currentClassroomState = classroomAnnouncementState({
+    invite: user?.role === 'student' && !lobbyInviteHeldHere ? liveChallengeInvite : null,
+    spotlightRequested: user?.role === 'student' && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED,
+    secureExamActive,
+  });
+  const classroomAnnouncementTimerRef = useRef(null);
+  useEffect(() => {
+    const next = { challenge: currentClassroomState.challenge, spotlight: currentClassroomState.spotlight };
+    const text = classroomAnnouncement(classroomAnnouncementRef.current, next);
+    classroomAnnouncementRef.current = next;
+    if (!text) return;
+    setClassroomAnnouncementText(text);
+    clearTimeout(classroomAnnouncementTimerRef.current);
+    classroomAnnouncementTimerRef.current = setTimeout(() => setClassroomAnnouncementText(''), 8000);
+  }, [currentClassroomState.challenge, currentClassroomState.spotlight]);
+  useEffect(() => () => clearTimeout(classroomAnnouncementTimerRef.current), []);
+
+  // A list: an arrival can bring two (the question moved, and the start's own
+  // "not open right now" or a Classroom detour, review S2).
+  const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);
+  const shownArrivalNoticesRef = useRef(new WeakSet());
+  const showWhenWorkspaceOpens = useCallback((notice) => {
+    if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
+  }, []);
+  useEffect(() => {
+    if (!workspaceArrivalNotices.length || activeView !== 'assignment') return;
+    // Once each, even where the effect runs twice for the same notices
+    // (StrictMode, a suspended tree shown again).
+    workspaceArrivalNotices.forEach((notice) => {
+      if (shownArrivalNoticesRef.current.has(notice)) return;
+      shownArrivalNoticesRef.current.add(notice);
+      toastInfo(notice.title, notice.body);
+    });
+    setWorkspaceArrivalNotices([]);
+  }, [workspaceArrivalNotices, activeView, toastInfo]);
+
   useUrlArrival({
     urlArrival,
     setUrlArrival,
@@ -11079,6 +11271,7 @@ function App() {
       isTestCycle: isTestCycleAssignment,
       questionEntriesFor: studentQuestionEntriesFor,
       startAssignment,
+      showWhenWorkspaceOpens,
       openStudentAssignmentResult,
       openStudentDashboardMode,
       setActiveTestCycleAssignmentId,
@@ -11462,7 +11655,6 @@ function App() {
     if (studentDashboardMode === 'liveChallenge') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
@@ -11471,7 +11663,8 @@ function App() {
             key={liveChallengeInvite?.roomId || 'no-live-challenge'}
             invite={liveChallengeInvite}
             studentProfile={user.profile}
-            onExit={() => setStudentDashboardMode('assignments')}
+            onExit={leaveLiveChallenge}
+            exitLabel={liveChallengeExitLabel(liveChallengeReturn)}
             // What the finished match put in the wallet, shown apart from
             // placement and game points.
             renderMatchRewards={(roomId, match = {}) => (
@@ -11491,7 +11684,6 @@ function App() {
     if (studentDashboardMode === 'mathPath') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <MyMathPathApp
@@ -11518,7 +11710,6 @@ function App() {
     if (studentDashboardMode === 'assignmentsCenter') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
@@ -11542,7 +11733,6 @@ function App() {
     if (studentDashboardMode === 'rewards') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentRewardsCenter
@@ -11566,13 +11756,11 @@ function App() {
     if (studentDashboardMode === 'grades') {
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
-            onBackToHome={() => openStudentDashboardMode('assignments')}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
@@ -11609,7 +11797,6 @@ function App() {
         : null;
       return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {/* The shell's <main> holds this screen (NAV-15). */}
           <div style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
@@ -11647,7 +11834,6 @@ function App() {
     if (studentDashboardMode === 'secureExams') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           {/* Tests & Exams teaches the same navigation as every other
               student destination (it had none of its own). */}
@@ -11656,7 +11842,6 @@ function App() {
           </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
-          onExit={() => setStudentDashboardMode('assignments')}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
@@ -11686,7 +11871,6 @@ function App() {
     });
     return renderStudentScreen(
       <>
-        {renderStudentPackUpBanner()}
         {/* No Warm-Up banner on Home: the next-action card (or its compact
             Warm-Up card) is the one place the Warm-Up is offered here. */}
         <StudentDashboardView
@@ -11695,13 +11879,7 @@ function App() {
         student={{ ...studentRecord, ...user }}
         // From Home, Back on the result page says "← Home" and goes there (NAV-9).
         onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: NAV_LEVEL.HOME })}
-        saveStatus={describeSaveStatus({
-          persistenceStatus: studentPersistenceStatus,
-          outboxDepth: studentOutboxDepth,
-          pendingGradeCount: studentPendingGradeCount,
-          online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
-          draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
-        })}
+        saveStatus={studentSaveStatusNow()}
         whatChangedPanel={renderWhatChangedPanel(true)}
         whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}
         waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
@@ -11715,7 +11893,7 @@ function App() {
         // rather than left for them to work out from six equal panels.
         nextAction={studentNextAction}
         liveChallengeInvite={liveChallengeInvite}
-        onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
+        onOpenLiveChallenge={joinLiveChallenge}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
         rewardWallet={studentRewardWallet}
@@ -11804,7 +11982,6 @@ function App() {
     }
     return renderStudentIdentityShell(
       <>
-        {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
         <StudentAssignmentResult
@@ -11835,6 +12012,8 @@ function App() {
           changes={whatChangedItems.filter((item) => item.assignmentId === assignmentResultRoute.assignmentId)}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          // The printable worksheet lives with the results (NAV-20 review N3).
+          onExportPdf={exportAssignmentWorksheetPdf}
           // Decision 3: once the work is closed for this student and feedback
           // is released, their own answers beside the worked solutions. The
           // callable re-checks every gate; this only decides whether to show it.

@@ -8,7 +8,7 @@ import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/st
 import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
-import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
+import { formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { SECTION_STATE, describeSectionWait, onlyExitTicketWaits } from '../../platform/student/lessonSections.js';
 import { firstOpenLiveQuestionIndex } from '../../platform/student/liveSectionEntry.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
@@ -30,6 +30,7 @@ import { whatChangedUpdatesLabel } from '../../platform/student/whatChangedModel
 import {
   CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_WAITS, SEE_RESULTS, firstExitTicketMention, studentPeriodLabel, studentSectionLabel,
 } from '../../platform/student/studentWords.js';
+import { whenDateTimeText } from '../../platform/student/studentWhen.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -50,6 +51,13 @@ const formatClock = (value) => {
   const date = value instanceof Date ? value : value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return null;
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+// A lesson behind earlier classwork: "…, or on Wed, Oct 21, 2:15 PM." in the
+// student's date words (NAV-19), and no "or on Not set." when it has no date.
+const earlierWorkWaitLine = (releaseAt) => {
+  const at = whenDateTimeText(releaseAt);
+  return at ? `Opens after you finish the earlier classwork, or on ${at}.` : 'Opens after you finish the earlier classwork.';
 };
 
 // Next-action kinds whose assignment Home would otherwise ALSO show as its own
@@ -319,7 +327,7 @@ export default function StudentDashboardView({
     // alone: the reason is the whole point.
     const waitLine = waiting
       ? entry.waitText
-        || (access.open === false ? `Opens after you finish the earlier classwork, or on ${formatDateTime(assignment.releaseAt)}.` : 'Not open yet — your teacher will open it.')
+        || (access.open === false ? earlierWorkWaitLine(assignment.releaseAt) : 'Not open yet — your teacher will open it.')
       : null;
     // A lesson with no section list still says when its DOL really opens.
     const dolOpensAt = !lesson?.sections?.length && dol.enabled && ['waiting', 'beforeClass'].includes(dol.status)
@@ -392,7 +400,10 @@ export default function StudentDashboardView({
               )}
             </div>
           )}
-          {onExportAssignmentPdf && !waiting && (
+          {/* A paper copy helps while there is work to do (NAV-20). A
+              finished or closed card's action is its results, so it no
+              longer also offers Export PDF beside See results and Try again. */}
+          {onExportAssignmentPdf && actionable && (
             <button
               type="button"
               disabled={exportingAssignmentId === assignment.id}

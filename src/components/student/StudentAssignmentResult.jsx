@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
@@ -81,6 +81,10 @@ export default function StudentAssignmentResult({
   onViewAllGrades = null,
   onViewAllAssignments = null,
   onBackToHome = null,
+  // The lesson's questions as a printable worksheet (NAV-20 review N3): Home's
+  // finished cards no longer carry it, so a student who wants to study a done
+  // lesson on paper finds it here, with the results. Returns a promise.
+  onExportPdf = null,
   /*
    * WHICH LIST SENT THE STUDENT HERE.
    *
@@ -131,6 +135,7 @@ export default function StudentAssignmentResult({
   // A start that bounced here (a new notice object each time) puts focus on
   // why, so the press is never silent — even when the page did not change.
   const noticeHeadingRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
   useEffect(() => {
     if (notice) noticeHeadingRef.current?.focus({ preventScroll: false });
   }, [notice]);
@@ -390,6 +395,21 @@ export default function StudentAssignmentResult({
           {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && onPracticeSkill && (
             <button type="button" data-result-practice-skill style={actionStyle(false)} onClick={() => onPracticeSkill()}>
               {PRACTICE_SKILL_LABEL}
+            </button>
+          )}
+          {/* Never for a Test Cycle (review R3): Home never offered one there. */}
+          {onExportPdf && !closedByTeacher && !entry.isTestCycle && (
+            <button
+              type="button"
+              data-result-export-pdf
+              style={actionStyle(false)}
+              disabled={exportingPdf}
+              onClick={() => {
+                setExportingPdf(true);
+                Promise.resolve(onExportPdf(entry.assignmentId)).finally(() => setExportingPdf(false));
+              }}
+            >
+              {exportingPdf ? 'Preparing PDF…' : 'Export PDF'}
             </button>
           )}
           {/* The other list. The Back control above already names the list the

@@ -63,19 +63,54 @@ test('NAV-13: Assignments folds the search and period behind one button, and a s
   assert.match(toggle, /if \(search\) return;/);
 });
 
-test('P3: Assignments keeps its search, tab and marking period for Back, per student, in this tab only', async () => {
-  const { readAssignmentsView, writeAssignmentsView, assignmentsViewKey } = await import('../../src/platform/student/assignmentsCenterMemory.js');
-  const data = new Map();
-  const store = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)) };
-  writeAssignmentsView('s1', { search: 'domain', category: 'completed', periodId: 'mp1', answer: 'never stored' }, store);
-  assert.deepEqual(readAssignmentsView('s1', store), { search: 'domain', category: 'completed', periodId: 'mp1' });
-  const other = readAssignmentsView('s2', store);
+test('NAV-21: Assignments keeps its search, tab and marking period in its own history entry', async () => {
+  const { readAssignmentsView, writeAssignmentsView } = await import('../../src/platform/student/assignmentsCenterMemory.js');
+  const { ASSIGNMENTS_VIEW_STATE_KEY, STUDENT_ROUTE_STATE_KEY } = await import('../../src/platform/student/browserHistory.js');
+  const fakeHistory = (route) => {
+    const history = { state: { [STUDENT_ROUTE_STATE_KEY]: route }, replaceState(next) { history.state = next; } };
+    return history;
+  };
+  const assignmentsEntry = fakeHistory({ surface: 'dashboard', dashboardMode: 'assignmentsCenter' });
+  writeAssignmentsView('s1', { search: 'domain', category: 'completed', periodId: 'mp1', answer: 'never stored' }, assignmentsEntry, '/assignments');
+  assert.deepEqual(readAssignmentsView('s1', assignmentsEntry), { search: 'domain', category: 'completed', periodId: 'mp1' });
+  assert.doesNotMatch(JSON.stringify(assignmentsEntry.state), /never stored/);
+  assert.equal(assignmentsEntry.state[STUDENT_ROUTE_STATE_KEY].dashboardMode, 'assignmentsCenter', 'the entry keeps its route');
+  const other = readAssignmentsView('s2', assignmentsEntry);
   assert.ok(!other.search && !other.category && !other.periodId, 'another student on the same Chromebook starts fresh');
-  assert.doesNotMatch(data.get(assignmentsViewKey('s1')), /never stored/);
-  const throwing = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
-  assert.deepEqual(readAssignmentsView('s1', throwing), {});
-  assert.doesNotThrow(() => writeAssignmentsView('s1', {}, throwing));
+  // Never written into, or read from, an entry that is not Assignments (the
+  // screen mounts before App pushes its entry: the entry then is the old one).
+  const resultEntry = fakeHistory({ surface: 'assignmentResult', assignmentId: 'a1' });
+  writeAssignmentsView('s1', { search: 'x' }, resultEntry, '/r');
+  assert.equal(resultEntry.state[ASSIGNMENTS_VIEW_STATE_KEY], undefined);
+  assert.deepEqual(readAssignmentsView('s1', { state: { ...resultEntry.state, [ASSIGNMENTS_VIEW_STATE_KEY]: { studentId: 's1', search: 'x' } } }), {});
+  assert.deepEqual(readAssignmentsView('s1', null), {});
+  assert.doesNotThrow(() => writeAssignmentsView('s1', {}, { state: assignmentsEntry.state, replaceState: () => { throw new Error('blocked'); } }, '/a'));
+});
 
+test('NAV-21: a push leaves the Assignments view in its entry, so a fresh visit starts clean', async () => {
+  const pushed = [];
+  const history = {
+    state: { __mathmasterStudentRoute: { surface: 'dashboard', dashboardMode: 'assignmentsCenter' }, __mathmasterAssignmentsView: { studentId: 's1', search: 'domain' } },
+    pushState(next) { pushed.push(next); history.state = next; },
+    replaceState(next) { history.state = next; },
+  };
+  const saved = globalThis.window;
+  globalThis.window = { history, location: { href: 'http://x/assignments' } };
+  try {
+    const { writeStudentRouteState, ASSIGNMENTS_VIEW_STATE_KEY } = await import('../../src/platform/student/browserHistory.js');
+    writeStudentRouteState({ surface: 'assignmentResult', assignmentId: 'a1' }, { url: '/assignments/a1/results' });
+    assert.equal(pushed.length, 1);
+    assert.equal(pushed[0][ASSIGNMENTS_VIEW_STATE_KEY], undefined, 'not carried into the next entry');
+    // A replace of the same entry keeps it (App re-stamping the entry it is on).
+    history.state = { __mathmasterStudentRoute: { surface: 'dashboard', dashboardMode: 'assignmentsCenter' }, [ASSIGNMENTS_VIEW_STATE_KEY]: { studentId: 's1', search: 'domain' } };
+    writeStudentRouteState({ surface: 'dashboard', dashboardMode: 'assignmentsCenter' }, { replace: true, url: '/assignments' });
+    assert.equal(history.state[ASSIGNMENTS_VIEW_STATE_KEY]?.search, 'domain');
+  } finally {
+    globalThis.window = saved;
+  }
+});
+
+test('NAV-21: the screen restores from and writes to its entry', () => {
   const center = executableSource(read('src/components/student/StudentAssignmentsCenter.jsx'));
   assert.match(center, /const \[remembered\] = useState\(\(\) => readAssignmentsView\(studentId\)\);/);
   assert.match(center, /useState\(remembered\.search \|\| ''\)/);

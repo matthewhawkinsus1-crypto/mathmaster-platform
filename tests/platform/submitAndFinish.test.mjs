@@ -125,7 +125,11 @@ test('a registry tool\'s final action says Submit and its cost where it spends a
   const actions = { primaryActions: [{ id: 'a', label: 'Check graph', onAction() {} }, { id: 'b', label: 'Check x-intercept', onAction() {}, spendsTry: false }] };
   assert.deepEqual(relabelToolPrimaryActions(actions, { submitCost: 'uses 1 of 3 tries' }).primaryActions.map((action) => action.label), ['Submit — uses 1 of 3 tries', 'Check x-intercept']);
   assert.equal(relabelToolPrimaryActions(actions, {}), actions, 'nothing to say: untouched');
-  assert.match(code('src/components/common/EnlargeableFigure.jsx'), /const toolCapabilities = useMemo\(\s*\(\) => relabelToolPrimaryActions\(capabilities, \{ submitLabel: hostSubmitLabel, submitCost \}\)[\s\S]{0,120}useWorkViewCapabilities\(toolCapabilities, publishedCapabilities\)/);
+  assert.match(code('src/components/common/EnlargeableFigure.jsx'), /const toolCapabilities = useMemo\(\s*\(\) => relabelToolPrimaryActions\(capabilities, \{ submitLabel: hostSubmitLabel, submitCost \}\)/);
+  // The relabelled actions are what reach the rail (outside a closed question's
+  // review, TOOL-13 R2, they pass through unchanged).
+  assert.match(code('src/components/common/EnlargeableFigure.jsx'), /const railToolCapabilities = useMemo\(\(\) => \(reviewingClosed \? withoutRailActions\(toolCapabilities\) : toolCapabilities\)/);
+  assert.match(code('src/components/common/EnlargeableFigure.jsx'), /useWorkViewCapabilities\(railToolCapabilities, railPublishedCapabilities\)/);
 
   // Only the standalone registry tool records an attempt per press, so only it
   // is told the cost; a composed question's stages and the solver's stage are not.

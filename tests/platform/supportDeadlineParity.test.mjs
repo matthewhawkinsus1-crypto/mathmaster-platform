@@ -165,7 +165,7 @@ test('students see the dates the platform applies to them, with no reason named'
 
 test('both student date displays read the student\'s lifecycle, not the class dates', () => {
   const dashboard = readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8');
-  assert.match(dashboard, /import \{ formatDateTime, formatRemainingTime, studentDueDateLines \} from '\.\.\/\.\.\/assignmentLifecycle';/);
+  assert.match(dashboard, /import \{[^}]*\bstudentDueDateLines\b[^}]*\} from '\.\.\/\.\.\/assignmentLifecycle';/);
   assert.match(dashboard, /const dates = studentDueDateLines\(assignment, lifecycle\);/);
   assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueLine/);
   assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);

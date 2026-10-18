@@ -424,7 +424,6 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
 export default function StudentGradeCenter({
   gradeCenter,
   supportPresentation = {},
-  onBackToHome = null,
   onOpenResult = null,
   onPractice = null,
   // Start / Continue on open, unfinished work: App's startAssignment, which
@@ -441,8 +440,8 @@ export default function StudentGradeCenter({
   onWayAction = null,
   // The read-only "What changed" panel, rendered right after the summary.
   whatChangedPanel = null,
-  // The shared student destinations. Grades used to offer one "← Home"
-  // control, which made it a cul-de-sac: a student checking a grade and then
+  // The shared student destinations, Home among them. Grades used to offer
+  // only a "← Home" control, which made it a cul-de-sac: a student checking a grade and then
   // wanting the assignment behind it had to go up to Home and back down.
   onNavigate = null,
   onLogout = null,
@@ -478,18 +477,8 @@ export default function StudentGradeCenter({
         />
 
         <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={() => onBackToHome?.()}
-            style={{
-              appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-              minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 15px', borderRadius: 10,
-              border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
-              fontWeight: 900, cursor: 'pointer',
-            }}
-          >
-            ← Home
-          </button>
+          {/* One way back (NAV-20): the nav above has Home on every size;
+              a second "← Home" under it said the same thing twice. */}
           <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Grades</h1>
         </header>
 
