@@ -104,7 +104,9 @@ test('anything that is not plain mathematics is refused, with a sentence to act 
   }
   assert.equal(parseGraphEntry('a = 5').code, 'left-side');
   assert.equal(parseGraphEntry('x % 2').code, 'unsupported-operator');
-  assert.equal(parseGraphEntry('[1, 2]').code, 'unsupported');
+  // A character no key makes is named, in the keypad's words (TOOL-8, W6-4).
+  assert.equal(parseGraphEntry('[1, 2]').code, 'symbol');
+  assert.match(parseGraphEntry('[1, 2]').error, /It could not read “\[”\. Use x, numbers/);
 });
 
 test('f(x) = … labels a graph and defines nothing another line can call', () => {
@@ -173,7 +175,14 @@ test('it never runs what was typed as code, and uses mathjs only to parse', () =
   const code = executableSource(source);
   assert.doesNotMatch(code, /\beval\s*\(|new\s+Function\b|\bFunction\s*\(|setTimeout\s*\(\s*['"`]/, 'no eval, no Function constructor');
   const imports = [...code.matchAll(/^\s*import\s+[^;]+;/gm)].map((match) => match[0].trim());
-  assert.deepEqual(imports, ["import { parse } from '../math/mathjs.js';"], 'the only thing taken from mathjs is its parser');
+  // Since W6-4 it also reads the keypad's refusal reasons, a module with no
+  // imports of its own: mathjs still reaches it only as the parser.
+  assert.deepEqual(imports, [
+    "import { parse } from '../math/mathjs.js';",
+    "import { bracketProblem, calculatorErrorMessage, firstUnreadable } from '../policies/calculatorErrorReasons.js';",
+  ], 'the only thing taken from mathjs is its parser');
+  const reasons = executableSource(readFileSync(new URL('../../src/platform/policies/calculatorErrorReasons.js', import.meta.url), 'utf8'));
+  assert.doesNotMatch(reasons, /^\s*import\b/m, 'the shared reasons import nothing');
   assert.doesNotMatch(code, /\bmath\.(evaluate|compile)|\.compile\(\)|\.evaluate\(\s*\{/, 'mathjs\'s evaluator is never called');
   // The allowlist is the whole surface: every operator and function by name.
   const operators = code.match(/const OPERATORS = Object\.freeze\(\{([\s\S]*?)\}\);/)[1];
@@ -226,3 +235,31 @@ test('the trace and table boxes read numbers the way a line does, and an empty b
   assert.deepEqual(tableOfValues(line, { start: readNumberEntry('1/2'), step: readNumberEntry('1/2'), rows: 3 }).map((row) => row.y), [2, 3, 4]);
 });
 
+
+// TOOL-8 for the graphing calculator (W6-4). W5-4 gave the keypad a reason for
+// each refusal; this calculator kept its own words, and a "#" silently cut the
+// line short. The same diagnosis and sentences now serve both.
+test('a refused line says what to change, in the keypad calculator\'s words', async () => {
+  const { calculatorErrorMessage: keypadMessage } = await import('../../src/components/calculatorKeys.js');
+  const { calculatorErrorMessage } = await import('../../src/platform/policies/calculatorErrorReasons.js');
+  assert.equal(keypadMessage, calculatorErrorMessage, 'one function, not a copy');
+  const said = (text) => parseGraphEntry(text);
+  assert.deepEqual([said('y = (x + 2').code, said('y = (x + 2').error], ['bracket-open', 'A bracket is not closed. Add the missing “)”.']);
+  assert.deepEqual([said('y = 2x)').code, said('y = 2x)').error], ['bracket-close', 'A “)” has no “(” to match it.']);
+  assert.equal(said('y = 2x +').error, 'It could not read that. Check for a missing number, or two signs side by side.');
+  for (const [text, symbol] of [['y = 2x;', ';'], ['y = [x]', '['], ['y = x {2}', '{'], ['y = 2x # 3', '#'], ['# 3', '#']]) {
+    const entry = said(text);
+    assert.equal(entry.kind, ENTRY_KINDS.ERROR, `${text} is refused, never graphed`);
+    assert.equal(entry.code, 'symbol', text);
+    assert.equal(entry.error, `It could not read “${symbol}”. Use x, numbers, + − × ÷, brackets and the function keys.`, text);
+  }
+  // A sentence that already names the problem stands.
+  assert.equal(said('evaluate(1)').code, 'unknown-function');
+  assert.equal(said('x % 2').code, 'unsupported-operator');
+  assert.equal(said('sin').code, 'needs-brackets');
+  assert.match(said('1/0').error, /^That has no number answer\. Check for dividing by 0/);
+  // Lines that are fine are unchanged.
+  assert.equal(said('y = 2(x + 1)').kind, ENTRY_KINDS.FUNCTION);
+  assert.equal(said('y = log(x, 2)').kind, ENTRY_KINDS.FUNCTION);
+  assert.equal(said('|x - 2|').kind, ENTRY_KINDS.FUNCTION);
+});

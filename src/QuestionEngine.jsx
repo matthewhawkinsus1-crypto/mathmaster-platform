@@ -3306,6 +3306,7 @@ function QuestionEngineBody({
             open={calculatorOpen}
             onOpenChange={setCalculatorOpen}
             showLauncher={false}
+            graphingUnavailable={graphingCalculatorFailed}
           />
         );
         return graphingCalculatorOffered ? (

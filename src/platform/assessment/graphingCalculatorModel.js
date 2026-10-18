@@ -33,6 +33,7 @@
  * student's tool, exactly as a handheld calculator is.
  */
 import { parse } from '../math/mathjs.js';
+import { bracketProblem, calculatorErrorMessage, firstUnreadable } from '../policies/calculatorErrorReasons.js';
 
 export const GRAPHING_LIMITS = Object.freeze({
   maxEntries: 6,
@@ -138,6 +139,21 @@ class EntryError extends Error {
 }
 
 const refuse = (code, message) => { throw new EntryError(code, message); };
+
+/*
+ * THE KEYPAD'S REASONS (TOOL-8, shared since W6-4): a character no key makes,
+ * and a bracket left open or closing nothing, say what to change in the same
+ * words the keypad calculator uses (calculatorErrorReasons.js). Before, an
+ * open bracket read "not finished, or has a symbol out of place", "y = 2x;"
+ * read "Use numbers, x, and + − × ÷ ^ with brackets", and "#" — which mathjs
+ * reads as the start of a comment — dropped the rest of the line without a
+ * word. "%", "!" and "_" have sentences of their own below ("This calculator
+ * does not use "%"…", ""x_1" is not something…").
+ */
+// What to change when a value has no real number (1/0, √−4, log 0, tan 90°).
+const UNDEFINED_VALUE = 'That has no number answer. Check for dividing by 0, or a square root or log of a number that is not positive.';
+const NAMED_BELOW = new Set(['%', '!', '_']);
+const refuseFor = (reason, detail = null) => refuse(reason, calculatorErrorMessage({ reason, detail }, { variable: VARIABLE }));
 
 /*
  * Typing, not mathematics: the characters a phone or a math keyboard produces,
@@ -295,14 +311,30 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
       else if (left === 'x') vertical = true;
       else refuse('left-side', 'Start with y =, or x = for a vertical line.');
     }
-    let tree;
-    try {
-      tree = parse(right);
-    } catch {
-      refuse('syntax', 'This line is not finished, or has a symbol out of place.');
-    }
     const context = { nodes: 0, usesX: false, degrees: angleMode === ANGLE_MODES.DEGREES };
-    const compiled = compileNode(tree, context, 0);
+    let compiled;
+    try {
+      let tree;
+      try {
+        tree = parse(right);
+      } catch {
+        refuse('syntax', 'This line could not be read.'); // explained below
+      }
+      compiled = compileNode(tree, context, 0);
+    } catch (error) {
+      // Only the two general refusals are explained further; a sentence that
+      // already names the problem (the allowlist's "not a function this
+      // calculator has", "Put brackets after sin") stands.
+      if (!(error instanceof EntryError) || !['syntax', 'unsupported'].includes(error.code)) throw error;
+      const unreadable = firstUnreadable(right);
+      if (unreadable && !NAMED_BELOW.has(unreadable)) refuseFor('symbol', unreadable);
+      if (error.code === 'unsupported') throw error;
+      const brackets = bracketProblem(right);
+      refuseFor(brackets ? `bracket-${brackets}` : 'syntax');
+    }
+    // mathjs reads "#" as the start of a comment, so y = 2x # 3 parsed as
+    // y = 2x. A line is graphed only when all of it was read.
+    if (right.includes('#')) refuseFor('symbol', '#');
     const evaluate = (x) => {
       const value = finite(Number(x));
       return value === null ? null : finite(compiled(value));
@@ -311,7 +343,7 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
     if (vertical) {
       if (context.usesX) refuse('vertical-with-x', 'For a vertical line, put a number after x =.');
       const x = finite(compiled(0));
-      if (x === null) refuse('undefined', 'That value is undefined.');
+      if (x === null) refuse('undefined', UNDEFINED_VALUE);
       if (Math.abs(x) > GRAPHING_LIMITS.maxCoordinate) refuse('too-large', 'That number is too large for this calculator.');
       return { kind: ENTRY_KINDS.VERTICAL, text: original, x };
     }
@@ -319,7 +351,7 @@ export const parseGraphEntry = (raw, { angleMode = ANGLE_MODES.RADIANS } = {}) =
       return { kind: ENTRY_KINDS.FUNCTION, text: original, label: label || 'y', evaluate };
     }
     const value = finite(compiled(0));
-    if (value === null) refuse('undefined', 'That value is undefined.');
+    if (value === null) refuse('undefined', UNDEFINED_VALUE);
     return { kind: ENTRY_KINDS.VALUE, text: original, value };
   } catch (error) {
     if (error instanceof EntryError) return { kind: ENTRY_KINDS.ERROR, text: original, error: error.message, code: error.code };
