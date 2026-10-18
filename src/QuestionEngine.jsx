@@ -2870,6 +2870,9 @@ function QuestionEngineBody({
         // The same Support tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
         supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
+        // "Information you need" in Work View too (TOOL-12): the question's own
+        // content, so it stays on every activity, assessments included.
+        reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} /> } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
           { ...workspaceActions.reset, onAction:workspaceActions.reset.onClick },

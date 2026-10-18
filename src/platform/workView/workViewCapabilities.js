@@ -10,6 +10,9 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   // description and "How to do this" steps, which Work View hides with the
   // TaskCard, and a tool's own help kept below the platform's.
   'directions', 'toolHelp',
+  // The question's "Information you need" card (student pass 3, TOOL-12),
+  // which Work View hides with the task card around it.
+  'reference',
 ]);
 
 const WorkViewCapabilityContext = createContext(Object.freeze({}));
@@ -64,6 +67,8 @@ export function mergeWorkViewCapabilities(platform, tool) {
     // took Ask away. Under an authoritative platform Help the tool's own goes
     // to `toolHelp`, which the drawer shows after it.
     help: base.help?.authoritative ? base.help : (local.help || base.help),
+    // The question's reference is the platform's: a tool never replaces it.
+    reference: base.reference || local.reference,
     toolHelp: shownToolHelp(base.help?.authoritative ? (local.help || local.toolHelp || base.toolHelp) : (local.toolHelp || base.toolHelp)),
     directions: mergedDirections(base.directions, local.directions),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],
