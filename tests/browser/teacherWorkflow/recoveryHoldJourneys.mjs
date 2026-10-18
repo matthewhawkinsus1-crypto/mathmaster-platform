@@ -257,14 +257,19 @@ const sidebar = (page, name) => page.locator('nav, aside').getByRole('button', {
 const openTeacherGradebook = async (page, assignmentId = RECOVERY_ASSIGNMENT_ID) => {
   await sidebar(page, 'Grades');
   await page.waitForTimeout(700 * SLOW_FACTOR);
+  // Grades opens on its class chooser, or on a class whose assignment picker is
+  // enabled. The picker stays disabled until a class is chosen, and a slow
+  // device draws the chooser late: wait for one or the other, never assume.
+  await page.waitForFunction(() => Boolean(document.querySelector('section[aria-labelledby="gradebook-choose-class"]')
+    || document.querySelector('select[aria-label="Gradebook assignment"]:not([disabled])')), null, { timeout: 30000 * SLOW_FACTOR });
   const chooser = page.locator('section[aria-labelledby="gradebook-choose-class"]');
   if (await chooser.count()) {
     await chooser.getByRole('button', { name: new RegExp(CLASS_NAME) }).first().click();
     await page.waitForTimeout(700 * SLOW_FACTOR);
   }
-  const picker = page.locator('select[aria-label="Gradebook assignment"]');
+  const picker = page.locator('select[aria-label="Gradebook assignment"]:not([disabled])');
   await picker.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  await picker.selectOption(assignmentId);
+  await picker.selectOption(assignmentId, { timeout: 30000 * SLOW_FACTOR });
   await page.waitForTimeout(700 * SLOW_FACTOR);
 };
 const studentRow = (page, studentId) => page.locator('tbody tr').filter({ hasText: `ID ${studentId}` }).first();

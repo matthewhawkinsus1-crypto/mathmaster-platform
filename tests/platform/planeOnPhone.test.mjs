@@ -7,7 +7,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_PLANE_TEXT_PX, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
+import { MIN_PLANE_TEXT_PX, baselineBelowAxis, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
 import { placePoint } from '../../src/tools/graphing2/placePoint.js';
 
 test('plane text grows on a narrow plane to the 12 px floor, and only there', () => {
@@ -23,6 +23,17 @@ test('plane text grows on a narrow plane to the 12 px floor, and only there', ()
   assert.equal(planeFontSize(11, 560, null), 11);
   // Never more than 2.25 times its size on a very small plane.
   assert.equal(planeFontSize(10, 560, 100), 22.5);
+});
+
+test('numbers below an axis stay below it when phone text grows', () => {
+  // The authored place on a wide plane (x ticks 17 below the axis, the origin's 0 at 15).
+  assert.equal(baselineBelowAxis(planeFontSize(11, 560, 1120), 17, 6), 17);
+  assert.equal(baselineBelowAxis(planeFontSize(10, 560, 1120), 15, 5), 15);
+  // A 390 px phone column: the whole em box of the grown digits stays below the axis.
+  for (const [authored, offset, gap] of [[11, 17, 6], [10, 15, 5]]) {
+    const grown = planeFontSize(authored, 560, 322);
+    assert.ok(baselineBelowAxis(grown, offset, gap) - grown >= gap, `${authored}: baseline ${baselineBelowAxis(grown, offset, gap)} for a ${grown}-unit font`);
+  }
 });
 
 test('a point past the last replaces the nearest one instead of restarting the line', () => {
