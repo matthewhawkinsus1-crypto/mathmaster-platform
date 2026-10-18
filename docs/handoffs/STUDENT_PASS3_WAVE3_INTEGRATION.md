@@ -66,8 +66,8 @@ rebased.
 | `npm run certify:dark-mode` · `scripts/certify-interactive-capabilities.mjs` | `0688865` | running after the push |
 | `npm run certify:accessibility` and the accessibility drivers | `0688865` | running after the push |
 | The rest of the full-platform suite: six emulator suites (Classroom regrade report, identity repair, Live Challenge launch, path choice report, path release, Warm-Up reopen) and its audits, plus assignment-v5 foundation | `0688865` | all pass (5, 4, 10, 5, 4 and 1 cases; answer acceptance, path release verify, release authority, challenge DOK and quality, fidelity seeds, authoring boundary, legacy source, authoring v5 tests and validation); no tracked file rewritten |
-| The rest of the journeys job: linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft (both modes), familyPinContainment `--slow`, recoveryHoldJourneys `--slow` | `0688865` | running after the push |
-| `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | `0688865` | running after the push |
+| The rest of the journeys job: linearMultipleRepresentations, lmrProcessMode, warmupReopenDraft (both modes), familyPinContainment `--slow`, recoveryHoldJourneys `--slow` | `e822504`, then `9854e2b` | all pass. Two driver fixes, both for failures that predate wave 3: lmrProcessMode's page now names the app's icon (`d33b9bd`). recoveryHoldJourneys `--slow` waits for Grades' class chooser or an enabled picker (`9854e2b`): T2 failed the same way on `6accda1`. After the fixes: 9 of 9 and 450 of 450 checks |
+| `test:draft-persistence`, `test:test-cycle-device`, `certify:performance:load`, and the three Live Challenge browser suites | `e822504` | all pass. The Live Challenge teaching (58 checks) and projector privacy (86) suites pass in a checkout with its own `node_modules`. In a git worktree whose `node_modules` is a link to another checkout, the dev server they start refuses those files (403, outside its allow list), and they report the 403s as console errors |
 
 The last four rows ran after the push, so that B and wave 5 could start on this base; their results are added to this note as they finish, and anything they find is fixed on this branch.
 
@@ -128,6 +128,8 @@ Each handoff lists its own. The ones to settle before students rely on this wave
 - **C:** what "Reopened" means (NAV-14), and 10-second toasts.
 
 ## Found here, left for later
+
+- A closed question's work area is `inert` (Q-97), which takes its figures, and their descriptions, out of the accessibility tree: a screen-reader student cannot review a closed question's graph. Found by wave 5's figure-descriptions session; for the owner.
 
 - Following a link to a question that moved: the notice ("…so it opened where you can work now") shows over Home for
   up to about five seconds before the assignment opens. That predates this wave. Show the notice when the workspace
