@@ -104,7 +104,11 @@ export default function MatrixGrid({
       {colTitle && hasColLabels ? (
         <div aria-hidden={!interactive ? 'true' : undefined} style={{ ...labelStyle, justifyContent: 'center', color: 'var(--mm-text-muted)' }}>{colTitle}</div>
       ) : null}
-      <div data-matrix-scroll="true" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0, overflowX: 'auto', alignSelf: 'stretch', justifyContent: 'safe center' }}>
+      {/* overflowX: auto alone makes overflow-y compute to auto too, and a
+          column of stacked fractions (CW 5's S) drew a 5px vertical scrollbar
+          (P2-11). The box scrolls sideways only; the block padding gives a
+          stacked fraction's bar and descender the room they were clipped by. */}
+      <div data-matrix-scroll="true" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0, overflowX: 'auto', overflowY: 'hidden', paddingBlock: 4, alignSelf: 'stretch', justifyContent: 'safe center' }}>
         {rowTitle && hasRowLabels ? (
           <div aria-hidden="true" style={{ ...labelStyle, flex: '0 0 auto', writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: 'var(--mm-text-muted)' }}>{rowTitle}</div>
         ) : null}

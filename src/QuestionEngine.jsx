@@ -1275,6 +1275,14 @@ function QuestionEngineBody({
       setHintUsed(true);
       return;
     }
+    // A press on a tool's own calculator (the Matrix Lab's [A]⁻¹·[B]) is a
+    // calculator use, recorded exactly as opening the platform calculator is
+    // (student pass 3, P2-12). Not help with the mathematics: it does not
+    // touch isMathematicallyIndependent.
+    if (type === 'CALCULATOR_USED') {
+      markCalculatorOpened();
+      return;
+    }
     if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked || pausedByAnotherTab) return;
     if (serverGrading) {
       // The registry tools already hand back the student's work in the shape

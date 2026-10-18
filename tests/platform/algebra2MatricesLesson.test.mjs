@@ -265,17 +265,24 @@ test('3.2 Q4–7, Talk the Talk, the Assignment and the DOL: every system solves
     } else {
       assert.equal(derived.singular, true, `${id} is singular`);
       // None or many: is the constants column consistent with the dependent rows?
-      const [r1, r2, r3] = derived.rows;
-      const dependent = [[r1, r3], [r2, r3], [r1, r2]].find(([p, q]) => {
+      const pairs = [[0, 2], [1, 2], [0, 1]];
+      const dependentPair = pairs.find(([a, b]) => {
+        const [p, q] = [derived.rows[a], derived.rows[b]];
         const k = q.slice(0, 3).find((value) => value !== 0) / p.slice(0, 3).find((value) => value !== 0);
         return p.slice(0, 3).every((value, i) => close(value * k, q[i]));
       });
-      assert.ok(dependent, `${id}: two coefficient rows are proportional`);
-      const [p, q] = dependent;
+      assert.ok(dependentPair, `${id}: two coefficient rows are proportional`);
+      const [a, b] = dependentPair;
+      const [p, q] = [derived.rows[a], derived.rows[b]];
       const k = q.slice(0, 3).find((value) => value !== 0) / p.slice(0, 3).find((value) => value !== 0);
       assert.equal(close(p[3] * k, q[3]) ? 'many' : 'none', printed, `${id}: the constants decide`);
-      assert.equal(grade(question, { ...equation, classification: printed }).isCorrect, true, `${id}: ${printed}`);
-      assert.equal(grade(question, { ...equation, classification: printed === 'many' ? 'none' : 'many' }).isCorrect, false, `${id}`);
+      // P2-2: the decision comes with its reason — row b is k times row a, and
+      // whether the constants follow — read from the independent arithmetic.
+      const reason = { row: String(b + 1), otherRow: String(a + 1), factor: String(k), constant: printed === 'many' ? 'follows' : 'breaks' };
+      assert.equal(question.justifySingular, true, `${id} asks for the reason`);
+      assert.equal(grade(question, { ...equation, classification: printed, singularReason: reason }).isCorrect, true, `${id}: ${printed}, with its reason`);
+      assert.equal(grade(question, { ...equation, classification: printed }).isCorrect, false, `${id}: ${printed} alone is a guess, not a decision`);
+      assert.equal(grade(question, { ...equation, classification: printed === 'many' ? 'none' : 'many', singularReason: { ...reason, constant: printed === 'many' ? 'breaks' : 'follows' } }).isCorrect, false, `${id}: the other answer, even with a matching reason`);
     }
   }
 });

@@ -2121,6 +2121,7 @@ const compileOne = (q, index, repairs) => {
         variableMeanings: q.variableMeanings,
         showEquations: q.showEquations,
         technology: q.technology,
+        justifySingular: q.justifySingular,
       });
       break;
     }

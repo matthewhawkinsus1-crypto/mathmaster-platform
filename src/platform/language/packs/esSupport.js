@@ -1055,5 +1055,64 @@ const platformFamilyChoices = [
   ['Replace {1} in the other equation with what it equals', 'Reemplazar {1} en la otra ecuación con aquello a lo que es igual'],
 ];
 
-export const supportSentences = [...attemptOutcome, ...missMessages, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
+// --- Matrix Lab: one list of what to fix ----------------------------------
+// (functions/shared/serverGrading/tools/matrixLab.mjs matrixLabFixList, and the
+// lab's verdict in src/tools/matrixLab/matrixLabUi.jsx CheckRow; student pass
+// 3, P2-3). The cell sentences come in a few fixed shapes, built here.
+const matrixCellPlaces = [
+  ['the inverse matrix', 'la matriz inversa'],
+  ['the product', 'el producto'],
+  ['the sum', 'la suma'],
+];
+const matrixCellVerdicts = [
+  ['is not right yet', 'are not right yet', 'todavía no está bien', 'todavía no están bien'],
+  ['was rounded too early', 'were rounded too early', 'se redondeó demasiado pronto', 'se redondearon demasiado pronto'],
+];
+const matrixCellSentences = matrixCellPlaces.flatMap(([where, donde]) => matrixCellVerdicts.flatMap(([one, many, uno, varios]) => [
+  [`In ${where}, row {1}, column {2} ${one}.`, `En ${donde}, la fila {1}, columna {2} ${uno}.`],
+  [`In ${where}, row {1}, columns {2} and {3} ${many}.`, `En ${donde}, en la fila {1}, las columnas {2} y {3} ${varios}.`],
+  [`In ${where}, row {1}, columns {2}, {3} and {4} ${many}.`, `En ${donde}, en la fila {1}, las columnas {2}, {3} y {4} ${varios}.`],
+]));
+const matrixLabFixes = [
+  ['Not yet — see what to fix.', 'Todavía no: mira qué corregir.'],
+  ...matrixCellSentences,
+  ['Write the exact fraction, or keep at least {1} decimal places.', 'Escribe la fracción exacta, o conserva al menos {1} cifras decimales.'],
+  ['Row {1}: equation {2} has no {3} term.', 'Fila {1}: la ecuación {2} no tiene término en {3}.'],
+  ['A missing variable still has a place in A — what is its coefficient?', 'Una variable que falta igual tiene su lugar en la matriz de coeficientes: ¿cuál es su coeficiente?'],
+  ['Your {1}, {2} and {3} are what your A and {4} give.', 'Tus valores de {1}, {2} y {3} son los que da tu sistema con A y {4}.'],
+  ['Your {1} and {2} are what your A and {3} give.', 'Tus valores de {1} y {2} son los que da tu sistema con A y {3}.'],
+  ['Fix the rows above, then run the calculator again.', 'Corrige las filas de arriba y vuelve a usar la calculadora.'],
+  ['Row {1}: {2} has no variable in it, so it says nothing about {3}, {4} and {5}.', 'Fila {1}: {2} no tiene ninguna variable, así que no dice nada sobre {3}, {4} y {5}.'],
+  ['Row {1}: {2} has no variable in it, so it says nothing about {3} and {4}.', 'Fila {1}: {2} no tiene ninguna variable, así que no dice nada sobre {3} y {4}.'],
+  ['Each row needs at least one variable.', 'Cada fila necesita al menos una variable.'],
+  ['Row {1}: its coefficients repeat what the other rows already say (a multiple or a combination of them), so A has no inverse.', 'Fila {1}: sus coeficientes repiten lo que ya dicen las otras filas (un múltiplo o una combinación de ellas), así que A no tiene inversa.'],
+  ['Each row needs a different fact.', 'Cada fila necesita un dato distinto.'],
+  ['Row {1} combines two of the equations.', 'La fila {1} combina dos de las ecuaciones.'],
+  ['Each row of {1} is one equation of the system, in standard form.', 'Cada fila de {1} es una ecuación del sistema, en forma estándar.'],
+  ["Row {1} is not one of the situation's facts.", 'La fila {1} no es uno de los datos de la situación.'],
+  ['Each row should say one thing the problem tells you — a count, a total, a comparison — or two of them combined, as when you substitute one into another.', 'Cada fila debe decir una cosa que te dice el problema (un conteo, un total, una comparación) o dos de ellas combinadas, como cuando sustituyes una en otra.'],
+  ['Row {1} copies equation {2} as it is printed.', 'La fila {1} copia la ecuación {2} tal como está impresa.'],
+  ['Write that equation in standard form Ax {1} By {2} Cz {3} first — every variable term on the left, the constant on the right.', 'Primero escribe esa ecuación en forma estándar Ax {1} By {2} Cz {3}: todos los términos con variable a la izquierda y la constante a la derecha.'],
+  ['Reconsider the values of {1}, {2} and {3}.', 'Revisa los valores de {1}, {2} y {3}.'],
+  ['Reconsider the values of {1} and {2}.', 'Revisa los valores de {1} y {2}.'],
+  ['Reconsider the value of {1}.', 'Revisa el valor de {1}.'],
+  ['The value of {1} was rounded too early.', 'El valor de {1} se redondeó demasiado pronto.'],
+  ['The values of {1} and {2} were rounded too early.', 'Los valores de {1} y {2} se redondearon demasiado pronto.'],
+  ['The values of {1}, {2} and {3} were rounded too early.', 'Los valores de {1}, {2} y {3} se redondearon demasiado pronto.'],
+  ['Why A has no inverse: name two rows of A where one is a multiple of the other, the multiple, and whether the constants follow the same multiple.', 'Por qué A no tiene inversa: indica dos filas de A en las que una es múltiplo de la otra, cuál es el múltiplo, y si las constantes siguen el mismo múltiplo.'],
+  ['Your equation for infinitely many solutions: every coefficient is {1}, so it is not an equation in {2}, {3} and {4}.', 'Tu ecuación para infinitas soluciones: todos los coeficientes son {1}, así que no es una ecuación en {2}, {3} y {4}.'],
+  ['Your equation for no solution: every coefficient is {1}, so it is not an equation in {2}, {3} and {4}.', 'Tu ecuación para ninguna solución: todos los coeficientes son {1}, así que no es una ecuación en {2}, {3} y {4}.'],
+  ['It is true for every {1}, {2} and {3}, or for none, so it cannot complete the system.', 'Es verdadera para todos los valores de {1}, {2} y {3}, o para ninguno, así que no puede completar el sistema.'],
+  ['Give it at least one variable.', 'Dale al menos una variable.'],
+  ['Reconsider: Number of solutions.', 'Revisa: el número de soluciones.'],
+  ['Reconsider: Row {1} of the matrix equation.', 'Revisa: la fila {1} de la ecuación matricial.'],
+  ['Reconsider: Dimensions of matrix {1}.', 'Revisa: las dimensiones de la matriz {1}.'],
+  ['Reconsider: Dimensions of {1}.', 'Revisa: las dimensiones de {1}.'],
+  ['Reconsider: Is {1} defined?', 'Revisa: ¿está definido {1}?'],
+  ['Reconsider: Are {1} and {2} inverses?', 'Revisa: ¿son {1} y {2} inversas?'],
+  // An element is named a₁₂: the letter is mathematics, the subscripts follow it.
+  ...['₁', '₂', '₃', '₄', '₅', '₆'].flatMap((row) => ['₁', '₂', '₃', '₄', '₅', '₆'].map((col) => [`Reconsider: Element {1}${row}${col}.`, `Revisa: el elemento {1}${row}${col}.`])),
+];
+
+export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
 export const supportChoices = [...backUpChoices, ...platformFamilyChoices];

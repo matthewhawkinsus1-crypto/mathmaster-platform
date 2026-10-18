@@ -330,8 +330,11 @@ const gradeFigureMatch = (stage, response, key) => {
     credit: right.length / asked.length,
     detail: isCorrect
       ? 'Every figure is in the right category.'
-      // Which ones are wrong is deliberately not named: saying so would turn a
-      // second attempt into elimination rather than recognition.
+      // The figures themselves are named on screen by the step, from the
+      // student's own placements (figureMatchWrongItems, P2-4): an eight-figure
+      // sort that only turned red left nothing to act on. That trades some
+      // elimination on a later try for feedback a student can use — an owner
+      // decision recorded in docs/handoffs/STUDENT_PASS3_MATRIX_LAB_FEEDBACK.md.
       : `${right.length} of ${asked.length} figures are in the right category.`,
   };
 };

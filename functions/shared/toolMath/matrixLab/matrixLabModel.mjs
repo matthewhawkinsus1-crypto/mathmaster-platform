@@ -21,6 +21,7 @@ import {
   formatEquation,
   formatRational,
   inverseMatrix,
+  isStandardForm,
   isIdentity,
   isZero,
   matrixRowsOf,
@@ -29,6 +30,7 @@ import {
   parseLinearEquation,
   parseMatrix,
   productDimensions,
+  rank,
   rational,
   rowMultipleOf,
   sub,
@@ -228,6 +230,15 @@ export const readMatrixLabQuestion = (question = {}) => {
     // A modeling question hides the system: the student writes A and B from
     // the words, and the equations only define what a right row is.
     showEquations: q.showEquations !== false,
+    // …so a right row is any fact of the situation, not one printed equation
+    // (matchSituationRows). Where the system is printed, the task is to write
+    // THAT system, and a row stays one of its equations (matchEquationRows).
+    hiddenSystem: mode === 'solve' && q.showEquations === false && (q.buildEquation !== false && Boolean(system)),
+    // A singular system is decided from the rows, not from a button: the
+    // student names the two rows of A that are multiples and whether the
+    // constants follow (student pass 3, P2-2). Authored, so a published
+    // assignment keeps the grading it was published with.
+    justifySingular: mode === 'solve' && q.justifySingular === true,
     keyInverse: inverse.value || null,
     classification,
     asWritten: equations.map((equation) => asWrittenReading(equation, variables)),
@@ -295,6 +306,39 @@ export const matchEquationRows = (studentRows, keyRows) => {
   return best ? best.assignment : studentRows.map(() => null);
 };
 
+/**
+ * Match each row of the student's [A | B] to the SITUATION, on a modeling item
+ * whose system is hidden (PR-33, the walkthrough's R-4). The student chooses
+ * the equations, so a right row is any fact the situation states — a count, a
+ * total, a comparison — written any way, or two of those facts combined, as
+ * when "z = 2x" is substituted into the count (x + y + z = 80 → 3x + y = 80).
+ *
+ * A row is right when it lies in the span of at most TWO of the key's rows and
+ * adds something the student's earlier right rows did not say. Rows that pass
+ * are independent and each true of the situation, so a full set of them has
+ * exactly the situation's solution set. "At most two" is what keeps the answer
+ * out: x = 15 is true of the baskets too, but only as a combination of all
+ * three facts — it is the solution written as a row, not a model.
+ *
+ * Returns, per student row, true or false (a row with a blank or a
+ * non-number is false).
+ */
+export const matchSituationRows = (studentRows, keyRows) => {
+  const pairs = [];
+  keyRows.forEach((first, i) => keyRows.forEach((second, j) => { if (j > i) pairs.push([first, second]); }));
+  if (keyRows.length === 1) pairs.push([keyRows[0]]);
+  const fromTwoFacts = (row) => pairs.some((pair) => rank([...pair, row]) === rank(pair));
+  const accepted = [];
+  return studentRows.map((row) => {
+    if (!row) return false;
+    if (row.slice(0, -1).every(isZero)) return false;
+    if (!fromTwoFacts(row)) return false;
+    if (rank([...accepted, row]) === accepted.length) return false;
+    accepted.push(row);
+    return true;
+  });
+};
+
 /** The student's rows as exact [a, b, c, d] (null for a row with a blank or non-number). */
 export const studentAugmentedRows = (A, B, count, width) => Array.from({ length: count }, (_, i) => {
   const cells = [...list(A?.[i]).slice(0, width), Array.isArray(B?.[i]) ? B[i][0] : B?.[i]];
@@ -314,6 +358,62 @@ export const equationRowDiagnosis = (studentRow, reading) => {
   if (!studentRow || !reading) return null;
   const asWrittenRow = [...reading.row, reading.constant];
   return studentRow.every((cell, index) => equal(cell, asWrittenRow[index])) ? 'asWritten' : null;
+};
+
+/**
+ * Why a refused row is wrong, said ONLY from the student's own work, so the
+ * reason adds nothing to the verdict the row already has (a reason that
+ * depended on the key — "this row is true, but…" — would tell a student who
+ * wrote x = 15 that x is 15). Never an answer.
+ *
+ *   noVariables  every coefficient is 0: the row says nothing about x, y, z
+ *   repeats      its coefficients are a multiple or combination of the other
+ *                rows' (the student's A has no inverse)
+ */
+export const ownRowReason = (studentRows, index) => {
+  const row = studentRows[index];
+  if (!row) return null;
+  const coefficients = (entry) => entry.slice(0, -1);
+  if (coefficients(row).every(isZero)) return 'noVariables';
+  const others = studentRows.filter((entry, k) => k !== index && entry).map(coefficients);
+  if (others.length && rank([...others, coefficients(row)]) === rank(others)) return 'repeats';
+  return null;
+};
+
+/**
+ * A singular system's reason, as the student states it: row `row` of A is
+ * `factor` times row `otherRow`, and the constant does (`follows`) or does not
+ * (`breaks`) follow the same multiple. True only when every part of that
+ * sentence is true of the matrices given (the student's own A and B, as the
+ * calculator holds them).
+ */
+export const SINGULAR_CONSTANT = Object.freeze({ FOLLOWS: 'follows', BREAKS: 'breaks' });
+export const singularReasonHolds = (A, B, reason = {}) => {
+  const height = Array.isArray(A) ? A.length : 0;
+  const p = Number(reason?.row) - 1;
+  const q = Number(reason?.otherRow) - 1;
+  if (!Number.isInteger(p) || !Number.isInteger(q) || p === q || p < 0 || q < 0 || p >= height || q >= height) return false;
+  const factor = parseCell(reason?.factor);
+  if (!factor || isZero(factor)) return false;
+  const left = A[p].map(parseCell);
+  const right = A[q].map(parseCell);
+  if (left.some((cell) => !cell) || right.some((cell) => !cell)) return false;
+  if (!left.every((cell, k) => equal(cell, rational(factor.n * right[k].n, factor.d * right[k].d)))) return false;
+  const constantLeft = parseCell(Array.isArray(B?.[p]) ? B[p][0] : B?.[p]);
+  const constantRight = parseCell(Array.isArray(B?.[q]) ? B[q][0] : B?.[q]);
+  if (!constantLeft || !constantRight) return false;
+  const follows = equal(constantLeft, rational(factor.n * constantRight.n, factor.d * constantRight.d));
+  return reason?.constant === (follows ? SINGULAR_CONSTANT.FOLLOWS : SINGULAR_CONSTANT.BREAKS);
+};
+
+/** Two rows of a key A that are multiples of each other, or null (Pre-Flight). */
+export const proportionalRowPair = (A) => {
+  for (let p = 0; p < (A || []).length; p += 1) {
+    for (let q = 0; q < A.length; q += 1) {
+      if (p !== q && !A[q].every(isZero) && rowMultipleOf(A[p], A[q])) return { row: p + 1, otherRow: q + 1 };
+    }
+  }
+  return null;
 };
 
 /* ---------------------------------------------------------------------------
@@ -430,11 +530,26 @@ export const validateMatrixLabQuestion = (question = {}) => {
     if (model.keyA.length > 4 || model.variables.length > 4) errors.push('matrixLab equation supports up to four equations in up to four variables.');
   }
 
+  // The lab will not check a prefilled matrix the student has not changed
+  // (P2-10: it is not an answer yet), so a start that is already right could
+  // never be submitted.
+  if (['equation', 'solve'].includes(model.mode) && model.keyA && model.keyB && model.startA.length) {
+    const count = model.keyA.length;
+    const width = model.keyA[0].length;
+    const start = studentAugmentedRows(model.startA, model.startB, count, width);
+    if (start.every(Boolean) && matchEquationRows(start, keyAugmentedRows(model.keyA, model.keyB)).every((entry) => entry !== null)) {
+      errors.push(`matrixLab ${model.mode}: startFrom is already a right matrix equation. A student must change a cell before Check, so they could never submit it — start from a matrix with the mistake you want found.`);
+    }
+  }
+
   if (model.mode === 'solve' && model.keyA) {
     if (model.keyA.length !== model.keyA[0].length) errors.push('matrixLab solve needs as many equations as variables, so A is square.');
     if (!model.technology.includes('inverseTimes') && !model.technology.includes('inverse')) errors.push('matrixLab solve needs the calculator\'s inverse command ("inverse" or "inverseTimes").');
     if (model.askInverse && !model.keyInverse) errors.push('matrixLab solve asks for A⁻¹, but this A is singular.');
     if (!model.buildEquation && !(model.matrices.A?.values && model.matrices.B?.values)) errors.push('matrixLab solve without equations needs matrices A and B.');
+    if (model.justifySingular && model.classification && model.classification.type !== SOLUTION_TYPES.ONE && !proportionalRowPair(model.keyA)) {
+      errors.push('matrixLab solve justifySingular asks the student for two rows of A that are multiples of each other, but no two rows of this A are. Choose a system where one row is a multiple of another, or leave justifySingular out.');
+    }
   }
 
   if (model.mode === 'completeSystem') {
@@ -446,6 +561,97 @@ export const validateMatrixLabQuestion = (question = {}) => {
     else if (model.keyA && classifySystem(model.keyA, model.keyB)?.type === SOLUTION_TYPES.NONE) errors.push('matrixLab completeSystem: the given equations already contradict each other.');
   }
   return errors;
+};
+
+/* ---------------------------------------------------------------------------
+ * Hints that give the answer (Pre-Flight advice, student pass 3, P2-6).
+ * ------------------------------------------------------------------------- */
+
+const EQUATION_TEXT = /[0-9A-Za-z.+\-−–/()·\s]/;
+
+// Every linear equation written inside a hint ("…: 2x − 4y − 5z = −1."): for
+// each "=", the longest run of terms on each side that reads as one.
+const equationsInText = (hint, variables) => {
+  const source = text(hint);
+  const found = [];
+  let at = source.indexOf('=');
+  while (at >= 0) {
+    let start = at;
+    while (start > 0 && EQUATION_TEXT.test(source[start - 1])) start -= 1;
+    let end = at + 1;
+    while (end < source.length && EQUATION_TEXT.test(source[end])) end += 1;
+    const leftWords = source.slice(start, at).trim().split(/\s+/).filter(Boolean);
+    const rightWords = source.slice(at + 1, end).trim().replace(/[.,;:]+$/, '').split(/\s+/).filter(Boolean);
+    let best = null;
+    for (let l = 1; l <= leftWords.length && !best; l += 1) {
+      for (let r = rightWords.length; r >= 1; r -= 1) {
+        const leftText = leftWords.slice(l - 1).join(' ');
+        const rightText = rightWords.slice(0, r).join(' ').replace(/[.,;:]+$/, '');
+        const equation = `${leftText} = ${rightText}`;
+        if (parseLinearEquation(equation, variables)) { best = equation; break; }
+      }
+    }
+    if (best) found.push(best);
+    at = source.indexOf('=', at + 1);
+  }
+  return found;
+};
+
+/**
+ * Where a Matrix Lab hint states what the student is asked to produce:
+ *
+ *   - a row of the matrix equation, when the student has to write it — the
+ *     standard form of a printed equation that is not in standard form yet
+ *     (CW 8, PR 4), or any of the situation's facts on a modeling item whose
+ *     system is hidden (PR 10's "2x − z = 0");
+ *   - a value of the solution ("x = 15");
+ *   - where an element described in words lives ("row 3 … column 1", b₃₁).
+ *
+ * Returns [{ hint, reason }] (hint is its 1-based number). Advice for the
+ * author: a hint points at the next move; it does not do the item.
+ */
+export const matrixLabHintLeaks = (question = {}) => {
+  const q = isObject(question) ? question : {};
+  const model = readMatrixLabQuestion(q);
+  const leaks = [];
+  list(q.hints).forEach((hint, index) => {
+    const number = index + 1;
+    const hintText = text(hint);
+    if (['equation', 'solve'].includes(model.mode) && model.keyA && model.keyB) {
+      const keyRows = keyAugmentedRows(model.keyA, model.keyB);
+      equationsInText(hintText, model.variables).forEach((equation) => {
+        const reading = parseLinearEquation(equation, model.variables);
+        const row = [...reading.row, reading.constant];
+        const keyIndex = keyRows.findIndex((keyRow) => rowMultipleOf(row, keyRow));
+        const asked = model.mode === 'equation' || model.buildEquation;
+        if (keyIndex >= 0 && asked) {
+          const printed = model.showEquations && !model.hiddenSystem;
+          const printedInStandardForm = printed && isStandardForm(model.equations[keyIndex], model.variables);
+          if (!printed) leaks.push({ hint: number, reason: `states one of the situation's equations (${equation}), which the student is asked to write` });
+          else if (!printedInStandardForm && isStandardForm(equation, model.variables)) leaks.push({ hint: number, reason: `writes equation ${keyIndex + 1} in standard form (${equation}), which is row ${keyIndex + 1} of the answer` });
+          return;
+        }
+        if (model.mode === 'solve' && model.classification?.type === SOLUTION_TYPES.ONE) {
+          const nonzero = reading.row.map((value, k) => (isZero(value) ? null : k)).filter((k) => k !== null);
+          if (nonzero.length === 1) {
+            const k = nonzero[0];
+            const value = rational(reading.constant.n * reading.row[k].d, reading.constant.d * reading.row[k].n);
+            if (equal(value, model.classification.solution[k])) leaks.push({ hint: number, reason: `gives the value of ${model.variables[k]} (${equation})` });
+          }
+        }
+      });
+    }
+    if (model.mode === 'locate' && model.matrix?.values) {
+      model.targets.filter((target) => target.kind === 'notation' && target.valid).forEach((target) => {
+        const notation = elementNotation(model.matrixName, target.row, target.col);
+        const plain = `${text(model.matrixName).toLowerCase()}${target.row}${target.col}`;
+        const named = hintText.includes(notation) || new RegExp(`\\b${plain}\\b`).test(hintText);
+        const placed = new RegExp(`\\brow ${target.row}\\b`, 'i').test(hintText) && new RegExp(`\\bcolumn ${target.col}\\b`, 'i').test(hintText);
+        if (named || placed) leaks.push({ hint: number, reason: `places "${target.description}" (${notation})` });
+      });
+    }
+  });
+  return leaks;
 };
 
 /* ---------------------------------------------------------------------------
