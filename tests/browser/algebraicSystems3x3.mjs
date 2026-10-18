@@ -171,6 +171,33 @@ const dragTokenOnto = async (page, token, target, journey = 'drag') => {
       dy: fromBottom ? Math.ceil(y - over.top) + 24 : -Math.ceil(over.bottom - y) - 24,
     };
   });
+  // A target below the fold loses the drop too. Nothing covers it there
+  // (elementFromPoint finds nothing off screen), so Playwright scrolled it into
+  // view with the button already down, and the drop landed nowhere. In CI the
+  // 3×3 verification's z on Equation 3 did, whenever the click before it had
+  // not scrolled the page: no card had all three values, "0 of 3 substituted". So
+  // the token and the target come on screen together first, and the drag
+  // itself never scrolls.
+  const offScreenBy = async () => {
+    const source = await token.elementHandle();
+    const dy = await target.evaluate((element, tokenElement) => {
+      const boxes = [element, tokenElement].map((node) => node.getBoundingClientRect());
+      const top = Math.min(...boxes.map((box) => box.top));
+      const bottom = Math.max(...boxes.map((box) => box.bottom));
+      const margin = 16;
+      if (top >= margin && bottom <= window.innerHeight - margin) return 0;
+      // Centre the pair; a pair taller than the screen centres the target.
+      const [low, high] = bottom - top <= window.innerHeight - 2 * margin ? [top, bottom] : [boxes[0].top, boxes[0].bottom];
+      return Math.round((low + high) / 2 - window.innerHeight / 2);
+    }, source);
+    await source.dispose();
+    return dy;
+  };
+  const offScreen = await offScreenBy();
+  if (offScreen) {
+    await page.evaluate((dy) => window.scrollBy(0, dy), offScreen);
+    await settle(page, 200);
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const cover = await coverOf();
     if (!cover) break;
@@ -179,6 +206,7 @@ const dragTokenOnto = async (page, token, target, journey = 'drag') => {
   }
   const still = await coverOf();
   expect(journey, still === null, `the drop target is still covered by "${still?.by}" — the drop would land there instead`);
+  expect(journey, (await offScreenBy()) === 0, 'the token and its drop target are not on screen together — the drag would scroll with the button down');
   await token.dragTo(target);
   await settle(page, 500);
 };
