@@ -24,6 +24,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   applyBalancedOperation,
@@ -59,7 +60,7 @@ import {
   validateRelationTransition,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { resolveStandardCoefficients } from '../../functions/shared/toolMath/stepAlgebra2/linearInterceptsMath.mjs';
-import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
+import { calculateStepPartialCredit, compactStepStateKey, emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
 import { STEP_WORK_LIMITS, normalizeStepWork } from '../../functions/shared/submissionEnvelope.mjs';
 import { checkLinearIntercept, literalWorkspaceQuestion } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import { IDENTITY, compareIdentically } from '../../functions/shared/serverGrading/stepAlgebraEquivalence.mjs';
@@ -1000,3 +1001,83 @@ test('the one Simplify reports kinds the server verifies, and a record keyed by 
     'the old and new rendering of one state earn once',
   );
 });
+
+// ---------------------------------------------------------------------------
+// Pass 3 Q-31: an implicit product was written with MathJS's TeX tie, 2~ x,
+// and is now written 2 x (the tie drew as a gap). The tie is spacing, so a
+// record written before that deploy keeps the same state keys after it.
+// ---------------------------------------------------------------------------
+
+const tieRendering = (latex) => String(latex).replace(/(\d) ([a-z])/g, '$1~ $2');
+
+test('a record keyed by the old 2~ x rendering stays continuous and earns once', () => {
+  const session = equationSession(SUBSTITUTED);
+  const afterOne = { ...session.equation, right: '2' };
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  session.equation = afterOne;
+  assert.doesNotMatch(equationToLatex(afterOne), /~/, 'drawn without the tie');
+  const legacy = JSON.parse(JSON.stringify(records(session).server));
+  legacy.stepGrades = legacy.stepGrades.map((entry) => ({ ...entry, equationBefore: tieRendering(entry.equationBefore), equationAfter: tieRendering(entry.equationAfter) }));
+  assert.match(legacy.stepGrades[0].equationAfter, /\d~ [a-z]/, 'the fixture really holds the old tie');
+  const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
+    action: STEP_ACTIONS.REWRITE,
+    kind: 'student-rewrite',
+    label: 'Rewrite / simplify left',
+    before: afterOne,
+    after: { ...afterOne, left: '-2 * x + 12' },
+    supportLevel: 3,
+  }));
+  assert.equal(again.verified, true, `a state recorded as 2~ x is the same state: ${again.reason}`);
+  const twin = { ...legacy.stepGrades[0], equationAfter: records(session).server.stepGrades[0].equationAfter };
+  assert.equal(
+    calculateStepPartialCredit([...legacy.stepGrades, twin], legacy.variantIndex),
+    calculateStepPartialCredit(legacy.stepGrades, legacy.variantIndex),
+    'the old and new rendering of one state earn once',
+  );
+  assert.equal(compactStepStateKey('y=2~ x+3'), compactStepStateKey('y=2 x+3'));
+});
+
+// Every copy of the step-state key. The shared one is compactStepStateKey;
+// two synchronous CommonJS callers keep their own: functions/index.js and
+// functions/lib/classroomGradeRuntime.js (Test Cycle and section grading).
+// (functions-path-admin/vendor is regenerated from functions/shared.)
+const KEY_COPIES = ['functions/index.js', 'functions/lib/classroomGradeRuntime.js'];
+const keyCopy = (path) => {
+  const source = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('function storedAlgebraStepPartialCredit('), source.indexOf('function getQuestionCredit('));
+  const copy = body.match(/const stateKey = (\(value\) => String\(value \|\| ""\)[\s\S]*?\));\n/);
+  assert.ok(copy, `${path}: storedAlgebraStepPartialCredit keeps its key`);
+  return new Function(`return ${copy[1]};`)();
+};
+
+test('every copy of the step-state key keys stored records exactly as compactStepStateKey does', () => {
+  for (const path of KEY_COPIES) assertKeyMatchesShared(path, keyCopy(path));
+});
+
+test('classroomGradeRuntime credits a state recorded in both renderings once, as the shared dedupe does', async () => {
+  const { createRequire } = await import('node:module');
+  const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
+  const step = (before, after) => ({ variantIndex: 0, equationBefore: before, equationAfter: after, accepted: true, productive: true, earned: 1, possible: 1, expectedTotalPoints: 3 });
+  for (const [label, steps] of [
+    ['the tie', [step('-2~ x+4=14', '-2~ x=10'), step('-2 x=10', '-2 x+4=14'), step('-2 x+4=14', '-2 x=10')]],
+    ['push Q', [step('2x+1\\left(-4x\\right)=2', 'x=1\\left(2\\right)'), step('x=\\left(2\\right)', 'x=1'), step('x=1', 'x=\\left(2\\right)')]],
+  ]) {
+    const record = { variantIndex: 0, stepGrades: steps };
+    assert.equal(runtime.storedAlgebraStepPartialCredit(record), calculateStepPartialCredit(steps, 0), label);
+  }
+});
+
+const assertKeyMatchesShared = (path, indexKey) => {
+  const inputs = [
+    'y=2~ x+3', 'y=2 x+3', 'y=2x+3', ' x = -3+2~ y',
+    '2x+1\\left(-4x+12\\right)=2', '2x+\\left(-4x+12\\right)=2', '1\\left(x+1\\right)=4', '=-1\\left(x\\right)',
+    'y=−2x', 'y=–2x', 'y=—2x', '\\frac{-10}{-2}', '', null,
+  ];
+  for (const input of inputs) assert.equal(indexKey(input), compactStepStateKey(input), `${path}: ${JSON.stringify(input)}`);
+  // and the pairs that must be one state are one state in both.
+  for (const key of [indexKey, compactStepStateKey]) {
+    assert.equal(key('y=2~ x+3'), key('y=2 x+3'), path);
+    assert.equal(key('2x+1\\left(-4x+12\\right)=2'), key('2x+\\left(-4x+12\\right)=2'), path);
+    assert.equal(key('y=−2x'), key('y=-2x'), path);
+  }
+};

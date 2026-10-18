@@ -88,7 +88,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
@@ -378,6 +378,9 @@ export default function StepByStepAlgebra({
   // judges a move from the equation it was applied to, so Corrections and
   // practice keep their coaching under server grading.
   const verdictsShown = useToolRuntimeContext().verdictsWithheld !== true;
+  // The support level is the teacher's setting. Its badge and sentence are
+  // shown only in a teacher's preview (pass 3, Q-12).
+  const teacherView = useTeacherView();
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal
@@ -2295,7 +2298,7 @@ export default function StepByStepAlgebra({
           </div>
         ) : (
           <>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
+            {teacherView ? <div data-support-badge="" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div> : null}
             <div style={{ padding: '8px 12px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 'bold' }}>{objectiveLabel}</div>
           </>
         )}
@@ -2846,11 +2849,13 @@ export default function StepByStepAlgebra({
         return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
       })()}
       {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '12px' }}>
-        {/* The level's own sentence promises "Hints are available on request";
-            where the activity withholds hints that is no longer true. */}
-        {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
+        {/* The level's own sentence is teacher policy ("Nothing is simplified
+            for the student"): a teacher's preview only. It promises "Hints are
+            available on request"; where the activity withholds hints that is
+            no longer true. */}
+        {teacherView ? <span data-support-policy="">{hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}{' '}</span> : null}
         {/* Decision D1: no move or slip spends a try, at any level. */}
-        {' A longer route is still correct algebra and never uses a try.'}
+        {'A longer route is still correct algebra and never uses a try.'}
       </p>}
 
       {heldToken && (

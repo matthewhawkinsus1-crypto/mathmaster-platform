@@ -68,11 +68,16 @@ const DEFAULT_RUNTIME = {
   // equation it was applied to) needs only the first: on Corrections and My
   // Math Path practice it keeps its move coaching. Defaults to not withheld.
   verdictsWithheld: false,
+  // WHETHER A TEACHER IS THE ONE LOOKING (a lesson or test preview). Teacher
+  // policy copy, such as Step Algebra's "Support 3 · Standard" and its level
+  // sentence, is for them; a student reads student words or nothing (pass 3,
+  // Q-12). Defaults to a student, so no surface shows policy by accident.
+  teacherView: false,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, teacherView = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -88,6 +93,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     submitLabel: typeof submitLabel === 'string' && submitLabel.trim() ? submitLabel.trim() : null,
     submitCost: typeof submitCost === 'string' && submitCost.trim() ? submitCost.trim() : null,
     verdictsWithheld: verdictsWithheld === true,
+    teacherView: teacherView === true,
   }}>
     {children}
   </ToolRuntimeContext.Provider>
@@ -98,6 +104,10 @@ export const useToolRuntimeContext = () => useContext(ToolRuntimeContext);
 // Convenience for the many render sites that only care whether the worked
 // answer may be shown. Defaults to hidden outside a provider.
 export const useRevealAnswers = () => useContext(ToolRuntimeContext).revealAnswers === true;
+
+// Whether a teacher is the one looking (teacher policy copy is shown only
+// then). Defaults to a student outside a provider.
+export const useTeacherView = () => useContext(ToolRuntimeContext).teacherView === true;
 
 // Convenience for every hint affordance. Defaults to allowed outside a provider.
 export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;

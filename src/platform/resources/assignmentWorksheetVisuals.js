@@ -26,6 +26,9 @@ const svgNode = (width, height, label) => {
   return svg;
 };
 
+// Clip ids must be unique in a printed packet that holds many graphs.
+let worksheetClipCount = 0;
+
 const addSvg = (svg, tag, attrs = {}, text = null) => {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
   Object.entries(attrs).forEach(([key, value]) => {
@@ -60,7 +63,7 @@ const ticks = (min, max, requested) => {
   return values;
 };
 
-const normalizeGraph = (source = {}) => {
+const normalizeGraph = (source = {}, plotAspect = undefined) => {
   const graph = {
     ...source,
     functions: Array.isArray(source.functions)
@@ -74,7 +77,7 @@ const normalizeGraph = (source = {}) => {
   if (Number.isFinite(Number(source.m)) || Number.isFinite(Number(source.b))) {
     graph.functions.push({ type: 'line', m: Number(source.m || 0), b: Number(source.b || 0) });
   }
-  return fitStaticGraphViewport(graph);
+  return fitStaticGraphViewport(graph, { plotAspect });
 };
 
 const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
@@ -97,7 +100,8 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
   }
 
   const source = blank ? { ...(visual.bounds || {}) } : (visual.graph || {});
-  const graph = normalizeGraph(source);
+  // The printed plot's own proportions, so equal units stay equal (R-1).
+  const graph = normalizeGraph(source, compact ? (280 - 60) / (210 - 60) : (430 - 76) / (300 - 76));
   let xMin = finite(graph.xMin, -10);
   let xMax = finite(graph.xMax, 10);
   let yMin = finite(graph.yMin, -10);
@@ -147,6 +151,16 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
     }, tick);
   });
 
+  // An equal-unit window crops a steep line on purpose (R-1): on paper too it
+  // stops at the plot's edge, never running through the tick labels.
+  let plotClip = null;
+  if (!blank && graph.equalUnits === true) {
+    worksheetClipCount += 1;
+    plotClip = `mm-worksheet-plot-${worksheetClipCount}`;
+    const clip = addSvg(svg, 'clipPath', { id: plotClip });
+    addSvg(clip, 'rect', { x: pad, y: pad, width: plotW, height: plotH });
+  }
+
   if (!blank) {
     (graph.functions || []).forEach((spec) => {
       const sampleCount = compact ? 120 : 220;
@@ -168,7 +182,7 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
         drawing = true;
         previousY = y;
       }
-      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5 });
+      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5, 'clip-path': plotClip ? `url(#${plotClip})` : null });
     });
 
     (graph.segments || []).forEach((segment) => {

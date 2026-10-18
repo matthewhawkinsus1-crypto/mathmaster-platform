@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
@@ -6,7 +7,6 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
-import { useId } from 'react';
 import { describeCoordinatePlane } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 
@@ -130,13 +130,41 @@ const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec,
   });
 });
 
-const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
+// Where a curve, followed in from one side, first enters the window: the
+// point on the window's top or bottom edge, and the direction it leaves in.
+const edgeCrossing = (spec, fromX, toX, yMin, yMax) => {
+  const inside = (y) => Number.isFinite(y) && y >= yMin && y <= yMax;
+  const samples = 400;
+  let outsideX = fromX;
+  for (let index = 1; index <= samples; index += 1) {
+    const x = fromX + ((toX - fromX) * index) / samples;
+    if (!inside(evaluateFunction(spec, x))) { outsideX = x; continue; }
+    let [outX, inX] = [outsideX, x];
+    for (let step = 0; step < 40; step += 1) {
+      const middle = (outX + inX) / 2;
+      if (inside(evaluateFunction(spec, middle))) inX = middle; else outX = middle;
+    }
+    const outY = evaluateFunction(spec, outX);
+    if (!Number.isFinite(outY)) return null;
+    const edgeY = outY > yMax ? yMax : yMin;
+    return { point: [inX, edgeY], vector: [outX - inX, outY - evaluateFunction(spec, inX)] };
+  }
+  return null;
+};
+
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax, { throughEdges = false } = {}) => {
   const span = Math.max(1, Number(xMax) - Number(xMin));
   const probe = Math.max(span / 60, 0.05);
 
   const visibleArrow = (spec, functionIndex, side, x, innerX) => {
     const y = evaluateFunction(spec, x);
     const innerY = evaluateFunction(spec, innerX);
+    // An equal-unit window lets a steep line leave through the top or the
+    // bottom (R-1): its arrow goes where it leaves, not nowhere.
+    if (throughEdges && Number.isFinite(y) && (y < yMin || y > yMax)) {
+      const crossing = edgeCrossing(spec, x, side === 'left' ? xMax : xMin, yMin, yMax);
+      return crossing ? [{ id: `function-${functionIndex}-${side}-continuation`, marker: 'arrow', ...crossing }] : [];
+    }
     if (!Number.isFinite(y) || !Number.isFinite(innerY)) return [];
     if (y < yMin || y > yMax) return [];
     return [{
@@ -227,8 +255,10 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   const descriptionId = `mm-graph-desc-${useId()}`;
   const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
+  const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   if (!graph) return null;
 
+  // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
   const displayGraph = fitStaticGraphViewport(graph);
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
@@ -243,8 +273,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
   const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
-  const xStep = clampRange(displayGraph.xStep, niceStep(xMax - xMin));
-  const yStep = clampRange(displayGraph.yStep, niceStep(yMax - yMin));
+  // Equal units (R-1): one labelled step on both axes, so the grid's squares
+  // read as squares.
+  const sharedStep = displayGraph.equalUnits === true ? niceStep(Math.max(xMax - xMin, yMax - yMin)) : null;
+  const xStep = clampRange(displayGraph.xStep, sharedStep ?? niceStep(xMax - xMin));
+  const yStep = clampRange(displayGraph.yStep, sharedStep ?? niceStep(yMax - yMin));
   const xTicks = majorTicks(xMin, xMax, xStep);
   const yTicks = majorTicks(yMin, yMax, yStep);
   // Sparse labels keep the axes readable, but exact-value assessment still
@@ -271,7 +304,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
-        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: displayGraph.equalUnits === true }),
       ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
@@ -511,9 +544,17 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </text>
           ))}
 
+        {/* An equal-unit window crops steep lines (R-1): drawn inside the
+            plot area only, never over the axis labels around it. */}
+        {displayGraph.equalUnits === true ? (
+          <clipPath id={plotClipId}>
+            <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+          </clipPath>
+        ) : null}
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
             <path
+              clipPath={displayGraph.equalUnits === true ? `url(#${plotClipId})` : undefined}
               key={`function-${functionIndex}-${pathIndex}`}
               d={toPathData(path)}
               fill="none"

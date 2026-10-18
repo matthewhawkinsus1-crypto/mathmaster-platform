@@ -16,17 +16,13 @@ import {
   rationalFeatureMap,
   rationalFeatureTargetValue,
 } from './polynomialMath';
+import { polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
-const polynomialText = (coefficients = []) => coefficients.map((c, i) => {
-  const degree = coefficients.length - i - 1;
-  const value = Number(c);
-  const sign = i > 0 && value >= 0 ? '+' : '';
-  const variable = degree > 1 ? `x^${degree}` : degree === 1 ? 'x' : '';
-  return `${sign}${value}${variable}`;
-}).join(' ');
+// "x² − 5x + 6", not "1x^2 -5x +6" (TOOL-7).
+const polynomialText = (coefficients = []) => polynomialReadoutText(coefficients);
 
 function Feedback({ feedback, success, retry }) {
   if (!feedback) return null;
@@ -121,6 +117,9 @@ function FactorQuadratic({ questionData, feedback, submit, onAction }) {
 }
 
 function DivisionMode({ questionData, feedback, submit, onAction }) {
+  // This screen asks for coefficient lists ("1, 0, 0, -8"), so a zero term is
+  // shown: x³ + 0x² + 0x − 8, not x³ − 8 (review N7).
+  const polynomialText = (coefficients = []) => polynomialReadoutText(coefficients, { keepZeros: true });
   const dividend = questionData.dividend || DEFAULTS.division.dividend;
   const divisor = questionData.divisor || DEFAULTS.division.divisor;
   const [quotient, setQuotient] = usePersistentToolState('quotient', ''); const [remainder, setRemainder] = usePersistentToolState('remainder', '');

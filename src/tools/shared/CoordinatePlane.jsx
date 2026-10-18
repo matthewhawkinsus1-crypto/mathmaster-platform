@@ -12,6 +12,7 @@ import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleC
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
+import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
@@ -114,7 +115,12 @@ const useStableFunctions = (fns, lo, hi) => {
 
 export default function CoordinatePlane({
   xMin: domainXMin = -10, xMax: domainXMax = 10, yMin: domainYMin = -10, yMax: domainYMax = 10,
-  width = 560, height = 380,
+  width = 560, height: authoredHeight = 380,
+  // EQUAL UNITS (student pass 3, R-1). Off by default. When on, the plane's
+  // HEIGHT follows the window so one unit is the same length on both axes and
+  // a right angle looks like one. The window, the snap and every plotted
+  // coordinate are unchanged: only pixels move.
+  equalUnits = false,
   xTickStep = null, yTickStep = null,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
@@ -232,6 +238,7 @@ export default function CoordinatePlane({
   enlargeable = enlargeable && !insideParentWorkView;
   const pad = 42;
   const innerW = width - pad * 2;
+  const height = equalUnits ? equalUnitPlaneHeight({ width, pad, xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax, fallback: authoredHeight }) : authoredHeight;
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
 

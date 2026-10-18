@@ -266,7 +266,10 @@ for (const role of ['practice', 'dol']) {
 }
 for (const role of ['dol', 'test']) {
   // Ready: the solver's own footnote, in the same render as the hint would be.
-  const page = await open(role, 'step', (p) => p.getByText(/Nothing is simplified for the student\./));
+  // (Its student sentence: the level's policy sentence is a teacher's preview
+  // only, pass 3 Q-12.)
+  const page = await open(role, 'step', (p) => p.getByText(/A longer route is still correct algebra/));
+  check(!/Nothing is simplified for the student|Support \d ·/.test(await bodyText(page)), `${role} step algebra: no teacher policy copy for the student`);
   check(await page.getByText('Need a strategic hint?').count() === 0, `${role} step algebra: no strategic hint is offered`);
   check(!/Hints are available on request/.test(await bodyText(page)), `${role} step algebra: nothing promises a hint on request`);
   await page.close();
