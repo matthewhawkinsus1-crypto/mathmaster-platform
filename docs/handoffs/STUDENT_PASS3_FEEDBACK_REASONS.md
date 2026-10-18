@@ -168,11 +168,25 @@ Wave 4 checked by reading the merged code: the Transformations Lab's "Check grap
 4. **Survey rows 1–4** look like the next fixes (they show the student nothing, or something false). Row 6 needs a
    decision against the QA M1 "say nothing that names the move while the item is open" rule.
 5. **Spanish review**: three new templates in `esSupport.js` ("La recta es correcta, pero la forma no: escríbela
-   como …"), for the same native-speaker review as the rest of the pack. The Transformations Lab sentences, the graph
+   como …"), for the same native-speaker review as the rest of the pack. Also the spoken Spanish for a subscript:
+   Read aloud now says "y sub 1" in Spanish as in English; "sub uno" or "subíndice 1" may read better. The Transformations Lab sentences, the graph
    check and the calculator are tool chrome. Like every tool's own coaching (H-114) they show "No Spanish translation
    for this text yet."
 
 ## Touched outside the listed scope
+
+- **Read aloud reaches further than R-3.** `spokenLineForms` (`speechText.js`) runs on every read-aloud string, not
+  only the line-form messages. The reviewer measured it over the corpus: 208 strings that contain a subscript, "mx" or
+  "By" change 228 en/es readings, and read every one. All are improvements (for example, a slope formula's
+  `y₂ − y₁` now says "y sub 2 minus y sub 1", where the engine guessed before, and its minus is no longer read
+  "negative").
+- `src/QuestionEngine.jsx` (review N-c, one line): the graph self-check now has the hint ladder's gates as well:
+  no server-graded host, and a recognised activity role. An unknown role, read as classwork, used to offer the opt-in
+  while the hint ladder failed closed. `graphSelfCheck` pins the expression; `graphPointCheck` checks that an unknown
+  role offers no self-check, and goes red without the change.
+- `src/platform/policies/calculatorExpression.js` (review N-a): a pasted "*" reaches the field as ∗ (U+2217) and was
+  refused ("It could not read “∗”", on `c350dfc` as well). ∗ and ⋅ now multiply. Covered by `calculatorErrorReasons` and by
+  `calculatorKeyboard`, where a pasted `0.5*2` gives equals 1. Both go red without the change.
 
 - `src/platform/language/packs/esSupport.js`: three entries (needed for any new miss message).
 - `tests/platform/misconceptionEvidencePhase2.test.mjs`: the registry count 23 now includes the three pass-3 codes,

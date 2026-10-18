@@ -184,6 +184,15 @@ for (const optIn of [false, true]) {
   await page.close();
 }
 
+// AN UNKNOWN ROLE: read as classwork, but the hint ladder fails closed, and so
+// does the self-check (review N-c): no opt-in, whatever is plotted.
+{
+  const page = await open('mystery-role', 'points');
+  await plot(page, 'Plot the point where x = 0', 0, 1);
+  check(await page.getByRole('button', { name: /Which way is each point off\?|Check my points/ }).count() === 0, 'unknown role: no self-check is offered (the hint ladder fails closed too)');
+  await page.close();
+}
+
 // DOL, CURVE, WRONG: nothing says so until it is submitted.
 {
   const page = await open('dol');

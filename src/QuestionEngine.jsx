@@ -1663,8 +1663,10 @@ function QuestionEngineBody({
   // follows the same permission as a hint: available while practising, absent
   // on a DOL. Deciding it from the section policy rather than from a question
   // field means an author cannot switch it on for an exit ticket, and a bank
-  // question carried into a DOL loses it automatically.
-  const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !locked;
+  // question carried into a DOL loses it automatically. The same three gates as
+  // the hint ladder (hintControlAllowed below): no server-graded host, and an
+  // activity role the platform recognises — an unknown role fails closed.
+  const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !serverGrading && ladderRoleKnown && !locked;
   // The same permission, handed to every registry tool through
   // ToolRuntimeContext: their hint panels (and any other hint affordance) are
   // absent where the activity withholds help, not merely recorded.

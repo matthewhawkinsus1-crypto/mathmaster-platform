@@ -121,7 +121,11 @@ test('a DOL cannot carry the self-check, however the question is authored', () =
   // switch it on for an exit ticket, and a bank question carried into a DOL
   // loses it automatically.
   const engine = codeOf('src/QuestionEngine.jsx');
-  assert.match(engine, /const selfCheckAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false && !locked;/);
+  // The same gates as the hint ladder: hints allowed, no server-graded host,
+  // a recognised role (an unknown role fails closed), and the item open.
+  assert.match(engine, /const selfCheckAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false && !serverGrading && ladderRoleKnown && !locked;/);
+  assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
+  assert.match(engine, /const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
   assert.doesNotMatch(engine, /question\.\w*[Ss]elfCheck/);
 
   const workspace = codeOf('src/InteractiveGraphWorkspace.jsx');

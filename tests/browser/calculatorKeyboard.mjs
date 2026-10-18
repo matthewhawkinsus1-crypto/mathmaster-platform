@@ -122,6 +122,13 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
       }, null, { timeout: 3000 }).catch(() => {});
     };
     assert.equal(await evaluateTyped(paste), 'equals 5', `${at}: a paste after Clear replaces the 0`);
+    // A pasted "*" reaches the field as ∗ (U+2217): it multiplies (review N-a).
+    await page.evaluate(async () => navigator.clipboard.writeText('0.5*2'));
+    const pasteProduct = async () => {
+      await page.keyboard.press('ControlOrMeta+v');
+      await page.waitForFunction(() => /5/.test(document.querySelector('[data-calculator-expression]')?.value || ''), null, { timeout: 3000 }).catch(() => {});
+    };
+    assert.equal(await evaluateTyped(pasteProduct), 'equals 1', `${at}: a pasted 0.5*2 is 1`);
   }
   // Backspace on "Error" clears it (review N2): then 5 is 5.
   await page.locator(`${PANEL} button[aria-label="Clear"]`).click();

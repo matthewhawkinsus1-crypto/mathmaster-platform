@@ -106,6 +106,9 @@ const prepareCalculatorExpression = (expression, mode = null) => {
     .replace(/\bdiv\b/gi, '/')
     .replace(/\\times|\\cdot/g, '*')
     .replace(/×/g, '*')
+    // A pasted "*" reaches the field as ∗ (U+2217, MathLive's asterisk), and a
+    // dot operator ⋅ (U+22C5) is the same multiplication.
+    .replace(/[∗⋅]/g, '*')
     .replace(/÷/g, '/')
     .replace(/\\pi/g, 'pi')
     .replace(/π/g, 'pi')

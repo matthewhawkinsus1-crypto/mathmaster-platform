@@ -108,3 +108,8 @@ test('text that arrives without a key (paste, IME, dictation, a touch keyboard) 
   assert.match(input, /if \(mathField\.value !== '0'\) placeholderShownRef\.current = false;/);
   assert.match(region(panel, 'const replacePlaceholder = (event) => {', 'if (!typedKeyReplacesPlaceholder', 'delete on Error'), /if \(deleteKeyClearsError\(event, mathField\.value\)\) \{\s*event\.preventDefault\(\);[\s\S]*mathField\.value = '0';\s*placeholderShownRef\.current = true;/);
 });
+
+test('a pasted "*" (MathLive\'s ∗, U+2217) and a dot operator ⋅ multiply (review N-a)', () => {
+  assert.equal(evaluateCalculatorExpressionExact('0.5∗2', 'basic').decimal, '1');
+  assert.equal(evaluateCalculatorExpressionExact('3⋅4', 'basic').decimal, '12');
+});
