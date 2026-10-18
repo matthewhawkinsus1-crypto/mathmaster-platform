@@ -249,7 +249,7 @@ test('QuestionEngine renders a closed question\'s solution review inside its own
   // The out-of-attempts panel shows it; the way on stays outside it. Since
   // student pass 3 (RUN-6) the panel is the closed question card, which also
   // carries the verdict and the student's own answer.
-  const closed = region(engine, '<section className="mathmaster-closed-question-card"', '</section>', 'the closed question\'s panel');
+  const closed = region(engine, 'className="mathmaster-closed-question-card"', '</section>', 'the closed question\'s panel');
   assert.match(closed, /\{closedReview\}/);
   assert.match(closed, /onClick=\{handleRequestNewQuestion\}/, 'a new problem, where allowed, is offered from the closed card');
   assert.doesNotMatch(contained, /handleRequestNewQuestion/);

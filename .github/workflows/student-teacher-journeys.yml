@@ -71,6 +71,14 @@ name: Student and Teacher Journeys
 #                          the server accepts the answer; Warm-Up and DOL stay
 #                          shut; without it the lesson still opens later)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
+#   submit and finish      tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
+#                          (its own job: Submit names the try it spends, the
+#                          last try and one try; the save line calls a draft a
+#                          draft and an answer an answer, also after a reload,
+#                          and its live region stays silent unless the student
+#                          must act; finishing lands on the results page; a
+#                          skipped question is the way back; Enter and focus
+#                          after a closed question; Chromebook and phone)
 #   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
 #                          (its own job: refresh on every student screen and
 #                          question, Back/Forward Home -> question -> Grades,
@@ -219,6 +227,28 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1440x900,390x844"
         run: node tests/browser/teacherWorkflow/districtIdJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. One journey,
+  # 1366x768 and 390x844.
+  submit-and-finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Submit names its cost, the save line tells draft from answer, finishing lands on the results
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit, and these journeys
   # run every device size in both storage states (mirrored, retired).

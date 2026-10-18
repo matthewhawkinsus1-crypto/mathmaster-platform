@@ -93,7 +93,9 @@ export default function StepByStepAlgebra(props) {
         numericControls: { label: 'Balanced operation controls', studentState: true },
         instruction: { text: question.prompt || 'Keep both sides balanced and simplify each committed step.' },
         task: { text: question.prompt || 'Solve the equation by keeping both sides balanced.' },
-        help: { content: focusPanel },
+        // The student's own work history, not the method: it stays in Help
+        // on a DOL, where a tool's other Help is withheld (R-10).
+        help: { content: focusPanel, controlsOnly: true },
       }}
     >
       <StepByStepAlgebraCore {...props} onStateChange={handleStateChange} onWorkStepsChange={setWorkSteps} />

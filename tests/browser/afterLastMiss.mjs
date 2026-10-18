@@ -130,7 +130,7 @@ for (const device of DEVICES) {
     check(/That matches|Your checked answers match/.test(right), `${device.name}: the right practice answer matches`, right);
     check(await section.locator('[data-practice-verdict="correct"]').count() >= 1, `${device.name}: and marked ✓`);
     check((await page.evaluate(() => window.__mmGrades.length)) === graded, `${device.name}: no attempt, grade or submission from the practice`, `${graded} → ${await page.evaluate(() => window.__mmGrades.length)}`);
-    check((await card.locator('[data-closed-question-card] [role="status"], [role="status"]').first().textContent()).includes('final allowed attempt'), `${device.name}: the item stays closed and as graded`);
+    check((await card.locator('[data-closed-question-card] [role="status"], [role="status"]').first().textContent()).includes('That was your last try'), `${device.name}: the item stays closed and as graded`);
 
     await section.getByRole('button', { name: 'Show the worked solution' }).click();
     check(await section.locator('[data-practice-solution] li').count() >= 1, `${device.name}: the practice's worked solution`);

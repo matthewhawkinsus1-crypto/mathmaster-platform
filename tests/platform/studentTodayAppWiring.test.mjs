@@ -72,7 +72,7 @@ test('Home is wired without the support flag, with results, save status and What
   assert.match(home, /onOpenResult=\{\(assignmentId\) => openStudentAssignmentResult\(assignmentId/);
   assert.match(home, /saveStatus=\{describeSaveStatus\(\{/);
   assert.match(home, /whatChangedPanel=\{renderWhatChangedPanel\(true\)\}/);
-  assert.match(app, /import \{ describeSaveStatus \} from '\.\/platform\/student\/saveStatusModel\.js'/);
+  assert.match(app, /import \{[^}]*\bdescribeSaveStatus\b[^}]*\} from '\.\/platform\/student\/saveStatusModel\.js'/);
   const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
   assert.doesNotMatch(before, /renderStudentWarmupBanner\(\)/, 'Home offers the Warm-Up once, not as a banner too');
 });

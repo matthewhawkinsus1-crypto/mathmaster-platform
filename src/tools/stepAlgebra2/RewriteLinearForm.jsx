@@ -16,6 +16,7 @@ import {
   buildInitialEquationState,
   describeRewriteGap,
 } from './rewriteLinearFormMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * REWRITING A LINE IS DONE IN THE SAME STEP ALGEBRA WORKSPACE AS EVERYTHING ELSE.
@@ -199,7 +200,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
       </div>
 
       <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 8, width: '100%', background: complete ? '#137333' : '#1a73e8' }}>
-        Check equation
+        <SubmitText>Check equation</SubmitText>
       </button>
 
       {feedback ? (

@@ -7,6 +7,7 @@ import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobil
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
+import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -269,8 +270,11 @@ export default function MathInput({
   // "initially" means "while this field is the one being typed in" — the
   // multi-answer grader asked for it on every field that needed a fraction,
   // and each such keypad stayed open whichever box the student was in.
-  const toolsVisible = isMobile ? showTools && fieldActive : showTools;
-  const requiredKeysVisible = isMobile && fieldActive;
+  // A closed question's boxes are read-only: its keypad closes with it
+  // (student pass 3) instead of staying open over the worked solution.
+  const { terminal: questionTerminal } = useQuestionLifecycle();
+  const toolsVisible = !questionTerminal && (isMobile ? showTools && fieldActive : showTools);
+  const requiredKeysVisible = !questionTerminal && isMobile && fieldActive;
 
   const stabilizeMobileViewport = useCallback(() => {
     const root = mfRef.current?.closest?.('.mathmaster-question-container')

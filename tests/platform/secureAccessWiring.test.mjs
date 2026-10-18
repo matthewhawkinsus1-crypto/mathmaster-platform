@@ -118,6 +118,8 @@ test('opening the graphing calculator on a question is recorded on that question
 });
 
 test("the Tests & Exams list passes Practise this skill through to the review", () => {
-  assert.match(dashboard, /export const StudentSecureExamDashboard = \(\{ studentProfile, onExit, onOpenCourseTest = null, onPracticeSkill = null \}\) => \{/);
+  // The prop is taken (the list later gained `testCycles`, so the whole
+  // signature is not pinned — only that this prop is one of its props).
+  assert.match(dashboard, /export const StudentSecureExamDashboard = \(\{[^)]*\bonPracticeSkill = null\b[^)]*\}\) => \{/);
   assert.match(dashboard, /<SecureExamReview examSessionId=\{reviewing\.examSessionId\} onBack=\{[^}]*\}[^>]*onPracticeSkill=\{onPracticeSkill\} \/>/);
 });

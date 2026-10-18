@@ -78,10 +78,13 @@ const sandboxCard = (assignmentId) => ({
   ],
 });
 
-/** The student's one card for this assessment. */
-export const getStudentTestCycle = async ({ assignmentId }) => {
+/**
+ * The student's one card for this assessment. `preview` asks for a read-only
+ * look (Tests & Exams before the Test session is open): nothing is opened.
+ */
+export const getStudentTestCycle = async ({ assignmentId, preview = false }) => {
   if (isSandbox()) return sandboxCard(assignmentId);
-  return call('getStudentTestCycle', { assignmentId });
+  return call('getStudentTestCycle', preview ? { assignmentId, preview: true } : { assignmentId });
 };
 
 /** One instructional correction question. Hints and three attempts allowed. */

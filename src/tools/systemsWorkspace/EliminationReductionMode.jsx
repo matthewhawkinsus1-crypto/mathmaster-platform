@@ -27,7 +27,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
@@ -49,6 +49,8 @@ import { verificationTokenNeeded } from './verificationTokenState.js';
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
   activeEliminationRoundKey,
+  carryEliminationEquation,
+  eliminationCarryOptions,
   eliminationOutcome,
   classifyEliminationOutcome,
   applyEliminationMultiplier,
@@ -64,6 +66,7 @@ import {
   eliminationPairOptions,
   eliminationPhase,
   eliminationReducedSystem,
+  eliminationSeparatedReduction,
   eliminationRoundEliminates,
   eliminationRoundStage,
   eliminationScaleEditorOpen,
@@ -120,10 +123,16 @@ const feedbackText = (note, system) => {
   if (!note) return null;
   const labelFor = (id) => system.equations.find((equation) => equation.id === id)?.label || 'That equation';
   switch (`${note.stage}:${note.reason}`) {
+    case 'variable:variable-nowhere':
+      return `${note.variable} is not in any of the three equations, so there is no ${note.variable} to eliminate. Choose another variable.`;
     case 'pair:variable-absent':
-      return `${labelFor(note.equationId)} has no ${note.variable} term, so ${note.variable} cannot be eliminated from that pair. Choose a different pair.`;
+      return `${labelFor(note.equationId)} has no ${note.variable} term, so there is no ${note.variable} to cancel in that pair. An equation with no ${note.variable} term can be brought down as it is.`;
     case 'pair:pair-repeated':
       return 'The other round already used this pair. Choose a different pair so your work includes all three original equations.';
+    case 'pair:carry-repeated':
+      return `The other round already brought down ${labelFor(note.equationId)}. Use a different equation so your work includes all three original equations.`;
+    case 'pair:carry-has-variable':
+      return `${labelFor(note.equationId)} has ${articleFor(note.variable)} ${note.variable} term, so it cannot be brought down as it is. Pair it with another equation to eliminate ${note.variable}.`;
     case 'multiplier:invalid-multiplier':
       return 'That scale factor is not a valid nonzero number. Enter a nonzero number such as 2 or −1/3, or keep the equation as written.';
     case 'multiplier-products:incorrect-products':
@@ -224,7 +233,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (!scopeContext?.draftKey || !subsystemScope) return null;
     return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope), reduced?.variables);
   }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope, reduced?.variables]);
-  const reducedSolution = subsystemState?.solution || null;
+  // Rows that each hold one different variable leave the 2×2 workflow nothing
+  // to do: when they read y = 2, z = 3 they are its solution; otherwise the
+  // student is pointed back (PR-23 review).
+  const separated = useMemo(() => eliminationSeparatedReduction(elimination, system), [elimination, system]);
+  const reducedSolution = separated ? separated.solution : (subsystemState?.solution || null);
 
   const activeRound = activeEliminationRoundKey(elimination);
   const variable = elimination.variable;
@@ -343,8 +356,9 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     { id: 'variable', label: 'Eliminate', complete: Boolean(variable), summary: variable || '' },
     // R₁ and R₂ are written out in their own round boards and pinned in the
     // reference column; a third copy as trail chips only added noise (#361).
-    { id: 'round1', label: 'First pair', complete: Boolean(elimination.rounds.round1.combinedText) },
-    { id: 'round2', label: 'Second pair', complete: Boolean(elimination.rounds.round2.combinedText) },
+    // A brought-down equation is no pair (PR-23).
+    { id: 'round1', label: elimination.rounds.round1.carried ? 'R₁ brought down' : 'First pair', complete: Boolean(elimination.rounds.round1.combinedText) },
+    { id: 'round2', label: elimination.rounds.round2.carried ? 'R₂ brought down' : 'Second pair', complete: Boolean(elimination.rounds.round2.combinedText) },
     {
       id: 'subsystem',
       label: 'Solve 2×2',
@@ -509,7 +523,16 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     next thing on screen, but it stays one click from view: the
                     student's elimination and Step Algebra work inside it is
                     part of this problem's written record (#361). */}
-                {reduced && reducedSolution && phase !== 'subsystem' ? (
+                {separated ? (
+                  <div className="mathmaster-reduction-subsystem-solved" data-separated={separated.solution ? 'solved' : 'stuck'} role={separated.solution ? undefined : 'status'}>
+                    <span>
+                      {separated.solution
+                        ? <><strong>Reduced 2×2:</strong>{' '}{`${Object.keys(separated.solution).map((name) => `${name} = ${exactNumberText(separated.solution[name])}`).join(' and ')} — each row already gives one value, so there is nothing to solve. Back-substitute them.`}</>
+                        : `${lineageName('R1')} and ${lineageName('R2')} each hold a different single variable, so there is nothing to substitute or eliminate between them. Use Undo to go back and eliminate a different variable.`}
+                    </span>
+                  </div>
+                ) : null}
+                {!separated && reduced && reducedSolution && phase !== 'subsystem' ? (
                   <div className="mathmaster-reduction-subsystem-solved">
                     <span>
                       <strong>Reduced 2×2 solved:</strong>{' '}
@@ -520,7 +543,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     </button>
                   </div>
                 ) : null}
-                {reduced ? (
+                {reduced && !separated ? (
                   <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !subsystemState?.outcome && !(reducedSolution && showSolvedSubsystem)}>
                     <div className="mathmaster-reduction-subsystem-heading">
                       <strong>Reduced subsystem</strong>
@@ -580,7 +603,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     ? apply(classifyEliminationOutcome(elimination, system, choice, kind))
                     : setSubsystemClassification({ identity: outcomeIdentity, choice, kind })}
                 /> : null}
-                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
+                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
                     <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
@@ -608,6 +631,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 /* Choosing the equation pair for this round — every pair shown with equal weight, nothing marked as suggested. */
 function EliminationPairChoice({ label, system, roundKey, elimination, apply }) {
   const options = useMemo(() => eliminationPairOptions(system), [system]);
+  const carryOptions = useMemo(() => eliminationCarryOptions(elimination, system), [elimination, system]);
   const r1 = elimination.rounds?.round1;
   const isRound2AfterAllZero = useMemo(() => {
     if (roundKey !== 'round2' || !r1?.combinedText) return false;
@@ -636,7 +660,46 @@ function EliminationPairChoice({ label, system, roundKey, elimination, apply }) 
           </button>
         ))}
       </div>
+      {/* PR-23: an equation with no term in the variable already has it
+          eliminated. Offered beside the pairs, never instead of them. */}
+      {carryOptions.length ? (
+        <>
+          <p className="mathmaster-systems-substitution-direction">Or, if an equation already has no {elimination.variable} term, bring it down as it is.</p>
+          <div className="mathmaster-reduction-button-row">
+            {carryOptions.map((option) => (
+              <button key={option.id} type="button" style={secondaryButtonStyle} data-carry-equation={option.id} onClick={() => apply(carryEliminationEquation(elimination, system, roundKey, option.id))}>
+                Bring down {option.label}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
+  );
+}
+
+/*
+ * A ROUND THAT BROUGHT DOWN AN EQUATION WITH NO TERM IN THE VARIABLE (PR-23):
+ * the equation as written, and the reduced equation it already is. Nothing to
+ * scale, cancel or combine; Undo takes it back like any other round.
+ */
+function EliminationCarriedRound({ system, roundKey, variable, round }) {
+  const equation = system.equations.find((entry) => entry.id === round.pair[0]);
+  const reducedName = lineageName(roundKey === 'round1' ? 'R1' : 'R2');
+  const remaining = system.variables.filter((name) => name !== variable);
+  const form = linearEquationForm(equation.text, system.variables);
+  return (
+    <section className="mathmaster-elim-round is-complete is-readonly" data-round={roundKey} data-carried="true" aria-label={`${reducedName}: ${equation.label} brought down`}>
+      <header className="mathmaster-elim-round-header">
+        <strong>{`${reducedName}: ${equation.label} brought down`}</strong>
+      </header>
+      <p className="mathmaster-elim-direction">{`${equation.label} has no ${variable} term, so it is already an equation in ${remaining.join(' and ')}.`}</p>
+      <div className="mathmaster-elim-stack" style={{ '--elim-vars': system.variables.length }}>
+        <EliminationStackRow rowId={equation.id} variables={system.variables} target={null} form={form} label={equation.label} />
+        <div className="mathmaster-elim-rule" aria-hidden="true" />
+        <EliminationStackRow rowId={roundKey === 'round1' ? 'R1' : 'R2'} variables={system.variables} target={null} form={form} label={reducedName} />
+      </div>
+    </section>
   );
 }
 
@@ -667,6 +730,7 @@ function EliminationPairChoice({ label, system, roundKey, elimination, apply }) 
 
 function EliminationRoundBoard({ label, system, roundKey, variable, elimination, apply, readOnly = false, revealOnAppear, productError = null }) {
   const round = elimination.rounds[roundKey];
+  if (round.carried) return <EliminationCarriedRound system={system} roundKey={roundKey} variable={variable} round={round} />;
   const [idA, idB] = round.pair;
   const equationA = system.equations.find((equation) => equation.id === idA);
   const equationB = system.equations.find((equation) => equation.id === idB);

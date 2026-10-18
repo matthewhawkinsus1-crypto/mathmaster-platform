@@ -506,7 +506,8 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
         instruction: { text: 'Choose which variable becomes zero, place the zero on that variable, solve, and write the intercept point.' },
         task: { text: targetPrompt(kind) },
         help: { content: 'Use the axis meaning first. Then keep the resulting one-variable equation balanced.' },
-        primaryActions: solverSolved ? [{ id: 'check-linear-intercept', label: `Check ${stageLabel(kind)}`, onAction: checkCurrentIntercept }] : [],
+        // A stage check, not a Submit: a miss here spends no try (RUN-4, D9).
+        primaryActions: solverSolved ? [{ id: 'check-linear-intercept', label: `Check ${stageLabel(kind)}`, onAction: checkCurrentIntercept, spendsTry: false }] : [],
         secondaryActions: stage.committed ? [{ id: 'change-linear-intercept-substitution', label: 'Return to substitution', onAction: changeSubstitution }] : [],
       }}
     >
