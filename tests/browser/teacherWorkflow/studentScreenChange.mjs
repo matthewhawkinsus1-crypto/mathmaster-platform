@@ -14,7 +14,7 @@
 //       to that screen's h1 (inside its one main landmark, or its only h1) and says the screen's
 //       name in the shell's live region. On a phone the folded places are
 //       reached through "More".
-//   S2  View Results → the result page, then browser Back → Assignments: the
+//   S2  See results → the result page, then browser Back → Assignments: the
 //       same, both ways.
 //   S3  The nav is one row (≤ 52px) on Home, Assignments and Grades at both
 //       sizes; on a phone "More" unfolds the rest and Escape folds them.
@@ -271,10 +271,10 @@ for (const viewport of VIEWPORTS) {
     expect(`S6 ${tag}`, fresh === '', `a fresh visit from the nav kept the search ${JSON.stringify(fresh)}`);
     const freshPeriod = await page.locator('#assignments-period').inputValue().catch(() => null);
     expect(`S6 ${tag}`, freshPeriod === startPeriod, `a fresh visit kept the marking period ${JSON.stringify(freshPeriod)}`);
-    // …and stays clean through View Results → Back, untouched: the old view
+    // …and stays clean through See results → Back, untouched: the old view
     // was left in its own entry, not carried into the ones after it.
-    const freshResults = page.getByRole('button', { name: 'View Results' }).filter({ visible: true }).first();
-    if (expect(`S6 ${tag}`, await freshResults.count(), 'no View Results on a fresh visit')) {
+    const freshResults = page.getByRole('button', { name: 'See results' }).filter({ visible: true }).first();
+    if (expect(`S6 ${tag}`, await freshResults.count(), 'no See results on a fresh visit')) {
       await freshResults.click();
       await settled(page, 'Assignment result');
       await page.goBack();
