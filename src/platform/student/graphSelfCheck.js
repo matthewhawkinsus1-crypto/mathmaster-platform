@@ -7,7 +7,11 @@
  * nothing between "guess" and "commit".
  *
  * This is that check. It compares what the student plotted against the real
- * function and says, per point, how far off it is.
+ * function and says, per point, whether it is on it, too high or too low —
+ * and then sends the student to the rule: "too high — find f(3) and compare".
+ * It used to say "2 units below the function", which is the correction
+ * itself: the student moved the point up 2 and learned nothing about f(3)
+ * (student pass 3, HELP-22).
  *
  * WHAT IT DELIBERATELY DOES NOT DO.
  *
@@ -21,7 +25,10 @@
  *   a student cannot walk the check along the axis to harvest the graph.
  *
  *   It is not free. Using it is mathematical help and is reported exactly like
- *   a revealed hint, so mastery weight is discounted the same way. A check that
+ *   a revealed hint, so mastery weight is discounted the same way. Where the
+ *   activity shows outcomes it is part of "Check Point Placements" and is
+ *   charged only when that check finds a point off (the direction is the
+ *   help); where outcomes are withheld it is its own "Check my points". A check that
  *   cost nothing would make the independent solve and the assisted one
  *   indistinguishable in the evidence.
  */
@@ -32,30 +39,32 @@ const finite = (value) => Number.isFinite(Number(value));
 
 const round = (value) => Math.round(Number(value) * 1000) / 1000;
 
-/** How the difference reads to a student, in their own units. */
-export const describeVerticalMiss = (plottedY, trueY) => {
+const xText = (x) => String(round(x)).replace('-', '−');
+
+/**
+ * How the difference reads to a student: which way the point is off, never by
+ * how much, and what to work out to fix it.
+ */
+export const describeVerticalMiss = (plottedY, trueY, { x = null, name = 'f' } = {}) => {
   const delta = round(Number(trueY) - Number(plottedY));
-  if (Math.abs(delta) <= TOLERANCE) return { correct: true, delta: 0, text: 'on the function' };
-  const size = Math.abs(delta);
-  const units = size === 1 ? '1 unit' : `${size} units`;
-  return {
-    correct: false,
-    delta,
-    text: delta > 0 ? `${units} below the function` : `${units} above the function`,
-  };
+  if (Math.abs(delta) <= TOLERANCE) return { correct: true, direction: null, text: 'on the function' };
+  const direction = delta > 0 ? 'low' : 'high';
+  const evaluate = x !== null && x !== undefined && finite(x) ? ` — find ${name}(${xText(x)}) and compare` : '';
+  return { correct: false, direction, text: `too ${direction}${evaluate}` };
 };
 
 /**
  * Compare every plotted point against the function it was meant to land on.
  *
  * `evaluate` is injected so this stays pure and testable: the workspace passes
- * its own evaluator, and a test passes a one-line function.
+ * its own evaluator, and a test passes a one-line function. `name` is the
+ * function's letter in "find f(3) and compare".
  *
  * A point the student has not placed yet is skipped rather than reported as
  * wrong — "not plotted" is not a mistake, it is an unfinished task, and telling
  * a student their blank is incorrect is how a check loses their trust.
  */
-export const checkPlottedPoints = ({ placements = {}, tasks = [], evaluate = null } = {}) => {
+export const checkPlottedPoints = ({ placements = {}, tasks = [], evaluate = null, name = 'f' } = {}) => {
   if (typeof evaluate !== 'function') return { checked: 0, results: [], allOnFunction: false };
 
   const results = [];
@@ -81,14 +90,14 @@ export const checkPlottedPoints = ({ placements = {}, tasks = [], evaluate = nul
       continue;
     }
 
-    const miss = describeVerticalMiss(y, trueY);
+    const miss = describeVerticalMiss(y, trueY, { x, name });
     results.push({
       id: task.id,
       label: task.label || task.id,
       point: [x, y],
       correct: miss.correct,
       undefinedHere: false,
-      delta: miss.delta,
+      direction: miss.direction,
       text: miss.text,
     });
   }

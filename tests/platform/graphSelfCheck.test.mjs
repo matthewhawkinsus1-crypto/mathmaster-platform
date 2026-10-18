@@ -29,15 +29,25 @@ test('a plotted point is measured against the function it was meant to land on',
   assert.equal(report.checked, 2);
   assert.equal(report.results[0].correct, true);
   assert.equal(report.results[1].correct, false);
-  assert.equal(report.results[1].text, '2 units above the function');
+  // Which way, and what to work out — never by how much (HELP-22).
+  assert.equal(report.results[1].text, 'too high — find f(2) and compare');
+  assert.equal(report.results[1].direction, 'high');
   assert.equal(report.allOnFunction, false);
 });
 
-test('the miss is described in the student own direction and units', () => {
-  assert.equal(describeVerticalMiss(3, 5).text, '2 units below the function');
-  assert.equal(describeVerticalMiss(7, 5).text, '2 units above the function');
-  assert.equal(describeVerticalMiss(4, 5).text, '1 unit below the function');
+test('the miss says too high or too low and sends the student to the rule, never the distance (HELP-22)', () => {
+  // "(3, 4) — 2 units below the function" was the correction itself: the
+  // student moved the point up 2 and learned nothing about f(3).
+  assert.equal(describeVerticalMiss(3, 5, { x: 3 }).text, 'too low — find f(3) and compare');
+  assert.equal(describeVerticalMiss(7, 5, { x: 3 }).text, 'too high — find f(3) and compare');
+  assert.equal(describeVerticalMiss(7, 5, { x: -1.5, name: 'g' }).text, 'too high — find g(−1.5) and compare');
+  assert.equal(describeVerticalMiss(4, 5).text, 'too low', 'no x, no rule to name');
   assert.equal(describeVerticalMiss(5, 5).correct, true);
+  [[3, 5], [7, 5], [4.5, 5], [-10, 5]].forEach(([plotted, real]) => {
+    assert.doesNotMatch(describeVerticalMiss(plotted, real, { x: 3 }).text, /unit|above|below|\d+(?:\.\d+)? /, 'no distance');
+  });
+  const report = checkPlottedPoints({ placements: { c: [3, 4] }, tasks, evaluate: line });
+  assert.equal(report.results[0].delta, undefined, 'the distance is not carried to the screen');
 });
 
 test('a point the student has not placed is not called wrong', () => {
@@ -196,4 +206,27 @@ test('the self-check control clears the Chromebook touch minimum', () => {
   const source = codeOf('src/InteractiveGraphWorkspace.jsx');
   const block = source.slice(source.indexOf('onClick={runSelfCheck}'));
   assert.match(block.slice(0, 420), /minHeight: 44/);
+});
+
+test('one check where outcomes are shown: "Check Point Placements" also says which way, charged only on a miss (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const check = region(source, 'const checkPoints = () => {', 'const beginDrawing', 'checkPoints');
+  // Directions only for a miss, only where hints and outcomes are both allowed.
+  assert.match(check, /const directions = !correct && selfCheckAllowed && revealPointCorrectness \? selfCheckReportFor\(\) : null;/);
+  // Charged as a hint only when a point really is off.
+  assert.match(check, /if \(directions && directions\.results\.some\(\(entry\) => !entry\.correct\)\) onSelfCheck\?\.\(directions\);/);
+  // The separate "Check my points" button exists only where outcomes are withheld.
+  const own = region(source, '{selfCheckAllowed && !construction.pointsValidated && outcomesWithheld && (', 'Check my points', 'the standalone check');
+  assert.match(own, /onClick=\{runSelfCheck\}/);
+  assert.equal((source.match(/>\s*Check my points\s*</g) || []).length, 1, 'one "Check my points" control');
+  // The cost is said before the press, beside the one check.
+  assert.match(source, /!outcomesWithheld && selfCheckAllowed && <span[^>]*data-hint-cost-note="">If a point is off, the check says which way\. \{selfCheckCostSentence\(hintCostNote\)\}<\/span>/);
+});
+
+test('the check and its report are body-size text, not 11-12px (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const report = region(source, '{selfCheckReport && !construction.pointsValidated && (', '</ul>', 'the report');
+  assert.match(report, /fontSize: 'calc\(16 \* var\(--mm-px\)\)'/);
+  assert.doesNotMatch(report, /calc\(1[12](?:\.5)? \* var/);
+  (source.match(/<span[^>]*data-hint-cost-note=""[^>]*>/g) || []).forEach((note) => assert.match(note, /calc\(16 \* var\(--mm-px\)\)/));
 });

@@ -75,9 +75,12 @@ test('the old wordings are gone from every place a hint is offered', () => {
   }
   // The graph check and the solver's strategic hint say it in the same words,
   // the host's where it has its own.
-  const graph = region(code('src/InteractiveGraphWorkspace.jsx'), '{selfCheckAllowed && !construction.pointsValidated && (', 'Check my points', 'the graph check');
+  // (HELP-22: the standalone check is only where outcomes are withheld; where
+  // they are shown it is part of "Check Point Placements" and says the same.)
+  const graph = region(code('src/InteractiveGraphWorkspace.jsx'), '{selfCheckAllowed && !construction.pointsValidated && outcomesWithheld && (', 'Check my points', 'the graph check');
   assert.match(graph, /title=\{`Compares your plotted points with the function\. \$\{selfCheckCostSentence\(hintCostNote\)\}`\}/);
   assert.match(code('src/InteractiveGraphWorkspace.jsx'), /data-hint-cost-note="">\{selfCheckCostSentence\(hintCostNote\)\}<\/span>/);
+  assert.match(code('src/InteractiveGraphWorkspace.jsx'), /data-hint-cost-note="">If a point is off, the check says which way\. \{selfCheckCostSentence\(hintCostNote\)\}<\/span>/);
   assert.match(code('src/StepByStepAlgebraCore.jsx'), /<summary[^>]*>Need a strategic hint\? <span data-hint-cost-note=""[^>]*>\{hintCostSentence\(hintCostNote\)\}<\/span><\/summary>/);
   const engine = code('src/QuestionEngine.jsx');
   assert.match(region(engine, 'const graphModuleProps = {', '};', 'graph props'), /\n\s*hintCostNote,\n/);
