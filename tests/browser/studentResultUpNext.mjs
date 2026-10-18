@@ -139,12 +139,16 @@ for (const viewport of VIEWPORTS) {
   };
   const expect = (problems, condition, message) => { if (!condition) problems.push(message); };
   const lastCall = async () => (await calls(page)).at(-1) || null;
+  // Each row's title is its own heading, whatever its level (the Assignments rows are h2 since NAV-23).
+  const rowTitles = () => page.evaluate(() => [...document.querySelectorAll('article')]
+    .map((article) => article.querySelector('h1, h2, h3, h4, h5, h6')?.textContent)
+    .filter(Boolean));
 
   await scene('center', async (problems) => {
     // Upcoming: soonest due first.
     expect(problems, await clickButton(page, 'Upcoming ·') === 'ok', 'could not open Upcoming');
     await page.waitForTimeout(120);
-    const upcoming = await page.evaluate(() => [...document.querySelectorAll('article h3')].map((h) => h.textContent));
+    const upcoming = await rowTitles();
     expect(problems, JSON.stringify(upcoming) === JSON.stringify(['Solving Inequalities', 'Slope from Two Points', 'Quadratics Investigation']), `Upcoming order: ${JSON.stringify(upcoming)}`);
     const upcomingText = await textOf(page);
     expect(problems, upcomingText.includes('Practice opens when your teacher starts it in class'), 'locked Practice wait text missing');
@@ -158,7 +162,7 @@ for (const viewport of VIEWPORTS) {
     // Active: past due first; Continue carries the question index.
     expect(problems, await clickButton(page, 'Active ·') === 'ok', 'could not open Active');
     await page.waitForTimeout(120);
-    const active = await page.evaluate(() => [...document.querySelectorAll('article h3')].map((h) => h.textContent));
+    const active = await rowTitles();
     expect(problems, active[0] === 'Linear Functions', `Active does not lead with past-due work: ${JSON.stringify(active)}`);
     expect(problems, await clickButton(page, 'Continue', { within: { selector: 'article', text: 'Systems of Equations' } }) === 'ok', 'Continue not clickable');
     const cont = await lastCall();
