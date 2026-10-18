@@ -1,8 +1,8 @@
 # Student pass 3 — wave 5, W5-5: math display
 
 Branch `claude/pass3-math-display`, from `claude/modest-pasteur-xzagn7` at `e822504` (wave 3 integrated), with the
-base merged in once since (merge commit `1fdbaac` for `cbeff6a`), then the independent review's fixes (`68b845f`,
-[below](#after-the-independent-review-b6390a8--68b845f)). Items:
+base merged in twice since (merge commits `1fdbaac` for `cbeff6a` and `2e6d6145` for `c350dfc`, wave 4), and the
+independent review's fixes in between (`68b845f`, [below](#after-the-independent-review-b6390a8--68b845f)). Items:
 Q-12, Q-13, Q-31 ([06-open-items-qa-docs.md](../qa/student-experience-pass-3/06-open-items-qa-docs.md)), PR-13 / R-1
 ([07-open-items-prs.md](../qa/student-experience-pass-3/07-open-items-prs.md)), and TOOL-7's remainder from session E's
 "Not done" list ([STUDENT_PASS3_TOOLS_SPEECH_CONTRAST.md](STUDENT_PASS3_TOOLS_SPEECH_CONTRAST.md)). Nothing here
@@ -60,28 +60,31 @@ Every new assertion was broken once in the code and seen red, then restored:
 
 ## Gate
 
-On `5182472`, the code head; the commit that adds this file changes only docs. Run one at a time. Browser drivers ran
-against `npx vite --host 127.0.0.1 --port 5199 --strictPort` (`AUDIT_ORIGIN`), dark mode Part 2 also against the
-teacherWorkflow harness on 5188.
+**Current: on merge commit `2e6d6145`**. That is the review fixes (`68b845f`) with the base merged in at `c350dfc`
+(wave 4 and W5-1's first load). Everything was run one at a time. Browser drivers ran against
+`npx vite --host 127.0.0.1 --port 5199 --strictPort` (`AUDIT_ORIGIN`); dark mode Part 2 also used the teacherWorkflow
+harness on 5188.
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11613 pass, 0 fail |
-| `node --test tests/tools/*.test.mjs` | 1671 pass, 0 fail |
-| `npm run test:authoring-v5` | 686 pass, 0 fail |
-| `npm run lint` | exit 0 (warnings only; none new in changed lines) |
-| `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten (`git status` clean after) |
-| `node scripts/check-first-load-budget.mjs` | **studentHome 1049.0 KB gzip in 197 files**, exit 1: 25.6 KB over the 1023.4 KB baseline. **The base is already over**: the same build of `e822504` measures 1048.6 KB in 196 files (25.2 KB over). This branch adds 0.4 KB and one file. Baseline not edited (W5-1 owns first load). signIn 291.5 KB. |
-| `npm run test:challenge-finish` (emulator; includes studentAssignmentOverrides) | 453 pass, 0 fail |
-| `npm run test:test-cycle-certification` (emulator) | 35 pass, 0 fail |
-| `npm run test:grade-authority` (emulator) | 14 pass, 0 fail |
-| Step Algebra platform suites (`*lgebra*`, `stepAlgebra*`, `systemsWorkspace*`, `classworkQ2SubstitutionHandoff`) | in the platform run above, all pass |
-| `stepAlgebraStructureTools` (browser) | exit 0, no findings (with the new divide-negative journey) |
-| toolPolicyGates, focusSafeToolControls, stagedQuestion, graphPointCheck, planePhoneReach, graphKeyboardRoute, composedOutcomePolicy, assessmentLeakGates, toolFocusAndUndo, renderStability, toolAttemptOutcome, systemsWorkspaceStudio, clickMapLetterbox, unansweredChoiceGates | all exit 0. (unansweredChoiceGates first failed only because the dev server hit its time limit mid-run; it passes on a rerun against a live server.) |
-| algebraicSubstitutionHandoff, algebraicSystems3x3, mathSpeech, graphDescription, linearMultipleRepresentations | all exit 0 |
-| `npm run certify:dark-mode` | passed: Parts 1, 1B and 2 (192 surfaces, 4 viewports, light and dark) |
-| `workViewMatrix.mjs --write` | exit 0, all Stage 3A families keep controls, state and Undo; the fixture diff was only `generatedAt`, reverted (no intended change) |
-| `captureToolResponses.mjs` graphing2, stepAlgebra, algebra, systemsWorkspace | each captured; `capturedToolResponses.json` unchanged (submissions unchanged). Polynomial Workshop, Representation Bridge/Match have no capture script. |
+| `npm run test:platform` | 11690 pass, 0 fail |
+| `node --test tests/tools/*.test.mjs` | 1683 pass, 0 fail |
+| `npm run lint` | exit 0 (warnings only) |
+| `npm run build` / `npm run build:firebase` | both exit 0; no tracked file rewritten (`git status` clean after them and at the end) |
+| `node scripts/check-first-load-budget.mjs` | **studentHome 845.7 KB gzip in 186 files**, within its baseline (177.6 KB under; baseline not edited); signIn 291.3 KB |
+| stepAlgebraStructureTools (with divide-negative), toolPolicyGates, assessmentLeakGates, workViewHelpReach, stagedQuestion, graphPointCheck, composedOutcomePolicy, planePhoneReach, focusSafeToolControls, algebraicSubstitutionHandoff, mathSpeech, graphDescription, renderStability, toolAttemptOutcome, toolFocusAndUndo | all exit 0 |
+| `workViewMatrix.mjs` (no `--write`) | exit 0; no tracked file changed |
+| `npm run certify:dark-mode` | passed: Parts 1, 1B and 2 (192 surfaces) |
+| **linearMultipleRepresentations** | exit 1, 8 findings, all in the `complete` journey: "after a correct submission the board's Submit button is not on the page" and "…cannot be resubmitted (null)" for lmr-cw-2, cw-3, pr-1 and pr-2. **Identical on the base `c350dfc`** (same 8 findings, run from a worktree on its own server). It came in with wave 4: the driver looks for a "Submit — …" button after the question closes. Not this branch; not fixed here. |
+| **algebraicSystems3x3** | exit 1, 2 findings: "the 3×3 question did not route to the 3×3 substitution workspace" (student and teacherPreview). **Identical on the base `c350dfc`.** It came in with wave 4 (Systems tools). Not this branch; not fixed here. |
+
+Run before the merge, on `5182472` (they cover files the review round did not change):
+
+- the emulator suites: `test:challenge-finish` 453/0, `test:test-cycle-certification` 35/0, `test:grade-authority` 14/0;
+- `captureToolResponses` for graphing2, stepAlgebra, algebra and systemsWorkspace: fixture unchanged;
+- systemsWorkspaceStudio, clickMapLetterbox, unansweredChoiceGates, graphKeyboardRoute: all exit 0.
+
+On the first merge (`1fdbaac`, base `cbeff6a`), review:contrast gave 0 failures (133 undecided, 28 decorative).
 
 ## Deploying (not done)
 
@@ -174,7 +177,8 @@ repeating a wrong answer across the deploy can spend at most one extra try. It n
 
 ## Merge notes for the integrator
 
-Wave 4's B (submit-and-finish) conflicts with this branch in three places:
+Resolved in `2e6d6145` as below, keeping both sides. Wave 4's B (submit-and-finish) conflicted with this branch in
+three places:
 
 - `ToolRuntimeContext.jsx` provider signature: take the union,
   `…, submitCost = null, verdictsWithheld = false, teacherView = false, children`. Keep both value fields.
