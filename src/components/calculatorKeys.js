@@ -44,9 +44,36 @@ export const calculatorButtonsFor = (keys) => {
   return specs;
 };
 
+/*
+ * WHAT THE CALCULATOR COULD NOT READ (student pass 3, TOOL-8). The screen
+ * showed a bare "Error"; it now says why, in the same words a screen reader
+ * hears. `error` is what evaluateCalculatorExpression threw (its `reason` and
+ * `detail`, calculatorExpression.js); anything else gets the general sentence.
+ */
+const GENERAL_ERROR = 'The calculator could not work that out. Check the expression.';
+export const calculatorErrorMessage = (error = null) => {
+  const detail = typeof error?.detail === 'string' && error.detail.trim() ? error.detail.trim() : null;
+  switch (error?.reason) {
+    case 'empty': return 'Type a calculation first.';
+    case 'tooLong': return 'That calculation is too long. Work it out in smaller steps.';
+    case 'symbol': return detail
+      ? `It could not read “${detail}”. Use numbers, + − × ÷, brackets and the function keys.`
+      : 'It could not read a symbol. Use numbers, + − × ÷, brackets and the function keys.';
+    case 'name': return detail
+      ? `It could not read “${detail}”. Use the function keys for √, sin, cos, tan, log and ln.`
+      : GENERAL_ERROR;
+    case 'mode': return 'This calculator does not have that key on this question.';
+    case 'notFinite': return 'That has no number answer. Check for dividing by 0.';
+    case 'bracket-open': return 'A bracket is not closed. Add the missing “)”.';
+    case 'bracket-close': return 'A “)” has no “(” to match it.';
+    case 'syntax': return 'It could not read that. Check for a missing number, or two signs side by side.';
+    default: return GENERAL_ERROR;
+  }
+};
+
 /** What the calculator says after "=": "equals 3.75, exactly 15 over 4". */
 export const calculatorResultAnnouncement = ({ decimal = null, fraction = null, error = false } = {}) => {
-  if (error) return 'The calculator could not work that out. Check the expression.';
+  if (error) return typeof error === 'string' ? error : GENERAL_ERROR;
   const value = String(decimal ?? '').trim();
   if (!value) return '';
   const said = spokenMathLabel(value);

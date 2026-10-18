@@ -10,7 +10,7 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
-import { calculatorButtonsFor, calculatorResultAnnouncement } from './calculatorKeys.js';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -51,6 +51,9 @@ export const CalculatorPanel = ({
   // evaluateCalculatorExpressionExact). Shown only while the display still
   // holds that result, so any further typing hides it.
   const [exactResult, setExactResult] = useState(null);
+  // What the calculator could not read, shown under "Error" while the display
+  // still holds it (TOOL-8) and said by the result announcement.
+  const [errorText, setErrorText] = useState('');
   // What "=" (or Enter) produced, said once in a polite region. The count makes
   // the same answer twice in a row a new announcement.
   const [resultAnnouncement, setResultAnnouncement] = useState({ text: '', count: 0 });
@@ -133,10 +136,11 @@ export const CalculatorPanel = ({
         setDisplay(result);
         setExactResult(evaluated.fraction ? { decimal: result, fraction: evaluated.fraction } : null);
         announceResult({ decimal: result, fraction: evaluated.fraction });
-      } catch {
+      } catch (error) {
         mathField.value = 'Error';
         setDisplay('Error');
-        announceResult({ error: true });
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
@@ -363,9 +367,10 @@ export const CalculatorPanel = ({
         setCalculatorValue(evaluated.decimal);
         setExactResult(evaluated.fraction ? { decimal: evaluated.decimal, fraction: evaluated.fraction } : null);
         announceResult({ decimal: evaluated.decimal, fraction: evaluated.fraction });
-      } catch {
+      } catch (error) {
         setCalculatorValue('Error');
-        announceResult({ error: true });
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
       return;
     }
@@ -552,6 +557,12 @@ export const CalculatorPanel = ({
                 // Shown; spoken by the result announcement below, with the decimal.
                 <p data-calculator-exact="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
                   Exact: {exactResult.fraction}
+                </p>
+              ) : null}
+              {display === 'Error' && errorText ? (
+                // Shown; spoken by the result announcement below.
+                <p data-calculator-error="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-error-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                  {errorText}
                 </p>
               ) : null}
               <span data-calculator-result-announcement="" role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>

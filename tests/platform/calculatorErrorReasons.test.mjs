@@ -1,0 +1,56 @@
+/*
+ * THE CALCULATOR SAYS WHAT IT COULD NOT READ (student pass 3, TOOL-8).
+ *
+ * The screen showed a bare "Error" for every refusal; a screen reader heard
+ * "The calculator could not work that out." Now each refusal carries its
+ * reason, and the screen and the announcement say the same sentence:
+ * "It could not read “=”.", "A bracket is not closed.", "That has no number
+ * answer. Check for dividing by 0." The thrown messages are unchanged.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { evaluateCalculatorExpressionExact } from '../../src/platform/policies/calculatorExpression.js';
+import { CALCULATOR_MODES } from '../../src/platform/policies/calculatorPolicy.js';
+import { calculatorErrorMessage, calculatorResultAnnouncement } from '../../src/components/calculatorKeys.js';
+import { region } from './helpers/sourceContract.mjs';
+
+const refusalOf = (expression, mode = 'basic') => {
+  try {
+    evaluateCalculatorExpressionExact(expression, mode);
+  } catch (error) {
+    return error;
+  }
+  assert.fail(`${expression} was not refused`);
+};
+const said = (expression, mode) => calculatorErrorMessage(refusalOf(expression, mode));
+
+test('each refusal names what the calculator could not read', () => {
+  assert.equal(said('2+3=5'), 'It could not read “=”. Use numbers, + − × ÷, brackets and the function keys.');
+  assert.equal(said('abc'), 'It could not read “abc”. Use the function keys for √, sin, cos, tan, log and ln.');
+  assert.equal(said('1/0'), 'That has no number answer. Check for dividing by 0.');
+  assert.equal(said('(2+3'), 'A bracket is not closed. Add the missing “)”.');
+  assert.equal(said('2+3)'), 'A “)” has no “(” to match it.');
+  assert.equal(said('2+*3'), 'It could not read that. Check for a missing number, or two signs side by side.');
+  assert.equal(said(''), 'Type a calculation first.');
+  assert.equal(said('1+'.repeat(100)), 'That calculation is too long. Work it out in smaller steps.');
+  assert.equal(said('2^3', CALCULATOR_MODES.SQUARE_ROOT), 'This calculator does not have that key on this question.');
+  // Anything without a reason keeps the general sentence.
+  assert.equal(calculatorErrorMessage(new Error('x')), 'The calculator could not work that out. Check the expression.');
+  // The thrown text is what it always was.
+  assert.match(refusalOf('1/0').message, /finite number/);
+  assert.match(refusalOf('abc').message, /Unsupported calculator function/);
+});
+
+test('the screen shows the reason under "Error", and the announcement says the same words', () => {
+  assert.equal(calculatorResultAnnouncement({ error: said('2+3=5') }), said('2+3=5'));
+  assert.equal(calculatorResultAnnouncement({ error: true }), 'The calculator could not work that out. Check the expression.');
+  const panel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
+  // Both ways to press "=" (Enter in the field, the = key) set the shown reason and say it.
+  const enter = region(panel, 'const handleKeyDown = (event) => {', 'const preventContextMenu', 'Enter');
+  const equals = region(panel, "if (button.action === 'equals') {", 'return;', '= key');
+  [enter, equals].forEach((handler) => {
+    assert.match(handler, /catch \(error\) \{[\s\S]*setErrorText\(calculatorErrorMessage\(error\)\);\s*announceResult\(\{ error: calculatorErrorMessage\(error\) \}\);/);
+  });
+  assert.match(panel, /\{display === 'Error' && errorText \? \(\s*\/\/[^\n]*\n\s*<p data-calculator-error=""[^>]*>\s*\{errorText\}\s*<\/p>/);
+});

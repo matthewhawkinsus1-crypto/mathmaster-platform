@@ -82,9 +82,24 @@ export const groupBuiltFractions = (ascii) => {
   return text;
 };
 
+/*
+ * WHY THE CALCULATOR REFUSED (student pass 3, TOOL-8). Each refusal carries a
+ * `reason` and, where there is one, the `detail` it could not read, so the
+ * screen can say "It could not read “=”." instead of a bare "Error"
+ * (calculatorKeys.js calculatorErrorMessage). The thrown message is unchanged.
+ */
+const refusal = (message, reason, detail = null) => Object.assign(new Error(message), { reason, detail });
+
+/** The first character the calculator has no key for, as typed. */
+const firstUnreadable = (text) => {
+  const match = /[=;[\]{}:_]|[^0-9a-zA-Z+\-*/^().,\s]/.exec(text);
+  return match ? match[0] : null;
+};
+
 const prepareCalculatorExpression = (expression, mode = null) => {
   const raw = String(expression ?? '').trim();
-  if (!raw || raw.length > 180) throw new Error('Enter a shorter calculation.');
+  if (!raw) throw refusal('Enter a shorter calculation.', 'empty');
+  if (raw.length > 180) throw refusal('Enter a shorter calculation.', 'tooLong');
   const normalized = replaceLatexFractions(raw)
     .replace(/\\left|\\right/g, '')
     .replace(/\\div/g, '/')
@@ -97,22 +112,41 @@ const prepareCalculatorExpression = (expression, mode = null) => {
     .replace(/\\sqrt\s*\{([^{}]+)\}/g, 'sqrt($1)')
     .replace(/√/g, 'sqrt');
   if (!/^[0-9a-zA-Z+\-*/^().,\s]+$/.test(normalized) || /[=;[\]{}:_]/.test(normalized)) {
-    throw new Error('Unsupported calculator input.');
+    throw refusal('Unsupported calculator input.', 'symbol', firstUnreadable(normalized));
   }
   if (!calculatorModeAllowsExpression(normalized, mode)) {
-    throw new Error('Unsupported calculator input for this mode.');
+    throw refusal('Unsupported calculator input for this mode.', 'mode');
   }
   const names = normalized.match(/[A-Za-z]+/g) || [];
-  if (names.some((name) => !SAFE_FUNCTIONS.has(name) && !['pi', 'e'].includes(name))) {
-    throw new Error('Unsupported calculator function.');
+  const unknown = names.find((name) => !SAFE_FUNCTIONS.has(name) && !['pi', 'e'].includes(name));
+  if (unknown) {
+    throw refusal('Unsupported calculator function.', 'name', unknown);
   }
   return normalized;
 };
 
+/** Brackets in order: 'open' when one is never closed, 'close' when one closes nothing. */
+const bracketProblem = (text) => {
+  let depth = 0;
+  for (const char of text) {
+    if (char === '(') depth += 1;
+    if (char === ')') depth -= 1;
+    if (depth < 0) return 'close';
+  }
+  return depth > 0 ? 'open' : null;
+};
+
 export const evaluateCalculatorExpression = (expression, mode = null) => {
   const normalized = prepareCalculatorExpression(expression, mode);
-  const result = Number(evaluate(normalized));
-  if (!Number.isFinite(result)) throw new Error('The calculation did not produce a finite number.');
+  let value;
+  try {
+    value = evaluate(normalized);
+  } catch (error) {
+    const brackets = bracketProblem(normalized);
+    throw refusal(String(error?.message || 'Unreadable calculation.'), brackets ? `bracket-${brackets}` : 'syntax');
+  }
+  const result = Number(value);
+  if (!Number.isFinite(result)) throw refusal('The calculation did not produce a finite number.', 'notFinite');
   return Number(result.toPrecision(DISPLAY_DIGITS));
 };
 
