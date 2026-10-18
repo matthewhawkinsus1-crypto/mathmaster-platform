@@ -15,6 +15,7 @@ import {
   splitEquationSides,
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
+import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
@@ -39,7 +40,7 @@ const unwrapWordGroups = (value) => {
   return text;
 };
 
-export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value, { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
   // MathLive/IME combinations may insert them between otherwise identical
@@ -113,6 +114,9 @@ const absCallsAsBars = (value) => {
  * flat-brace pattern left a nested exponent braced and the two apart.
  */
 const SIMPLE_EXPONENT = /^\s*(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})\s*$/;
+// `^{-3}` and `^{-x}`: unbraced once the divisions are stacked, the spelling
+// every comparison read before (N2), and kept braced until then.
+const NEGATED_TOKEN = /^\s*-[A-Za-z0-9]\s*$/;
 const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => {
   let text = value;
   for (let index = text.indexOf('^{'); index >= 0; index = text.indexOf('^{', index + 1)) {
@@ -128,7 +132,7 @@ const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => 
     // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
     // written with keeps the reading the renderer shows (H-13 review).
     if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
-    const group = SIMPLE_EXPONENT.test(body) ? body.trim() : `(${body})`;
+    const group = SIMPLE_EXPONENT.test(body) || NEGATED_TOKEN.test(body) ? body.trim() : `(${body})`;
     text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
   }
   return text;
@@ -153,6 +157,11 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
     // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
     .replace(/(?<![A-Za-z\\])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
     .replace(/\\sqrt\s*([A-Za-z0-9])/g, '\\sqrt{$1}')
+    // ASCIIMath's nth root: `root(3)(2)` is the editor's `\sqrt[3]{2}`.
+    .replace(/(?<![A-Za-z\\])root\s*\((\d+)\)\s*\(([^()]*)\)/g, (match, index, body) => (index === '2' ? `\\sqrt{${body}}` : `\\sqrt[${index}]{${body}}`))
+    // A power and a subscript on one base, in either order: `x^{2}_{1}` is
+    // `x_1^2`. Only a number power, so `e^x_1` keeps whatever it meant.
+    .replace(/\^(\d|\{\d+\})_(\{[^{}]*\}|[A-Za-z0-9])/g, '_$2^$1')
     // `\pi r^2` loses its space to some comparisons (`\pir^2`): \pi is the
     // constant whatever letter follows (only \pitchfork is another command).
     .replace(/\\pi(?!tchfork)/g, 'π')
@@ -165,7 +174,19 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
   return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
 };
 
-export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false })
+/*
+ * A power of a unit fraction as one over the power: `(1/2)^π` and `1/2^π` are
+ * the same number, and so are the editor's `\left(\frac12\right)^{\pi}` and
+ * `\frac{1}{2^{\pi}}` (student pass 3). Only a positive number denominator,
+ * where (1/b)^e = 1/b^e for every exponent; `(1/x)^n` and `(2/3)^n` are left
+ * as written.
+ */
+const unitFractionPowers = (value) => value.replace(
+  /\(\\frac\{1\}\{(?!0+(?:\.0+)?\})(\d+(?:\.\d+)?)\}\)\^(\d+(?:\.\d+)?|[A-Za-z]|π|\([^()]*\))(?!\^)/g,
+  '\\frac{1}{$1^$2}',
+);
+
+export const normalizeAnswer = (value) => unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -988,10 +1009,49 @@ const numericPair = (value) => {
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
 
+/*
+ * A coordinate with a square root, compared by its exact value (student pass
+ * 3): `1-\sqrt{2}`, `\frac{2-\sqrt{8}}{2}` and a generator's unsimplified
+ * `(-(-2)-sqrt(8))/2` are one number. Only exact constants are read
+ * (exactConstantValue.mjs), and only for a pair with a root on both sides: a
+ * pair of plain numbers keeps numericPair's reading, so `(1+2,4)` is still not
+ * `(3,4)`. When one coordinate has a root, its partner must too: a decimal or
+ * a long fraction is not the exact value an irrational coordinate asks for.
+ */
+const exactCoordinate = (part) => {
+  const exact = exactConstantValue(part);
+  if (exact) return exact;
+  const number = asNumber(part);
+  return number === null ? null : { value: number, radical: false };
+};
+
+const exactPair = (value) => {
+  const text = normalizeAnswer(value);
+  if (!/^\(.*\)$/.test(text)) return null;
+  const parts = splitTopLevelCommaList(text.slice(1, -1));
+  if (parts.length !== 2 || parts.some((part) => /[%$]/.test(part))) return null;
+  const coordinates = parts.map(exactCoordinate);
+  return coordinates.every(Boolean) ? coordinates : null;
+};
+
+const sameExactCoordinate = (a, b, tolerance) => {
+  if (a.radical || b.radical) {
+    // (A coordinate with a root is never a decimal: exactConstantValue refuses
+    // a decimal point, so both sides here came from it.)
+    if (!(a.radical && b.radical)) return false;
+    return Math.abs(a.value - b.value) <= 1e-9 * Math.max(1, Math.abs(a.value), Math.abs(b.value));
+  }
+  return Math.abs(a.value - b.value) <= tolerance;
+};
+
 export const sameNumericPair = (left, right, tolerance = 1e-6) => {
   const a = numericPair(left);
   const b = numericPair(right);
-  return Boolean(a && b) && a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
+  if (a && b) return a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
+  const exactA = exactPair(left);
+  const exactB = exactPair(right);
+  if (!exactA?.some((coordinate) => coordinate.radical) || !exactB?.some((coordinate) => coordinate.radical)) return false;
+  return exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
 };
 
 /**

@@ -93,6 +93,9 @@ const PI_FIELD = { field: { requiredSymbols: ['π'] } };
 const ROOT_FIELD = { field: { requiredSymbols: ['√'] } };
 const OUT = '↷ out';
 
+// mm_A2_3C_v2_quadratic-formula-exact as drawn: y = 2x + 3 and y = x^2 + 0x + 2.
+const QUADRATIC_FORMULA_PAIR = '((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)';
+
 const TRIALS = [
   typed('number', '3/4', ['3/4', '0.75']),
   typed('number', '0.75', ['3/4']),
@@ -151,6 +154,7 @@ const TRIALS = [
   keypad('orderedPair', ['(', '0', ',', '−', '8', ')'], ['(0,-8)']),
   keypad('orderedPair', ['(', 'a⁄b', '−', '1', 'denominator', '2', OUT, ',', '3', ')'], ['(-1/2,3)', '(-0.5,3)']),
   keypad('orderedPair', ['(', '3', '√', '2', OUT, ',', '1', ')'], ['(3sqrt(2),1)']),
+  keypad('orderedPair', ['(', '1', '−', '√', '2', OUT, ',', '5', '−', '2', '√', '2', OUT, ')'], [QUADRATIC_FORMULA_PAIR]),
   keypad('orderedPair', ['(', 'a⁄b', '√', '3', OUT, 'denominator', '2', OUT, ',', 'a⁄b', '1', 'denominator', '2', OUT, ')'], ['(sqrt(3)/2,1/2)']),
   keypad('inequality', ['x', '≥', '4'], ['x>=4']),
   keypad('inequality', ['−', '3', '<', 'x', '≤', '5'], ['-3<x<=5']),
@@ -167,6 +171,11 @@ const TRIALS = [
   mixed('set', ['∅'], ['{}']),
   mixed('number', ['a⁄b', { type: '-1' }, 'denominator', { type: '2' }], ['-1/2', '-0.5']),
   mixed('orderedPair', [{ type: '(3' }, '√', { type: '2' }, OUT, { type: ',1)' }], ['(3sqrt(2),1)']),
+  // Algebra II quadratic-formula-exact keys a pair as unsimplified generator
+  // text; the simplified exact pair grades by its value (student pass 3, wave
+  // 6). Typed straight through, `sqrt2,` keeps the caret in the root (√(2,…)),
+  // so the root is left with the arrow, as a student sees they must.
+  mixed('orderedPair', [{ type: '(1-' }, '√', { type: '2' }, OUT, { type: ',5-2' }, '√', { type: '2' }, OUT, { type: ')' }], [QUADRATIC_FORMULA_PAIR]),
   mixed('inequality', [{ type: '0' }, '≤', { type: 'h' }, 'and', { type: 'h' }, '≤', { type: '12' }], ['0<=h and h<=12'], null, H_PROMPT),
 ];
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-18T01:16:48.344Z",
+  "generatedAt": "2026-10-18T10:48:38.706Z",
   "source": "tests/browser/secureAccessParity.mjs",
   "trials": [
     {
@@ -538,6 +538,19 @@
     },
     {
       "device": "chromebook",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keyboard+keypad",
+      "typed": "keys: \"(1-\" √ \"2\" ↷ out \",5-2\" √ \"2\" ↷ out \")\"",
+      "serialized": "(1-\\sqrt2,5-2\\sqrt2)",
+      "keys": [
+        "((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
       "profile": "inequality",
       "editor": "math",
       "entry": "keyboard+keypad",
@@ -856,6 +869,19 @@
       "serialized": "(3\\sqrt2,1)",
       "keys": [
         "(3sqrt(2),1)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( 1 − √ 2 ↷ out , 5 − 2 √ 2 ↷ out )",
+      "serialized": "(1-\\sqrt2,5-2\\sqrt2)",
+      "keys": [
+        "((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)"
       ],
       "equivalence": null,
       "gradedCorrect": true
