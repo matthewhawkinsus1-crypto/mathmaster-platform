@@ -208,6 +208,50 @@ reached a pushed commit, and the rerun above is on the fixed tree.
 - Pre-existing: `handleResponseCheckpoint` can leave the line at "capturing" until the next drain; a held-feedback DOL
   with tries granted by the teacher was not walked in the browser.
 
+## Merged with wave 3 (e822504)
+
+At the integrator's request, `origin/claude/modest-pasteur-xzagn7` at `e822504` (wave 3: the assignment chrome, getting
+around, the keyboard tools, what tools say and show, Read aloud and Translate, D7 extra time, D10 Phase 0) was merged in
+as merge commit `86f6769`. Seven files had textual conflicts, each resolved keeping both sides:
+
+| File | Resolution |
+| --- | --- |
+| `src/QuestionEngine.jsx` | Batch 5's Submit label and cost block (RUN-4), then session D's `undoUnavailable`. The base's side also held the old label chain ("Submit Answer", "Submit Another Attempt", …), which is the chain RUN-4 replaced, so it was not kept. |
+| `src/components/common/EnlargeableFigure.jsx` | both imports: `relabelToolPrimaryActions` / `useToolRuntimeContext` and D's `useFocusSafeDisabled` |
+| `src/tools/inverseComposition/InverseDerivationLab.jsx` | imports: `SubmitText` beside D's undo history and `FocusSafeButton` |
+| `src/tools/linearTableWorkbench/LinearTableWorkbench.jsx` | imports: `SubmitText` beside `FocusSafeButton` |
+| `src/tools/openSortBoard/OpenSortBoard.jsx` | imports: `SubmitText` beside the undo history, `FocusSafeButton` and the `openSortBoardA11y.js` names |
+| `src/tools/transformations/TransformationsLab.jsx` | imports as above; the plot row keeps D's `FocusSafeButton` "Clear" and `<SubmitText>Check graph</SubmitText>` |
+| `tests/browser/closedVerdictChip.mjs` | the "Your answer" heading (RUN-16) and the chip that is no longer a live region (one live region per result), with the chrome's new opener name "Open Work View" |
+
+**The semantic conflict.** Session F's Spanish pack (`src/platform/language/packs/esSupport.js`) translated only the old
+outcome sentences, so Batch 5's came out half English ("Todavía no. You have 2 tries left."). It gains the new wording:
+"You have {1} tries left." → "Te quedan {1} intentos.", "You have {1} try left — your last one." → "Te queda {1}
+intento: el último.", "That was your only try." → "Ese fue tu único intento.", "That was your last try ({1} in all)." →
+"Ese fue tu último intento ({1} en total).", "Your answer is locked." → "Tu respuesta está cerrada." The outcome list in
+`readAloudAndTranslate.test.mjs` is now built from `missOutcomeText` and `closedAttemptText` themselves (every count and
+every review/replacement combination), so a new wording cannot ship untranslated; dropping one entry turns it red.
+
+**One driver followed the new navigator** (`9273732`, after the merge): a phone's compact navigator has no question
+picker, so `submitAndFinishJourneys` reaches a question through "Show progress", the section's tab and the numbered
+question. No other driver of this batch named the old "Enlarge question" opener.
+
+| Check (merged tree) | Result |
+| --- | --- |
+| `npm run test:platform` | **11,619 / 11,619** |
+| `node --test tests/tools/*.test.mjs` | 1,670 pass, 0 fail (1,671 tests) |
+| `npm run lint`, `npm run build`, `npm run build:firebase` | pass |
+| Student Runtime Browser Gates (every driver in the workflow, the two this batch added among them) | all pass: mathEntryContract, renderStability, errorRecovery, duplicateTabs, graphPointCheck, phoneToolPanelReach, undoTyping, toolFocusAndUndo, composedOutcomePolicy, toolPolicyGates, relationPlotGrading, toolAttemptOutcome, assessmentLeakGates, systemsWorkspaceStudio, clickMapLetterbox, stagedQuestion, unansweredChoiceGates, graphKeyboardRoute, planePhoneReach, focusSafeToolControls, composedDraftRestore, draftEditTime, fractionTemplateGrading, **moduleRecoveryLock**, **closedQuestionEnter**, mathFontsProduction |
+| Question-family drivers | questionFamilyCases (all 36 journeys), day2NonuniqueJourneys |
+| Other drivers this batch touches | feedbackTeaches, closedVerdictChip, workBarPrimaryLabel, workViewTerminalTransition, afterLastMiss, dolCloseCopy, studentAccessibleNames, studentUxPlatform, algebraicSystems3x3 — all pass |
+| Teacher-harness journeys | **submitAndFinishJourneys** (51 checks, both sizes, after the navigator fix), journeys, draftCrossDeviceJourneys, recoveryHoldJourneys, restoredDraftFocusRaceJourneys, warmupReopenJourneys — all pass |
+
+Not rerun here: certify:accessibility and certify:dark-mode (the integrator's wave-3 gate is running them on this base),
+the Live Challenge and draft-persistence suites.
+
+Wave 4 merges on top of this branch next; W4-1 (`claude/pass3-b6-work-view-help`) conflicts with it in QuestionEngine at
+`barContinueAction` (keep both). The integrator resolves that at integration; it was not merged here.
+
 ## Mutation checks
 
 Every new assertion and every rewritten contract was broken once against the code
