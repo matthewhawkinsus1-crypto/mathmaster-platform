@@ -747,6 +747,9 @@ function QuestionEngineBody({
     executionScope,
     assignmentLocked,
   });
+  // A teacher's lesson or test preview: tools may show the teacher policy copy
+  // a student never reads (pass 3, Q-12).
+  const teacherPolicyView = executionScope === 'teacherPreview' || executionScope === 'teacherRepairPreview';
   const supplementResetKey = `${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`;
   const sameIncorrectResponse =
     record.status === 'attempted' &&
@@ -1674,6 +1677,7 @@ function QuestionEngineBody({
       questionTerminal={locked}
       submitLabel={hostSubmitLabel}
       verdictsWithheld={!showOutcomeFeedback}
+      teacherView={teacherPolicyView}
     >
       {node}
     </ToolRuntimeProvider>
@@ -1880,6 +1884,7 @@ function QuestionEngineBody({
           questionTerminal={locked}
           submitLabel={hostSubmitLabel}
           verdictsWithheld={!showOutcomeFeedback}
+          teacherView={teacherPolicyView}
         >
           <WorkflowRunner
             question={presentationQuestion}
@@ -1917,6 +1922,7 @@ function QuestionEngineBody({
           reportWork={locked ? null : handleToolWork}
           submitLabel={hostSubmitLabel}
           verdictsWithheld={!showOutcomeFeedback}
+          teacherView={teacherPolicyView}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a

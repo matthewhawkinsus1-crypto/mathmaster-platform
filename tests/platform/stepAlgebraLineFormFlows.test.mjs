@@ -110,22 +110,22 @@ test('5x + 2y = 6 completes interactively: y = (6 - 5x)/2 -> 6/2 - 5x/2 -> 3 - 5
   let equation = slope('5x + 2y = 6');
   equation = move(equation, 'subtract', '5x');
   equation = move(equation, 'divide', '2');
-  assert.equal(tex(equation), 'y=\\frac{6-5~x}{2}');
+  assert.equal(tex(equation), 'y=\\frac{6-5x}{2}');
   assert.equal(isSolvedEquation(equation), false, 'the un-split (6 - 5x)/2 is unfinished when the objective asks for y = mx + b');
   assert.deepEqual(Object.entries(detectStructureTools(equation)).filter(([, found]) => found.length).map(([kind]) => kind), ['split']);
 
   const splitStep = split(equation);
   equation = splitStep.equation;
-  assert.equal(tex(equation), 'y=\\frac{6}{2}-\\frac{5~x}{2}');
+  assert.equal(tex(equation), 'y=\\frac{6}{2}-\\frac{5x}{2}');
   assert.equal(isSolvedEquation(equation), false, '6/2 is not yet reduced');
 
   const reduced = reduceAll(equation);
   equation = reduced.equation;
-  assert.equal(tex(equation), 'y=3-\\frac{5~x}{2}');
+  assert.equal(tex(equation), 'y=3-\\frac{5x}{2}');
   assert.equal(isSolvedEquation(equation), true, 'the reversed order 3 - (5/2)x is accepted');
 
   const arranged = arrangeSwapFirstTwo(equation);
-  assert.equal(tex(arranged.equation), 'y=-\\frac{5~x}{2}+3');
+  assert.equal(tex(arranged.equation), 'y=-\\frac{5x}{2}+3');
   assert.equal(isSolvedEquation(arranged.equation), true);
   assert.ok(expressionsEquivalent('(6 - 5x)/2', arranged.equation.right, 'x'));
 });
@@ -135,7 +135,7 @@ test('-5x + 7y = 11 finishes as 11/7 + 5x/7 with exact sevenths', () => {
   equation = move(equation, 'add', '5x');
   equation = move(equation, 'divide', '7');
   equation = split(equation).equation;
-  assert.equal(tex(equation), 'y=\\frac{11}{7}+\\frac{5~x}{7}');
+  assert.equal(tex(equation), 'y=\\frac{11}{7}+\\frac{5x}{7}');
   assert.deepEqual(detectStructureTools(equation).reduce, [], 'nothing to cancel in 11/7 or 5x/7');
   assert.equal(isSolvedEquation(equation), true);
   assert.doesNotMatch(equation.right, /1\.57|0\.71/);
@@ -145,9 +145,9 @@ test('2x - 4y = 8: dividing by a negative never invents a negative', () => {
   let equation = slope('2x - 4y = 8');
   equation = move(equation, 'subtract', '2x');
   equation = move(equation, 'divide', '-4');
-  assert.equal(tex(equation), 'y=\\frac{8-2~x}{-4}');
+  assert.equal(tex(equation), 'y=\\frac{8-2x}{-4}');
   equation = split(equation).equation;
-  assert.equal(tex(equation), 'y=\\frac{8}{-4}-\\frac{2~x}{-4}');
+  assert.equal(tex(equation), 'y=\\frac{8}{-4}-\\frac{2x}{-4}');
   equation = reduceAll(equation).equation;
   assert.equal(tex(equation), 'y=-2+\\frac{x}{2}');
   assert.equal(isSolvedEquation(equation), true);
@@ -222,7 +222,7 @@ test('incorrect factoring is rejected and incomplete factoring is recognised as 
   assert.equal(wrong.ok, false);
   assert.equal(wrong.results[1].reason, 'wrong');
   const partial = factorAll(factored('y = 12x + 8'), 'right:side', { 0: [2], 1: [2] }, { quotients: ['6x', '4'] });
-  assert.equal(tex(partial.equation), 'y=2\\left(6~x+4\\right)');
+  assert.equal(tex(partial.equation), 'y=2\\left(6x+4\\right)');
   assert.equal(isSolvedEquation(partial.equation), false);
   assert.equal(isSolvedEquation({ ...partial.equation, right: '6 * (-x + 2)' }), false);
 });
@@ -324,7 +324,7 @@ test('a partly completed factoring survives a draft round-trip and can be finish
   resumed = setFactorQuotient(resumed, 0, '5x');
   resumed = setFactorQuotient(resumed, 1, '-15');
   const result = commitStructureTool(resumed, restored.equation);
-  assert.equal(tex(result.equation), 'y=3\\left(5~x-15\\right)');
+  assert.equal(tex(result.equation), 'y=3\\left(5x-15\\right)');
 });
 
 test('a partly completed fraction split survives a draft round-trip', () => {
@@ -383,8 +383,8 @@ test('history renders as classroom algebra: no \\cdot, no MathJS syntax, exact f
   });
   assert.equal(expressionToLatex('20/9').replace(/\s+/g, ''), '\\frac{20}{9}');
   assert.equal(expressionToLatex('-(5/2)*x + 3').replace(/\s+/g, ''), '-\\frac{5}{2}x+3', 'a negative rational coefficient stays in front of x');
-  assert.equal(expressionToLatex('-(5 x) + (6)').replace(/\s+/g, ''), '-5~x+6');
-  assert.equal(expressionToLatex('((6) - (5 x)) / (2)').replace(/\s+/g, ''), '\\frac{6-5~x}{2}');
+  assert.equal(expressionToLatex('-(5 x) + (6)').replace(/\s+/g, ''), '-5x+6');
+  assert.equal(expressionToLatex('((6) - (5 x)) / (2)').replace(/\s+/g, ''), '\\frac{6-5x}{2}');
   // Grouping that means something stays: a factor against a group, a number
   // against a number, a negative after a minus, a sum after a minus.
   assert.equal(expressionToLatex('3 * (20 / 9)').replace(/\s+/g, ''), '3\\left(\\frac{20}{9}\\right)');

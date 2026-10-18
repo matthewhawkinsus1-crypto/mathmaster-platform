@@ -133,7 +133,10 @@ const OPERAND_AT_START = new RegExp(`^(${OPERAND_SOURCE})`);
 const unwrapSingleLetterUnits = (latex) => String(latex).replace(/\\mathrm\{([A-Za-z])\}/g, '$1');
 
 const cleanImplicitMultiplicationLatex = (latex) => {
-  let text = unwrapSingleLetterUnits(latex);
+  // A hidden implicit product is joined with a TeX tie, -2~ x, which draws as
+  // a space: the balance board read "−2 x" (pass 3, Q-31). The tie is the
+  // same product as \cdot, so it takes the same rules below: -2x, 2(-y).
+  let text = unwrapSingleLetterUnits(latex).replace(/\s*~\s*/g, ' \\cdot ');
   let guard = 40;
 
   while (text.includes('\\cdot') && guard > 0) {
@@ -439,6 +442,12 @@ const unambiguousTermText = (node) => {
   return node.toString(shown).trim();
 };
 
+const withoutParenthesisWrapper = (node) => {
+  let current = node;
+  while (current?.type === 'ParenthesisNode') current = current.content;
+  return current;
+};
+
 const additiveTermDescriptor = ({ node, sign }, index) => {
   let effectiveSign = sign < 0 ? -1 : 1;
   let magnitudeText = unambiguousTermText(node);
@@ -447,6 +456,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
   let magnitudeLatex = cleanImplicitMultiplicationLatex(
     withoutRedundantGrouping(node).toTex({ parenthesis: 'keep', implicit: 'hide' }),
   ).trim();
+  const originalLatex = magnitudeLatex;
 
   // MathJS can encode a negative coefficient inside an opaque product node
   // instead of as the additive chain's unary-minus sign. Canonicalize that
@@ -479,13 +489,24 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
 
   const isFirst = index === 0;
   const operator = effectiveSign < 0 ? '-' : '+';
+  // Dividing a side by -2 writes (-10) / (-2). The sign canonicalised above
+  // came out of that grouped numerator, so the board drew -\frac{10}{-2}: a
+  // sign pattern the student never wrote (pass 3, Q-13). A fraction whose
+  // numerator is a written group is drawn as it was written. Display only:
+  // text, sign and the magnitudes stay canonical for every caller that
+  // rebuilds or grades the side.
+  const written = withoutParenthesisWrapper(node);
+  const writtenFraction = written?.type === 'OperatorNode' && written.fn === 'divide'
+    && written.args?.[0]?.type === 'ParenthesisNode' && !/^-/.test(originalLatex);
+  const shownSign = writtenFraction ? (sign < 0 ? -1 : 1) : effectiveSign;
+  const shownLatex = writtenFraction ? originalLatex : magnitudeLatex;
   return {
     text: isFirst
       ? (effectiveSign < 0 ? '-' : '') + magnitudeText
       : operator + ' ' + magnitudeText,
     latex: isFirst
-      ? (effectiveSign < 0 ? '-' : '') + magnitudeLatex
-      : operator + ' ' + magnitudeLatex,
+      ? (shownSign < 0 ? '-' : '') + shownLatex
+      : (shownSign < 0 ? '-' : '+') + ' ' + shownLatex,
     sign: effectiveSign,
     magnitudeText,
     magnitudeLatex,
