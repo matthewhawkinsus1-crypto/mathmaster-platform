@@ -125,6 +125,36 @@ test('item 5: a number box answered with %, $ or "x ="', async () => {
   assert.equal(sameValue('5', 'x=5'), false);
 });
 
+// Oct 2026 matrices walkthrough (WU 1): "Total money collected … in dollars"
+// answered 8,050 was graded wrong for 8050 — the student wrote the number the
+// way money is written. Only the strict grouping (1–3 digits, then groups of
+// exactly 3) and only against a key that is one number: a comma that could
+// start a pair, a list, a set or a decimal keeps its old verdict.
+test('a number written with thousands separators', async () => {
+  await accepts('8050', '8,050');
+  await accepts('44900', '44,900');
+  await accepts('2086.25', '2,086.25');
+  await accepts('1234567', '1,234,567');
+  await accepts('-1234', '-1,234');
+  await accepts('-1234', '−1,234'); // Unicode minus
+  await accepts('8050', '8{,}050'); // MathLive's own thousands separator
+  await accepts('8050', '$8,050');
+  await accepts('25000', '25,000');
+  await rejects('8050', '8,05'); // not a thousands grouping
+  await rejects('8050', '80,50');
+  await rejects('8050', '8,0500');
+  await rejects('8050', ',8050');
+  await rejects('1250', '1, 250'); // a comma and a space is a list
+  await rejects('805', '8,050');
+  await rejects('8.05', '8,050'); // never a decimal comma
+  await rejects('25', '25,000%');
+  // A key written with a comma — a pair, a list, a set — is compared as
+  // before: the rule reads only the student's number, never the key.
+  assert.equal(sameValue('8,050', '{8,50}'), false);
+  assert.equal(sameValue('1250', '1,250'), false);
+  assert.equal(matchesFieldAnswer('1,250', { answer: '1,250' }), true); // written exactly as the key
+});
+
 test('item 5: the same equation with its sides swapped, and vertex form with the constant first', async () => {
   await accepts('x=5', '5=x');
   await accepts('y=2x+1', '2x+1=y');

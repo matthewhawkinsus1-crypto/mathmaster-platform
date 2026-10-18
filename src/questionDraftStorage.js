@@ -1,9 +1,16 @@
 import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js';
+import { reportDraftSaveProblem, clearDraftSaveProblem, DRAFT_SAVE_PROBLEM } from './platform/persistence/draftSaveHealth.js';
 import {
+  fieldRecordDraftKind,
+  fieldRecordGroups,
   freshToolWorkspaceEdits,
   isSyncableDraftKey,
   isToolWorkspaceDraftKey,
+  adoptedFieldEditedAt,
+  mergeFieldRecordCopies,
   mergeFreshToolWorkspace,
+  resetTimeOf,
+  stampFieldRecordEdits,
   toolWorkspaceFields,
 } from '../functions/shared/workspaceDraftSchema.mjs';
 
@@ -49,10 +56,10 @@ export const subscribeToQuestionDrafts = (listener) => {
   return () => draftSubscribers.delete(listener);
 };
 
-const notifyDraftWritten = (key, value, savedAt, edit, savedAtIsEdit) => {
+const notifyDraftWritten = (key, value, savedAt, edit, savedAtIsEdit, fieldMarkers = null) => {
   draftSubscribers.forEach((listener) => {
     try {
-      listener({ key, value, savedAt, edit, savedAtIsEdit });
+      listener({ key, value, savedAt, edit, savedAtIsEdit, ...fieldMarkers });
     } catch (error) {
       // A failing sync listener must never cost the student their keystroke.
       console.warn('MathMaster could not queue a draft for background save:', error);
@@ -145,8 +152,15 @@ export const studentInputSince = (mark) => !studentInputTracked || studentInputC
  */
 const pageView = new Map();
 
-const notePageRead = (key, savedAt) => {
-  pageView.set(key, { savedAt: Number(savedAt) || 0, input: studentInputCount });
+// For a field-record draft (workspaceDraftSchema.mjs) the page also notes which
+// answers it was shown, so a write never removes one it never saw.
+const viewedGroups = (key, value) => {
+  const kind = fieldRecordDraftKind(key);
+  return kind ? new Set(fieldRecordGroups(kind, value).keys()) : null;
+};
+
+const notePageRead = (key, savedAt, value = undefined) => {
+  pageView.set(key, { savedAt: Number(savedAt) || 0, input: studentInputCount, groups: viewedGroups(key, value) });
 };
 
 const forgetPageView = (matches) => {
@@ -221,7 +235,7 @@ export const readQuestionDraft = (key, fallback = null) => {
     notePageRead(key, 0);
     return fallback;
   }
-  notePageRead(key, savedAt);
+  notePageRead(key, savedAt, parsed.value);
   return parsed.value ?? fallback;
 };
 
@@ -251,8 +265,9 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
   const now = Date.now();
   let savedAt = now;
   let savedAtIsEdit = true;
+  const fieldKind = fieldRecordDraftKind(key);
+  const stored = (!isEdit || fieldKind) ? storedEnvelope(key) : null;
   if (!isEdit) {
-    const stored = storedEnvelope(key);
     const storedAt = Number(stored?.savedAt) || 0;
     // Something else wrote this draft after this page last saw it — a newer
     // copy restored from the server, this student's edit in another tab. The
@@ -263,23 +278,82 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     savedAt = storedAt;
     savedAtIsEdit = storedAt > 0 && stored?.savedAtIsEdit === true;
   }
-  pageView.set(key, { savedAt, input: seen ? seen.input : 0 });
+  /*
+   * A FIELD-RECORD DRAFT DATES EACH ANSWER (workspaceDraftSchema.mjs).
+   *
+   * An edit dates the answers it changed; anything else dates nothing. An
+   * answer this device holds but the page never saw — merged in behind it by
+   * a settle that has not remounted the question yet — is kept, not removed.
+   * A draft begun with no copy of any kind here is fresh until the server's
+   * copy has been read (reconcileFieldRecordDrafts).
+   */
+  let written = value;
+  let fieldMarkers = null;
+  if (fieldKind) {
+    const storedValue = stored?.value;
+    if (seen?.groups && value && typeof value === 'object' && !Array.isArray(value)
+      && storedValue && typeof storedValue === 'object' && !Array.isArray(storedValue)) {
+      const incoming = fieldRecordGroups(fieldKind, value);
+      const unseen = [];
+      fieldRecordGroups(fieldKind, storedValue).forEach((entry, group) => {
+        if (incoming.has(group) || seen.groups.has(group)) return;
+        entry.fields.forEach((field) => unseen.push(field));
+      });
+      if (unseen.length) {
+        // Own properties only: a field id may be "__proto__" (workspaceDraftSchema.mjs).
+        written = { ...value };
+        unseen.forEach((field) => Object.defineProperty(written, field, { value: storedValue[field], enumerable: true, writable: true, configurable: true }));
+      }
+    }
+    // Start over (a tombstone written as an edit) dates nothing and records
+    // when it happened; anything written later carries that reset forward, so
+    // no merge brings back an answer dated before it.
+    const resetting = written === null && isEdit;
+    const resetAt = resetting ? now : resetTimeOf(stored);
+    const fieldEditedAt = resetting ? {} : stampFieldRecordEdits({
+      kind: fieldKind,
+      previous: storedValue,
+      // A copy an older build stored has no per-answer times: its answers are
+      // dated at its edit time, not left as never edited.
+      previousEditedAt: stored ? adoptedFieldEditedAt(fieldKind, stored) : null,
+      next: written,
+      edit: isEdit,
+      now,
+    });
+    // Fresh means "not yet settled against the server's copy": a draft begun
+    // after this page read that copy (reconcileFieldRecordDrafts) has seen it.
+    const fieldsFresh = stored === null ? !serverCopySeen(key) : stored.fieldsFresh === true;
+    fieldMarkers = { fieldEditedAt, ...(fieldsFresh ? { fieldsFresh: true } : {}), ...(resetAt ? { resetAt } : {}) };
+  }
+  // The answers the PAGE holds — not the ones kept for it from behind its back,
+  // which it has still not seen: its next write-back keeps them again.
+  pageView.set(key, { savedAt, input: seen ? seen.input : 0, groups: fieldKind ? viewedGroups(key, value) : null });
   // Development only: name the field that would stop the server backup at the
   // keystroke that introduced it, whether or not a signed-in sync is running.
   // A no-op in production, where the sync reports what it refuses.
-  auditDraftWrite(key, value);
+  auditDraftWrite(key, written);
   // The background save is offered even when local storage is unavailable —
   // a district policy that blocks site data is exactly the case where the
   // server copy is the only copy the student will get back.
-  notifyDraftWritten(key, value, savedAt, isEdit, savedAtIsEdit);
+  notifyDraftWritten(key, written, savedAt, isEdit, savedAtIsEdit, fieldMarkers);
   if (!storageAvailable()) return false;
   try {
     window.localStorage.setItem(key, JSON.stringify({
-      version: 2, savedAt, value, touchedAt: now, ...(savedAtIsEdit ? { savedAtIsEdit: true } : {}),
+      version: 2,
+      savedAt,
+      value: written,
+      touchedAt: now,
+      ...(savedAtIsEdit ? { savedAtIsEdit: true } : {}),
+      ...fieldMarkers,
     }));
+    clearDraftSaveProblem(DRAFT_SAVE_PROBLEM.DEVICE_FULL, key);
     return true;
   } catch (error) {
+    // Storage full (or refused by policy mid-session). The background save
+    // above still carries the work while the student is online; what the
+    // student must hear is that this device does not hold it (App.jsx).
     console.warn('MathMaster could not save local question work:', error);
+    reportDraftSaveProblem(DRAFT_SAVE_PROBLEM.DEVICE_FULL, key);
     return false;
   }
 };
@@ -325,10 +399,21 @@ export const restoreQuestionDrafts = (entries = []) => {
     // A tool workspace restored from the server is the server's copy, and so
     // is never "started from nothing" here, whatever it carried there.
     const value = isToolWorkspaceDraftKey(key) ? toolWorkspaceFields(entry.value) : entry.value;
+    // Nor is a field-record draft, which keeps the server's per-answer times
+    // (dated at the entry's edit time when an older build saved it) and the
+    // latest reset it knew of.
+    const fieldKind = fieldRecordDraftKind(key);
+    const fieldEditedAt = fieldKind ? adoptedFieldEditedAt(fieldKind, entry) : null;
+    const resetAt = fieldKind ? resetTimeOf(entry) : 0;
     try {
       // The server entry's edit-time marker comes with it (see writeQuestionDraft).
       window.localStorage.setItem(key, JSON.stringify({
-        version: 2, savedAt, value, ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+        version: 2,
+        savedAt,
+        value,
+        ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+        ...(fieldEditedAt ? { fieldEditedAt } : {}),
+        ...(resetAt ? { resetAt } : {}),
       }));
       restored += 1;
     } catch {
@@ -338,6 +423,25 @@ export const restoreQuestionDrafts = (entries = []) => {
   if (restored) restoreGeneration += 1;
   return restored;
 };
+
+/*
+ * A SERVER ENTRY OLDER THAN THE QUESTION'S LAST SUBMITTED ATTEMPT IS HISTORY.
+ *
+ * `selectRestorableDraftEntries` already refuses to restore one. The settles
+ * below merge rather than restore, and used to take every entry: a fresh
+ * device's edit then pulled the fields of an older attempt into the new one,
+ * under the edit's newer time, where no later guard could tell them apart
+ * (PR #458 review). They read only what is newer than the question's last
+ * submission (`canonicalSavedAt(entry)`, as for the restore).
+ */
+const currentServerEntries = (entries, canonicalSavedAt) => new Map((Array.isArray(entries) ? entries : [])
+  .filter((entry) => {
+    const savedAt = Number(entry?.savedAt) || 0;
+    let canonical = 0;
+    try { canonical = Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0; } catch { canonical = 0; }
+    return !(canonical > 0 && savedAt <= canonical);
+  })
+  .map((entry) => [String(entry?.key || ''), entry]));
 
 /**
  * Settle every tool workspace this device started from nothing against the
@@ -358,10 +462,10 @@ export const restoreQuestionDrafts = (entries = []) => {
  * records were settled; the caller remounts the question when it is not 0,
  * as for restoreQuestionDrafts.
  */
-export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId } = {}) => {
+export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
   if (!storageAvailable() || !studentId || !assignmentId) return 0;
   const prefix = `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
-  const server = new Map((Array.isArray(entries) ? entries : []).map((entry) => [String(entry?.key || ''), entry]));
+  const server = currentServerEntries(entries, canonicalSavedAt);
   const keys = [];
   try {
     for (let index = 0; index < window.localStorage.length; index += 1) {
@@ -398,6 +502,114 @@ export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignme
   return settled;
 };
 
+/*
+ * Which assignments' server copies this page has read (by draft-key prefix).
+ * A draft begun after that read is not fresh: there is nothing left to settle.
+ */
+const serverCopiesSeen = new Set();
+const assignmentDraftPrefix = (studentId, assignmentId) => `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
+const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(key).startsWith(prefix));
+
+/**
+ * Settle every multi-answer, Step Algebra and composed-step draft this device
+ * holds against the server's copy of the same draft, answer by answer
+ * (mergeFieldRecordCopies, workspaceDraftSchema.mjs), once that copy has been
+ * read.
+ *
+ * Whole-copy restore (restoreQuestionDrafts) takes the server's copy only
+ * when it is newer, and keeps this device's otherwise — so a fresh
+ * Chromebook whose student touched one box before the read landed kept that
+ * one box over every saved answer, and two devices editing different steps
+ * each kept only their own. Here every answer goes to the copy that edited it
+ * last; a field only one copy holds is kept. Entries older than the
+ * question's last submitted attempt are left out (`canonicalSavedAt`), and a
+ * draft this device does not hold at all is left to restoreQuestionDrafts.
+ *
+ * Returns `{ settled, keys }`: how many drafts changed here (the caller
+ * remounts the question when it is not 0) and every key settled here, which
+ * the caller must not then restore whole. Fresh markers go either way: this
+ * device has now seen the server's copy.
+ */
+export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
+  const keys = new Set();
+  if (!studentId || !assignmentId) return { settled: 0, keys };
+  const prefix = assignmentDraftPrefix(studentId, assignmentId);
+  serverCopiesSeen.add(prefix);
+  if (!storageAvailable()) return { settled: 0, keys };
+  const server = currentServerEntries(entries, canonicalSavedAt);
+  const local = [];
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(prefix) && fieldRecordDraftKind(key) && isSyncableDraftKey(key)) local.push(key);
+    }
+  } catch {
+    return { settled: 0, keys };
+  }
+  let settled = 0;
+  local.forEach((key) => {
+    const envelope = storedEnvelope(key);
+    if (!envelope) return;
+    const entry = server.get(key);
+    const fresh = envelope.fieldsFresh === true;
+    if (!entry) {
+      if (!fresh) return;
+      // Nothing on the server to settle against: just no longer fresh.
+      const { fieldsFresh: _fresh, ...seenEnvelope } = envelope;
+      try { window.localStorage.setItem(key, JSON.stringify(seenEnvelope)); } catch { /* stays fresh */ }
+      return;
+    }
+    const kind = fieldRecordDraftKind(key);
+    // The later of this device's grade record and the submission the server
+    // entry was saved after: a submission made on another device may not have
+    // reached this one's records yet.
+    let canonicalAt = Math.max(0, Number(entry?.canonicalAt) || 0);
+    try { canonicalAt = Math.max(canonicalAt, Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0); } catch { /* the entry's own */ }
+    const merged = mergeFieldRecordCopies({
+      kind,
+      // This device's copy, with its answers dated even if an older build wrote it.
+      a: { ...envelope, fieldEditedAt: adoptedFieldEditedAt(kind, envelope) },
+      b: entry,
+      prefer: 'a',
+      // A copy from before the question's last submission and one from after
+      // it are not merged answer by answer: the restore decides, whole.
+      canonicalAt,
+    });
+    if (!merged) {
+      if (!fresh) return;
+      // Copies this rule cannot merge (a value an older build stored): the
+      // ordinary restore decides, and the marker goes.
+      const { fieldsFresh: _fresh, ...seenEnvelope } = envelope;
+      try { window.localStorage.setItem(key, JSON.stringify(seenEnvelope)); } catch { /* stays fresh */ }
+      return;
+    }
+    keys.add(key);
+    const changed = JSON.stringify(merged.value) !== JSON.stringify(envelope.value);
+    const next = {
+      version: 2,
+      savedAt: merged.savedAt,
+      value: merged.value,
+      ...(envelope.touchedAt ? { touchedAt: envelope.touchedAt } : {}),
+      ...(merged.savedAtIsEdit ? { savedAtIsEdit: true } : {}),
+      fieldEditedAt: merged.fieldEditedAt,
+      ...(merged.resetAt ? { resetAt: merged.resetAt } : {}),
+    };
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next));
+      if (changed) settled += 1;
+      // Unchanged answers need no remount, and the page already shows them:
+      // it is caught up with this copy's time, so its write-backs still count.
+      else if (pageView.has(key)) pageView.set(key, { ...pageView.get(key), savedAt: merged.savedAt });
+    } catch {
+      // Out of quota: this device keeps its own copy, and the server merge
+      // still keeps every answer there.
+      keys.delete(key);
+    }
+  });
+  if (settled) restoreGeneration += 1;
+  return { settled, keys };
+};
+
 export const removeQuestionDraft = (key) => {
   if (!key) return;
   pageView.delete(key);
@@ -430,6 +642,8 @@ export const readQuestionDraftFamily = (prefix) => {
         value: parsed.value,
         savedAt: Number(parsed.savedAt) || 0,
         ...(parsed.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+        ...(parsed.fieldEditedAt ? { fieldEditedAt: parsed.fieldEditedAt } : {}),
+        ...(parsed.resetAt ? { resetAt: parsed.resetAt } : {}),
       });
     }
   } catch {

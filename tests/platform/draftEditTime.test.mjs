@@ -94,8 +94,10 @@ test('opening a question — read, then written back with no input between — i
   assert.equal(stored.savedAt, 0, 'never edited: no edit time at all');
   assert.deepEqual(stored.value, {}, 'the value is stored all the same');
   assert.ok(stored.touchedAt > 0, 'and the device knows when it last wrote it');
-  // Offered as what it is: not an edit, and carrying no edit's time.
-  assert.deepEqual(p.events.at(-1), { key: KEY, value: {}, savedAt: 0, edit: false, savedAtIsEdit: false });
+  // Offered as what it is: not an edit, and carrying no edit's time. KEY is a
+  // multi-answer draft, so it also says that no answer in it was edited and
+  // that this device began it from nothing (Batch 3, fieldRecordDraftMerge).
+  assert.deepEqual(p.events.at(-1), { key: KEY, value: {}, savedAt: 0, edit: false, savedAtIsEdit: false, fieldEditedAt: {}, fieldsFresh: true });
   assert.equal(p.questionDraftSavedAt(KEY), 0);
 });
 
@@ -180,11 +182,19 @@ test('a write that is not an edit never puts back an older copy: not over a rest
   p.storeBehind(KEY, at(9), { m: '1', b: '4' });
   assert.equal(p.writeQuestionDraft(KEY, { m: '-2/3' }), false);
   assert.deepEqual(p.envelope(KEY).value, { m: '1', b: '4' });
-  // The student's own edit here is still the newest thing that happened.
+  // The student's own edit here is still the newest thing that happened. KEY
+  // is a multi-answer draft, kept answer by answer (Batch 3): the answer the
+  // other tab added, which this page never saw, is not erased by it.
   p.input();
   p.writeQuestionDraft(KEY, { m: '7' });
-  assert.deepEqual(p.envelope(KEY).value, { m: '7' });
+  assert.deepEqual(p.envelope(KEY).value, { m: '7', b: '4' });
   assert.ok(p.envelope(KEY).savedAt > at(9));
+  // A whole-value draft is still replaced whole by the edit.
+  p.storeBehind(OTHER, at(9), { m: '1', b: '4' });
+  p.readQuestionDraft(OTHER, {});
+  p.input();
+  p.writeQuestionDraft(OTHER, { m: '7' });
+  assert.deepEqual(p.envelope(OTHER).value, { m: '7' });
 });
 
 test('removing a draft forgets what the page saw of it, so the next mount writes as usual', async () => {
@@ -640,7 +650,7 @@ test('a composed question\'s step reports an edit only when the student touched 
 test('App tells the sync what the server holds, and reads again when the device is back', () => {
   const app = stripComments(read('src/App.jsx'));
   const effect = app.slice(app.indexOf('const sync = createWorkspaceDraftSync({'), app.indexOf('sync.stop();'));
-  assert.match(effect, /const entries = readWorkspaceDraftEntries\(stored\);[\s\S]*?restoreQuestionDrafts\(restorable\)[\s\S]*?sync\.noteServerCopy\(entries\);/);
+  assert.match(effect, /const entries = readWorkspaceDraftEntries\(stored\);[\s\S]*?restoreQuestionDrafts\(restorable\b[\s\S]*?sync\.noteServerCopy\(entries\);/);
   assert.doesNotMatch(effect, /if \(cancelled \|\| !stored\) return;/, 'no server document is still an answer: the server holds nothing');
   assert.match(effect, /window\.addEventListener\('online', readServerCopy\);/);
   assert.match(effect, /window\.removeEventListener\('online', readServerCopy\);/);

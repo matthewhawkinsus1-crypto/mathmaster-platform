@@ -7,6 +7,7 @@
 // sets, numericSet / list fields) it keeps meaning "next value".
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRequire } from 'node:module';
 
 import {
   sameNumberWithThousandsSeparators,
@@ -121,4 +122,33 @@ test('commas that separate values keep their meaning', () => {
   assert.equal(matchesAnyAnswer('1234', ['1,234']), false);
   assert.equal(sameNumberWithThousandsSeparators('{1,234}', '1234'), false);
   assert.equal(sameNumberWithThousandsSeparators('(1,234)', '1234'), false);
+});
+
+// Batch 3 into pass 3: main's #496 reads a grouped student number inside
+// sameValue, so it reaches the Path grader and every other sameValue caller.
+// Merged with this file's field rule, a field that is a list or a Digital SAT
+// box still never reads `8,050` as one number, on either grader.
+test('the Path grader reads a grouped number, except in a list field or a Digital SAT box', async () => {
+  const { gradeResponse } = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
+  const grade = async (field, response) => (await gradeResponse({ fields: [{ id: 'a', ...field }] }, { responses: { a: response } })).isCorrect;
+  assert.equal(await grade({ expected: '8050' }, '8,050'), true);
+  assert.equal(await grade({ expected: '8050' }, '$8,050'), true);
+  assert.equal(await grade({ expected: '8050' }, '8,051'), false);
+  assert.equal(await grade({ expected: '8050', numberRules: 'digitalSAT' }, '8,050'), false);
+  assert.equal(await grade({ expected: '8050', numberRules: 'digitalSAT' }, '8050'), true);
+  assert.equal(await grade({ expected: '1234', equivalence: 'numericSet' }, '1,234'), false);
+  assert.equal(await grade({ expected: '1234', answerFormat: 'list' }, '1,234'), false);
+});
+
+test('the assignment matcher keeps a list field and a Digital SAT box comma-literal under #496', () => {
+  // Key one number, the student's `1,234`: sameValue alone would now accept it.
+  assert.equal(gradeField('1234', '1,234', { equivalence: 'numericSet' }).isCorrect, false);
+  assert.equal(gradeField('1234', '1,234', { answerFormat: 'list' }).isCorrect, false);
+  assert.equal(gradeField('1234', '1,234', { partialCredit: 'matchedElements' }).isCorrect, false);
+  assert.equal(gradeField('8050', '8{,}050', { numberRules: 'digitalSAT' }).isCorrect, false);
+  // A comma and a space is a list of two numbers, never one (#496's rule; the
+  // pass-3 matcher used to accept `1, 250` for 1250).
+  assert.equal(gradeField('1250', '1, 250').isCorrect, false);
+  assert.equal(withoutThousandsSeparators('1, 250'), null);
+  assert.equal(gradeField('1250', '1,250').isCorrect, true);
 });

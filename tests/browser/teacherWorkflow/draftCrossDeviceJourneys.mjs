@@ -208,7 +208,8 @@ const openedElsewhere = (db, openedAt, { marked = false } = {}) => JSON.stringif
   if (path !== DOC) return [path, data];
   return [path, {
     ...data,
-    entries: data.entries.map(({ savedAtIsEdit, ...entry }) => {
+    // An older build also knows nothing of the per-answer edit times (Batch 3).
+    entries: data.entries.map(({ savedAtIsEdit, fieldEditedAtJson: _times, fieldsFresh: _fresh, ...entry }) => {
       if (!String(entry.key).endsWith(`:${LINE_KEY}`)) return marked ? { ...entry, savedAtIsEdit } : entry;
       return { ...entry, valueJson: '{}', savedAt: openedAt, ...(marked ? { savedAtIsEdit: true } : {}) };
     }),

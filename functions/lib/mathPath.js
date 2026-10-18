@@ -690,7 +690,10 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'nonnegativeRadicalExpression') {
       return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
     }
-    return equivalence.sameValue(actual, expected, tolerance);
+    // A list field or a Digital SAT box never reads `8,050` as one number.
+    return equivalence.sameValue(actual, expected, tolerance, {
+      thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(field),
+    });
   });
 }
 
