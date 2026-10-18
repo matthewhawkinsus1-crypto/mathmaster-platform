@@ -1,0 +1,160 @@
+/*
+ * STUDENT PASS 3, Q-8 (VPAT 1.1.1): FIGURES OUTSIDE THE SHARED PLANE SAY WHAT
+ * THEY SHOW.
+ *
+ * The interval number line, the legacy pick-a-point line, the three-plane
+ * model, the static question graph, the legacy graph workspace and the Graph
+ * Story sketch were named by their operating instructions ("Click anywhere on
+ * the line…", "Drag or use the arrow keys to rotate") or a bare "Question
+ * graph", and nothing said what was drawn. The words come from pure modules,
+ * tested here; tests/browser/figureDescriptions.mjs reads them from the
+ * accessibility tree at 1366x768 and 390x844 and changes each figure once.
+ *
+ * The rule each module keeps: the student's own drawing is read back exactly;
+ * nothing that answers the question is said while it can be answered — no
+ * notation for a line whose notation is asked, no classification of a system
+ * of planes, no positions on a given graph.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+import { describeNumberLine, describeNumberLinePiece, describePointChoiceLine, numberLineValueText } from '../../src/platform/language/numberLineDescription.js';
+import { describeThreePlaneModel } from '../../src/tools/systemsWorkspace/threePlaneDescription.js';
+import { describeGraphWorkspace } from '../../src/platform/language/graphWorkspaceDescription.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+const INF = Number.POSITIVE_INFINITY;
+const NOTATION = /[[\]()]|[≤≥<>]|\bx\s*=/;
+
+test('a number line reads its dots, their ends and the shading, never notation', () => {
+  assert.equal(numberLineValueText(-13 / 8), '−13/8');
+  assert.equal(numberLineValueText(-0), '0');
+  assert.equal(describeNumberLinePiece({ min: -3, max: 5, minClosed: true, maxClosed: false }), 'Shaded from a closed dot at −3 to an open dot at 5.');
+  assert.equal(describeNumberLinePiece({ min: 2, max: INF, minClosed: false, maxClosed: false }), 'Shaded from an open dot at 2 to the right, ending in an arrow.');
+  assert.equal(describeNumberLinePiece({ min: -INF, max: 1 / 2, minClosed: false, maxClosed: true }), 'Shaded from a closed dot at 1/2 to the left, ending in an arrow.');
+  assert.equal(describeNumberLinePiece({ min: -INF, max: INF }), 'The whole line is shaded, with an arrow at each end.');
+  assert.equal(describeNumberLinePiece({ min: 4, max: 4, minClosed: true, maxClosed: true }), 'A closed dot at 4, with no shading.');
+
+  // The window as its ticks print it; the student's endpoints exactly.
+  assert.equal(describeNumberLine({ min: -7.5, max: 10, labelStep: 5 }), 'Number line from −7.5 to 10, labelled every 5. Nothing is drawn on it yet.');
+  const two = describeNumberLine({
+    min: -10, max: 10, labelStep: 2,
+    pieces: [{ min: -INF, max: -2, maxClosed: false }, { min: 3, max: INF, minClosed: true }],
+    pending: { value: 7, closed: false },
+  });
+  assert.equal(two, 'Number line from −10 to 10, labelled every 2. Your graph has 2 parts. Part 1: Shaded from an open dot at −2 to the left, ending in an arrow. Part 2: Shaded from a closed dot at 3 to the right, ending in an arrow. An open dot at 7 is placed and waits for a second endpoint or a ray.');
+  for (const text of [two, describeNumberLine({ min: -8, max: 8, pieces: [{ min: -13 / 8, max: 13 / 8, minClosed: true, maxClosed: false }] })]) {
+    assert.doesNotMatch(text.replace(/^Number line from [^.]+\.\d*[^.]*\./, ''), NOTATION, `no interval notation or inequality: ${text}`);
+  }
+  assert.match(describeNumberLine({ min: 0, max: 4, owner: 'given' }), /Nothing is drawn on it\.$/);
+});
+
+test('the pick-a-point line names its marks and the chosen one', () => {
+  assert.equal(describePointChoiceLine({ choices: [-10, -5, 0, 5, 10] }), 'Number line with points at −10, −5, 0, 5 and 10. No point is selected yet.');
+  assert.equal(describePointChoiceLine({ choices: [-10, 0], selected: -10 }), 'Number line with points at −10 and 0. Selected: −10.');
+});
+
+test('the three-plane model: planes by equation; no classification while it can be answered', () => {
+  const equations = ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5'];
+  const open = describeThreePlaneModel({ equations, visible: [true, false, true], crossings: [[0, 2]] });
+  assert.equal(open, '3D model with the x, y and z axes. Plane 1, blue: x plus y plus z equals 6. Plane 2, red: 2x minus y plus z equals 3, hidden. Plane 3, green: negative x plus 2y plus z equals 5. Dashed lines mark where shown planes cross.');
+  // Fails closed: with no detail given it names no pair, whatever the crossings.
+  for (const crossings of [[[0, 1]], [[0, 1], [1, 2]], [[0, 1], [0, 2], [1, 2]]]) {
+    const text = describeThreePlaneModel({ equations, crossings });
+    assert.doesNotMatch(text, /planes \d and \d|parallel|meet at|one point|no point|infinitely|Marked/i, text);
+    assert.match(text, /Dashed lines mark where shown planes cross\.$/);
+  }
+  // A closed question names each shown pair, and a marked point is read.
+  const closed = describeThreePlaneModel({ equations, crossings: [[0, 1], [1, 2]], detail: 'features', markedPoint: '(1, −2, 4)' });
+  assert.match(closed, /A dashed line marks where planes 1 and 2 cross\. Planes 1 and 3 have no dashed line between them\. A dashed line marks where planes 2 and 3 cross\. Marked on the model: the point 1, negative 2, 4\.$/);
+  assert.match(describeThreePlaneModel({ equations, visible: [false, false, false] }), /No plane is shown\.$/);
+});
+
+test('the legacy graph workspace reads back the student\'s work, and a given graph only as drawn', () => {
+  const window = { xMin: -4, xMax: 4, yMin: -6, yMax: 8 };
+  assert.equal(describeGraphWorkspace({ window }), 'x from −4 to 4, y from −6 to 8. Nothing is placed yet.');
+  const work = describeGraphWorkspace({
+    window,
+    placedPoints: [{ label: 'Plot the point where x = 0', point: [0, 1] }, { label: '', point: [2, -5] }],
+    strokeCount: 2,
+    markers: [{ type: 'arrow', point: [3, 7] }, { type: 'open', point: [-2, -3] }, null],
+    selectedPoints: [[1, 3]],
+  });
+  assert.equal(work, 'x from −4 to 4, y from −6 to 8. You placed 2 points: Plot the point where x = 0 at (0, 1); (2, −5). You drew 2 strokes. Graph ends you marked: an arrow at (3, 7); an open dot at (−2, −3). You selected 1 point: (1, 3).');
+  assert.match(describeGraphWorkspace({ window, curveDrawn: true, strokeCount: 3 }), /Your curve is drawn through your points\.$/);
+  const given = describeGraphWorkspace({ window, givenGraph: true });
+  assert.equal(given, 'x from −4 to 4, y from −6 to 8. A graph is drawn. Positions on it are not read out while this question can be answered.');
+});
+
+/*
+ * Wiring. Each figure is NAMED by what it is and DESCRIBED by the generated
+ * text (then, for a control, its keys), the description follows the live
+ * state, and the activity rule comes from the platform, not the figure.
+ */
+test('the interval number line is described by the student\'s drawing, then its keys', () => {
+  const source = executableSource(read('src/tools/intervalNumberLine/IntervalNumberLine.jsx'));
+  assert.match(source, /^import \{ describeNumberLine \} from '\.\.\/\.\.\/platform\/language\/numberLineDescription\.js';$/m);
+  assert.match(source, /const lineDescription = describeNumberLine\(\{ min, max, labelStep: majorStep, pieces: drawn, pending \}\);/, 'from the drawn pieces and the waiting endpoint');
+  const svg = region(source, '<svg\n            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}\n            role="application"', 'onFocus={handleLineFocus}', 'the line');
+  assert.match(svg, /aria-label=\{`Number line from \$\{lineEndLabel\(min\)\} to \$\{lineEndLabel\(max\)\}`\}/, 'named by the line, not its instructions');
+  assert.match(svg, /aria-describedby=\{`\$\{lineDescriptionId\} \$\{lineInstructionsId\}`\}/, 'what is drawn first, then the keys');
+  assert.match(source, /<p id=\{lineDescriptionId\}[^>]*>\{lineDescription\}<\/p>/);
+  assert.match(source, /<p id=\{lineInstructionsId\}[^>]*>\s*\{`Click anywhere on the line/);
+});
+
+test('the legacy pick-a-point line is a described group with pressed marks', () => {
+  const source = executableSource(read('src/NumberLine.jsx'));
+  assert.match(source, /^import \{ describePointChoiceLine \} from '\.\/platform\/language\/numberLineDescription\.js';$/m);
+  assert.match(source, /const description = describePointChoiceLine\(\{ choices, selected: selectedPoint \}\);/);
+  assert.match(source, /role="group" aria-label="Number line" aria-describedby=\{descriptionId\}/);
+  assert.match(source, /aria-pressed=\{selectedPoint === Number\(number\)\}/);
+  assert.match(source, /<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/);
+});
+
+test('the three-plane model is described by its planes; the detail follows the question\'s lifecycle', () => {
+  const source = executableSource(read('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
+  assert.match(source, /^import \{ describeThreePlaneModel \} from '\.\/threePlaneDescription\.js';$/m);
+  assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\.\/\.\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
+  const description = region(source, 'const modelDescription = useMemo(() => describeThreePlaneModel({', '}), [', 'the description');
+  assert.match(description, /visible: visiblePlanes,/, 'follows Show plane');
+  assert.match(description, /crossings: intersectionLines\.map/, 'the dashed lines actually drawn');
+  assert.match(description, /detail: questionClosed \? 'features' : 'kinds',/, 'pairs only once the question is closed');
+  assert.match(description, /markedPoint: solutionMarker \? orderedTripleText\(shownSolution, variables\) : null,/, 'a point only where the model marks one (the reveal policy)');
+});
+
+test('the static question graph carries the shared plane\'s description, by the same rule', () => {
+  const source = executableSource(read('src/GraphDisplay.jsx'));
+  assert.match(source, /^import \{ describeCoordinatePlane \} from '\.\/platform\/language\/graphDescription\.js';$/m);
+  assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
+  assert.match(source, /const spokenDescription = authoredDescription \|\| describeStaticGraph\(\{[\s\S]*?detail: questionClosed \? 'features' : 'kinds',/, 'kinds while open, features once closed; authored text wins');
+  const svg = region(source, '<svg\n        className="mathmaster-responsive-canvas"', '>', 'the graph svg');
+  assert.match(svg, /aria-describedby=\{descriptionId\}/);
+  assert.match(source, /<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
+  // Hooks before the early return (rules of hooks).
+  const head = region(source, 'export default function GraphDisplay(', 'if (!graph) return null;', 'the component head');
+  assert.match(head, /useId\(\)[\s\S]*useQuestionLifecycle\(\)/);
+});
+
+test('the legacy graph workspace and the Graph Story sketch are described by the student\'s work', () => {
+  const workspace = executableSource(read('src/InteractiveGraphWorkspace.jsx'));
+  assert.match(workspace, /^import \{ describeGraphWorkspace \} from '\.\/platform\/language\/graphWorkspaceDescription\.js';$/m);
+  const call = region(workspace, 'const workspaceDescription = describeGraphWorkspace({', '\n  });', 'the description');
+  assert.match(call, /construction\.placements\[task\.id\]/, 'the points the student placed');
+  assert.match(call, /givenGraph: mode === 'analysis' && !pointOnly,/);
+  assert.match(workspace, /aria-label="Coordinate plane"\s*aria-describedby=\{`\$\{workspaceDescriptionId\} \$\{workspaceDescriptionId\}-keys`\}/);
+  assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/);
+  const story = executableSource(read('src/GraphStory.jsx'));
+  assert.match(story, /const strokeCount = Array\.isArray\(values\.strokes\) \? values\.strokes\.length : 0;/);
+  assert.match(story, /role="img" aria-label="Graph story sketch" aria-describedby=\{sketchDescriptionId\}/);
+  assert.match(story, /<span id=\{sketchDescriptionId\}[^>]*>\{sketchDescription\}<\/span>/);
+});
+
+test('the statistics charts are named for what they are', () => {
+  const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
+  assert.match(region(lab, 'function ResidualPlot(', '\n}', 'the residual plot'), /ariaLabel="Residual plot"/);
+  assert.match(region(lab, "<Panel title={`${panelNumbers.model} · Scatter plot and your model`}>", '/>', 'the scatter plot'), /ariaLabel="Scatter plot of the data and your model"/);
+  const regression = executableSource(read('src/tools/regressionCalculator/RegressionCalculator.jsx'));
+  assert.match(regression, /ariaLabel="Source scatterplot"/);
+});

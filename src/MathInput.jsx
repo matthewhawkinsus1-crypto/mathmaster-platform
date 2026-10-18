@@ -7,6 +7,7 @@ import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobil
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
+import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -525,6 +526,11 @@ export default function MathInput({
     stabilizeMobileViewport();
   }, [stabilizeMobileViewport, emit]);
 
+  // Each keypad is one Tab stop: arrows, Home and End move between its keys
+  // (rovingToolbar.js, student pass 3 PR-27).
+  const requiredKeysToolbar = useRovingToolbar(requiredTools.length);
+  const toolsToolbar = useRovingToolbar(tools.length);
+
   const borderColor = inputStatus === 'incorrect'
     ? '#d93025'
     : inputStatus === 'correct'
@@ -637,7 +643,9 @@ export default function MathInput({
       {requiredKeysVisible && requiredTools.length > 0 && (
         <div
           className="mathmaster-required-answer-keys"
+          role="toolbar"
           aria-label="Keys needed for this answer"
+          onKeyDown={requiredKeysToolbar.onKeyDown}
           style={{
             display: 'grid',
             width: '100%',
@@ -654,10 +662,11 @@ export default function MathInput({
           }}
         >
           <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
-          {requiredTools.map((tool) => (
+          {requiredTools.map((tool, index) => (
             <button
               type="button"
               key={`required-${tool.ariaLabel}`}
+              {...requiredKeysToolbar.itemProps(index)}
               aria-label={tool.ariaLabel}
               title={tool.ariaLabel}
               onPointerDown={(event) => event.preventDefault()}
@@ -691,7 +700,9 @@ export default function MathInput({
         <div
           id={toolsId}
           className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
+          role="toolbar"
           aria-label="Math tools"
+          onKeyDown={toolsToolbar.onKeyDown}
           style={{
             display: 'grid',
             width: '100%',
@@ -707,10 +718,11 @@ export default function MathInput({
             background: 'var(--mm-surface-tint)',
           }}
         >
-          {tools.map((tool) => (
+          {tools.map((tool, index) => (
             <button
               type="button"
               key={`${toolProfile}-${tool.ariaLabel}`}
+              {...toolsToolbar.itemProps(index)}
               aria-label={tool.ariaLabel}
               title={tool.ariaLabel}
               onPointerDown={(event) => event.preventDefault()}

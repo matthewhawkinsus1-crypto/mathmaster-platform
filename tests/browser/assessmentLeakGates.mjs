@@ -147,7 +147,7 @@ const statePlanes = async (page, answers) => {
 };
 const openModelCaption = async (page) => {
   await button(page, 'Connect my result to 3D').click();
-  await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+  await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
   await settle(page, 400);
   return page.locator('.mathmaster-threeplane-viewport').innerText();
 };
@@ -707,7 +707,7 @@ const threePlaneReveal = async () => {
   for (const role of ['practice', 'dol', 'test']) {
     await scenario(`${role} three-plane-reveal`, async () => {
       const page = await open(role, 'three-plane-reveal');
-      await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+      await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
       const offered = await page.getByRole('button', { name: /^Reveal / }).count() > 0;
       if (role === 'practice') check(offered, 'practice three-plane-reveal: the author-allowed reveal is still offered');
       else check(!offered, `${role} three-plane-reveal: no reveal before Submit`);

@@ -133,7 +133,7 @@ const run = async (width, height) => {
 
   // The drawing inside the control keeps the image role and name the model
   // always had (assessmentLeakGates.mjs and day2NonuniqueJourneys.mjs find it so).
-  const drawing = page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' });
+  const drawing = page.getByRole('img', { name: /3D view of the three planes/ });
   await drawing.waitFor({ state: 'visible' });
   assert.equal(await drawing.evaluate((g) => g.closest('svg')?.getAttribute('role')), 'application', `${at}: the named drawing sits inside the model control`);
 

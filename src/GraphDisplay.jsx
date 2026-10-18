@@ -6,6 +6,9 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
+import { useId } from 'react';
+import { describeCoordinatePlane } from './platform/language/graphDescription.js';
+import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -174,7 +177,42 @@ const axisTitle = (label, unit) => {
  * numeric tick labels until the student supplies them. This is especially
  * useful for graph-labeling and scale questions.
  */
+/*
+ * THE STATIC GRAPH, IN WORDS (student pass 3, Q-8). It was an image named
+ * "Question graph" and nothing else. It now carries the shared plane's
+ * description (graphDescription.js), built from the same data it draws and
+ * under the same rule: while the question can be answered only the kinds of
+ * marks are said, never where they are; a closed question gets the full
+ * reading. An authored `graph.accessibleDescription` always wins.
+ */
+const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail }) => {
+  const isLine = (spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
+    && Number.isFinite(Number(spec.m ?? spec.slope)) && Number.isFinite(Number(spec.b ?? spec.intercept ?? 0));
+  return describeCoordinatePlane({
+    xMin, xMax, yMin, yMax, xTickStep: xStep, yTickStep: yStep, detail,
+    // Read no finer than the grid this graph draws: its minor gridlines where
+    // both axes draw them at one step, otherwise its labelled ticks.
+    snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
+    lines: functions.filter(isLine).map((spec) => ({ m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0) })),
+    functions: functions.filter((spec) => !isLine(spec)).map((spec) => (x) => evaluateFunction(spec, x)),
+    polylines: segments
+      .map((segment) => [segment.from || segment.start, segment.to || segment.end])
+      .filter((pair) => pair.every(Array.isArray)),
+    points: [
+      ...points,
+      ...endpointRequirements
+        .filter((requirement) => Array.isArray(requirement?.point))
+        .map((requirement) => ({ x: Number(requirement.point[0]), y: Number(requirement.point[1]), marker: requirement.marker === 'open' || requirement.marker === 'closed' ? requirement.marker : 'arrow' })),
+    ],
+    verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
+    horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
+    emptyText: 'Nothing is plotted.',
+  }).description;
+};
+
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
+  const descriptionId = `mm-graph-desc-${useId()}`;
+  const { terminal: questionClosed } = useQuestionLifecycle();
   if (!graph) return null;
 
   const displayGraph = fitStaticGraphViewport(graph);
@@ -241,6 +279,13 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
+  const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
+  const spokenDescription = authoredDescription || describeStaticGraph({
+    xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
+    minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
+    asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
+  });
+
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
     // Readable at 680px, and enlargeable when it is not — reading a value off a
@@ -283,6 +328,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={graph.ariaLabel || title}
+        aria-describedby={descriptionId}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
         <title>{graph.ariaLabel || title}</title>
@@ -557,6 +603,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           </text>
         )}
       </svg>
+      {/* Read through aria-describedby only (hidden from browse mode, so it is
+          not heard twice); inline styles so a host with no UI kit CSS never
+          shows it. */}
+      <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
       {graph.caption && (
         <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>
           <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, margin: 0 }}>

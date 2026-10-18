@@ -418,7 +418,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
               pointHoverEnabled={false}
               enlargeable={false}
               panZoom={false}
-              ariaLabel="Source scatterplot; coordinates are intentionally not revealed"
+              ariaLabel="Source scatterplot"
             />
           </div>
         </aside>

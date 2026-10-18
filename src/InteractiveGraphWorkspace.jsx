@@ -4,6 +4,7 @@ import { zoomedWindow } from './graphWorkspaceViewport.js';
 import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
 import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
+import { describeGraphWorkspace } from './platform/language/graphWorkspaceDescription.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -440,6 +441,7 @@ export default function InteractiveGraphWorkspace({
   const zoomed = Boolean(zoomView);
   // One id per mount, so two workspaces on a page cannot share a clip path.
   const clipId = useMemo(() => `mm-plot-clip-${Math.random().toString(36).slice(2, 9)}`, []);
+  const workspaceDescriptionId = `${clipId}-description`;
 
   const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, renderWindow]);
   const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, renderWindow]);
@@ -1105,6 +1107,27 @@ export default function InteractiveGraphWorkspace({
   };
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || (construction.snapped && !curveAcceptedOwnPoints));
+  // What the plane shows, in words (student pass 3, Q-8): the student's own
+  // points, strokes, graph ends and selections; a given graph only as drawn.
+  // Never whether any of it is right (graphWorkspaceDescription.js).
+  const workspaceDescription = describeGraphWorkspace({
+    window: renderWindow,
+    givenGraph: mode === 'analysis' && !pointOnly,
+    placedPoints: constructionEnabled
+      ? tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => ({ label: toPlainMath(task.label), point: construction.placements[task.id] }))
+      : [],
+    strokeCount: (!construction.snapped || curveAcceptedOwnPoints) ? construction.strokes.length : 0,
+    curveDrawn: Boolean(construction.snapped),
+    markers: construction.snapped
+      ? endpointRequirements.map((requirement) => {
+        const placement = construction.markerPlacements[requirement.id];
+        return placement ? { type: markerValue(placement), point: markerPoint(placement) || requirement.point } : null;
+      })
+      : [],
+    selectedPoints: stage === 'analysis'
+      ? analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => analysis.selections[part.id] || [])
+      : [],
+  });
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
@@ -1434,7 +1457,8 @@ export default function InteractiveGraphWorkspace({
             the embedded page does not move. */}
         <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
-            aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
+            aria-label="Coordinate plane"
+            aria-describedby={`${workspaceDescriptionId} ${workspaceDescriptionId}-keys`}
             tabIndex={0}
             onKeyDown={handleGridKeyDown}
             onFocus={() => { if (!keyboardCursor) { const start = defaultCursor(); setKeyboardCursor(start); setKeyboardAnnouncement(`Cursor at ${pointLabel(start)}. Arrow keys move, Enter places.`); } }}
@@ -1515,6 +1539,9 @@ export default function InteractiveGraphWorkspace({
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
             </g>
           </svg>
+          {/* Read through the plane's aria-describedby: what is on it, then its keys. */}
+          <span id={workspaceDescriptionId} data-graph-workspace-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{workspaceDescription}</span>
+          <span id={`${workspaceDescriptionId}-keys`} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor.</span>
           <figcaption style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>

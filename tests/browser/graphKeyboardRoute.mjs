@@ -100,7 +100,8 @@ const drawLine = async (page) => {
   await page.mouse.up();
   await page.waitForTimeout(400);
 };
-const plane = (page) => page.locator('[aria-label^="Coordinate plane. Use the arrow keys"]').first();
+// The legacy workspace's plane: named "Coordinate plane", its keys in its description (Q-8).
+const plane = (page) => page.locator('.mathmaster-function-workspace-graph svg[role="application"]').first();
 const markerButton = (page, type) => page.locator('button', { hasText: type }).first();
 
 /* ------------------------------------------- Function Investigation, by role */
