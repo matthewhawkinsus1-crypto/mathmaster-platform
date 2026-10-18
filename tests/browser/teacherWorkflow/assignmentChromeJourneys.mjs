@@ -367,7 +367,7 @@ if (wanted('dolTimer')) {
     const { context, page } = await openLesson(device, { prepare: openDolFor, prepareArgs: { seconds: 126 }, student: NO_EXTRA_TIME });
     const alertText = () => page.evaluate(() => [...document.querySelectorAll('[data-section-time-left] [role="alert"]')].map((region) => region.textContent).join(' | '));
     const pill = () => page.locator('.mathmaster-unified-nav-alert [data-section-time-left]').first().innerText().catch(() => '');
-    check(/Exit ticket \(DOL\) open · 2 min/.test(await pill()), `${device.name}: the DOL pill shows the time left`, await pill());
+    check(/^Exit ticket open · 2 min/.test(await pill()), `${device.name}: the DOL pill shows the time left`, await pill());
     let said = '';
     for (let waited = 0; waited < 15 && !/2 minutes left/.test(said); waited += 1) { await page.waitForTimeout(1000); said = await alertText(); }
     check(/^2 minutes left on the exit ticket\. When time ends, only completed answers are turned in/.test(said), `${device.name}: at 2:00 an assertive region says so`, said);
