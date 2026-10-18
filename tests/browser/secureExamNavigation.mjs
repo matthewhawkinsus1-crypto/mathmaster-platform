@@ -251,7 +251,11 @@ const supportsJourney = async (context, device) => {
     check(!/\b(correct|incorrect|wrong|right answer|answer key)\b/i.test(panel), label('the panel judges nothing'));
     await shot(page, device, 'supports-01-tool-vocabulary');
     await layout(page, label('tool item with vocabulary open'));
-    await vocabulary.click();
+    // Close it if it is still open (a full-page screenshot resizes the
+    // viewport, and the engine's tray may already have closed it).
+    if (await vocabulary.getAttribute('aria-expanded') === 'true') await vocabulary.click();
+    const closed = await page.locator('[data-support-panel="vocabulary"]').first().waitFor({ state: 'detached', timeout: 8000 }).then(() => true).catch(() => false);
+    check(closed, label('Vocabulary closes again'));
   }
   await noVerdict(page, label('the tool item'));
   check(!errors.length, label('no page errors'), errors[0] || '');
