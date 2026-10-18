@@ -114,6 +114,8 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.getByRole('textbox', { name: 'Line 1', exact: true }).inputValue(), 'f(x) = x^2 - 4', `${at}: lines kept`);
   await page.getByRole('button', { name: 'Close graphing calculator' }).click();
   await page.waitForFunction((s) => !document.querySelector(s), PANEL);
+  // close() hands focus back on the next frame, after the panel has gone: wait for it, as for Escape.
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Graphing calculator', null, { timeout: 5000 }).catch(() => {});
   assert.equal(await activeLabel(page), 'Graphing calculator', `${at}: Close gives focus back`);
 
   // The answer, submitted: calculatorUsed is recorded.
@@ -266,6 +268,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Escape');
   await page.waitForFunction((s) => !document.querySelector(s), PANEL);
   assert.ok(await modals() > before, 'Work View stays open after the calculator closes');
+  await page.waitForFunction(() => Boolean(document.activeElement?.closest('[aria-modal="true"]')), null, { timeout: 5000 }).catch(() => {});
   assert.ok(await page.evaluate(() => Boolean(document.activeElement?.closest('[aria-modal="true"]'))), 'focus is back inside Work View');
   assert.deepEqual(errors, [], 'Work View: no page errors');
   await page.close();
