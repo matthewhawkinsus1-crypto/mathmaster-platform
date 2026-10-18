@@ -293,6 +293,7 @@ import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRai
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
+import { whenDateTimeText } from './platform/student/studentWhen.js';
 import {
   readRouteOwner,
   readStudentRouteState,
@@ -5902,7 +5903,7 @@ function App() {
       landOnResult(describeOpenNotice({
         kind: OPEN_NOTICE.PREREQUISITE,
         prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
-        opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '',
+        opensAtText: whenDateTimeText(assignmentData.releaseAt),
       }));
       return;
     }
@@ -5911,7 +5912,7 @@ function App() {
     });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
       if (user?.role === 'student') {
-        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: assignmentData.releaseAt ? formatDateTime(assignmentData.releaseAt) : '' }));
+        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: whenDateTimeText(assignmentData.releaseAt) }));
       } else {
         toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
       }

@@ -6,6 +6,7 @@ import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
 import { studentScheduleBlocks } from '../../platform/student/testCycleScheduleView.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
+import { describeWhen } from '../../platform/student/studentWhen.js';
 import { describeStudentError } from '../../platform/student/studentErrorText.js';
 import { LEVEL } from '../../platform/student/navigationModel.js';
 import {
@@ -411,7 +412,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {availability?.reason === 'scheduled' && availability.opensAt && (
         <p role="status" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontWeight: 800 }}>
-          Opens {formatDateTime(new Date(availability.opensAt).toISOString())}.
+          Opens {describeWhen(availability.opensAt).text}.
         </p>
       )}
 

@@ -27,6 +27,8 @@
  * "workable" in the workspace; the Recovery lives on the result page.
  */
 
+import { formatWhenDateKey, formatWhenDateTime, formatWhenTime } from './studentWhen.js';
+
 export const SECTION_ORDER = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
 
 export const SECTION_LABEL = Object.freeze({
@@ -271,15 +273,11 @@ export const describeLessonSections = ({
  * Student copy for a section that cannot be worked yet.
  */
 // A class day's date key ("2026-10-21") as a student reads it: "Wed, Oct 21"
-// (student pass 3: the wait line printed the raw key).
-const formatClassDayKey = (dateKey) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ''));
-  if (!match) return String(dateKey || '');
-  const [, year, month, day] = match.map(Number);
-  return new Date(year, month - 1, day, 12).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-};
+// (student pass 3: the wait line printed the raw key). One formatter for every
+// student wait line (studentWhen.js, NAV-19).
+const formatClassDayKey = (dateKey) => formatWhenDateKey(dateKey);
 
-export const describeSectionWait = (section, { formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), formatDateKey = formatClassDayKey, nowValue = Date.now() } = {}) => {
+export const describeSectionWait = (section, { formatTime = formatWhenTime, formatDay = (date) => formatWhenDateTime(date), formatDateKey = formatClassDayKey, nowValue = Date.now() } = {}) => {
   if (!section) return null;
   const label = section.label || sectionLabel(section.role);
   if (section.state === SECTION_STATE.OPENS_LATER) {

@@ -5,6 +5,7 @@ import {
   resolveAssessmentAvailability,
 } from '../assessment/testCycle.js';
 import { normalizeQuestionRecord } from '../../../functions/shared/attemptPolicy.mjs';
+import { opensWhenPhrase } from './studentWhen.js';
 import { studentSkillName } from '../assessment/secureExamResultsModel.js';
 import { studentMisconceptionMessage } from '../../../functions/shared/misconceptionStudentMessages.mjs';
 
@@ -141,8 +142,13 @@ export const describeTestCycleForStudent = ({
   });
 
   if (!availability.open && availability.reason === 'scheduled') {
+    // The opening moment is known (availability.opensAt): say it (NAV-19),
+    // "Review and Test open at 2:15 PM." / "… open on Wed, Oct 21, 2:15 PM.".
+    const when = opensWhenPhrase(availability.opensAt, { nowValue });
     return result(TEST_CYCLE_DISCOVERY.OPENS_LATER, {
-      label: 'Opens later', detail: 'Review and Test open at the scheduled time.', tone: 'locked', started: false, actionLabel: 'Not open yet',
+      label: 'Opens later',
+      detail: when ? `Review and Test open ${when}.` : 'Review and Test open at the time your teacher set.',
+      tone: 'locked', started: false, actionLabel: 'Not open yet',
     });
   }
   if (!availability.open) {

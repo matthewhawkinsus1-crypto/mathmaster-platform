@@ -25,6 +25,7 @@
  * policy, read-only.
  */
 import { getAttemptsRemaining, getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy.js';
+import { dayFromDateKey, formatWhenDate, formatWhenDateTime, formatWhenTime } from './studentWhen.js';
 
 export const QUESTION_STATUS = Object.freeze({
   CORRECT: 'correct',
@@ -182,14 +183,15 @@ export const SECTION_ACCESS = Object.freeze({
   LOCKED: 'locked',
 });
 
-const defaultFormatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-const defaultFormatDay = (date) => date.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-// A class day with no time: "Mon, Oct 19".
-const defaultFormatDate = (date) => date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+// The student's one set of date words (studentWhen.js, NAV-19): "2:15 PM"
+// today, "Wed, Oct 21, 2:15 PM" another day, "Mon, Oct 19" for a class day.
+const defaultFormatTime = formatWhenTime;
+const defaultFormatDay = (date) => formatWhenDateTime(date);
+const defaultFormatDate = (date) => formatWhenDate(date);
 // An instruction date key ("2026-10-19") as that local day, or null.
 const dayFromKey = (key) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
-  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+  const day = dayFromDateKey(key);
+  return day ? new Date(day.getFullYear(), day.getMonth(), day.getDate()) : null;
 };
 const toDate = (value) => {
   if (!value) return null;
