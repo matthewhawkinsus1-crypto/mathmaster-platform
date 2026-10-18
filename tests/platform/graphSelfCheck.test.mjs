@@ -208,19 +208,28 @@ test('the self-check control clears the Chromebook touch minimum', () => {
   assert.match(block.slice(0, 420), /minHeight: 44/);
 });
 
-test('one check where outcomes are shown: "Check Point Placements" also says which way, charged only on a miss (HELP-22)', () => {
+test('"Check Point Placements" stays free; which way a point is off is an opt-in, charged only on that press (HELP-22)', () => {
   const source = codeOf('src/InteractiveGraphWorkspace.jsx');
   const check = region(source, 'const checkPoints = () => {', 'const beginDrawing', 'checkPoints');
-  // Directions only for a miss, only where hints and outcomes are both allowed.
-  assert.match(check, /const directions = !correct && selfCheckAllowed && revealPointCorrectness \? selfCheckReportFor\(\) : null;/);
-  // Charged as a hint only when a point really is off.
-  assert.match(check, /if \(directions && directions\.results\.some\(\(entry\) => !entry\.correct\)\) onSelfCheck\?\.\(directions\);/);
-  // The separate "Check my points" button exists only where outcomes are withheld.
-  const own = region(source, '{selfCheckAllowed && !construction.pointsValidated && outcomesWithheld && (', 'Check my points', 'the standalone check');
-  assert.match(own, /onClick=\{runSelfCheck\}/);
-  assert.equal((source.match(/>\s*Check my points\s*</g) || []).length, 1, 'one "Check my points" control');
-  // The cost is said before the press, beside the one check.
-  assert.match(source, /!outcomesWithheld && selfCheckAllowed && <span[^>]*data-hint-cost-note="">If a point is off, the check says which way\. \{selfCheckCostSentence\(hintCostNote\)\}<\/span>/);
+  // The commit check never builds a direction report and never charges.
+  assert.doesNotMatch(check, /onSelfCheck|selfCheckReportFor|setSelfCheckReport/);
+  assert.match(check, /setPointMissShown\(!correct\);/);
+  // The opt-in runs the self-check, which is what charges.
+  const run = region(source, 'const runSelfCheck = () => {', '};', 'runSelfCheck');
+  assert.match(run, /if \(report\.checked > 0\) onSelfCheck\?\.\(report\);/);
+  const offer = region(source, '{selfCheckAllowed && !construction.pointsValidated && Object.keys(construction.placements).length > 0', '</button>', 'the opt-in');
+  assert.match(offer, /&& \(outcomesWithheld \|\| Object\.keys\(construction\.placements\)\.length < tasks\.length \|\| pointMissShown\) && \(/, 'offered where withheld, on a partial plot, or after a miss');
+  assert.match(offer, /onClick=\{runSelfCheck\}/);
+  assert.match(offer, /\{outcomesWithheld \? 'Check my points' : 'Which way is each point off\?'\}/);
+  assert.equal((source.match(/onClick=\{runSelfCheck\}/g) || []).length, 1, 'one self-check control');
+  // A point that moves takes the miss (and its offer) away with it.
+  assert.match(region(source, 'const placeTask = ', 'const nearestEndpoint', 'placeTask'), /setPointMissShown\(false\);/);
+});
+
+test('where outcomes are shown the report lists only the points that are off (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const report = region(source, '{selfCheckReport && !construction.pointsValidated && (', '</ul>', 'the report');
+  assert.match(report, /selfCheckReport\.results\.filter\(\(entry\) => outcomesWithheld \|\| !entry\.correct\)\.map/);
 });
 
 test('the check and its report are body-size text, not 11-12px (HELP-22)', () => {

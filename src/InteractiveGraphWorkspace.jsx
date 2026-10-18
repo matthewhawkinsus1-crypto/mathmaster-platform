@@ -263,6 +263,8 @@ export default function InteractiveGraphWorkspace({
   const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
   const lastMarkerFeedbackRef = useRef('');
   const [selfCheckReport, setSelfCheckReport] = useState(null);
+  // "Check Point Placements" just found a point off (until a point moves).
+  const [pointMissShown, setPointMissShown] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(
     () => (typeof window === 'undefined' ? 0 : Number(window.innerWidth) || 0),
   );
@@ -499,6 +501,7 @@ export default function InteractiveGraphWorkspace({
     setDropCandidate(null);
     setDropMagneticTarget(null);
     setPointFeedback('');
+    setPointMissShown(false);
     setDrawFeedback('');
     setActiveMarker(null);
     setActiveAnalysisPartId(analysisParts.find((part) => ['inversePoint', 'point'].includes(part.kind))?.id || analysisParts[0]?.id || null);
@@ -754,6 +757,7 @@ export default function InteractiveGraphWorkspace({
     // A verdict about a point the student has since moved is worse than no
     // verdict: it reads as the platform disagreeing with what is on screen.
     setSelfCheckReport(null);
+    setPointMissShown(false);
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
     setActiveTaskId(null);
     setDraggingTaskId(null);
@@ -911,8 +915,9 @@ export default function InteractiveGraphWorkspace({
   };
 
   // Compare what the student plotted against the function, and say which way
-  // each point is off (graphSelfCheck.js). Reported through onSelfCheck so the engine discounts mastery
-  // weight exactly as it does for a revealed hint.
+  // each point is off (graphSelfCheck.js). Only on the student's own press,
+  // reported through onSelfCheck so the engine discounts mastery weight
+  // exactly as it does for a revealed hint.
   const selfCheckReportFor = () => checkPlottedPoints({
     placements: construction.placements,
     tasks,
@@ -925,15 +930,14 @@ export default function InteractiveGraphWorkspace({
     if (report.checked > 0) onSelfCheck?.(report);
   };
 
-  // ONE CHECK (HELP-22). Where outcomes are shown, the self-check is part of
-  // "Check Point Placements": a miss also says which way each point is off
-  // ("too high — find f(3) and compare"), and only then is it charged as a
-  // hint. Where hints are not allowed it is the plain check it always was.
+  // "Check Point Placements" is free and never charged: it commits the points
+  // or names the ones to revise. Which WAY a point is off is help the student
+  // asks for (HELP-22; HELP-10, D5): after a miss — or while the plot is
+  // still partial — the opt-in check below offers it, and only that press is
+  // charged as a hint.
   const checkPoints = () => {
     const correct = placementsMatchTasks(tasks, construction.placements, model.pointTolerance, functionSpec, construction.chosenXValues);
-    const directions = !correct && selfCheckAllowed && revealPointCorrectness ? selfCheckReportFor() : null;
-    setSelfCheckReport(directions && directions.results.some((entry) => !entry.correct) ? directions : null);
-    if (directions && directions.results.some((entry) => !entry.correct)) onSelfCheck?.(directions);
+    setPointMissShown(!correct);
     if (correct) {
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
       connectFocusPendingRef.current = true;
@@ -1314,25 +1318,6 @@ export default function InteractiveGraphWorkspace({
                 })}
                   </div>
                   {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>Not Real / Undefined</button>}
-                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT.
-                      On paper a student checks a point against the rule; here
-                      there was nothing between guessing and committing. Where
-                      outcomes are withheld this is its own button; elsewhere
-                      it is part of "Check Point Placements" below. */}
-                  {selfCheckAllowed && !construction.pointsValidated && outcomesWithheld && (
-                    <div style={{ marginTop: '12px' }}>
-                      <button
-                        type="button"
-                        onClick={runSelfCheck}
-                        disabled={!Object.keys(construction.placements).length}
-                        title={`Compares your plotted points with the function. ${selfCheckCostSentence(hintCostNote)}`}
-                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
-                      >
-                        Check my points
-                      </button>
-                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-warning-text)' }} data-hint-cost-note="">{selfCheckCostSentence(hintCostNote)}</span>
-                    </div>
-                  )}
                   {!construction.pointsValidated && outcomesWithheld && (
                     <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
                       {pointOnly
@@ -1342,15 +1327,35 @@ export default function InteractiveGraphWorkspace({
                     </p>
                   )}
                   {!construction.pointsValidated && !outcomesWithheld && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', minHeight: 44, marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
-                  {!construction.pointsValidated && !outcomesWithheld && selfCheckAllowed && <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-warning-text)' }} data-hint-cost-note="">If a point is off, the check says which way. {selfCheckCostSentence(hintCostNote)}</span>}
-                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT — which way
-                      each point is off, never by how much, and what to work
-                      out: "(3, 4) — too high — find f(3) and compare". It moves
-                      nothing; the student still has to fix it. */}
+                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT — on
+                      request, and charged as a hint. On paper a student checks
+                      a point against the rule; this says which way each point
+                      is off and what to work out, never by how much. Offered
+                      where outcomes are withheld, while the plot is partial
+                      (when "Check Point Placements" cannot run yet), and after
+                      that check finds a point off. */}
+                  {selfCheckAllowed && !construction.pointsValidated && Object.keys(construction.placements).length > 0
+                    && (outcomesWithheld || Object.keys(construction.placements).length < tasks.length || pointMissShown) && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={runSelfCheck}
+                        title={`Compares your plotted points with the function. ${selfCheckCostSentence(hintCostNote)}`}
+                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(16 * var(--mm-px))' }}
+                      >
+                        {outcomesWithheld ? 'Check my points' : 'Which way is each point off?'}
+                      </button>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-warning-text)' }} data-hint-cost-note="">{selfCheckCostSentence(hintCostNote)}</span>
+                    </div>
+                  )}
+                  {/* The report: "(3, 4) — too high — find f(3) and compare". It
+                      moves nothing; the student still has to fix it. Where
+                      outcomes are shown, only the points that are off are
+                      listed ("Revise: …" already names them). */}
                   {selfCheckReport && !construction.pointsValidated && (
                     <div role="status" data-self-check-report="" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-subtle)', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45 }}>
-                      {outcomesWithheld && <strong style={{ display: 'block', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>}
-                      <ul style={{ margin: outcomesWithheld ? '6px 0 0' : 0, paddingLeft: 18, color: 'var(--mm-warning-text)' }}>
+                      <strong style={{ display: 'block', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
+                      <ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--mm-warning-text)' }}>
                         {selfCheckReport.results.filter((entry) => outcomesWithheld || !entry.correct).map((entry) => (
                           <li key={entry.id} style={{ color: entry.correct ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
                             {pointLabel(entry.point)} — {entry.text}
