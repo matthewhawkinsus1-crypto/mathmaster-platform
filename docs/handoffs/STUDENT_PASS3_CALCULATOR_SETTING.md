@@ -345,6 +345,11 @@ EOF
 
 ## Not done / noticed
 
+- **Flat higher-order turns are over-rounded (reviewer's note).** Where a line is very flat at its turn, many x
+  values are "as good" within rounding, and the shortest one wins: (x − 2.718)⁶ − 3 reads its minimum at x = 2.7.
+  A fix would cap how far the chosen x may move by the curvature (or prefer the search's own x when the line is
+  flat over the whole half-step), not by value alone.
+
 - **Follow-up (from W5-4's reviewer):** the graphing calculator (`GraphingCalculatorPanel` and its model) keeps its own
   error handling. It does not use W5-4's TOOL-8 reasons (what to change after an Error), and it does not have W5-4's
   Clear/Error repair for text pasted or committed after Clear. The panel now reaches whole lessons, so its error
