@@ -119,9 +119,13 @@ import { questionReadingParts, questionReadingText } from './platform/language/q
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
 // calculator is graphing. If its chunk cannot load, the keypad drawer stands
-// in rather than the question failing.
+// in rather than the question failing, and the control is named for it.
+const GraphingCalculatorUnavailable = ({ fallback = null, onUnavailable = null }) => {
+  useEffect(() => { onUnavailable?.(); }, [onUnavailable]);
+  return fallback;
+};
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
-  .catch(() => ({ default: ({ fallback = null }) => fallback })));
+  .catch(() => ({ default: GraphingCalculatorUnavailable })));
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -986,10 +990,13 @@ function QuestionEngineBody({
   // A graphing calculator is a real one (enter f(x), trace, zeros, min, max),
   // opened by the same control. Not inside an assessment context: a secure
   // test brings its own (SecureExamContainer), and must not get a second.
+  const [graphingCalculatorFailed, setGraphingCalculatorFailed] = useState(false);
+  const markGraphingCalculatorFailed = useCallback(() => setGraphingCalculatorFailed(true), []);
   const graphingCalculatorOffered = Boolean(calculatorPolicy?.available)
     && calculatorPolicy.mode === CALCULATOR_MODES.GRAPHING
     && !assessmentContext;
-  const calculatorName = graphingCalculatorOffered ? 'Graphing calculator' : 'Calculator';
+  const calculatorShowsGraphing = graphingCalculatorOffered && !graphingCalculatorFailed;
+  const calculatorName = calculatorShowsGraphing ? 'Graphing calculator' : 'Calculator';
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
   useEffect(() => {
     if (calculatorPolicy?.available) reportSupportEvidence('calculator', 'available');
@@ -3080,7 +3087,16 @@ function QuestionEngineBody({
         );
         return graphingCalculatorOffered ? (
           <Suspense fallback={null}>
-            <AssignmentGraphingCalculator open={calculatorOpen} onOpenChange={setCalculatorOpen} roomRef={questionEngineRef} fallback={keypadCalculator} />
+            <AssignmentGraphingCalculator
+              open={calculatorOpen}
+              onOpenChange={setCalculatorOpen}
+              roomRef={questionEngineRef}
+              // Zeros, minimum and maximum: not where they would state the
+              // answer before release (calculatorPolicy.js keyPointsAllowed).
+              keyPoints={calculatorPolicy.keyPointsAllowed === true || showOutcomeFeedback}
+              fallback={keypadCalculator}
+              onUnavailable={markGraphingCalculatorFailed}
+            />
           </Suspense>
         ) : keypadCalculator;
       })()}

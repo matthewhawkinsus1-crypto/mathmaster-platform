@@ -1,6 +1,7 @@
 # Student pass 3, wave 5: the assignment's calculator setting and a graphing calculator (PR-25, PR-26)
 
-Branch `claude/pass3-calculator-setting`, on `claude/modest-pasteur-xzagn7` at `e822504`.
+Branch `claude/pass3-calculator-setting`, on `claude/modest-pasteur-xzagn7` at `e822504`, then merged with the base at
+`cbeff6a` (merge commit) for the integrator's review round (see "Review round", below).
 Nothing here deploys or writes to a production project. Open PR #239 was read (diff and body) and not touched on GitHub.
 Student words follow D9; no new sentence is covered by Read aloud or Translate (see "Spanish", below).
 
@@ -76,9 +77,12 @@ order asked for here puts the assignment above the question; #239's "explicit no
   panel mounts already open and Escape dropped focus to `<body>`; it now records the focused control when it mounts
   open. A browser case holds the chunk, presses the control, releases it, and checks focus both ways (mutation: red).
 - **Exit tickets, quizzes, tests before release.** The calculator receives no question data (asserted: the host's
-  only props are `open`, `onOpenChange`, `roomRef`, `fallback`), shows no verdict, no hint and no method; it computes
-  only what the student types. Whether a graphing calculator is allowed at all is the policy's decision (item 1).
-  Proven on a DOL in the browser (no verdict text before Submit) and by assessmentLeakGates / toolPolicyGates (green).
+  props are `open`, `onOpenChange`, `roomRef`, `keyPoints`, `fallback`, `onUnavailable`), shows no verdict, no hint
+  and no method; it computes only what the student types. Whether a graphing calculator is allowed at all is the
+  policy's decision (item 1). **It lists no zeros, minimum or maximum there** unless the item itself authored a
+  graphing calculator or outcome feedback is shown (review round, B1): a listed vertex was the answer an item asks for.
+  Proven on a DOL in the browser (no key points, no verdict text before Submit) and by assessmentLeakGates /
+  toolPolicyGates (green).
 
 **Not done of R3.** The graph is not the question's graph (the student cannot send a calculator point into an
 answer), there is no tap-to-trace on the graph itself (trace is typed x; the key points are listed), and
@@ -104,7 +108,7 @@ The new policy reason appears in the "Calculator unavailable" toast, which is no
 
 ## New tests and mutation checks
 
-`tests/platform/assignmentCalculatorSetting.test.mjs` (18 tests): each precedence level; teacher choice; assessment
+`tests/platform/assignmentCalculatorSetting.test.mjs` (23 tests after the review round): each precedence level; teacher choice; assessment
 rules both ways; the no-calculator skill and the override; the accommodation under "off"; the stricter rule on
 `dol`, `quiz`, `test` and a role-less waiting-feedback policy; App → QuestionEngine → resolver wiring; the offer
 gate; one keypad mount; calculatorUsed; lazy import and its fallback; no question data to the panel; the secure
@@ -131,28 +135,28 @@ Enter guard removed; no room; key points off; offered in an assessment context; 
 focus not recorded. (A redundant
 `data-mm-enter-owner` on the panel survived its mutation and was removed.)
 
-## Gate (final code; base `e822504`)
+## Gate (review round: merged with base `cbeff6a`)
 
 | Check | Result |
 | --- | --- |
-| `npm ci`, `functions` and `functions-path-admin` `npm ci` | ok (the first platform run had 19 environment failures, all `Cannot find module 'firebase-admin/…'` before functions' install) |
-| `npm run test:platform` | 11616 / 11616 pass |
+| `npm ci`, `functions` and `functions-path-admin` `npm ci` | ok (the very first platform run had 19 environment failures, all `Cannot find module 'firebase-admin/…'` before functions' install) |
+| `npm run test:platform` | 11622 / 11622 pass (one intermediate red: my own round-one contract in `mobileInteractionWiring` pinned the old variable name; rewritten to the behaviour and mutation-checked) |
 | `node --test tests/tools/*.test.mjs` | 1670 pass, 1 skipped, 0 fail |
 | `npm run test:authoring-v5` | 686 / 686 pass |
 | `npm run test:secure-exam-navigation` (Firestore emulator) | 25 / 25 pass |
 | `npm run lint` | 0 errors; no warning in a changed file |
 | `npm run build` | ok |
 | `npm run build:firebase` | ok, no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | studentHome **1048.6 KB before → 1048.9 KB after** (+0.3 KB); signIn 291.4 → 291.4. Already over its 1023.4 KB baseline on the base (25.2 KB; W5-1's work). The +0.3 KB is `calculatorPolicy.js` 1.4 → 1.6 KB (the precedence code, already a first-load file) and ~0.1 KB in one shared chunk; the graphing calculator is in its own chunks (`AssignmentGraphingCalculator-*.js`, `GraphingCalculatorPanel-*.js`), not on the first load. Baseline not edited. |
-| `tests/browser/assignmentGraphingCalculator.mjs` (new) | all checks passed, 5 consecutive clean runs after the late-chunk fix |
-| `tests/browser/calculatorKeyboard.mjs` (emulator Vite config) | all checks passed (1366×768, 390×844, over Work View) |
+| `node scripts/check-first-load-budget.mjs` | studentHome **1048.6 KB on the base `cbeff6a` (built in a separate worktree) → 1049.0 KB on this head** (+0.4 KB); signIn 291.4 → 291.4. Round one: 1048.6 → 1048.9 on `e822504`. The growth is `calculatorPolicy.js` 1.4 → 1.7 KB (the precedence code and `keyPointsAllowed`; already a first-load file) and ~0.1 KB of chunk-hash churn over three chunks. The graphing calculator is in its own chunks (`AssignmentGraphingCalculator-*.js`, `GraphingCalculatorPanel-*.js`), not on the first load. The base is already 25.2 KB over its 1023.4 KB baseline (W5-1's lane). Baseline not edited. |
+| `tests/browser/assignmentGraphingCalculator.mjs` (new) | all checks passed, repeated clean runs (now also: DOL without key points, DOL item authored graphing with them, chunk that cannot load) |
+| `tests/browser/calculatorKeyboard.mjs` (emulator Vite config) | all checks passed |
 | `tests/browser/regressionCalculatorPhone.mjs` | passed |
 | `tests/browser/toolPolicyGates.mjs` | passed |
 | `tests/browser/assessmentLeakGates.mjs` | passed |
-| `tests/browser/workViewMatrix.mjs` (without `--write`) | passed: every Stage 3A family keeps its controls, state and Undo |
+| `tests/browser/workViewMatrix.mjs` (without `--write`) | passed |
 | `tests/browser/studentUxPlatform.mjs` | passed |
-| `tests/browser/secureExamNavigation.mjs` (own Vite) | 330 passed, 0 failed (incl. "the graphing calculator opens" from the exam toolbar, Chromebook and phone) |
-| `tests/browser/secureAccessParity.mjs` (emulator Vite, 5203) | all 26 checks pass (SAT item graphing offline; tsia2 / courseTest graphing items) |
+| `tests/browser/secureExamNavigation.mjs` (own Vite) | 330 passed, 0 failed (the exam toolbar's graphing calculator opens, Chromebook and phone) |
+| `tests/browser/secureAccessParity.mjs` (emulator Vite, 5203) | all 26 checks pass |
 
 Browser drivers ran one at a time against plain `npx vite --host 127.0.0.1 --port 5199 --strictPort` (calculatorKeyboard
 against the emulator config, as its workflow does). Vite's cache stayed in `node_modules/.vite` (ignored).
@@ -163,6 +167,79 @@ Only `src/**`, `tests/**`, one workflow and this doc: no `functions/`, no `fires
 config. **Hosting only** (`npm run build && npm run build:firebase`, then
 `FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting`, or the release script). No functions, rules or indexes.
 
+## Review round (integrator, on `345e32c`)
+
+Merged the base at `cbeff6a` (clean), then:
+
+- **B1 (blocking): no key points on exit tickets, quizzes and tests from the assignment's setting alone.** On a DOL
+  item with no authored mode, an assignment set to "graphing" gave a calculator that listed "Minimum (4, −2)" for
+  Algebra 2 Honors L1's DOL, the vertex the item asks for. `resolveCalculatorPolicy` now returns `keyPointsAllowed`
+  on every result: `!isAssessmentActivity(activityPolicy)` (dol/quiz/test, or any feedback mode that is not
+  immediate) `|| the item's own calculatorPolicy or embedded calculatorMode is "graphing"`. QuestionEngine passes
+  `keyPoints={calculatorPolicy.keyPointsAllowed === true || showOutcomeFeedback}` through the host to the panel.
+  Graph, trace and the table still follow the assignment setting, so DOL #2's "built-in graphing calculator" still
+  works. Node tests (every role, authored both ways, a waiting-feedback policy, every return path) and a browser
+  case on `role=dol` (`[data-graphing-key-points]` absent and no "Zeros/Minimum/Maximum" text in the panel; an item
+  authored graphing on a DOL keeps them). Mutations red: flag always true; engine passes `keyPoints` unconditionally.
+- **S1 (wrong values a student would see).** (a) Zoomed views: "Zoom in" on x² − 4 read the minimum as
+  (1 × 10^−8, −4); x²/10⁶ − 1 on ±3000 as x = 0.000007. The shortest-equivalent x now tries 0 first, then
+  significant digits, within half a sample step and "as good" judged against the line's own size there; `settle()`'s
+  view-relative snap is no longer applied to turns. (`toFixed` roundings, suggested, were tried and are redundant
+  once 0 is a candidate — their mutation survived — so they are not kept.) (b) False zero / rewritten minimum:
+  10000x² + 0.01 showed "Zeros x = 0" and "Minimum (0, 0)". "Touches 0" is now within floating-point error (1e−10) of
+  the line's magnitude a sample step either side, for sign-change zeros, touching zeros and the reported y alike; a
+  turn's y is reported as computed except when it is 0 by that test ((x − 1/3)² reads (0.3333333, 0), not
+  1.1 × 10^−13). (c) Domain edges: sqrt(x − 0.3) now has its zero at 0.3 (the edge is found by bisection on
+  defined/undefined, then snapped); sqrt(4 − x²) has −2 and 2. The ends of the view are not turning points, and the
+  panel now says so: "Minimum and maximum are the line's turning points, not the ends of what is on screen", and an
+  empty list reads "No turn on screen".
+- **S2: any assessment context skips the assignment level.** `{ mode: 'none', accommodationOverride: true }` with no
+  accommodation now returns none (it fell through to the question's basic, and with "graphing" to graphing);
+  `{ mode: 'basic' }` without `forceAvailable` now leaves it to the question. Neither is reachable today
+  (RichQuestionRuntime always forces). Tests for both, with and without an accommodation.
+- **S4:** DOL/quiz/test cases for question Square Root + assignment Basic → Square Root and the reverse; the `<=` → `<`
+  mutation is now red.
+- **N3:** if the chunk cannot load, the stand-in reports it and the control is named "Calculator" (browser case:
+  the chunk is aborted, the keypad opens, no page errors; mutation red).
+
+Mutation totals now: 30 node mutations, all red; 13 browser mutations, all red.
+
+## Before Hosting goes out: assignments whose stored setting changes behaviour (S3)
+
+This release changes what an already-stored `toolPolicy.calculator` does on live assignments:
+
+- `"graphing"` widens unauthored DOL/quiz/test items to graph, trace and table (key points stay off, B1);
+- `"none"` / `"basic"` / `"squareRoot"` / `"scientific"` narrow (or widen) ordinary items, including items authored
+  graphing;
+- `"teacherChoice"` now applies (the teacher's choice, else the question's).
+
+The owner should count them first, read-only, and not release while one of them has an open DOL, quiz or test
+window. From Cloud Shell with ADC on the production project (reads only; writes nothing):
+
+```bash
+cat > /tmp/calculator-setting-audit.mjs <<'EOF'
+import { initializeApp, applicationDefault } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+initializeApp({ credential: applicationDefault(), projectId: 'mathmaster-aleks' });
+const NO_SETTING = new Set(['inherit', 'questionSpecific', '', 'null', 'undefined']);
+const snapshot = await getFirestore().collection('assignments').select('title', 'toolPolicy', 'dueAt', 'lateDueAt', 'dol', 'sections', 'archived').get();
+const rows = snapshot.docs
+  .map((doc) => ({ id: doc.id, ...doc.data() }))
+  .filter((row) => !NO_SETTING.has(String(row.toolPolicy?.calculator ?? '')))
+  .map((row) => ({
+    id: row.id,
+    title: row.title,
+    calculator: row.toolPolicy.calculator,
+    roles: [...new Set((row.sections || []).map((section) => section.role))].join(','),
+    dueAt: row.dueAt?.toDate?.()?.toISOString?.() ?? row.dueAt ?? null,
+    archived: row.archived === true,
+  }));
+console.table(rows);
+console.log(`${rows.length} of ${snapshot.size} assignments carry a calculator setting.`);
+EOF
+(cd functions && node /tmp/calculator-setting-audit.mjs)   # functions/ has firebase-admin installed
+```
+
 ## Decisions for the owner
 
 1. **Assignment above question.** As asked, the assignment's setting now beats a question's own authored mode on
@@ -171,17 +248,22 @@ config. **Hosting only** (`npm run build && npm run build:firebase`, then
    #239 as superseded after this merges.
 2. **Zeros / minimum / maximum on secure practice tests.** Off there (`keyPoints` is opt-in) so the secure panel is
    unchanged. The Digital SAT's Desmos shows such points; turning it on is one prop in `SecureExamContainer.jsx`.
-3. **A graphing calculator on an exit ticket.** Allowed when the assignment (or item) says graphing and the item has
-   no stricter authored mode — DOL #2's prompts need it. It reveals nothing about the key, but it does find zeros
-   for a student who types the function. An owner who wants "no key points on DOL/quiz/test" can pass
-   `keyPoints={!assessmentActivity}` from QuestionEngine.
+3. **May an unauthored assessment item be widened at all?** Today (after B1): on a DOL, quiz or test an item with
+   no authored calculator takes the assignment's "graphing" for graph, trace and table, but no listed key points;
+   an item that authored graphing itself keeps them. The stricter variant: on assessment roles the assignment
+   setting may narrow but never widen an unauthored item (it would keep the platform's basic), and DOL #2 would then
+   need `calculatorMode: "graphing"` authored on its items. Note that even without key points the table of values
+   and the trace still show integer zeros and the symmetry of a parabola, so the real question is whether the
+   assignment setting may widen an unauthored assessment item at all. The variant is one condition in
+   `resolveCalculatorPolicy` (`questionAuthoredMode` null on an assessment role ⇒ keep the question's) and two tests.
 4. **No teacher UI sets `toolPolicy.calculator`.** It comes only from imported V5 JSON (`authoringContract.js` shows
    `"inherit"`). A Pre-Flight control would make PR-25 reachable without JSON.
 
 ## Touched outside my scope (kept minimal)
 
 - `src/QuestionEngine.jsx` (session B's): prop, resolver input, `graphingCalculatorOffered` / `calculatorName`
-  (labels of the existing control), the lazy import, and the calculator mount switch. Wave-4 b5/b6 diffs near these
+  (labels of the existing control), the lazy import with its stand-in, the failed-load flag, and the calculator mount
+  switch with `keyPoints`. Wave-4 b5/b6 diffs near these
   lines are context only; expected to merge cleanly.
 - `src/App.jsx` (W5-1 moving imports): one prop and a two-line comment on the student `QuestionEngine`; no import.
 - `src/platform/interaction/answerEntryUx.js`: one selector added to `calculatorOwnsEnter`.
@@ -190,6 +272,15 @@ config. **Hosting only** (`npm run build && npm run build:firebase`, then
 - `.github/workflows/student-runtime-browser-gates.yml`: one path filter, one step, one header line.
 
 ## Not done / noticed
+
+- **N1, for the owner:** a question authored "graphing" now opens the graphing panel in any QuestionEngine host
+  without an assessment context — My Math Path (seed items authored graphing: about 664 Digital SAT, 136 ACT, 30
+  Algebra I, 22 Algebra II, per the integrator's count), Live Challenge, Section Recovery and others. Secure exams
+  and Test Cycles are unchanged. Practice keeps key points (B1's gate allows them where outcome feedback is
+  immediate). Live Challenge is a speed game: a graphing calculator that lists zeros there may change the game; the
+  owner may want Live Challenge to pass an assessment-like policy or opt out.
+- **N5:** the calculator's lines are lost when the question changes (the panel lives inside QuestionEngine, which is
+  keyed per question). The secure exam keeps lines across items because it mounts the panel once per session.
 
 - R3 remainder: send a calculator point into the answer; tap-to-trace on the graph; intersections of two lines;
   the regression tool's own graph is still separate.

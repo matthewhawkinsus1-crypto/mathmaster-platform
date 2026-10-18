@@ -73,7 +73,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.match(await page.locator('[data-graphing-line="1"]').textContent(), /Graphed as the blue solid line/, `${at}: the line says how it is drawn`);
   assert.equal((await page.locator('[data-graphing-zeros]').textContent()).trim(), 'x = −2; x = 2', `${at}: zeros`);
   assert.equal((await page.locator('[data-graphing-minima]').textContent()).trim(), '(0, −4)', `${at}: minimum`);
-  assert.equal((await page.locator('[data-graphing-maxima]').textContent()).trim(), 'None on screen', `${at}: maximum`);
+  assert.equal((await page.locator('[data-graphing-maxima]').textContent()).trim(), 'No turn on screen', `${at}: maximum`);
 
   // Enter in a line goes to a new line, and never submits the question.
   await page.keyboard.press('Enter');
@@ -167,6 +167,22 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   console.log('assignment graphing calculator, code arriving late: ok');
 }
 
+// The calculator's code cannot load: the keypad stands in, and the control is named for it.
+{
+  const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(String(error?.message || error)));
+  await page.route(/AssignmentGraphingCalculator\.jsx/, (route) => route.abort());
+  await page.goto(url('calc=graphing'), { waitUntil: 'networkidle' });
+  await page.locator(`${BAR}[aria-label="Calculator"]`).waitFor();
+  assert.equal(await page.locator(`${BAR}[aria-label="Graphing calculator"]`).count(), 0, 'failed load: not called a graphing calculator');
+  await page.locator(`${BAR}[aria-label="Calculator"]`).click();
+  await page.locator(KEYPAD).waitFor();
+  assert.deepEqual(errors, [], 'failed load: no page errors');
+  await page.close();
+  console.log('assignment graphing calculator, code that cannot load: keypad, ok');
+}
+
 // Over Work View: on top, and one Escape closes the calculator only.
 {
   const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing&tool=graphing2');
@@ -219,14 +235,20 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   console.log('assessment context: unchanged, ok');
 }
 
-// Exit ticket: an item with no authored calculator takes the assignment's;
-// nothing about the answer is shown before Submit; an item authored basic keeps basic.
+// Exit ticket: an item with no authored calculator takes the assignment's
+// graph, trace and table, but lists no zeros, minimum or maximum (the vertex an
+// item asks for); nothing about the answer is shown before Submit; an item
+// that authored graphing itself keeps the key points; one authored basic keeps basic.
 {
   const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing&role=dol');
   await page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
   await page.locator(PANEL).waitFor();
   await page.keyboard.type('f(x) = x^2 - 4');
-  await page.waitForFunction(() => /x = 2/.test(document.querySelector('[data-graphing-zeros]')?.textContent || ''));
+  await page.waitForSelector('[data-graphing-line="1"] [data-graphing-status="function"]');
+  await page.getByRole('textbox', { name: 'Find y when x =' }).fill('2');
+  await page.waitForFunction(() => /Line 1: y = 0/.test(document.querySelector('[data-graphing-trace="1"]')?.textContent || ''));
+  assert.equal(await page.locator('[data-graphing-key-points]').count(), 0, 'DOL, graphing from the assignment: no key points listed');
+  assert.doesNotMatch(await page.locator(PANEL).innerText(), /Minimum|Maximum|Zeros/, 'DOL: no zeros, minimum or maximum anywhere in the panel');
   await page.keyboard.press('Escape');
   await page.getByLabel('Positive zero').first().click();
   await page.keyboard.type('3');
@@ -234,6 +256,13 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   assert.doesNotMatch(text, /\b(correct|incorrect|not quite|try again)\b/i, 'DOL: no verdict before Submit');
   assert.deepEqual(errors, []);
   await page.close();
+
+  const authoredGraphing = await open({ width: 1366, height: 768 }, 'calc=off&role=dol&mode=graphing');
+  await authoredGraphing.page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
+  await authoredGraphing.page.locator(PANEL).waitFor();
+  await authoredGraphing.page.keyboard.type('f(x) = x^2 - 4');
+  await authoredGraphing.page.waitForFunction(() => /x = 2/.test(document.querySelector('[data-graphing-zeros]')?.textContent || ''));
+  await authoredGraphing.page.close();
 
   const authored = await open({ width: 1366, height: 768 }, 'calc=graphing&role=dol&mode=basic');
   assert.equal(await authored.page.locator(`${BAR}[aria-label="Calculator"]`).count(), 1, 'DOL item authored basic keeps basic');

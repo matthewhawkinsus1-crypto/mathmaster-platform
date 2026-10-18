@@ -159,7 +159,15 @@ const isAssessmentActivity = (activityPolicy = {}) => (
  *     the two is used. (An item with no authored mode takes the assignment's.)
  *
  * A student's documented calculator accommodation applies after all of this,
- * exactly as before.
+ * exactly as before. Any assessment context skips level 2 entirely: what the
+ * context does not force is the question's to decide, never the assignment's.
+ *
+ * `keyPointsAllowed` (every result): may a graphing calculator LIST zeros,
+ * minimum and maximum here? Not on an exit ticket, quiz or test (or any
+ * activity whose outcome feedback waits) unless the item itself authored a
+ * graphing calculator — there a listed vertex or zero is the answer the item
+ * asks for. Graph, trace and table still follow the policy. QuestionEngine
+ * also allows them once outcome feedback is shown (released).
  */
 export const resolveCalculatorPolicy = ({
   questionSpec = {},
@@ -169,15 +177,23 @@ export const resolveCalculatorPolicy = ({
   assignmentCalculatorMode = null,
   assessmentContext = null,
 } = {}) => {
+  const explicitQuestionMode = normalizeMode(questionSpec.calculatorPolicy) || CALCULATOR_MODES.INHERIT;
+  const embeddedQuestionMode = normalizeMode(questionSpec?.rawSpec?.calculatorMode)
+    || normalizeMode(questionSpec?.generator?.calculatorMode)
+    || normalizeMode(questionSpec?.calculatorMode);
+  const keyPointsAllowed = !isAssessmentActivity(activityPolicy)
+    || explicitQuestionMode === CALCULATOR_MODES.GRAPHING
+    || embeddedQuestionMode === CALCULATOR_MODES.GRAPHING;
+  const policy = (result) => ({ ...result, keyPointsAllowed });
+
   const assessment = normalizeAssessmentContext(assessmentContext);
   if (assessment?.mode === CALCULATOR_MODES.NONE && !assessment.accommodationOverride) {
-    return { available: false, mode: CALCULATOR_MODES.NONE, source: 'assessmentContext', reason: 'Calculator disabled by the active assessment context.' };
+    return policy({ available: false, mode: CALCULATOR_MODES.NONE, source: 'assessmentContext', reason: 'Calculator disabled by the active assessment context.' });
   }
   if (assessment?.forceAvailable && assessment.mode !== CALCULATOR_MODES.NONE) {
-    return { available: true, mode: assessment.mode, source: 'assessmentContext', reason: 'Calculator mode set by the active assessment context.' };
+    return policy({ available: true, mode: assessment.mode, source: 'assessmentContext', reason: 'Calculator mode set by the active assessment context.' });
   }
 
-  const explicitQuestionMode = normalizeMode(questionSpec.calculatorPolicy) || CALCULATOR_MODES.INHERIT;
   const activityDefault = normalizeMode(activityPolicy.calculatorDefault) || 'questionSpecific';
   let basePolicy = explicitQuestionMode;
   let baseSource = 'questionDesign';
@@ -186,9 +202,6 @@ export const resolveCalculatorPolicy = ({
     basePolicy = activityDefault;
     baseSource = 'activityPolicy';
   }
-  const embeddedQuestionMode = normalizeMode(questionSpec?.rawSpec?.calculatorMode)
-    || normalizeMode(questionSpec?.generator?.calculatorMode)
-    || normalizeMode(questionSpec?.calculatorMode);
   if (basePolicy === 'questionSpecific') {
     basePolicy = embeddedQuestionMode || defaultForQuestion(questionSpec);
     baseSource = embeddedQuestionMode ? 'questionDesign' : 'platformDefault';
@@ -209,7 +222,7 @@ export const resolveCalculatorPolicy = ({
   const assignmentMode = assignmentSetting === CALCULATOR_MODES.TEACHER_CHOICE
     ? normalizeMode(teacherCalculatorChoice)
     : assignmentSetting;
-  if (CONCRETE_MODES.has(assignmentMode)) {
+  if (!assessment && CONCRETE_MODES.has(assignmentMode)) {
     const questionAuthoredMode = baseSource === 'platformDefault' ? null : basePolicy;
     if (skillDeclaresNoCalculator) {
       basePolicy = CALCULATOR_MODES.NONE;
@@ -227,7 +240,7 @@ export const resolveCalculatorPolicy = ({
     }
   }
   if (teacherChoiceMissing) {
-    return { available: false, mode: CALCULATOR_MODES.NONE, source: 'teacherChoice', reason: 'Teacher calculator choice has not been set.' };
+    return policy({ available: false, mode: CALCULATOR_MODES.NONE, source: 'teacherChoice', reason: 'Teacher calculator choice has not been set.' });
   }
 
   const support = supportSettings(studentSupportProfile);
@@ -235,11 +248,16 @@ export const resolveCalculatorPolicy = ({
     const accommodationMode = assessment?.mode && assessment.mode !== CALCULATOR_MODES.NONE
       ? assessment.mode
       : support.mode;
-    return { available: true, mode: accommodationMode, source: 'accommodation', reason: 'Enabled per the student support plan.' };
+    return policy({ available: true, mode: accommodationMode, source: 'accommodation', reason: 'Enabled per the student support plan.' });
+  }
+  // A context that allows a calculator only by accommodation, for a student
+  // without one: none.
+  if (assessment?.mode === CALCULATOR_MODES.NONE) {
+    return policy({ available: false, mode: CALCULATOR_MODES.NONE, source: 'assessmentContext', reason: 'Calculator disabled by the active assessment context.' });
   }
 
   if (basePolicy === CALCULATOR_MODES.NONE || !CONCRETE_MODES.has(basePolicy)) {
-    return {
+    return policy({
       available: false,
       mode: CALCULATOR_MODES.NONE,
       source: baseSource,
@@ -248,12 +266,12 @@ export const resolveCalculatorPolicy = ({
         : baseSource === 'assignmentToolPolicy'
           ? 'Your teacher turned the calculator off for this assignment.'
           : 'Calculator disabled by activity/question policy.',
-    };
+    });
   }
-  return {
+  return policy({
     available: true,
     mode: basePolicy,
     source: baseSource,
     reason: baseSource === 'assignmentToolPolicy' ? 'Calculator set by this assignment.' : 'Calculator allowed by the resolved question policy.',
-  };
+  });
 };

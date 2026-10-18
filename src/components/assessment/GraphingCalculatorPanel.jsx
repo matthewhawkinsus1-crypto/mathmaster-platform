@@ -709,7 +709,7 @@ export default function GraphingCalculatorPanel({
                 {featureEntry ? (
                   <div style={{ marginTop: 4, display: 'grid', gap: 6 }}>
                     <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
-                      For the part of the graph on screen. Move or zoom the graph to look somewhere else.
+                      For the part of the graph on screen. Minimum and maximum are the line&apos;s turning points, not the ends of what is on screen. Move or zoom the graph to look somewhere else.
                     </p>
                     {graphable.length > 1 && (
                       <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, maxWidth: 200 }}>
@@ -731,11 +731,11 @@ export default function GraphingCalculatorPanel({
                         </dd>
                         <dt style={{ fontWeight: 800 }}>Minimum</dt>
                         <dd data-graphing-minima="" style={{ margin: 0 }}>
-                          {features.minima.length ? features.minima.map(point).join('; ') : 'None on screen'}{features.more.minima ? '; and more' : ''}
+                          {features.minima.length ? features.minima.map(point).join('; ') : 'No turn on screen'}{features.more.minima ? '; and more' : ''}
                         </dd>
                         <dt style={{ fontWeight: 800 }}>Maximum</dt>
                         <dd data-graphing-maxima="" style={{ margin: 0 }}>
-                          {features.maxima.length ? features.maxima.map(point).join('; ') : 'None on screen'}{features.more.maxima ? '; and more' : ''}
+                          {features.maxima.length ? features.maxima.map(point).join('; ') : 'No turn on screen'}{features.more.maxima ? '; and more' : ''}
                         </dd>
                       </dl>
                     )}

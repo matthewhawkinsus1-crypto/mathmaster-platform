@@ -390,7 +390,11 @@ export const formatNumber = (value) => {
  * finite number the calculator can show, and a real turn: the line a sample
  * step away is strictly higher (or lower) on both sides, so the flat top of
  * a step function (floor x) is none. A flat stretch of y = 0 has no single
- * zero. Each list holds at most a few
+ * zero; where the line's domain starts or ends inside the view (sqrt x) the
+ * edge is a zero if the line is 0 there. Turning values are reported as they
+ * are, and "touches 0" means within floating-point error of the line's own
+ * size nearby. The ends of the view are not turning points. Each list holds
+ * at most a few
  * points; `more` says the view held more (sin x over a wide view).
  *
  * Like everything here it reads only the line the student typed.
@@ -409,6 +413,18 @@ const bisectZero = (f, a, b, fa) => {
     if (Math.sign(fm) === Math.sign(flo)) { lo = mid; flo = fm; } else hi = mid;
   }
   return (lo + hi) / 2;
+};
+
+// Where an undefined stretch meets a defined one between a and b: the
+// defined x nearest the undefined side.
+const domainEdge = (f, a, b, undefinedAtA) => {
+  let lo = a;
+  let hi = b;
+  for (let step = 0; step < 64; step += 1) {
+    const mid = (lo + hi) / 2;
+    if ((f(mid) === null) === undefinedAtA) lo = mid; else hi = mid;
+  }
+  return undefinedAtA ? (f(hi) === null ? null : hi) : (f(lo) === null ? null : lo);
 };
 
 const GOLDEN = (Math.sqrt(5) - 1) / 2;
@@ -438,12 +454,14 @@ const settle = (value, span) => {
   return Number(value.toPrecision(10));
 };
 
-const shortestEquivalent = (x, asGood, gap, span) => {
-  for (let digits = 1; digits <= 9; digits += 1) {
-    const candidate = Number(x.toPrecision(digits));
-    if (Math.abs(candidate - x) < gap / 2 && asGood(candidate)) return settle(candidate, span);
-  }
-  return settle(x, span);
+// The shortest x near `x` (within half a sample step) that is as good: 0
+// first, then x to 1, 2 … significant digits. 0 is tried on its own because
+// in a zoomed view the search's own error (1e-8) is not small next to the
+// view, and toPrecision never turns 1e-8 into 0.
+const shortestEquivalent = (x, asGood, gap) => {
+  const candidates = [0];
+  for (let digits = 1; digits <= 12; digits += 1) candidates.push(Number(x.toPrecision(digits)));
+  return candidates.find((candidate) => Math.abs(candidate - x) < gap / 2 && asGood(candidate)) ?? Number(x.toPrecision(12));
 };
 
 /**
@@ -465,10 +483,14 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
   const gap = span / count;
   const xs = Array.from({ length: count + 1 }, (unused, index) => left + index * gap);
   const ys = xs.map((x) => f(x));
-  const finiteYs = ys.filter((y) => y !== null).map(Math.abs).sort((a, b) => a - b);
-  // How big this line's values are in the view, for "near zero".
-  const scale = Math.max(1, finiteYs.length ? finiteYs[Math.floor(finiteYs.length / 2)] : 1);
-  const nearZero = (y) => y !== null && Math.abs(y) <= scale * 1e-7;
+  // "Is y = 0 here": within floating-point error of the line's size a sample
+  // step either side (10000x² + 0.01 does not touch 0; x² does).
+  const nearZeroAt = (x, y) => {
+    if (y === null) return false;
+    if (y === 0) return true;
+    const local = Math.max(...[f(x - gap), f(x + gap)].filter((value) => value !== null).map(Math.abs), 0);
+    return Math.abs(y) <= local * 1e-10;
+  };
 
   const zeros = [];
   const addZero = (x) => {
@@ -484,10 +506,20 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       continue;
     }
     const next = ys[index + 1];
-    if (index === count || y === null || next === null || next === undefined || next === 0) continue;
-    if (Math.sign(y) === Math.sign(next)) continue;
+    if (index === count || next === undefined || next === 0) continue;
+    // The edge of the line's domain (sqrt(x − 0.3) starts at 0.3): find it,
+    // and it is a zero if the line is 0 there.
+    if ((y === null) !== (next === null)) {
+      const edge = domainEdge(f, xs[index], xs[index + 1], y === null);
+      if (edge !== null) {
+        const at = shortestEquivalent(edge, (candidate) => f(candidate) !== null && Math.abs(f(candidate)) <= Math.abs(f(edge)), gap);
+        if (nearZeroAt(at, f(at))) addZero(at);
+      }
+      continue;
+    }
+    if (y === null || next === null || Math.sign(y) === Math.sign(next)) continue;
     const root = bisectZero(f, xs[index], xs[index + 1], y);
-    if (root !== null && nearZero(f(root))) addZero(root);
+    if (root !== null && nearZeroAt(root, f(root))) addZero(root);
   }
 
   const turns = (lowest) => {
@@ -503,11 +535,12 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       if (turnValue === null || Math.abs(turnValue) > limit) continue;
       // Golden-section search pins x only to about 8 digits (1.000000006 for
       // 1): take the shortest x within the bracket that is as low (or high).
+      const local = Math.max(...[f(x - gap), f(x + gap)].filter((value) => value !== null).map((value) => Math.abs(value - turnValue)), 0);
       const at = shortestEquivalent(x, (candidate) => {
         const value = f(candidate);
         if (value === null) return false;
-        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= scale * 1e-14;
-      }, gap, span);
+        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= local * 1e-12;
+      }, gap);
       const y = f(at);
       if (y === null) continue;
       // A real turn: a step's gap away on both sides the line is strictly
@@ -518,8 +551,12 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       if (before === null || after === null) continue;
       if (lowest ? !(before > y && after > y) : !(before < y && after < y)) continue;
       if (found.some((known) => Math.abs(known.x - at) < gap / 2)) continue;
-      found.push({ x: at, y: nearZero(y) ? 0 : Number(y.toPrecision(10)) });
-      if (nearZero(y)) addZero(at);
+      // The turn's own value (a minimum of 0.01 is 0.01); 0 only when it is 0
+      // within floating-point error of the line's size nearby, the same test
+      // as a touching zero ((x − 1/3)² at 1/3 is 0, not 1.1 × 10^−13).
+      const touches = nearZeroAt(at, y);
+      found.push({ x: at, y: touches ? 0 : Number(y.toPrecision(10)) });
+      if (touches) addZero(at);
     }
     return found;
   };

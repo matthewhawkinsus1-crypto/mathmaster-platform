@@ -73,6 +73,19 @@ test('1. assessment rules decide over the assignment\'s setting, either way', ()
   assert.equal(blueprintOff.available, false);
 });
 
+test('1. any assessment context skips the assignment level, also where it forces nothing', () => {
+  // A context that allows a calculator only by accommodation: none without one, the plan's with one.
+  const byPlanOnly = resolve({ assessmentContext: { mode: NONE, accommodationOverride: true }, assignmentCalculatorMode: GRAPHING });
+  assert.deepEqual([byPlanOnly.available, byPlanOnly.mode, byPlanOnly.source], [false, NONE, 'assessmentContext']);
+  const withPlan = resolve({ assessmentContext: { mode: NONE, accommodationOverride: true }, assignmentCalculatorMode: GRAPHING, studentSupportProfile: { accommodations: ['calculator-basic'] } });
+  assert.deepEqual([withPlan.available, withPlan.mode, withPlan.source], [true, BASIC, 'accommodation']);
+  // A context naming a mode without forcing it: the question decides, not the assignment.
+  const unforced = resolve({ assessmentContext: { mode: BASIC }, assignmentCalculatorMode: GRAPHING });
+  assert.deepEqual([unforced.mode, unforced.source], [BASIC, 'platformDefault']);
+  const unforcedAuthored = resolve({ assessmentContext: { mode: BASIC }, questionSpec: { rawSpec: { calculatorMode: SCIENTIFIC } }, assignmentCalculatorMode: GRAPHING });
+  assert.deepEqual([unforcedAuthored.mode, unforcedAuthored.source], [SCIENTIFIC, 'questionDesign']);
+});
+
 test('a skill assessed without a calculator gets none, whatever the assignment says — unless the support plan overrides computation', () => {
   for (const questionSpec of [{ calculatorPolicy: NONE }, { rawSpec: { calculatorMode: NONE } }]) {
     const blocked = resolve({ questionSpec, assignmentCalculatorMode: GRAPHING });
@@ -106,12 +119,51 @@ test('exit tickets, quizzes and tests keep the stricter of the assignment\'s and
 
     const off = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: SCIENTIFIC } }, assignmentCalculatorMode: NONE });
     assert.equal(off.available, false, `${role}: the assignment may turn it off`);
+
+    // Equally strong but different (Square Root and Basic): the question's own.
+    const rootOverBasic = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: SQUARE_ROOT } }, assignmentCalculatorMode: BASIC });
+    assert.deepEqual([rootOverBasic.mode, rootOverBasic.source], [SQUARE_ROOT, 'questionDesign'], `${role}: square root kept over basic`);
+    const basicOverRoot = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: SQUARE_ROOT });
+    assert.deepEqual([basicOverRoot.mode, basicOverRoot.source], [BASIC, 'questionDesign'], `${role}: basic kept over square root`);
   }
   // A role-less policy whose outcome feedback waits is treated the same way.
   const waiting = resolve({ activityPolicy: { feedback: 'teacherRelease' }, questionSpec: { calculatorPolicy: SCIENTIFIC }, assignmentCalculatorMode: GRAPHING });
   assert.equal(waiting.mode, SCIENTIFIC);
   // Classwork with the same inputs follows the assignment.
   assert.equal(resolve({ questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: GRAPHING }).mode, GRAPHING);
+});
+
+test('zeros, minimum and maximum are listed only where they cannot state an unreleased answer (keyPointsAllowed)', () => {
+  // Ordinary work: yes, whatever set the calculator.
+  assert.equal(resolve({ assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, true);
+  assert.equal(resolve({ activityPolicy: getEffectiveActivityPolicy('practice'), assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, true);
+  for (const role of ['dol', 'quiz', 'test']) {
+    const activityPolicy = getEffectiveActivityPolicy(role);
+    // Graphing from the assignment alone: graph, trace and table, but no listed vertex.
+    const fromAssignment = resolve({ activityPolicy, assignmentCalculatorMode: GRAPHING });
+    assert.deepEqual([fromAssignment.mode, fromAssignment.keyPointsAllowed], [GRAPHING, false], role);
+    // The item itself authored a graphing calculator: its author chose to allow them.
+    assert.equal(resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: GRAPHING } } }).keyPointsAllowed, true, `${role}: embedded`);
+    assert.equal(resolve({ activityPolicy, questionSpec: { calculatorPolicy: GRAPHING } }).keyPointsAllowed, true, `${role}: calculatorPolicy`);
+    assert.equal(resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: SCIENTIFIC } }, assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, false, `${role}: authored other than graphing`);
+  }
+  assert.equal(resolve({ activityPolicy: { feedback: 'afterAssignmentSubmit' }, assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, false, 'any waiting feedback mode');
+  // Present on every result, early returns included.
+  for (const policy of [
+    resolve({ assessmentContext: 'sat' }),
+    resolve({ assessmentContext: 'asvab' }),
+    resolve({ questionSpec: { calculatorPolicy: CALCULATOR_MODES.TEACHER_CHOICE } }),
+    resolve({ studentSupportProfile: { accommodations: ['calculator'] } }),
+    resolve({ questionSpec: { calculatorPolicy: NONE } }),
+  ]) assert.equal(typeof policy.keyPointsAllowed, 'boolean', JSON.stringify(policy));
+
+  // QuestionEngine hands it to the panel, and also allows them once outcome feedback is shown.
+  const engine = source('src/QuestionEngine.jsx');
+  const mount = region(engine, '<AssignmentGraphingCalculator\n', '/>', 'host element');
+  assert.match(mount, /keyPoints=\{calculatorPolicy\.keyPointsAllowed === true \|\| showOutcomeFeedback\}/);
+  const host = source('src/components/calculator/AssignmentGraphingCalculator.jsx');
+  assert.match(region(host, '<GraphingCalculatorPanel', '/>', 'panel element'), /keyPoints=\{keyPoints\}/);
+  assert.match(host, /roomRef = null, keyPoints = false \}\)/, 'off unless the engine says so');
 });
 
 test('the student assignment screen forwards the assignment\'s calculator setting, and QuestionEngine resolves with it', () => {
@@ -138,7 +190,10 @@ test('a graphing policy outside an assessment context opens the graphing calcula
 
   const mount = region(engine, 'const keypadCalculator = (', '})()}', 'calculator mount');
   assert.match(mount, /return graphingCalculatorOffered \? \(/);
-  assert.match(mount, /<AssignmentGraphingCalculator open=\{calculatorOpen\} onOpenChange=\{setCalculatorOpen\} roomRef=\{questionEngineRef\} fallback=\{keypadCalculator\} \/>/);
+  const host = region(mount, '<AssignmentGraphingCalculator\n', '/>', 'host element');
+  for (const prop of ['open={calculatorOpen}', 'onOpenChange={setCalculatorOpen}', 'roomRef={questionEngineRef}', 'fallback={keypadCalculator}', 'onUnavailable={markGraphingCalculatorFailed}']) {
+    assert.ok(host.includes(prop), prop);
+  }
   assert.match(mount, /\) : keypadCalculator;/, 'otherwise the keypad drawer, as before');
   assert.equal((engine.match(/<CalculatorPanel\b/g) || []).length, 1, 'the keypad drawer is mounted once');
 });
@@ -161,21 +216,29 @@ test('the graphing calculator is loaded lazily, and a failed load falls back to 
   assert.doesNotMatch(engine, /^import [^;]*(GraphingCalculatorPanel|AssignmentGraphingCalculator)[^;]*;/m, 'no static import');
   const lazyLoad = region(engine, 'const AssignmentGraphingCalculator = lazy(', ';\n', 'lazy graphing calculator');
   assert.match(lazyLoad, /import\('\.\/components\/calculator\/AssignmentGraphingCalculator\.jsx'\)/);
-  assert.match(lazyLoad, /\.catch\(\(\) => \(\{ default: \(\{ fallback = null \}\) => fallback \}\)\)/);
-  assert.match(engine, /<Suspense fallback=\{null\}>\s*<AssignmentGraphingCalculator /);
+  assert.match(lazyLoad, /\.catch\(\(\) => \(\{ default: GraphingCalculatorUnavailable \}\)\)/);
+  const unavailable = region(engine, 'const GraphingCalculatorUnavailable = (', '};', 'stand-in');
+  assert.match(unavailable, /useEffect\(\(\) => \{ onUnavailable\?\.\(\); \}, \[onUnavailable\]\);/);
+  assert.match(unavailable, /return fallback;/);
+  assert.match(engine, /<Suspense fallback=\{null\}>\s*<AssignmentGraphingCalculator\n/);
+  // The control is then named for the keypad that stood in.
+  assert.match(engine, /const calculatorShowsGraphing = graphingCalculatorOffered && !graphingCalculatorFailed;/);
+  assert.match(engine, /const calculatorName = calculatorShowsGraphing \? 'Graphing calculator' : 'Calculator';/);
+  assert.match(engine, /const markGraphingCalculatorFailed = useCallback\(\(\) => setGraphingCalculatorFailed\(true\), \[\]\);/);
 });
 
 test('the graphing calculator is given nothing about the question', () => {
   const host = source('src/components/calculator/AssignmentGraphingCalculator.jsx');
-  assert.match(host, /export default function AssignmentGraphingCalculator\(\{ open = false, onOpenChange = null, roomRef = null \}\)/);
+  assert.match(host, /export default function AssignmentGraphingCalculator\(\{ open = false, onOpenChange = null, roomRef = null, keyPoints = false \}\)/);
   const panelElement = region(host, '<GraphingCalculatorPanel', '/>', 'panel element');
   assert.deepEqual(
     [...panelElement.matchAll(/^\s+([a-zA-Z]+)(?:=|$)/gm)].map((match) => match[1]).sort(),
     ['keyPoints', 'onOpenChange', 'open', 'showLauncher'],
   );
   const engine = source('src/QuestionEngine.jsx');
-  const mount = region(engine, '<AssignmentGraphingCalculator ', '/>', 'host element');
-  assert.deepEqual([...mount.matchAll(/\s([a-zA-Z]+)=\{/g)].map((match) => match[1]), ['open', 'onOpenChange', 'roomRef', 'fallback']);
+  const mount = region(engine, '<AssignmentGraphingCalculator\n', '/>', 'host element');
+  assert.deepEqual([...mount.matchAll(/\s([a-zA-Z]+)=\{/g)].map((match) => match[1]), ['open', 'onOpenChange', 'roomRef', 'keyPoints', 'fallback', 'onUnavailable']);
+  assert.match(mount, /keyPoints=\{calculatorPolicy\.keyPointsAllowed === true \|\| showOutcomeFeedback\}/, 'a policy flag, not question data');
   assert.match(mount, /roomRef=\{questionEngineRef\}/, 'the element to pad, not its content');
 });
 
@@ -236,6 +299,30 @@ test('a line that touches y = 0 has that zero; a break is not a zero and not a t
   const tangent = features('y = tan(x)', -2, 2);
   assert.deepEqual(tangent.zeros, [0], 'tan x crosses at 0, and jumps (not crosses) at ±π/2');
   assert.deepEqual(features('y = 5'), { zeros: [], minima: [], maxima: [], more: { zeros: false, minima: false, maxima: false } });
+});
+
+test('a zoomed or stretched view states the turning point exactly', () => {
+  // One "Zoom in" (the view x −5 to 5) once read the minimum as (1 × 10^−8, −4).
+  assert.deepEqual(features('y = x^2 - 4', -5, 5).minima, [{ x: 0, y: -4 }]);
+  assert.deepEqual(features('y = x^2 - 4', -0.001, 0.0012).minima, [{ x: 0, y: -4 }]);
+  assert.deepEqual(features('y = x^2/10^6 - 1', -3000, 3000), { zeros: [-1000, 1000], minima: [{ x: 0, y: -1 }], maxima: [], more: { zeros: false, minima: false, maxima: false } });
+  assert.deepEqual(features('y = -2(x - 3)^2 + 8', 2.5, 3.7).maxima, [{ x: 3, y: 8 }]);
+  assert.deepEqual(features('y = (x - 1/3)^2').minima.map(({ x, y }) => [Number(x.toFixed(6)), y]), [[0.333333, 0]]);
+});
+
+test('a turning value is reported as it is, and a near miss of y = 0 is not a zero', () => {
+  for (const [text, low] of [['y = 10000x^2 + 0.01', 0.01], ['y = 5x^2 + 0.000001', 0.000001]]) {
+    for (const [xMin, xMax] of [[-10, 10], [-0.01, 0.01]]) {
+      const found = features(text, xMin, xMax);
+      assert.deepEqual([found.zeros, found.minima], [[], [{ x: 0, y: low }]], `${text} on [${xMin}, ${xMax}]`);
+    }
+  }
+});
+
+test('where the line\'s domain starts or ends on screen, that edge is a zero if the line is 0 there', () => {
+  assert.deepEqual(features('y = sqrt(x - 0.3)').zeros, [0.3]);
+  assert.deepEqual(features('y = sqrt(x - 0.3) + 1').zeros, []);
+  assert.deepEqual(features('y = sqrt(4 - x^2)'), { zeros: [-2, 2], minima: [], maxima: [{ x: 0, y: 2 }], more: { zeros: false, minima: false, maxima: false } });
 });
 
 test('only the view is searched, and long lists are capped', () => {

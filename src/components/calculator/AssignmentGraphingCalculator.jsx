@@ -19,7 +19,10 @@ import { useExamToolRoom } from '../assessment/examToolDrawerHooks.js';
  * graphing, so the student first load does not carry it.
  *
  * THE STUDENT'S OWN TOOL. It is given nothing about the question: no prompt,
- * no key, no grade. On an exit ticket, quiz or test it computes only what the
+ * no key, no grade. Whether it lists zeros, minimum and maximum (`keyPoints`)
+ * is the calculator policy's `keyPointsAllowed`: not on an exit ticket, quiz
+ * or test before release unless the item itself authored graphing, where a
+ * listed vertex would be the answer. On an exit ticket, quiz or test it computes only what the
  * student types, exactly as a handheld would; whether a graphing calculator is
  * allowed there at all is the calculator policy's decision, made before this
  * file is ever loaded.
@@ -29,7 +32,7 @@ import { useExamToolRoom } from '../assessment/examToolDrawerHooks.js';
  * holding the question (QuestionEngine's root), padded on the left by exactly
  * how far the open drawer reaches into it (examToolLayout.js examToolRoom).
  */
-export default function AssignmentGraphingCalculator({ open = false, onOpenChange = null, roomRef = null }) {
+export default function AssignmentGraphingCalculator({ open = false, onOpenChange = null, roomRef = null, keyPoints = false }) {
   const room = useExamToolRoom(roomRef || { current: null }, { graphingCalculatorOpen: open });
   useEffect(() => {
     const element = roomRef?.current;
@@ -45,7 +48,7 @@ export default function AssignmentGraphingCalculator({ open = false, onOpenChang
       open={open}
       onOpenChange={onOpenChange}
       showLauncher={false}
-      keyPoints
+      keyPoints={keyPoints}
     />
   );
 }

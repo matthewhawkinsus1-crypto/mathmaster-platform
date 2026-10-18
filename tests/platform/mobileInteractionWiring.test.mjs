@@ -110,11 +110,12 @@ test('hand-fit regression is button-driven and phone controls stack vertically',
 test('calculator launcher lives in the shared work bar and Work View actions', () => {
   const engine = read('src/QuestionEngine.jsx');
   // The work bar's button shows the icon and the calculator's name: "Calculator",
-  // or "Graphing calculator" where the policy resolves to graphing outside an
-  // assessment context (pass 3, PR-26) — so a prompt naming the built-in
-  // graphing calculator finds a control with that name.
+  // or "Graphing calculator" where the graphing calculator is what opens (the
+  // policy resolves to graphing outside an assessment context, and its code
+  // loaded: pass 3, PR-26) — so a prompt naming the built-in graphing
+  // calculator finds a control with that name.
   assert.match(engine, /<CalculatorIcon \/><span className="mathmaster-action-label"> \{calculatorName\}<\/span>/);
-  assert.match(engine, /const calculatorName = graphingCalculatorOffered \? 'Graphing calculator' : 'Calculator';/);
+  assert.match(engine, /const calculatorName = calculatorShowsGraphing \? 'Graphing calculator' : 'Calculator';/);
   assert.match(engine, /workspaceActions\.calculator/);
   assert.match(engine, /showLauncher=\{false\}/);
   const contextStart = engine.indexOf('const questionContextPanel');
