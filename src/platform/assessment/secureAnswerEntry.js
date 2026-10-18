@@ -17,11 +17,14 @@
  * strings tests/browser/secureAccessParity.mjs captured from the real editor,
  * on a phone entered only through the keypad a phone student actually has.
  *
- *   number, set, interval
+ *   number, set, interval, orderedPair, inequality
  *       the math editor. Fractions, negatives, decimals, set braces, ∅, ∞ and
- *       ∪ in the editor's LaTeX all grade as the typed text does.
+ *       ∪, a pair's coordinates, ≤ ≥ and a compound "and"/"or", π, roots, %
+ *       and $ in the editor's LaTeX all grade as the typed text does (student
+ *       pass 3, H-13: Push P taught the grader \land, \lor, \pi, \sqrt, \% and
+ *       \$; a stacked fraction around π or a root is read since H-13 too).
  *
- *   orderedPair, inequality, expression, equation
+ *   expression, equation
  *       PLAIN TEXT, deliberately, for a reason the grader still has
  *       (SECURE_TEXT_PROFILE_REASONS; the round-trip test pins each one, so
  *       when the server learns to read the editor's form it fails and says to
@@ -30,15 +33,20 @@
  *   text, and anything unrecognised
  *       plain text — words are the answer, or the field did not say.
  *
- * A math-editor profile also falls back to typed text when the field's own
- * public entry metadata names a symbol the editor writes in a form the grader
- * does not read (SECURE_TEXT_SYMBOLS: π, √, % and $). The key itself never
- * reaches the browser, so a key that uses one of them WITHOUT saying so is a
- * gap only the grader can close (see the round-trip test).
+ * THE KEYPAD SAYS NOTHING ABOUT THE ANSWER. Outside a test, MathInput puts the
+ * symbols a field names in a row captioned "Needed for this answer" — on a
+ * test that caption would tell a student the answer has a π in it, or is a
+ * fraction. So a secure field hands MathInput no such symbols: what it needs
+ * goes into the keypad itself (`keys`), uncaptioned, and every key a profile
+ * adds is the same on every item of that profile. The one item-specific set
+ * is an inequality's letters, which come from the PROMPT the student is
+ * reading (variablesInPrompt), never from the key.
  *
  * Nothing here decides correctness or rewrites an answer. It picks a keyboard.
  */
 import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../interaction/interactionContract.js';
+import { requiredAnswerToolForSymbol } from '../interaction/answerEntryTools.js';
+import { isMathSegment, splitMathSegments } from '../../components/common/mathSegments.js';
 
 export const SECURE_ANSWER_EDITORS = Object.freeze({
   MATH: 'math',
@@ -46,28 +54,100 @@ export const SECURE_ANSWER_EDITORS = Object.freeze({
 });
 
 /** Profiles whose math-editor output the server field grader accepts. */
-export const SECURE_MATH_EDITOR_PROFILES = Object.freeze(['number', 'set', 'interval']);
+export const SECURE_MATH_EDITOR_PROFILES = Object.freeze(['number', 'set', 'interval', 'orderedPair', 'inequality']);
 
 /** Profiles kept on typed text, with the reason the round-trip test pins. */
 export const SECURE_TEXT_PROFILE_REASONS = Object.freeze({
-  orderedPair: 'the grader compares a pair as text, so the a/b key\'s (\\frac{-1}{2},3) is not the key (-1/2,3) — and on a phone the a/b key is the only way to make a fraction in a pair — and a root typed into a pair swallows the rest of it ((3\\sqrt{(2),1)})',
-  inequality: 'the editor writes a typed "and" as \\land, which the grader does not read (0<=h\\land h<=12 vs 0<=h and h<=12), and a phone\'s inequality keypad has no letter keys while every inequality key has a variable',
   expression: 'the grader does not read the editor\'s division binding the way it reads typed text (\\frac{2A}{h}-b_2 vs 2A/h-b_2)',
   equation: 'the grader keeps the backslash of a named function the editor writes (\\log_2\\left(32\\right)=5 vs log_2(32)=5)',
 });
 
 /*
- * Symbols the editor writes as LaTeX the grader keeps as it is — `2\pi`,
- * `3\sqrt{2}`, `25\%`, `\$25` — so a key spelled 2pi, 3sqrt(2), 25% or $25 is
- * not matched. A field whose public metadata (requiredSymbols, answerFormat)
- * names one of them gets typed text, where the same characters are matched.
+ * The symbols a field's public metadata may name, each spelled once (`pi`,
+ * `\pi` and π are one key). The keypad gets π and √ when a field names them;
+ * % and $ need no key: the grader reads a bare number for a key of 25% or $25,
+ * and the number hint says to leave them out (a typed % or $ is read too).
  */
-export const SECURE_TEXT_SYMBOLS = Object.freeze(['π', 'pi', '\\pi', '√', 'ⁿ√', 'sqrt', '\\sqrt', '%', '\\%', 'percent', '$', '\\$']);
-const TEXT_SYMBOL_SET = new Set(SECURE_TEXT_SYMBOLS.map((symbol) => symbol.toLowerCase()));
+const SYMBOL_ALIASES = Object.freeze({
+  'π': 'π', pi: 'π', '\\pi': 'π',
+  '√': '√', sqrt: '√', '\\sqrt': '√', 'ⁿ√': 'ⁿ√',
+  '%': '%', '\\%': '%', percent: '%',
+  '$': '$', '\\$': '$', dollar: '$',
+});
+const FORMAT_WORD_SYMBOLS = Object.freeze({
+  pi: 'π', radical: '√', radicals: '√', sqrt: '√', root: '√', roots: '√',
+  percent: '%', percentage: '%', currency: '$', money: '$', dollar: '$', dollars: '$',
+});
+const KEYLESS_SYMBOLS = new Set(['%', '$']);
 // Whole words of a format name ("exact-pi", "exactPi", "simplest radical"),
 // so "orderedPair" or "piecewise" never match.
-const TEXT_SYMBOL_FORMAT_WORDS = new Set(['pi', 'radical', 'radicals', 'sqrt', 'root', 'roots', 'percent', 'percentage', 'currency', 'money', 'dollar', 'dollars']);
 const formatWords = (format) => clean(format).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z]+/).filter(Boolean);
+
+/*
+ * Keys a profile adds on a secure item, identical on every item of it.
+ *
+ *   orderedPair  √ and π, which the pair keypad lacks and a coordinate can
+ *                hold; the text box this replaces took `sqrt(3)` too.
+ *   inequality   a fraction, |x|, a power, √ and π, and "and" / "or" for a
+ *                compound inequality — a phone's keypad had no way to write
+ *                any of them. The words are \operatorname{and} and
+ *                \operatorname{or}: math atoms drawn as words, so the caret
+ *                stays in math (a \text{} key left it typing text), and the
+ *                grader reads them as it reads typed and / or.
+ */
+export const SECURE_AND = '\\operatorname{and}';
+export const SECURE_OR = '\\operatorname{or}';
+
+/*
+ * MathLive turns a typed "and" or "or" into ∧ or ∨, which a student who typed
+ * the word may not recognise as theirs. A secure field writes the word, as
+ * its keys do.
+ */
+export const SECURE_INLINE_SHORTCUTS = Object.freeze({ and: SECURE_AND, or: SECURE_OR });
+
+const tool = (label, command, ariaLabel) => Object.freeze({ label, command, ariaLabel });
+const ROOT_KEY = tool('√', '\\sqrt{#0}', 'Insert square root');
+const PI_KEY = tool('π', '\\pi', 'Insert pi');
+export const SECURE_PROFILE_KEYS = Object.freeze({
+  orderedPair: Object.freeze([ROOT_KEY, PI_KEY]),
+  inequality: Object.freeze([
+    tool('a⁄b', '\\frac{#0}{#?}', 'Insert stacked fraction'),
+    tool('|x|', '\\left|#0\\right|', 'Insert absolute value'),
+    tool('xⁿ', '#@^{#?}', 'Insert exponent'),
+    ROOT_KEY,
+    PI_KEY,
+    tool('and', SECURE_AND, 'Insert and'),
+    tool('or', SECURE_OR, 'Insert or'),
+  ]),
+});
+
+/*
+ * THE LETTERS AN INEQUALITY'S PROMPT USES. Every inequality key has a
+ * variable, and a phone's math field opens no letter keyboard, so the keypad
+ * gets the single letters written in the prompt's mathematics — the spans
+ * MathText draws as mathematics (splitMathSegments, so a price such as
+ * "$5 and $12" is prose): the ones the student is reading. Never the key's (which never reaches the browser).
+ * A prompt that names none gets x. At most four.
+ */
+const MAX_PROMPT_VARIABLES = 4;
+export const variablesInPrompt = (prompt = '') => {
+  const letters = [];
+  const math = splitMathSegments(String(prompt ?? '')).filter(isMathSegment);
+  for (const segment of math) {
+    const body = segment
+      .replace(/\\(?:text|mathrm|operatorname|textbf|mbox)\s*\{[^{}]*\}/g, ' ')
+      .replace(/\\[A-Za-z]+/g, ' ');
+    // A run of letters is a word or a product; only a letter standing alone,
+    // or in a product of single letters (2xy), is a variable.
+    for (const run of body.match(/[A-Za-z]+/g) || []) {
+      if (run.length > 3) continue;
+      for (const letter of run) if (!letters.includes(letter)) letters.push(letter);
+    }
+  }
+  return (letters.length ? letters : ['x']).slice(0, MAX_PROMPT_VARIABLES);
+};
+
+const variableKey = (letter) => tool(letter, letter, `Insert ${/[A-Z]/.test(letter) ? 'capital ' : ''}${letter}`);
 
 /*
  * A SHORT LINE UNDER THE BOX ABOUT HOW TO TYPE, NEVER WHAT TO TYPE.
@@ -80,15 +160,10 @@ export const SECURE_ENTRY_HINTS = Object.freeze({
   number: 'Type only the number. Make a fraction with / or the a/b key, and write a mixed number as a fraction or a decimal. Leave out commas, units, % and $.',
   set: 'Write your answer as a set, with the numbers separated by commas.',
   interval: 'Write your answer in interval notation.',
-  orderedPair: 'Write your answer as an ordered pair: (x, y). Use / for a fraction.',
-  inequality: 'Write your answer as an inequality. Type <= for ≤ and >= for ≥.',
+  orderedPair: 'Write your answer as an ordered pair: (x, y). Make a fraction with / or the a/b key.',
+  inequality: 'Write your answer as an inequality. Use the ≤ and ≥ keys, or type <= and >=.',
   expression: 'Use ^ for a power, / for a fraction and parentheses to group.',
   equation: 'Write a full equation. Use ^ for a power, / for a fraction and parentheses to group.',
-});
-
-/** A math-editor profile sent to typed text has no a/b key to mention. */
-export const SECURE_TEXT_FALLBACK_HINTS = Object.freeze({
-  number: 'Type your answer. Use / for a fraction.',
 });
 
 const clean = (value) => String(value ?? '').trim();
@@ -97,12 +172,17 @@ const isObject = (value) => Boolean(value && typeof value === 'object' && !Array
 const requiredSymbolsOf = (field) => (Array.isArray(field.requiredSymbols) ? field.requiredSymbols : field.inputContract?.requiredSymbols || [])
   .map(clean).filter(Boolean).slice(0, 16);
 
-/** Does this field's public entry metadata name a symbol the editor would misspell for the grader? */
-export const namesTextOnlySymbol = (field = {}) => {
+/** The symbols this field's public entry metadata names, one spelling each. */
+export const namedEntrySymbols = (field = {}) => {
   const safe = isObject(field) ? field : {};
-  if (requiredSymbolsOf(safe).some((symbol) => TEXT_SYMBOL_SET.has(symbol.toLowerCase()))) return true;
-  return formatWords(safe.answerFormat || safe.inputContract?.format).some((word) => TEXT_SYMBOL_FORMAT_WORDS.has(word));
+  const named = [];
+  const add = (symbol) => { if (symbol && !named.includes(symbol)) named.push(symbol); };
+  for (const symbol of requiredSymbolsOf(safe)) add(SYMBOL_ALIASES[symbol.toLowerCase()] || SYMBOL_ALIASES[symbol] || symbol);
+  for (const word of formatWords(safe.answerFormat || safe.inputContract?.format)) add(FORMAT_WORD_SYMBOLS[word]);
+  return named;
 };
+
+const keyId = (key) => key.command;
 
 /**
  * The editor, keypad and hint one secure response field gets.
@@ -110,18 +190,31 @@ export const namesTextOnlySymbol = (field = {}) => {
  * @param {object} field a sanitized response field from the server
  *   (mathPath.normalizeResponseFields: id, label, inputProfile, answerFormat,
  *   requiredSymbols, responseHint, placeholder, unit)
+ * @param {object} [context]
+ * @param {string} [context.prompt] the item's public prompt (an inequality's
+ *   letters come from it)
  */
-export const secureAnswerEntryFor = (field = {}) => {
+export const secureAnswerEntryFor = (field = {}, { prompt = '' } = {}) => {
   const safe = isObject(field) ? field : {};
   const profile = normalizeInteractionInputProfile(safe.inputProfile) || 'text';
   const serverHint = clean(safe.responseHint);
-  if (SECURE_MATH_EDITOR_PROFILES.includes(profile) && !namesTextOnlySymbol(safe)) {
+  if (SECURE_MATH_EDITOR_PROFILES.includes(profile)) {
+    const named = namedEntrySymbols(safe).filter((symbol) => !KEYLESS_SYMBOLS.has(symbol));
+    const keys = [];
+    const add = (key) => { if (key && !keys.some((existing) => keyId(existing) === keyId(key))) keys.push(key); };
+    (SECURE_PROFILE_KEYS[profile] || []).forEach(add);
+    if (profile === 'inequality') variablesInPrompt(prompt).forEach((letter) => add(variableKey(letter)));
+    named.forEach((symbol) => add(requiredAnswerToolForSymbol(symbol)));
     return {
       editor: SECURE_ANSWER_EDITORS.MATH,
       profile,
       toolProfile: toolProfileForInputProfile(profile),
       answerFormat: clean(safe.answerFormat || safe.inputContract?.format) || profile,
-      requiredSymbols: requiredSymbolsOf(safe),
+      keys: Object.freeze(keys),
+      // A named symbol no key can type keeps the phone's own keyboard open
+      // (MathInput leaves it for an unserved symbol); it shows no key, so
+      // nothing is captioned "Needed for this answer".
+      unservedSymbols: named.filter((symbol) => !requiredAnswerToolForSymbol(symbol)),
       hint: serverHint || SECURE_ENTRY_HINTS[profile] || '',
     };
   }
@@ -132,7 +225,7 @@ export const secureAnswerEntryFor = (field = {}) => {
     // here may need a variable, "and", a bracket or a slash. Never an HTML
     // number input, which refuses 3/4.
     inputMode: 'text',
-    hint: serverHint || SECURE_TEXT_FALLBACK_HINTS[profile] || SECURE_ENTRY_HINTS[profile] || '',
+    hint: serverHint || SECURE_ENTRY_HINTS[profile] || '',
   };
 };
 

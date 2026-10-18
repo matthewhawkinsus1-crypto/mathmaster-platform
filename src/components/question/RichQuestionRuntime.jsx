@@ -196,6 +196,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       readOnly={locked}
                       autoFocus={fieldIndex === 0}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
+                      prompt={question?.prompt || ''}
                     />
                   )}
                 </fieldset>

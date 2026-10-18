@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import MathInput from '../../MathInput.jsx';
 import MathText from '../common/MathText.jsx';
 import {
-  READ_ONLY_EDITOR_ACTIONS, SECURE_ANSWER_EDITORS, SECURE_EDITOR_HELD_EVENTS, readOnlyEditorAction, secureAnswerEntryFor,
+  READ_ONLY_EDITOR_ACTIONS, SECURE_ANSWER_EDITORS, SECURE_EDITOR_HELD_EVENTS, SECURE_INLINE_SHORTCUTS, readOnlyEditorAction, secureAnswerEntryFor,
 } from '../../platform/assessment/secureAnswerEntry.js';
 import { speechTextFor } from '../../platform/language/speechText.js';
 import { mathFieldKeyboardSink } from '../../platform/math/mathLiveCompat.js';
@@ -16,7 +16,7 @@ import { mathFieldKeyboardSink } from '../../platform/math/mathLiveCompat.js';
  * Test collected the same answers in a bare text box. This field gives the
  * secure item the same editor — for the input profiles where the server's
  * grader is shown to read what the editor sends (secureAnswerEntry.js says
- * which: number, set and interval; and why an ordered pair, an inequality, an
+ * which: number, set, interval, ordered pair and inequality; and why an
  * expression and an equation stay typed text).
  *
  * THE VALUE IS WHAT THE SERVER GRADES. `onChange` receives exactly what the
@@ -78,6 +78,22 @@ function MathEditor({ entry, value, emit, readOnly, readOnlyRef, autoFocus, labe
     else mathField.removeAttribute('aria-readonly');
   }, [readOnly]);
 
+  // A typed "and" / "or" stays the word (secureAnswerEntry.js), once the
+  // element has upgraded and its own shortcuts exist to extend.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return undefined;
+    let cancelled = false;
+    const useWords = () => {
+      const mathField = wrapper.querySelector('math-field');
+      if (cancelled || !mathField || !mathField.inlineShortcuts) return;
+      mathField.inlineShortcuts = { ...mathField.inlineShortcuts, ...SECURE_INLINE_SHORTCUTS };
+    };
+    useWords();
+    window.customElements?.whenDefined?.('math-field').then(useWords);
+    return () => { cancelled = true; };
+  }, []);
+
   // MathLive takes focus in its keyboard sink (found through the MathLive
   // adapter) and never names it, whatever the host's aria-label says:
   // a screen reader landing in the field heard an unnamed text box. The sink
@@ -132,7 +148,11 @@ function MathEditor({ entry, value, emit, readOnly, readOnlyRef, autoFocus, labe
         onChange={emit}
         toolProfile={entry.toolProfile}
         answerFormat={entry.answerFormat}
-        requiredSymbols={entry.requiredSymbols}
+        // Nothing captioned "Needed for this answer" on a test: the field's
+        // keys go into the keypad itself. A symbol no key types is passed on
+        // only so MathInput keeps the phone's own keyboard for it.
+        requiredSymbols={entry.unservedSymbols}
+        extraKeys={entry.keys}
         ariaLabel={label}
         focusSignal={autoFocus ? 1 : 0}
         onSubmit={readOnly || !onEnter ? null : enter}
@@ -203,6 +223,8 @@ const nameWithHint = (label, hint, fromServer) => {
  * @param ariaLabel the box's accessible name (defaults to the field label)
  * @param onEnter   optional: what Enter does in the box (nothing by default
  *                  in the math editor; a text box inside a form submits it)
+ * @param prompt    the item's public prompt: an inequality's keypad gets the
+ *                  letters its mathematics uses
  */
 export default function SecureMathAnswerField({
   field,
@@ -212,8 +234,9 @@ export default function SecureMathAnswerField({
   autoFocus = false,
   ariaLabel = '',
   onEnter = null,
+  prompt = '',
 }) {
-  const entry = useMemo(() => secureAnswerEntryFor(field), [field]);
+  const entry = useMemo(() => secureAnswerEntryFor(field, { prompt }), [field, prompt]);
   const hintId = `secure-answer-hint-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const label = String(ariaLabel || field?.label || 'Answer');
   const onChangeRef = useRef(onChange);

@@ -99,16 +99,73 @@ const stripOuterParens = (value) => {
   return trimmed;
 };
 
+/*
+ * GRADING ONLY: π AND A SQUARE ROOT ARE NUMBERS.
+ *
+ * The math editor builds `\frac{\pi}{2}` and `\frac{\sqrt{3}}{2}` from a
+ * typed `/`; an author keys `pi/2` and `sqrt(3)/2`. Rendering never needs
+ * these stacked (π/2 reads fine), so the scanner above leaves them alone — and
+ * the grader, which canonicalises both sides onto `\frac`, marked a student's
+ * stacked π/2 wrong against the key pi/2 (student pass 3, H-13). With
+ * `constantOperands` (answerEquivalence's canonicalizeDivisions only) the
+ * operand next to a slash may also be:
+ *
+ *   π              with a number coefficient directly before it: `3π/4` is
+ *                  (3π)/4, the same number as 3·(π/4) either way;
+ *   \sqrt{…}       one square root (never an nth root), coefficient likewise:
+ *                  `2\sqrt{3}/3` is (2√3)/3.
+ *
+ * A letter coefficient is not taken (`x\sqrt{3}/2` stays x·√3/2, the slope
+ * rule's single factor), and the callers have already spelled pi, \pi and
+ * sqrt(…) as π and \sqrt{…} (canonicalSymbolSpellings).
+ */
+const withNumberCoefficient = (text, start) => {
+  let begin = start;
+  while (begin > 0 && /[\d.]/.test(text[begin - 1])) begin -= 1;
+  // A digit that ends a name or a subscript (`x_2\sqrt{3}`) is not a coefficient.
+  if (begin > 0 && /[A-Za-z_\\^]/.test(text[begin - 1])) return start;
+  return begin;
+};
+
+const constantBefore = (text, index) => {
+  if (text[index] === 'π') {
+    const start = withNumberCoefficient(text, index);
+    return { start, text: text.slice(start, index + 1) };
+  }
+  if (text[index] === '}') {
+    const open = matchBackwards(text, index);
+    if (open < 5 || text.slice(open - 5, open) !== '\\sqrt') return null;
+    const start = withNumberCoefficient(text, open - 5);
+    return { start, text: text.slice(start, index + 1) };
+  }
+  return null;
+};
+
+const constantAfter = (text, index) => {
+  if (text[index] === 'π') return /[A-Za-z\d]/.test(text[index + 1] || '') ? null : { end: index + 1, text: 'π' };
+  if (text.startsWith('\\sqrt{', index)) {
+    const close = matchForwards(text, index + 5);
+    if (close < 0 || /[A-Za-z\d^_]/.test(text[close + 1] || '')) return null;
+    return { end: close + 1, text: text.slice(index, close + 1) };
+  }
+  return null;
+};
+
 /**
  * The operand ending at `end` (inclusive), or null when it cannot be read.
  *
  * A SINGLE FACTOR, never a run. `3/4x` has to become `\frac{3}{4}x` — reading
  * `4x` as the denominator would silently turn the slope 3/4 into 3/(4x).
  */
-const operandBefore = (text, end) => {
+const operandBefore = (text, end, options = {}) => {
   let index = end;
   while (index >= 0 && /\s/.test(text[index])) index -= 1;
   if (index < 0) return null;
+
+  if (options.constantOperands) {
+    const constant = constantBefore(text, index);
+    if (constant) return constant;
+  }
 
   if (text[index] === ')' || text[index] === ']') {
     const open = matchBackwards(text, index);
@@ -131,7 +188,7 @@ const operandBefore = (text, end) => {
   // `x^2/3` is x-squared over three, so the power comes along as one operand.
   // Taking only the exponent would print `x^\frac{2}{3}` — a different number.
   if (start > 0 && text[start - 1] === '^') {
-    const base = operandBefore(text, start - 2);
+    const base = operandBefore(text, start - 2, options);
     if (!base) return null;
     return { start: base.start, text: text.slice(base.start, index + 1) };
   }
@@ -141,10 +198,15 @@ const operandBefore = (text, end) => {
 };
 
 /** The operand starting at `start`, or null when it cannot be read. */
-const operandAfter = (text, start) => {
+const operandAfter = (text, start, options = {}) => {
   let index = start;
   while (index < text.length && /\s/.test(text[index])) index += 1;
   if (index >= text.length) return null;
+
+  if (options.constantOperands) {
+    const constant = constantAfter(text, index);
+    if (constant) return constant;
+  }
 
   const openIndex = text.startsWith('\\left(', index) ? index + 5 : index;
   if (text[openIndex] === '(' || text[openIndex] === '[') {
@@ -161,7 +223,7 @@ const operandAfter = (text, start) => {
   // 180 over d, all squared. A subscript is part of a name, so it comes too.
   const withTrailingPower = (end) => {
     if (text[end] !== '^') return { end, text: text.slice(index, end) };
-    const exponent = operandAfter(text, end + 1);
+    const exponent = operandAfter(text, end + 1, options);
     if (!exponent) return null;
     return { end: exponent.end, text: text.slice(index, exponent.end) };
   };
@@ -185,7 +247,8 @@ const operandAfter = (text, start) => {
  * Returns the input unchanged when there is nothing to do, so callers can use
  * the result unconditionally.
  */
-export const stackDivisions = (value, { skipAsciiCalls = true } = {}) => {
+export const stackDivisions = (value, { skipAsciiCalls = true, constantOperands = false } = {}) => {
+  const options = { constantOperands };
   const text = String(value ?? '');
   if (!text.includes('/')) return text;
   // The ASCIIMath guard exists to protect RENDERING: introducing a `\frac`
@@ -203,9 +266,9 @@ export const stackDivisions = (value, { skipAsciiCalls = true } = {}) => {
     for (let index = 0; index < out.length; index += 1) {
       if (out[index] !== '/') continue;
       if (insideAny(ranges, index) || insideAny(skip, index)) continue;
-      const left = operandBefore(out, index - 1);
+      const left = operandBefore(out, index - 1, options);
       if (!left) continue;
-      const right = operandAfter(out, index + 1);
+      const right = operandAfter(out, index + 1, options);
       if (!right) continue;
       const numerator = stripOuterParens(left.text.trim());
       const denominator = stripOuterParens(right.text.trim());

@@ -101,7 +101,10 @@ test('MathInput delegates mobile layout to the tested policy', () => {
   const source = readFileSync('src/MathInput.jsx', 'utf8');
   assert.match(source, /buildMobileMathTools\(\{/);
   assert.match(source, /toolProfile,/);
-  assert.match(source, /profileKeys: getToolKeys\(toolProfile/);
+  // The profile's keys reach the policy, with a caller's uncaptioned extra
+  // keys after them (a secure item's, H-13) on a phone and a desktop alike.
+  assert.match(source, /profileKeys: withExtraKeys\(getToolKeys\(toolProfile, \{ isMobile: true, [^)]*\}\), extraKeys\)/);
+  assert.match(source, /if \(!isMobile\) return mergeToolKeys\(\s*withExtraKeys\(getToolKeys\(toolProfile, [^)]*\), extraKeys\),\s*requiredTools,/);
   assert.match(source, /backspaceKey: MOBILE_BACKSPACE_KEY/);
   assert.match(source, /label: 'ⁿ√'/);
   assert.match(source, /requiredAnswerToolForSymbol/);

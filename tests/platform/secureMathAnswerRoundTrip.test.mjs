@@ -12,8 +12,10 @@
 //     editor at a Chromebook and a phone size (recorded with --write into
 //     fixtures/secureAnswerRoundTrip.json) — on the phone entered only by
 //     tapping the keypad, because the math field opens no phone keyboard;
-//   - the facts that keep an ordered pair, an inequality, an expression and an
-//     equation on typed text, and that send a field naming π, √, % or $ there.
+//   - the facts that keep an expression and an equation on typed text;
+//   - what the editor writes for an ordered pair, an inequality and a field
+//     naming π, √, % or $, which moved to the editor in student pass 3 (H-13)
+//     once the grader read each of them.
 //
 // Nothing here renders React. The editor decision itself is the pure
 // src/platform/assessment/secureAnswerEntry.js.
@@ -23,9 +25,10 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import {
-  SECURE_ANSWER_EDITORS, SECURE_ENTRY_HINTS, SECURE_MATH_EDITOR_PROFILES, SECURE_TEXT_FALLBACK_HINTS, SECURE_TEXT_PROFILE_REASONS,
-  secureAnswerEntryFor,
+  SECURE_AND, SECURE_ANSWER_EDITORS, SECURE_ENTRY_HINTS, SECURE_MATH_EDITOR_PROFILES, SECURE_OR, SECURE_PROFILE_KEYS, SECURE_TEXT_PROFILE_REASONS,
+  secureAnswerEntryFor, variablesInPrompt,
 } from '../../src/platform/assessment/secureAnswerEntry.js';
+import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
 import { toolProfileForInputProfile } from '../../src/platform/interaction/interactionContract.js';
 
 const require = createRequire(import.meta.url);
@@ -123,52 +126,134 @@ test('the browser capture covers every profile on both screen sizes, a phone\'s 
   }
 });
 
-test('an ordered pair and an inequality stay typed text for reasons the grader still has', async () => {
-  // If any of these flips, the server now reads the editor's form: the
-  // profile can move to the math editor once the browser capture shows it.
-  // Job P (item 5) flipped two: the grader reads \land and a fraction in a
-  // pair. Moving inequality and orderedPair to the math editor still needs
-  // the browser capture (tests/browser/secureAccessParity.mjs --write); the
-  // root the editor wraps round the rest of the pair is still unreadable.
-  assert.equal(await grades('0<=h\\land h<=12', '0<=h and h<=12', { profile: 'inequality' }), true,
-    'the grader reads \\land');
-  assert.equal(await grades('0<=h\\land h<12', '0<=h and h<=12', { profile: 'inequality' }), false, 'a different set is still wrong');
-  assert.equal(await grades('0<=h and h<=12', '0<=h and h<=12', { profile: 'inequality' }), true, 'typed text is read');
-  assert.equal(await grades('(\\frac{-1}{2},3)', '(-1/2,3)', { profile: 'orderedPair' }), true,
-    'the grader reads the a/b key\'s negative fraction in a pair');
-  assert.equal(await grades('(\\frac{1}{2},3)', '(-1/2,3)', { profile: 'orderedPair' }), false, 'the wrong sign is still wrong');
-  assert.equal(await grades('(3\\sqrt{(2),1)}', '(3sqrt(2),1)', { profile: 'orderedPair' }), false,
-    'a root the editor wraps around the rest of the pair');
-  assert.equal(await grades('(-1/2,3)', '(-1/2,3)', { profile: 'orderedPair' }), true, 'typed text is read');
-  assert.equal(await grades('(3sqrt(2),1)', '(3sqrt(2),1)', { profile: 'orderedPair' }), true, 'typed text is read');
+test('an expression and an equation stay typed text for reasons the grader still has', async () => {
+  // If either flips, the server now reads the editor's form: the profile can
+  // move to the math editor once the browser capture shows it.
+  assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), false, SECURE_TEXT_PROFILE_REASONS.expression);
+  assert.equal(await grades('2A/h-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'typed text is read');
+  assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
+  assert.equal(await grades('log_2(32)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'typed text is read');
+  assert.deepEqual(Object.keys(SECURE_TEXT_PROFILE_REASONS).sort(), ['equation', 'expression']);
 });
 
-test('a math-editor field that names π, √, % or $ gets typed text until a browser capture shows the editor\'s form, which the grader now reads', async () => {
-  // What the real editor sends for each (captured by the verifier's probe and
-  // by tests/browser/secureAccessParity.mjs), against the same characters typed.
-  // Job P (item 5): the grader now reads every one of them. The guard below
-  // (typed text for these fields) stays until a browser capture shows the
-  // editor's form for each (tests/browser/secureAccessParity.mjs --write).
+test('an ordered pair and an inequality in the editor\'s own form grade as typed text does, near misses still wrong (H-13)', async () => {
+  // Push P taught the grader \land and a fraction in a pair; H-13 the
+  // keypad's word keys and a stacked fraction around a root or π.
+  const pairs = [
+    ['(\\frac{-1}{2},3)', '(-1/2,3)', '(\\frac{1}{2},3)'],
+    ['(-\\frac12,3)', '(-1/2,3)', '(-\\frac13,3)'],
+    ['(3\\sqrt2,1)', '(3sqrt(2),1)', '(2\\sqrt3,1)'],
+    ['(\\frac{\\sqrt3}{2},\\frac12)', '(sqrt(3)/2,1/2)', '(\\frac{\\sqrt2}{2},\\frac12)'],
+    ['(\\frac{\\sqrt3}{2},\\frac12)', '(sqrt(3)/2,1/2)', '(\\frac12,\\frac{\\sqrt3}{2})'],
+  ];
+  for (const [sent, key, miss] of pairs) {
+    assert.equal(await grades(sent, key, { profile: 'orderedPair' }), true, `${sent} for ${key}`);
+    assert.equal(await grades(miss, key, { profile: 'orderedPair' }), false, `${miss} is still wrong for ${key}`);
+  }
+  const inequalities = [
+    [`0\\le h${'\\operatorname{\\mathrm{and}}'}h\\le12`, '0<=h and h<=12', `0\\le h${'\\operatorname{\\mathrm{and}}'}h\\le11`],
+    [`0\\le h${'\\operatorname{\\mathrm{and}}'}h\\le12`, '0<=h<=12', `0\\le h${'\\operatorname{\\mathrm{or}}'}h\\le12`],
+    ['0<=h\\land h<=12', '0<=h and h<=12', '0<=h\\land h<12'],
+    [`x<-2${'\\operatorname{\\mathrm{or}}'}x>3`, 'x<-2 or x>3', `x<-2${'\\operatorname{\\mathrm{and}}'}x>3`],
+    ['x\\ge\\frac{\\pi}{2}', 'x>=pi/2', 'x\\ge\\frac{\\pi}{3}'],
+    ['x>\\sqrt2', 'x>sqrt(2)', 'x<\\sqrt2'],
+  ];
+  for (const [sent, key, miss] of inequalities) {
+    assert.equal(await grades(sent, key, { profile: 'inequality' }), true, `${sent} for ${key}`);
+    assert.equal(await grades(miss, key, { profile: 'inequality' }), false, `${miss} is still wrong for ${key}`);
+  }
+});
+
+test('a stacked fraction around π or a root grades as the slash a key is written with — in grading only (H-13)', async () => {
+  for (const [sent, key, miss] of [
+    ['\\frac{\\pi}{2}', 'pi/2', '\\frac{\\pi}{3}'],
+    ['\\frac{3\\pi}{4}', '3pi/4', '\\frac{3\\pi}{2}'],
+    ['\\frac{\\sqrt{3}}{2}', 'sqrt(3)/2', '\\frac{\\sqrt{2}}{2}'],
+    ['\\frac{2\\sqrt3}{3}', '2sqrt(3)/3', '\\frac{2\\sqrt3}{9}'],
+    ['\\frac{2}{\\pi}', '2/pi', '\\frac{\\pi}{2}'],
+  ]) {
+    assert.equal(await grades(sent, key), true, `${sent} for ${key}`);
+    assert.equal(await grades(miss, key), false, `${miss} is still wrong for ${key}`);
+  }
+  // Exact answers stay exact: a decimal for π/2, and ½π (a different
+  // spelling the stacked rule does not claim), are not read as the key.
+  assert.equal(await grades('1.5707963', 'pi/2'), false);
+  assert.equal(await grades('\\frac{1}{2}\\pi', 'pi/2'), false);
+  // Rendering never changes: only the grader's canonical form stacks them.
+  assert.equal(stackDivisions('pi/2'), 'pi/2');
+  assert.equal(stackDivisions('\\sqrt{3}/2'), '\\sqrt{3}/2');
+  assert.equal(stackDivisions('π/2', { constantOperands: true }), '\\frac{π}{2}');
+  assert.equal(stackDivisions('x\\sqrt{3}/2', { constantOperands: true }), 'x\\frac{\\sqrt{3}}{2}', 'a letter coefficient stays outside');
+  assert.equal(stackDivisions('3/4x', { constantOperands: true }), '\\frac{3}{4}x', 'the slope rule is untouched');
+});
+
+test('a field naming π, √, % or $ gets the math editor; π and √ are keys in the keypad, % and $ need none', async () => {
+  // What the real editor sends for each (tests/browser/secureAccessParity.mjs
+  // captures them), against the same characters typed.
   for (const [sent, typed, miss] of [['2\\pi', '2pi', '3\\pi'], ['3\\sqrt{\\left(2\\right)}', '3sqrt(2)', '2\\sqrt{\\left(3\\right)}'], ['25\\%', '25%', '2.5\\%'], ['\\$25', '$25', '\\$2.5']]) {
     assert.equal(await grades(sent, typed), true, `the grader reads ${sent}`);
     assert.equal(await grades(miss, typed), false, `${miss} is still wrong for ${typed}`);
-    assert.equal(await grades(typed, typed), true, `${typed} typed is read`);
   }
-  for (const symbol of ['π', '√', '%', '$']) {
-    assert.equal(secureAnswerEntryFor({ inputProfile: 'number', requiredSymbols: [symbol] }).editor, SECURE_ANSWER_EDITORS.TEXT, `number naming ${symbol}`);
-    assert.equal(secureAnswerEntryFor({ inputProfile: 'set', inputContract: { requiredSymbols: [symbol] } }).editor, SECURE_ANSWER_EDITORS.TEXT, `set naming ${symbol}`);
+  // The number hint says to leave % and $ out, and the grader agrees.
+  assert.equal(await grades('25', '25%'), true);
+  assert.equal(await grades('25.50', '$25.50'), true);
+  const labels = (entry) => entry.keys.map((key) => key.label);
+  for (const [field, expected] of [
+    [{ inputProfile: 'number', requiredSymbols: ['π'] }, ['π']],
+    [{ inputProfile: 'number', requiredSymbols: ['pi'] }, ['π']],
+    [{ inputProfile: 'number', requiredSymbols: ['\\sqrt'] }, ['√']],
+    [{ inputProfile: 'number', answerFormat: 'exactPi' }, ['π']],
+    [{ inputProfile: 'number', answerFormat: 'simplest radical' }, ['√']],
+    [{ inputProfile: 'number', requiredSymbols: ['%'] }, []],
+    [{ inputProfile: 'number', answerFormat: 'currency' }, []],
+    [{ inputProfile: 'set', inputContract: { requiredSymbols: ['π'] } }, ['π']],
+  ]) {
+    const entry = secureAnswerEntryFor(field);
+    assert.equal(entry.editor, SECURE_ANSWER_EDITORS.MATH, JSON.stringify(field));
+    assert.deepEqual(labels(entry), expected, JSON.stringify(field));
   }
-  assert.equal(secureAnswerEntryFor({ inputProfile: 'number', answerFormat: 'exactPi' }).editor, SECURE_ANSWER_EDITORS.TEXT);
-  assert.equal(secureAnswerEntryFor({ inputProfile: 'number', answerFormat: 'simplest radical' }).editor, SECURE_ANSWER_EDITORS.TEXT);
   // Whole words only: these formats name none of them.
   for (const answerFormat of ['orderedPair', 'piecewise', 'interval', 'fraction', '']) {
-    assert.equal(secureAnswerEntryFor({ inputProfile: 'number', answerFormat }).editor, SECURE_ANSWER_EDITORS.MATH, answerFormat || '(none)');
+    assert.deepEqual(labels(secureAnswerEntryFor({ inputProfile: 'number', answerFormat })), [], answerFormat || '(none)');
   }
-  assert.equal(secureAnswerEntryFor({ inputProfile: 'number', requiredSymbols: ['a⁄b', '−'] }).editor, SECURE_ANSWER_EDITORS.MATH, 'keys the editor spells readably');
-  // Sent to text, a number field has no a/b key to mention, and a phone gets letters.
-  const guarded = secureAnswerEntryFor({ inputProfile: 'number', requiredSymbols: ['π'] });
-  assert.doesNotMatch(guarded.hint, /a\/b key|Leave out/);
-  assert.equal(guarded.inputMode, 'text');
+});
+
+test('the keypad says nothing about the answer: nothing captioned "Needed for this answer", keys the same on every item of a profile', () => {
+  // MathInput captions `requiredSymbols` "Needed for this answer" on a phone.
+  // A secure field passes it only symbols no key can type (so the phone's
+  // own keyboard stays), and those show no key.
+  const named = secureAnswerEntryFor({ inputProfile: 'number', requiredSymbols: ['a⁄b', 'π', '−', '°'] });
+  assert.deepEqual(named.unservedSymbols, ['°']);
+  assert.deepEqual(named.keys.map((key) => key.label), ['a⁄b', 'π', '−']);
+  for (const profile of SECURE_MATH_EDITOR_PROFILES) {
+    assert.deepEqual(secureAnswerEntryFor({ inputProfile: profile }).unservedSymbols, [], profile);
+  }
+  // The key never reaches the browser, and if a field carried one anyway the
+  // keypad would not read it.
+  const bare = secureAnswerEntryFor({ inputProfile: 'orderedPair' });
+  const keyed = secureAnswerEntryFor({ inputProfile: 'orderedPair', expected: '(3pi,sqrt(2))', accepted: ['(a,b)'], answer: 'x' });
+  assert.deepEqual(keyed, bare);
+  for (const profile of SECURE_MATH_EDITOR_PROFILES) {
+    assert.deepEqual(
+      secureAnswerEntryFor({ inputProfile: profile, expected: '3pi+sqrt(2)+25%+$4', accepted: ['n'], answer: 'y', correctAnswer: 'and' }),
+      secureAnswerEntryFor({ inputProfile: profile }),
+      `${profile}: nothing in the keypad comes from an answer`,
+    );
+  }
+  assert.deepEqual(bare.keys.map((key) => key.label), SECURE_PROFILE_KEYS.orderedPair.map((key) => key.label));
+  // An inequality's keypad: the profile's keys, and the PROMPT's letters.
+  const inequality = secureAnswerEntryFor({ inputProfile: 'inequality', expected: 'n>=4' }, { prompt: 'Let $h$ be the height and $t$ the time.' });
+  assert.deepEqual(inequality.keys.map((key) => key.label), ['a⁄b', '|x|', 'xⁿ', '√', 'π', 'and', 'or', 'h', 't']);
+  assert.equal(inequality.keys.find((key) => key.label === 'and').command, SECURE_AND);
+  assert.equal(inequality.keys.find((key) => key.label === 'or').command, SECURE_OR);
+});
+
+test('an inequality\'s letters are the ones the prompt\'s mathematics uses', () => {
+  assert.deepEqual(variablesInPrompt('Let $h$ be the height and $t$ the time. Solve $2h+5 \\le \\frac{3}{4}$.'), ['h', 't']);
+  assert.deepEqual(variablesInPrompt('What is $\\sqrt{x}$ when $\\text{area} = 4$ and $2xy$?'), ['x', 'y'], 'command names and words in \\text are not letters');
+  assert.deepEqual(variablesInPrompt('A ticket costs $5 and a pass costs $12. How many tickets?'), ['x'], 'prices are prose: no letters, so x');
+  assert.deepEqual(variablesInPrompt(''), ['x']);
+  assert.equal(variablesInPrompt('$a+b+c+d+f+g$').length, 4, 'at most four');
 });
 
 test('each profile gets the editor and keypad the evidence supports', () => {
@@ -177,8 +262,8 @@ test('each profile gets the editor and keypad the evidence supports', () => {
     assert.equal(entry.editor, SECURE_ANSWER_EDITORS.MATH, profile);
     assert.equal(entry.toolProfile, toolProfileForInputProfile(profile), `${profile} uses the platform keypad for it`);
   }
-  assert.deepEqual([...SECURE_MATH_EDITOR_PROFILES].sort(), ['interval', 'number', 'set']);
-  for (const profile of ['orderedPair', 'inequality', 'expression', 'equation', 'text', 'choice', '', 'somethingNew']) {
+  assert.deepEqual([...SECURE_MATH_EDITOR_PROFILES].sort(), ['inequality', 'interval', 'number', 'orderedPair', 'set']);
+  for (const profile of ['expression', 'equation', 'text', 'choice', '', 'somethingNew']) {
     const entry = secureAnswerEntryFor({ inputProfile: profile });
     assert.equal(entry.editor, SECURE_ANSWER_EDITORS.TEXT, `${profile || '(none)'} is typed text`);
     assert.equal(entry.inputMode, 'text', `${profile || '(none)'}: a phone keyboard with letters, brackets and a slash`);
@@ -186,16 +271,17 @@ test('each profile gets the editor and keypad the evidence supports', () => {
   // The interaction contract's aliases reach the same editor.
   assert.equal(secureAnswerEntryFor({ inputProfile: 'numeric' }).editor, SECURE_ANSWER_EDITORS.MATH);
   assert.equal(secureAnswerEntryFor({ inputProfile: 'point' }).profile, 'orderedPair');
-  assert.equal(secureAnswerEntryFor({ inputProfile: 'point' }).editor, SECURE_ANSWER_EDITORS.TEXT);
+  assert.equal(secureAnswerEntryFor({ inputProfile: 'point' }).editor, SECURE_ANSWER_EDITORS.MATH);
   assert.equal(secureAnswerEntryFor(null).editor, SECURE_ANSWER_EDITORS.TEXT);
 });
 
 test('the hint under the box says how to type, never what — no example numbers, and the server\'s own hint wins', () => {
-  for (const [profile, hint] of [...Object.entries(SECURE_ENTRY_HINTS), ...Object.entries(SECURE_TEXT_FALLBACK_HINTS)]) {
+  for (const [profile, hint] of Object.entries(SECURE_ENTRY_HINTS)) {
     assert.doesNotMatch(hint, /\d/, `${profile}: an example number in a hint could read as an answer on a test`);
   }
-  assert.match(secureAnswerEntryFor({ inputProfile: 'inequality' }).hint, /<= for ≤/, 'a text box says how to type ≤');
-  assert.doesNotMatch(secureAnswerEntryFor({ inputProfile: 'orderedPair' }).hint, /a\/b key/, 'no key the text box does not have');
+  assert.match(secureAnswerEntryFor({ inputProfile: 'inequality' }).hint, /≤ and ≥ keys, or type <= and >=/, 'the keys, and how to type them');
+  assert.match(secureAnswerEntryFor({ inputProfile: 'orderedPair' }).hint, /a\/b key/, 'the pair\'s editor has the a/b key');
+  assert.doesNotMatch(secureAnswerEntryFor({ inputProfile: 'expression' }).hint, /key/, 'no key the text box does not have');
   assert.equal(secureAnswerEntryFor({ inputProfile: 'interval', responseHint: 'Use interval notation.' }).hint, 'Use interval notation.');
   assert.equal(secureAnswerEntryFor({ inputProfile: 'interval' }).hint, SECURE_ENTRY_HINTS.interval);
 });

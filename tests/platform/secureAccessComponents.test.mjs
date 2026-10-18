@@ -22,10 +22,21 @@ const PANEL = read('src/components/assessment/GraphingCalculatorPanel.jsx');
 
 test('the field picks its editor from the entry policy, not from a list of its own', () => {
   const component = region(FIELD, 'export default function SecureMathAnswerField', '\n}\n', 'the field');
-  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field\), \[field\]\);/);
+  // The prompt goes in too: an inequality's keypad offers its letters (H-13).
+  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt \}\), \[field, prompt\]\);/);
   assert.match(component, /\{entry\.editor === SECURE_ANSWER_EDITORS\.MATH \? \(\s*<MathEditor/, 'the math editor only where the policy says the grader reads it');
   assert.match(component, /\) : \(\s*<TextEditor/);
-  assert.match(FIELD, /^import \{\n\s*READ_ONLY_EDITOR_ACTIONS, SECURE_ANSWER_EDITORS, SECURE_EDITOR_HELD_EVENTS, readOnlyEditorAction, secureAnswerEntryFor,\n\} from '\.\.\/\.\.\/platform\/assessment\/secureAnswerEntry\.js';$/m);
+  assert.match(FIELD, /^import \{\n[^}]*\bsecureAnswerEntryFor,\n\} from '\.\.\/\.\.\/platform\/assessment\/secureAnswerEntry\.js';$/m);
+});
+
+test('the keypad says nothing about the answer: no symbol captioned "Needed for this answer" (H-13)', () => {
+  const math = region(FIELD, 'function MathEditor(', '\n}\n', 'the math editor');
+  const input = region(math, '<MathInput', '/>', 'MathInput');
+  // MathInput captions requiredSymbols on a phone; a secure field passes only
+  // the symbols no key types (they show no key) and puts its keys in the pad.
+  assert.match(input, /\n\s*requiredSymbols=\{entry\.unservedSymbols\}/);
+  assert.match(input, /\n\s*extraKeys=\{entry\.keys\}/);
+  assert.doesNotMatch(executableSource(math), /requiredSymbols=\{entry\.(?:requiredSymbols|keys)/);
 });
 
 test('what the editor holds is what is passed up — unchanged, and never while the answer is held', () => {

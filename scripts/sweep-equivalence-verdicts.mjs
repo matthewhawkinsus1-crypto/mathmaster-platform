@@ -153,6 +153,9 @@ walkJson(path.join(ROOT, 'seed'), (full) => full.includes(`${path.sep}pathQuesti
 const NUMBER = /-?\d+(?:\.\d+)?/;
 const isPlainNumber = (text) => /^\s*-?\d+(?:\.\d+)?\s*$/.test(text);
 
+// Keys and near misses that got a stacked π or root spelling (reported).
+const stackedSpellings = new Set();
+
 /** Student spellings of a response. Each is the same mathematics written another way. */
 const spellingsOf = (text) => {
   const out = new Set();
@@ -169,9 +172,18 @@ const spellingsOf = (text) => {
   add(text.replace(/\|([^|]+)\|/g, 'abs($1)'));
   add(text.replace(/\|([^|]+)\|/g, '\\lvert $1\\rvert'));
   add(text.replace(/\s+or\s+/g, '\\lor '));
+  // The secure inequality keypad's word keys, as MathLive writes them back (H-13).
+  add(text.replace(/\s+(and|or)\s+/g, '\\operatorname{\\mathrm{$1}}'));
   add(text.replace(/!=|≠/g, '\\neq '));
   add(text.replace(/\((-?\d+)\/(\d+)\s*,/g, (m, n, d) => `(${Number(n) / Number(d)},`));
   add(text.replace(/\((-?\d+)\/(\d+)\s*,/g, (m, n, d) => `(${n.startsWith('-') ? '-' : ''}\\frac{${n.replace('-', '')}}{${d}},`));
+  // The math editor's stacked fraction around π or a root (student pass 3,
+  // H-13): a typed `/` after 3π or 2sqrt(3) builds \frac{3\pi}{4}.
+  const stacked = (value) => value.replace(/(\d*(?:\\pi|π|(?<![A-Za-z])pi(?![A-Za-z])|\\sqrt\{[^{}]+\}|sqrt\([^()]+\)))\s*\/\s*(\d+(?:\.\d+)?|π|\\pi|pi(?![A-Za-z])|\\sqrt\{[^{}]+\}|sqrt\([^()]+\))(?![\w.(^])/g,
+    (match, numerator, denominator) => `\\frac{${numerator}}{${denominator}}`);
+  if (stacked(text) !== text) stackedSpellings.add(text);
+  add(stacked(text));
+  add(stacked(text).replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}').replace(/\bpi\b|π/g, '\\pi'));
   if (isPlainNumber(text)) {
     add(`x=${text.trim()}`);
     add(`${text.trim()}%`);
@@ -287,7 +299,7 @@ for (const field of fields) {
 }
 
 if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes }, null, 2)}\n`);
-console.log(JSON.stringify(counts));
+console.log(JSON.stringify({ ...counts, stackedPiOrRootSpellings: stackedSpellings.size }));
 const show = (title, list) => {
   if (!list.length) return;
   console.log(`\n${title} (${list.length})`);

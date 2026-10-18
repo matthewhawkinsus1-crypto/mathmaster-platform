@@ -22,6 +22,23 @@ export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
+// A word group's contents, however deep: MathLive writes an inserted
+// \operatorname{and} back as \operatorname{\mathrm{and}} (the secure
+// inequality keypad's "and" key, student pass 3 H-13), which one pass left
+// as \mathrm{and}. A group that is just "and" or "or" keeps a space either
+// side, so the compound-inequality reader still finds the word in
+// `0\le h\mathrm{and}h\le12`.
+const WORD_GROUP = /\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g;
+const unwrapWordGroups = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 4 && WORD_GROUP.test(text); guard += 1) {
+    WORD_GROUP.lastIndex = 0;
+    text = text.replace(WORD_GROUP, (match, body) => (/^\s*(?:and|or)\s*$/i.test(body) ? ` ${body.trim()} ` : body));
+  }
+  WORD_GROUP.lastIndex = 0;
+  return text;
+};
+
 export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
   .trim()
   // Directional marks and zero-width format characters are not visible math.
@@ -37,7 +54,7 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
   .replace(/\\lparen/g, '(')
   .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
-  .replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
+  .replace(/[\s\S]+/, unwrapWordGroups)
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
   // \rbrace, or the same tokens wrapped in \left/\right. They are the same
   // mathematical delimiters as authored literal { ... } braces.
@@ -63,7 +80,9 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
  * `\frac` before any text comparison is what makes them agree — and it costs
  * nothing, because a division that cannot be read confidently is left alone.
  */
-const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false });
+// π and a square root count as numbers here (stackDivisions.mjs, H-13), so
+// the editor's `\frac{\pi}{2}` and the key `pi/2` meet on one spelling.
+const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
 
 /** `abs(...)` as the bars it means, with the call's own parentheses matched. */
 const absCallsAsBars = (value) => {
