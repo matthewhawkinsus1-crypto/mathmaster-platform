@@ -40,17 +40,30 @@ test("a secure field item offers prompt-only supports from the student's own pla
   assert.match(fieldProps, /studentSupportProfile=\{supportProfile\}/);
 });
 
-test("a secure Rich Tool item's own tray offers Read aloud and Translate only", () => {
+test("a secure Rich Tool item's own tray offers the student's secure supports, Vocabulary without worked examples (H-16)", () => {
   assert.match(runtime, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
-  const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '};', 'tray entitlement');
+  const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '\n};\n', 'tray entitlement');
   assert.match(entitlement, /const entitlement = secureAccessEntitlement\(rawStudentSupportProfile\);/);
-  // Vocabulary's glossary entries carry worked examples the engine tray cannot hide.
-  assert.match(entitlement, /entitlement\.tools\.filter\(\(tool\) => tool !== SUPPORT_TOOL\.VOCABULARY\)/);
+  // Every secure tool the plan grants on a test — Vocabulary included, so a
+  // glossary accommodation reaches tool items — and the glossary's examples off.
+  assert.match(entitlement, /return \{ tools: entitlement\.tools, language: entitlement\.language, showExamples: false \};/);
+  assert.doesNotMatch(executableSource(entitlement), /filter\(/, 'no tool is taken away from the plan\'s secure set');
   const tool = region(runtime, 'const ToolItem = (', '\n};\n', 'ToolItem');
   assert.match(tool, /\(\) => \(policy\.secure \? secureToolTrayEntitlement\(rawStudentSupportProfile\) : null\)/);
   assert.match(region(tool, '<QuestionEngine', '/>', 'engine props'), /supportEntitlement=\{trayEntitlement\}/);
   const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
   assert.match(region(root, '<ToolItem', '/>', 'ToolItem props'), /rawStudentSupportProfile=\{studentSupportProfile\}/);
+});
+
+test('the engine tray\'s Vocabulary panel leaves the examples out when the entitlement says so (H-16)', () => {
+  const tray = componentSource('src/components/student/supportTools/SupportToolsTray.jsx');
+  assert.match(tray, /<VocabularyPanel tool=\{open\} language=\{entitlement\.language\} showExamples=\{entitlement\.showExamples !== false\}/);
+  const panel = region(tray, 'function VocabularyPanel(', '\n}\n', 'VocabularyPanel');
+  const secure = region(panel, 'if (!showExamples) {', '\n  }\n', 'the example-free branch');
+  // The same pure helper the secure field tray uses, which returns no example.
+  assert.match(secure, /secureVocabularyEntries\(glossary, tool\.termIds, \{ language \}\)\.map/);
+  assert.doesNotMatch(executableSource(secure), /\.example\b|Example:/);
+  assert.ok(panel.indexOf('if (!showExamples) {') < panel.indexOf('entry.example'), 'the example-free branch returns before any example is drawn');
 });
 
 test('the toolbar carries the tools the exam policy grants, and the question is padded clear of them', () => {

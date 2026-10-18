@@ -8,7 +8,6 @@ import PathSolutionReview from '../student/PathSolutionReview.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
-import { SUPPORT_TOOL } from '../../platform/language/supportToolsEntitlement.js';
 import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
@@ -223,15 +222,18 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  */
 /*
  * On a secure Rich Tool item the engine's own support tray offers what a
- * secure item allows — Read aloud and Translate, from the student's own plan
- * for a test — and nothing else: no Break it down, no Help me say it, and no
- * Vocabulary, whose glossary entries carry worked examples (the engine's tray
- * has no way to leave them out yet). A practice surface keeps its tray.
+ * secure item allows — Read aloud, Translate and Vocabulary, from the
+ * student's own plan for a test — and nothing else: no Break it down and no
+ * Help me say it. Vocabulary shows each term's definition WITHOUT the
+ * glossary's worked example (`showExamples: false`, read by the tray's
+ * Vocabulary panel): an example applies the word, and can apply it to exactly
+ * what the item asks. A student with a glossary accommodation kept the terms
+ * on a field item but lost them on a tool item (student pass 3, H-16). A
+ * practice surface keeps its tray, examples included.
  */
 const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   const entitlement = secureAccessEntitlement(rawStudentSupportProfile);
-  const tools = entitlement.tools.filter((tool) => tool !== SUPPORT_TOOL.VOCABULARY);
-  return { tools, language: tools.includes(SUPPORT_TOOL.TRANSLATE) ? entitlement.language : null };
+  return { tools: entitlement.tools, language: entitlement.language, showExamples: false };
 };
 
 const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, onSubmit, onDraftChange }) => {

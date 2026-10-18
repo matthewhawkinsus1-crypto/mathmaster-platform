@@ -55,6 +55,8 @@
 //   - the finished and pause titles do not overlap when they wrap on a phone,
 //     and are readable on their backgrounds, in the light and the dark theme;
 //   - nothing says right, wrong or correct while any question can be answered;
+//   - a student whose plan grants a glossary on a test gets Vocabulary on a
+//     Rich Tool item, terms and definitions without worked examples (H-16);
 //   - no sideways scroll, and every control in these screens at least 44px.
 
 import { spawn } from 'node:child_process';
@@ -216,6 +218,44 @@ const openPage = async (context, scenario, device, query = '') => {
   check(!harnessError, `${device.id} ${scenario}: harness mounted`, harnessError || '');
   check(await page.evaluate(() => window.__secureHarness.mode) === 'mockLocal', `${device.id} ${scenario}: sandbox mode`);
   return { page, errors };
+};
+
+/* ------------------------- supports on a tool item ------------------------- */
+
+// A student whose plan grants a glossary on a test keeps it on a Rich Tool
+// item: the tray offers Vocabulary, and each term comes with its definition
+// and never the glossary's worked example (student pass 3, H-16).
+const supportsJourney = async (context, device) => {
+  const { page, errors } = await openPage(context, 'course', device, '&supports=glossary');
+  const label = (name) => `${device.id} supports ${name}`;
+  await page.waitForSelector('[data-secure-start-rules]');
+  await page.getByRole('button', { name: 'Start Test' }).click();
+  await page.waitForSelector('[data-secure-navigator-toggle]');
+  await next(page);
+  await page.getByText('Write it in notation').waitFor({ timeout: 20000 });
+  const vocabulary = page.locator('[data-rich-question-runtime] [data-support-tool="vocabulary"]').first();
+  const offered = await vocabulary.isVisible().catch(() => false);
+  check(offered, label('the tool item\'s tray offers Vocabulary'));
+  check(await page.locator('[data-rich-question-runtime] [data-support-tool="read-aloud"], [data-rich-question-runtime] [data-support-tool="translate"]').count() > 0, label('Read aloud and Translate are still offered'));
+  check(await page.locator('[data-support-tool="break-it-down"], [data-support-tool="say-it"]').count() === 0, label('nothing a test does not allow'));
+  if (offered) {
+    await vocabulary.click();
+    await page.waitForSelector('[data-support-panel="vocabulary"] dt', { timeout: 10000 });
+    const panel = await page.locator('[data-support-panel="vocabulary"]').first().innerText();
+    const terms = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').count();
+    check(terms > 0, label('the panel lists terms with their definitions'), `${terms} terms`);
+    check(!/Example/i.test(panel), label('no worked example on a test'), panel.slice(0, 200));
+    check(/·/.test(panel), label('the Spanish term is beside the English one'), panel.slice(0, 120));
+    // A definition may use the word "solution"; what matters is that none
+    // says whether an answer is right.
+    check(!/\b(correct|incorrect|wrong|right answer|answer key)\b/i.test(panel), label('the panel judges nothing'));
+    await shot(page, device, 'supports-01-tool-vocabulary');
+    await layout(page, label('tool item with vocabulary open'));
+    await vocabulary.click();
+  }
+  await noVerdict(page, label('the tool item'));
+  check(!errors.length, label('no page errors'), errors[0] || '');
+  await page.close();
 };
 
 /* ------------------------------ practice test ----------------------------- */
@@ -843,7 +883,7 @@ for (const device of DEVICES) {
     return route.abort();
   });
   const only = (process.env.SECURE_NAV_JOURNEYS || '').split(',').map((name) => name.trim()).filter(Boolean);
-  const journeys = [practiceJourney, courseJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
+  const journeys = [practiceJourney, courseJourney, supportsJourney, backtrackJourney, darkJourney, timeoutJourney, legacyJourney, dashboardJourney]
     .filter((journey) => !only.length || only.includes(journey.name.replace(/Journey$/, '')));
   for (const journey of journeys) {
     try {
