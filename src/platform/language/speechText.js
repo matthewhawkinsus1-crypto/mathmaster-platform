@@ -339,10 +339,24 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) 
  * Text a speech engine should say for a prompt (prose untouched, every math
  * segment spoken). Empty for empty input.
  */
+/*
+ * The named forms of a line, said letter by letter (review of pass 3, R-3):
+ * an engine reads "mx" as one sound, "By" as the word "by", and leaves "y₁"
+ * to guess. Point-slope form is said in full ("y minus y sub 1 equals m times
+ * the quantity x minus x sub 1"); any other subscript digit is "sub N".
+ */
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const spokenLineForms = (text, w) => text
+  .replace(/\by\s*[-−]\s*y₁\s*=\s*m\s*\(\s*x\s*[-−]\s*x₁\s*\)/g,
+    `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
+  .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')
+  .replace(/\bAx\s*\+\s*By\s*=\s*C\b/g, 'A x + B y = C')
+  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`);
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
-  const text = String(raw ?? '');
-  if (!text.trim()) return '';
   const w = wordsFor(language);
+  const text = spokenLineForms(String(raw ?? ''), w);
+  if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;

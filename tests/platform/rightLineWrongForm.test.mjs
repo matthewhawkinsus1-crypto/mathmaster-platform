@@ -117,3 +117,16 @@ test('the ordinary classifier never reads a question graded by another surface (
   assert.equal(classifyMisconceptions({ question, grading: { ...grading, surfaceId: 'multiAnswer', mode: null } }).classifier, 'ordinary:multiAnswer');
   assert.equal(classifyMisconceptions({ question, grading: { ...grading, surfaceId: undefined, mode: undefined } }).classifier, 'ordinary:multiAnswer');
 });
+
+test('Read aloud says each form letter by letter (review S4)', async () => {
+  const { speechTextFor } = await import('../../src/platform/language/speechText.js');
+  const said = (code, language = 'en') => speechTextFor(studentMisconceptionMessage(code), { language });
+  assert.equal(said('line-wrong-form-slope-intercept'), 'Right line, wrong form: write it as y equals m x plus b.');
+  assert.equal(said('line-wrong-form-point-slope'), 'Right line, wrong form: write it as y minus y sub 1 equals m times the quantity x minus x sub 1.');
+  assert.equal(said('line-wrong-form-standard'), 'Right line, wrong form: write it as A x plus B y equals C.');
+  // The Spanish the student can switch to is said the same way.
+  assert.equal(speechTextFor('La recta es correcta, pero la forma no: escríbela como y − y₁ = m(x − x₁).', { language: 'es' }),
+    'La recta es correcta, pero la forma no: escríbela como y menos y sub 1 es igual a m por la cantidad x menos x sub 1.');
+  // An English "By" in a sentence stays a word.
+  assert.equal(speechTextFor('By the way, check the slope.'), 'By the way, check the slope.');
+});

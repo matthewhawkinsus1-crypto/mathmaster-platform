@@ -85,6 +85,12 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   const unreadable = 'It could not read “=”. Use numbers, + − × ÷, brackets and the function keys.';
   assert.equal((await page.locator(`${PANEL} [data-calculator-error]`).textContent()).trim(), unreadable, `${at}: the reason is shown`);
   assert.equal(await announcement(), unreadable, `${at}: and said`);
+  // A key typed after "Error" replaces it: 5, never "Error5" (read as "E").
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(([s, before]) => (document.querySelector(s)?.textContent || '').replace(/\u00a0/g, ' ').trim() !== before, [`${PANEL} [data-calculator-result-announcement]`, unreadable]);
+  assert.equal(await announcement(), 'equals 5', `${at}: typing after Error replaces it`);
   for (const control of ['Close calculator', 'Move calculator']) {
     const box = await page.locator(`${PANEL} [aria-label="${control}"]`).boundingBox();
     assert.ok(box.width >= 44 && box.height >= 44, `${at}: ${control} is a 44px target (${box.width}×${box.height})`);
