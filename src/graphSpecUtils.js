@@ -332,10 +332,40 @@ export const staticGraphUsesEqualUnits = (graph = {}) => {
 };
 
 // The author's window (or one around the landmarks), every landmark kept in
-// frame, then the shorter axis widened about its middle until a unit is the
-// same length both ways. A line is not chased off the window: it is infinite,
-// and what has to show is where the lines meet and the marked points.
-const fitEqualUnitViewport = (graph, landmarks, plotAspect) => {
+// frame, then the shorter axis widened until a unit is the same length both
+// ways. A line is not chased off the window: it is infinite. What has to show
+// is the marked points, each line's y-intercept and where the lines meet
+// (review S2: the old fit's tall window showed (0, 12) for y = -2x + 12, and
+// this one must too).
+const lineLandmarks = (functions, [xMin, xMax], [yMin, yMax]) => {
+  const lines = functions
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map((spec) => ({ m: Number(spec.m ?? 0), b: Number(spec.b ?? 0) }))
+    .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
+  // A meeting point far outside the window (two nearly parallel lines) would
+  // blow the window up: only one within a window's span of it is kept.
+  const near = ([x, y]) => x >= xMin - (xMax - xMin) && x <= xMax + (xMax - xMin)
+    && y >= yMin - (yMax - yMin) && y <= yMax + (yMax - yMin);
+  const found = [];
+  if (xMin <= 0 && xMax >= 0) lines.forEach(({ b }) => found.push([0, b]));
+  lines.forEach((first, index) => lines.slice(index + 1).forEach((second) => {
+    if (Math.abs(first.m - second.m) < 1e-9) return;
+    const x = (second.b - first.b) / (first.m - second.m);
+    found.push([x, first.m * x + first.b]);
+  }));
+  return found.filter(near);
+};
+
+// Widen [min, max] by `grow` in all. A window that starts or ends at 0 (a
+// quadrant-I figure) grows away from that edge, so it never gains a negative
+// half the author left out (review N5).
+const widen = (min, max, grow) => {
+  if (min === 0 && max > 0) return [min, max + grow];
+  if (max === 0 && min < 0) return [min - grow, max];
+  return [min - grow / 2, max + grow / 2];
+};
+
+const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
   const span = (min, max, fallbackMin, fallbackMax) => {
     const authoredMin = finite(min) ? Number(min) : Number.NaN;
     const authoredMax = finite(max) ? Number(max) : Number.NaN;
@@ -348,31 +378,28 @@ const fitEqualUnitViewport = (graph, landmarks, plotAspect) => {
     const pad = Math.max(1, (high - low) * 0.25);
     return [Math.floor(Math.min(low - pad, -1)), Math.ceil(Math.max(high + pad, 1))];
   };
-  const xs = landmarks.map(([x]) => x);
-  const ys = landmarks.map(([, y]) => y);
-  let [xMin, xMax] = span(graph.xMin, graph.xMax, ...around(xs));
-  let [yMin, yMax] = span(graph.yMin, graph.yMax, ...around(ys));
+  let [xMin, xMax] = span(graph.xMin, graph.xMax, ...around(landmarks.map(([x]) => x)));
+  let [yMin, yMax] = span(graph.yMin, graph.yMax, ...around(landmarks.map(([, y]) => y)));
   if (!(xMin < xMax)) [xMin, xMax] = [-10, 10];
   if (!(yMin < yMax)) [yMin, yMax] = [-10, 10];
-  if (landmarks.length) {
+  const kept = [...landmarks, ...lineLandmarks(functions, [xMin, xMax], [yMin, yMax])];
+  if (kept.length) {
+    const xs = kept.map(([x]) => x);
+    const ys = kept.map(([, y]) => y);
     const markerPad = Math.max(0.5, Math.min(2, Math.max(xMax - xMin, yMax - yMin) * 0.08));
-    xMin = Math.min(xMin, Math.min(...xs) - markerPad);
+    // A landmark on a 0 edge (the origin of a quadrant-I figure) keeps it.
+    const lowX = Math.min(...xs) - markerPad;
+    const lowY = Math.min(...ys) - markerPad;
+    xMin = Math.min(xMin, xMin === 0 && Math.min(...xs) >= 0 ? 0 : lowX);
     xMax = Math.max(xMax, Math.max(...xs) + markerPad);
-    yMin = Math.min(yMin, Math.min(...ys) - markerPad);
+    yMin = Math.min(yMin, yMin === 0 && Math.min(...ys) >= 0 ? 0 : lowY);
     yMax = Math.max(yMax, Math.max(...ys) + markerPad);
   }
   const aspect = Number(plotAspect) > 0 ? Number(plotAspect) : STATIC_GRAPH_PLOT_ASPECT;
   const xSpan = xMax - xMin;
   const ySpan = yMax - yMin;
-  if (xSpan / ySpan < aspect) {
-    const grow = (ySpan * aspect - xSpan) / 2;
-    xMin -= grow;
-    xMax += grow;
-  } else {
-    const grow = (xSpan / aspect - ySpan) / 2;
-    yMin -= grow;
-    yMax += grow;
-  }
+  if (xSpan / ySpan < aspect) [xMin, xMax] = widen(xMin, xMax, ySpan * aspect - xSpan);
+  else [yMin, yMax] = widen(yMin, yMax, xSpan / aspect - ySpan);
   const tidy = (value) => Number(value.toFixed(6));
   return { ...graph, xMin: tidy(xMin), xMax: tidy(xMax), yMin: tidy(yMin), yMax: tidy(yMax), equalUnits: true };
 };
@@ -391,7 +418,7 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
   const landmarks = staticGraphViewportLandmarks(graph, functions);
   // `equalUnits: false` in the options: a host that draws the window on a plane
   // of its own proportions (an interactive stage) keeps the old fit.
-  if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) return fitEqualUnitViewport(graph, landmarks, plotAspect);
+  if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) return fitEqualUnitViewport(graph, landmarks, plotAspect, functions);
   const landmarkXs = landmarks.map(([x]) => x);
   const landmarkYs = landmarks.map(([, y]) => y);
 
@@ -510,6 +537,13 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
   graph = fitStaticGraphViewport(graph);
   const equalUnitLines = graph?.equalUnits === true
     && staticViewportFunctions(graph).every((spec) => (spec?.type || spec?.kind || 'line') === 'line');
+  const slopes = staticViewportFunctions(graph)
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map((spec) => Number(spec.m ?? 0));
+  const hasPerpendicularPartner = (spec) => {
+    const m = Number(spec?.m ?? 0);
+    return slopes.some((other) => Math.abs(m * other + 1) < 1e-6);
+  };
   const errors = [];
   const warnings = [];
   const { xMin, xMax, yMin, yMax } = graphBounds(graph);
@@ -564,13 +598,18 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
     }
     if (finiteCount > 0 && visibleCount === 0) {
       errors.push(`${fnLabel} is completely outside the visible y-range [${yMin}, ${yMax}]`);
-    } else if (finiteCount > 0 && visibleCount / finiteCount < 0.55 && !equalUnitLines) {
-      // Exempt: with equal units one line of any perpendicular pair steeper
-      // than 1 always leaves the window. That is the true picture (R-1).
+    } else if (finiteCount > 0 && visibleCount / finiteCount < 0.55 && !(equalUnitLines && (visibleCount / finiteCount >= 0.2 || hasPerpendicularPartner(spec)))) {
+      // Exempt with equal units: one line of any perpendicular pair steeper
+      // than 1 always leaves the window, and that is the true picture (R-1).
+      // Not a line that shows on under a fifth of the window and is no one's
+      // perpendicular: that one is cropped, and the author should know.
       warnings.push(`${fnLabel} is mostly outside the visible y-range; students will see less than 55% of the sampled curve`);
     }
 
-    if (graph.allowClipping === true) return;
+    // An equal-unit window crops a steep line on purpose: GraphDisplay clips it
+    // to the plot and draws its arrow where it leaves (R-1). Not a clipped
+    // locked viewport, so a strict audit does not reject it.
+    if (graph.allowClipping === true || equalUnitLines) return;
     const type = spec.type || spec.kind || 'line';
     if (!strictBoundaryVisibility || ['reciprocal', 'rational', 'logarithmic'].includes(type)) return;
 

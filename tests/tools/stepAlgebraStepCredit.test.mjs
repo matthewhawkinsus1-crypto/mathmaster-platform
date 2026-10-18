@@ -1035,10 +1035,26 @@ test('a record keyed by the old 2~ x rendering stays continuous and earns once',
     'the old and new rendering of one state earn once',
   );
   assert.equal(compactStepStateKey('y=2~ x+3'), compactStepStateKey('y=2 x+3'));
-  // functions/index.js keeps its own copy of the key for stored records.
+});
+
+test('functions/index.js keys stored step records exactly as compactStepStateKey does', () => {
+  // getQuestionCredit is synchronous, so storedAlgebraStepPartialCredit keeps
+  // its own copy of the key. Every rule of the shared key must be in it.
   const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  const copy = index.match(/const stateKey = (\(value\) => String\(value \|\| ""\)[^;]+);/);
+  const body = index.slice(index.indexOf('function storedAlgebraStepPartialCredit('), index.indexOf('function getQuestionCredit('));
+  const copy = body.match(/const stateKey = (\(value\) => String\(value \|\| ""\)[\s\S]*?\));\n/);
   assert.ok(copy, 'storedAlgebraStepPartialCredit keeps its key');
   const indexKey = new Function(`return ${copy[1]};`)();
-  assert.equal(indexKey('y=2~ x+3'), indexKey('y=2 x+3'));
+  const inputs = [
+    'y=2~ x+3', 'y=2 x+3', 'y=2x+3', ' x = -3+2~ y',
+    '2x+1\\left(-4x+12\\right)=2', '2x+\\left(-4x+12\\right)=2', '1\\left(x+1\\right)=4', '=-1\\left(x\\right)',
+    'y=−2x', 'y=–2x', 'y=—2x', '\\frac{-10}{-2}', '', null,
+  ];
+  for (const input of inputs) assert.equal(indexKey(input), compactStepStateKey(input), JSON.stringify(input));
+  // and the pairs that must be one state are one state in both.
+  for (const key of [indexKey, compactStepStateKey]) {
+    assert.equal(key('y=2~ x+3'), key('y=2 x+3'));
+    assert.equal(key('2x+1\\left(-4x+12\\right)=2'), key('2x+\\left(-4x+12\\right)=2'));
+    assert.equal(key('y=−2x'), key('y=-2x'));
+  }
 });

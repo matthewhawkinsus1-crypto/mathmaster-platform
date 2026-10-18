@@ -116,6 +116,9 @@ function FactorQuadratic({ questionData, feedback, submit, onAction }) {
 }
 
 function DivisionMode({ questionData, feedback, submit, onAction }) {
+  // This screen asks for coefficient lists ("1, 0, 0, -8"), so a zero term is
+  // shown: x³ + 0x² + 0x − 8, not x³ − 8 (review N7).
+  const polynomialText = (coefficients = []) => polynomialReadoutText(coefficients, { keepZeros: true });
   const dividend = questionData.dividend || DEFAULTS.division.dividend;
   const divisor = questionData.divisor || DEFAULTS.division.divisor;
   const [quotient, setQuotient] = usePersistentToolState('quotient', ''); const [remainder, setRemainder] = usePersistentToolState('remainder', '');

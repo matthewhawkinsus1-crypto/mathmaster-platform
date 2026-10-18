@@ -32,6 +32,8 @@ import {
   STATIC_GRAPH_PLOT_ASPECT,
 } from '../../src/graphSpecUtils.js';
 import { equalUnitPlaneHeight } from '../../src/tools/shared/planeEqualUnits.js';
+import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
+import { renderWorksheetVisual } from '../../src/platform/resources/assignmentWorksheetVisuals.js';
 
 const lesson = JSON.parse(readFileSync(new URL('../../teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json', import.meta.url), 'utf8'));
 const L3_CW1 = lesson.sections[1].questions[0].graph;
@@ -92,6 +94,88 @@ test('Pre-Flight: equal-unit lines are exempt from "mostly outside", nothing els
   // A curve the author forced into equal units still warns.
   const curve = { xMin: -10, xMax: 10, yMin: -2, yMax: 2, equalUnits: true, functions: [{ type: 'quadratic', a: 5, b: 0, c: 0 }] };
   assert.match(auditStaticGraphViewport(curve, { label: 'curve' }).warnings.join('\n'), /mostly outside/);
+});
+
+test('review B1: strict Pre-Flight still imports a two-line graph comparison', () => {
+  // Item graphs are audited strictly. A steep line leaving an equal-unit
+  // window through the top is not a "clipped locked viewport".
+  const window = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+  const question = {
+    type: 'graphComparison',
+    prompt: 'Which pair of lines is perpendicular?',
+    graphs: [
+      { id: 'a', label: 'A', graph: { ...window, functions: [{ type: 'line', m: 2, b: 1 }, { type: 'line', m: -0.5, b: 1 }] } },
+      { id: 'b', label: 'B', graph: { ...window, functions: [{ type: 'line', m: 2, b: 1 }, { type: 'line', m: 2, b: -3 }] } },
+      { id: 'c', label: 'C', graph: L3_CW1 },
+    ],
+    choices: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }, { id: 'c', text: 'C' }],
+    correctAnswer: 'a',
+  };
+  const graphMessages = (list = []) => list.filter((message) => /graphs\[/.test(message));
+  const result = validateQuestionSemantics(question);
+  assert.deepEqual(graphMessages(result.errors), []);
+  assert.deepEqual(graphMessages(result.warnings), []);
+  // A locked window is still held to the strict rule.
+  const locked = validateQuestionSemantics({ ...question, graphs: [{ id: 'a', label: 'A', graph: { ...window, lockViewport: true, functions: [{ type: 'line', m: 5, b: 0 }] } }] });
+  assert.match(graphMessages(locked.errors).join('\n'), /clipped by its locked viewport/);
+});
+
+test('review S2: what the old fit showed stays in frame, and a cropped line still warns', () => {
+  // y = -2x + 12 with y = x and (4, 4): the y-intercept (0, 12) and the
+  // meeting point stay on the plot.
+  const intercepts = fitStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m: -2, b: 12 }, { type: 'line', m: 1, b: 0 }], points: [{ x: 4, y: 4 }] });
+  assert.equal(intercepts.equalUnits, true);
+  assert.ok(intercepts.yMax > 12 && intercepts.yMin <= -10, `y ${intercepts.yMin}..${intercepts.yMax}`);
+  // Two meeting lines with no marked point: the meeting point is kept.
+  const meet = fitStaticGraphViewport({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
+  assert.ok(meet.yMax > 7 && meet.xMax > 7, 'the meeting point (7, 7)');
+  // Parallel steep lines that show on a sliver of the window: warned.
+  const sliver = auditStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m: 4, b: 30 }, { type: 'line', m: 4, b: -30 }] }, { label: 'sliver' });
+  assert.equal(sliver.warnings.filter((message) => /mostly outside/.test(message)).length, 2);
+  // A quadrant-I figure grows away from its 0 edges, never into negatives.
+  const quadrant = fitStaticGraphViewport({ xMin: 0, xMax: 10, yMin: 0, yMax: 10, points: [[1, 1], [5, 3]], segments: [{ from: [1, 1], to: [5, 3] }] });
+  assert.deepEqual([quadrant.xMin, quadrant.yMin, quadrant.yMax], [0, 0, 10]);
+  assert.ok(Math.abs(quadrant.xMax / 10 - STATIC_GRAPH_PLOT_ASPECT) < 1e-4);
+});
+
+// A DOM just big enough for the worksheet renderer, which builds its SVG by hand.
+const fakeDocument = () => {
+  const element = (tag) => ({
+    tag, attributes: {}, children: [], style: {}, textContent: '',
+    setAttribute(name, value) { this.attributes[name] = value; },
+    appendChild(child) { this.children.push(child); return child; },
+    append(...children) { this.children.push(...children); },
+  });
+  return { createElement: element, createElementNS: (_ns, tag) => element(tag), createTextNode: (text) => ({ tag: '#text', textContent: text, children: [] }) };
+};
+const findAll = (node, tag, found = []) => {
+  if (!node) return found;
+  if (node.tag === tag) found.push(node);
+  (node.children || []).forEach((child) => findAll(child, tag, found));
+  return found;
+};
+
+test('review S3: a printed equal-unit figure stops its lines at the plot edge', () => {
+  const previous = globalThis.document;
+  globalThis.document = fakeDocument();
+  try {
+    const visual = renderWorksheetVisual({ kind: 'graph', graph: L3_CW1, label: 'L3 CW 1' });
+    const clip = findAll(visual, 'clipPath');
+    assert.equal(clip.length, 1, 'one clip for the plot');
+    const [rect] = findAll(clip[0], 'rect');
+    assert.deepEqual([rect.attributes.x, rect.attributes.y, rect.attributes.width, rect.attributes.height].map(Number), [38, 38, 354, 224]);
+    const lines = findAll(visual, 'path').filter((path) => path.attributes.stroke === '#1a73e8');
+    assert.equal(lines.length, 2);
+    lines.forEach((path) => assert.equal(path.attributes['clip-path'], `url(#${clip[0].attributes.id})`));
+    // Two figures in one packet never share a clip id.
+    const second = renderWorksheetVisual({ kind: 'graph', graph: L3_CW2, label: 'L3 CW 2' });
+    assert.notEqual(findAll(second, 'clipPath')[0].attributes.id, clip[0].attributes.id);
+    // Other figures keep the old drawing.
+    const curve = renderWorksheetVisual({ kind: 'graph', graph: { functions: [{ type: 'quadratic', a: 1, b: 0, c: 0 }] }, label: 'parabola' });
+    assert.equal(findAll(curve, 'clipPath').length, 0);
+  } finally {
+    globalThis.document = previous;
+  }
 });
 
 test('GraphDisplay draws the lesson figure at a right angle, with one labelled step', async () => {

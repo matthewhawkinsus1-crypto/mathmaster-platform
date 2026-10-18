@@ -96,9 +96,11 @@ export const useToolRuntimeContext = () => useContext(ToolRuntimeContext);
 // answer may be shown. Defaults to hidden outside a provider.
 export const useRevealAnswers = () => useContext(ToolRuntimeContext).revealAnswers === true;
 
-// Convenience for every hint affordance. Defaults to allowed outside a provider.
+// Whether a teacher is the one looking (teacher policy copy is shown only
+// then). Defaults to a student outside a provider.
 export const useTeacherView = () => useContext(ToolRuntimeContext).teacherView === true;
 
+// Convenience for every hint affordance. Defaults to allowed outside a provider.
 export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;
 
 // The label of a tool's final Check action: the host's (a secure "Record
