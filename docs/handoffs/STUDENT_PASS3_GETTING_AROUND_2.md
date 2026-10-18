@@ -336,12 +336,12 @@ Every check ran on this branch. The browser drivers ran one at a time. Drivers t
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 11,799 of 11,799 pass (on `fc27957`, and again on the final tree after the base merge and the lazy notices) |
+| `npm run test:platform` | 11,799 of 11,799 pass (on `fc27957`, and again on the final tree after the base merge) |
 | `node --test tests/tools/*.test.mjs` | 1,710 tests: 1,709 pass, 0 fail, 1 skipped |
 | `npm run lint` | exit 0; 493 warnings, the same count as the base `5062cba5` |
 | `npm run audit:theme-colors` | pass. My first version gave the pack-up line a fixed `#202124`; the audit flagged it, and it now uses the warning tokens |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs` | within baseline. **studentHome 849.1 KB gzip** (186 files; baseline 847.1 KB, limit 855.1 KB). `scripts/first-load-baseline.json` untouched. By module, against the base `3cb782a9` built the same way (`--report`): `App.js` +1.6 KB (114.3 → 115.9), `testCycleDiscovery.js` +0.3 KB (3.9 → 4.2, where the shared `studentWhen.js` lands), nothing else. The pack-up line and the workspace lobby invite were moved into their own lazy chunk (`StudentClassroomNotices.jsx`, see below), which took 0.1 KB off |
+| `node scripts/check-first-load-budget.mjs` | within baseline. **studentHome 849.2 KB gzip** (186 files; baseline 847.1 KB, limit 855.1 KB), **+2.1 KB**. `scripts/first-load-baseline.json` untouched. By module, against the base `3cb782a9` built the same way (`--report`): `App.js` +1.7 KB (114.3 → 116.0), `testCycleDiscovery.js` +0.3 KB (3.9 → 4.2, where the shared `studentWhen.js` lands), nothing else |
 | Emulator suites | none touched. No file in `functions/`, `firestore.rules` or an index changes, and no `tests/integration` or `tests/rules` suite imports a changed file. Not run |
 | Plain Vite 5199: studentUxPlatform, assignmentMobile, workViewTerminalTransition, workViewHelpReach, toolPolicyGates, assessmentLeakGates, closedQuestionEnter | all pass |
 | workViewCertification | **pass, whole driver, after merging `3cb782a9`**. The rail Check adds an action to 15 tools, and the integrator asked for this run because of `6ce0517`; no control is clipped anywhere. Before the merge it reported "android-landscape · graphing2: 1 controls are clipped", the same on the base `5062cba5` and on this branch with the work-area reveal removed; `6ce0517` fixed it |
@@ -366,21 +366,23 @@ That rule is proved by the unit test (see NAV-21).
 
 ## The first load
 
-The integrator measured all six wave-6 heads merged at 8.1 KB over the studentHome baseline, against an 8.0 KB
-allowance. This branch's share is +2.0 KB (above). What was tried:
+This branch adds 2.1 KB to what a student loads before Home (above). One lazy split was tried and reverted at the
+integrator's request:
 
-- **The notices that appear only when something happens in class are a lazy chunk.** That is the pack-up line and the
-  workspace lobby invite (`src/components/student/StudentClassroomNotices.jsx`, `lazyScreens.js` `PackUpLine`,
-  `WorkspaceLobbyInvite`).
-  - Each renders inside its own `<Suspense fallback={null}>`, so a notice still loading never suspends the screen,
-    which would otherwise fall back to "Loading your MathMaster workspace…".
-  - The chunk is prefetched when Home goes idle, with the workspace's code, so it is there before the last five
-    minutes.
-  - Tests pin the boundary, the words in the chunk and the prefetch. dolExtraTime X2 and X4 pass with it.
-  - Saved 0.1 KB.
-- **Not moved.** What is left is App's own wiring: the effects, the join/leave handlers, the detour call and the shell
-  live region. Each of those runs on every render or inside `startAssignment`. Moving the detour sentence behind a
-  dynamic import would save well under 0.1 KB, so I left it.
+- **What it was.** The pack-up line and the workspace lobby invite moved into their own chunk, each behind
+  `<Suspense fallback={null}>`, prefetched when Home went idle. It saved 0.1 KB.
+- **Why it was reverted.** The pack-up line is a safety notice, and its most important case is "some work has not
+  been sent yet, so keep this tab open". That happens offline.
+  - A chunk not yet loaded fails to import exactly then: offline, or after a Hosting deploy has renamed the chunks in
+    an open tab.
+  - A tab opened straight into an assignment may never have run Home's idle prefetch.
+  - A rejected `lazy()` import throws to the error boundary, not to the Suspense fallback, so the student would see an
+    error screen in the last minutes of class.
+  - The lobby invite has the same failure path.
+- **Both notices stay in App's bundle.** The first load is being handled elsewhere: W6-7 moves teacher-only code off
+  the student's first load.
+- What remains of the 1.7 KB is App's own wiring: the effects, the join/leave handlers, the detour call and the shell
+  live region. A dynamic import of the detour sentence would save well under 0.1 KB.
 
 ## Deploying (not done)
 
@@ -429,9 +431,6 @@ branch, never a raw `firebase deploy --only hosting`. This branch adds no releas
   `workViewPhoneChrome`.
 - **Browser drivers:** `dolExtraTimeJourneys.mjs`, whose pack-up regex now matches the new words, plus the new X4.
 
-**`StudentClassroomNotices.jsx`** is a new file holding the pack-up line and the workspace lobby invite (see "The
-first load").
-
 **Spanish (Read aloud / Translate).** None of the new sentences is support text that `SupportedText` covers. They are
 toasts, a live region, the pack-up line, the rail and labels. So no entries were added to the Spanish pack.
 
@@ -441,7 +440,7 @@ toasts, a live region, the pack-up line, the rail and labels. So no entries were
   with the raw id. Inside a question it is nested and never the dialog.
 - **Q-97:** a closed question's work area is still `inert`, inside Work View too (owner decision 4).
 - **The workspace lobby invite has no browser driver.** The harness has no Live Challenge invite scene. It is covered by
-  unit and wiring tests: the rule, the render behind Suspense, and the join keeping the place.
+  unit and wiring tests: the rule, the render, and the join keeping the place.
 - **The rail mirror on an assessment**, browser-checked: on the DOL scene the rail shows "Submit — your only try",
   disabled until the work is filled. That the rail's press is the tool's own press is proved by `toolCheckMirror`'s
   unit test (it calls the button's `click()`). No driver presses it through to a withheld verdict on a DOL.

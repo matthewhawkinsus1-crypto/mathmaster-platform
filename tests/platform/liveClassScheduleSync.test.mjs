@@ -27,10 +27,8 @@ test('student pack-up message remains final-five-minutes only', () => {
 
   assert.match(block, /minutesBeforeEnd: 5/);
   assert.match(block, /if \(packUp\.status !== 'active'\) return null/);
-  // NAV-24: a slim line in its own chunk (StudentClassroomNotices.jsx); it still says to pack up.
-  assert.match(block, /<Suspense fallback=\{null\}>\s*<PackUpLine unsent=\{Boolean\(logoutRisk\)\} endsAt=\{packUp\.endsAt\} \/>/);
-  const notices = fs.readFileSync('src/components/student/StudentClassroomNotices.jsx', 'utf8');
-  assert.match(notices, /Pack up and return your device\. The bell is in <DOLCountdown endsAt=\{endsAt\} \/>\./);
+  // NAV-24: a slim line, not a full-width shout; it still says to pack up.
+  assert.match(block, /Pack up and return your device\./);
   assert.doesNotMatch(block, /Return technology at/i);
   assert.doesNotMatch(block, /scheduled return/i);
   assert.doesNotMatch(block, /pack up early/i);

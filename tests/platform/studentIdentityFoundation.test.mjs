@@ -65,15 +65,8 @@ test('classroom alerts stack below the measured identity bar instead of competin
   const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'identity shell');
   assert.match(shell, /notice=\{preview \? null : renderStudentPackUpNotice\(\{ logoutRisk: studentShellLogoutRisk \}\)\}/);
   assert.doesNotMatch(app, /renderStudentPackUpBanner/);
-  // Work saves itself, so it says so, unless this device still holds unsent
-  // work. The line is its own chunk (never in Home's first load), behind its
-  // own Suspense so loading it never suspends the screen, prefetched on idle.
-  assert.match(packUp, /<Suspense fallback=\{null\}>\s*<PackUpLine unsent=\{Boolean\(logoutRisk\)\} endsAt=\{packUp\.endsAt\} \/>\s*<\/Suspense>/);
-  const notices = read('src/components/student/StudentClassroomNotices.jsx');
-  assert.match(notices, /unsent\s*\?\s*'Finish up — some work has not been sent yet, so keep this tab open\.'\s*:\s*'Finish up — your work is saved\.'/);
-  assert.match(notices, /<strong role="alert"/);
-  assert.match(read('src/app/lazyScreens.js'), /export const PackUpLine = lazy\(\(\) => import\('\.\.\/components\/student\/StudentClassroomNotices\.jsx'\)/);
-  assert.match(app, /import\('\.\/components\/student\/StudentClassroomNotices\.jsx'\)\.catch/);
+  // Work saves itself, so it says so, unless this device still holds unsent work.
+  assert.match(packUp, /logoutRisk\s*\?\s*'Finish up — some work has not been sent yet, so keep this tab open\.'\s*:\s*'Finish up — your work is saved\.'/);
   // A student mid-Test is never interrupted by it.
   const guards = region(app, 'const renderStudentPackUpNotice =', 'return (', 'Pack-Up guards');
   assert.match(guards, /if \(secureExamActive\) return null;/);

@@ -25,9 +25,6 @@ export const TexasStandardsDashboard = lazy(() => import('../TexasStandardsDashb
 export const MathToolsLab = lazy(() => import('../dev/MathToolsLab.jsx'));
 export const LessonPreflightModal = lazy(() => import('../components/teacher/LessonPreflightModal.jsx'));
 export const MyMathPathApp = lazy(() => import('../components/student/MyMathPathApp.jsx'));
-// Notices that appear only when something happens in class (NAV-24, NAV-25).
-export const PackUpLine = lazy(() => import('../components/student/StudentClassroomNotices.jsx').then((module) => ({ default: module.PackUpLine })));
-export const WorkspaceLobbyInvite = lazy(() => import('../components/student/StudentClassroomNotices.jsx').then((module) => ({ default: module.WorkspaceLobbyInvite })));
 export const StudentSecureExamDashboard = lazy(() => import('../components/assessment/StudentSecureExamDashboard.jsx'));
 // Lazy: the worked-solution renderers pull MathLive, which stays out of the
 // first load (initialBundleBoundary.test.mjs).
