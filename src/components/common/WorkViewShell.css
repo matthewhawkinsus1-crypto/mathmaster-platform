@@ -211,6 +211,23 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] 
 }
 
 /*
+ * …AND THE INSTRUCTION IN THE HEADER KEEPS TO ONE LINE.
+ *
+ * Seven actions fill that rail only under a header of one task line and one
+ * instruction line (49px at 740×360). Graphing 2's first instruction names the
+ * keyboard route (A11Y-12) and took two lines there: a 58px header, and
+ * "Start over" 6px below the screen. With seven or more actions the
+ * instruction ends in an ellipsis instead. Its whole sentence stays in the
+ * page for a screen reader, and Graphing 2 shows all of it beside the plane.
+ */
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"]:has(> .mathmaster-work-view-body > .mathmaster-work-view-actions > button:nth-of-type(7)) > .mathmaster-work-view-header .mathmaster-work-view-instruction {
+  max-height: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
  * A LANDSCAPE KEYPAD DOCKS TO THE RIGHT, WHICH IS WHERE THE RAIL IS.
  *
  * On a phone held sideways the keypad is not a bottom bar — it is a right-hand
