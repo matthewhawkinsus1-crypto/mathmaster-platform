@@ -43,7 +43,7 @@ import { partialCreditBreakdown } from './platform/supports/feedback/partialCred
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
 import { prefersReducedMotion, scrollMotion } from './motionPreference.js';
-import { isSubmissionNotQueued } from './platform/student/submissionNotQueued.js';
+import { isReplacementNotQueued, isSubmissionNotQueued } from './platform/student/submissionNotQueued.js';
 import { parseFamilyGenerationKey } from './problemGenerator';
 import { clearDraftSaveProblemsForFamily } from './platform/persistence/draftSaveHealth.js';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
@@ -516,6 +516,8 @@ function QuestionEngineBody({
   useFocusReturnAfterLock(submitting);
   const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
+  // The host could not queue a new-problem request (REPLACEMENT_NOT_QUEUED).
+  const [replacementNotice, setReplacementNotice] = useState('');
   const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
   // Enter on a multi-part, DOL or one-try question brings this into focus
@@ -1605,7 +1607,18 @@ function QuestionEngineBody({
       if (!proceed) return;
     }
     setRequesting(true);
+    setReplacementNotice('');
     try {
+      // Asked first: a request this device could not queue changed nothing,
+      // so the question keeps its work and says so here, under the button
+      // (pass 3, wave 7). The work used to be thrown away before asking.
+      const result = await onRequestNewQuestion({ clearHistory: Boolean(dolMode), clearBest: Boolean(dolMode) });
+      if (isReplacementNotQueued(result)) {
+        setReplacementNotice(result.message);
+        return;
+      }
+      // The new problem has its own draft key (the variant is part of it),
+      // so clearing this one after the host's answer never touches it.
       removeQuestionDraftFamily(draftKey);
       // The stored entries are gone; drop the parsed copies too, or a
       // replacement that reuses this key could still be answered from the
@@ -1615,7 +1628,6 @@ function QuestionEngineBody({
       setFeedback(null);
       setLastSubmittedResponseKey('');
       setWorkflowSubmissionReview(null);
-      await onRequestNewQuestion({ clearHistory: Boolean(dolMode), clearBest: Boolean(dolMode) });
     } finally {
       setRequesting(false);
     }
@@ -2869,6 +2881,7 @@ function QuestionEngineBody({
               <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: requesting || assignmentLocked ? 'var(--mm-disabled-text)' : '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
                 {requesting ? 'Creating New Question…' : 'Request New Question'}
               </button>
+              {replacementNotice && <p role="alert" data-replacement-not-queued="" style={{ margin: '10px 0 0', color: 'var(--mm-error-text)', fontWeight: 700 }}>{replacementNotice}</p>}
             </>
           )}
         </section>

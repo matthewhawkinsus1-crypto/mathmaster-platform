@@ -9,6 +9,13 @@
  * (app/routes/urlArrival.js) and opens once the account has loaded.
  */
 import LoginScreen from '../../LoginScreen.jsx';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
+
+// The error itself comes in, never shown as it is: a Firestore refusal read
+// "Missing or insufficient permissions." here (pass 3, wave 7). A sentence
+// MathMaster wrote for the person ("Ask your teacher to add you to the
+// roster.") is kept; App logs the technical text for support.
+const ACCOUNT_LOAD_FALLBACK = 'Something went wrong while loading your account. Return to sign in and try again.';
 
 export default function SessionGate({ authStatus, hydrationError, hydrating, launchAssignment, onSignOut }) {
   if (authStatus === 'signedOut' || authStatus === 'linking') return <LoginScreen launchAssignment={launchAssignment} />;
@@ -17,7 +24,7 @@ export default function SessionGate({ authStatus, hydrationError, hydrating, lau
       <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', background: 'var(--mm-surface-sunken)' }}>
         <section style={{ width: 'min(560px, 100%)', padding: '24px', borderRadius: '12px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', textAlign: 'center' }}>
           <h1 style={{ marginTop: 0, color: 'var(--mm-error-text)' }}>MathMaster could not load your account</h1>
-          <p style={{ color: 'var(--mm-text-muted)' }}>{hydrationError}</p>
+          <p style={{ color: 'var(--mm-text-muted)' }}>{studentErrorSentence(hydrationError, ACCOUNT_LOAD_FALLBACK)}</p>
           <button type="button" onClick={onSignOut} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#174ea6', color: '#fff', fontWeight: 900 }}>Return to sign in</button>
         </section>
       </main>

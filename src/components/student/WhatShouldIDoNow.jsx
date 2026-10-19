@@ -2,6 +2,7 @@ import React from 'react';
 import { formatDateTime } from '../../assignmentLifecycle';
 import DOLCountdown from './DOLCountdown.jsx';
 import { describeClosesAt } from '../../studentDashboardModel.js';
+import { EXTRA_TIME_WORDS } from '../../platform/assessment/extraTimeWords.js';
 
 // The answer to the only question a student opens the app with.
 //
@@ -126,6 +127,8 @@ export default function WhatShouldIDoNow({
       {nextAction.assignment && TIMED_KINDS.has(nextAction.kind) && describeClosesAt(nextAction.closesAt) ? (
         <div data-next-action-closes style={{ marginTop: 6, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 900 }}>
           {describeClosesAt(nextAction.closesAt)}
+          {/* A student's own later close says it is theirs (D7). */}
+          {nextAction.extraTime ? ` — ${EXTRA_TIME_WORDS}` : ''}
         </div>
       ) : nextAction.assignment && nextAction.lateLine ? (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>

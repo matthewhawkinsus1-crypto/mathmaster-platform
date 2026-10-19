@@ -90,6 +90,7 @@ import {
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
+import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -845,6 +846,22 @@ export default function StepByStepAlgebra({
     tapPlacementArmed,
   ]);
 
+  /*
+   * A STEP THIS DEVICE COULD NOT SAVE IS NOT APPLIED (pass 3, wave 7).
+   *
+   * The host answers STEP_NOT_QUEUED when the durable outbox write fails
+   * (App.jsx handleStepGrade): nothing was recorded. The step is then not
+   * committed — no new equation, no history entry, no "step complete" — and
+   * whatever the student staged stays on the board. One alert says so, and
+   * "Apply the step again" repeats the same step while the equation is
+   * still the one it was taken on. True when the caller must stop.
+   */
+  const holdUnsavedStep = (result, retry) => {
+    if (!isStepNotQueued(result)) return false;
+    setMessage({ tone: 'error', text: result.message, notQueued: true, retry, equationKey: equationKey(equation), heldAt: Date.now() });
+    return true;
+  };
+
   const triggerShake = () => {
     setShake(false);
     window.requestAnimationFrame(() => {
@@ -903,7 +920,12 @@ export default function StepByStepAlgebra({
       // silently replace their intentionally-unsimplified work with the engine's
       // prettiest equivalent form. (Its credit — 2 when efficient, 1 when
       // merely valid — is equationMoveStepGrade's.)
-      await saveStep({ move, action: STEP_ACTIONS.BALANCED_MOVE, equationAfter: nextEquation });
+      const saved = await saveStep({ move, action: STEP_ACTIONS.BALANCED_MOVE, equationAfter: nextEquation });
+      if (holdUnsavedStep(saved, () => commitMove(move, { resolution, crossedSidesOverride }))) {
+        setCancelAnimating(false);
+        setCollapsingSides([]);
+        return;
+      }
       pushCommittedEquation(equation, balancedStep(move, nextEquation));
       setEquation(nextEquation);
       setPendingMove(null);
@@ -1075,7 +1097,8 @@ export default function StepByStepAlgebra({
         : result.step.kind === 'inline-term-rewrite'
           ? `Rewrite one term on the ${result.region} side`
           : result.step.description;
-    await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
+    const saved = await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
+    if (holdUnsavedStep(saved, () => commitSimplifyResult(result))) return false;
     pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
     closeSimplifyWhenDoneRef.current = true;
     setEquation(nextEquation);
@@ -1163,10 +1186,11 @@ export default function StepByStepAlgebra({
     if (onStepGrade) {
       setSavingStep(true);
       try {
-        await onStepGrade(rewriteStepPayload(equation, nextEquation, {
+        const saved = await onStepGrade(rewriteStepPayload(equation, nextEquation, {
           kind: 'distribution',
           label: `Distribute ${distributionState.factorText} over (${distributionState.groupText})`,
         }));
+        if (holdUnsavedStep(saved, () => commitDistributionStep())) return;
       } finally {
         setSavingStep(false);
       }
@@ -1253,10 +1277,11 @@ export default function StepByStepAlgebra({
     const beforeEquation = equation;
     const nextEquation = result.equation;
     const changedSides = ['left', 'right'].filter((side) => nextEquation[side] !== beforeEquation[side]);
-    await persistStudentRewrite(beforeEquation, nextEquation, changedSides, {
+    const saved = await persistStudentRewrite(beforeEquation, nextEquation, changedSides, {
       kind: result.step.kind,
       label: result.step.description,
     });
+    if (holdUnsavedStep(saved, () => commitStructureToolStep(tool))) return;
     pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
     setEquation(nextEquation);
     setStructureTool(null);
@@ -1441,10 +1466,14 @@ export default function StepByStepAlgebra({
       try {
         if (onStepGrade) {
           setSavingStep(true);
-          await onStepGrade(rewriteStepPayload(beforeEquation, nextEquation, {
+          const saved = await onStepGrade(rewriteStepPayload(beforeEquation, nextEquation, {
             kind: 'student-cancellation',
             label: `Cancel matching terms on the ${side} side`,
           }));
+          if (holdUnsavedStep(saved, () => commitStandaloneCancellation(side, model))) {
+            setCollapsingSides([]);
+            return;
+          }
         }
 
         pushCommittedEquation(beforeEquation, describedStep('student-cancellation', [`Cancelled matching ${model.kind === 'additive' ? 'terms' : 'factors'} on the ${side} side`], nextEquation));
@@ -2866,6 +2895,22 @@ export default function StepByStepAlgebra({
         const tone = !verdictsShown && message.tone !== 'error' ? 'neutral' : message.tone;
         const background = tone === 'success' ? 'var(--mm-success-bg)' : tone === 'growth' ? 'var(--mm-warning-bg)' : tone === 'neutral' ? 'var(--mm-surface-tint)' : 'var(--mm-error-bg)';
         const color = tone === 'success' ? 'var(--mm-success-text)' : tone === 'growth' ? 'var(--mm-warning-text)' : tone === 'neutral' ? 'var(--mm-text-strong)' : 'var(--mm-danger)';
+        if (message.notQueued) {
+          // Its own element, new each time (a second failure is said again),
+          // so the alert is read when it appears; the button sits outside it
+          // and only while the board is the one the step was taken on.
+          const retryable = typeof message.retry === 'function' && equation && message.equationKey === equationKey(equation);
+          return (
+            <div style={{ marginTop: '16px' }}>
+              <div key={message.heldAt} role="alert" data-step-not-queued="" data-message-tone={tone} style={{ padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>
+              {retryable && (
+                <button type="button" className="algebra-keep-written" data-apply-step-again="" disabled={disabled || savingStep || cancelAnimating} onClick={() => message.retry()} style={{ marginTop: '8px' }}>
+                  Apply the step again
+                </button>
+              )}
+            </div>
+          );
+        }
         return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
       })()}
       {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '12px' }}>

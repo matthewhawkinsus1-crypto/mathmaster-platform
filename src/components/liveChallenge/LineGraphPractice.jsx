@@ -5,6 +5,7 @@ import { LINE_GRAPH_FORMAT, lineGraphModeOfFormat } from '../../../functions/sha
 import { correctCountStrategy } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { previewLineGraph } from '../../platform/liveChallenge/liveChallengeService.js';
 import { lineSetupConfig } from '../../platform/liveChallenge/lineGraphSetupModel.js';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 /*
  * "TRY IT YOURSELF FIRST" FOR GRAPH THE LINE.
@@ -78,7 +79,10 @@ export default function LineGraphPractice({ setup, onClose }) {
         const questions = (Array.isArray(reply?.questions) ? reply.questions : []).map((question, index) => ({ ...question, questionIndex: index }));
         setPreview({ questions, config: reply?.config || config });
       })
-      .catch((previewError) => { if (alive) setError(previewError?.message || 'Practice lines could not be loaded.'); });
+      .catch((previewError) => {
+        console.error('Practice lines could not be loaded:', previewError);
+        if (alive) setError(studentErrorSentence(previewError, 'Practice lines could not be loaded.'));
+      });
     return () => { alive = false; };
   }, [requestKey, play]);
 

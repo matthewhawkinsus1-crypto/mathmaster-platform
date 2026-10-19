@@ -1,4 +1,5 @@
 import { resolveErrorExit } from './navigationModel.js';
+import { STUDENT_ERROR_TEXT, describeStudentErrorWords, studentErrorSentence, studentSafeSentence } from './studentErrorWords.js';
 
 /*
  * ONE TRANSLATOR FROM AN ERROR TO WORDS A STUDENT CAN USE (student pass 3, NAV-11).
@@ -17,60 +18,19 @@ import { resolveErrorExit } from './navigationModel.js';
  *   exit    a named way out that is not Retry (navigationModel's
  *           resolveErrorExit, unused until now): "Back to My assignments"
  *
- * Pure: no React, no network.
+ * The words (text, retry) are studentErrorWords.js's, shared with screens
+ * that show only a sentence. Pure: no React, no network.
  */
 
-export const STUDENT_ERROR_TEXT = Object.freeze({
-  offline: "Can't reach MathMaster right now. Check the Wi-Fi and try again.",
-  generic: 'Something went wrong on our side. Try again, or tell your teacher if it keeps happening.',
-});
+export { STUDENT_ERROR_TEXT, studentErrorSentence, studentSafeSentence };
 
-// Codes that mean "the request did not get an answer": trying again can help.
-const UNREACHABLE = new Set([
-  'internal', 'unavailable', 'deadline-exceeded', 'unknown', 'aborted', 'cancelled',
-  'network-request-failed', 'resource-exhausted',
-]);
-// Codes that mean "the server answered, and the answer is no": its sentence
-// (written for students) is the explanation; trying again will not change it.
-const REFUSALS = new Set([
-  'failed-precondition', 'permission-denied', 'not-found', 'invalid-argument', 'out-of-range', 'already-exists',
-]);
-
-// Words a student should never be shown: they name the machinery, not the problem.
-const DEVELOPER_WORDS = /\b(firebase|firestore|functions? log|hosting|callable|stack|undefined|null|exception|typeerror|referenceerror|INTERNAL|cors|http\s*\d{3}|status code|deploy|bundle|chunk|offline mode|backend)\b/i;
-
-const codeOf = (error) => String(error?.code || '').replace(/^(functions|auth|firestore)\//, '').trim();
-
-/** A sentence a person wrote for a student, or '' when the message is not one. */
-export const studentSafeSentence = (message) => {
-  const text = typeof message === 'string' ? message.trim() : '';
-  if (!text || text.length > 300) return '';
-  // A bare code ("internal", "failed-precondition") is not a sentence.
-  if (!/\s/.test(text)) return '';
-  if (DEVELOPER_WORDS.test(text)) return '';
-  return text;
-};
-
-export const describeStudentError = (error, { level = null, retryCount = 0, retryLimit = 2 } = {}) => {
-  const code = codeOf(error);
-  const message = typeof error === 'string' ? error : error?.message;
-  const offline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
-  const fetchFailed = /failed to fetch|networkerror|load failed|network request failed/i.test(String(message || ''));
+/*
+ * `fallback` is the screen's own sentence for what did not work ("Could not
+ * load the Live Challenge."), used where no safe sentence comes with the error.
+ */
+export const describeStudentError = (error, { level = null, retryCount = 0, retryLimit = 2, fallback = null } = {}) => {
+  const { text, retry } = describeStudentErrorWords(error, { fallback });
   const exit = resolveErrorExit(level, { retryCount, retryLimit });
-
-  let text;
-  let retry;
-  if (offline || fetchFailed || UNREACHABLE.has(code)) {
-    text = STUDENT_ERROR_TEXT.offline;
-    retry = true;
-  } else if (REFUSALS.has(code)) {
-    text = studentSafeSentence(message) || STUDENT_ERROR_TEXT.generic;
-    // A refusal the server marks as retryable (details.retry) keeps the button.
-    retry = error?.details?.retry === true;
-  } else {
-    text = studentSafeSentence(message) || STUDENT_ERROR_TEXT.generic;
-    retry = true;
-  }
   return {
     text,
     retry: retry && exit.offerRetry,

@@ -239,7 +239,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
   return items;
 };
 
-const controlChanges = ({ assignment, control, studentId }) => {
+const controlChanges = ({ assignment, control, studentId, nowValue = Date.now() }) => {
   if (!isObject(control)) return [];
   const title = titleOf(assignment);
   if (control.excused === true) {
@@ -262,12 +262,14 @@ const controlChanges = ({ assignment, control, studentId }) => {
    * whose date the lifecycle applies to this student. The REOPENED kind stays
    * for a later decision; nothing emits it.
    */
-  if (extended) {
-    const dueAt = getAssignmentDate(assignment, 'late', studentId, { privateOverride: control });
+  // An extension whose date has passed is no longer more time: "now due
+  // <yesterday>" was not true any more (pass 3, wave 6 "Found here").
+  const extendedDueAt = extended ? getAssignmentDate(assignment, 'late', studentId, { privateOverride: control }) : null;
+  if (extended && !(extendedDueAt && extendedDueAt.getTime() < nowValue)) {
     items.push({
       kind: WHAT_CHANGED_KIND.EXTENDED,
       at: toMillis(control.extension?.grantedAt),
-      text: dueAt ? `You have more time on ${title} — now due ${formatDue(dueAt.getTime())}` : `You have more time on ${title}`,
+      text: extendedDueAt ? `You have more time on ${title} — now due ${formatDue(extendedDueAt.getTime())}` : `You have more time on ${title}`,
     });
   }
   if (control.dolAttemptGrant && Number(control.dolAttemptGrant.extraAttempts) > 0) {

@@ -673,6 +673,8 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       // student's, so an extended window is the one named — not the lesson's
       // due date, which can be tomorrow while this closes in minutes.
       closesAt: liveWindowClosesAt(activeDol.state),
+      // That close is the student's own, later one (D7): Home says so.
+      extraTime: activeDol.state?.extendedTime === true,
       questionIndex: firstUnattempted ?? 0,
       headline: `Your ${exitTicketInSentence} (DOL) is open`,
       // This card is the screen's one spelling of "(DOL)" (D9).

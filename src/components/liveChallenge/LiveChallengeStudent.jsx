@@ -39,6 +39,7 @@ import {
   watchLiveChallengeRoom,
   watchLiveChallengeStandings,
 } from '../../platform/liveChallenge/liveChallengeService.js';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 // Graph Feature Rush plays on its own full-screen surface, loaded only for a
 // rush room — and fetched while the lobby waits, so Round 1 opens at once.
@@ -383,7 +384,10 @@ export function ChallengeRound({
       const outcome = classifyAnswerRefusal(error);
       if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
       else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
-      else setSubmitError(error?.message || 'Your answer could not be submitted.');
+      else {
+        console.error('Live Challenge answer was not submitted:', error);
+        setSubmitError(studentErrorSentence(error, 'Your answer could not be submitted.'));
+      }
       return null;
     } finally {
       submissionInFlightRef.current = false;
@@ -427,7 +431,10 @@ export function ChallengeRound({
         pendingRef.current = null;
         window.localStorage.removeItem(pendingKey);
         setSubmitError('That round has closed. Your screen has caught up safely.');
-      } else setSubmitError(error?.message || 'Still reconnecting. Your locked answer is safe.');
+      } else {
+        console.error('Live Challenge answer is still waiting to send:', error);
+        setSubmitError(studentErrorSentence(error, 'Still reconnecting. Your locked answer is safe.'));
+      }
     } finally {
       submissionInFlightRef.current = false;
       submissionLockRef.current = Boolean(pendingRef.current || resultRef.current);
@@ -858,7 +865,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       collectLaunchEvent('listener_error');
       // A screen that never mounts still reports the failure when reachable.
       window.setTimeout(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
-      setError(watchError?.message || 'Could not load the Live Challenge.');
+      console.error('Live Challenge room listener failed:', watchError);
+      setError(studentErrorSentence(watchError, 'Could not load the Live Challenge.'));
     }, { includeMetadataChanges: true });
   }, [roomId]);
 
@@ -951,7 +959,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return watchLiveChallengePlayer(roomId, playerKey, (row) => {
       setSelfRow(row);
       setSelfFresh(true);
-    }, (watchError) => setError(watchError?.message || 'Could not load your Live Challenge score.'));
+    }, (watchError) => {
+      console.error('Live Challenge player listener failed:', watchError);
+      setError(studentErrorSentence(watchError, 'Could not load your Live Challenge score.'));
+    });
   }, [roomId, playerKey, questionSetRoundOpen]);
   useEffect(() => {
     setProjectionFresh(false);
@@ -960,7 +971,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return watchLiveChallengeStandings(roomId, (snapshot) => {
       setProjection(snapshot);
       setProjectionFresh(true);
-    }, (watchError) => setError(watchError?.message || 'Could not load Live Challenge standings.'));
+    }, (watchError) => {
+      console.error('Live Challenge standings listener failed:', watchError);
+      setError(studentErrorSentence(watchError, 'Could not load Live Challenge standings.'));
+    });
   }, [roomId, questionSetRoundOpen]);
   // Their own place changes only when a round closes or the match ends, so
   // this listener stays open through a question-set round as well.
@@ -970,7 +984,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return watchLiveChallengePlayerSummary(roomId, studentId, (summary) => {
       setOwnSummary(summary);
       setSummaryFresh(true);
-    }, (watchError) => setError(watchError?.message || 'Could not load your Live Challenge place.'));
+    }, (watchError) => {
+      console.error('Live Challenge place listener failed:', watchError);
+      setError(studentErrorSentence(watchError, 'Could not load your Live Challenge place.'));
+    });
   }, [roomId, studentId]);
 
   // The match's stage at this device's calibrated server time, re-read at
@@ -1061,7 +1078,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         if (/permission-denied|failed-precondition|not-found|invalid-argument/.test(String(joinError?.code || ''))) {
           joinRefusedForRef.current = roomId;
         }
-        setError(joinError?.message || 'Could not join the Live Challenge.');
+        console.error('Could not join the Live Challenge:', joinError);
+        setError(studentErrorSentence(joinError, 'Could not join the Live Challenge.'));
       })
       .finally(() => setJoining(false));
   }, [roomId, room, joining, selfRow?.joined]);
