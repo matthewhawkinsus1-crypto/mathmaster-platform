@@ -4,7 +4,7 @@ import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { ResultPill } from '../shared/ToolShell';
-import { SubmitText } from '../shared/ToolRuntimeContext';
+import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
@@ -224,6 +224,8 @@ export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], bloc
     setConfirmed(null);
     onCheck();
   };
+  // What the prompt calls this button: the button's own first word (D9).
+  const actionName = useSubmitActionName('Check');
   const lines = feedback && !feedback.isCorrect ? fixList : [];
   const lineText = (line) => line.text || `Reconsider: ${line.labels.join(', ')}`.replace(/([^.?!])$/, '$1.');
   const verdict = feedback ? (feedback.isCorrect ? 'Correct' : 'Not yet — see what to fix') : null;
@@ -235,7 +237,7 @@ export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], bloc
         {feedback ? <ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill> : null}
       </div>
       {asking ? (
-        <p role="status" data-matrix-confirm-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{confirm}</p>
+        <p role="status" data-matrix-confirm-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{typeof confirm === 'function' ? confirm(actionName) : confirm}</p>
       ) : null}
       {blocker ? (
         <p role="status" data-matrix-format-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{blocker}</p>

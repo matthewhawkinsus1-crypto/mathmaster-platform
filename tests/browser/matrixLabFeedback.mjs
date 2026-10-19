@@ -106,7 +106,9 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.checkButton().click();
   await page.waitForTimeout(500);
   const asked = await page.evaluate(() => document.querySelector('[data-matrix-confirm-message]')?.textContent || '');
-  check(/as it was given.*press Check again/.test(asked), `the first press asks: ${asked}`);
+  // In the button's own word (D9): "press Submit again" beside a Submit button.
+  const buttonWord = ((await s.checkButton().textContent()) || '').trim().split(/\s/)[0];
+  check(/as it was given/.test(asked) && asked.includes(`press ${buttonWord} again`) && !(buttonWord !== 'Check' && /press Check/.test(asked)), `the first press asks, naming the button "${buttonWord}": ${asked}`);
   check((await s.record('l3m-cw-8')) === null, 'and spends no try');
   // A double-click (or double-tap) on the untouched start is one gesture: it
   // asks, and its second press does not answer the prompt.

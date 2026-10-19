@@ -1682,7 +1682,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           {slotAttempt.reason === 'source-equation'
                             ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
                             : slotAttempt.reason === 'expression-parse'
-                              ? 'MathMaster could not open the next solving step from that token form. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.'
+                              ? 'MathMaster could not open the next solving step from that form of the expression. Your work is still here. Choose Change expression and write it another equivalent way, or go back to the expression you first isolated.'
                               : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
                         </p>
                       ) : null}

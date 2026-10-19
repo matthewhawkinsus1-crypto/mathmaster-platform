@@ -102,6 +102,45 @@ test('W6-4: taskCardSupport keeps the control steps of a mixed list where the me
   });
 });
 
+// Wave 7 (D9): the finishing step names the button as it reads. Where the
+// press spends a try the button says "Submit — …" and the step "press
+// Submit"; a secure host's own label is used as it is; elsewhere (a
+// composed stage, the tools lab, the runtimes above) "Check equation".
+test('W7-4: Rewrite Linear Form says the name its button shows', async () => {
+  await withVite(async (load) => {
+    const question = { type: 'stepAlgebra2', mode: 'rewriteLinearForm', targetForm: 'slopeIntercept', equation: '2x - 4y = 8', prompt: 'Rewrite 2x - 4y = 8.' };
+    const path = '/src/tools/stepAlgebra2/RewriteLinearForm.jsx';
+    for (const [runtime, name, button] of [
+      [{ ...PRACTICE, submitCost: 'uses 1 of 3 tries' }, 'Submit', 'Submit — uses 1 of 3 tries'],
+      [{ ...DOL, submitLabel: 'Record answer' }, 'Record answer', 'Record answer'],
+      [PRACTICE, 'Check equation', 'Check equation'],
+    ]) {
+      const html = words(await renderTool(load, path, question, runtime));
+      assert.ok(html.includes(`When the equation reads y = mx + b, press ${name}. Undo takes back the last step.`), `the step says "press ${name}"`);
+      assert.ok(html.includes(`>${button}</button>`) || html.includes(button), `the button reads "${button}"`);
+      if (name !== 'Check equation') assert.ok(!/press Check/.test(html), `no "press Check" beside ${button}`);
+    }
+  });
+});
+
+test('W7-4: the Transformations Lab names its own button in its last step', async () => {
+  await withVite(async (load) => {
+    const path = '/src/tools/transformations/TransformationsLab.jsx';
+    const base = { type: 'transformationsLab', family: 'linear', function: { type: 'linear', a: 1, h: 2, k: -1 }, sourcePoints: [[-2, -2], [0, 0], [2, 2]], graphBounds: { xMin: -8, xMax: 8, yMin: -8, yMax: 8 } };
+    for (const [mode, step, own] of [
+      ['match', (name) => `When the two graphs overlap, press ${name}.`, 'Check transformation'],
+      ['identify', (name) => `Enter all four, then press ${name}.`, 'Check parameters'],
+      ['plotTransform', (name) => `Connect them in the same order as the source graph, then press ${name}.`, 'Check graph'],
+    ]) {
+      const charged = words(await renderTool(load, path, { ...base, mode }, { ...PRACTICE, submitCost: 'uses 1 of 3 tries' }));
+      assert.ok(charged.includes(step('Submit')), `${mode}: "press Submit" where the press spends a try`);
+      assert.ok(!/press Check|Press Check|\{action\}/.test(charged), `${mode}: never "press Check" beside Submit`);
+      const free = words(await renderTool(load, path, { ...base, mode }, PRACTICE));
+      assert.ok(free.includes(step(own)), `${mode}: the lab's own button name where nothing is spent`);
+    }
+  });
+});
+
 test('W6-4: Linear Table Workbench, Rewrite Linear Form, Linear Intercepts and the Constraint Function Builder split their lists', async () => {
   await withVite(async (load) => {
     await assertSplit(load, {
@@ -120,7 +159,7 @@ test('W6-4: Linear Table Workbench, Rewrite Linear Form, Linear Intercepts and t
         label: `Rewrite Linear Form (${targetForm})`,
         path: '/src/tools/stepAlgebra2/RewriteLinearForm.jsx',
         question: { type: 'stepAlgebra2', mode: 'rewriteLinearForm', targetForm, equation, prompt: `Rewrite ${equation}.` },
-        controls: ['+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.', `When the equation reads ${form}, submit it. Undo takes back the last step.`],
+        controls: ['+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.', `When the equation reads ${form}, press Check equation. Undo takes back the last step.`],
         method,
       });
     }

@@ -284,6 +284,13 @@ test('P2-10: in every view Check waits for a readable cell and an edited start; 
     assert.doesNotMatch(region(view, 'const blocker', ';'), /UNTOUCHED_START/, `${start}: an untouched start does not keep Check off`);
   }
   const ui = executableSource(read('src/tools/matrixLab/matrixLabUi.jsx'));
+  // The prompt names the button as it reads (D9, wave 7): "press Submit
+  // again" where the press spends a try, never "press Check" beside Submit.
+  assert.match(lab, /const UNTOUCHED_START = \(actionName\) => `[^`]*press \$\{actionName\} again[^`]*`;/);
+  assert.doesNotMatch(lab, /press Check again/);
+  assert.match(region(ui, 'export function CheckRow', '\n}\n'), /const actionName = useSubmitActionName\('Check'\);[\s\S]*\{typeof confirm === 'function' \? confirm\(actionName\) : confirm\}/);
+  const context = executableSource(read('src/tools/shared/ToolRuntimeContext.jsx'));
+  assert.match(region(context, 'export const useSubmitActionName', '};'), /if \(submitLabel\) return submitLabel;\s*return submitCost \? 'Submit' : ownName;/, 'the host label, then Submit where it costs a try, then the tool\'s word');
   assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ (askedAt\.current = Date\.now\(\); )?setConfirmed\(confirm\); return; \}/, 'the first press asks; the second checks');
   assert.match(ui, /onClick=\{press\}/);
   // A second press within the settle time is the same gesture (a double-click).

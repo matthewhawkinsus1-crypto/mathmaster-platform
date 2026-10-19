@@ -311,7 +311,9 @@ test('the steps show the arithmetic of this question', () => {
 test('an empty selection is the stated answer when nothing qualifies, and the grader accepts it', () => {
   for (const question of [q({ factors: [{ root: 1, multiplicity: 2 }], relation: '<' }), q({ mode: 'radicalCheck', radicalEquation: { radicand: { m: 1, b: 0 }, rhs: { m: 0, b: -2 } }, candidates: [4] })]) {
     const model = buildSignSolutionAnalyzerReview(question);
-    assert.match(model.steps[model.steps.length - (question.mode === 'radicalCheck' ? 1 : 2)], /select no (interval|candidate) and press Check/);
+    // The review never names a button (a closed question has none; D9).
+    assert.doesNotMatch(model.steps.join(' '), /press (Check|Submit)/);
+    assert.match(model.steps[model.steps.length - (question.mode === 'radicalCheck' ? 1 : 2)], /the answer is no (interval|candidate): leave every (interval|candidate) unselected\./);
     const result = grade(question, { selected: [] });
     assert.equal(result.isCorrect, true);
   }

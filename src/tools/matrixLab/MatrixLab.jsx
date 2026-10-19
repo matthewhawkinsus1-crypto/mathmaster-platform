@@ -93,8 +93,10 @@ const gridFields = (cells, label) => cells.flatMap((row, i) => row.map((value, j
 const sameCells = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 // An authored start the student has not changed is not refused — an item
 // published with a right start must stay answerable — but Check asks once
-// before it spends a try on it (S3, integration review).
-const UNTOUCHED_START = 'This is the matrix equation as it was given. Change what needs fixing — or press Check again to check it as it is.';
+// before it spends a try on it (S3, integration review). CheckRow words it
+// with the button's own name ("press Submit again" where the press spends a
+// try; D9), so it never says Check beside a Submit button.
+const UNTOUCHED_START = (actionName) => `This is the matrix equation as it was given. Change what needs fixing, or press ${actionName} again if it is right as it is.`;
 
 function useLabUndo(questionData, state, restore, clearFeedback, label) {
   return useMathUndoHistory({
