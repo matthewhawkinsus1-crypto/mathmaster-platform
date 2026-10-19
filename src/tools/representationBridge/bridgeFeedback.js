@@ -12,12 +12,13 @@
  * is null otherwise (useToolSubmission), and this is read from it.
  */
 
+const BOX_BLANK = 'a box is still blank. Fill in every box in this stage.';
 const STAGE_LINES = Object.freeze({
-  rateEvidence: { name: 'Table & rate of change', recheck: 'recheck the Δx, Δy and rate you recorded for each interval, and your conclusion.' },
-  generalForm: { name: 'Equations, y = mx + b', recheck: 'recheck m, b and the equation you wrote.' },
-  factoredForm: { name: 'Equations, y = a(x − c)', recheck: 'recheck a, c and the equation you wrote.' },
-  graph: { name: 'Graph', recheck: 'recheck your two points: one must be the x-intercept, and both must be on the line.' },
-  meaning: { name: 'What the parts mean', recheck: 'recheck the unit, meaning and role you chose for m, b and c.' },
+  rateEvidence: { name: 'Table & rate of change', recheck: 'recheck the Δx, Δy and rate you recorded for each interval, and your conclusion.', blank: 'record every interval it asks for, fill in each one, and choose a conclusion.' },
+  generalForm: { name: 'Equations, y = mx + b', recheck: 'recheck m, b and the equation you wrote.', blank: BOX_BLANK },
+  factoredForm: { name: 'Equations, y = a(x − c)', recheck: 'recheck a, c and the equation you wrote.', blank: BOX_BLANK },
+  graph: { name: 'Graph', recheck: 'recheck your two points: one must be the x-intercept, and both must be on the line.', blank: 'plot two points.' },
+  meaning: { name: 'What the parts mean', recheck: 'recheck the unit, meaning and role you chose for m, b and c.', blank: 'choose a unit, a meaning and a role for each of m, b and c.' },
 });
 
 export const BRIDGE_CONSISTENCY_LINE = 'Your representations do not all describe the same line — recheck them against each other.';
@@ -27,7 +28,7 @@ export const bridgeStageLine = (part = {}) => {
   if (part.id === 'crossRepresentationConsistency') return BRIDGE_CONSISTENCY_LINE;
   const known = STAGE_LINES[part.id];
   const name = known?.name || (typeof part.label === 'string' && part.label.trim()) || 'One stage';
-  if (part.isComplete === false) return `${name}: a box is still blank. Fill in every box in this stage.`;
+  if (part.isComplete === false) return `${name}: ${known?.blank || BOX_BLANK}`;
   return `${name}: ${known?.recheck || 'recheck your work in this stage.'}`;
 };
 

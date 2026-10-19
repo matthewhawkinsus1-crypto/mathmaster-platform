@@ -108,6 +108,14 @@ test('Representation Bridge: every line names its stage as the screen does, neve
   // Every stage and the blank board: no line is an id.
   const all = bridgeSay({ tableEvidence: [], studentSlope: '', rateConclusion: '', generalForm: {}, factoredForm: {}, graphConstruction: { points: [] }, meaningAssignments: {} });
   assert.equal(all.length, 6, "five stages and consistency");
+  // A blank stage says what it is missing in that stage's own terms.
+  assert.deepEqual(all.slice(0, 5), [
+    'Table & rate of change: record every interval it asks for, fill in each one, and choose a conclusion.',
+    'Equations, y = mx + b: a box is still blank. Fill in every box in this stage.',
+    'Equations, y = a(x − c): a box is still blank. Fill in every box in this stage.',
+    'Graph: plot two points.',
+    'What the parts mean: choose a unit, a meaning and a role for each of m, b and c.',
+  ]);
   all.forEach((line) => assert.doesNotMatch(line, /Recheck: |rateEvidence|generalForm|factoredForm|\bmeaning:|crossRepresentation/, line));
   // A stage the list does not know is named by its label, then generically.
   assert.deepEqual(bridgeFeedbackLines([{ id: 'futureStage', label: 'Future stage', isComplete: true, isCorrect: false }]), [{ id: 'futureStage', text: 'Future stage: recheck your work in this stage.' }]);

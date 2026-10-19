@@ -13,7 +13,7 @@
  */
 
 export const REGRESSION_FEEDBACK = Object.freeze({
-  tableIncomplete: 'Your table does not have every data point yet. Enter each point in its own row: x in x₁, y in y₁.',
+  tableIncomplete: 'Your table does not have every data point yet. Make a table (+, then table) with each point in its own row: x in x₁, y in y₁.',
   tableWrong: 'Your table does not match the data. Check each row against the data (x in x₁, y in y₁) and remove any extra row.',
   runMissing: 'Your table matches the data, but no regression has been run on it yet. Press Add Regression beside the table, or ↵ on the regression row.',
   runStale: 'Your table matches the data, but the regression was run on a different table. Press ↵ on the regression row to run it on this one.',
