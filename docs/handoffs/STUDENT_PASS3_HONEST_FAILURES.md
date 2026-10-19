@@ -43,8 +43,8 @@ Source: STUDENT_PASS3_BATCH3_CLIENT.md "Left for later", STUDENT_PASS3_BATCH3_IN
   - Whatever the student staged stays on the board: the pending move, the crossed sides, the open tool.
   - One `role="alert"` in the solver says so. It is inside Work View, where the student is. It is remounted on each
     failure, so a second failure is announced again.
-  - "Apply the step again" repeats the same step. It is offered only while the board is the equation the step was
-    taken on, and is disabled while a save is in flight.
+  - "Apply the step again" repeats the same step. It is offered only while the staging is the one the step was
+    taken with (any change retires it, review S1), and is disabled while a save is in flight.
 - `MultiRelationAlgebraCore.jsx` (the relation solver, also `stepAlgebra`): `commitState` now saves first and applies
   after.
   - On `STEP_NOT_QUEUED` it returns `false`, and every caller already stops on `false`. The relation, history and
@@ -69,7 +69,7 @@ Source: STUDENT_PASS3_BATCH3_CLIENT.md "Left for later", STUDENT_PASS3_BATCH3_IN
   - A new problem: one alert, same variant, its saved draft kept. The second request opens variant 1, and only then
     is the old draft cleared.
   - The defect replayed with the old host's `null` (two checks).
-  - 60 checks, 0 findings.
+  - 85 checks, 0 findings (with the review round's flip and staging scenes).
 - `submitNotQueued.test.mjs`'s two import assertions now allow the added names (behaviour unchanged; mutation-checked).
 
 ### 2. Raw error text reaching students
@@ -204,11 +204,13 @@ byte-identical to the base, and nothing is lost, doubled or crosses students (th
 
 ## Gate
 
-Run on this branch's head; the base is `530ac3cf` (a worktree, for the base comparisons).
+Run again on the review round's head (`63c46a3b` for the suites; the code is `9d79bb4b`'s, and `63c46a3b` changes
+tests only); the base is `530ac3cf` (a worktree, for the base comparisons). My first report's "12,129/12,129" was
+from a run that started before the last App change and was not true of `ae66df2c` (review B3).
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 12,129 / 12,129 |
+| `npm run test:platform` | 12,133 / 12,133 (on `63c46a3b`; also 12,133 / 12,133 on `9d79bb4b`) |
 | `node --test tests/tools/*.test.mjs` | 1,710 pass, 0 fail |
 | `npm run lint` | exit 0 (warnings only, all pre-existing) |
 | `npm run build` | ok |
@@ -216,49 +218,56 @@ Run on this branch's head; the base is `530ac3cf` (a worktree, for the base comp
 | `npm run test:draft-persistence` | pass |
 | `npm run test:canonical-persistence` | 35 / 35 |
 | **Plain Vite, 5199** (`AUDIT_ORIGIN`) | |
-| `stepNotQueued.mjs` (new) | 60 checks, 0 findings |
-| `submitNotQueued.mjs` | 21 checks, 0 findings |
+| `stepNotQueued.mjs` (new) | 85 checks, 0 findings (adds the -2x < 6 flip and the staging scenes) |
+| `submitNotQueued.mjs` | pass |
 | `durableOutboxRecovery.mjs` | pass (needs `PLAYWRIGHT_MODULE` set to the installed Playwright here: it imports bare `playwright`) |
-| `errorRecovery`, `duplicateTabs`, `staleTabRecord`, `composedDraftRestore`, `draftEditTime`, `dolCloseCopy`, `algebraicSubstitutionHandoff`, `stepAlgebraStructureTools` | all pass |
-| `studentHomeToday.mjs` | **fails, the same on the base**: console errors "Could not reach Cloud Firestore backend … client is offline" (this container cannot reach Firestore; the driver counts them). Not my change. |
+| `errorRecovery`, `duplicateTabs`, `stepAlgebraStructureTools`, `dolCloseCopy` | all pass |
 | **Teacher harness, 5188** (`TEACHER_HARNESS_ORIGIN`) | |
-| `journeys`, `draftCrossDeviceJourneys`, `recoveryDraftCrossDeviceJourneys`, `restoredDraftFocusRaceJourneys`, `studentScreenChange`, `appUrlJourneys`, `dolExtraTimeJourneys`, `submitAndFinishJourneys`, `enduranceJourneys` | all pass |
-| `draftSaveNoticeReloadJourneys.mjs` (new) | 10 / 10; with App's old cleanup put back, R1 fails 3 checks (shown, then restored) |
-| **Live Challenge** (own servers) | |
+| `draftSaveNoticeReloadJourneys` (new), `journeys`, `appUrlJourneys`, `dolExtraTimeJourneys`, `submitAndFinishJourneys` | all pass |
 | `npm run test:live-challenge-teaching-browser` | 58 / 58 |
-| `node tests/browser/liveChallengeShellQa.mjs` | **2 findings, the same 2 on the base**: "the projector round table is not in the round's order" (classic) and "the projector does not say the round earned championship points" (scoring). Teacher projector; not touched here. The student-side stages pass. |
 
-**Mutations.** 37 mutations of the new code, each run against `studentHonestFailures.test.mjs` (the arrival one
-against `appUrlArrival.test.mjs`): all 37 caught. They cover:
-- every App catch (`null`, a toast back, the new-problem result dropped);
-- each of the five solver commits ignoring the answer, the alert's role, the retry's board guard;
-- the relation solver applying an unsaved step, applying before saving, and dropping the answer;
-- the new problem ignoring the answer, throwing work away first, and its alert;
-- the words module keeping program or SDK errors, or ignoring the fallback;
-- the Live Challenge screens and SessionGate showing raw text, a missing console line, App passing a message;
-- the expired extension, the three "extra time" wirings and the pill's words;
-- the arrival queue kept off the workspace;
-- the save notice: restoring a retired draft, not keeping, keeping device-full, never restoring, and App clearing
-  as an account arrives.
+Run in the first round on `ae66df2c`'s code and not re-run (the integrator's list for this round leaves them out):
+`staleTabRecord`, `composedDraftRestore`, `draftEditTime`, `algebraicSubstitutionHandoff` and the teacher journeys
+`draftCrossDeviceJourneys`, `recoveryDraftCrossDeviceJourneys`, `restoredDraftFocusRaceJourneys`,
+`studentScreenChange`, `enduranceJourneys` all passed. `studentHomeToday` fails the same on the base (this container
+cannot reach Firestore: "client is offline" console errors). `liveChallengeShellQa` has the same 2 teacher-projector
+findings on the base ("the projector round table is not in the round's order"; "the projector does not say the round
+earned championship points").
 
-The four rewritten contracts (`appShellSplit`, `submitNotQueued` ×2, `appUrlArrival`) were each broken once and went
-red. Browser drivers: `stepNotQueued` replays the old `null` host; the reload journey was run against App's old
-effect (above).
+**Mutations.** 52 mutations of the new code, each run against the test that guards it, all caught. They cover:
+- every App catch, each solver commit (the balanced move's `if` anchored, S2), the alert, the retry's staging guard,
+  the staging effect and key (S1);
+- the relation solver's order and stop, and the flip's stop and its history before the save (B2);
+- the new problem's order and alert;
+- the words: program and SDK errors kept, the fallback ignored, a server answer called the connection, an SDK sentence
+  passing for ours or called the connection, a server refusal offering retry (B1);
+- the Live Challenge screens, SessionGate and App's hand-off;
+- the expired extension; "extra time" said without extra time, before the class's close, or not wired (N7);
+- the arrival queue;
+- the kept notice and App's account rule.
+The account rule (B3), as the reviewer listed: the guard dropped, the clear dropped, `!==` → `===`, the assignment
+moved above the check, the old cleanup put back — each red in both `draftSaveFailureNotice` and
+`studentHonestFailures`, which now run the effect's own body through one tab's life. In the browser, `stepNotQueued`
+goes red (4 checks) with the flip's stop removed. Its staging scene stays green with the S1 effect removed, because Undo
+clears the message on its own; that effect is held by its contract.
 
 ## The first load
 
-Measured with `node scripts/check-first-load-budget.mjs --report`, on a production build of this branch and of the
-base (a worktree at `530ac3cf`, same `node_modules`). `scripts/first-load-baseline.json` is not edited.
+Measured with `node scripts/check-first-load-budget.mjs --report`, on production builds of this branch and of the
+base (a worktree at `530ac3cf`, same `node_modules`), built the same way. `scripts/first-load-baseline.json` is not
+edited.
 
 | Path | Base | Branch | Change |
 | --- | --- | --- | --- |
-| studentHome | 839.4 KB, 184 files | 840.6 KB, 184 files | **+1.2 KB** (the wave's limit is 847.3 KB; my share ≤ 1.5 KB) |
-| signIn | 291.8 KB, 27 files | 292.5 KB, 27 files | +0.7 KB |
+| studentHome (`npm run build`) | 839.4 KB, 184 files | 840.8 KB, 184 files | **+1.4 KB** (my share ≤ 1.5 KB) |
+| studentHome (`npm run build:firebase`) | 839.6 KB | 841.0 KB | +1.4 KB |
+| signIn (`npm run build`) | 291.8 KB, 27 files | 292.6 KB, 27 files | +0.8 KB |
 
 Where it goes:
-- the error words, which are now on the first load (SessionGate) instead of only in Test Cycle's lazy chunk, ~0.8 KB;
+- the error words, which are now on the first load (SessionGate) instead of only in Test Cycle's lazy chunk, ~0.9 KB with
+  B1's SDK sentences;
 - the two new not-queued sentences, ~0.3 KB;
-- the kept save notice, ~0.2 KB.
+- the kept save notice and its account rule, ~0.2 KB.
 
 Two things kept it down:
 - `studentErrorWords.js` imports nothing, so the sign-in path does not also load the navigation model (+1.9 KB on
@@ -310,7 +319,9 @@ Nothing here may load lazily: the failure notices have to show when a dynamic im
 - `src/platform/student/studentErrorText.js` was split. It re-exports everything it had; behaviour is unchanged except
   that SDK and program errors are no longer kept.
 - Tests rewritten per SOURCE_CONTRACT_PLAYBOOK: `appShellSplit` (1 assertion), `appUrlArrival` (1), `submitNotQueued`
-  (2).
+  (2), `draftSaveFailureNotice` (the account rule, now run; review B3). New helper:
+  `tests/platform/helpers/draftHealthAccountEffect.mjs`.
+- `src/platform/algebra/simplify/SimplifyPanel.jsx`: one comment (review S3).
 - For W7-7 (CI hygiene): two new drivers are in no workflow yet:
   - `tests/browser/stepNotQueued.mjs` (plain Vite on 5199);
   - `tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs` (teacher harness on 5188).
