@@ -79,6 +79,17 @@ name: Student and Teacher Journeys
 #                          must act; finishing lands on the results page; a
 #                          skipped question is the way back; Enter and focus
 #                          after a closed question; Chromebook and phone)
+#   Honors version         tests/browser/teacherWorkflow/honorsCcmrJourneys.mjs
+#                          (its own job: a lesson imported for a Standard and
+#                          an Honors class; the audited CCMR item that failed
+#                          Create in production is caught in Review with its
+#                          failure, a validated item takes its place, is
+#                          previewed as a student and swapped on request; a
+#                          failed save writes nothing; Create writes exactly
+#                          the two versions previewed; when no item passes,
+#                          the teacher's decision is recorded; a failed bank
+#                          call recovers with Try again; desktop, Chromebook,
+#                          phone; the bank answered by functions/lib)
 #   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
 #                          (its own job: refresh on every student screen and
 #                          question, Back/Forward Home -> question -> Grades,
@@ -99,6 +110,7 @@ on:
     paths:
       - "src/**"
       - "functions/shared/**"
+      - "functions/lib/ccmrAssignmentBank.js"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/linearMultipleRepresentations*"
@@ -227,6 +239,28 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1440x900,390x844"
         run: node tests/browser/teacherWorkflow/districtIdJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. About four
+  # minutes: three journeys on desktop, Chromebook and phone.
+  honors-ccmr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: The Honors version is proven in Review and Create publishes exactly it
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/honorsCcmrJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit. One journey,
   # 1366x768 and 390x844.

@@ -182,25 +182,109 @@ function sameTeksCandidates({ framework, domainId, teksCodes = [], excludeDocume
   });
 }
 
-function rankCandidates(candidates, { dok, difficultyBand, seed }) {
+/*
+ * BREADTH OF A SAME-TEKS MATCH.
+ *
+ * A Digital SAT item names the one TEKS it assesses. An ACT or TSIA2 "native"
+ * item is crosswalked onto every TEKS its skill touches: the ACT
+ * translated-point item lists 152, from Grade 6 through Algebra II. It shares
+ * a TEKS with nearly every lesson, which is how a point-translation item was
+ * put in the place of an inverse-functions Practice question. A candidate
+ * whose alignment is that broad is still a fallback, but never ahead of one
+ * aligned narrowly enough to say what it assesses.
+ */
+const BROAD_TEKS_ALIGNMENT = 6;
+const teksBreadthTier = (document) => (documentTeksCodes(document).length >= BROAD_TEKS_ALIGNMENT ? 1 : 0);
+
+function candidateScore(document, { dok, difficultyBand }) {
   const desiredDok = Number(dok);
   const desiredDifficulty = Number(difficultyBand);
+  const directPenalty = document?.ccmrFamilyRole === "direct" || Number(document?.ccmrChallengeTier) === 1 ? 0 : 20;
+  const dokPenalty = Number.isFinite(desiredDok)
+    ? Math.abs((Number(document?.dok) || desiredDok) - desiredDok) * 3
+    : 0;
+  const difficultyPenalty = Number.isFinite(desiredDifficulty)
+    ? Math.abs((Number(document?.difficultyBand) || desiredDifficulty) - desiredDifficulty) * 2
+    : 0;
+  return directPenalty + dokPenalty + difficultyPenalty;
+}
+
+// One framework's candidates, best first. The first entry is the document the
+// single-choice ranking always returned (a seeded pick among the equally best),
+// so asking for one candidate is unchanged; the rest follow in score order.
+function rankCandidates(candidates, { dok, difficultyBand, seed }) {
   const ranked = candidates
-    .map((document) => {
-      const directPenalty = document?.ccmrFamilyRole === "direct" || Number(document?.ccmrChallengeTier) === 1 ? 0 : 20;
-      const dokPenalty = Number.isFinite(desiredDok)
-        ? Math.abs((Number(document?.dok) || desiredDok) - desiredDok) * 3
-        : 0;
-      const difficultyPenalty = Number.isFinite(desiredDifficulty)
-        ? Math.abs((Number(document?.difficultyBand) || desiredDifficulty) - desiredDifficulty) * 2
-        : 0;
-      return { document, score: directPenalty + dokPenalty + difficultyPenalty };
-    })
+    .map((document) => ({ document, score: candidateScore(document, { dok, difficultyBand }) }))
     .sort((left, right) => left.score - right.score || clean(left.document.id).localeCompare(clean(right.document.id)));
-  if (!ranked.length) return null;
-  const bestScore = ranked[0].score;
-  const best = ranked.filter((entry) => entry.score === bestScore);
-  return best[stableHash(seed) % best.length]?.document || best[0]?.document || null;
+  if (!ranked.length) return [];
+  const best = ranked.filter((entry) => entry.score === ranked[0].score);
+  const first = best[stableHash(seed) % best.length] || best[0];
+  return [first, ...ranked.filter((entry) => entry !== first)].map((entry) => entry.document);
+}
+
+function compatibleCandidates({ framework, domainId, teksCodes, excludeDocumentIds, sourceQuestion }) {
+  const candidates = sameTeksCandidates({ framework, domainId, teksCodes, excludeDocumentIds });
+  const sourceProfile = sourceQuestion ? deriveSourceSemanticProfile(sourceQuestion) : null;
+  return sourceProfile
+    ? candidates.filter((document) => isSemanticallyCompatible(sourceProfile, document))
+    : candidates;
+}
+
+// The TEKS a source question names as primary — what the lesson is teaching
+// with it — as opposed to a secondary code it also touches. A transformations
+// question tagged A.3E (primary) and A.3C (secondary) is better served by an
+// A.3E item than by an intercepts item that shares only A.3C.
+function primaryTeksCodes(question = {}) {
+  const declared = (Array.isArray(question?.alignments) ? question.alignments : [])
+    .filter((entry) => clean(entry?.framework || "teks") === "teks" && entry?.code && clean(entry?.role).toLowerCase() === "primary")
+    .map((entry) => normalizeTeks(entry.code));
+  if (declared.length) return declared;
+  const standard = typeof question?.standard === "string" ? question.standard : question?.primaryStandard;
+  return standard ? [normalizeTeks(standard)] : [];
+}
+
+// Narrow alignments first, and among those the ones on the source's primary
+// TEKS; within a group, the framework order and ranking the single choice has
+// always used.
+function rankWithinBreadth(rankedByFramework, sourceQuestion) {
+  const primary = new Set(sourceQuestion ? primaryTeksCodes(sourceQuestion) : []);
+  const primaryTier = (document) => (primary.size && !documentTeksCodes(document).some((code) => primary.has(code)) ? 1 : 0);
+  return [[0, 0], [0, 1], [1, 0], [1, 1]].flatMap(([breadth, emphasis]) => rankedByFramework.flatMap((documents) => (
+    documents.filter((document) => teksBreadthTier(document) === breadth && primaryTier(document) === emphasis)
+  )));
+}
+
+/**
+ * Every compatible audited document for one place, best first, so a caller
+ * that finds the first one unusable has the next one ready (validated
+ * alternatives, canonicalCcmrHydration.js). `framework` restricts the search
+ * to one framework (a direct exam-style claim); without it every framework is
+ * searched in the seeded rotation the single choice uses.
+ */
+function rankAuditedBankDocuments({
+  framework = null,
+  domainId = null,
+  teksCodes = [],
+  dok = null,
+  difficultyBand = null,
+  seed = "",
+  excludeDocumentIds = [],
+  sourceQuestion = null,
+  limit = Infinity,
+} = {}) {
+  let frameworks;
+  if (framework) {
+    frameworks = [framework];
+  } else {
+    const all = Object.keys(FRAMEWORK_FILES);
+    const start = stableHash(seed) % all.length;
+    frameworks = all.map((unused, index) => all[(start + index) % all.length]);
+  }
+  const rankedByFramework = frameworks.map((entry) => rankCandidates(
+    compatibleCandidates({ framework: entry, domainId, teksCodes, excludeDocumentIds, sourceQuestion }),
+    { dok, difficultyBand, seed: framework ? seed : `${seed}|${entry}` },
+  ));
+  return rankWithinBreadth(rankedByFramework, sourceQuestion).slice(0, Math.max(0, limit));
 }
 
 /**
@@ -221,14 +305,10 @@ function chooseAuditedBankDocument({
   excludeDocumentIds = [],
   sourceQuestion = null,
 } = {}) {
-  const candidates = sameTeksCandidates({ framework, domainId, teksCodes, excludeDocumentIds });
-  if (!candidates.length) return null;
-  const sourceProfile = sourceQuestion ? deriveSourceSemanticProfile(sourceQuestion) : null;
-  const compatible = sourceProfile
-    ? candidates.filter((document) => isSemanticallyCompatible(sourceProfile, document))
-    : candidates;
-  if (!compatible.length) return null;
-  return rankCandidates(compatible, { dok, difficultyBand, seed });
+  if (!framework) return null;
+  return rankAuditedBankDocuments({
+    framework, domainId, teksCodes, dok, difficultyBand, seed, excludeDocumentIds, sourceQuestion, limit: 1,
+  })[0] || null;
 }
 
 function chooseAuditedBankDocumentAnyFramework({
@@ -239,23 +319,9 @@ function chooseAuditedBankDocumentAnyFramework({
   excludeDocumentIds = [],
   sourceQuestion = null,
 } = {}) {
-  const frameworks = Object.keys(FRAMEWORK_FILES);
-  if (!frameworks.length) return null;
-  const start = stableHash(seed) % frameworks.length;
-  const ordered = frameworks.map((unused, index) => frameworks[(start + index) % frameworks.length]);
-  for (const framework of ordered) {
-    const document = chooseAuditedBankDocument({
-      framework,
-      teksCodes,
-      dok,
-      difficultyBand,
-      seed: `${seed}|${framework}`,
-      excludeDocumentIds,
-      sourceQuestion,
-    });
-    if (document) return document;
-  }
-  return null;
+  return rankAuditedBankDocuments({
+    teksCodes, dok, difficultyBand, seed, excludeDocumentIds, sourceQuestion, limit: 1,
+  })[0] || null;
 }
 
 /**
@@ -348,19 +414,141 @@ function responseFieldToIntent(field = {}, document = {}) {
   return out;
 }
 
+/*
+ * THE TABLE A BANK ITEM SHOWS IS DATA, NOT DECORATION.
+ *
+ * The audited bank carries no structured visuals. A Digital SAT table item
+ * writes its table into the prompt as a LaTeX array; a model-selection item
+ * says "The table shows four observations:" and then lists them. Converted
+ * as plain prompt text, both reach MathMaster's own check as a prompt that
+ * promises a table and a question that contains none — the same blocker
+ * (semanticValidation.js, "refers to a table in its prompt") that stopped
+ * publishing, only for tables. So the conversion carries the table across as
+ * a `table` the multiAnswer renderer draws (QuestionVisual), with the same
+ * rows in the same order. Cells keep their {{placeholders}}; the generator
+ * fills them per student exactly as it fills the prompt. Nothing is invented:
+ * a table is built only from values the item itself states, and a layout this
+ * code does not recognise is left as written (and the item is then judged,
+ * and if necessary skipped, by the client's validation).
+ *
+ * Graphs are deliberately NOT drawn here. Every graph an audited item names
+ * is given in words or by its equation ("the graph of $y=mx+b$"); drawing it
+ * would let a student read off what the item asks them to work out.
+ */
+const TABLE_PROMISE = /\b(the|this|each|following)\s+table\b|\btable\s+(below|above|shown)\b/i;
+// One math span holding only arrays (side by side, separated by spacing).
+const LATEX_ARRAY_SPAN = /\$\s*((?:\\begin\{array\}\{[^}]*\}[\s\S]*?\\end\{array\}(?:\s|\\q?quad|\\[,;:!])*)+)\$/;
+const LATEX_ARRAY = /\\begin\{array\}\{([^}]*)\}([\s\S]*?)\\end\{array\}/g;
+const TABLE_LABEL = /^[A-Za-z][A-Za-z0-9()'_+\-\s]{0,15}$/;
+const TABLE_CELL = /^(?:\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}|-?\d+(?:\.\d+)?)$/;
+const ORDERED_PAIR = /\$\s*\(\s*([^,()$]+?)\s*,\s*([^,()$]+?)\s*\)\s*\$/g;
+const FUNCTION_VALUE = /\$\s*([A-Za-z])\(\s*([^()$]+?)\s*\)\s*=\s*([^$]+?)\s*\$/g;
+
+function tableColumns(labels) {
+  const used = new Set();
+  return labels.map((label, index) => {
+    const base = clean(label).toLowerCase().replace(/[^a-z0-9]+/g, "") || `c${index}`;
+    let key = base;
+    for (let suffix = 2; used.has(key); suffix += 1) key = `${base}${suffix}`;
+    used.add(key);
+    return { key, label: clean(label) };
+  });
+}
+
+function tableFromColumns(labels, columnValues) {
+  if (labels.length < 2 || !labels.every((label) => TABLE_LABEL.test(clean(label)))) return null;
+  const length = columnValues[0]?.length || 0;
+  if (length < 1 || columnValues.some((values) => values.length !== length)) return null;
+  if (!columnValues.every((values) => values.every((value) => TABLE_CELL.test(clean(value))))) return null;
+  const columns = tableColumns(labels);
+  const rows = Array.from({ length }, (unused, rowIndex) => Object.fromEntries(
+    columns.map((column, columnIndex) => [column.key, clean(columnValues[columnIndex][rowIndex])]),
+  ));
+  return { columns, rows };
+}
+
+// One array as columns: { labels, columns }. "x & 1 & 3 \\ \hline f(x) & 5 & 9"
+// with a rule after the first column is a table whose first column names each
+// row: the SAT's horizontal x/f(x) table. A header row (a rule under the first
+// row) is the vertical layout already.
+function latexArrayColumns(spec, body) {
+  const rows = body.split(/\\\\/).map((row) => row.trim()).filter(Boolean);
+  const ruledFirstRow = /\\hline/.test(rows[1] || "") && !/\\hline/.test(rows[0] || "");
+  const cells = rows.map((row) => row.replace(/\\hline/g, "").split("&").map(clean));
+  if (cells.length < 2 || cells.some((row) => row.length < 2 || row.length !== cells[0].length)) return null;
+  if (/^[lcr]\|/.test(spec.replace(/\s+/g, ""))) {
+    return { labels: cells.map((row) => row[0]), columns: cells.map((row) => row.slice(1)) };
+  }
+  if (ruledFirstRow) {
+    const [header, ...rest] = cells;
+    return { labels: header, columns: header.map((unused, index) => rest.map((row) => row[index])) };
+  }
+  return null;
+}
+
+// Stored the way MathMaster draws tables, one column per quantity, which also
+// keeps it inside a phone's width. Tables set side by side over the same
+// inputs (f and g at the same x) are one table with a column for each.
+function latexArrayTable(prompt) {
+  const span = LATEX_ARRAY_SPAN.exec(String(prompt || ""));
+  if (!span) return null;
+  const arrays = [...span[1].matchAll(LATEX_ARRAY)].map((match) => latexArrayColumns(match[1], match[2]));
+  if (!arrays.length || arrays.some((entry) => !entry)) return null;
+  const [first, ...others] = arrays;
+  const sameInputs = others.every((entry) => (
+    entry.labels[0] === first.labels[0]
+    && JSON.stringify(entry.columns[0]) === JSON.stringify(first.columns[0])
+  ));
+  if (!sameInputs) return null;
+  const table = tableFromColumns(
+    [...first.labels, ...others.flatMap((entry) => entry.labels.slice(1))],
+    [...first.columns, ...others.flatMap((entry) => entry.columns.slice(1))],
+  );
+  if (!table) return null;
+  const remaining = String(prompt).replace(span[0], "").replace(/\n{3,}/g, "\n\n").trim();
+  return { prompt: remaining, table, source: "latexArray" };
+}
+
+// "The table shows four observations: $(1,2)$, $(3,5)$, …" — the table the
+// prompt names is exactly the pairs it lists.
+function listedPairsTable(prompt) {
+  const pairs = [...String(prompt || "").matchAll(ORDERED_PAIR)].map((match) => [match[1], match[2]]);
+  if (pairs.length < 2) return null;
+  const table = tableFromColumns(["x", "y"], [pairs.map((pair) => pair[0]), pairs.map((pair) => pair[1])]);
+  return table ? { prompt, table, source: "listedPairs" } : null;
+}
+
+// "The table gives values of an exponential function: $f(0)=A$, $f(1)=B$ …"
+function listedFunctionValuesTable(prompt) {
+  const values = [...String(prompt || "").matchAll(FUNCTION_VALUE)];
+  if (values.length < 2 || new Set(values.map((match) => match[1])).size !== 1) return null;
+  const name = values[0][1];
+  const table = tableFromColumns(["x", `${name}(x)`], [values.map((match) => match[2]), values.map((match) => match[3])]);
+  return table ? { prompt, table, source: "listedFunctionValues" } : null;
+}
+
+function preservedPromptTable(prompt) {
+  const text = String(prompt || "");
+  if (text.includes("\\begin{array}")) return latexArrayTable(text);
+  if (!TABLE_PROMISE.test(text)) return null;
+  return listedPairsTable(text) || listedFunctionValuesTable(text);
+}
+
 function bankDocumentToV5Intent(document = {}, { activityRole = "practice", matchProvenance = null } = {}) {
   const teksCodes = documentTeksCodes(document);
   const framework = clean(document?.assessmentContext?.framework);
   const domainId = examDomain(document, framework);
   const answerFields = (Array.isArray(document.responseFields) ? document.responseFields : [])
     .map((field) => responseFieldToIntent(field, document));
+  const preservedTable = preservedPromptTable(document.prompt);
 
   return {
     questionId: clean(document.id) || undefined,
     familyId: clean(document.familyId) || undefined,
     familyVersion: document.familyVersion ?? undefined,
     standard: teksCodes[0] || undefined,
-    prompt: document.prompt,
+    prompt: preservedTable ? preservedTable.prompt : document.prompt,
+    ...(preservedTable ? { table: preservedTable.table } : {}),
     studentActions: ["multipleResponses"],
     activityRole,
     dok: document.dok,
@@ -389,6 +577,9 @@ function bankDocumentToV5Intent(document = {}, { activityRole = "practice", matc
       documentId: clean(document.id),
       familyId: clean(document.familyId),
       familyVersion: document.familyVersion ?? null,
+      // The item's words are the audited words; only where its table is drawn
+      // changed. Recorded so the provenance says exactly that.
+      ...(preservedTable ? { tableFrom: preservedTable.source } : {}),
       // #359: so a teacher can see which exact item was inserted and why it
       // matched — TEKS codes considered, how many same-TEKS candidates were
       // semantically compatible, and this item's own taskType/representation.
@@ -423,7 +614,72 @@ function directCcmrClaim(question = {}) {
   };
 }
 
-function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
+/*
+ * A PLAN OF VALIDATED ALTERNATIVES, NOT ONE GUESS PER PLACE.
+ *
+ * The server cannot run MathMaster's assignment checks (they live in the
+ * client's Pre-Flight), so a single chosen document per Practice place was
+ * only ever a guess — and when the guess failed those checks, it failed at
+ * Create Assignment, after Pre-Flight had said the lesson was ready. With
+ * `includeCandidates`, hydration also returns `audit.plan`: for every place
+ * the audited target may use, the ranked compatible candidates, already
+ * converted. The client validates them in order and keeps the first that
+ * passes (canonicalCcmrHydration.js). The `assignment` returned is unchanged:
+ * the first choice, as before, for callers that do not validate.
+ */
+const PLAN_VERSION = 1;
+const PLAN_CANDIDATES_PER_PLACE = 5;
+const PLAN_CANDIDATE_BUDGET = 40;
+
+function newPlan(options = {}) {
+  if (options.includeCandidates !== true) return null;
+  return {
+    version: PLAN_VERSION,
+    releaseTarget: RELEASE_TARGET,
+    targetCount: 0,
+    slots: [],
+    budget: Math.max(0, Number(options.candidateBudget ?? PLAN_CANDIDATE_BUDGET)),
+    offered: new Set(),
+  };
+}
+
+function finishPlan(plan) {
+  if (!plan) return undefined;
+  const finished = { ...plan };
+  delete finished.budget;
+  delete finished.offered;
+  return finished;
+}
+
+// Distinct places get distinct items first. The client never uses an item
+// twice and drops one that fails anywhere, so offering every place the same
+// top five left a lesson whose places share TEKS with five items in all, when
+// the bank held dozens. An item already offered elsewhere only fills out a
+// place with too few of its own (a narrow construct, a small pool).
+function planCandidates(plan, rankOptions, intentOptions) {
+  const remaining = Number(plan?.budget);
+  if (!(remaining > 0)) return [];
+  const limit = Math.min(PLAN_CANDIDATES_PER_PLACE, remaining);
+  const excluded = cleanIdList(rankOptions.excludeDocumentIds);
+  const fresh = rankAuditedBankDocuments({
+    ...rankOptions,
+    excludeDocumentIds: [...excluded, ...plan.offered],
+    limit,
+  });
+  const repeats = fresh.length < limit
+    ? rankAuditedBankDocuments({ ...rankOptions, excludeDocumentIds: excluded, limit: limit + fresh.length })
+      .filter((document) => plan.offered.has(clean(document.id)))
+      .slice(0, limit - fresh.length)
+    : [];
+  fresh.forEach((document) => plan.offered.add(clean(document.id)));
+  const documents = [...fresh, ...repeats];
+  plan.budget -= documents.length;
+  return documents.map((document) => bankDocumentToV5Intent(document, intentOptions));
+}
+
+const cleanIdList = (values) => [...new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean))];
+
+function ensureAuditedCcmrPractice(assignment = {}, audit = null, options = {}) {
   const resultAudit = audit || {
     releaseTarget: RELEASE_TARGET,
     replaced: 0,
@@ -431,8 +687,14 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     targetCount: 0,
     misses: [],
   };
+  const plan = resultAudit.plan || newPlan(options);
+  const finish = (result) => {
+    if (plan) resultAudit.plan = finishPlan(plan);
+    return result;
+  };
+  const excludedByCaller = cleanIdList(options.excludeDocumentIds);
   if (!assignment || typeof assignment !== "object" || !Array.isArray(assignment.sections)) {
-    return { assignment, audit: resultAudit };
+    return finish({ assignment, audit: resultAudit });
   }
 
   const positions = [];
@@ -449,20 +711,24 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
   // teacher's question count unchanged.
   if (positions.length < 5) {
     resultAudit.targetCount = 0;
-    return { assignment, audit: resultAudit };
+    if (plan) plan.targetCount = 0;
+    return finish({ assignment, audit: resultAudit });
   }
 
   const targetCount = Math.max(1, Math.round(positions.length * 0.15));
   resultAudit.targetCount = targetCount;
+  if (plan) plan.targetCount = targetCount;
   const existing = positions.filter(({ question }) => isAuditedBankQuestion(question));
-  if (existing.length >= targetCount) {
+  // A plan is still built when the target is already met: a place the client
+  // finds it must keep authored (a direct claim no audited item can pass for)
+  // needs somewhere else to put the target.
+  if (existing.length >= targetCount && !plan) {
     return { assignment, audit: resultAudit };
   }
 
-  const usedDocumentIds = new Set(
-    existing.map(({ question }) => clean(question?.ccmrSource?.documentId)).filter(Boolean),
-  );
-  let needed = targetCount - existing.length;
+  const existingDocumentIds = existing.map(({ question }) => clean(question?.ccmrSource?.documentId)).filter(Boolean);
+  const usedDocumentIds = new Set([...existingDocumentIds, ...excludedByCaller]);
+  let needed = Math.max(0, targetCount - existing.length);
   const mutableSections = assignment.sections.map((section) => ({
     ...section,
     questions: Array.isArray(section?.questions) ? [...section.questions] : section?.questions,
@@ -492,7 +758,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     ));
   const compatibilityMisses = [];
   for (const position of candidates) {
-    if (needed <= 0) break;
+    if (needed <= 0 && !plan) break;
     const sourceQuestion = mutableSections[position.sectionIndex]?.questions?.[position.questionIndex];
     if (!sourceQuestion || isAuditedBankQuestion(sourceQuestion)) continue;
     const teksCodes = questionTeksCodes(sourceQuestion);
@@ -504,13 +770,43 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
       sourceQuestion?.questionId || sourceQuestion?.familyId || sourceQuestion?.prompt || position.questionIndex,
       teksCodes.join(","),
     ].join("|");
-    const bankDocument = chooseAuditedBankDocumentAnyFramework({
+    const rankOptions = {
       teksCodes,
       dok: sourceQuestion.dok,
       difficultyBand: sourceQuestion.difficultyBand,
       seed,
-      excludeDocumentIds: [...usedDocumentIds],
       sourceQuestion,
+    };
+    const activityRole = clean(sourceQuestion.activityRole) || "practice";
+
+    if (plan) {
+      // Every place's alternatives exclude only what the assignment already
+      // holds and what the teacher set aside: which place keeps which
+      // candidate is the client's decision, after validation.
+      const planExclusions = [...existingDocumentIds, ...excludedByCaller];
+      const diagnostics = explainAuditedBankMatch(sourceQuestion, { ...rankOptions, excludeDocumentIds: planExclusions });
+      plan.slots.push({
+        kind: "practiceTarget",
+        sectionIndex: position.sectionIndex,
+        questionIndex: position.questionIndex,
+        questionId: clean(sourceQuestion.questionId) || null,
+        teksCodes,
+        dok: Number.isFinite(Number(sourceQuestion.dok)) ? Number(sourceQuestion.dok) : null,
+        reason: diagnostics.reason,
+        sameTeksCount: diagnostics.sameTeksCount,
+        semanticallyCompatibleCount: diagnostics.semanticallyCompatibleCount,
+        candidates: planCandidates(
+          plan,
+          { ...rankOptions, excludeDocumentIds: planExclusions },
+          { activityRole, matchProvenance: diagnostics },
+        ),
+      });
+    }
+    if (needed <= 0) continue;
+
+    const bankDocument = chooseAuditedBankDocumentAnyFramework({
+      ...rankOptions,
+      excludeDocumentIds: [...usedDocumentIds],
     });
     if (!bankDocument) {
       // #359: keep the teacher's original question and record WHY nothing
@@ -518,7 +814,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
       // semantic-fit gate, versus no same-TEKS item existing at all — so
       // Preflight can surface a specific, honest message instead of
       // inserting an unrelated question merely to hit the 15% target.
-      const diagnostics = explainAuditedBankMatch(sourceQuestion, { teksCodes, dok: sourceQuestion.dok, difficultyBand: sourceQuestion.difficultyBand, seed, excludeDocumentIds: [...usedDocumentIds] });
+      const diagnostics = explainAuditedBankMatch(sourceQuestion, { ...rankOptions, excludeDocumentIds: [...usedDocumentIds] });
       if (diagnostics.reason !== "no_same_teks_audited_item") {
         compatibilityMisses.push({
           sectionIndex: position.sectionIndex,
@@ -536,9 +832,9 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     const replacementCodes = new Set(documentTeksCodes(bankDocument));
     if (!teksCodes.some((code) => replacementCodes.has(code))) continue;
 
-    const matchProvenance = explainAuditedBankMatch(sourceQuestion, { teksCodes, dok: sourceQuestion.dok, difficultyBand: sourceQuestion.difficultyBand, seed, excludeDocumentIds: [...usedDocumentIds] });
+    const matchProvenance = explainAuditedBankMatch(sourceQuestion, { ...rankOptions, excludeDocumentIds: [...usedDocumentIds] });
     mutableSections[position.sectionIndex].questions[position.questionIndex] = bankDocumentToV5Intent(bankDocument, {
-      activityRole: clean(sourceQuestion.activityRole) || "practice",
+      activityRole,
       matchProvenance,
     });
     usedDocumentIds.add(clean(bankDocument.id));
@@ -555,13 +851,14 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     });
   }
 
-  return {
+  return finish({
     assignment: { ...assignment, sections: mutableSections },
     audit: resultAudit,
-  };
+  });
 }
 
-function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePracticeTarget = false } = {}) {
+function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, options = {}) {
+  const { ensurePracticeTarget = false } = options || {};
   const audit = {
     releaseTarget: RELEASE_TARGET,
     replaced: 0,
@@ -569,7 +866,11 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePrac
     targetCount: 0,
     misses: [],
   };
+  const plan = newPlan(options);
+  if (plan) audit.plan = plan;
+  const excludedByCaller = cleanIdList(options?.excludeDocumentIds);
   if (!assignment || typeof assignment !== "object" || !Array.isArray(assignment.sections)) {
+    if (plan) audit.plan = finishPlan(plan);
     return { assignment, audit };
   }
 
@@ -579,7 +880,7 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePrac
     const questions = section.questions.map((question, questionIndex) => {
       const claim = directCcmrClaim(question);
       if (!claim || isAuditedBankQuestion(question)) return question;
-      const bankDocument = chooseAuditedBankDocument({
+      const rankOptions = {
         ...claim,
         seed: [
           assignment?.assignment?.title,
@@ -589,37 +890,53 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePrac
           claim.domainId,
           claim.teksCodes.join(","),
         ].join("|"),
+        excludeDocumentIds: excludedByCaller,
+      };
+      const activityRole = clean(question.activityRole) || role || "practice";
+      const matchProvenance = explainAuditedBankMatch(question, {
+        teksCodes: claim.teksCodes,
+        dok: claim.dok,
+        difficultyBand: claim.difficultyBand,
       });
+      if (plan) {
+        // The place keeps the teacher's question until the client finds a
+        // candidate that passes; the claim names its own framework and domain.
+        plan.slots.push({
+          kind: "directClaim",
+          sectionIndex,
+          questionIndex,
+          questionId: clean(question.questionId) || null,
+          framework: claim.framework,
+          domainId: claim.domainId,
+          teksCodes: claim.teksCodes,
+          dok: Number.isFinite(Number(claim.dok)) ? Number(claim.dok) : null,
+          reason: matchProvenance.reason,
+          sameTeksCount: matchProvenance.sameTeksCount,
+          semanticallyCompatibleCount: matchProvenance.semanticallyCompatibleCount,
+          candidates: planCandidates(plan, rankOptions, { activityRole, matchProvenance }),
+        });
+      }
+      const bankDocument = chooseAuditedBankDocument(rankOptions);
       if (!bankDocument) {
         // #359: distinguish "no same-TEKS item" from "a same-TEKS item
         // exists but is a different mathematical construct" so Preflight can
         // tell the teacher which one happened, instead of silently forcing
         // in an unrelated question or staying silent about the gap.
-        const diagnostics = explainAuditedBankMatch(question, {
-          teksCodes: claim.teksCodes,
-          dok: claim.dok,
-          difficultyBand: claim.difficultyBand,
-        });
         audit.misses.push({
           sectionIndex,
           questionIndex,
           framework: claim.framework,
           domainId: claim.domainId,
           teksCodes: claim.teksCodes,
-          reason: diagnostics.reason,
-          sameTeksCount: diagnostics.sameTeksCount,
-          semanticallyCompatibleCount: diagnostics.semanticallyCompatibleCount,
+          reason: matchProvenance.reason,
+          sameTeksCount: matchProvenance.sameTeksCount,
+          semanticallyCompatibleCount: matchProvenance.semanticallyCompatibleCount,
         });
         return question;
       }
       audit.replaced += 1;
-      const matchProvenance = explainAuditedBankMatch(question, {
-        teksCodes: claim.teksCodes,
-        dok: claim.dok,
-        difficultyBand: claim.difficultyBand,
-      });
       return bankDocumentToV5Intent(bankDocument, {
-        activityRole: clean(question.activityRole) || role || "practice",
+        activityRole,
         matchProvenance,
       });
     });
@@ -627,9 +944,9 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePrac
   });
 
   const replacedAssignment = { ...assignment, sections };
-  return ensurePracticeTarget
-    ? ensureAuditedCcmrPractice(replacedAssignment, audit)
-    : { assignment: replacedAssignment, audit };
+  if (ensurePracticeTarget) return ensureAuditedCcmrPractice(replacedAssignment, audit, options);
+  if (plan) audit.plan = finishPlan(plan);
+  return { assignment: replacedAssignment, audit };
 }
 
 module.exports = {
@@ -639,6 +956,7 @@ module.exports = {
   questionTeksCodes,
   chooseAuditedBankDocument,
   chooseAuditedBankDocumentAnyFramework,
+  rankAuditedBankDocuments,
   bankDocumentToV5Intent,
   isAuditedBankQuestion,
   ensureAuditedCcmrPractice,

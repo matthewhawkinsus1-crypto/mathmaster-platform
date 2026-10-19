@@ -13,7 +13,7 @@
 import { Suspense } from 'react';
 // Shared with App so the sheets form their own chunk that links before App.css.
 import '../shell/leadingStyles.js';
-import { addDoc, collection, deleteField, doc, runTransaction, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
 import { updateAssignmentClassroomPublications } from '../../classroomApi';
@@ -50,13 +50,12 @@ import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePo
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../platform/assessment/testCycleContractEdit.js';
 import { currentGradingPeriodStamp } from '../../platform/student/gradingPeriods.js';
 import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStoredAssignmentForReuse } from '../../platform/assignments/libraryAssignmentReuse.js';
-import { applyCcmrHydrationToCanonicalAssignment } from '../../platform/assignments/canonicalCcmrHydration.js';
+import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
 import { buildReturnCheckInEvent } from '../../platform/attendance/returnCheckIn.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution } from '../../platform/teacher/parentContactStore.js';
-import { inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
 import { certifyHonorsExtensionQuestion } from '../../platform/rigor/honorsExtensionRecipes.js';
 import { withAppendedQuestionSections } from '../../platform/rigor/honorsExtensionSwap.js';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
@@ -406,9 +405,23 @@ export default function TeacherWorkspace({
         && Array.isArray(raw.sections)
         && !isCanonicalSelfExport
       ) {
-        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false });
-        sourceText = JSON.stringify(hydrated.assignment);
-        ccmrAudit = hydrated.audit;
+        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false, includeCandidates: true });
+        // A question written as exam practice becomes the audited item it
+        // imitates only when MathMaster's checks pass with that item in its
+        // place; one no offered item passes for stays as written
+        // (canonicalCcmrHydration.js). Compiled as written only when there is
+        // such a question to prove.
+        let authoredAssignmentV5 = null;
+        if ((hydrated.audit?.plan?.slots || []).some((slot) => slot?.kind === 'directClaim')) {
+          try {
+            authoredAssignmentV5 = parseAssignmentBlueprintText(String(text || '')).assignmentV5;
+          } catch {
+            // Not compilable as written: the server's own answer, as before.
+          }
+        }
+        const proven = proveImportedCcmrClaims({ rawAssignment: raw, authoredAssignmentV5, hydration: hydrated });
+        sourceText = JSON.stringify(proven.assignment);
+        ccmrAudit = proven.audit;
       }
     } catch (error) {
       console.warn('CCMR assignment hydration was skipped', error);
@@ -456,8 +469,12 @@ export default function TeacherWorkspace({
     return { ok: true, warnings, repairs: result.parsed.repairs || [], ccmrAudit };
   };
 
-  const handleCreateAssignment = async (teacherReview, reviewedAssignmentV5) => {
+  const handleCreateAssignment = async (teacherReview, reviewedAssignmentV5, { honorsCandidate = null } = {}) => {
     const sourceIncompleteDraftId = assignmentPreflight?.incompleteDraftId || null;
+    // Set once the assignment documents are written. A failure before that
+    // created nothing and leaves the review open to try again; a failure after
+    // it must never read as "not created", or a second press duplicates it.
+    let committed = false;
     try {
       if (!teacherReview || typeof teacherReview !== 'object') {
         throw new Error('Publishing requires the completed Assignment Review settings.');
@@ -666,48 +683,35 @@ export default function TeacherWorkspace({
       // correct answer: nobody has been given it, so there is nothing to split.
       const destinationGroups = buildDestinationGroups({ assignedClassIds, classes });
       const hasHonorsDestination = destinationGroups.some((entry) => entry.courseLevel === 'honors');
-      let honorsParsedQuestions = parsedQuestions;
-      // The server is the source of truth for whether this authored Practice
-      // section is large enough to carry the ~15% audited CCMR target.
-      // Default to strict if an audit is ever unavailable.
-      let honorsCcmrTargetRequired = true;
-      // #359: when the target was required but nothing was sourced, name WHY
-      // — same-TEKS items exist but none fit this question's construct,
-      // versus no same-TEKS item existing at all — instead of a single generic
-      // "could not find" message either way.
-      let honorsCcmrGapMessage = '';
 
-      // CCMR is destination-aware. Standard destinations keep the authored
-      // Practice. When an Honors destination is actually selected, MathMaster
-      // asks the server to source the audited V2.1 target on the same TEKS,
-      // then compiles that Honors-only V5 variant through the normal pipeline.
-      if (hasHonorsDestination) {
-        const hydratedHonors = await hydrateAssignmentCcmr(reviewedV5, { ensurePracticeTarget: true });
-        const honorsCanonical = applyCcmrHydrationToCanonicalAssignment({
-          baseAssignmentV5: reviewedV5,
-          hydratedAssignment: hydratedHonors.assignment,
-        });
-        honorsParsedQuestions = normalizeAssignmentQuestions(
-          validateAssignmentQuestions(honorsCanonical.questions, { variantMode }),
-        );
-        if (hydratedHonors?.audit && Object.prototype.hasOwnProperty.call(hydratedHonors.audit, 'targetCount')) {
-          honorsCcmrTargetRequired = Number(hydratedHonors.audit.targetCount || 0) > 0;
-        }
-        const honorsMisses = Array.isArray(hydratedHonors?.audit?.misses) ? hydratedHonors.audit.misses : [];
-        const honorsSemanticGap = honorsMisses.some((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
-          || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
-        honorsCcmrGapMessage = honorsSemanticGap
-          ? 'The audited CCMR bank has items on this lesson’s TEKS, but none that match the question’s construct (for example, system dimension, or linear vs. linear–quadratic). MathMaster kept the authored Practice question rather than substitute an unrelated item.'
-          : 'MathMaster could not find any audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS.';
-      }
-
-      const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, {
-        allowNarrowCheckpoint: true,
-        ccmrTargetRequired: honorsCcmrTargetRequired,
-      });
+      // THE HONORS VERSION IS THE ONE PRE-FLIGHT PROVED.
+      //
+      // CCMR is destination-aware: Standard destinations keep the authored
+      // Practice, and an Honors destination gets audited CCMR Fidelity V2.1
+      // items on the same TEKS. Those used to be sourced HERE, after Pre-Flight
+      // had said the lesson was ready — so an audited item that failed
+      // MathMaster's checks ("Question 24 refers to a graph in its prompt…")
+      // failed Create, where it could not be shown, replaced or repaired.
+      // Pre-Flight now prepares the Honors version, proves every item in place
+      // and previews it (canonicalCcmrHydration.js). Creation publishes that
+      // exact object, checked once more by the same model, or nothing: it never
+      // sources, swaps or repairs a question, so it cannot fail on one.
+      const honorsVersion = hasHonorsDestination
+        ? confirmHonorsCandidateForCreate({
+          honorsCandidate,
+          reviewedAssignmentV5: reviewedCandidate,
+          honorsEnrichmentQuestion: teacherReview?.honorsEnrichmentQuestion || null,
+        })
+        : null;
+      const honorsParsedQuestions = honorsVersion
+        ? normalizeAssignmentQuestions(validateAssignmentQuestions(flattenV5Sections(honorsVersion.assignmentV5), { variantMode, allowFixed: variantMode === 'shared' }))
+        : null;
+      const sourceHonorsReport = honorsVersion?.honorsReport || null;
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
-      const writeAssignmentVariant = async ({ destination, questions }) => {
+      // Every document this publish writes, built before anything is written,
+      // so a payload that cannot be saved stops the publish while nothing exists.
+      const planAssignmentVariantWrite = ({ destination, questions, sectionsSource }) => {
         const assignmentRef = doc(collection(db, 'assignments'));
         const labSuffix = `${destination.course}-${destination.courseLevel}-${assignmentRef.id.slice(0, 8)}`;
         const privateLabWrites = [];
@@ -730,7 +734,7 @@ export default function TeacherWorkspace({
           ...((destination.classIds || []).length ? currentGradingPeriodStamp(gradingPeriodSettings) : {}),
           assignedClassPeriods: destination.periods,
           assignedClassIds: destination.classIds || [],
-          sections: rebuildV5SectionsFromQuestions(reviewedV5, variantQuestions),
+          sections: rebuildV5SectionsFromQuestions(sectionsSource, variantQuestions),
           courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
           rigorVariant: destination.courseLevel,
           rigorVariantGroupId: splitVariantGroupId,
@@ -741,83 +745,67 @@ export default function TeacherWorkspace({
           }),
           honorsContractVersion: destination.courseLevel === 'honors' ? 1 : null,
           honorsContractScope: destination.courseLevel === 'honors' ? sourceHonorsReport.scope : null,
+          // How this Honors version's CCMR was decided: the audited items it
+          // carries, or the teacher's recorded choice when none passed.
+          ...(destination.courseLevel === 'honors' ? { honorsCcmr: honorsVersion.record } : {}),
         };
         assertFirestoreSafeAssignmentPayload(payload);
-        if (privateLabWrites.length) {
-          const batch = writeBatch(db);
-          batch.set(assignmentRef, payload);
-          privateLabWrites.forEach(({ nextLabId, definition, activity }) => batch.set(doc(db, 'modelingLabDefinitions', nextLabId), {
-            ...definition,
-            labId: nextLabId,
-            assignmentId: assignmentRef.id,
-            activityId: activity.activityId || null,
-            activityRole: activity.role || 'classwork',
-            updatedAt: new Date(),
-          }));
-          await batch.commit();
-        } else {
-          await setDoc(assignmentRef, payload);
-        }
-        return { id: assignmentRef.id, ...payload };
+        return { assignmentRef, payload, privateLabWrites };
       };
 
       const destinationVariants = destinationGroups.map((destination) => {
-        let destinationQuestions = parsedQuestions;
-        if (destination.courseLevel === 'honors') {
-          destinationQuestions = honorsParsedQuestions;
-          let enrichmentQuestion = null;
-          if (!sourceHonorsReport.isHonorsReady) {
-            if (sourceHonorsReport.ccmrTargetRequired && !sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error(`${honorsCcmrGapMessage || 'MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination.'} Review the Practice TEKS or reduce the independent Practice section below the CCMR target threshold.`);
-            }
-            if (!teacherReview?.honorsEnrichmentQuestion) {
-              throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
-            }
-            // The extension the teacher reviewed in Pre-Flight extends THIS
-            // assignment's mathematics, so every Honors destination gets that
-            // same one, whatever course a destination class profile names. It
-            // was rebuilt per destination course once, which is how an Algebra I
-            // lesson was given an "Algebra II" extension. Certified again here:
-            // publish never stores an extension Pre-Flight would refuse.
-            enrichmentQuestion = teacherReview.honorsEnrichmentQuestion;
-            const certification = certifyHonorsExtensionQuestion(enrichmentQuestion);
-            if (!certification.ok) {
-              throw new Error(`The Honors extension cannot be published because it does not pass MathMaster's checks. Return to Pre-Flight and add it again:\n${certification.errors.join('\n')}`);
-            }
-          }
-          destinationQuestions = normalizeAssignmentQuestions([
-            ...honorsParsedQuestions,
-            ...(enrichmentQuestion ? [enrichmentQuestion] : []),
-          ]);
-          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, {
-            allowNarrowCheckpoint: true,
-            ccmrTargetRequired: honorsCcmrTargetRequired,
-          });
-          if (!finalHonorsReport.isHonorsReady) throw new Error(`Honors preflight is still missing: ${finalHonorsReport.missing.join(', ')}.`);
-          validateAssignmentQuestions(destinationQuestions, { variantMode, allowFixed: variantMode === 'shared' });
+        if (destination.courseLevel !== 'honors') {
+          return { destination, questions: parsedQuestions, sectionsSource: reviewedV5 };
         }
-        return { destination, questions: destinationQuestions };
+        // The extension the teacher reviewed in Pre-Flight extends THIS
+        // assignment's mathematics, so every Honors destination gets that
+        // same one, whatever course a destination class profile names. It
+        // was rebuilt per destination course once, which is how an Algebra I
+        // lesson was given an "Algebra II" extension. It is already in place in
+        // the Honors version Pre-Flight proved; certified again here, so
+        // publish never stores an extension Pre-Flight would refuse.
+        const enrichmentQuestion = teacherReview?.honorsEnrichmentQuestion || null;
+        if (enrichmentQuestion) {
+          const certification = certifyHonorsExtensionQuestion(enrichmentQuestion);
+          if (!certification.ok) {
+            throw new Error(`The Honors extension cannot be published because it does not pass MathMaster's checks. Return to Pre-Flight and add it again:\n${certification.errors.join('\n')}`);
+          }
+        }
+        return { destination, questions: honorsParsedQuestions, sectionsSource: honorsVersion.assignmentV5 };
       });
 
-      const createdAssignments = [];
-      if (creationMode === 'library') {
+      const plannedWrites = creationMode === 'library'
         // ONE canonical document, deliberately without a course/rigor variant.
         // Choosing a destination now would be guessing: the teacher has not said
         // which classes get it, and materialising a Standard variant today would
         // be wrong the moment they assign it to an Honors class. The split runs
         // when the assignment is actually assigned, through the same helper.
-        createdAssignments.push(await writeAssignmentVariant({
+        ? [planAssignmentVariantWrite({
           destination: { course: null, courseLevel: null, periods: [] },
           questions: parsedQuestions,
+          sectionsSource: reviewedV5,
+        })]
+        : destinationVariants.map(planAssignmentVariantWrite);
+
+      // ONE COMMIT FOR EVERY DESTINATION. The Standard and Honors versions and
+      // their private lab definitions are written together or not at all, so a
+      // failed publish leaves no half-created assignment behind, and pressing
+      // Create again cannot duplicate a version that did save.
+      const publishBatch = writeBatch(db);
+      plannedWrites.forEach(({ assignmentRef, payload, privateLabWrites }) => {
+        publishBatch.set(assignmentRef, payload);
+        privateLabWrites.forEach(({ nextLabId, definition, activity }) => publishBatch.set(doc(db, 'modelingLabDefinitions', nextLabId), {
+          ...definition,
+          labId: nextLabId,
+          assignmentId: assignmentRef.id,
+          activityId: activity.activityId || null,
+          activityRole: activity.role || 'classwork',
+          updatedAt: new Date(),
         }));
-      } else {
-        for (const variant of destinationVariants) {
-          // Sequential writes keep the destination variants and their private lab
-          // definitions easy to audit. A normal assignment creates one group.
-          // eslint-disable-next-line no-await-in-loop
-          createdAssignments.push(await writeAssignmentVariant(variant));
-        }
-      }
+      });
+      await publishBatch.commit();
+      committed = true;
+      const createdAssignments = plannedWrites.map(({ assignmentRef, payload }) => ({ id: assignmentRef.id, ...payload }));
 
       // "Publish" in Preflight now means publish the whole authored package:
       // MathMaster assignment + mapped Google Classroom post + optional notes
@@ -890,7 +878,15 @@ export default function TeacherWorkspace({
       );
 
     } catch (error) {
-      toastError('Could not create assignment', error.message);
+      if (committed) {
+        // The assignment exists. Close the review so it cannot be created a
+        // second time, and say exactly what did not finish.
+        console.error('Created the assignment, but a step after saving it failed:', error);
+        setAssignmentPreflight(null);
+        toastWarning('Created, but MathMaster could not finish refreshing', `The assignment was saved. ${error.message} Refresh the page to see it.`);
+      } else {
+        toastError('Could not create assignment', `${error.message}\nNothing was created. Your review is still open with every choice kept, so you can fix this and create again.`);
+      }
     }
   };
 
@@ -1087,7 +1083,7 @@ export default function TeacherWorkspace({
     toastSuccess('Assignment setup updated', `“${patch.title}” passed MathMaster’s assignment checks and the reviewed settings were saved.`);
   };
 
-  const confirmAssignmentPreflight = async ({ draft, assignmentV5 }) => {
+  const confirmAssignmentPreflight = async ({ draft, assignmentV5, honorsCandidate = null }) => {
     setAssignmentPreflightBusy(true);
     try {
       // References to server-only secure manifests cannot be certified by the
@@ -1103,7 +1099,7 @@ export default function TeacherWorkspace({
       if (assignmentPreflight?.mode === 'update') {
         await updateExistingAssignmentFromReview({ draft, assignmentV5 });
       } else {
-        await handleCreateAssignment(draft, assignmentV5);
+        await handleCreateAssignment(draft, assignmentV5, { honorsCandidate });
       }
     } finally {
       setAssignmentPreflightBusy(false);

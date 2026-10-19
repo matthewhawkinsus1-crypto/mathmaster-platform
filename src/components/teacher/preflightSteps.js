@@ -41,6 +41,36 @@ const HONORS_BLOCKER_LABELS = Object.freeze({
 
 const honorsBlockerLabel = (key) => HONORS_BLOCKER_LABELS[key] || String(key || 'Honors requirement');
 
+/*
+ * THE HONORS VERSION IS DECIDED HERE, NOT AT CREATE.
+ *
+ * An Honors destination's audited CCMR Practice used to be sourced after the
+ * teacher pressed Create — the one place a failing item could no longer be
+ * shown, replaced or repaired. Pre-Flight now prepares that version and
+ * proves it (canonicalCcmrHydration.js), so Create waits until it has: the
+ * status names what is still open, in the step where it can be resolved.
+ * `honorsCcmr` is { status, error?, errors? }; a caller that passes none keeps
+ * the old behaviour, where a CCMR gap alone does not block.
+ */
+const honorsCcmrBlocker = (state = {}) => {
+  switch (state?.status) {
+    case 'ready':
+    case 'notRequired':
+    case 'keptAuthored':
+      return null;
+    case 'error':
+      return `MathMaster could not prepare the Honors version: ${String(state.error || 'the audited CCMR bank did not answer').replace(/\.$/, '')}. Use “Try again” under Course rigor destinations.`;
+    case 'needsDecision':
+      return 'Honors version: no audited CCMR Practice item passed MathMaster’s checks for this lesson. Choose how to continue under Course rigor destinations.';
+    case 'invalid': {
+      const first = (Array.isArray(state.errors) ? state.errors : []).find(Boolean);
+      return `The Honors version does not pass MathMaster’s checks${first ? `: ${first}` : '.'}`;
+    }
+    default:
+      return 'MathMaster is preparing and checking the Honors version (audited CCMR Practice). This takes a few seconds.';
+  }
+};
+
 const parseDate = (value) => {
   const time = new Date(value).getTime();
   return Number.isFinite(time) ? time : null;
@@ -55,6 +85,7 @@ export const collectReviewBlockers = ({
   classPeriods = [],
   honorsSelected = false,
   honorsReport = null,
+  honorsCcmr = null,
 } = {}) => {
   // A `= {}` default only fires for undefined, so an explicit null draft — the
   // shape a half-initialised modal actually passes — would throw on `.title`.
@@ -105,9 +136,12 @@ export const collectReviewBlockers = ({
     if (unresolved.length) {
       blockers.push(blocker('classes', `An Honors class is selected. Fix: ${unresolved.map(honorsBlockerLabel).join(', ')}.`));
     }
-    // CCMR alone is not a blocker here. The destination is now known, so final
-    // creation can source the audited V2.1 Practice family without contaminating
-    // Standard destinations or forcing the teacher to pre-author an exam item.
+    // The source's own CCMR gap is not the question: the Honors version
+    // replaces Practice with audited items, and that version is judged below.
+  }
+  if (honorsSelected && honorsCcmr) {
+    const message = honorsCcmrBlocker(honorsCcmr);
+    if (message) blockers.push(blocker('classes', message));
   }
 
   if (draft.dolEnabled === true) {

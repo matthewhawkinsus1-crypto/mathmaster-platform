@@ -46,6 +46,6 @@ test('assignment creation stamps it — only when it is actually assigned to a c
   const app = appAndTeacherWorkspaceSource();
   // Assignment creation moved with the teacher's screen (G2): imported there.
   assert.match(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'), /import \{[^}]*currentGradingPeriodStamp[^}]*\} from '\.\.\/\.\.\/platform\/student\/gradingPeriods\.js';/);
-  const write = executableSource(region(app, 'const writeAssignmentVariant = async', 'assertFirestoreSafeAssignmentPayload(payload);', 'writeAssignmentVariant'));
+  const write = executableSource(region(app, 'const planAssignmentVariantWrite = (', 'assertFirestoreSafeAssignmentPayload(payload);', 'planAssignmentVariantWrite'));
   assert.match(write, /\.\.\.\(\(destination\.classIds \|\| \[\]\)\.length \? currentGradingPeriodStamp\(gradingPeriodSettings\) : \{\}\)/);
 });
