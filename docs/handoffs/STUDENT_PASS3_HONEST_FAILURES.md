@@ -135,18 +135,23 @@ Sources: STUDENT_PASS3_WAVE6_INTEGRATION.md "Found here"; STUDENT_PASS3_D7_EXTRA
 
 - An extension whose date has passed is not listed any more (`controlChanges` uses the `nowValue` it was already
   passed).
-- "extra time" (`src/platform/assessment/extraTimeWords.js`, re-exported by `dolCloseCopy.js`) is now said in four
-  places, all from `getDOLState().extendedTime`:
+- "extra time" (`src/platform/assessment/extraTimeWords.js`, re-exported by `dolCloseCopy.js`) is now said on the
+  pill, in its screen-reader sentence and on Home's card, from `getDOLState()`'s `extendedTime` and `classEndsAt`:
   - the pill: "Exit ticket (DOL) open · extra time · 3:20";
   - the pill's screen-reader sentence: "… is open (extra time), 3:20 left.";
-  - Home's card: "Closes at 10:52 AM — extra time" (`resolveNextAction` → `extraTime`);
-  - the open notice, as before.
-  It names no accommodation and no multiplier.
+  - Home's card: "Closes at 10:52 AM — extra time" (`resolveNextAction` → `extraTimeFrom`);
+  - the open notice, as before (D7's own sentence, unchanged).
+  It names no accommodation and no multiplier. **Only once the class's own window has ended** (review N7,
+  `saysExtraTime`): `extendedTime` comes from this student's accommodation and the pill sits in the navigation, where
+  a neighbour can read it. Before the class's close the pill and Home read as for everyone, with the student's own
+  countdown and close; from it, "extra time" explains why their timer is still running. The pill decides on its own
+  one-second clock; Home at its next render.
 - The arrival notices are dropped by any commit that has them queued and is not the workspace. They are queued in the
   same update that opens the workspace, so such a commit means it never opened.
 
-**Proof.** `studentHonestFailures.test.mjs`, item 3: a past and a future extension; `resolveNextAction` with and without
-extra time; the Home card, pill and App wiring. `appUrlArrival.test.mjs` rewritten: the drop comes before the toast.
+**Proof.** `studentHonestFailures.test.mjs`, item 3: a past and a future extension; `extraTimeFrom` and `saysExtraTime`
+on both sides of `classEndsAt` (and never without extra time); `resolveNextAction` with and without extra time; the
+Home card, pill and App wiring. `dolExtraTimeJourneys` (real App) passes. `appUrlArrival.test.mjs` rewritten: the drop comes before the toast.
 
 ### 4. "Not being saved" across a reload
 
@@ -181,6 +186,21 @@ the account loads.
   - R3: a kept problem for a draft no longer on the device is dropped.
   - 10 checks, all pass.
   - The refusal is planted in the kept copy; the guard that refuses a real draft is `draftSaveFailureNotice`'s.
+
+## Review round (reviewer on `ae66df2c`)
+
+The independent review found three blockers, three should-fixes and one change the integrator decided. Payloads are
+byte-identical to the base, and nothing is lost, doubled or crosses students (the reviewer's checks).
+
+| Finding | What was wrong | Fix | Proof |
+| --- | --- | --- | --- |
+| B1 | A late Live Challenge answer: the server's `HttpsError('deadline-exceeded', 'Time was up before your answer arrived, so it was not counted.')` became "Can't reach MathMaster right now. Check the Wi-Fi…" — the "unreachable" codes were tested before the server's words. Untrue: it was answered, and never counted. | `describeStudentErrorWords`: a `functions/…` error with a sentence our server wrote is returned first, whatever its code (asking again only where `details.retry` says so). The Functions SDK's own errors never pass for ours: a bare code (its timeout, "internal") is still the connection; its four sentences ("Response is not valid JSON object.", "Response is missing data field.", "Request was cancelled[.]", "Firebase Functions instance was deleted.", from `@firebase/functions`) give the screen's fallback. Navigator offline and a failed fetch stay the connection. | `studentHonestFailures`: the late answer and "Time is up for this round." keep their sentence (and offer no retry); the SDK timeout and bare codes read as the connection; each SDK sentence gets the fallback. |
+| B2 | A relation-symbol flip (every inequality ÷ or × a negative) did not go through `commitState`: history, board and "Relation symbols accepted." came first, the save's answer was ignored. | `chooseRelationSymbol` saves before it takes the flip. Unsaved: the flip stays pending, the symbol is unchosen again, the not-saved alert shows; choosing the symbol again saves it again. `commitState` and the flip are `persistStep`'s only callers (asserted); the StepByStep solver's five commits were already covered, and its slips are decision 1. | `studentHonestFailures` (order, the stop, two callers). `stepNotQueued.mjs` new scene, -2x < 6 ÷ -2, ">": unsaved, the symbol stays "<" with one alert; saved, ">" and a second host call. With the fix broken, 4 checks go red. |
+| B3 | My first report said `test:platform` 12,129/12,129. That run started before the App account-rule change; on `ae66df2c` it was 12,128: `draftSaveFailureNotice.test.mjs` still pinned the old cleanup. | The rule is a pure function, `accountChangeClearsDraftProblems` (draftSaveHealth.js), used by App's effect. The test asserts its behaviour (A→B and A→signed out clear; null→A and A→A keep) and App's wiring. | Mutation-checked (clearing on arrival, keeping on sign-out, the old cleanup back). The whole gate was run again on the new head (below). |
+| S1 | "Apply the step again" outlived a change of staging: held Subtract 6, then new staging, then the button applied the old move. | `stagingKey` (the board and everything staged: pending move, tiles, operand, placements, Simplify, Rewrite tools, distribution, typed simplifications, cancellation marks). A held step records it; any change retires the alert and the button, and the button shows only while it matches. Decision 2 is settled by this. | Contract (every piece in the key, the retiring effect), mutation-checked. Browser: held step, then Undo and Divide by — the alert and button go and nothing older is applied. (Undo clears the message on its own, so the browser check does not isolate the effect; its mutation is caught by the contract.) |
+| S2 | The balanced-move contract had no `if \(`, so `if (false && holdUnsavedStep(...))` stayed green. | Anchored on the `if`. | Mutation caught. |
+| S3 | Two comments described the old apply-then-save order. | MultiRelation `commitSimplifyResult` and `SimplifyPanel` say what happens now. | — |
+| N7 | "extra time" on the pill for the whole exit ticket shows a neighbour that the student has an accommodation. | Said only from the class's own close (item 3). | Both sides of `classEndsAt`, mutation-checked. |
 
 ## Gate
 
@@ -262,9 +282,8 @@ Nothing here may load lazily: the failure notices have to show when a dynamic im
 1. **A wrong-side tap or wrong simplification the device could not save** (a "slip" record, kept only for the teacher
    at levels that record slips) is not announced to the student. It costs them nothing, and the save line says
    "Not saved". Before, it raised the "Step not queued… submit it again" toast, with nothing to submit.
-2. **"Apply the step again" repeats the step as staged when it failed.** If the student edits the staged
-   simplification after the failure, the button still applies the original. The solver's own "Check my
-   simplification" uses the edited one. The button goes as soon as the equation changes.
+2. ~~"Apply the step again" repeats the step as staged when it failed.~~ Settled in the review round (S1): any change
+   of staging, an edited simplification included, retires the held step and its button.
 3. **Step credit for a checked intercept** (`LinearInterceptsOrchestrator`, fire-and-forget) that could not be queued
    is not announced. The intercept is checked locally and graded at Submit; only that step's credit is lost. Before, a
    toast said "Step not queued".
@@ -272,6 +291,12 @@ Nothing here may load lazily: the failure notices have to show when a dynamic im
    again." Teachers see it too, so it does not say "tell your teacher".
 5. **Device-full is not kept across a reload** (item 4, above). Say if you want it kept until the next successful write
    instead.
+6. **"extra time" only once the class's window has ended** (review N7, decided by the integrator). Say "extra time"
+   from the start instead? That would explain the later close early, at the cost of showing a neighbour that the
+   student has an accommodation for the whole exit ticket.
+7. **A callable refusal with our sentence and an "unreachable" code** (B1) now shows the sentence and, unless the
+   server sets `details.retry`, no Try again. This also applies to the Test Cycle card (`describeStudentError`): a
+   server `HttpsError('internal', '<a sentence>')` used to read as the Wi-Fi line with Try again.
 
 ## What I touched outside my scope
 
