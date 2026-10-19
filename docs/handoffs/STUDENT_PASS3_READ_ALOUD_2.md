@@ -70,7 +70,7 @@ the eyebrow said it again, the heading opened "Let's back up. …" and Read alou
 **Changed.** `backUpStep.js`: `backUpStepWritten(step)` — authored, or built by the question's family from the item's
 own structure. QuestionEngine shows the overlay only then (`scaffoldRequired`). The platform step is still returned
 (an older attempt may have recorded it; `supportUseMemory.js` reads its source) but no longer shown. The heading and
-the reader drop the family prompt's leading "Let's back up." (`backUpQuestionText`): region "Let's back up", heading
+the reader drop the family prompt's leading "Let's back up." (`backUpQuestionText`, in `questionReading.js`): region "Let's back up", heading
 "Which axis do you read the domain along?", Read aloud "Let's back up. Which axis …" once.
 
 **Count** (every real lesson: teacher-import-jsons, docs/assignments and the sample, compiled; 265 Warm-Up,
@@ -132,7 +132,34 @@ Each new assertion was broken once in the code, seen red, restored.
 
 ## Gate
 
-GATE_TABLE
+Run on the final code (`81c41f80` for the browser drivers; the node gate on `87a86cf0`, which differs only in
+lint-only test edits). Browser drivers one at a time, nothing edited while they ran.
+
+| Check | Result |
+| --- | --- |
+| `npm ci`, `npm --prefix functions ci` | ok |
+| `npm run test:platform` | 12127 / 12127 pass |
+| `node --test tests/tools/*.test.mjs` | 1710 / 1710 pass |
+| `npm run lint` | 0 errors; no warning in a file this branch touches |
+| `npm run build` | ok |
+| `npm run build:firebase` | ok, no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs --report` | within baseline. **studentHome 839.5 KB**, **signIn 291.9 KB** gzip. The base built on the same machine: 839.4 / 291.8. This branch adds **+0.1 KB** |
+| readAloudFigures, readAloudAndTranslate (unit) | 12 / 12, 22 / 22 |
+| emulator suites (`test:rules`, `test:challenge-finish`, …) | not run: no `functions/`, rules, indexes or persistence touched |
+| plain Vite :5199 — readAloudTranslate, mathSpeech, graphDescription (58/58), figureDescriptions, accessiblePrimitives, assessmentLeakGates, stagedQuestion, feedbackTeaches, renderStability, systemsWorkspaceStudio, toolAttemptOutcome, composedOutcomePolicy, workViewReference, planePhoneReach, toolPolicyGates | all passed |
+| emulator-config Vite :5199 — hostAccessibility | passed |
+| `npm run certify:accessibility` (app harness :5188 + :5199) | passed, 11 screens × 2 viewports, no new or increased violations |
+| studentAccessibleNames (app harness :5188) | passed |
+| teacherWorkflow harness :5188 — warmupReopenJourneys (answers the back-up step when it appears) | passed |
+
+**Fixed during the gate, so you know.** (1) `familyClosedRender` caught an import of mine placed inside a multi-line
+import (`StudentBuildInequalityMode.jsx`): the inequality build mode could not load. Fixed in `2e996ea2`, and the
+whole gate was rerun. (2) The first budget run measured +1.6 KB. `questionReading.js` imported `backUpStep.js`,
+and with it the question families, for one regex, which moved shared chunks onto the first load. The helper moved
+into `questionReading.js` (`a6c9a8fa`), and the cost went back to +0.1 KB. (3) That move changed one import line, which
+`readAloudAndTranslate.test.mjs` pinned as text. Following the playbook, the assertion now checks for the import by name, and it
+was mutation-checked (`87a86cf0`). (4) `hostAccessibility` needs the emulator Vite config (its header says so). Run
+on plain Vite, it timed out on the recovery scene. On the right server it passed.
 
 ## Deploying (not done)
 
@@ -154,8 +181,9 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
 
 ## Touched outside this scope
 
-- `src/QuestionEngine.jsx`, three regions only: the back-up memo moved up to the overlay gate (~944–949), the reading
-  memo gains `figures` (~1146–1163), the port around `{renderModule()}` (~3238) and the overlay's heading (~3254).
+- `src/QuestionEngine.jsx`, four small regions: the back-up memo moved up to the overlay gate (~944–949), the
+  figure state and the reading memo's `figures` (~1145–1160), the port around `{renderModule()}` (3236), and the
+  overlay's heading (3252). Two import lines.
   Nothing near W7-2's ~2858 or W7-4's ~2776. No `App.jsx` change.
 - Figure components, one publish line each beside their description: `GraphDisplay.jsx`, `CoordinatePlane.jsx`
   (plus the `toolMarks` prop), `IntervalNumberLine.jsx`, `NumberLine.jsx`, `ThreePlaneWorkspace.jsx`,
@@ -164,6 +192,7 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
   `StudentBuildInequalityMode.jsx` (item 3).
 - `esSupport.js`: **no entries added.** Every new student sentence here is the reader's own words, which carry their
   Spanish in `questionReading.js` (as before), or figure descriptions, which Translate does not cover.
+- `tests/platform/readAloudAndTranslate.test.mjs`: one import assertion, rewritten as above.
 - Test harness `tests/browser/feedbackTeachesMain.jsx`: fixtures `dolgraph`, `table`, `plain`, profile `inclusion`.
 
 ## Not done
