@@ -221,7 +221,7 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
             // typed point (review SF1). Only `point` is evidence; the kept
             // points stay in the draft.
             setEv((previous) => {
-              const kept = { ...(previous?.pointByZero || {}) };
+              const kept = { ...previous?.pointByZero };
               if (previous?.zero) kept[previous.zero] = previous.point ?? '';
               return { ...previous, zero: value, point: kept[value] ?? '', pointByZero: kept };
             });

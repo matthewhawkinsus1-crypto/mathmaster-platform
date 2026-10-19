@@ -128,6 +128,47 @@ completed section. Opening that scene also showed the Practice tab's "0/2" at 4.
 - Proof: `tests/platform/studentMotionAndDevices.test.mjs` (red against each file's base version);
   `mobileInteractionWiring.test.mjs` and `workViewHelpReach.mjs` follow the new wording.
 
+## Review round (reviewer session_0134LCCygdRfnvLUPFoqhaAq, on `8162437d`)
+
+**B1 (blocker): Figure Match lost an answer to Home, End or Space.** Figure Match's select toggles (pressing the
+chosen chip clears it), and the shared group called `onSelect` for every key, including onto the option already
+checked. Home on a checked first chip, End on a checked last chip or Space on any checked chip cleared that figure,
+and an assignment, exit ticket or test then sent it as unanswered. Fix: `choiceOptionProps` calls `onSelect` only for
+a change; focus still moves. Enter is the button's click and still toggles, as a pointer does.
+Proof: `toolChoiceGroups.mjs` now drives the real `FigureMatchStage` (new harness `toolChoiceGroups.html`, which
+records every value it reports): Home / End / Space on a checked chip keep the answer, no value ever reports the
+figure unanswered, Enter still clears. With the old line it is red exactly as reported (`1 -> 2 change(s), now null`).
+`choiceGroup.test.mjs`: test 3's expectation updated (Home onto the checked 'a' selects nothing) and a new test —
+Home / End / Space on the checked option, and every key in a one-option group, call nothing (red without the fix).
+
+**SF1: Process Mode's "Which variable is 0" wiped the typed point.** Choosing set `point: ''` unconditionally, so
+arrowing away and back (arrows select) lost the ordered pair. Each choice now keeps the point written under it
+(`pointByZero` in the draft) and gets it back; only `point` is evidence (`EVIDENCE_KEYS.substituteZero`), so nothing
+graded changes. Proof: `lmrProcessMode.mjs`'s exit-ticket journey types a point, presses ArrowRight then ArrowLeft and
+finds it; red on the old code (`got ""`). All 9 Process Mode journeys pass. The guided redirect on arrowing onto the
+wrong variable is unchanged (by design, the same as clicking, withheld on assessments).
+
+**SF2: a word denominator was spelled out.** The fraction rule took one letter after "/", so the rest of a word was
+spelled: "1 over s in", "180 over p i", "1 over t he absolute value of b", and signed "over negative t he square root
+of 2". The base did the same for unsigned words. The reviewer suggested `[A-Za-z](?![A-Za-z])`; that stops the
+spelling but leaves "/" unread ("2/pi", "1/ minus sin…"). The denominator is now the whole word (`[A-Za-z]+`):
+"1 over negative sin…", "3 over negative the square root of 2", "2 over negative pi", "1 over the absolute value of
+b", Spanish "sobre negativo la raíz cuadrada de 2". Corpus diff: 4578 strings containing "/" from `functions/seeds`,
+`src` and `tests` (prose through `speechTextFor`, math-like strings also through `mathToSpeech`), read by the previous
+head and by this one in en and es. 428 readings change. Every changed prose reading (29 strings, templates aside) is a
+word that had been spelled out, among them lesson text a student hears: "Multiply a radian measure by 180 over pi",
+"x equals ln 3 over ln 2", "Horizontal scale is 1 over the absolute value of b", "time equals pages over rate". The
+rest are code strings and `{{placeholder}}` templates. The words that now follow "over" are words or variable names
+(den, total, run, the, pi, ln, hypotenuse, rise, dx…); one letter stays one letter (`x/y`, `3/-x`).
+Tests: `accessibleMathSpeech.test.mjs`, en and es, red with the one-letter rule.
+
+**Small:** `FractionGrader`'s box is "Fraction answer"; `LiteralGrader`'s is `${solveFor} =`, the words beside it
+(`mathFieldName.test.mjs`, red on each base file).
+
+**Notes left as they are** (the integrator's call): every arrow press is one undo entry where a click on each option
+would be too (the B1 fix removed the duplicates from Home / End / Space); a filled box's content is not read on focus
+(a follow-up: spoken content as an aria-description).
+
 ## Exit tickets, quizzes and tests
 
 Nothing here tells a student an answer or a method. The choice groups select only (no key checks, submits or spends a
@@ -137,42 +178,34 @@ labels.
 
 ## Gate
 
-Run on the branch head (`196d8773` for code; this note is the only later change) unless marked. Servers as CI starts
-them: plain Vite on 5199 for the tool drivers and dark mode; `tests/browser/emulator/vite.config.mjs` (here on 5399)
-for the accessibility certification, the contrast review and a second `studentAccessibleNames` run; the
-accessibility app harness on 5188; the teacher-workflow harness (here on 5488) for dark mode and the journeys.
+Re-run after the review round on the code head (the last commit before this note's), servers as CI starts them:
+plain Vite on 5199 for the tool drivers and dark mode; `tests/browser/emulator/vite.config.mjs` (here on 5399) for
+the accessibility certification, the contrast review and `studentAccessibleNames`; the accessibility app harness on
+5188; the teacher-workflow harness (here on 5488) for dark mode. Drivers ran one at a time.
 
-| Check | Result |
-| --- | --- |
-| `npm run test:platform` | 12146 / 12146 pass |
-| `node --test tests/tools/*.test.mjs` | 1711 / 1711 pass |
-| `npm run test:authoring-v5` | 686 / 686 pass |
-| `npm run test:rules` (Firestore emulator) | 248 / 248 and 222 / 222 pass |
-| `npm run lint` | exit 0; the same 496 warnings as the base, none new |
-| `npm run build` | pass |
-| `npm run build:firebase` | pass; no tracked file rewritten |
-| first load (`--report`) | studentHome 839.7 KB, signIn 291.8 KB (below) |
-| `npm run certify:accessibility` | pass — 12 scenes × 2 viewports, baseline unchanged (empty) |
-| `npm run certify:dark-mode` | pass — all parts; 200 app surfaces incl. the new completed-section step |
-| `npm run review:contrast` | pass |
-| `studentAccessibleNames` | pass (5199 and 5399); red on the base |
-| `toolChoiceGroups` (new) | pass; red on the base |
-| `keyboardSweep` | pass (every tool; no unnamed stop, no trap) |
-| `focusSafeToolControls` | pass |
-| `toolKeyboardDataModelingAndSystemsCss`, `toolKeyboardNumberLine`, `toolKeyboardRegression`, `toolKeyboardRelationMapping`, `toolKeyboardThreePlane` | pass |
-| `liveChallengeChoiceKeyboard` | pass |
-| `closedVerdictChip` | pass |
-| `matrixLabFeedback` | pass |
-| `stepAlgebraStructureTools` | pass (after its token names were updated to the spoken ones; it failed once on `Denominator factor -1`, now `negative 1`) |
-| `figureDescriptions`, `mathSpeech`, `readAloudTranslate` | pass |
-| `linearMultipleRepresentations`, `systemsWorkspaceStudio`, `mathEntryContract` | pass |
-| `workViewHelpReach` (its plotting step was reworded) | pass |
-| teacher harness `journeys.mjs` | pass (A–K and retry at 1440 and 1024) |
-| teacher harness `enduranceJourneys.mjs` | pass |
-| emulator suites my change touches | none: no functions, rules or indexes change |
+| Check | Review round | First round (`8162437d`) |
+| --- | --- | --- |
+| `npm run test:platform` | 12149 / 12149 pass | 12146 / 12146 |
+| `node --test tests/tools/*.test.mjs` | 1711 / 1711 pass | 1711 / 1711 |
+| `npm run lint` | exit 0; the base's 496 warnings, none new (one my SF1 change added was removed) | same |
+| `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten | pass |
+| first load | studentHome 839.7 KB, signIn 291.8 KB (below) | same |
+| `certify:accessibility` | pass, baseline unchanged (empty) | pass |
+| `certify:dark-mode` | pass, 200 app surfaces | pass |
+| `review:contrast` | pass | pass |
+| `studentAccessibleNames` | pass (red on the base) | pass |
+| `toolChoiceGroups` | pass, with the Figure Match scene (red on B1) | pass |
+| `keyboardSweep` | pass | pass |
+| `mathEntryContract`, `matrixLabFeedback`, `stepAlgebraStructureTools` | pass | pass |
+| `mathSpeech`, `readAloudTranslate`, `figureDescriptions` | pass | pass |
+| `lmrProcessMode` (9 journeys, with the SF1 step) | pass (red on SF1) | — |
+| `test:authoring-v5` | not re-run | 686 / 686 |
+| `test:rules` | not re-run (no rules change) | pass |
+| `focusSafeToolControls`, `toolKeyboard*` (5), `liveChallengeChoiceKeyboard`, `closedVerdictChip`, `linearMultipleRepresentations`, `systemsWorkspaceStudio`, `workViewHelpReach`, teacher `journeys`, `enduranceJourneys` | not re-run (the review touched none of their files beyond the shared choice group, which toolChoiceGroups and keyboardSweep cover) | pass |
+| emulator suites my change touches | none: no functions, rules or indexes | none |
 
-The driver queue ran the drivers one at a time. The base runs (`toolChoiceGroups`, `studentAccessibleNames`, the
-`keyboardSweep` tab-stop counts) used a worktree of `530ac3cf` on its own server (5299).
+The base runs (`toolChoiceGroups`, `studentAccessibleNames`, the tab-stop counts) used a worktree of `530ac3cf` on
+its own server.
 
 ## First load
 
@@ -202,18 +235,19 @@ binder and the choice group are plain modules in the chunks that already load Ma
 - `tests/browser/darkModeCertification.mjs` and `accessibilityCertification.mjs` (the new completed-section step and
   scene).
 - `src/tools/functionOperations/FunctionOperationsLab.jsx` (one prop: `ariaLabel`), found by the keyboard sweep.
+- Review round: `src/tools/representationBridge/process/ProcessAlgebraMethods.jsx` (the zero choice's onChange),
+  `src/FractionGrader.jsx` and `src/LiteralGrader.jsx` (one prop each), `tests/browser/lmrProcessMode.mjs` (one step in
+  the exit-ticket journey), new harness `tests/browser/toolChoiceGroups.html` / `toolChoiceGroupsMain.jsx`.
 - No `src/App.jsx` change.
 
 ## Not done
 
 - `toolChoiceGroups.mjs` is not yet in a workflow (W7-7 owns moving drivers into workflows); it runs on the plain
   5199 server like the other tool drivers.
-- The Linear Intercepts, Figure Match, Process Mode and multi-answer choice groups are proven in node (shared props,
-  wiring) and by the drivers that already reach them, not by `toolChoiceGroups.mjs`, whose harness does not open them
-  in their sample state.
-- A few math boxes still fall back to a generic name ("Math answer", or their placeholder): `FractionGrader`,
-  `LiteralGrader`, one Step Algebra prompt box. They are named now where before they were not; a specific label is
-  each caller's to give.
+- The Linear Intercepts and multi-answer choice groups are proven in node (shared props, wiring), not by
+  `toolChoiceGroups.mjs`. Figure Match is driven there (review B1) and Process Mode by `lmrProcessMode.mjs` (SF1).
+- One Step Algebra prompt box still falls back to its placeholder ("Algebraic expression"); it is named, not
+  specifically.
 - The platform's speech reads `(fg)(x)` as "the quantity fg times the quantity x", so Function Operations' names keep
   the visible title rather than going through it.
 - Other 8–10px text on the section tabs (`.mathmaster-section-tab small` is 10px, 8px in the compact strip) is not the
