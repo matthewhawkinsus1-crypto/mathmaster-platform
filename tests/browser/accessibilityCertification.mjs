@@ -14,7 +14,8 @@
  *   container where a plain server already held 5199, the stubbed one could
  *   not take the port. So the run first asks the audit origin how it resolves
  *   the Test Cycle service (auditOriginIsStubbed). If it is not stubbed, the
- *   run starts its own stubbed server on a free port and says so.
+ *   run starts its own stubbed server on a free port and says so; under
+ *   CI=true it fails instead, since there the workflow is what is wrong.
  *
  *   TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188), AUDIT_ORIGIN
  *   (default http://127.0.0.1:5199), PLAYWRIGHT_MODULE / CHROMIUM_PATH,
@@ -249,7 +250,10 @@ const startStubbedAuditServer = async () => {
   // Not a reason to keep running: the run ends when its work does, and takes
   // the server with it.
   server.unref();
-  process.on('exit', () => { try { process.kill(-server.pid, 'SIGKILL'); } catch { /* gone */ } });
+  const stop = () => { try { process.kill(-server.pid, 'SIGKILL'); } catch { /* gone */ } };
+  process.on('exit', stop);
+  // Ctrl-C or a killed job: take the server down too, then end as signalled.
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { stop(); process.exit(signal === 'SIGINT' ? 130 : 143); });
   const origin = `http://127.0.0.1:${port}`;
   for (let attempt = 0; attempt < 240; attempt += 1) {
     if (await auditOriginIsStubbed(origin)) return origin;
@@ -273,6 +277,11 @@ const main = async () => {
   };
   if (screens.some((screen) => screen.harness === 'audit') && !await auditOriginIsStubbed(origins.audit)) {
     const given = origins.audit;
+    // In CI the workflow starts the stubbed server itself: a wrong one there
+    // is a mis-wired workflow, and says so instead of being worked around.
+    if (process.env.CI === 'true') {
+      throw new Error(`${given} is not the stubbed harness server (tests/browser/emulator/vite.config.mjs): its Test Cycle card loads the real service. Start that config on the audit port (see accessibility-certification.yml).`);
+    }
     origins.audit = await startStubbedAuditServer();
     console.log(`note: ${given} is not the stubbed harness server (tests/browser/emulator/vite.config.mjs) — its Test Cycle card loads the real service, so the secure exam would never open. Started one at ${origins.audit}.`);
   }

@@ -1264,6 +1264,12 @@ await run('big-class', async (S) => {
   await answerInBrowser(phone, roomId, { correct: true });
   await Promise.all(ids.slice(2).map((id, index) => botAnswer(roomId, id, { correct: index % 3 !== 0, humanElapsedMs: 1_000 + index * 300 })));
   await answerInBrowser(tablet, roomId, { correct: false });
+  // The console's default "Round closing threshold" is 70% (launch turns it
+  // off; this game keeps it): with all 32 answered well inside the 20 s, the
+  // server cuts the round's clock to 5 seconds, and says why.
+  const compressed = await waitForRoom(roomId, (room) => Boolean(room.roundCompressionReason) || room.roundState === 'closed', 20_000);
+  check(S, compressed?.roundClosingThreshold === 70 && compressed?.roundCompressionReason === '70-percent-answered',
+    `the default 70% closing threshold did not close the round early: ${JSON.stringify({ threshold: compressed?.roundClosingThreshold, reason: compressed?.roundCompressionReason })}`);
   await waitForRoom(roomId, (room) => room.roundState === 'closed', 20_000);
   check(S, await waitForArena(teacher, 'roundResults', 10_000), 'no projector results for 32');
   check(S, await waitForText(teacher, 'more players', 5_000), 'a 32-player board does not say how many more are playing');

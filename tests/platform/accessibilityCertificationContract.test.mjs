@@ -75,3 +75,14 @@ test('the certification tells the stubbed audit server from a plain one', () => 
   const card = readFileSync(new URL('../../src/components/student/TestCycleCard.jsx', import.meta.url), 'utf8');
   assert.match(card, /from '\.\.\/\.\.\/services\/testCycleService\.js'/);
 });
+
+// In CI the workflow starts the stubbed server; a wrong one there is a
+// mis-wired workflow, so the run fails instead of starting its own.
+test('under CI the certification fails on a plain audit server instead of working around it', () => {
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const probe = source.indexOf('!await auditOriginIsStubbed(origins.audit)');
+  const ciGuard = source.indexOf("if (process.env.CI === 'true')", probe);
+  const start = source.indexOf('await startStubbedAuditServer()', probe);
+  assert.ok(probe > 0 && ciGuard > probe && start > ciGuard, 'the CI check sits between the probe and the server start');
+  assert.match(source.slice(ciGuard, start), /throw new Error\(/);
+});
