@@ -66,6 +66,30 @@ changes, so none grows.
   - an `if: always()` removed: red.
 - Every job was run locally exactly as its workflow runs it. See the gate.
 
+### 1b. Wave 7's other drivers: guarded steps (the integrator's addition)
+
+Five drivers arrive with other wave-7 branches that are not on this base. Each has a step beside the drivers that
+share its server. The step runs the driver once the file is there; until then it prints "… is not on this branch
+yet: skipped" and exits 0.
+
+| Driver | From | Job | Server |
+| --- | --- | --- | --- |
+| `tests/browser/stepNotQueued.mjs` | W7-3 | `pass3-student-screens` | plain Vite 5199 |
+| `tests/browser/toolOutcomeReach.mjs` | W7-4 | `pass3-student-screens` | plain Vite 5199 |
+| `tests/browser/feedbackReasons2.mjs` | W7-4 | `pass3-student-screens` | plain Vite 5199 |
+| `tests/browser/toolChoiceGroups.mjs` | W7-2 | `pass3-student-screens` | plain Vite 5199 |
+| `tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs` | W7-3 | `pass3-student-journeys` | teacher harness 5188 |
+
+- **Triggers.** The runtime gates' `paths` name the four plain-Vite drivers. student-teacher-journeys already
+  triggers on `tests/browser/teacherWorkflow/**`.
+- **Pinned.** `pass3BrowserDriversInCi` checks each guarded step: its job, its `if: always()`, its origin, and the
+  exact guard. Mutation-checked.
+- **Run here.** Each guard ran in this container and skipped with exit 0.
+- **For the integrator, once those branches merge.** Run the two jobs and see each driver run, not skip.
+- **Already in a workflow.** W7-2's in-place extensions need nothing new:
+  - `studentAccessibleNames` and `certify:accessibility` run in accessibility-certification.yml;
+  - dark mode runs in theme-certification.yml.
+
 ### 2. Known test gaps
 
 #### 2a. toolDraftSyncSweep `[expressionMeaning]`: "locator.click: Timeout 30000ms exceeded" (on the base too)

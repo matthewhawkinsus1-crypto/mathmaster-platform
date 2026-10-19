@@ -108,7 +108,9 @@ name: Student Runtime Browser Gates
 #     submitNotQueued, toolDraftSyncSweep, matrixLabFeedback, afterLastMiss,
 #     day1SystemsJourney, day2NonuniqueJourneys, assignmentMobile,
 #     studentHomeToday, studentGradesRaise, studentResultUpNext,
-#     studentWhatChanged, gradeCenterMobile
+#     studentWhatChanged, gradeCenterMobile; and, guarded until their branches
+#     merge, stepNotQueued (W7-3), toolOutcomeReach and feedbackReasons2
+#     (W7-4), toolChoiceGroups (W7-2)
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
 #     secureResults, secureExamNavigation, secureAccessParity
@@ -179,6 +181,10 @@ on:
       - "tests/browser/studentResultUpNext*"
       - "tests/browser/studentWhatChanged*"
       - "tests/browser/gradeCenterMobile*"
+      - "tests/browser/stepNotQueued*"
+      - "tests/browser/toolOutcomeReach*"
+      - "tests/browser/feedbackReasons2*"
+      - "tests/browser/toolChoiceGroups*"
       - "tests/browser/secureResults*"
       - "tests/browser/secureExamNavigation*"
       - "tests/browser/secureAccessParity*"
@@ -494,6 +500,42 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/gradeCenterMobile.mjs
+      # W7-3 (honest failures).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: A Step Algebra step the device could not queue is not submitted
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/stepNotQueued.mjs ]; then node tests/browser/stepNotQueued.mjs; else echo "tests/browser/stepNotQueued.mjs is not on this branch yet: skipped"; fi
+      # W7-4 (feedback reasons 2).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: A tool's outcome box can be reached on every screen
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/toolOutcomeReach.mjs ]; then node tests/browser/toolOutcomeReach.mjs; else echo "tests/browser/toolOutcomeReach.mjs is not on this branch yet: skipped"; fi
+      # W7-4 (feedback reasons 2).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: Feedback reasons, part 2
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/feedbackReasons2.mjs ]; then node tests/browser/feedbackReasons2.mjs; else echo "tests/browser/feedbackReasons2.mjs is not on this branch yet: skipped"; fi
+      # W7-2 (boxes and choices).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: Tool choices are radio groups
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/toolChoiceGroups.mjs ]; then node tests/browser/toolChoiceGroups.mjs; else echo "tests/browser/toolChoiceGroups.mjs is not on this branch yet: skipped"; fi
 
   # The secure screens (results, navigation, access parity) against stubbed
   # services. secureResults and secureExamNavigation start their own Vite;

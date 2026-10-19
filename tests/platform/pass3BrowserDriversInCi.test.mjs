@@ -109,3 +109,24 @@ test('a pull request that changes one of these drivers runs its workflow', () =>
   });
   assert.match(read('student-teacher-journeys.yml'), /- "tests\/browser\/teacherWorkflow\/\*\*"/);
 });
+
+// Wave 7's other branches add five drivers. Until each merges, its step skips
+// cleanly; once the file is there, the same step runs it, beside the drivers
+// that share its server.
+const GUARDED = [
+  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'stepNotQueued'],
+  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'toolOutcomeReach'],
+  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'feedbackReasons2'],
+  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'toolChoiceGroups'],
+  ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacherWorkflow/draftSaveNoticeReloadJourneys'],
+];
+for (const [workflow, job, driver] of GUARDED) {
+  test(`${job} runs ${driver} once its branch merges, and skips cleanly before`, () => {
+    const steps = stepsOf(jobsOf(read(workflow))[job]);
+    const file = `tests/browser/${driver}.mjs`;
+    const step = steps.find((candidate) => candidate.includes(`if [ -f ${file} ]; then node ${file}; else echo`));
+    assert.ok(step, `${job} has a guarded step for ${file}`);
+    assert.match(step, /if: always\(\)/);
+    if (job === 'pass3-student-screens') assert.match(step, /AUDIT_ORIGIN: "http:\/\/127\.0\.0\.1:5199"/);
+  });
+}
