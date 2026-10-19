@@ -175,10 +175,15 @@ test('a stacked fraction around π or a root grades as the slash a key is writte
     assert.equal(await grades(sent, key), true, `${sent} for ${key}`);
     assert.equal(await grades(miss, key), false, `${miss} is still wrong for ${key}`);
   }
-  // Exact answers stay exact: a decimal for π/2, and ½π (a different
-  // spelling the stacked rule does not claim), are not read as the key.
+  // Exact answers stay exact: a decimal for π/2 is not read as the key.
   assert.equal(await grades('1.5707963', 'pi/2'), false);
-  assert.equal(await grades('\\frac{1}{2}\\pi', 'pi/2'), false);
+  // ½π is π/2 (student pass 3, wave 7: the editor's fraction template, then
+  // π). Only a number fraction directly before π, nothing binding after it.
+  assert.equal(await grades('\\frac{1}{2}\\pi', 'pi/2'), true);
+  assert.equal(await grades('\\frac{3}{4}\\pi', '3pi/4'), true);
+  assert.equal(await grades('\\frac{1}{3}\\pi', 'pi/2'), false);
+  assert.equal(await grades('\\frac{1}{2}\\pi^2', 'pi/2'), false);
+  assert.equal(await grades('2\\frac{1}{2}\\pi', 'pi'), false, 'a mixed number before π is not ½π');
   // Rendering never changes: only the grader's canonical form stacks them.
   assert.equal(stackDivisions('pi/2'), 'pi/2');
   assert.equal(stackDivisions('\\sqrt{3}/2'), '\\sqrt{3}/2');

@@ -23,8 +23,11 @@ import {
   matchesAnyAnswer,
   matchesAnyNumberWithThousandsSeparators,
   matchesFieldAnswer,
+  looksLikeOrderedPair,
   normalizeMathAnswer,
+  orderedPairKey,
   parseOrderedPair,
+  sameOrderedPairCoordinate,
 } from './answerUtils.mjs';
 import {
   FRACTION_QUESTION_SHAPES,
@@ -72,8 +75,12 @@ const hasAnswerKey = (question = {}) => {
       return list(question.acceptedAnswers).length > 0;
     case 'multiAnswer':
       return list(question.answerFields).some((field) => field?.id);
-    case 'orderedPair':
-      return Array.isArray(question.answer || question.solution);
+    case 'orderedPair': {
+      // A key stored as pair text, '(2,3)', is a key too (orderedPairKey,
+      // student pass 3 wave 7): without this the server never marked it.
+      const pair = question.answer || question.solution;
+      return Array.isArray(pair) || Boolean(orderedPairKey(pair));
+    }
     case 'system':
       return Array.isArray(question.solution);
     case 'table':
@@ -180,12 +187,19 @@ export const gradeFractionResponse = (question = {}, rawAnswer) => {
   };
 };
 
+// The key as [x, y], from an array or from pair text such as '(2,3)'
+// (answerUtils.orderedPairKey, student pass 3 wave 7). A key that is not a
+// pair stays as it was and can match nothing — Pre-Flight refuses it.
 export const gradeOrderedPairResponse = (question = {}, rawAnswer) => {
-  const expectedPair = question.answer || question.solution;
+  const authoredPair = question.answer || question.solution;
+  const expectedPair = orderedPairKey(authoredPair) || authoredPair;
   const parsed = parseOrderedPair(rawAnswer);
-  const isComplete = Boolean(parsed);
-  const xCorrect = Boolean(parsed) && Math.abs(parsed[0] - Number(expectedPair?.[0])) <= 1e-9;
-  const yCorrect = Boolean(parsed) && Math.abs(parsed[1] - Number(expectedPair?.[1])) <= 1e-9;
+  // A pair with a root in a coordinate is not two plain numbers, but it is a
+  // complete answer to a key that has one.
+  const exactKey = Array.isArray(expectedPair) && expectedPair.some((coordinate) => typeof coordinate === 'string');
+  const isComplete = Boolean(parsed) || (exactKey && looksLikeOrderedPair(rawAnswer));
+  const xCorrect = isComplete && sameOrderedPairCoordinate(rawAnswer, expectedPair, 0);
+  const yCorrect = isComplete && sameOrderedPairCoordinate(rawAnswer, expectedPair, 1);
   const isCorrect = compareOrderedPair(rawAnswer, expectedPair);
   return {
     isComplete,

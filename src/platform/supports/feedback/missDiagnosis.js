@@ -31,7 +31,7 @@
  */
 import { classifyMisconceptions } from '../../../../functions/shared/misconceptionClassifiers.mjs';
 import { studentMisconceptionMessage } from '../../../../functions/shared/misconceptionStudentMessages.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, orderedPairKey } from '../../../../functions/shared/answerUtils.mjs';
 import { fractionAnswerCandidates } from '../../../../functions/shared/fractionAnswer.mjs';
 import { reproduceFamilyQuestionFromPin } from '../../../../functions/shared/questionFamilyInstance.mjs';
 import { getPlatformQuestionFamily } from '../../../../functions/shared/questionFamilyRegistry.mjs';
@@ -70,7 +70,9 @@ export const expectedForPart = (question = {}, part = {}) => {
     return answerCandidatesForField(field)[0] ?? null;
   }
   if (type === 'orderedPair' || type === 'system') {
-    const pair = question.answer || question.solution;
+    const raw = question.answer || question.solution;
+    // An orderedPair key may be stored as pair text '(2,3)' (orderedPairKey).
+    const pair = type === 'orderedPair' ? orderedPairKey(raw) : raw;
     if (!Array.isArray(pair) || pair.length !== 2) return null;
     if (id.endsWith('-x')) return pair[0];
     if (id.endsWith('-y')) return pair[1];

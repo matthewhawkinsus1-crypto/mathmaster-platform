@@ -195,10 +195,9 @@ const fieldValuesEquivalent = (actual, field) => {
     if (field.equivalence === 'nonnegativeRadicalExpression') {
       return answerEquivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
     }
-    // As production: a list field or a pair never reads `1,250` as one number.
-    return answerEquivalence.sameValue(actual, expected, tolerance, {
-      thousandsSeparators: answerEquivalence.fieldAcceptsThousandsSeparators(field),
-    });
+    // As production: a list field or a pair never reads `1,250` as one
+    // number, and a number box compares an exact constant key by value.
+    return answerEquivalence.sameValue(actual, expected, tolerance, answerEquivalence.fieldValueOptions(field));
   });
 };
 

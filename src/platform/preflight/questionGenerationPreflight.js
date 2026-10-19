@@ -42,6 +42,7 @@ import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../.
 // those: Pre-Flight is on the app's static import path, which must not load
 // the composed, workspace or tool graders (and mathjs with them).
 import { gradeOrdinaryResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
+import { orderedPairKey } from '../../../functions/shared/answerUtils.mjs';
 import { gradeStepAlgebraFinalAnswer } from '../../../functions/shared/serverGrading/stepAlgebraFinalAnswer.mjs';
 import { serverResponseGradingSupport } from '../../../functions/shared/serverGrading/gradingSupport.mjs';
 import { deliveredQuestionForGrading } from '../../../functions/shared/serverGrading/deliveredQuestion.mjs';
@@ -142,8 +143,9 @@ export const answerKeyResponse = (question = {}) => {
     return { kind: 'scalar', type, value: `(${question.solution[0]}, ${question.solution[1]})`, fields: [] };
   }
   if (type === 'orderedPair') {
-    const pair = question.answer || question.solution;
-    return Array.isArray(pair) ? { kind: 'scalar', type, value: `(${pair[0]}, ${pair[1]})`, fields: [] } : null;
+    // An array or pair text, '(2,3)' (answerUtils.orderedPairKey).
+    const pair = orderedPairKey(question.answer || question.solution);
+    return pair ? { kind: 'scalar', type, value: `(${pair[0]}, ${pair[1]})`, fields: [] } : null;
   }
   if (type === 'literal' && Array.isArray(question.acceptedAnswers) && question.acceptedAnswers.length) {
     return { kind: 'scalar', type, value: String(question.acceptedAnswers[0]), fields: [] };

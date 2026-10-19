@@ -4,6 +4,7 @@ import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
+import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
 import { parseWrittenNumber } from '../functions/shared/fractionAnswer.mjs';
 import {
   familyResolutionMessage,
@@ -501,6 +502,20 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
       next.pairs = pairs;
       repairs.push(`converted ${label} relationMapping [x, y] pairs to Firestore-safe {x, y} objects`);
     }
+  }
+
+  // An ordered pair keyed as text, '(2,3)', is the point [2, 3]: every grader
+  // and reader of the key takes the array (answerUtils.orderedPairKey). This
+  // runs for a portable export too, which the V5 compile never sees. A key
+  // that is not a pair is left as written for Pre-Flight to refuse.
+  if (type === 'orderedPair') {
+    ['answer', 'solution'].forEach((key) => {
+      if (typeof next[key] !== 'string') return;
+      const pair = orderedPairKey(next[key]);
+      if (!pair) return;
+      next[key] = pair;
+      repairs.push(`stored ${label} ordered-pair ${key} "${question[key]}" as the point [${pair.join(', ')}]`);
+    });
   }
 
   // AI-facing authoring uses the ordinary words equation/equations. The older
