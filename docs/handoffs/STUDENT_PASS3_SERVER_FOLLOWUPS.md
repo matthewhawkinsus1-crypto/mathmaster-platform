@@ -7,7 +7,7 @@ reproduced on the base. Nothing was deployed; emulators only.
 | Item | Source | Status |
 | --- | --- | --- |
 | 1. Corrections never name the mistake made on a real Test | `STUDENT_PASS3_B4_CORRECTIONS_RECOVERY.md`, "Note on (a) in production today" and "(b) coverage" | Done |
-| 2. A Test day the class sat stops being a closed window once it no longer resolves | `STUDENT_PASS3_TEST_CYCLE_DATES.md`, "Not done": the structural follow-up | Done |
+| 2. A Test day the class sat stops being a closed window once it no longer resolves | `STUDENT_PASS3_TEST_CYCLE_DATES.md`, "Not done": the structural follow-up | **Record-only** after review (see Review round): sittings are recorded, nothing reads them; whether anything may is an owner decision |
 
 ## Item 1: Corrections name the mistake made on a real Test
 
@@ -40,6 +40,7 @@ yet. Look again at what the question is asking you to find…".
 | Detectors | Before: `system`, `intervalNumberLine`. Added: `systemsWorkspace` (linear, "one solution" chosen, point exchanged → `ordered-pair-reversed`), `relationMapping` (`domain-range-swapped`, every entry a number), `graphing2` (`slope-run-over-rise` / `slope-sign-reversed`: through the form's anchor via the classifier's own `formAwareAnchorsForMode`, −1/m a blocker), `dataModelingLab` (`correlation-direction-reversed`, `correlation-treated-as-causation`; only the student's own choices, as the classifier reads them), `multiAnswer` and field items (`line-wrong-form-*`, through the classifier's own `fieldLineForm`, now exported). |
 | `functions/shared/misconceptionCodes.mjs` | Eight declared classifiers, `path:<tool>`, additive under registry v1. The trust gate accepts a finding only from a declared classifier, so each Path tool is its own. |
 | `functions/lib/secureExamItems.js` `buildResponseRecord` | After grading, a miss records `grading.misconceptionEvidence` (`missEvidenceOf`). Not for a right answer, a blank (unanswered) item, a refused answer, or a miss nothing explains. The score and `isCorrect` are the grader's. A failure is no evidence, never a failed submission. Every secure grading path comes through here: `submitSecureExamResponse`, and `finalizeOpenItems` (the student's submit, the timer, a proctor's force-submit, the abandoned-test finalizer). |
+| Before every grading transaction (review S1) | `secureExamItems.loadMissEvidence()` is awaited before the transaction in `submitSecureExamResponse`, `finalizeSecureExam`, `proctorExamAction` (force-submit) and the abandoned-test finalizer, so the module's cold import (about half a second) never holds a session lock. It is not a module-level import, so no other function pays it at cold start. A failed import is forgotten and is no evidence. |
 | `functions/index.js` `correctionMissDiagnosisFor` | Also reads a field item's typed responses and passes the stored item, so a field's own words decide which line form it asks for. |
 
 **Server-only, never shown before release.** The evidence sits on
@@ -62,6 +63,23 @@ the same form if a later stage reads it.
 **On the Test itself, nothing new.** No payload a student is handed while
 sitting the Test changes (proved below).
 
+**Caveat (review N1).** While a Test's answers are held (`testAnswersHeld`), "the
+mistake to watch for" together with the student's own released answer can give
+that student their own correct answer: for `ordered-pair-reversed`,
+`domain-range-swapped` or `slope-sign-reversed`, undoing the named mistake does
+it. Instances are seeded per student, so this never hands a classmate their
+answer.
+
+**Cost (review S1), measured.** These are fresh `node` processes. The grader
+itself is warmed first in each, so only the diagnosis import is measured. Each
+cell is three runs.
+
+| | Inside the transaction: first `buildResponseRecord` for a miss | Before the transaction | Warm `buildResponseRecord` |
+| --- | --- | --- | --- |
+| Base `530ac3cf` | 10–12 ms | — | 1.7–2.8 ms |
+| `c6c8f08f` (import inside) | 538–562 ms; 4465 ms on the first run of all, with a cold disk cache | — | 2.2–3.7 ms |
+| Now (loaded first) | 10–13 ms | 528–554 ms, once per instance, holding no lock | 2.1–2.6 ms |
+
 ### Proof
 
 - `tests/platform/secureTestMistakeEvidence.test.mjs` (new, 10 tests), on real
@@ -76,7 +94,8 @@ sitting the Test changes (proved below).
   - findings are trusted provenance under `path:<tool>` and carry no value from
     the item;
   - `buildResponseRecord` and `finalizeOpenItems` record it for a miss, and
-    nothing for a right, blank or unmodeled answer;
+    nothing for a right, blank or unmodeled answer, nor for an item recorded as
+    unanswered whatever its payload holds (review N4);
   - `publicSession` (student and proctor) and the released `publicReview` carry
     none of it;
   - a Corrections plan built from a Test-stage and from a Retest-stage session
@@ -112,111 +131,109 @@ sitting the Test changes (proved below).
   - drop the systems classification check;
   - drop the line-form "already in that form" check, or the same-line check;
   - undeclare `path:relationMapping`;
-  - the helper no longer passing responses and the item (contract).
+  - the helper no longer passing responses and the item (contract);
+  - drop the `unanswered` guard (review N4);
+  - drop the load before the submit transaction (contract
+    `testCycleClassSittingsWiring.test.mjs`, which also pins all four loads and
+    that the four are every grading transaction).
 
-## Item 2: a Test day the class sat stays a closed window
+## Item 2: a Test day the class sat — record-only
 
 ### Reproduced on the base
 
-A scratch probe: Period 3 sits Monday 10:15–11:05 and that is the Test day; the
-class sits it; the rotation then flips. Read on Wednesday:
+A scratch probe: Period 3 sits Monday 10:15–11:05, and that day is the Test
+day. The class sits it, and then the rotation flips. Read on Wednesday, the base
+shows the Test `upcoming` and `stranded`, and an absent student is not missed
+("Waiting for a new Test day"). The structural follow-up asked for that day to
+become a closed window, with absent students marked missed.
 
-| | Base `530ac3cf` | Branch (with the sitting recorded) |
-| --- | --- | --- |
-| Test window | `upcoming`, `stranded` | `closed` at Mon 11:05 |
-| An absent student | not missed; waits | missed (`studentMissedOriginalTest`) |
-| Card headline | "Waiting for a new Test day" | "Closed Mon, Oct 12, 11:05 AM CDT" |
+### Review round: why it is record-only
 
-**What a student saw.** A student absent on a Test day the class had sat read
-"Waiting for a new Test day … Your teacher will set a new Test day" once that day
-stopped resolving (a rotation flip, a renamed or cleared period, old data whose
-`at` an older server rewrote), and the teacher was asked to set a new day for a
-class that had already sat the Test.
+The first version (`c6c8f08f`) read the recorded times back for a day that no
+longer resolved. The independent review found a **blocker** in that. One start,
+from anywhere, turns a day the class never met into a missed Test for everyone
+else, and the teacher is no longer told.
+
+Here is the reviewer's scenario:
+- Monday is an A day, and Period 3's Test is set for it. School closes for snow.
+- One student opens the app at home at 10:20 and starts the Test. Nothing
+  enforces "in class": `workFromHome` is only a display flag. So the sitting is
+  recorded.
+- On Tuesday, Monday is entered as a closure.
+- On the base, absent students wait and the panel flags the class.
+- On `c6c8f08f`, the Test read `closed`. Every non-starter was missed and got the
+  stand-in Retest capped at 70, and `needsNewDay` was false.
+
+The same happens when the only start is later voided by a reset, or when a wrong
+A/B designation is corrected after the fact. The stored data cannot tell "the
+class sat it" from "one student opened it".
+
+Integrator's decision, made conservatively: in wave 7, item 2 is **record-only**.
+The policy goes to the owner (decision 1 below).
 
 ### What changed
 
 | Where | Change |
 | --- | --- |
 | New collection `testCycleClassSittings/{assignmentId}__{classId}__{dateKey}` | Server-only. One document per class and day: `assignmentId`, `classId`, `dateKey`, `windowId`, `period`, `dayType`, `opensAt`, `closesAt` (the bell's close; an extension stays on the window), `recordedAt`. `firestore.rules`: `allow read, write: if false`. |
-| `startSecureExamSession` | After the transaction that starts a fresh **Test** (not a Retest, not a resume), `recordClassTestSitting` writes the sitting with `create()`, so the first start wins and nothing overwrites it. A lost race finds it there; any other failure is logged and never fails the start. It records only a bell-schedule window open at that moment (`classSittingToRecord`): never a teacher's reopen, a student's make-up, or a window that is itself a recorded sitting. |
-| `resolveClassWindows` (pure) | Takes `sittings`. For a class-period day with a sitting that **no longer resolves** (or reads `endedBeforeSet`), the window is the recorded times (`recordedSitting: true`), with a teacher's extension still applied. A day that still resolves keeps the bell schedule's live times. |
-| Readers | `studentTestCycleSchedule` (every student entry, the card, the Corrections gate, the bulk pass), `teacherTestCycleSchedule` (the windows panel) and `setTestDayForClasses` ("kept — its window already opened") pass the class's sittings. They read them **only when a bell-schedule window does not resolve** (`classWindowsNeedSittings`), one query per assignment (`where assignmentId ==`, a single-field index), cached across a teacher's bulk pass. A cycle whose days resolve costs no extra read. |
-
-Days sat before this deploys have no sitting, so they behave exactly as on the
-base. Nothing is backfilled.
+| `startSecureExamSession` | After the transaction that starts a fresh **Test** (not a Retest, not a resume), `recordClassTestSitting` writes the sitting with `create()`. The first start wins and nothing overwrites it. A lost race finds the document there; any other failure is logged and never fails the start. It records only a bell-schedule window open at that moment (`classSittingToRecord`): never a teacher's reopen or a student's make-up. |
+| `assertCourseTestEntryAllowed` / `studentTestCycleSchedule` | The gate returns the schedule it already resolved, and the schedule names the class whose windows the student follows, so the start knows which window it was in. Nothing else about either changes. |
+| Readers | **None.** `resolveClassWindows` takes no sittings. No server code queries the collection: the create is its only reference. A day that stops resolving behaves exactly as on the base. Absent students wait, the panel flags the class, and `needsNewDay` is true. This also removes the read cost the review raised (S2). |
 
 ### Proof
 
-- `tests/platform/testCycleAvailability.test.mjs`, two new tests:
-  - the sitting recorded at a start inside the window;
-  - read back per class only;
-  - four ways the day stops resolving (rotation flip, renamed period, no period,
-    old re-saved `at`), each read without the sitting (stranded, absent student
-    not missed) and with it (closed at the recorded bell, absent student missed,
-    Corrections and the Retest open when it closed);
-  - a recorded window is never recorded again;
-  - a day that still resolves keeps live times;
-  - an extension applies;
-  - a day nobody sat stays stranded;
-  - resolving days need no read;
-  - no sitting before or after the bell, without a class or an assignment, for a
-    teacher's reopen or a student's make-up;
-  - junk is not a window.
-- `tests/platform/testCycleClassSittingsWiring.test.mjs` (new):
+- `tests/platform/testCycleAvailability.test.mjs`, three tests.
+  - **What is recorded:** a start inside a class-period window records that
+    day's times, its window, period and A/B day. An extension stays on the
+    window.
+  - **When nothing is recorded:**
+    - before the bell, at its close, or without a class or an assignment;
+    - for a teacher's reopen or a student's make-up;
+    - for an open window that is not the bell schedule's, even one carrying a
+      date (review N4).
+  - **Nothing reads it:** the reviewer's closure day, with a sitting handed in
+    anyway, stays `stranded`. The absent student is not missed, and
+    `classNeedsNewTestDay` is true.
+- `tests/platform/testCycleClassSittingsWiring.test.mjs`:
   - the start writes after its transaction, only for a fresh Test;
   - the write is `create()` and never throws;
-  - every reader passes the sittings;
-  - the query sits behind the "needs sittings" gate.
-- `tests/rules/testCycleClassSittingsRules.test.mjs` (new): no student, teacher,
-  root admin or signed-out browser can read, list, create, update or delete a
+  - the collection is referenced exactly once (that create);
+  - no `resolveClassWindows` / `resolveStudentTestCycleSchedule` call or
+    resolver body mentions sittings.
+- `tests/rules/testCycleClassSittingsRules.test.mjs`: no student, teacher, root
+  admin or signed-out browser can read, list, create, update or delete a
   sitting.
 - Emulator scenario **M** (`testCycleCertification`), with the real callables:
-  - a one-minute meeting under way now;
-  - nothing recorded before anyone starts;
+  - a one-minute meeting under way now; nothing is recorded before anyone
+    starts;
   - the first start records the sitting with the card's own times, and a resume
     writes nothing new;
-  - the period is then taken off the bell schedule and the meeting ends;
-  - the absent student's card is `closed`, `missedTest`, stage `retest`;
-  - the teacher row is `closed` with no "needs a new day";
-  - with the sitting deleted, the same data puts the absent student back on the
-    Test, not missed.
-- Rewritten contract: `testCycleSecureWorkflowWiring.test.mjs` pinned the
-  `teacherTestCycleSchedule` call's exact argument list. It now requires
-  `classSittings` and the new `assignmentId`.
+  - the period is taken off the bell schedule and the meeting ends: the absent
+    student is back on the Test (`upcoming`, not missed, no stand-in Retest);
+  - a **past** day with a recorded sitting that no longer resolves (the
+    reviewer's snow day) is `stranded` with "Waiting for a new Test day". The
+    absent student is not missed, and the teacher row has `needsNewDay: true`.
+- `testCycleSecureWorkflowWiring.test.mjs` is back to the base: the panel call
+  is unchanged.
 - Mutation checks, each seen red, then restored:
-  - ignore the sitting;
-  - record a recorded window;
-  - drop the extension;
-  - read another class's sitting;
-  - use the sitting when the day still resolves;
-  - read sittings for resolving days;
-  - accept a backwards window;
-  - drop the start's write (wiring, and M);
-  - record on a Retest or resume;
-  - drop `sittings` from the student schedule (wiring, and M);
-  - drop it from `setTestDayForClasses`;
-  - `set()` instead of `create()`;
-  - drop `classSittings` from the panel call;
+  - a resolver that reads a sitting (unit, wiring);
+  - a server query of the collection (wiring);
+  - the `c6c8f08f` reading code restored (emulator M);
+  - drop the start's write (wiring);
+  - record on a Retest or a resume (wiring);
+  - drop the bell-schedule source check (unit);
+  - record the extended close (unit);
+  - `set()` instead of `create()` (wiring);
   - the rules allowing a signed-in read, or a signed-in write.
 
 ### Owner decisions 1 and 5 (from `STUDENT_PASS3_TEST_CYCLE_DATES.md`), as they stand now
 
-Both stay as they were. This is how the recording bears on each:
+Both are **unchanged**, because nothing reads a sitting yet.
+- **Decision 1** (retroactive A/B designation): exactly as on the base.
+- **Decision 5** (`endedBeforeSet` on old data): exactly as on the base.
 
-- **Decision 1, retroactive A/B designation.** Unchanged. A day undesignated
-  during its period had no open window, so nobody could start and nothing is
-  recorded. Designated after the period, it resolves live and reads closed, and
-  the class is marked missed, exactly as before. What is new is a way to decide
-  it: a past class-period day could count as "held" only if a sitting was
-  recorded. That would fix decision 1, but it would also strand every day sat
-  before this deploys, which has no sitting. Not built; the owner's call.
-- **Decision 5, `endedBeforeSet` on old data.** Unchanged for every day sat
-  before this deploys (no sitting): students who never started still wait, and
-  the panel flags the class. For a day sat after it, a sitting turns
-  `endedBeforeSet` into the window the class had, so an absent student is marked
-  missed. Today's `withClassTestDay` keeps the first `at`, so new data reaches
-  `endedBeforeSet` only from a bell schedule moved earlier on the same day after
-  the class sat.
+What is new is only the record. It is what any answer to the new decision below
+would use, from this deploy on.
 
 ## Gate
 
@@ -260,15 +277,13 @@ Gated at `6d727b70` (the code; later commits change only this handoff). The brow
     `runTestCycleBulkAction` (unchanged code, now with evidence to read);
   - `getStudentTestCycle` and `getTeacherTestCyclePlans` show it;
   - `submitTestCycleCorrectionResponse` (more tools diagnosed).
-- **Item 2:**
-  - `startSecureExamSession` (records);
-  - every path that resolves a student's windows: `getStudentTestCycle`,
-    `issueSecureExamQuestion`, `saveSecureExamDraft`, `submitSecureExamResponse`,
-    `finalizeSecureExam`, `issueTestCycleCorrectionQuestion`,
-    `submitTestCycleCorrectionResponse`, `teacherTestCycleAction`,
-    `runTestCycleBulkAction`;
-  - the teacher's `listTeacherTestCycleRecords` (panel);
-  - `updateTestCycleAvailability` (`setTestDayForClasses`).
+- **Item 2 (record-only):** `startSecureExamSession` only. It writes the
+  sitting after a fresh Test start; what it returns is unchanged. No reader
+  changes:
+  - `getStudentTestCycle`, `listTeacherTestCycleRecords` and
+    `updateTestCycleAvailability` behave exactly as on the base;
+  - every entry path's schedule result gains only an internal `classId`, which
+    no response carries.
 - **`functions:path-admin`:** the planner names it because `functions/shared`
   changed. Its behaviour is unchanged.
 
@@ -286,29 +301,44 @@ Gated at `6d727b70` (the code; later commits change only this handoff). The brow
    behaviour changes, but the bundle does.
 
 The order matters: functions before rules is harmless (the new collection is
-written only by the Admin SDK), but the Hosting bundle must not precede the
-functions. No index change: the one query is a single-field equality.
+written only by the Admin SDK). No index change: nothing queries the new
+collection.
 
 **Students already in the database.**
 - Nothing is backfilled, and no stored plan or record is rewritten.
 - Item 1 names a mistake only for Test responses graded after the deploy. A plan
   already built keeps its words.
-- Item 2 records sittings only from the deploy on. No read-only production count
-  is needed for either item: neither changes what existing data reads.
+- Item 2 records sittings only from the deploy on, and reads none.
+- No read-only production count is needed for either item: neither changes what
+  existing data reads.
 
 ## Decisions for the owner
 
-1. **Decision 1** (above): should a past class-period day count as held only
-   when a sitting was recorded? Not built.
-2. **Absent students on a sat day now get the capped Retest.** This is the item
-   as specified: a sat day that stops resolving is now missed for absent
-   students, not stranded. An absent student's first card then opens the stand-in
-   Retest (capped at 70), as for any missed Test. A teacher who wants them to sit
-   the Test instead still has a student's own make-up window.
-3. **A Retest's recorded mistakes** have no reader. Should the teacher's
+1. **Should a recorded sitting ever mark absent students missed?**
+   - **The case against doing it blindly** is the reviewer's snow day. Monday's
+     Test day is closed for snow. One student starts the Test from home at
+     10:20, which nothing forbids (`workFromHome` is a display flag), so a
+     sitting is recorded. Monday is then entered as a closure. Read naively,
+     the sitting would mark every other student missed, open their stand-in
+     Retest capped at 70, and stop flagging the class. A start voided by a
+     reset, and an A/B designation corrected after the fact, do the same.
+   - **Options:**
+     - **(a) Evidence.** Count it as held only when enough of the roster
+       started: a count, or a share. A per-start counter on one document
+       contends when 30 students start at once, so count the sessions started
+       in the window instead, or keep one document per start.
+     - **(b) The teacher decides.** The panel says "Class sat Mon (*n*
+       started): mark absent students missed / set a new day", and
+       `needsNewDay` stays true until the teacher confirms.
+     - **(c) The `c6c8f08f` behaviour.** Any recorded sitting makes the day
+       held.
+   - **Data:** the sittings recorded from this deploy on are what any of these
+     would use. Nothing reads them today, so decisions 1 and 5 of
+     `STUDENT_PASS3_TEST_CYCLE_DATES.md` stand unchanged.
+2. **A Retest's recorded mistakes** have no reader. Should the teacher's
    per-student view show them, or should a failed Retest open another round of
    Corrections? Not built.
-4. **Sittings are kept forever** (one small document per class and Test day).
+3. **Sittings are kept forever** (one small document per class and Test day).
    There is no cleanup when an assignment is deleted, as with the other Test
    Cycle documents.
 
@@ -329,3 +359,10 @@ functions. No index change: the one query is a single-field equality.
   text could name the wrong error.
 - **No backfill** of sittings or evidence for past Tests.
 - The two `secureExamNavigation` practice-SAT failures are on the base as well. Not investigated here.
+
+## Found (not for this branch)
+
+- **A grader gap, from the review (N3).** Point-slope form is asked, and the key
+  is `y - 5 = 2(x - 1)`. The answer `y - 7 = 2(x - 2)` is the same line through
+  a different point, and it is graded wrong. It is pre-existing; the integrator
+  is carrying it to the owner list.
