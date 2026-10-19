@@ -94,7 +94,23 @@ const answerOnce = async (context, device, { kind, seat }, answer, { screenshot 
   if (device.touch) await field.tap();
   else await field.click();
   await page.waitForTimeout(150);
-  await page.keyboard.type(answer, { delay: 30 });
+  if (typeof answer === 'string') {
+    await page.keyboard.type(answer, { delay: 30 });
+  } else {
+    // A mixed number as a student builds it: the whole number, then the a/b
+    // fraction template (the keypad key when the screen shows one, else the
+    // same insert the key runs), the numerator, then the denominator.
+    await page.keyboard.type(answer.whole, { delay: 30 });
+    const key = page.getByRole('button', { name: 'Insert stacked fraction' }).first();
+    if (await key.isVisible().catch(() => false)) {
+      if (device.touch) await key.tap(); else await key.click();
+    } else {
+      await field.evaluate((element) => element.executeCommand(['insert', '\\frac{#0}{#?}']));
+    }
+    await page.keyboard.type(answer.numerator, { delay: 30 });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.type(answer.denominator, { delay: 30 });
+  }
   await page.waitForTimeout(250);
   const typed = await field.evaluate((element) => element.value);
   // What the screen says about the answer before it is submitted (a shape
@@ -102,13 +118,17 @@ const answerOnce = async (context, device, { kind, seat }, answer, { screenshot 
   const notice = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].map((node) => node.textContent.trim()).filter(Boolean).join(' | '));
   if (screenshot && process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${screenshot}`, fullPage: false });
   const submit = page.getByRole('button', { name: /^Submit — / }).first();
-  if (device.touch) await submit.tap();
-  else await submit.click();
-  await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 8000 }).catch(() => {});
+  // A response that is not ready keeps Submit disabled: pressing it spends nothing.
+  const submitDisabled = await submit.isDisabled();
+  if (!submitDisabled) {
+    if (device.touch) await submit.tap();
+    else await submit.click();
+    await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 8000 }).catch(() => {});
+  }
   const graded = await page.evaluate(() => window.__mmGraded);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   await page.close();
-  return { prompt, typed, notice, graded, errors, overflow };
+  return { prompt, typed, notice, graded, submitDisabled, errors, overflow };
 };
 
 for (const device of DEVICES) {
@@ -146,14 +166,19 @@ for (const device of DEVICES) {
   // (student pass 3, wave 7). "Simplify 14/4." asks for one fraction in lowest
   // terms: the screen says so and no try is spent. An authored sum takes 3½.
   const REASON = 'Write your answer as one fraction in lowest terms, not as a whole number and a fraction.';
-  const mixed = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, '3 1/2', { screenshot: `mixed-number-reason-${device.name.toLowerCase()}.png` });
+  // Typed `3 1/2` is not a mixed number in the editor: the space goes and the
+  // slash takes 31 as its numerator, so the student sees 31/2 stacked.
+  const spaced = await answerOnce(context, device, { kind: 'sum', seat: 0 }, '3 1/2');
+  check(spaced.typed === '\\frac{31}{2}' && spaced.graded?.isCorrect === false, `${device.name} 3/2 + 2: "3 1/2" typed with a space is 31/2 on screen, and wrong`, `typed ${JSON.stringify(spaced.typed)}, graded ${JSON.stringify(spaced.graded?.isCorrect)}`);
+  const THREE_AND_A_HALF = { whole: '3', numerator: '1', denominator: '2' };
+  const mixed = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, THREE_AND_A_HALF, { screenshot: `mixed-number-reason-${device.name.toLowerCase()}.png` });
   check(/^3\\frac\{?1\}?\{?2\}?$/.test(mixed.typed), `${device.name} "Simplify 14/4.": the editor holds 3½ as a whole number and a fraction`, JSON.stringify(mixed.typed));
   check(mixed.notice.includes(REASON), `${device.name} "Simplify 14/4.": 3½ shows why before a try is spent`, JSON.stringify(mixed.notice));
-  check(mixed.graded === null, `${device.name} "Simplify 14/4.": Submit spends no try on 3½`, JSON.stringify(mixed.graded));
+  check(mixed.submitDisabled && mixed.graded === null, `${device.name} "Simplify 14/4.": Submit is held, so no try is spent on 3½`, `disabled ${mixed.submitDisabled}, graded ${JSON.stringify(mixed.graded)}`);
   check(!mixed.errors.length, `${device.name} "Simplify 14/4.": no page errors`, mixed.errors.slice(0, 2).join(' | '));
   const improper = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, '7/2');
   check(improper.graded?.isCorrect === true && !improper.notice.includes(REASON), `${device.name} "Simplify 14/4.": 7/2 is right, with no reason shown`, `graded ${JSON.stringify(improper.graded?.isCorrect)}`);
-  const sum = await answerOnce(context, device, { kind: 'sum', seat: 0 }, '3 1/2');
+  const sum = await answerOnce(context, device, { kind: 'sum', seat: 0 }, THREE_AND_A_HALF);
   check(sum.graded?.isCorrect === true, `${device.name} 3/2 + 2: 3½ is 7/2`, `graded ${JSON.stringify(sum.graded?.isCorrect)}, typed ${JSON.stringify(sum.typed)}`);
   check(!sum.notice.includes(REASON), `${device.name} 3/2 + 2: no form reason where any answer worth the sum is right`, JSON.stringify(sum.notice));
   await context.close();

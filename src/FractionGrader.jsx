@@ -48,14 +48,15 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
         </div>
       )}
       <QuestionVisual question={question} />
-      {formProblem ? (
-        <p role="status" style={{ margin: '0 auto 10px', width: 'fit-content', maxWidth: '100%', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
-          {formProblem}
-        </p>
-      ) : null}
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
+      {/* Under the box, where the floating Work View button never covers it. */}
+      {formProblem ? (
+        <p role="status" style={{ margin: '12px auto 0', width: 'fit-content', maxWidth: '100%', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+          {formProblem}
+        </p>
+      ) : null}
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
     </div>
   );
