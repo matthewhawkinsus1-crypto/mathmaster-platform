@@ -1,0 +1,259 @@
+/*
+ * STUDENT PASS 3, WAVE 7 — READ ALOUD READS WHAT THE QUESTION SHOWS (W7-5).
+ *
+ *   tables     Read aloud skipped every table. It now reads a table by rows,
+ *              with its headers; a cell the student fills in is "blank",
+ *              never its value (on a fillable table, the answer).
+ *   graphs     It skipped every graph. It now says the description the
+ *              figure already has (GraphDisplay, the shared CoordinatePlane),
+ *              under the figure's own rule: while the question can be
+ *              answered, the kinds of marks only — no position, no value.
+ *   HELP-19    The inclusion "Let's back up" step covered the work with a
+ *              generic Yes/No on items with no step written for them. It is
+ *              now shown only where one is written (authored or family), and
+ *              "Let's back up" is said once, not three times.
+ *
+ * Every real-lesson case runs over teacher-import-jsons, compiled the way
+ * QuestionEngine receives them.
+ */
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
+import { generateQuestion } from '../../src/problemGenerator.js';
+import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
+import { questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
+import { speechTextFor } from '../../src/platform/language/speechText.js';
+import { figureReadingEntries, updateFigureReadings } from '../../src/platform/language/figureReadings.js';
+import { displayTableFor } from '../../src/platform/question/displayTable.js';
+import { backUpQuestionText, backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
+import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+const ROOT = new URL('../../', import.meta.url);
+const ROOT_PATH = fileURLToPath(ROOT);
+const code = (path) => executableSource(readFileSync(new URL(path, ROOT), 'utf8'));
+
+let lessons = null;
+const realQuestions = () => {
+  if (lessons) return lessons;
+  lessons = [];
+  const imports = join(ROOT_PATH, 'teacher-import-jsons');
+  readdirSync(imports).forEach((folder) => readdirSync(join(imports, folder)).filter((name) => name.endsWith('.json')).forEach((name) => {
+    const compiled = compileAuthoringIntentV5(JSON.parse(readFileSync(join(imports, folder, name), 'utf8')));
+    compiled.package.sections.forEach((section) => section.questions.forEach((stored) => {
+      const question = normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(stored, {}), 0, null, null, null));
+      lessons.push({ role: section.role, stored, question });
+    }));
+  }));
+  return lessons;
+};
+const real = (questionId) => {
+  const found = realQuestions().find((entry) => entry.stored.questionId === questionId);
+  assert.ok(found, `${questionId} is in the real lessons`);
+  return found.question;
+};
+
+let vite = null;
+before(async () => {
+  const { createServer } = await import('vite');
+  vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+});
+after(async () => { await vite?.close(); });
+
+/* ------------------------------------------------------------------ tables */
+
+test('a fillable table is read by rows with its headers, and a cell to fill in is "blank" — never its answer (l2-cw-9)', () => {
+  const question = real('l2-cw-9');
+  const answers = question.table.answers;
+  assert.ok(Object.keys(answers).length >= 5, 'the real table has cells to fill in');
+  const table = displayTableFor(question, { editable: true });
+  Object.keys(answers).forEach((key) => {
+    const [row, column] = key.split(':');
+    const index = table.columns.findIndex((entry) => entry.key === column);
+    assert.equal(table.rows[Number(row)][index], null, `${key} is blank`);
+  });
+  const said = speechTextFor(tableReading(table));
+  assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./);
+  // No row says a value where the student writes one.
+  assert.doesNotMatch(said, /c of x, (?!blank)|input of d, (?!blank)/);
+});
+
+test('even when the row data holds the answer, a cell to fill in is read "blank"', () => {
+  const question = {
+    table: {
+      columns: [{ key: 'x', label: 'x' }, { key: 'y', label: 'y' }],
+      rows: [{ x: 1, y: 7 }, { x: 2, y: 9 }],
+      answers: { '0:y': '7' },
+      blanks: ['1:y'],
+    },
+  };
+  const read = tableReading(displayTableFor(question, { editable: true }));
+  assert.equal(read, 'A table, 2 rows. Columns: x; y. Row 1: x, 1; y, blank. Row 2: x, 2; y, blank.');
+  // The read-only table never shows (or reads) a key's value either.
+  assert.equal(displayTableFor(question).rows[0][1], null);
+});
+
+test('the read-only table: headers shape, its caption, money units and Spanish', () => {
+  const table = displayTableFor({ table: { headers: ['Month', 'Cost ($)'], rows: [['May', '$4.50'], ['June', '']] } });
+  assert.deepEqual(table.columns.map((column) => column.label), ['Month', 'Cost ($)']);
+  assert.equal(
+    speechTextFor(tableReading(table, { label: 'Phone bill' })),
+    'Phone bill, 2 rows. Columns: Month; Cost (dollars). Row 1: Month, May; Cost (dollars), 4 dollars and 50 cents. Row 2: Month, June; Cost (dollars), blank.',
+  );
+  assert.equal(
+    tableReading(table, { language: 'es' }),
+    'Una tabla, de 2 filas. Columnas: Month; Cost (dólares). Fila 1: Month, May; Cost (dólares), $4.50. Fila 2: Month, June; Cost (dólares), en blanco.',
+  );
+  assert.equal(displayTableFor({ table: { headers: [], rows: [] } }), null);
+});
+
+/* ------------------------------------------------------- figures, in order */
+
+test('a table and a figure are parts of the question, after its material and before the step and fields', () => {
+  const question = real('l3-pr-1');
+  const figures = [
+    { kind: 'table', label: 'Sales', table: { columns: [{ key: 'x', label: 'x' }], rows: [[1]] } },
+    { kind: 'figure', label: 'Question graph', text: 'x from −5 to 5, y from −5 to 5. 1 line. Positions are not read out while this question can be answered.' },
+  ];
+  const parts = questionReadingParts(question, { figures });
+  const kinds = parts.map((part) => part.kind);
+  assert.ok(kinds.indexOf('prompt') < kinds.indexOf('table'), kinds.join());
+  assert.ok(kinds.indexOf('table') < kinds.indexOf('figure'), kinds.join());
+  assert.ok(kinds.indexOf('figure') < kinds.indexOf('part'), kinds.join());
+  const figure = parts.find((part) => part.kind === 'figure');
+  assert.equal(figure.label, 'Question graph');
+  assert.equal(figure.text, 'Question graph. x from −5 to 5, y from −5 to 5. 1 line. Positions are not read out while this question can be answered.');
+  assert.equal(parts.find((part) => part.kind === 'table').label, 'Sales');
+  assert.match(questionReadingText(parts), /Sales, 1 row\. Columns: x\. Row 1: x, 1\./);
+  // Unnamed: a numbered label in the tray.
+  assert.equal(questionReadingParts(question, { figures: [{ kind: 'figure', label: '', text: 'Nothing is plotted.' }] }).find((part) => part.kind === 'figure').label, 'Figure 1');
+});
+
+test('the host keeps a figure in its place when its description changes, and does nothing when it does not', () => {
+  let list = updateFigureReadings([], 'a', { kind: 'figure', label: 'A', text: 'one' });
+  list = updateFigureReadings(list, 'b', { kind: 'figure', label: 'B', text: 'two' });
+  const same = updateFigureReadings(list, 'a', { kind: 'figure', label: 'A', text: 'one' });
+  assert.equal(same, list, 'unchanged: the same state, so nothing re-renders');
+  list = updateFigureReadings(list, 'a', { kind: 'figure', label: 'A', text: 'one, moved' });
+  assert.deepEqual(list.map((item) => item.id), ['a', 'b'], 'an update keeps its place');
+  list = updateFigureReadings(list, 'c', { kind: 'figure', label: 'B', text: 'two' });
+  assert.equal(figureReadingEntries(list).length, 2, 'the enlarged copy of a figure is read once');
+  list = updateFigureReadings(list, 'a', null);
+  assert.deepEqual(list.map((item) => item.id), ['b', 'c'], 'an unmounted figure is no longer read');
+});
+
+/* -------------------------------------------- the figure's rule, read aloud */
+
+const DESCRIPTION = /<p id="[^"]*" data-graph-description="" aria-hidden="true"[^>]*>([^<]*)<\/p>/;
+// What would give a position or a value away: a coordinate, an axis crossing,
+// a point a line passes through, a turning point, a shape's corners.
+const POSITIONS = /\(\s*[−-]?\d|\bcrosses\b|\bthrough\b|\bbetween\b|\bcorners?\b|\bhigh point\b|\blow point\b|\bat [−-]?\d/;
+
+test('on a real exit ticket, Read aloud says the graph without a position while it can be answered', async () => {
+  const { default: GraphDisplay } = await vite.ssrLoadModule('/src/GraphDisplay.jsx');
+  const { QuestionLifecycleProvider } = await vite.ssrLoadModule('/src/platform/question/QuestionLifecycleContext.jsx');
+  const { staticGraphSpec } = await vite.ssrLoadModule('/src/platform/workflow/WorkflowRunner.jsx');
+  // The graph the screen draws: a composed step's figure (WorkflowRunner's
+  // StageFigure: the stage graph with its structured function), else the
+  // persistent graph, else the question's own (QuestionVisual).
+  const drawnGraph = (question) => {
+    const { content, workflow } = readComposedQuestion(question);
+    const stageGraph = (workflow || []).find((stage) => stage?.graph?.functionSpec)?.graph;
+    const structured = stageGraph ? staticGraphSpec(stageGraph.functionSpec) : null;
+    if (structured) {
+      const { functionSpec, model, endpointRequirements, ...rest } = stageGraph;
+      return { ...rest, functions: [structured], points: Array.isArray(rest.points) ? rest.points : [] };
+    }
+    return (workflow?.length ? selectPersistentWorkflowGraph({ content, workflow, checkedGraph: null }) : null) || question.graph;
+  };
+  const assessed = realQuestions().filter(({ role, question }) => ['dol', 'quiz', 'test'].includes(role) && question.graph);
+  assert.ok(assessed.length >= 6, `${assessed.length} real assessment items with a graph`);
+  assessed.forEach(({ stored, question }) => {
+    const graph = drawnGraph(question);
+    const describe = (lifecycle) => {
+      const markup = renderToStaticMarkup(React.createElement(QuestionLifecycleProvider, lifecycle, React.createElement(GraphDisplay, { graph, title: 'Question graph' })));
+      return DESCRIPTION.exec(markup)?.[1].replace(/&#x27;/g, '\'') || '';
+    };
+    const open = describe({ terminal: false, positionsReadable: false });
+    assert.doesNotMatch(open, /Nothing is plotted/, `${stored.questionId}: the drawn graph`);
+    const closed = describe({ terminal: true, positionsReadable: true });
+    // The same text the figure publishes (wiring test below) is what is read.
+    const reading = questionReadingText(questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Question graph', text: open }] }));
+    assert.match(reading, /Positions are not read out while this question can be answered\./, stored.questionId);
+    assert.doesNotMatch(reading, POSITIONS, `${stored.questionId}: ${reading}`);
+    // The check can fail: closed, the same graph's description gives positions.
+    assert.match(closed, POSITIONS, `${stored.questionId} closed: ${closed}`);
+  });
+});
+
+test('each figure publishes the text it describes itself with, and QuestionEngine reads it', () => {
+  const graph = code('src/GraphDisplay.jsx');
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : ''\]\.join\(' '\) \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  const plane = code('src/tools/shared/CoordinatePlane.jsx');
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
+  const visual = code('src/QuestionVisual.jsx');
+  assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
+  assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
+  const grader = code('src/TableGrader.jsx');
+  assert.match(grader, /<PublishFigureReading entry=\{\{ kind: 'table', label: '', table: displayTableFor\(question, \{ editable: true \}\) \}\} \/>/);
+
+  // The other figures that already describe themselves, beside that description.
+  [
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
+    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
+    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
+  ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
+
+  const engine = code('src/QuestionEngine.jsx');
+  assert.match(engine, /import \{ FigureReadingPortProvider, figureReadingEntries, updateFigureReadings \} from '\.\/platform\/language\/figureReadings\.js';/);
+  assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\{renderModule\(\)\}<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
+  assert.match(engine, /const publishFigureReading = useCallback\(\(id, entry\) => setPublishedFigures\(\(current\) => updateFigureReadings\(current, id, entry\)\), \[\]\);/);
+  const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
+  assert.match(reading, /figures: figureReadings,/);
+});
+
+/* ---------------------------------------------------------------- HELP-19 */
+
+test('HELP-19: the back-up step is shown only where one is written for the problem', () => {
+  assert.equal(backUpStepWritten(backUpStepFor({ type: 'stepAlgebra', scaffold: { prompt: 'First move?', options: ['Add 3', 'Divide by 2'], correct: 'Add 3' } })), true, 'authored');
+  assert.equal(backUpStepWritten(backUpStepFor({ type: 'functionGraph' })), false, 'the platform\'s step for the type');
+  assert.equal(backUpStepWritten(backUpStepFor({ type: 'matrixLab' })), false, 'the generic Yes/No');
+  assert.equal(backUpStepWritten(null), false);
+
+  // Over the real Warm-Up, Classwork and Practice items.
+  const helped = realQuestions().filter(({ role }) => ['warmup', 'classwork', 'practice'].includes(role));
+  const written = helped.filter(({ question }) => backUpStepWritten(backUpStepFor(question)));
+  // teacher-import-jsons: 141 of 217 (with docs/assignments and the sample, 157 of 265).
+  assert.ok(helped.length >= 200 && written.length >= 130, `${written.length} of ${helped.length} keep a step written for them`);
+  written.forEach(({ stored, question }) => {
+    const step = backUpStepFor(question);
+    assert.doesNotMatch(step.prompt, /revise the specific parts identified in the feedback/, stored.questionId);
+  });
+
+  const engine = code('src/QuestionEngine.jsx');
+  assert.match(engine, /const scaffoldRequired = Boolean\(backUpStepWritten\(scaffold\) && /, 'the overlay needs a written step');
+});
+
+test('HELP-19: "Let\'s back up" is said once — the region names it, the question follows', () => {
+  const question = real('l3-pr-1');
+  const step = { prompt: 'Let’s back up. Which axis do you read the domain along?', options: ['The y-axis', 'The x-axis'], correct: 'The x-axis' };
+  assert.equal(backUpQuestionText(step.prompt), 'Which axis do you read the domain along?');
+  assert.equal(backUpQuestionText('One step back. Which point?'), 'One step back. Which point?');
+  const said = questionReadingText(questionReadingParts(question, { backUp: step }));
+  assert.equal((said.match(/Let’s back up/g) || []).length, 1, said);
+  assert.match(said, /^Let’s back up\. Which axis do you read the domain along\? Choices: The y-axis; or The x-axis\./);
+
+  const engine = code('src/QuestionEngine.jsx');
+  const overlay = region(engine, '{scaffoldRequired && (', '</section>', 'the back-up overlay');
+  assert.match(overlay, /role="region" aria-label="Let's back up"/);
+  assert.match(overlay, /<h2[^>]*>\{backUpQuestionText\(scaffold\.prompt\)\}<\/h2>/, 'the heading is the question, not "Let\'s back up" again');
+});

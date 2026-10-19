@@ -14,6 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -909,6 +910,8 @@ export default function CoordinatePlane({
       {/* Inline as well as the class: a host that loads no UI kit CSS must not
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
+      {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
+      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
 
       {showDataTable ? (

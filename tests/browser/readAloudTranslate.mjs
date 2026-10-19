@@ -14,6 +14,11 @@
 //                can be heard again on its own.
 //   universal    a student with no plan, in practice: the tray's Read aloud
 //                says the same whole question and opens the parts.
+//   figures      a graph on a real DOL is read by its own description, with
+//                no position while it can be answered; a real fillable table
+//                is read by rows with its headers, each cell to fill "blank".
+//   HELP-19      an inclusion student meets "Let's back up" only where a step
+//                is written for the problem, and hears those words once.
 //   translate    a platform hint is shown in Spanish (lang="es") and Read
 //                then speaks the Spanish; a teacher-written hint says plainly
 //                that it has no Spanish translation — no dead button.
@@ -126,6 +131,80 @@ for (const device of DEVICES) {
     const said = (await lastSpoken(page))?.text || '';
     check(/Row 2: negative 2, 5\..*Choices: /.test(said), `${device.name}: the tray reads the whole question too`);
     check(await trayRead.getAttribute('aria-expanded') === 'true' && await page.locator('[data-read-part]').count() >= 5, `${device.name}: the parts open under it`);
+    await context.close();
+  }
+
+  /* --------------------- a graph on a real exit ticket: said, without positions */
+  {
+    const { page, context } = await open(device, 'q=dolgraph&role=dol&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(/x from negative 4 to 7, y from negative 6 to 16\. 1 curve\. 1 open dot and 1 closed dot\. Positions are not read out while this question can be answered\./.test(said), `${device.name}: the DOL's graph is read by the description it already has`, said);
+    check(said.indexOf('1 curve') < said.indexOf('Step 1 of 2'), `${device.name}: the graph is read before the step that asks about it`);
+    // No coordinate, crossing, turning point or corner: what the question asks for.
+    check(!/\(\s*(?:negative )?\d|\bcrosses\b|\bthrough\b|\bbetween\b|\bcorners?\b|\bhigh point\b|\blow point\b/.test(said), `${device.name}: no position is read while the exit ticket is open`, said);
+    const description = await page.locator('[data-graph-description]').first().textContent();
+    check(said.includes(description.replace(/−/g, 'negative ').split('. ')[1] || '\u0000'), `${device.name}: what is read is the figure's own description`, description);
+    await context.close();
+  }
+
+  /* ------------------------------------- a fillable table: rows, headers, blanks */
+  {
+    const { page, context } = await open(device, 'q=table&role=classwork&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(/A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./.test(said), `${device.name}: the table is read by rows with its headers`, said.slice(0, 260));
+    const answers = await page.evaluate(() => window.__mmAnswers);
+    const filled = [...said.matchAll(/(?:c of x|input of d), ([^;.]+)/g)].map((match) => match[1]);
+    check(answers.length >= 10 && filled.length === 10 && filled.every((cell) => cell === 'blank'), `${device.name}: every cell to fill in is "blank", never its answer`, filled.join(' | '));
+    const partsButton = page.locator('[data-support-tool="read-parts"]').first();
+    if (await partsButton.count()) {
+      await partsButton.click();
+      await page.locator('[data-read-part="table"]').first().click();
+      check(/^A table, 5 rows\./.test((await lastSpoken(page))?.text || ''), `${device.name}: the table can be heard again on its own`);
+    } else check(false, `${device.name}: the tray offers "Read a part"`);
+    await noSidewaysScroll(page, `${device.name} table`);
+    await context.close();
+  }
+
+  /* --------------------------- HELP-19: the back-up step only where it is written */
+  {
+    const missTwice = async (page) => {
+      for (let miss = 0; miss < 2; miss += 1) {
+        const field = page.locator('.mathmaster-question-tool-workspace math-field').first();
+        // Two different answers: the same one again asks to confirm first.
+        await field.evaluate((element, value) => { element.setValue(value); element.dispatchEvent(new Event('input', { bubbles: true })); }, String(998 + miss));
+        await page.waitForTimeout(250);
+        await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
+        await page.waitForTimeout(600);
+      }
+    };
+    // A family item: its step names THIS problem's first move.
+    const { page, context } = await open(device, 'q=family&role=practice&support=inclusion');
+    await missTwice(page);
+    const overlay = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
+    check(await overlay.count() === 1, `${device.name}: an inclusion student gets the step written for this problem`);
+    const heading = (await overlay.locator('h2').textContent()) || '';
+    check(heading.length > 10 && !/back up/i.test(heading), `${device.name}: the heading is the question, "Let's back up" is not said again`, heading);
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check((said.match(/Let’s back up/g) || []).length === 1 && said.startsWith('Let’s back up.'), `${device.name}: Read aloud says "Let's back up" once, first`, said.slice(0, 160));
+    await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-back-up.png`) });
+    await context.close();
+  }
+  {
+    // No step written for this item: the work is not covered by a Yes/No.
+    const { page, context } = await open(device, 'q=plain&role=practice&support=inclusion');
+    for (const value of ['10', '7']) {
+      const field = page.locator('.mathmaster-question-tool-workspace math-field').first();
+      await field.evaluate((element, next) => { element.setValue(next); element.dispatchEvent(new Event('input', { bubbles: true })); }, value);
+      await page.waitForTimeout(250);
+      await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
+      await page.waitForTimeout(600);
+    }
+    check(await page.evaluate(() => window.__mmGrades.length) === 2, `${device.name}: two misses were graded`);
+    check(await page.locator('[data-scaffold]').count() === 0, `${device.name}: no generic back-up step covers the work`);
+    check(await page.getByText('should you revise the specific parts').count() === 0, `${device.name}: the generic Yes/No is gone`);
     await context.close();
   }
 

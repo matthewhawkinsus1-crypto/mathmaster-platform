@@ -3,37 +3,15 @@ import MathDisplay from './MathDisplay';
 import MatrixGrid from './components/common/MatrixGrid.jsx';
 import { readDisplayMatrices } from './platform/math/displayMatrices.js';
 import { questionAsksAboutQuadrants } from './platform/graph/quadrantLabels.js';
+import { displayTableFor } from './platform/question/displayTable.js';
+import { PublishFigureReading } from './platform/language/figureReadings.js';
 
 // A question of any type may carry a `table` to show the student — a word
 // problem that displays sales data and asks for the reasonable domain, for
 // example. `TableGrader` builds its own fillable table from the same field, so
-// it opts out with includeTable={false} rather than rendering it twice.
-const normalizeDisplayTable = (table) => {
-  if (!table || typeof table !== 'object' || Array.isArray(table)) return null;
-
-  const columns = Array.isArray(table.columns) && table.columns.length
-    ? table.columns.map((column, index) => ({
-        key: column?.key ?? String(index),
-        label: String(column?.label ?? column?.key ?? `Column ${index + 1}`),
-      }))
-    : (Array.isArray(table.headers) ? table.headers : []).map((header, index) => ({
-        key: String(index),
-        label: String(header ?? `Column ${index + 1}`),
-      }));
-  if (!columns.length) return null;
-
-  const rawRows = Array.isArray(table.rows) ? table.rows : [];
-  const rows = rawRows.map((row) => (
-    Array.isArray(row)
-      // The header shape pairs positionally, so column keys are the indices.
-      ? columns.map((_, index) => row[index])
-      : columns.map((column) => (row && typeof row === 'object' ? row[column.key] : undefined))
-  ));
-  if (!rows.length) return null;
-
-  return { columns, rows };
-};
-
+// it opts out with includeTable={false} rather than rendering it twice. The
+// rows come from displayTableFor, which Read aloud reads too: a cell a student
+// fills in is never shown (or read) with its value.
 const displayCell = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return String(value);
@@ -46,7 +24,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
     ? { ...authoredGraph, quadrantLabels: true }
     : authoredGraph;
   const mathSpec = question?.mathDisplay || question?.supportingMath;
-  const displayTable = includeTable ? normalizeDisplayTable(question?.table) : null;
+  const displayTable = includeTable ? displayTableFor(question) : null;
   // Named matrices the question shows (a store's inventory, a system's
   // coefficient matrix), in the authored layout: ["Nov", "+", "Dec"] draws the
   // two matrices with a plus between them.
@@ -91,6 +69,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
           )))}
         </div>
       )}
+      {displayTable && <PublishFigureReading entry={{ kind: 'table', label: question?.tableCaption || '', table: displayTable }} />}
       {displayTable && (
         <div style={{ margin: '22px auto', maxWidth: '100%', overflowX: 'auto' }}>
           <table

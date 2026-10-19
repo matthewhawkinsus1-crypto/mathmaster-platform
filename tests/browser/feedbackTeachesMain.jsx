@@ -5,8 +5,15 @@
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
 //   ?support=read           give the student Read aloud only (a plan's text-to-speech)
+//   ?q=plain                an item with no step written for it (HELP-19)
+//   ?support=inclusion      an inclusion student, with Read aloud (the "Let's back up" step)
 //   ?q=matrices             the real ACT-style matrices item of Algebra II M1 T2 L3
 //                           (tests/browser/readAloudTranslate.mjs)
+//   ?q=dolgraph             the real District DOL #1 graph-analysis item (q_section-4_4_1),
+//                           a graph and its composed steps (readAloudTranslate.mjs: the
+//                           graph is read without positions while it can be answered)
+//   ?q=table                the real fillable table of Algebra I M2 T2 L2 (l2-cw-9):
+//                           its given cells are read, a cell to fill in is "blank"
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -25,6 +32,8 @@ import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringI
 import { familyFor } from '../../src/platform/supports/families/index.js';
 import day2Transformations from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
 import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
+import dolGraphLesson from '../../teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
+import transformationsLesson from '../../teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -79,6 +88,20 @@ const QUESTIONS = {
   matrices: compileAuthoringIntentV5(matricesLesson).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.questionId === 'l3m-pr-12-ccmr'),
+  dolgraph: compileAuthoringIntentV5(dolGraphLesson).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === 'q_section-4_4_1'),
+  table: compileAuthoringIntentV5(transformationsLesson).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === 'l2-cw-9'),
+  // No question family claims it and it has no authored scaffold: no step is
+  // written for it (HELP-19, readAloudTranslate.mjs).
+  plain: {
+    questionId: 'feedback-plain',
+    type: 'multiAnswer',
+    prompt: 'Matrix A has 3 rows and 4 columns. How many entries does it have?',
+    answerFields: [{ id: 'n', label: 'Entries', answer: '12', inputProfile: 'text' }],
+  },
   system: {
     questionId: 'feedback-system',
     type: 'system',
@@ -90,10 +113,13 @@ const QUESTIONS = {
 const question = QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
-window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? '')) : [];
+window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? ''))
+  : which === 'table' ? Object.values(question?.table?.answers || {}).map(String) : [];
 const SUPPORT_PROFILES = {
   translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
   read: { accommodations: ['text-to-speech'] },
+  // An inclusion student with a plan's Read aloud: the "Let's back up" step (HELP-19).
+  inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },
 };
 const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
 

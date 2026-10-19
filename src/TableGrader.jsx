@@ -6,6 +6,8 @@ import { resolveLabelFormat } from './labelFormat';
 import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
 import useUndoHistory from './useUndoHistory';
 import { FRACTION_ENTRY_PROPS } from './platform/interaction/numberEntry.js';
+import { displayTableFor } from './platform/question/displayTable.js';
+import { PublishFigureReading } from './platform/language/figureReadings.js';
 import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
 // `compact` is for a table embedded in a larger question, where the step
@@ -82,6 +84,8 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       {/* The fillable table below is built from question.table, so the shared
           read-only rendering of the same field would duplicate it. */}
       <QuestionVisual question={question} includeTable={false} />
+      {/* Read aloud reads the given cells; a cell to fill in is "blank", never its answer (displayTable.js). */}
+      <PublishFigureReading entry={{ kind: 'table', label: '', table: displayTableFor(question, { editable: true }) }} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
         <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: 'var(--mm-surface)' }}>
           <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid var(--mm-border)', background: 'var(--mm-primary-soft)', fontSize: 'calc(20 * var(--mm-px))' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
