@@ -169,8 +169,11 @@ test('on a real exit ticket, Read aloud says the graph without a position while 
     const stageGraph = (workflow || []).find((stage) => stage?.graph?.functionSpec)?.graph;
     const structured = stageGraph ? staticGraphSpec(stageGraph.functionSpec) : null;
     if (structured) {
-      const { functionSpec, model, endpointRequirements, ...rest } = stageGraph;
-      return { ...rest, functions: [structured], points: Array.isArray(rest.points) ? rest.points : [] };
+      const shown = { ...stageGraph, functions: [structured], points: Array.isArray(stageGraph.points) ? stageGraph.points : [] };
+      delete shown.functionSpec;
+      delete shown.model;
+      delete shown.endpointRequirements;
+      return shown;
     }
     return (workflow?.length ? selectPersistentWorkflowGraph({ content, workflow, checkedGraph: null }) : null) || question.graph;
   };
@@ -300,8 +303,7 @@ test('the Complex Plane, the sideways parabola and the inequality region pass th
   const markup = renderToStaticMarkup(React.createElement(CoordinatePlane, {
     xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 3, y: 2, label: 'z₁' }], enlargeable: false,
     toolMarks: { kinds: 'A segment joins the origin to each point.' },
-    children: () => React.createElement('line', { x1: 0, y1: 0, x2: 1, y2: 1 }),
-  }));
+  }, () => React.createElement('line', { x1: 0, y1: 0, x2: 1, y2: 1 })));
   const description = /<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/.exec(markup)?.[1] || '';
   assert.match(description, /1 point labelled z₁\. A segment joins the origin to each point\. Positions are not read out/, description);
 });

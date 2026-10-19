@@ -161,7 +161,7 @@ for (const device of DEVICES) {
     if (await partsButton.count()) {
       await partsButton.click();
       await page.locator('[data-read-part="table"]').first().click();
-      check(/^A table, 5 rows\./.test((await lastSpoken(page))?.text || ''), `${device.name}: the table can be heard again on its own`);
+      check(((await lastSpoken(page))?.text || '').startsWith('A table, 5 rows.'), `${device.name}: the table can be heard again on its own`);
     } else check(false, `${device.name}: the tray offers "Read a part"`);
     await noSidewaysScroll(page, `${device.name} table`);
     await context.close();
