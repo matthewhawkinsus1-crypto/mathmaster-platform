@@ -98,7 +98,24 @@ const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false 
  * Pure. The work must already have crossed the contract (readToolWork) — use
  * `grade` or gradeComposedWorkflowCheck, never raw browser state.
  */
-export const gradeComposedWorkflowWork = (question, work) => {
+/*
+ * WHY A STAGE MISSED, FOR THE SCREEN (student pass 3, wave 7).
+ *
+ * Every marked stage has a `detail` ("Check the x-axis unit.", "2 of 5
+ * values do not match.") that gradedResult does not keep: a part record is
+ * what an attempt stores. The browser's Check asks for them separately
+ * (`stageReasons`), keyed by stage id, for the stages graded wrong — never a
+ * generic line that says no more than the red step does. The server's grade
+ * never asks, so what it records is unchanged.
+ */
+const GENERIC_STAGE_DETAILS = new Set(['', 'Correct.', 'Not correct yet.', 'Not answered.', 'Reviewed by your teacher.']);
+
+export const failedStageReasons = (parts) => Object.fromEntries((Array.isArray(parts) ? parts : [])
+  .filter((part) => part && part.graded !== false && part.isCorrect !== true && part.id)
+  .map((part) => [String(part.id), typeof part.detail === 'string' ? part.detail.trim().slice(0, 240) : ''])
+  .filter(([, detail]) => !GENERIC_STAGE_DETAILS.has(detail)));
+
+export const gradeComposedWorkflowWork = (question, work, { stageReasons = false } = {}) => {
   const { composed, support } = resolveComposedWorkflow(question);
   if (!support.supported) return ungradedResult(support.reason, { mode: support.mode || null });
   if (!isPlainObject(work)) return ungradedResult('empty-response', { mode: support.mode });
@@ -134,10 +151,11 @@ export const gradeComposedWorkflowWork = (question, work) => {
       score: marked.partialCreditPercent !== null && Number.isFinite(percent) ? percent / 100 : 0,
     }),
     mode: support.mode,
+    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts) } : {}),
   };
 };
 
-const grade = (question, response) => {
+const grade = (question, response, options = {}) => {
   if (!isToolResponse(response) || text(response.toolId) !== COMPOSED_WORKFLOW_TOOL_ID) {
     return ungradedResult('response-tool-mismatch');
   }
@@ -146,7 +164,7 @@ const grade = (question, response) => {
   if (claimedVersion > COMPOSED_WORKFLOW_CONTRACT_VERSION) return ungradedResult('response-contract-newer-than-server');
   const read = readToolWork(response);
   if (!read.ok) return ungradedResult(read.reason);
-  return gradeComposedWorkflowWork(question, read.work);
+  return gradeComposedWorkflowWork(question, read.work, options);
 };
 
 /**
@@ -168,12 +186,13 @@ export const gradeComposedWorkflowCheck = (question, work) => {
   if (!support.supported) {
     return { ...ungradedResult(support.reason), mode: support.mode || null, supported: false, toolResponse };
   }
-  return { ...grade(question, toolResponse), supported: true, toolResponse };
+  return { ...grade(question, toolResponse, { stageReasons: true }), supported: true, toolResponse };
 };
 
 export default Object.freeze({
   // Only the structured composed-workflow response. A pre-contract client's
   // opaque `JSON.stringify(responses)` keeps the bounded legacy path.
   accepts: (response) => isToolResponse(response) && text(response.toolId) === COMPOSED_WORKFLOW_TOOL_ID,
-  grade,
+  // The server's grade: two arguments, never the screen's stage reasons.
+  grade: (question, response) => grade(question, response),
 });

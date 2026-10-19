@@ -90,11 +90,17 @@ export const buildWorkflowReviewState = ({
       return { id, index, status: 'reviewed', part: part || null };
     }
 
+    // Why it missed (student pass 3, wave 7): only for a stage marked wrong
+    // on the exact response that was checked. A review exists only where the
+    // activity shows outcome feedback (QuestionEngine passes none on an exit
+    // ticket, quiz or test before release), so neither does a reason.
+    const reason = part.isCorrect === true ? '' : String(review?.stageReasons?.[id] || '').trim();
     return {
       id,
       index,
       status: part.isCorrect === true ? 'correct' : 'incorrect',
       part,
+      ...(reason ? { reason } : {}),
     };
   });
 };
@@ -102,3 +108,19 @@ export const buildWorkflowReviewState = ({
 export const firstIncorrectWorkflowIndex = (reviewState = []) => (
   (Array.isArray(reviewState) ? reviewState : []).find((entry) => entry?.status === 'incorrect')?.index ?? -1
 );
+
+/*
+ * The outcome box's line about the red steps, completed when the steps say
+ * why (wave 7): " Each one says what to check." when every red step has its
+ * reason, " Where it can, each one says what to check." when some do, and
+ * nothing when none does. Read from the same review the steps are drawn from.
+ */
+export const composedReasonsNote = (review) => {
+  const failed = (Array.isArray(review?.parts) ? review.parts : [])
+    .filter((part) => part?.id && part.graded !== false && part.isCorrect !== true);
+  if (!failed.length) return '';
+  const reasons = review?.stageReasons || {};
+  const explained = failed.filter((part) => String(reasons[part.id] || '').trim()).length;
+  if (!explained) return '';
+  return explained === failed.length ? ' Each one says what to check.' : ' Where it can, each one says what to check.';
+};

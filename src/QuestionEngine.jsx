@@ -50,6 +50,7 @@ import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { composedReasonsNote } from './platform/workflow/workflowReviewState.js';
 import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
@@ -1319,6 +1320,9 @@ function QuestionEngineBody({
         setWorkflowSubmissionReview({
           responseKey: answerState.responseKey ?? '',
           parts: (answerState.parts || []).map((part) => ({ ...part })),
+          // Why each red step missed, shown under it (wave 7). This review is
+          // handed to the runner only where outcome feedback is shown.
+          stageReasons: answerState.stageReasons || null,
           isCorrect: nextFeedback?.isCorrect === true,
           attemptNumber: Number(nextFeedback?.attemptCount) || (record.attemptCount + 1),
         });
@@ -2773,7 +2777,7 @@ function QuestionEngineBody({
           {sectionMilestoneWords ? <span style={VISUALLY_HIDDEN}> {sectionMilestoneWords}</span> : null}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
-              The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
+              The red steps above are the specific responses that need revision. MathMaster moved you to the first one.{composedReasonsNote(workflowSubmissionReview)}
             </div>
           )}
           {attemptOutcomeSpecific && (

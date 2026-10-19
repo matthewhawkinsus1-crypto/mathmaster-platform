@@ -1271,6 +1271,7 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
+    const stageReason = reviewByStageId.get(stage.id)?.reason || '';
     // A sort marked wrong names its wrong figures (P2-4). Only from a review,
     // which QuestionEngine passes only where outcome feedback is shown, and
     // only for the exact response that was checked ('incorrect', not
@@ -1342,6 +1343,16 @@ export default function WorkflowRunner({
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : stagePanelStyle}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
         {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 'calc(16 * var(--mm-px))', margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+        {/* WHY THIS STEP IS RED (student pass 3, wave 7). The grader's own
+            reason for this stage ("Check the x-axis unit.", "2 of 5 values do
+            not match."), under the step it is about. It exists only in a
+            review, which QuestionEngine hands over only where outcome feedback
+            is shown, and only for the response that was checked. */}
+        {reviewStatus === 'incorrect' && stageReason ? (
+          <p className="workflow-stage__reason" data-stage-reason={stage.id} style={{ margin: '0 0 12px', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-danger)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, lineHeight: 1.45 }}>
+            {stageReason}
+          </p>
+        ) : null}
         {locked.has(stage.id) ? (
           /* THE LIVE COMPONENT IS NOT RENDERED AT ALL, rather than rendered
              disabled. Several stage components take no `disabled` prop — the

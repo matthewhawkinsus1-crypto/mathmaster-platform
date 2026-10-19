@@ -29,7 +29,7 @@
  *
  * Pure: no React.
  */
-import { gradeComposedWorkflowCheck } from '../../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
+import { failedStageReasons, gradeComposedWorkflowCheck } from '../../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 import { canonicalToolWorkJson } from '../../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { composedWorkflowWork } from '../../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
 import { upgradeLegacyGraphResponses } from '../../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
@@ -78,6 +78,9 @@ export const buildWorkflowAnswerState = ({ question, stages = [], responses = {}
     return {
       ...state,
       gradedCount: state.parts.filter((part) => part?.graded !== false).length,
+      // Why each stage graded wrong missed, for the screen only: never in
+      // `parts`, which the attempt records (see failedStageReasons).
+      stageReasons: check.stageReasons || {},
     };
   }
   // Declared client-graded for this question: the device's own marking,
@@ -86,8 +89,10 @@ export const buildWorkflowAnswerState = ({ question, stages = [], responses = {}
   // travels with the state (`sharedGradingWithheld`) so the host can tell
   // "marked on the device by declaration" from "the server will not mark this
   // work" — ingestion holds an unsafe-expression attempt for teacher review.
+  const marked = gradeWorkflow({ stages, responses, grading });
   return {
-    ...gradeWorkflow({ stages, responses, grading }),
+    ...marked,
+    stageReasons: failedStageReasons(marked.parts),
     toolResponse: check.toolResponse,
     ...(check.supported ? { sharedGradingWithheld: check.reason } : {}),
   };
