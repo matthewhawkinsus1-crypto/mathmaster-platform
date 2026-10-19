@@ -219,7 +219,10 @@ const openPage = async ({ device = 'chromebook', url, init = null, colorScheme =
   const errors = [];
   page.on('console', (message) => { if (message.type() === 'error' && !IGNORABLE_CONSOLE.test(message.text())) errors.push(message.text()); });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error?.message || error}`));
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  // A cold Vite dev server compiles the app on the first loads, and the class
+  // of twelve opens its screens together: 30 s (Playwright's default) was not
+  // always enough there.
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   return { page, context, errors, device, touch: Boolean(DEVICES[device].hasTouch) };
 };
 
@@ -510,6 +513,9 @@ await run('two-player-grand-prix', async () => {
     check(S, await waitForQuestionChange(a, keyed.questionIndex), 'A: keyboard play did not complete a graph');
     check(S, keyRing?.focused && keyRing.style === 'solid', `A: no keyboard ring while playing with the keys (${JSON.stringify(keyRing)})`);
     await a.page.keyboard.press('ArrowRight');
+    // The announcement follows the key once React has drawn the move: wait
+    // for it (up to 3 s) rather than read the region in the same tick.
+    await a.page.waitForFunction(() => [...document.querySelectorAll('.mm-rush-visually-hidden')].some((node) => /Pointer at \(/.test(node.textContent)), null, { timeout: 3_000 }).catch(() => {});
     const spoken = await a.page.evaluate(() => ({
       active: `${document.activeElement?.tagName}.${document.activeElement?.getAttribute('class') || ''}`,
       regions: [...document.querySelectorAll('.mm-rush-visually-hidden')].map((node) => node.textContent),
@@ -726,7 +732,12 @@ await run('class-of-twelve', async () => {
   const S = 'class-of-twelve';
   const ids = studentsOf('class');
   const teacher = await openTeacher('chromebook');
-  const students = await Promise.all(ids.map((id, index) => openStudent(id, index % 2 ? 'phone' : 'chromebook')));
+  // Four screens at a time: twelve page loads at once on one dev server is a
+  // test of the server, not of the game.
+  const students = [];
+  for (let start = 0; start < ids.length; start += 4) {
+    students.push(...await Promise.all(ids.slice(start, start + 4).map((id, offset) => openStudent(id, (start + offset) % 2 ? 'phone' : 'chromebook'))));
+  }
   const roomId = await createRush(teacher, { classKey: 'class', preset: 'Algebra II Mixed', rounds: 1, seconds: 30, scoring: 'grandPrix' });
   for (const student of students) check(S, await waitForText(student, 'You are in as', 20_000), `${student.studentId}: no lobby`);
   await startGame(teacher);
