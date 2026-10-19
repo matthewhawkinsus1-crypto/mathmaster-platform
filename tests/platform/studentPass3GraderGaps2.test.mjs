@@ -21,7 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
-import { sameValue, mixedNumberValue, fieldValueOptions, normalizeAnswer } from '../../functions/shared/answerEquivalence.mjs';
+import { sameValue, fieldValueOptions, normalizeAnswer } from '../../functions/shared/answerEquivalence.mjs';
 import { compareOrderedPair, matchesFieldAnswer, orderedPairKey } from '../../functions/shared/answerUtils.mjs';
 import { gradeFractionResponse, gradeOrderedPairResponse, gradeOrdinaryResponse, serverGradingSupport } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { formatProblemForResponse, fractionFormProblemForResponse } from '../../src/platform/interaction/answerShapeGuard.js';
@@ -66,7 +66,7 @@ test('3½ written with the fraction template, or typed 3 1/2, is 7/2 in every nu
     assert.deepEqual(await verdicts(sent, '1.5'), ALL_WRONG, `${sent} is not 1.5`);
     assert.deepEqual(await verdicts(sent, '5/2'), ALL_WRONG, `${sent} is not 5/2`);
   }
-  assert.equal(mixedNumberValue('3\\frac{1}{2}'), 3.5);
+  assert.equal(sameValue('3\\frac{1}{2}', '3.5'), true);
 });
 
 test('the sign of a mixed number covers both parts: −3½ is −7/2, never −2.5', async () => {
@@ -251,13 +251,13 @@ test('Pre-Flight shows a text pair key and refuses, with a reason, a key that is
   assert.equal(answerKeyResponse({ type: 'orderedPair', answer: [2, 5] }).value, '(2, 5)');
   assert.equal(answerKeyResponse({ type: 'orderedPair', answer: 'none' }), null);
   const refused = validateQuestionSemantics({ type: 'orderedPair', prompt: 'Where do the lines meet?', answer: 'none' });
-  assert.ok(refused.errors.some((error) => /answer "none" is not an ordered pair the grader can read/.test(error)), refused.errors.join(' | '));
+  assert.ok(refused.errors.some((error) => /answer "none" is not a point the grader can read/.test(error)), refused.errors.join(' | '));
   for (const answer of ['(2,3)', [2, 5]]) {
     const passed = validateQuestionSemantics({ type: 'orderedPair', prompt: 'Where do the lines meet?', answer });
-    assert.ok(!passed.errors.some((error) => /ordered pair the grader/.test(error)), JSON.stringify(answer));
+    assert.ok(!passed.errors.some((error) => /a point the grader/.test(error)), JSON.stringify(answer));
   }
   // A generated question has no key until it is drawn.
-  assert.ok(!validateQuestionSemantics({ type: 'orderedPair', prompt: 'Name the point.' }).errors.some((error) => /ordered pair the grader/.test(error)));
+  assert.ok(!validateQuestionSemantics({ type: 'orderedPair', prompt: 'Name the point.' }).errors.some((error) => /a point the grader/.test(error)));
   assert.deepEqual(serverTypeEntry('orderedPair').validate({ type: 'orderedPair', prompt: 'Name the point.' }), []);
   assert.equal(serverTypeEntry('orderedPair').validate({ type: 'orderedPair', prompt: 'Where?', answer: '(1,2,3)' }).length, 1);
 });

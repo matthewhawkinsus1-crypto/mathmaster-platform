@@ -9,8 +9,10 @@ import {
   sameFiniteSetNotation,
   sameMixedNumber,
   sameNumberWithThousandsSeparators,
+  normalizeStructuralMathLive,
   sameNumericPair,
   sameValue,
+  splitTopLevelCommaList,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
@@ -279,23 +281,12 @@ const readableCoordinate = (entry) => {
   return asNumber(text) !== null || exactConstantValue(normalizeMathAnswer(text)) ? text : null;
 };
 
+// `(x, y)`, `[x, y]` or a bare `x, y`, as two coordinate texts.
 const splitPairText = (value) => {
-  let text = String(value ?? '').trim()
-    .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
-    .replace(/\\lparen/g, '(').replace(/\\rparen/g, ')')
-    .trim();
-  if (/^\(.*\)$/s.test(text) || /^\[.*\]$/s.test(text)) text = text.slice(1, -1);
-  const parts = [];
-  let depth = 0;
-  let token = '';
-  for (const char of text) {
-    if ('([{'.includes(char)) depth += 1;
-    else if (')]}'.includes(char)) depth -= 1;
-    if (depth < 0) return null;
-    if (char === ',' && depth === 0) { parts.push(token); token = ''; } else token += char;
-  }
-  parts.push(token);
-  return depth === 0 && parts.length === 2 ? parts : null;
+  let text = normalizeStructuralMathLive(value).trim();
+  if (/^[([].*[)\]]$/s.test(text)) text = text.slice(1, -1);
+  const parts = splitTopLevelCommaList(text);
+  return parts.length === 2 ? parts : null;
 };
 
 export const orderedPairKey = (value) => {
@@ -305,13 +296,10 @@ export const orderedPairKey = (value) => {
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
 
-/** A key coordinate as a number, or null when it is exact text with a root. */
-const keyCoordinateNumber = (coordinate) => (typeof coordinate === 'number' ? coordinate : asNumber(coordinate));
-
 /** Is a student's response written as two coordinates in brackets? (Not whether they are right.) */
 export const looksLikeOrderedPair = (value) => {
   const text = normalizeMathAnswer(value);
-  return /^[([].*[)\]]$/.test(text) && Boolean(splitPairText(text)?.every((part) => part.trim()));
+  return /^[([].*[)\]]$/.test(text) && Boolean(splitPairText(text)?.every(Boolean));
 };
 
 /**
@@ -323,7 +311,7 @@ export const sameOrderedPairCoordinate = (studentAnswer, expectedPair, index, to
   const key = orderedPairKey(expectedPair);
   const student = splitPairText(normalizeMathAnswer(studentAnswer));
   if (!key || !student) return false;
-  const keyNumber = keyCoordinateNumber(key[index]);
+  const keyNumber = asNumber(key[index]);
   if (keyNumber !== null) {
     const value = asNumber(student[index]);
     return value !== null && Math.abs(value - keyNumber) <= tolerance;
@@ -336,7 +324,8 @@ export const sameOrderedPairCoordinate = (studentAnswer, expectedPair, index, to
 export const compareOrderedPair = (studentAnswer, expectedPair, tolerance = 1e-9) => {
   const key = orderedPairKey(expectedPair);
   if (!key) return false;
-  const values = key.map(keyCoordinateNumber);
+  // A coordinate as a number, or null when it is exact text with a root.
+  const values = key.map(asNumber);
   if (values.every((value) => value !== null)) {
     const pair = parseOrderedPair(studentAnswer);
     return Boolean(pair)

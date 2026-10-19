@@ -400,7 +400,7 @@ export const sameIntervalNotation = (left, right, tolerance = 1e-6) => {
     && interval.maxClosed === b[index].maxClosed);
 };
 
-const splitTopLevelCommaList = (value) => {
+export const splitTopLevelCommaList = (value) => {
   const parts = [];
   let token = '';
   let roundDepth = 0;
@@ -1182,7 +1182,8 @@ const mixedNumberShape = (value) => {
 const RELATION_SPLIT = /(<=|>=|≤|≥|≠|!=|\\(?:leq?|geq?|lt|gt|neq?)(?![A-Za-z])|<|>|=)/;
 const mixedSidesAsFractions = (value) => {
   const text = String(value ?? '');
-  const pieces = text.split(new RegExp(RELATION_SPLIT.source, 'g'));
+  // split() takes every match, keeping each relation sign (the group).
+  const pieces = text.split(RELATION_SPLIT);
   if (pieces.length < 3) return text;
   let changed = false;
   const rewritten = pieces.map((piece, index) => {
@@ -1197,9 +1198,6 @@ const mixedSidesAsFractions = (value) => {
 
 /** Is this written as a whole number followed by a number fraction (`3\frac{1}{2}`, `3 1/2`)? */
 export const looksLikeMixedNumber = (value) => mixedNumberShape(value) !== null;
-
-/** The value of a mixed number (`3\frac{1}{2}`, `3 1/2`, `-3\frac{1}{2}`), or null. */
-export const mixedNumberValue = (value) => mixedNumberShape(value)?.value ?? null;
 
 /** true or false when a mixed number meets a number; null when the rule does not apply. */
 export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
@@ -1236,7 +1234,7 @@ const squareFree = (n) => {
   return true;
 };
 const radicalFormIsSimplified = (normalized) => {
-  if (/\\frac\{[^{}]*\}\{[^{}]*\\sqrt/.test(normalized) || /\/\\sqrt/.test(normalized)) return false;
+  if (/\\frac\{[^{}]*\}\{[^{}]*\\sqrt|\/\\sqrt/.test(normalized)) return false;
   const radicands = [...normalized.matchAll(/\\sqrt\{([^{}]*)\}/g)].map((match) => match[1]);
   return radicands.length > 0 && radicands.every((radicand) => /^\d+$/.test(radicand) && squareFree(Number(radicand)));
 };

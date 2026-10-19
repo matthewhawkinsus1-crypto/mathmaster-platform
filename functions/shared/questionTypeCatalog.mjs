@@ -454,7 +454,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     validate: (question) => {
       const key = has(question.answer) ? question.answer : question.solution;
       if (!has(key) || orderedPairKey(key)) return [];
-      return [`answer ${JSON.stringify(key)} is not an ordered pair the grader can read: write the point as [x, y] or "(x, y)" with two numbers, for example [2, 5]`];
+      return [`answer ${JSON.stringify(key)} is not a point the grader can read: write [x, y] or "(x, y)", for example [2, 5]`];
     },
     optional: ['answer', 'coordinates', 'graph'],
     example: { type: 'orderedPair', prompt: 'Where do the lines meet?', answer: [2, 5] },
