@@ -8,15 +8,17 @@ import { gradeOrderedPairResponse } from '../functions/shared/ordinaryResponseGr
 
 export default function OrderedPairGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answer, solution, label = 'Ordered Pair' } = question;
-  const expectedPair = answer || solution;
   const [studentAnswer, setStudentAnswer] = useLocalDraftState(draftKey ? `${draftKey}:ordered-pair` : null, '');
   // Correctness comes from the shared grading contract so every caller of it —
-  // this screen, the deadline finalizer, the tests — marks alike.
+  // this screen, the deadline finalizer, the tests — marks alike. Its
+  // expectedPair is the key as [x, y], also when it was stored as '(2,3)'.
   const graded = gradeOrderedPairResponse({ answer, solution }, studentAnswer);
   const { isComplete, isCorrect } = graded;
+  // Text, not the array: a new array every render must not re-run the effect.
+  const plotted = `(${graded.expectedPair?.[0]}, ${graded.expectedPair?.[1]})`;
 
   useEffect(() => {
-    const questionText = `${prompt || 'Enter the ordered pair.'} Plotted coordinate: (${expectedPair?.[0]}, ${expectedPair?.[1]}).`;
+    const questionText = `${prompt || 'Enter the ordered pair.'} Plotted coordinate: ${plotted}.`;
     onStateChange({
       isComplete,
       isCorrect,
@@ -24,7 +26,7 @@ export default function OrderedPairGrader({ question, onStateChange, onUndoState
       questionDetails: `${questionText} Response: ${studentAnswer || 'blank'}.`,
       parts: graded.parts,
     });
-  }, [studentAnswer, isComplete, isCorrect, expectedPair, prompt, onStateChange]);
+  }, [studentAnswer, isComplete, isCorrect, plotted, prompt, onStateChange]);
 
   const incorrect = feedback?.partGrades?.some((part) => !part.isCorrect);
   return (

@@ -186,7 +186,20 @@ const unitFractionPowers = (value) => value.replace(
   '\\frac{1}{$1^$2}',
 );
 
-export const normalizeAnswer = (value) => unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
+/*
+ * A number fraction times π as π over the denominator: `\frac{1}{2}\pi` is
+ * `\frac{\pi}{2}`, and `\frac{3}{4}\pi` is `\frac{3\pi}{4}` (student pass 3,
+ * wave 7). The stacked rule only claims a slash spelling (`pi/2`), so the
+ * editor's ½π was refused against `pi/2`. Run once spaces are gone, so a
+ * number or a name before the fraction (`2\frac{1}{2}\pi`, a mixed number;
+ * `x\frac{1}{2}\pi`) is seen and left alone, and nothing may follow π that
+ * binds to it (`^`, `_`, a letter, a digit, a group).
+ */
+const FRACTION_COEFFICIENT_PI = /(?<![\w})\]^_.\\|])\\frac\{(\d+)\}\{(\d+)\}π(?![A-Za-z0-9^_{(\\])/g;
+const fractionCoefficientPi = (value) => value.replace(FRACTION_COEFFICIENT_PI, (match, numerator, denominator) => (
+  `\\frac{${numerator === '1' ? '' : numerator}π}{${denominator}}`));
+
+export const normalizeAnswer = (value) => fractionCoefficientPi(unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -196,7 +209,7 @@ export const normalizeAnswer = (value) => unitFractionPowers(canonicalSymbolSpel
   .replace(/\\neq?|≠/g, '!=')
   .replace(/\\,/g, '')
   .replace(/\{,\}/g, ',')
-  .replace(/\s+/g, '')
+  .replace(/\s+/g, ''))
   .toLowerCase();
 
 // A number box answer written with its unit sign: `25%` for 25, `$12.50` for
@@ -1115,6 +1128,119 @@ const sameNumberWithVariableName = (student, key, tolerance) => {
   return sameNumber(sides.right, key, tolerance);
 };
 
+/*
+ * A MIXED NUMBER IN A FIELD WHOSE KEY IS A NUMBER (student pass 3, wave 7).
+ *
+ * The editor's fraction template after a whole number gives `3\frac{1}{2}`,
+ * and a typed `3 1/2` normalises to the same text. A student who writes that
+ * means 3½ = 7/2. Read as a product it was 3·½ = 1.5, so 3½ was wrong for
+ * 7/2 and right for 1.5.
+ *
+ * So when one side is a whole number followed directly by a stacked number
+ * fraction and the other side is a number, the mixed side is whole + fraction,
+ * the sign covering both (−3½ is −7/2), and nothing else is tried: the product
+ * reading never meets a number key. Only a proper fraction part makes a mixed
+ * number (`3\frac{5}{2}` is neither reading, and is refused).
+ *
+ * Returns null — today's reading, unchanged — when neither side has that
+ * shape or the other side is not a number: an expression key (`3\frac{x}{2}`,
+ * `2\frac{1}{2}x`) keeps every rule it had. An ordered pair never comes here
+ * with a mixed number (sameNumericPair reads each coordinate with asNumber,
+ * and exactConstantValue refuses a \frac after a number, wave 6 review B2).
+ */
+const MIXED_NUMBER = /^(-?)(\d+)\\frac\{(\d+)\}\{(\d+)\}$/;
+const mixedNumberShape = (value) => {
+  const match = MIXED_NUMBER.exec(normalizeAnswer(value));
+  if (!match) return null;
+  const [whole, numerator, denominator] = [Number(match[2]), Number(match[3]), Number(match[4])];
+  const proper = denominator > 0 && numerator > 0 && numerator < denominator;
+  return { value: proper ? (match[1] ? -1 : 1) * (whole + numerator / denominator) : null };
+};
+
+/** Is this written as a whole number followed by a number fraction (`3\frac{1}{2}`, `3 1/2`)? */
+export const looksLikeMixedNumber = (value) => mixedNumberShape(value) !== null;
+
+/** The value of a mixed number (`3\frac{1}{2}`, `3 1/2`, `-3\frac{1}{2}`), or null. */
+export const mixedNumberValue = (value) => mixedNumberShape(value)?.value ?? null;
+
+/** true or false when a mixed number meets a number; null when the rule does not apply. */
+export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
+  const studentMixed = mixedNumberShape(student);
+  const keyMixed = mixedNumberShape(key);
+  if (!studentMixed && !keyMixed) return null;
+  const a = studentMixed ? studentMixed.value : asNumber(student);
+  const b = keyMixed ? keyMixed.value : asNumber(key);
+  // The other side is not a number (an expression, a pair, text): not ours.
+  if ((studentMixed && !keyMixed && b === null) || (keyMixed && !studentMixed && a === null)) return null;
+  if (a === null || b === null) return false;
+  return Math.abs(a - b) <= Math.max(tolerance, 1e-12 * Math.max(1, Math.abs(b)));
+};
+
+/*
+ * A NUMBER FIELD WHOSE KEY IS AN EXACT CONSTANT, COMPARED BY VALUE (student
+ * pass 3, wave 7). A key a generator wrote unsimplified — `sqrt(8)/2`,
+ * `10^{-3}/2` — matched only its own text in a number box: `\sqrt{2}` and
+ * `0.0005` were wrong. Only for a field DECLARED a number box (the caller
+ * passes `exactNumber`): an expression field keyed `11sqrt(5)` is a
+ * "simplify" item, and `\sqrt{605}` must stay wrong there.
+ *
+ * W6-6's rules hold:
+ *   - a key with a root wants a root: a decimal, however long, is refused
+ *     (exactConstantValue never reads a decimal point);
+ *   - a key without a root wants one plain number (asNumber: an integer, a
+ *     decimal, one fraction): `\sqrt{4}` for 2 and `1+2` for 3 stay wrong;
+ *   - a key whose roots are all simplified (no square factor under any root,
+ *     no root in a denominator) asks for that form, so the answer must be in
+ *     it too: `\sqrt{8}` stays wrong for `2sqrt(2)`.
+ */
+const squareFree = (n) => {
+  for (let factor = 2; factor * factor <= n; factor += 1) if (n % (factor * factor) === 0) return false;
+  return true;
+};
+const radicalFormIsSimplified = (normalized) => {
+  if (/\\frac\{[^{}]*\}\{[^{}]*\\sqrt/.test(normalized) || /\/\\sqrt/.test(normalized)) return false;
+  const radicands = [...normalized.matchAll(/\\sqrt\{([^{}]*)\}/g)].map((match) => match[1]);
+  return radicands.length > 0 && radicands.every((radicand) => /^\d+$/.test(radicand) && squareFree(Number(radicand)));
+};
+const sameExactNumber = (student, key, tolerance) => {
+  if (asNumber(key) !== null) return false;
+  const keyText = normalizeAnswer(key);
+  const exactKey = exactConstantValue(keyText);
+  if (!exactKey) return false;
+  if (!exactKey.radical) {
+    const value = asNumber(student);
+    return value !== null && Math.abs(value - exactKey.value) <= Math.max(tolerance, 1e-9 * Math.max(1, Math.abs(exactKey.value)));
+  }
+  const studentText = normalizeAnswer(student);
+  const exactStudent = exactConstantValue(studentText);
+  if (!exactStudent?.radical) return false;
+  if (radicalFormIsSimplified(keyText) && !radicalFormIsSimplified(studentText)) return false;
+  return Math.abs(exactStudent.value - exactKey.value) <= 1e-9 * Math.max(1, Math.abs(exactKey.value));
+};
+
+// The declared kinds of a single-number box (answerFormatHints' `number`).
+const NUMBER_FIELD_KINDS = new Set(['number', 'numeric', 'value', 'scalar']);
+/** Is this field declared a box for one number? */
+export const fieldIsNumberBox = (field = {}) => [
+  field?.answerFormat,
+  field?.inputContract?.format,
+  field?.notation,
+  field?.inputMode,
+  field?.inputProfile,
+  field?.toolProfile,
+].some((value) => NUMBER_FIELD_KINDS.has(String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+
+/**
+ * The sameValue options one response field asks for. Every field grader — the
+ * Path, secure and Live Challenge one (functions/lib/mathPath.js), the
+ * teacher's Path simulation and the assignment matcher (answerUtils) — passes
+ * these, so a field is read the same way on every surface.
+ */
+export const fieldValueOptions = (field = {}) => ({
+  thousandsSeparators: fieldAcceptsThousandsSeparators(field),
+  exactNumber: fieldIsNumberBox(field),
+});
+
 const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
 
 /**
@@ -1228,13 +1354,18 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true } = {}) => {
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false } = {}) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
   if (leftSet !== null || rightSet !== null) {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  // A mixed number against a number decides here: no later comparison may
+  // read 3½ as 3·½ (sameMixedNumber).
+  const mixed = sameMixedNumber(left, right, tolerance);
+  if (mixed !== null) return mixed;
+  if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
   if (sameNumericPair(left, right, tolerance)) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;

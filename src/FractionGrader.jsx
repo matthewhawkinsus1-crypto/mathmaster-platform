@@ -6,6 +6,7 @@ import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { gradeFractionResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import { fractionQuestionDisplay } from './fractionQuestionDisplay.js';
+import { fractionFormProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 
 export default function FractionGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:fraction` : null, '');
@@ -19,7 +20,11 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
   // whole question: an authored answer is graded against the author's key,
   // a sum against the sum.
   const graded = gradeFractionResponse(question, answer);
-  const { isComplete, isCorrect } = graded;
+  // A mixed number where one fraction is asked for is not ready to submit:
+  // the student is told why instead of losing a try to it (answerShapeGuard).
+  const formProblem = fractionFormProblemForResponse(question, answer);
+  const isComplete = graded.isComplete && !formProblem;
+  const { isCorrect } = graded;
 
   useEffect(() => {
     onStateChange({
@@ -43,6 +48,11 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
         </div>
       )}
       <QuestionVisual question={question} />
+      {formProblem ? (
+        <p role="status" style={{ margin: '0 auto 10px', width: 'fit-content', maxWidth: '100%', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+          {formProblem}
+        </p>
+      ) : null}
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>

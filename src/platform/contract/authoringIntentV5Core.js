@@ -1,5 +1,6 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
+import { orderedPairKey } from '../../../functions/shared/answerUtils.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
 import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { normalizeLabDefinition } from '../labs/labDefinitionSchema.js';
@@ -1646,9 +1647,14 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
-    case 'orderedPair':
-      out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: normalizeStaticGraphPoints(q.graph) });
+    case 'orderedPair': {
+      // A key written as text, '(2,3)', is stored as the [x, y] every reader
+      // of the key expects (answerUtils.orderedPairKey). A key that is not a
+      // pair is kept as written, so Pre-Flight can refuse it with a reason.
+      const authored = answerOf(q) || q.point;
+      out = copyCommon(q, { type, answer: orderedPairKey(authored) || authored, graph: normalizeStaticGraphPoints(q.graph) });
       break;
+    }
     case 'multiAnswer': {
       const fields = q.answerFields || q.responses || q.response?.fields || [];
       const candidateGraphs = normalizeGraphChoices(q.candidateGraphs || q.graphs);

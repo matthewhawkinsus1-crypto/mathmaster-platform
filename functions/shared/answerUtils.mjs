@@ -1,16 +1,19 @@
 import {
   asNumber,
   fieldAcceptsThousandsSeparators,
+  fieldValueOptions,
   looksLikeFiniteSetNotation,
   normalizeAnswer,
   parseFiniteSetNotation,
   sameDigitalSatStudentProducedResponse,
   sameFiniteSetNotation,
+  sameMixedNumber,
   sameNumberWithThousandsSeparators,
   sameNumericPair,
   sameValue,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
+import { exactConstantValue } from './exactConstantValue.mjs';
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
@@ -214,16 +217,19 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
     });
   }
 
-  const thousandsSeparators = fieldAcceptsThousandsSeparators(field);
-  if (thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
+  const options = fieldValueOptions(field);
+  if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
     return true;
   }
 
   if (field?.gradingMode === 'equivalentExpression') {
-    return acceptedAnswers.some((acceptedAnswer) => sameEquivalentExpression(studentAnswer, acceptedAnswer));
+    // A mixed number against a number key is read as one here too, never as
+    // a product (answerEquivalence.sameMixedNumber).
+    return acceptedAnswers.some((acceptedAnswer) => (
+      sameMixedNumber(studentAnswer, acceptedAnswer) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer)));
   }
 
-  return matchesAnyAnswer(studentAnswer, acceptedAnswers, { thousandsSeparators });
+  return matchesAnyAnswer(studentAnswer, acceptedAnswers, options);
 };
 
 export const parseOrderedPair = (value) => {
@@ -242,11 +248,101 @@ export const parseOrderedPair = (value) => {
   return [x, y];
 };
 
+/*
+ * THE KEY OF AN `orderedPair` (OR `system`) QUESTION, AS [x, y].
+ *
+ * The catalog's shape is an array, `answer: [2, 5]`, and every reader of the
+ * key (the grader, Solution Review, Pre-Flight, the miss checks) read only
+ * that. Imported or AI-written JSON can key the same point as text,
+ * `answer: '(2,3)'`, and that question could never be marked right
+ * (student pass 3, wave 7). This reads either shape:
+ *
+ *   - an array of two coordinates;
+ *   - text written as a pair: `(2, 3)`, `\left(2,3\right)`, `[2, 3]` or a
+ *     bare `2, 3`.
+ *
+ * A coordinate is a plain number (kept as a number), or text the graders read
+ * as one exact value — `1/2`, `\frac{1}{2}`, `1-\sqrt{2}` — kept as written,
+ * so a fraction is not turned into a decimal. Anything else (a letter, a third
+ * coordinate, words) is not a pair: null. The V5 compile and the JSON import
+ * store this array (src/platform/contract/authoringIntentV5Core.js,
+ * src/assignmentBlueprint.js) and Pre-Flight refuses a key it returns null
+ * for (questionTypeCatalog orderedPair).
+ */
+const PLAIN_NUMBER = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
+const readableCoordinate = (entry) => {
+  if (typeof entry === 'number') return Number.isFinite(entry) ? entry : null;
+  if (typeof entry !== 'string') return null;
+  const text = entry.trim().replace(/[−–—]/g, '-');
+  if (!text) return null;
+  if (PLAIN_NUMBER.test(text)) return Number(text);
+  return asNumber(text) !== null || exactConstantValue(normalizeMathAnswer(text)) ? text : null;
+};
+
+const splitPairText = (value) => {
+  let text = String(value ?? '').trim()
+    .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
+    .replace(/\\lparen/g, '(').replace(/\\rparen/g, ')')
+    .trim();
+  if (/^\(.*\)$/s.test(text) || /^\[.*\]$/s.test(text)) text = text.slice(1, -1);
+  const parts = [];
+  let depth = 0;
+  let token = '';
+  for (const char of text) {
+    if ('([{'.includes(char)) depth += 1;
+    else if (')]}'.includes(char)) depth -= 1;
+    if (depth < 0) return null;
+    if (char === ',' && depth === 0) { parts.push(token); token = ''; } else token += char;
+  }
+  parts.push(token);
+  return depth === 0 && parts.length === 2 ? parts : null;
+};
+
+export const orderedPairKey = (value) => {
+  const parts = Array.isArray(value) ? value : (typeof value === 'string' ? splitPairText(value) : null);
+  if (!parts || parts.length !== 2) return null;
+  const coordinates = parts.map(readableCoordinate);
+  return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
+};
+
+/** A key coordinate as a number, or null when it is exact text with a root. */
+const keyCoordinateNumber = (coordinate) => (typeof coordinate === 'number' ? coordinate : asNumber(coordinate));
+
+/** Is a student's response written as two coordinates in brackets? (Not whether they are right.) */
+export const looksLikeOrderedPair = (value) => {
+  const text = normalizeMathAnswer(value);
+  return /^[([].*[)\]]$/.test(text) && Boolean(splitPairText(text)?.every((part) => part.trim()));
+};
+
+/**
+ * One coordinate of the student's pair against the key's (index 0 or 1), for
+ * the per-part marks. A plain key coordinate is compared by value; an exact
+ * one with a root by its exact value (sameNumericPair's rules).
+ */
+export const sameOrderedPairCoordinate = (studentAnswer, expectedPair, index, tolerance = 1e-9) => {
+  const key = orderedPairKey(expectedPair);
+  const student = splitPairText(normalizeMathAnswer(studentAnswer));
+  if (!key || !student) return false;
+  const keyNumber = keyCoordinateNumber(key[index]);
+  if (keyNumber !== null) {
+    const value = asNumber(student[index]);
+    return value !== null && Math.abs(value - keyNumber) <= tolerance;
+  }
+  const other = key[1 - index];
+  const pairOf = (coordinate) => (index === 0 ? `(${coordinate},${other})` : `(${other},${coordinate})`);
+  return sameNumericPair(pairOf(student[index]), pairOf(key[index]));
+};
+
 export const compareOrderedPair = (studentAnswer, expectedPair, tolerance = 1e-9) => {
-  const pair = parseOrderedPair(studentAnswer);
-  if (!pair || !Array.isArray(expectedPair) || expectedPair.length !== 2) return false;
-  return (
-    Math.abs(pair[0] - Number(expectedPair[0])) <= tolerance &&
-    Math.abs(pair[1] - Number(expectedPair[1])) <= tolerance
-  );
+  const key = orderedPairKey(expectedPair);
+  if (!key) return false;
+  const values = key.map(keyCoordinateNumber);
+  if (values.every((value) => value !== null)) {
+    const pair = parseOrderedPair(studentAnswer);
+    return Boolean(pair)
+      && Math.abs(pair[0] - values[0]) <= tolerance
+      && Math.abs(pair[1] - values[1]) <= tolerance;
+  }
+  // A coordinate with a root: by exact value, as a pair field compares it.
+  return sameNumericPair(studentAnswer, `(${key[0]},${key[1]})`);
 };
