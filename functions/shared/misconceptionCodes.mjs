@@ -361,6 +361,17 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   // --- Student pass 3 (additive under registry v1) ---
   // An ordinary multiAnswer field: the right line in the wrong form.
   classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard']),
+  // --- Student pass 3, wave 7 (additive under registry v1) ---
+  // A Path item (a secure Test, Retest or Corrections item), read from its
+  // Path definition with each mistake's classifier rule
+  // (functions/shared/correctionMissDiagnosis.mjs). One classifier per tool.
+  classifier('path:system', 1, ['ordered-pair-reversed']),
+  classifier('path:systemsWorkspace', 1, ['ordered-pair-reversed']),
+  classifier('path:intervalNumberLine', 1, ['endpoint-inclusion-error', 'inequality-direction-reversed']),
+  classifier('path:relationMapping', 1, ['domain-range-swapped']),
+  classifier('path:graphing2', 1, ['slope-run-over-rise', 'slope-sign-reversed']),
+  classifier('path:dataModelingLab', 1, ['correlation-direction-reversed', 'correlation-treated-as-causation']),
+  ...['multiAnswer', 'fields'].map((tool) => classifier(`path:${tool}`, 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard'])),
 ]);
 const CLASSIFIER_BY_ID = new Map(MISCONCEPTION_CLASSIFIERS.map((entry) => [entry.id, entry]));
 

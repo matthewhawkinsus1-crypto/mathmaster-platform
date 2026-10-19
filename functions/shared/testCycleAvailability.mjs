@@ -343,6 +343,54 @@ export const resolveClassWindows = ({
   });
 };
 
+/*
+ * A RECORDED SITTING: what a class-period day resolved to when the first
+ * fresh Test start happened inside it. Written once per class and day
+ * (functions/index.js `recordClassTestSitting`, create-if-absent in the
+ * server-only `testCycleClassSittings` collection).
+ *
+ * RECORD-ONLY. Nothing reads a sitting: one student starting the Test looks
+ * exactly like a class sitting it, so whether a sitting may ever make a day
+ * that stops resolving count as held (and its absent students missed) is an
+ * owner decision. `resolveClassWindows` does not take them.
+ */
+export const TEST_CYCLE_CLASS_SITTINGS = 'testCycleClassSittings';
+
+/** One document per assignment, class and day. */
+export const classSittingId = ({ assignmentId, classId, dateKey } = {}) => (
+  clean(assignmentId) && clean(classId) && isDateKey(dateKey)
+    ? `${clean(assignmentId)}__${clean(classId)}__${clean(dateKey)}`
+    : null
+);
+
+/**
+ * The sitting to record for a Test started at `now`, or null. Only a
+ * class-period window the bell schedule resolved, open at `now`, is a class
+ * sitting: a teacher's reopen and a student's own make-up carry their own times.
+ */
+export const classSittingToRecord = ({ assignmentId, classId, classWindows = [], now = Date.now() } = {}) => {
+  const at = Number(now);
+  const window = list(classWindows).find((entry) => entry?.source === 'bellSchedule' && entry.resolved === true
+    && entry.opensAt <= at && at < entry.closesAt);
+  const id = window ? classSittingId({ assignmentId, classId, dateKey: window.dateKey }) : null;
+  if (!id) return null;
+  return {
+    id,
+    data: {
+      assignmentId: clean(assignmentId),
+      classId: clean(classId),
+      dateKey: window.dateKey,
+      windowId: window.id || null,
+      period: window.period || null,
+      dayType: window.dayType || null,
+      opensAt: window.opensAt,
+      // The bell's close: an extension stays on the window.
+      closesAt: window.scheduledClosesAt ?? window.closesAt,
+      recordedAt: at,
+    },
+  };
+};
+
 const studentWindowsOf = (studentAvailability) => normalizeStudentAvailability(studentAvailability).testWindows
   .map((window) => ({ id: window.id, source: 'studentOverride', opensAt: window.opensAt, closesAt: window.closesAt, resolved: true, pending: false }));
 

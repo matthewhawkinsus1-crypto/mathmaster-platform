@@ -1391,3 +1391,227 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
   assert.equal(waiting.schedule.test.stranded, true);
   assert.equal(waiting.schedule.test.headline, 'Waiting for a new Test day');
 });
+
+/*
+ * M (student pass 3, wave 7, item 2 — RECORD-ONLY): the first fresh Test
+ * start inside a class-period window records the times that day resolved to
+ * (testCycleClassSittings, create-if-absent), and NOTHING READS IT. One
+ * student starting the Test looks exactly like a class sitting it (the
+ * reviewer's snow day), so a day that stops resolving behaves exactly as on
+ * the base: absent students wait, never missed, and a day that has passed
+ * flags the class for a new day.
+ */
+test('M: the first Test start records the class sitting, and nothing reads it: a day that stops resolving still waits', async (t) => {
+  const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
+  const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
+  const { withClassTestDay, classSittingId, TEST_CYCLE_CLASS_SITTINGS } = await import('../../functions/shared/testCycleAvailability.mjs');
+  // A one-minute meeting that is under way now: wait out the last seconds of
+  // a minute so the start lands inside it.
+  if (new Date().getSeconds() > 40) await new Promise((resolve) => { setTimeout(resolve, (61 - new Date().getSeconds()) * 1000); });
+  const clock = (value) => new Intl.DateTimeFormat('en-GB', { timeZone: SCHOOL_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
+  const startedMinute = Date.now();
+  const [start, end] = [clock(startedMinute), clock(startedMinute + 60000)];
+  if (end <= start) {
+    t.skip('the meeting would cross midnight in the school zone');
+    return;
+  }
+  const today = zonedDateKey(startedMinute, SCHOOL_TIME_ZONE);
+  const lastWeek = zonedDateKey(startedMinute - 7 * 86400000, SCHOOL_TIME_ZONE);
+  const ASSIGNMENT = `${CERT_PREFIX}sittingm`;
+  const CLASS = 'cert-sittingm-class';
+  const PERIOD = 'CERT SITTINGM Period';
+  const SAT = 'CERT_SITTINGM_SAT';
+  const ABSENT = 'CERT_SITTINGM_ABSENT';
+  const sittingRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: today }));
+  const pastRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: lastWeek }));
+  t.after(async () => {
+    const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
+    await Promise.allSettled([
+      db.collection('assignments').doc(ASSIGNMENT).delete(),
+      db.collection('classes').doc(CLASS).delete(),
+      sittingRef.delete(),
+      pastRef.delete(),
+      removeOwnSchedule(PERIOD),
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+      ...[SAT, ABSENT].flatMap((studentId) => [
+        db.collection('grades').doc(studentId).delete(),
+        db.collection('testCycleRecords').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+        db.collection('testCycleCorrectionPlans').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+        db.collection('testCycleRetestPlans').doc(`${ASSIGNMENT}__${studentId}`).delete(),
+      ]),
+    ]);
+  });
+
+  await db.collection('classes').doc(CLASS).set({
+    name: 'Certification Sitting M', course: 'algebra1', courseLevel: 'standard', period: PERIOD, teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  for (const studentId of [SAT, ABSENT]) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection('grades').doc(studentId).set({
+      displayName: studentId === SAT ? 'Sat Sitting Learner' : 'Absent Sitting Learner', classId: CLASS, classPeriod: PERIOD,
+      assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+      gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    });
+  }
+  await putOwnSchedule({ [today]: { periods: { [PERIOD]: { enabled: true, start, end } } } });
+  await db.collection('assignments').doc(ASSIGNMENT).set({
+    ...certAssignment({ classIds: [CLASS] }), id: ASSIGNMENT,
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() }),
+  });
+  assert.equal((await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }))).createdSessions, 2);
+  const cardOf = (studentId) => fns.getStudentTestCycle.run(studentRequest(studentId, { assignmentId: ASSIGNMENT }));
+  const classRow = async () => (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT })))
+    .testSchedule.classes.find((entry) => entry.classId === CLASS);
+
+  assert.equal((await sittingRef.get()).exists, false, 'nothing is recorded before anyone starts');
+  const satCard = await cardOf(SAT);
+  assert.deepEqual([satCard.stage, satCard.canEnter, satCard.schedule.test.state], ['test', true, 'open']);
+  await fns.startSecureExamSession.run(studentRequest(SAT, { examSessionId: satCard.examSessionId }));
+  const sitting = (await sittingRef.get()).data();
+  assert.ok(sitting, 'the first start records the sitting');
+  assert.deepEqual([sitting.assignmentId, sitting.classId, sitting.dateKey, sitting.period], [ASSIGNMENT, CLASS, today, PERIOD]);
+  assert.deepEqual([sitting.opensAt, sitting.closesAt], [satCard.schedule.test.opensAt, satCard.schedule.test.closesAt], 'with the times the class sat');
+  // Starting again (a resume) writes nothing new.
+  await fns.startSecureExamSession.run(studentRequest(SAT, { examSessionId: satCard.examSessionId }));
+  assert.equal((await sittingRef.get()).data().recordedAt, sitting.recordedAt);
+
+  // Today's day stops resolving (the period is taken off the bell schedule)
+  // and the meeting ends. The sitting is not read: the absent student is back
+  // on the Test, waiting, not missed.
+  await removeOwnSchedule(PERIOD);
+  while (Date.now() <= sitting.closesAt + 500) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => { setTimeout(resolve, 1000); });
+  }
+  const waiting = await cardOf(ABSENT);
+  assert.deepEqual([waiting.stage, waiting.schedule.test.state, waiting.schedule.missedTest], ['test', 'upcoming', false]);
+  assert.equal((await readRecord(ASSIGNMENT, ABSENT)).retest.examSessionId || null, null, 'no stand-in Retest');
+
+  // A PAST day with a recorded sitting that no longer resolves (the
+  // reviewer's snow day: one start, then the day entered as a closure): it
+  // is stranded exactly as on the base, the absent student is not missed,
+  // and the panel asks the teacher for a new day.
+  await pastRef.set({ ...sitting, dateKey: lastWeek, opensAt: sitting.opensAt - 7 * 86400000, closesAt: sitting.closesAt - 7 * 86400000 });
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: lastWeek, at: sitting.opensAt - 8 * 86400000 }),
+  });
+  const stranded = await cardOf(ABSENT);
+  assert.deepEqual([stranded.schedule.test.state, stranded.schedule.test.stranded, stranded.schedule.missedTest], ['upcoming', true, false]);
+  assert.equal(stranded.schedule.test.headline, 'Waiting for a new Test day');
+  const row = await classRow();
+  assert.deepEqual([row.test.state, row.test.needsNewDay], ['upcoming', true], 'the teacher is asked for a new day');
+});
+
+/*
+ * N (student pass 3, wave 7, item 1): Corrections name the mistake made on a
+ * real Test. Secure grading records the mistake a miss's work proves
+ * (`grading.misconceptionEvidence`) on the server-only session; nothing the
+ * student is handed carries it before release; after release the Corrections
+ * plan names it. A Retest's responses record it the same way and hand it to
+ * nobody. Line items, answered from the prompt as a student would: the right
+ * line, in standard form where slope-intercept form was asked.
+ */
+test('N: a miss on the Test is recorded server-side, hidden until release, and named by Corrections after it', async (t) => {
+  const ASSIGNMENT = `${CERT_PREFIX}mistaken`;
+  const CLASS = 'cert-mistaken-class';
+  const STUDENT = 'CERT_MISTAKEN_STUDENT';
+  const familyIds = Array.from({ length: 6 }, (unused, index) => `${CERT_PREFIX}line-${index + 1}`);
+  const LINE_PROMPT = /slope (\d+) and y-intercept (\d+)/;
+  const lineFamily = (id, index) => ({
+    active: true, validated: true, courseId: 'algebra1', alignmentKeys: ['texas:A.3C'],
+    familyId: `${CERT_PREFIX}family:line-${index + 1}`, familyVersion: 1, questionType: 'response', activityRole: 'practice',
+    dok: 2, difficultyBand: 2, representation: 'symbolic', calculatorPolicy: 'inherit', assessedConstruct: 'texas:A.3C', taskType: 'procedural',
+    prompt: `Certification line ${index + 1}: the line has slope {{m}} and y-intercept {{b}}. Write its equation.`,
+    responseFields: [{ id: 'answer', label: 'Equation in slope-intercept form', expected: 'y = {{m}}x + {{b}}' }],
+    supportHints: ['Use y = mx + b.'],
+    attemptFeedback: ['Write the slope and the y-intercept into y = mx + b.'],
+    solutionReview: { headline: 'Use y = mx + b.', reasoning: ['m is the slope and b the y-intercept.'], answerSummary: 'y = {{m}}x + {{b}}' },
+    generator: { parameters: { m: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 9 } } },
+  });
+  // Right line, wrong form: mx − y = −b.
+  const standardForm = (prompt) => {
+    const [, m, b] = LINE_PROMPT.exec(String(prompt)) || [];
+    assert.ok(m && b, `a line prompt: ${prompt}`);
+    return `${m}x - y = -${b}`;
+  };
+  t.after(async () => {
+    const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
+    await Promise.allSettled([
+      db.collection('assignments').doc(ASSIGNMENT).delete(),
+      db.collection('classes').doc(CLASS).delete(),
+      db.collection('grades').doc(STUDENT).delete(),
+      ...familyIds.map((id) => db.collection('pathQuestionBank').doc(id).delete()),
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+      ...['testCycleRecords', 'testCycleCorrectionPlans', 'testCycleRetestPlans'].map((name) => db.collection(name).doc(`${ASSIGNMENT}__${STUDENT}`).delete()),
+    ]);
+  });
+  await Promise.all(familyIds.map((id, index) => db.collection('pathQuestionBank').doc(id).set(lineFamily(id, index))));
+  await db.collection('classes').doc(CLASS).set({
+    name: 'Certification Mistaken', course: 'algebra1', courseLevel: 'standard', period: 'CERT MISTAKEN Period', teacherOfRecord: TEACHER_EMAIL, status: 'active',
+  });
+  await db.collection('grades').doc(STUDENT).set({
+    displayName: 'Mistaken Line Learner', classId: CLASS, classPeriod: 'CERT MISTAKEN Period', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
+    gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+  });
+  const base = certAssignment({ classIds: [CLASS] });
+  await db.collection('assignments').doc(ASSIGNMENT).set({
+    ...base, id: ASSIGNMENT,
+    assessmentPolicy: { ...base.assessmentPolicy, retest: { ...base.assessmentPolicy.retest, questionCount: 2 } },
+    testBlueprint: {
+      ...base.testBlueprint, blueprintId: `${CERT_PREFIX}blueprint-mistaken`,
+      targets: [{ targetId: 'tL', alignmentKey: 'texas:A.3C', label: 'Writing linear equations', dok: 2, difficultyBand: 2, representation: 'symbolic', anchor: true, weight: 1, questionCount: 2, familyIds }],
+    },
+  });
+  assert.equal((await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: ASSIGNMENT, classId: CLASS }))).createdSessions, 1);
+  const cardOf = () => fns.getStudentTestCycle.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT }));
+  const leaks = (value) => /misconception|line-wrong-form|path:fields|Right line, wrong form/i.test(JSON.stringify(value));
+
+  // Sit a secure session, answering every item in the wrong form; every
+  // payload the student is handed on the way is checked.
+  const sitWrongForm = async (examSessionId, label) => {
+    const handed = [await fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId }))];
+    for (let index = 0; index < 2; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const question = await fns.issueSecureExamQuestion.run(studentRequest(STUDENT, { examSessionId }));
+      handed.push(question);
+      // eslint-disable-next-line no-await-in-loop
+      handed.push(await fns.submitSecureExamResponse.run(studentRequest(STUDENT, {
+        examSessionId,
+        questionInstanceId: question.questionInstance.questionInstanceId,
+        responsePayload: { responses: { answer: standardForm(question.questionInstance.prompt) } },
+        submissionId: `cert-mistaken-${label}-${index + 1}`,
+      })));
+    }
+    handed.push(await fns.finalizeSecureExam.run(studentRequest(STUDENT, { examSessionId, reason: 'studentSubmit' })));
+    handed.push(await fns.listStudentSecureExamSessions.run(studentRequest(STUDENT, {})));
+    handed.push(await cardOf());
+    handed.push(await fns.getStudentSecureExamReview.run(studentRequest(STUDENT, { examSessionId })).catch((error) => ({ refused: String(error?.message || error) })));
+    assert.equal(leaks(handed), false, `${label}: nothing the student is handed before release names the mistake`);
+    // The server-only session holds it, on every miss.
+    const responses = Object.values((await readSession(examSessionId)).responses || {});
+    assert.equal(responses.length, 2);
+    responses.forEach((response) => {
+      assert.equal(response.grading.isCorrect, false, `${label}: the grader refused the unasked-for form`);
+      assert.equal(response.grading.misconceptionEvidence?.classifier, 'path:fields', `${label}: recorded where it was graded`);
+      assert.deepEqual(response.grading.misconceptionEvidence.findings.map((entry) => entry.code), ['line-wrong-form-slope-intercept']);
+    });
+  };
+
+  const testCard = await cardOf();
+  assert.deepEqual([testCard.stage, testCard.canEnter], ['test', true]);
+  await sitWrongForm(testCard.examSessionId, 'Test');
+  await releaseFeedback(testCard.examSessionId);
+  const review = await fns.getStudentSecureExamReview.run(studentRequest(STUDENT, { examSessionId: testCard.examSessionId }));
+  assert.equal(leaks(review), false, 'the released review copies the score, not the evidence');
+
+  const corrections = await cardOf();
+  assert.equal(corrections.stage, 'corrections');
+  const [target] = corrections.corrections.targets;
+  assert.deepEqual([target.diagnosis, target.misconception], ['misconception', 'line-wrong-form-slope-intercept'], 'Corrections names the mistake made on the Test');
+
+  // The Retest: its responses are recorded the same way, and handed to nobody.
+  assert.equal((await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT, action: 'waiveCorrections' }))).retestOpened, true);
+  const retestCard = await cardOf();
+  assert.deepEqual([retestCard.stage, retestCard.canEnter], ['retest', true]);
+  await sitWrongForm(retestCard.examSessionId, 'Retest');
+});

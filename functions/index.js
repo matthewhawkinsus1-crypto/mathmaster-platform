@@ -17602,8 +17602,9 @@ exports.startSecureExamSession = onCall(async (request) => {
   // `courseTest` block and this is a no-op for it.
   const entrySnapshot = await ref.get();
   const entrySession = assertStudentExamSession(entrySnapshot, studentId);
+  let entry = null;
   try {
-    await assertCourseTestEntryAllowed(db, entrySession, studentId);
+    entry = await assertCourseTestEntryAllowed(db, entrySession, studentId);
   } catch (error) {
     // A Test under way that the teacher has paused or archived: the screen
     // gets where it stands (states only, the clock stopped) and shows the
@@ -17658,6 +17659,12 @@ exports.startSecureExamSession = onCall(async (request) => {
     transaction.set(ref, next);
     return next;
   });
+  // The first Test start inside a class-period window records that window's
+  // times (record-only: nothing reads them yet; see recordClassTestSitting).
+  // After the start is committed, and it never fails the start.
+  if (entry?.schedule && entry.isRetest === false && entrySession.status === "not_started" && session.status === "in_progress") {
+    await recordClassTestSitting(db, entry.shared, { assignmentId: entry.assignmentId, schedule: entry.schedule });
+  }
   await syncTestCycleSessionState(db, session);
   return { success: true, session: secureExam.publicSession(session) };
 });
@@ -18294,6 +18301,9 @@ async function autoReleaseSecureSession(db, session) {
  * longer be edited. Correctness stays server-only.
  */
 exports.submitSecureExamResponse = onCall(async (request) => {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
@@ -18302,6 +18312,7 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("examSessions").doc(examSessionId);
   const markerRef = db.collection("examSubmissions").doc(mathPath.opaqueId("examsub", examSessionId, submissionId));
+  await missEvidenceReady;
   const result = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, marker] = await Promise.all([transaction.get(sessionRef), transaction.get(markerRef)]);
     // The idempotency marker answers a retry from the SAME student. Anyone else
@@ -18428,6 +18439,9 @@ async function finalizeSecureSessionInTransaction(transaction, ref, session, { s
 
 /** Student submit / verified timer autosubmit. */
 exports.finalizeSecureExam = onCall(async (request) => {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const reason = request.data?.reason === "timeExpired" ? "timeExpired" : "studentSubmit";
@@ -18443,6 +18457,7 @@ exports.finalizeSecureExam = onCall(async (request) => {
     && !(await courseTestSessionIsCurrent(db, finalizeSession))) {
     throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
   }
+  await missEvidenceReady;
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
@@ -18517,6 +18532,9 @@ async function settleAutoFinalizedSecureSession(db, ref, session) {
 }
 
 async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly = false } = {}) {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const snapshot = await ref.get();
   if (!snapshot.exists) return "missing";
   const before = snapshot.data() || {};
@@ -18526,6 +18544,7 @@ async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly
   const replaced = secureExam.isCourseTestSession(before)
     && !secureExam.TERMINAL_STATES.has(before.status)
     && !(await courseTestSessionIsCurrent(db, before));
+  await missEvidenceReady;
   const result = await db.runTransaction(async (transaction) => {
     const fresh = await transaction.get(ref);
     if (!fresh.exists) return { outcome: "missing" };
@@ -18754,6 +18773,10 @@ function releaseSessionFeedbackInTransaction(transaction, db, { ref, session, ex
 
 /** Authenticated proctor controls replace the insecure client-side PIN draft. */
 exports.proctorExamAction = onCall(async (request) => {
+  // A force-submit grades inside its transaction: the diagnosis it may record
+  // starts loading now and is awaited just before (secureExamItems.loadMissEvidence;
+  // it never rejects). No other action grades, so no other action loads it.
+  const missEvidenceReady = String(request.data?.action || "").trim() === "forceSubmit" ? secureExamItems.loadMissEvidence() : null;
   const teacherUid = await requireTeacher(request);
   const examSessionId = secureExamSessionId(request);
   const action = String(request.data?.action || "").trim();
@@ -18779,6 +18802,7 @@ exports.proctorExamAction = onCall(async (request) => {
       "This secure session was replaced by a reset. Release the student's current session instead.",
     );
   }
+  if (missEvidenceReady) await missEvidenceReady;
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
@@ -18923,9 +18947,44 @@ async function studentTestCycleSchedule(db, shared, {
   const classPeriod = followsBell
     ? await resolveCheckpointClassPeriod(db, classId, classId === ownClassId ? gradeData : {}, periodCache)
     : null;
-  return shared.schedule.resolveStudentTestCycleSchedule({
-    assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
-  });
+  return {
+    ...shared.schedule.resolveStudentTestCycleSchedule({
+      assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
+    }),
+    // The class whose windows this student follows: a Test start records its sitting.
+    classId: classId || null,
+  };
+}
+
+/*
+ * RECORD THE CLASS SITTING A TEST START HAPPENED IN — RECORD-ONLY.
+ *
+ * The first fresh Test start inside a class-period window writes the times
+ * that day resolved to (create-if-absent, one server-only document per
+ * assignment, class and day; testCycleAvailability.mjs `classSittingToRecord`).
+ * NOTHING READS IT YET. One student starting the Test — from home on a snow
+ * day, say — looks exactly like a class sitting it, so whether a recorded
+ * sitting may ever mark absent students missed is an owner decision
+ * (docs/handoffs/STUDENT_PASS3_SERVER_FOLLOWUPS.md). A day that stops
+ * resolving behaves exactly as before: absent students wait, the panel flags
+ * the class. What is recorded from this deploy on is what that decision uses.
+ *
+ * Never fails the start: a write that loses the race finds the document
+ * already there, and any other failure is logged — the next start records it.
+ */
+async function recordClassTestSitting(db, shared, { assignmentId, schedule, now = Date.now() }) {
+  try {
+    const sitting = shared.schedule.classSittingToRecord({
+      assignmentId, classId: schedule?.classId, classWindows: schedule?.test?.windows, now,
+    });
+    if (!sitting) return null;
+    await db.collection(shared.schedule.TEST_CYCLE_CLASS_SITTINGS).doc(sitting.id).create(sitting.data);
+    return sitting.id;
+  } catch (error) {
+    if (error?.code === 6 || /already exists/i.test(String(error?.message || ""))) return null;
+    console.error("test_cycle_class_sitting_not_recorded", { assignmentId, message: error?.message || String(error) });
+    return null;
+  }
 }
 
 /** A schedule as a student's or teacher's screen receives it: instants and the sentences. */
@@ -19403,6 +19462,8 @@ async function assertCourseTestEntryAllowed(db, session, studentId, { transactio
       state?.windowClosed ? { window: state.windowClosed } : undefined,
     );
   }
+  // What the start needs to record the class sitting (recordClassTestSitting).
+  return { shared, assignmentId: String(courseTest.assignmentId), isRetest, schedule };
 }
 
 /**
@@ -20130,11 +20191,14 @@ const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
 /** The display-only diagnosis of a corrections miss, or null. Never throws. */
 async function correctionMissDiagnosisFor(storedItem, grading, responsePayload) {
   try {
-    const privateGrading = secureItems.readStoredItem(storedItem)?.privateGrading || null;
-    if (!privateGrading?.pathToolId) return null;
-    const raw = await secureItems.rawWorkOf(responsePayload || {});
+    const item = secureItems.readStoredItem(storedItem) || {};
+    const privateGrading = item.privateGrading || null;
+    if (!privateGrading) return null;
+    // A tool item's bounded work; a field item's typed responses.
+    const raw = privateGrading.pathToolId ? await secureItems.rawWorkOf(responsePayload || {}) : null;
+    const responses = responsePayload?.responses && typeof responsePayload.responses === "object" ? responsePayload.responses : null;
     const { diagnoseCorrectionMiss } = await import("./shared/correctionMissDiagnosis.mjs");
-    return diagnoseCorrectionMiss({ privateGrading, grading, raw });
+    return diagnoseCorrectionMiss({ privateGrading, grading, raw, responses, question: item });
   } catch {
     return null;
   }
