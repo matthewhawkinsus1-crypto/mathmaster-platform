@@ -8,8 +8,8 @@
 //
 // Each grader below is run once (helpers/shallowComponent.mjs: its hooks run,
 // its effect publishes) with a distinctive key that appears nowhere in its
-// task, and the details it publishes must not contain the key — blank, and
-// again after a wrong answer is typed. The task itself (the prompt, a system's
+// task, and the details it publishes on that first render, before anything is
+// typed, must not contain the key. The task itself (the prompt, a system's
 // equations, a literal formula) may be quoted: the student is shown it.
 
 import test, { after, before } from 'node:test';
