@@ -831,6 +831,39 @@ test('no client can read, write or list the open items of a secure session', asy
   await assertFails(setDoc(doc(studentA(), 'examSessions/exam-1/items/examq-1'), { draftResponse: { responsePayload: { responses: { answer: '4' } } } }));
 });
 
+test('no client can move the abandoned-test finalizer: its deadline hint and its sweep bookmark are server-only', async () => {
+  /*
+   * `autoFinalizeAt` on a secure session is where the scheduled finalizer
+   * looks for a timed test whose time ran out. A student who could write it
+   * could hide their own expired test from it, or point it at a classmate's;
+   * a hint is only where to look, but nobody but the server writes it. The
+   * sweep's bookmark (platformMigrations) is the server's too.
+   */
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'examSessions/exam-af'), {
+      examSessionId: 'exam-af', studentId: 'STUDENT_A', status: 'in_progress', startedAt: 1, timeLimitSeconds: 600, autoFinalizeAt: 720001,
+    });
+    await setDoc(doc(context.firestore(), 'platformMigrations/secureExamAutoFinalizeDeadlines'), { cursor: null, passStartedAt: 1, settleAfter: 2, completedAt: null });
+  });
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(updateDoc(doc(client, 'examSessions/exam-af'), { autoFinalizeAt: null }));
+    await assertFails(setDoc(doc(client, 'examSessions/exam-af'), { autoFinalizeAt: 9e15 }, { merge: true }));
+    await assertFails(setDoc(doc(client, 'examSessions/exam-af-new'), { studentId: 'STUDENT_A', status: 'in_progress', autoFinalizeAt: null }));
+    await assertFails(getDocs(query(collection(client, 'examSessions'), where('autoFinalizeAt', '<=', Date.now()))));
+    await assertFails(setDoc(doc(client, 'platformMigrations/secureExamAutoFinalizeDeadlines'), { completedAt: 1 }, { merge: true }));
+    await assertFails(deleteDoc(doc(client, 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  }
+  await assertFails(getDoc(doc(studentA(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  await assertFails(getDoc(doc(teacherA(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  // The root administrator may read the bookmark (the collection's rule), never change it.
+  await assertSucceeds(getDoc(doc(admin(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  let stored = null;
+  await env.withSecurityRulesDisabled(async (context) => {
+    stored = (await getDoc(doc(context.firestore(), 'examSessions/exam-af'))).data();
+  });
+  assert.equal(stored.autoFinalizeAt, 720001, 'the hint is unchanged');
+});
+
 test('no client can read or write when a Test Cycle\'s answers are released', async () => {
   /*
    * testCycleAnswerReleases says whether a course Test's correct answers and

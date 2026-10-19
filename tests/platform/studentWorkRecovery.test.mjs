@@ -272,11 +272,13 @@ test('restoring drafts is the last step, after canonical grades and the outbox',
   assert.match(block, /readWorkspaceDraft\(\{ studentId: user\.id, assignmentId: activeAssignmentId \}\)/);
   assert.match(block, /selectRestorableDraftEntries\(\{/);
   assert.match(block, /localSavedAt: \(key\) => questionDraftSavedAt\(key\)/);
-  assert.match(block, /canonicalSavedAt:/);
   // Against the question's last canonical response, read by the shared reader:
   // `lastAttemptAt` for an attempt the student made, and for a deadline
-  // auto-submit (which records the close) when its work was captured.
-  assert.match(block, /canonicalSavedAt: \(entry\) => canonicalResponseSavedAt\(normalizeQuestionRecord\(assignmentGrades\[entry\?\.questionIndex\]\)\)/);
+  // auto-submit (which records the close) when its work was captured. Named
+  // once (Batch 3) and handed to the restore and both settles.
+  assert.match(block, /const canonicalSavedAt = \(entry\) => canonicalResponseSavedAt\(normalizeQuestionRecord\(assignmentGrades\[entry\?\.questionIndex\]\)\);/);
+  const restore = block.slice(block.indexOf('selectRestorableDraftEntries({'), block.indexOf('});', block.indexOf('selectRestorableDraftEntries({')));
+  assert.match(restore, /\n\s*canonicalSavedAt,\n/);
   assert.equal(canonicalResponseSavedAt({ lastAttemptAt: '2026-09-14T15:00:00.000Z' }), Date.parse('2026-09-14T15:00:00.000Z'));
 });
 
@@ -371,9 +373,13 @@ test('the local draft write is synchronous and only then offers a background sav
   assert.doesNotMatch(block, /await|async/);
   // Offered with its time and whether it was the student's edit (PQ-044) —
   // and whether that time is an edit's (the edit-time marker).
-  assert.match(block, /notifyDraftWritten\(key, value, savedAt, isEdit\b[^)]*\);[\s\S]*window\.localStorage\.setItem/);
+  // (The value offered is the one stored: `written`, which for a field-record
+  // draft keeps answers the page never saw — Batch 3.)
+  const offered = block.match(/notifyDraftWritten\(key, (\w+), savedAt, isEdit\b[^;]*\);/)?.[1];
+  assert.ok(offered, 'the write offers the draft to the background save');
+  assert.match(block, new RegExp(`notifyDraftWritten\\(key, ${offered}, savedAt, isEdit\\b[^;]*\\);[\\s\\S]*window\\.localStorage\\.setItem\\(key, JSON\\.stringify\\(\\{[\\s\\S]*?value: ${offered},`));
   // Subscribers cannot break the keystroke.
-  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt, edit\b[^}]*\}\);\s*\n\s*\} catch/);
+  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt, edit\b[\s\S]*?\}\);\s*\n\s*\} catch/);
 });
 
 test('temporary network loss leaves the work locally durable and retries later', async () => {
@@ -951,7 +957,9 @@ test('the store merges inside a transaction rather than replacing the document',
   const storeSource = readFileSync(new URL('../../src/platform/persistence/workspaceDraftStore.js', import.meta.url), 'utf8');
   assert.match(storeSource, /runTransaction\(db, async \(transaction\) => \{/);
   assert.match(storeSource, /const snapshot = await transaction\.get\(reference\)/);
-  assert.match(storeSource, /mergeWorkspaceDraftDocument\(\{/);
+  // The merge (with the report of what its caps left out, Batch 3) is what is set.
+  assert.match(storeSource, /const report = mergeWorkspaceDraftDocumentReport\(\{/);
+  assert.match(storeSource, /transaction\.set\(reference, \{\s*\.\.\.report\.document,/);
   // A bare setDoc of the caller's document is what caused the data loss.
   assert.doesNotMatch(storeSource, /await setDoc\(/);
 });
@@ -1078,11 +1086,13 @@ test('the server read settles a workspace this device started from nothing befor
   const start = app.indexOf('const readServerCopy = () => {');
   assert.notEqual(start, -1, 'the server read is where it was');
   const read = app.slice(start, app.indexOf('\n    readServerCopy();', start));
-  const settle = read.indexOf('const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId });');
-  const restore = read.indexOf('const restored = restoreQuestionDrafts(restorable);');
+  // (It also takes the canonical guard, and field-record drafts are settled
+  // beside it — Batch 3; fieldRecordDraftMerge.test.mjs.)
+  const settle = read.indexOf('const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId');
+  const restore = read.indexOf('const restored = restoreQuestionDrafts(restorable');
   assert.notEqual(settle, -1, 'the read settles fresh workspaces');
   assert.ok(restore > settle, 'before the restore, so a newer server copy is not then swapped in over the student\'s edits');
-  assert.match(read.slice(restore), /^const restored = restoreQuestionDrafts\(restorable\);\s*if \(restored \|\| settled\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
+  assert.match(read.slice(restore), /^const restored = restoreQuestionDrafts\(restorable\b[^;]*;\s*if \(restored \|\| settled\b[^)]*\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
 });
 
 test('a merge that would outgrow the value cap falls back to the newer copy, whole', () => {

@@ -159,6 +159,56 @@ function isExpired(session, now = Date.now()) {
   return deadline != null && now >= deadline;
 }
 
+/*
+ * A TIMED TEST THE STUDENT WALKED AWAY FROM IS FINISHED BY THE SERVER.
+ *
+ * `autoFinalizeAt` is stored on every started session so a scheduled finalizer
+ * can find the ones whose time ran out (finalizeAbandonedSecureExams). It is a
+ * query hint, never the authority: the finalizer reads the session in a
+ * transaction and finishes it only when `autoFinalizeDue` says so, which is
+ * `deadlineFor` (the rule every save, issue and time-up check uses: the limit,
+ * which already carries the student's extended time from start, plus added
+ * time, plus every paused second) and then the grace. So a stale hint can only
+ * make the finalizer look early and write the true one back, or look late.
+ *
+ * The hint is null — the finalizer never looks — when nothing should finish on
+ * its own: an untimed test, one not started or already finished, one a proctor
+ * has paused (the proctor holds it and can add time or submit it), and one
+ * whose clock a teacher's pause stopped with time left. A pause that began
+ * after the deadline keeps the test expired (deadlineFor), so it keeps the
+ * deadline it had when the pause began.
+ */
+const AUTO_FINALIZE_GRACE_MS = 2 * 60 * 1000;
+const AUTO_FINALIZE_STATES = new Set(['in_progress', 'locked_integrity']);
+
+/** When the deadline was, ignoring a pause under way (the clock at the pause). */
+function deadlineBeforePause(session) {
+  const limit = timeLimitSecondsOf(session);
+  const startedAt = Number(session?.startedAt);
+  if (limit === null || !Number.isFinite(startedAt) || startedAt <= 0) return null;
+  const added = Math.max(0, Number(session.addedTimeSeconds) || 0);
+  return startedAt + (limit + added + pausedSecondsOf(session)) * 1000;
+}
+
+function autoFinalizeAtFor(session, now = Date.now()) {
+  if (!AUTO_FINALIZE_STATES.has(session?.status)) return null;
+  if (deadlineFor(session, now) === null) return null;
+  const deadline = deadlineBeforePause(session);
+  const pausedSince = clockPausedSince(session);
+  // Stopped with time left: no deadline until the pause is lifted.
+  if (pausedSince !== null && pausedSince < deadline) return null;
+  return deadline + AUTO_FINALIZE_GRACE_MS;
+}
+
+/**
+ * Whether the server may finish this session now, as time-up would: its time
+ * is up by the rule every call uses, and the grace after it has passed too.
+ */
+function autoFinalizeDue(session, now = Date.now()) {
+  if (!AUTO_FINALIZE_STATES.has(session?.status) || !isExpired(session, now)) return false;
+  return now >= deadlineBeforePause(session) + AUTO_FINALIZE_GRACE_MS;
+}
+
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
 
@@ -234,7 +284,7 @@ function publicSession(session = {}, { teacher = false } = {}) {
   // stripped from BOTH the student and the teacher payload — a proctor reads
   // the plan through the separate teacher-only Test Cycle callable, which is
   // authenticated for that purpose.
-  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, issuancePlan: _issuancePlan, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, navigation: _navigation, teacherPause: _teacherPause, pausedSeconds: _pausedSeconds, ...safe } = session;
+  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, issuancePlan: _issuancePlan, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, navigation: _navigation, teacherPause: _teacherPause, pausedSeconds: _pausedSeconds, autoFinalizeAt: _autoFinalizeAt, autoFinalizedAt: _autoFinalizedAt, ...safe } = session;
   const responseValues = responses && typeof responses === 'object' ? Object.values(responses) : [];
   const now = Date.now();
   const expiresAt = deadlineFor(session, now);
@@ -431,4 +481,4 @@ function courseReviewBlockedBy(record, { examSessionId, cycleStage } = {}) {
   return { reason: "attempt_open", message: "This review opens again when you finish the test you are taking now." };
 }
 
-module.exports = { COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, clockPausedSince, deadlineFor, isCourseTestSession, isExpired, nextDomainId, pauseHoldsOf, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent, withPauseHold, withoutPauseHold };
+module.exports = { AUTO_FINALIZE_GRACE_MS, autoFinalizeAtFor, autoFinalizeDue, COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, clockPausedSince, deadlineFor, isCourseTestSession, isExpired, nextDomainId, pauseHoldsOf, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent, withPauseHold, withoutPauseHold };

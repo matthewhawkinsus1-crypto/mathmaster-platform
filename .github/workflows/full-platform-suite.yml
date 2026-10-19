@@ -110,6 +110,14 @@ jobs:
         timeout-minutes: 10
         run: npm run test:warmup-reopen:emulator
 
+      # The scheduled finalizer for abandoned timed tests, run by hand against
+      # the real secure-exam callables. It finishes every expired session in
+      # its project, so it has its own emulator run: beside the parallel
+      # integration suites below it would finish their sessions too.
+      - name: Certify the abandoned-test finalizer against the real functions
+        timeout-minutes: 10
+        run: npm run test:secure-exam-auto-finalize
+
       # Runs the real finishLiveChallenge against the emulator and reads back
       # the report, the Warm-Up credit and the mastery evidence. Source
       # assertions cannot tell a correct write from a wrong field path.

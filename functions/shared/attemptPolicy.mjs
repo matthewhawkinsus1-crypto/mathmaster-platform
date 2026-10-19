@@ -195,8 +195,11 @@ const clampPercent = (value) =>
 // one state give one key: continuity (stepAlgebraStepVerification) and the
 // partial-credit dedupe below hold across the deploy. Dropping a 1 never
 // merges two different values.
+// The same holds for MathJS's TeX tie: since pass 3 (Q-31) an implicit product
+// is written 2 x, not 2~ x. A tie is only spacing, so it goes with the spaces
+// and records from either side of that deploy give one key.
 export const compactStepStateKey = (value) => String(value || '')
-  .replace(/\s+/g, '')
+  .replace(/[\s~]+/g, '')
   .replace(/[−–—]/g, '-')
   .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(');
 
