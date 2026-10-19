@@ -65,9 +65,4 @@ export const backUpStepFor = (question) => {
 /** Shown only when written for THIS problem: authored, or built by its family from the item's own structure. */
 export const backUpStepWritten = (step) => step?.source === 'authored' || step?.source === 'family';
 
-// A family's prompt opens with "Let’s back up." — which the overlay already
-// says above it, and its region is named. The question itself, said once.
-const LEAD = /^let[’']s back up\.\s*/i;
-export const backUpQuestionText = (prompt) => text(prompt).replace(LEAD, '');
-
 export default backUpStepFor;

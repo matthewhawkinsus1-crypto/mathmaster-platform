@@ -38,7 +38,7 @@ import { buildPartReviewRows, closedQuestionHasReview } from './platform/support
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
-import { backUpQuestionText, backUpStepFor, backUpStepWritten } from './platform/supports/feedback/backUpStep.js';
+import { backUpStepFor, backUpStepWritten } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
@@ -124,7 +124,7 @@ import { StudentSupportTray } from './components/student/StudentSupportTools.jsx
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
-import { questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
 // calculator is graphing. If its chunk cannot load, the keypad drawer stands

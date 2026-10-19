@@ -28,11 +28,11 @@ import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringI
 import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
 import { generateQuestion } from '../../src/problemGenerator.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
-import { questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
+import { backUpQuestionText, questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { figureReadingEntries, updateFigureReadings } from '../../src/platform/language/figureReadings.js';
 import { displayTableFor } from '../../src/platform/question/displayTable.js';
-import { backUpQuestionText, backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
+import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';

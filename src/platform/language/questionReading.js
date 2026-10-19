@@ -28,7 +28,6 @@
  */
 import { choiceOptionsForField, choiceSeed, multiAnswerChoiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { readDisplayMatrices } from '../math/displayMatrices.js';
-import { backUpQuestionText } from '../supports/feedback/backUpStep.js';
 import { definedFunctionNames } from './speechText.js';
 
 const WORDS = {
@@ -78,6 +77,12 @@ const sentence = (value) => {
   if (!text) return '';
   return /[.?!:;]$/.test(text) ? text : `${text}.`;
 };
+// A family's back-up prompt opens with "Let’s back up." — which the overlay
+// already says above it, and its region is named. The question itself, said
+// once (the overlay's heading and the reader). Kept here, not in backUpStep.js,
+// so the reader does not pull the question families into a shared chunk.
+const BACK_UP_LEAD = /^let[’']s back up\.\s*/i;
+export const backUpQuestionText = (prompt) => String(prompt ?? '').trim().replace(BACK_UP_LEAD, '');
 const optionText = (option) => clean(typeof option === 'string' || typeof option === 'number' ? option : option?.label ?? option?.id ?? '');
 
 /** "Choices: −6; 6; 0; or −2." — semicolons, because a choice may hold a comma ("(2, 3)"). */
