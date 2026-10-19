@@ -1,5 +1,7 @@
 {
   "src/components/liveChallenge/GraphFeatureRushRound.jsx:--mm-text-strong": 1,
+  "src/components/liveChallenge/LineGraphRound.jsx:--mm-error-border-soft": 1,
+  "src/components/liveChallenge/LineGraphRound.jsx:--mm-text-strong": 1,
   "src/components/liveChallenge/LiveChallengeArenaProjector.jsx:--mm-primary-border": 1,
   "src/components/rewards/rewards.css:--mm-accent-border": 1,
   "src/components/teacher/caseReview/caseReview.css:--mm-border-strong": 1,
