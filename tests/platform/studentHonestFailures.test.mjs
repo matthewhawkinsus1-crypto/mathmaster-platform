@@ -38,6 +38,7 @@ import { EXTRA_TIME_WORDS, describeDolClose } from '../../src/platform/assessmen
 import { extraTimeFrom, saysExtraTime } from '../../src/platform/assessment/extraTimeWords.js';
 import { resolveNextAction } from '../../src/studentDashboardModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
@@ -347,8 +348,8 @@ test('a backup problem is kept across a reload while the draft is still on the d
 });
 
 test('App clears the kept problems when an account gives way, never when one arrives (a reload)', () => {
-  const effect = region(app, 'const draftHealthAccountRef = useRef(null);', '}, [user?.id]);');
-  assert.match(effect, /const account = user\?\.id \|\| null;\s*if \(accountChangeClearsDraftProblems\(draftHealthAccountRef\.current, account\)\) clearDraftSaveProblems\(\);\s*draftHealthAccountRef\.current = account;/);
+  const { run } = draftHealthAccountEffect(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.deepEqual(replayAccounts(run, [null, 'stu-a', 'stu-a', 'stu-b', null, 'stu-b']), [0, 0, 0, 1, 1, 0]);
   // The old cleanup ran on every change of user?.id, null → student included,
   // which wiped what was kept for the reload as the account loaded.
   assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/);

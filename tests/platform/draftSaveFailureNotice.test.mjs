@@ -31,6 +31,7 @@ import {
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
 
 const STUDENT = 'S-save';
 const ASSIGNMENT = 'A-save';
@@ -169,10 +170,18 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   // Not gated on the outbox status: a draft can fail while nothing is queued.
   assert.doesNotMatch(notice, /studentPersistenceStatus/);
   assert.doesNotMatch(problem, /studentPersistenceStatus/);
-  // A shared Chromebook's next student starts clean; a reload keeps this
-  // student's (pass 3, wave 7: the effect no longer clears on null → student).
-  const account = region(app, 'const draftHealthAccountRef = useRef(null);', '}, [user?.id]);');
-  assert.match(account, /if \(accountChangeClearsDraftProblems\(draftHealthAccountRef\.current, account\)\) clearDraftSaveProblems\(\);\s*draftHealthAccountRef\.current = account;/, 'a shared Chromebook\'s next student starts clean');
+  // A shared Chromebook's next student starts clean, and a reload of the same
+  // student keeps it (pass 3, wave 7): the effect is run, not only read.
+  const { rule, run } = draftHealthAccountEffect(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(rule, /useEffect\(\(\) => \{/, 'an effect body, not a cleanup');
+  assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\)/, 'the old cleanup is gone');
+  const ref = { current: null };
+  assert.deepEqual(replayAccounts(run, [null, 'stu-a'], ref), [0, 0], 'null → A: a reload keeps the notice');
+  assert.deepEqual(replayAccounts(run, ['stu-a'], ref), [0], 'A → A: a re-render');
+  assert.deepEqual(replayAccounts(run, ['stu-b'], ref), [1], 'A → B: another student');
+  assert.deepEqual(replayAccounts(run, [null], ref), [1], 'B → signed out');
+  assert.deepEqual(replayAccounts(run, ['stu-b'], ref), [0], 'null → B after that sign-out');
+  assert.deepEqual(replayAccounts(run, ['stu-a']), [0], 'a fresh page: null → A');
   assert.match(app, /^import \{[^}]*\baccountChangeClearsDraftProblems\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';$/m);
 });
 
