@@ -216,7 +216,15 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
           disabled={disabled}
           onChange={(value) => {
             onLive?.(null);
-            setEv((previous) => ({ ...previous, zero: value, point: '' }));
+            // Each choice keeps the point written under it: arrow keys select
+            // (the radio pattern), so arrowing away and back must not lose a
+            // typed point (review SF1). Only `point` is evidence; the kept
+            // points stay in the draft.
+            setEv((previous) => {
+              const kept = { ...(previous?.pointByZero || {}) };
+              if (previous?.zero) kept[previous.zero] = previous.point ?? '';
+              return { ...previous, zero: value, point: kept[value] ?? '', pointByZero: kept };
+            });
           }}
         />
       </div>
