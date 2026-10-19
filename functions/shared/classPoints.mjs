@@ -45,6 +45,11 @@ export const REASON_CODES = Object.freeze([
   'perseverance',
   'teacherBonus',
   'liveChallengeAchievement',
+  // Issued only by the server's growth rules (growthRewardRules.mjs) — a
+  // retest that went up, corrections finished, a weekly Path goal met, a skill
+  // mastered. Never a teacher choice: src/platform/classPointsClient.js keeps
+  // its own teacher-choosable subset without it.
+  'growthReward',
   'custom',
 ]);
 
@@ -59,6 +64,7 @@ export const DEFAULT_REASON_LABELS = Object.freeze({
   perseverance: 'Kept working through a hard problem',
   teacherBonus: 'Teacher bonus',
   liveChallengeAchievement: 'Live Challenge achievement',
+  growthReward: 'Growth reward',
   custom: 'Class Points award',
 });
 
@@ -79,6 +85,12 @@ export const SOURCE_TYPES = Object.freeze({
   // with points. It cancels a spend, so it lowers lifetimeSpent rather than
   // raising lifetimeEarned — see applyTransaction.
   REWARD_REFUND: 'rewardRefund',
+  // Points the server's growth rules issued for effort and improvement
+  // (functions/shared/growthRewardRules.mjs). An ordinary earning for
+  // applyTransaction. Like a Live Challenge achievement it is awarded by rule
+  // from authoritative records, so it is not a teacher award and
+  // `isReversibleAward` leaves it alone.
+  GROWTH_REWARD: 'growthReward',
 });
 
 // Small positive integers only. High enough for a generous single award (a

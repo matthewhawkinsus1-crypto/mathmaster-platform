@@ -42,6 +42,8 @@ export const LIVE_FLAGS = Object.freeze({
   BEHIND_PACE: 'behindPace',
   STRUGGLING: 'struggling',
   STUCK: 'stuck',
+  // The student pressed "Ask my teacher" (presence helpRequestedAt).
+  HELP_REQUESTED: 'helpRequested',
 });
 
 // How far behind the class a student must fall before the tile turns red.
@@ -260,6 +262,10 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   else if (activityState === LIVE_ACTIVITY.AWAY && !classwideQuiet) flags.push(LIVE_FLAGS.IDLE);
 
   if (clampInt(live.currentAttempts) >= STUCK_ATTEMPTS) flags.push(LIVE_FLAGS.STUCK);
+  // A raised hand is "go talk to this student now" (PR #462 review M5: it
+  // was read only by the Walkthrough tab). Only while the heartbeat is live:
+  // a closed laptop's last request is not a student waiting.
+  if (isOnline && (toMillis(live.helpRequestedAt) ?? 0) > 0) flags.unshift(LIVE_FLAGS.HELP_REQUESTED);
 
   if (classStats) {
     // A student whose reduced-item-count accommodation omits some items ('n')
@@ -286,7 +292,7 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   // Offline counts as red: at a 20-second heartbeat, being marked offline means
   // four in a row were missed, which is a closed laptop rather than a blip.
   const alerting = flags.some((flag) => [
-    LIVE_FLAGS.OFFLINE, LIVE_FLAGS.IDLE, LIVE_FLAGS.BEHIND_PACE, LIVE_FLAGS.STRUGGLING,
+    LIVE_FLAGS.HELP_REQUESTED, LIVE_FLAGS.OFFLINE, LIVE_FLAGS.IDLE, LIVE_FLAGS.BEHIND_PACE, LIVE_FLAGS.STRUGGLING,
   ].includes(flag));
   const severity = alerting
     ? LIVE_SEVERITY.ALERT
@@ -312,6 +318,7 @@ const formatMinutes = (milliseconds) => {
 
 export const describeLiveStudent = ({ isOnline, idleMs, flags, counts, live, activityState }) => {
   if (!isOnline || activityState === LIVE_ACTIVITY.DISCONNECTED) return 'Disconnected';
+  if (flags.includes(LIVE_FLAGS.HELP_REQUESTED)) return 'Asked for help';
   if (activityState === LIVE_ACTIVITY.AWAY) return `Away ${formatMinutes(idleMs)}`;
   if (flags.includes(LIVE_FLAGS.STUCK)) return `Stuck on Q${clampInt(live?.questionIndex) + 1}`;
   if (flags.includes(LIVE_FLAGS.BEHIND_PACE)) return `Behind — ${counts.answered} answered`;
@@ -369,9 +376,12 @@ export const summarizeLiveClass = (students = [], { nowValue = Date.now(), assig
     .map((entry) => classifyLiveStudent(entry.student, { classStats, nowValue }));
 
   const severityRank = { [LIVE_SEVERITY.ALERT]: 0, [LIVE_SEVERITY.WATCH]: 1, [LIVE_SEVERITY.OK]: 2 };
-  // Within a severity: named students alphabetically, then any without a name
-  // on file (by id), so they sit together where a teacher can spot and fix them.
-  rows.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]
+  // A raised hand first; then within a severity: named students
+  // alphabetically, then any without a name on file (by id), so they sit
+  // together where a teacher can spot and fix them.
+  const asked = (row) => (row.flags.includes(LIVE_FLAGS.HELP_REQUESTED) ? 0 : 1);
+  rows.sort((a, b) => asked(a) - asked(b)
+    || severityRank[a.severity] - severityRank[b.severity]
     || Number(a.nameMissing) - Number(b.nameMissing)
     || a.name.localeCompare(b.name)
     || String(a.id).localeCompare(String(b.id)));
@@ -383,6 +393,7 @@ export const summarizeLiveClass = (students = [], { nowValue = Date.now(), assig
       total: rows.length,
       online: rows.filter((row) => row.isOnline).length,
       needsAttention: rows.filter((row) => row.severity === LIVE_SEVERITY.ALERT).length,
+      helpRequests: rows.filter((row) => row.flags.includes(LIVE_FLAGS.HELP_REQUESTED)).length,
     },
   };
 };

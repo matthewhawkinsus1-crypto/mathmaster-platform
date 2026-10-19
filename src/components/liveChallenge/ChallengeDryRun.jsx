@@ -176,7 +176,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     <section style={{ ...panel, background: 'var(--mm-warning-bg)', border: '2px solid #f9ab00' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <strong style={{ display: 'block', fontSize: 17 }}>Dry run — no students are in this</strong>
+          <strong style={{ display: 'block', fontSize: 'calc(17 * var(--mm-px))' }}>Dry run — no students are in this</strong>
           {dryRun.challengeMode === 'solverRace' && (
             <span style={{ display: 'block', color: 'var(--mm-primary-text)', fontWeight: 800 }}>
               Round {roundIndex + 1} of {dryRun.rounds.length} · {round?.question?.tool?.challengeFamily || 'Solver Race'} · {round?.question?.tool?.difficultyBand || ''}
@@ -267,7 +267,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
           </button>
           <button type="button" onClick={close} style={{ ...dryRunButton, color: 'var(--mm-error-text)' }}>End Challenge Early</button>
         </div>
-        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13 }}>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           {paceMode
             ? 'In a real Pace Race, Next Round stays locked until everyone submits or the closing threshold starts and its countdown finishes. Here it is always available, because there is nobody to wait for.'
             : 'In a real Timed Race, Next Round stays locked until everyone who joined has answered or the timer reaches zero. Here it is always available, because there is nobody to wait for.'}

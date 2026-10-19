@@ -36,7 +36,7 @@
 //   identity      the signed-in identity bar at 344, 390 and 479px (one line,
 //                 ~38px, pinned, every name kept) and on iPad and Chromebook;
 //                 its star drawn, not typed (PQ-021, PQ-030).
-//   opener        "⤢ Enlarge question" covers no text or control of a
+//   opener        "⤢ Open Work View" covers no text or control of a
 //                 multi-part answer or Step Algebra, phone to Chromebook
 //                 (PQ-025).
 //   staged        a composed question in phone Work View: the header is the
@@ -378,7 +378,7 @@ const JOURNEYS = {
     const undone = (await page.evaluate(() => window.__ux.work('lmr-cw-2')?.graph1Points))?.[0];
     check(JSON.stringify(dragged) !== JSON.stringify(undone), `the graph's own Undo did not take back the drag (${JSON.stringify(dragged)} → ${JSON.stringify(undone)})`);
     // Enlarged, the plane is still clipped and still plots.
-    await page.locator('[aria-label^="Enlarge Graph 1"], button:has-text("Enlarge")').first().click();
+    await page.locator('[aria-label^="Enlarge Graph 1"], button:has-text("Enlarge"), button:has-text("Open Work View")').first().click();
     await settle(page, 500);
     await shot(page, 'laptop-board-graph-enlarged');
     await page.keyboard.press('Escape');
@@ -394,7 +394,9 @@ const JOURNEYS = {
     // Sort every card: the phone plan is Situation A, the candle Situation B.
     // Read from each card's accessible name — which is the point: a student
     // using a screen reader can do this task now.
-    const planFacts = /10 a month|2x \+ 10|m = 2\.|values 0, 10;|through \(0, 10\)/;
+    // The names are spoken math (pass 3, A11Y-3: "2x plus 10", "m equals 2"),
+    // which is what a screen reader reads and a voice-control student says.
+    const planFacts = /10 a month|2x plus 10|m equals 2\.|values 0, 10;|through the point 0, 10\b/;
     for (const slot of [0, 1]) {
       await page.locator('[role="radiogroup"] [role="radio"]').nth(slot).tap();
       const cards = page.locator('.mathmaster-line-card');
@@ -409,7 +411,7 @@ const JOURNEYS = {
       }
     }
     await shot(page, 'phone-table-sort-done');
-    await page.getByRole('button', { name: 'Check groups' }).tap();
+    await page.getByRole('button', { name: /^Submit — / }).first().tap();
     await settle(page, 800);
     const graded = (await grades(page)).find((grade) => grade.questionId === 'ux-rm-table');
     check(graded?.isCorrect === true, `a correct sort was not graded correct: ${JSON.stringify(graded)} (sets: ${question?.sets?.map((set) => set.id).join(', ')})`);
@@ -526,7 +528,7 @@ const JOURNEYS = {
     // Step Algebra's "Reset work" at 1366×768 (PQ-025).
     const covered = (page) => page.evaluate(() => {
       const opener = [...document.querySelectorAll('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')]
-        .find((button) => /enlarge/i.test(button.textContent || ''));
+        .find((button) => /enlarge|work view/i.test(button.textContent || ''));
       if (!opener) return ['(no opener)'];
       const o = opener.getBoundingClientRect();
       const over = (r) => r.width > 0 && r.height > 0 && r.left < o.right - 1 && r.right > o.left + 1 && r.top < o.bottom - 1 && r.bottom > o.top + 1;
@@ -566,14 +568,14 @@ const JOURNEYS = {
 
     // Embedded: the Enlarge button sits beside the step chips, not on them (PQ-025).
     const chipRow = await page.evaluate(() => {
-      const opener = [...document.querySelectorAll('button')].find((button) => /enlarge question/i.test(button.textContent || ''));
+      const opener = [...document.querySelectorAll('button')].find((button) => /open work view/i.test(button.textContent || ''));
       const o = opener.getBoundingClientRect();
       const n = document.querySelector('.workflow-focus__navigator').getBoundingClientRect();
       return Math.max(0, Math.min(o.right, n.right) - Math.max(o.left, n.left)) * Math.max(0, Math.min(o.bottom, n.bottom) - Math.max(o.top, n.top));
     });
     check(chipRow === 0, `the Enlarge button overlaps the step chips by ${Math.round(chipRow)}px²`);
 
-    await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge/ }).first().tap();
+    await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge|Open Work View/ }).first().tap();
     await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]');
     await settle(page, 700);
 
@@ -684,6 +686,24 @@ const JOURNEYS = {
       await shot(page, `staged-sideways-${width}x${height}`);
     }
 
+    // Still on its side: the first hint, offered under the step before the
+    // first try (D5), folds into Help, and Help opens the Hint panel with the
+    // same words and button.
+    const offer = await page.evaluate(() => {
+      const element = document.querySelector('.mathmaster-work-view-host[data-open="true"] [data-first-hint-offer]');
+      return { present: Boolean(element), shown: Boolean(element?.getClientRects().length) };
+    });
+    check(offer.present, 'sideways: no first-hint offer to fold (the question should offer its first hint before the first try)');
+    check(!offer.shown, 'sideways: the first-hint offer still takes the step\'s height under it');
+    const helpButton = page.locator('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button', { hasText: /^Help$/ });
+    await helpButton.tap();
+    await settle(page, 500);
+    const helpDrawer = page.locator('.mathmaster-work-view-host[data-open="true"] section[aria-label="Help and instructions"][data-open="true"]');
+    check(await helpDrawer.getByRole('button', { name: 'Show a hint', exact: true }).isVisible().catch(() => false), 'sideways: Help does not offer "Show a hint"');
+    check(/Hints never lower your score\./.test(await helpDrawer.textContent().catch(() => '')), 'sideways: Help does not say what a hint costs');
+    await helpButton.tap();
+    await settle(page, 400);
+
     // Back upright, still open, and the table still holds the student's work.
     await page.setViewportSize({ width: 390, height: 844 });
     await settle(page, 900);
@@ -752,7 +772,7 @@ const JOURNEYS = {
       await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=ux-staged-table&identity=1&staged=1&run=keypad-${width}x${height}-${Date.now()}`, { timeout: 120000 });
       await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="ux-staged-table"] .workflow-focus'), null, { timeout: 120000 });
       await settle(page, 2000);
-      await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge/ }).first().tap();
+      await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge|Open Work View/ }).first().tap();
       await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]');
       await settle(page, 700);
       const view = () => page.evaluate(() => {

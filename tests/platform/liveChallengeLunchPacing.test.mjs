@@ -124,9 +124,14 @@ test('advanceLiveChallenge has an authoritative readiness guard', () => {
   const block = server.slice(start, end);
   // Readiness is decided inside the transaction, from the players it read.
   const transaction = block.slice(block.indexOf('db.runTransaction'));
-  assert.match(transaction, /const counts = liveChallengeRoundCompletion\(engine, currentRoom, players\)/);
-  assert.match(transaction, /planLifecycleCommand\(\{\s*command: lifecycle\.LIFECYCLE_COMMAND\.ADVANCE,[\s\S]{0,120}joinedCount: counts\.joinedCount,\s*completedCount: counts\.completedCount,\s*nowMs,\s*\}\)/);
-  assert.match(transaction, /if \(plan\.outcome === lifecycle\.LIFECYCLE_OUTCOME\.REJECT\) throw lifecycleHttpsError\(plan\)/);
+  assert.match(transaction, /const counts = liveChallengeRoundCompletion\(engine, currentRoom, players(, nowMs)?\)/);
+  // The counts reach the planner — extended time included, so a student still
+  // inside their own deadline holds the round open (liveChallengeAccommodations.mjs).
+  assert.match(transaction, /planLifecycleCommand\(\{\s*command: lifecycle\.LIFECYCLE_COMMAND\.ADVANCE,[\s\S]{0,120}joinedCount: counts\.joinedCount,\s*completedCount: counts\.completedCount,\s*extendedPendingCount: counts\.extendedPendingCount,\s*nowMs,\s*\}\)/);
+  // A refusal is thrown once the transaction ends (a hold for extended time
+  // first records extendedTimeInPlay; refuseLiveChallengeRoundCommand).
+  assert.match(transaction, /if \(plan\.outcome === lifecycle\.LIFECYCLE_OUTCOME\.REJECT\) return refuseLiveChallengeRoundCommand\(transaction, \{ roomRef, room: currentRoom, plan \}\)/);
+  assert.match(transaction, /\}\);\s*if \(outcome\.refused\) throw lifecycleHttpsError\(outcome\.refused\);/);
   // Only the cheap early check outside the transaction skips readiness.
   assert.equal((block.match(/force: true/g) || []).length, 1);
   assert.ok(block.indexOf('force: true') < block.indexOf('db.runTransaction'));
@@ -170,7 +175,7 @@ test('final speed scoring uses activeRoundSeconds rather than the teacher baseli
   const start = server.indexOf('exports.submitLiveChallengeResponse');
   const end = server.indexOf('// Phase 5D', start);
   const block = server.slice(start, end);
-  assert.match(block, /const activeRoundMs = challenge\.normalizeRoundSeconds\([\s\S]*latestRoom\.activeRoundSeconds \|\| latestRoom\.roundSeconds/);
+  assert.match(block, /const activeRoundMs = (?:Math\.round\()?challenge\.normalizeRoundSeconds\([\s\S]*latestRoom\.activeRoundSeconds \|\| latestRoom\.roundSeconds/);
   assert.match(block, /totalMs: activeRoundMs/);
   assert.doesNotMatch(block, /totalMs: challenge\.normalizeRoundSeconds\(latestRoom\.roundSeconds\) \* 1000/);
 });

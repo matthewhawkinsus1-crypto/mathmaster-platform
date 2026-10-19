@@ -15,13 +15,25 @@
 .mm-toast-viewport {
   position: fixed;
   z-index: 20000;
-  bottom: max(18px, env(safe-area-inset-bottom));
+  /* Above the sticky Submit / Next bar when one is on screen (its height is
+     published as --mm-action-bar-height), never over it (student pass 3). */
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--mm-action-bar-height, 0px));
   right: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: min(420px, calc(100vw - 36px));
   pointer-events: none;
+}
+
+/* A phone's action bar is at the bottom of the screen: toasts sit at the top,
+   under the student identity bar, where they cover no control a student is
+   about to press. */
+@media (max-width: 640px) {
+  .mm-toast-viewport {
+    top: calc(var(--mm-student-identity-stack-offset, 0px) + 8px);
+    bottom: auto;
+  }
 }
 
 .mm-toast {
@@ -48,7 +60,7 @@
 
 .mm-toast__title {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 800;
   /* The theme-aware text tokens (index.css), not --mm-ink, which has no dark
      value: on the dark toast surface the title was near-invisible. Same
@@ -58,7 +70,7 @@
 
 .mm-toast__message {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: calc(13 * var(--mm-px));
   line-height: 1.5;
   color: var(--mm-text-muted, var(--mm-ink-muted));
   /* Long assignment titles and error strings must not blow out the toast. */
@@ -74,7 +86,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--mm-ink-muted);
-  font-size: 18px;
+  font-size: calc(18 * var(--mm-px));
   line-height: 1;
   cursor: pointer;
 }
@@ -134,7 +146,7 @@
 }
 .mm-btn--danger:hover:not(:disabled) { background: var(--mm-danger-soft); }
 
-.mm-btn--sm { min-height: 34px; padding: 0 11px; font-size: 13px; }
+.mm-btn--sm { min-height: 34px; padding: 0 11px; font-size: calc(13 * var(--mm-px)); }
 
 /* ---------------------------------------------------------------- Badges */
 
@@ -144,7 +156,7 @@
   gap: 5px;
   padding: 4px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: calc(11 * var(--mm-px));
   font-weight: 900;
   letter-spacing: 0.02em;
   background: var(--mm-surface-sunken);
@@ -169,9 +181,9 @@
   color: var(--mm-ink-muted);
 }
 
-.mm-empty__icon { font-size: 30px; line-height: 1; }
-.mm-empty__title { margin: 10px 0 0; font-size: 15px; font-weight: 800; color: var(--mm-ink); }
-.mm-empty__message { margin: 6px auto 0; max-width: 46ch; font-size: 13px; line-height: 1.55; }
+.mm-empty__icon { font-size: calc(30 * var(--mm-px)); line-height: 1; }
+.mm-empty__title { margin: 10px 0 0; font-size: calc(15 * var(--mm-px)); font-weight: 800; color: var(--mm-ink); }
+.mm-empty__message { margin: 6px auto 0; max-width: 46ch; font-size: calc(13 * var(--mm-px)); line-height: 1.55; }
 .mm-empty__action { margin-top: 16px; }
 
 /* ----------------------------------------------------------- Search field */
@@ -206,7 +218,7 @@
   background: transparent;
   color: var(--mm-ink-muted);
   cursor: pointer;
-  font-size: 16px;
+  font-size: calc(16 * var(--mm-px));
   line-height: 1;
   padding: 4px;
 }

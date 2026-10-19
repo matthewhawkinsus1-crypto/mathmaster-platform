@@ -12,7 +12,13 @@ import { WARMUP_CHALLENGE_ROUTE } from '../../platform/liveChallenge/warmupChall
 export default function WarmupChallengeGate({
   decision = null,
   invite = null,
+  // The student's whole profile (their support plan included), so a Warm-Up
+  // game gives the same Read aloud a standalone game does. Extended time comes
+  // from the server, on the invite.
   studentProfile = {},
+  // What the finished game put in the wallet (the app's ChallengeRewardsEarned),
+  // the same slot a standalone game has.
+  renderMatchRewards = null,
   onExitToAssignment,
 }) {
   const route = decision?.route;
@@ -25,6 +31,7 @@ export default function WarmupChallengeGate({
           key={decision.roomId}
           invite={{ ...(invite || {}), roomId: decision.roomId }}
           studentProfile={studentProfile}
+          renderMatchRewards={renderMatchRewards}
           onExit={onExitToAssignment}
           exitLabel="Back to Warm-Up"
         />
@@ -59,15 +66,15 @@ export default function WarmupChallengeGate({
           textAlign: 'left',
           boxShadow: '0 24px 80px rgba(0,0,0,.35)',
         }}>
-          <strong style={{ display: 'block', fontSize: 24, marginBottom: 10 }}>
+          <strong style={{ display: 'block', fontSize: 'calc(24 * var(--mm-px))', marginBottom: 10 }}>
             {teacherChoicePending ? '⚡ Your teacher is choosing today’s Warm-Up' : '⚡ Today’s Warm-Up is a Live Challenge'}
           </strong>
           {teacherChoicePending ? (
-            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+            <span style={{ fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.55 }}>
               Stay here for a moment. Your teacher will choose either the Live Challenge or the standard Warm-Up for the class. You do not need to start either one yet.
             </span>
           ) : (
-            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+            <span style={{ fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.55 }}>
               Stay on this screen. The game starts as soon as your teacher opens it. You do not need to join anything or type a code. If your teacher switches back to the standard Warm-Up, this screen will release automatically.
             </span>
           )}

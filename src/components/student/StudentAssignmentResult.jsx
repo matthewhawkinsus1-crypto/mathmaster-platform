@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
-import { formatDateTime } from '../../assignmentLifecycle';
+import { PRACTICE_SKILL_LABEL, RESULT_STEP, describeResultNextStep, resultTryAgainLabel } from '../../platform/student/studentResultNextStep.js';
+import { OPEN_NOTICE, describeOpenNotice } from '../../platform/student/studentOpenGate.js';
+import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
 
 /*
- * ONE ASSIGNMENT'S RESULT.
+ * ONE ASSIGNMENT'S RESULT — AND WHAT TO DO NEXT.
  *
  * This is where a closed Google Classroom link lands. Before it existed, a
  * student who tapped a Classroom post for work that had already closed arrived
@@ -19,13 +21,21 @@ import { formatDateTime } from '../../assignmentLifecycle';
  * So this screen answers, in order: what did I get, on which parts, is it final,
  * what does Google Classroom show, and what can I still do?
  *
- * PRACTICE IS AN ACTION, NOT AN ARRIVAL.
+ * It is also where "nothing open right now" lands (App's startAssignment opens
+ * it when no question is workable this minute). So the next step comes from
+ * the one "Today" rule (describeResultNextStep): Start/Continue when something
+ * is open now, a section-by-section "what opens when" when nothing is, and an
+ * Up next card (or Home) once this assignment asks nothing more.
+ *
+ * TRYING CLOSED WORK AGAIN IS AN ACTION, NOT AN ARRIVAL.
  *
  * The grade shown here is the frozen one, read from the canonical tracker. The
- * Practice button starts a session against a SEPARATE practice tracker, which
- * this screen never reads. That is why practising cannot move the number above
- * it — not because the button is careful, but because the two are different
- * data and only one of them is a grade.
+ * "Try these questions again — no credit" button starts a session against a SEPARATE
+ * practice tracker, which this screen never reads. That is why retrying cannot
+ * move the number above it — not because the button is careful, but because
+ * the two are different data and only one of them is a grade. (It is never
+ * labelled "Practice": in student copy that word means only the lesson's
+ * Practice section.)
  *
  * WHAT "REVIEW MY WORK" HONESTLY IS, ON A CLOSED ASSIGNMENT.
  *
@@ -36,12 +46,16 @@ import { formatDateTime } from '../../assignmentLifecycle';
  * says plainly that their old answers are not replayed and that the section
  * scores above are the record. A button promising a replay that does not exist
  * would be the same dishonesty as a fake zero, wearing different clothes.
+ *
+ * When the caller hands in a `reviewPanel` (a read-only review of the
+ * student's own recorded work), that panel IS the review, and the old copy
+ * claiming answers are not replayed would now be false — so it is not shown.
  */
 
 const actionStyle = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '12px 18px', borderRadius: 10,
-  fontWeight: 900, fontSize: 15, cursor: 'pointer', flex: '1 1 180px',
+  fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))', cursor: 'pointer', flex: '1 1 180px',
   border: primary ? 0 : '2px solid var(--mm-border)',
   background: primary ? '#174ea6' : 'var(--mm-surface)',
   color: primary ? '#fff' : 'var(--mm-text)',
@@ -53,10 +67,24 @@ export default function StudentAssignmentResult({
   sectionLabel = null,
   supportPresentation = {},
   onReviewWork = null,
+  // "Try these questions again — no credit": reopens this assignment.
   onPractice = null,
+  // "Practice this skill": My Math Path on the skill it teaches, or null when
+  // it teaches none (NAV-8).
+  onPracticeSkill = null,
+  // Why a start landed here instead of opening (studentOpenGate.js:
+  // { kind, title, text }), shown where the page says what opens when.
+  notice = null,
+  // This assignment's "What changed" items (whatChangedModel.js), with a grade
+  // change's fixed reason: shown here and on Grades, never on Home (NAV-7).
+  changes = [],
   onViewAllGrades = null,
   onViewAllAssignments = null,
   onBackToHome = null,
+  // The lesson's questions as a printable worksheet (NAV-20 review N3): Home's
+  // finished cards no longer carry it, so a student who wants to study a done
+  // lesson on paper finds it here, with the results. Returns a promise.
+  onExportPdf = null,
   /*
    * WHICH LIST SENT THE STUDENT HERE.
    *
@@ -69,18 +97,53 @@ export default function StudentAssignmentResult({
   // Practice-based Recovery for a closed Warm-Up/DOL, when the student has
   // one (SectionRecoveryPanel). Null for everyone else.
   recoveryPanel = null,
+  // The dashboard entry for this assignment (the one "Today" rule): whether
+  // anything is open now, where Continue lands, what a wait is waiting for,
+  // and each section's state. Null when the dashboard does not list it.
+  todayEntry = null,
+  // Start/Continue: (assignmentId, questionIndex) — lands on
+  // todayEntry.nextQuestionIndex.
+  onContinue = null,
+  // resolveUpNext({ dashboard, assignmentId }): the next piece of work once
+  // this one asks nothing more, or null.
+  upNext = null,
+  onUpNext = null,
+  // A read-only review of the student's recorded work, built elsewhere. When
+  // present it replaces "Review My Work" and the frozen "not replayed" copy.
+  reviewPanel = null,
+  // For tests and the browser harness; the page otherwise reads the clock.
+  nowValue = undefined,
 }) {
   const cameFromGrades = origin === LEVEL.GRADES;
   // The label comes from the navigation model, which owns the rule that a Back
   // control names its destination rather than its direction.
   const back = resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin });
-  const backLabel = `← ${back?.label || 'Back'}`;
-  const onBackToOrigin = cameFromGrades ? onViewAllGrades : onViewAllAssignments;
+  // "← Home" / "← Assignments" / "← Grades": the destination's name, as the
+  // global nav spells it — and the handler that opens that same place (NAV-9).
+  const backLabel = `← ${back?.navLabel || back?.shortLabel || 'Back'}`;
+  const onBackToOrigin = back?.level === LEVEL.GRADES
+    ? onViewAllGrades
+    : back?.level === LEVEL.HOME
+      ? onBackToHome
+      : onViewAllAssignments;
+  // Paused or archived: nothing here opens, so nothing offers to (NAV-4) —
+  // known from the entry itself (the Grades model), not only from a start
+  // that bounced, so the page says it up front however it was reached.
+  const closedByTeacher = notice?.kind === OPEN_NOTICE.PAUSED || notice?.kind === OPEN_NOTICE.ARCHIVED
+    || Boolean(entry?.closedByTeacher);
+  const shownNotice = notice || (entry?.closedByTeacher ? describeOpenNotice({ kind: entry.closedByTeacher }) : null);
+  // A start that bounced here (a new notice object each time) puts focus on
+  // why, so the press is never silent — even when the page did not change.
+  const noticeHeadingRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  useEffect(() => {
+    if (notice) noticeHeadingRef.current?.focus({ preventScroll: false });
+  }, [notice]);
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
         <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left' }}>
-          <h1 style={{ marginTop: 0, fontSize: 21, color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
+          <h1 style={{ marginTop: 0, fontSize: 'calc(21 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
           <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
             This assignment is not assigned to your MathMaster class, or it has been removed. Your other grades are still here.
           </p>
@@ -105,11 +168,19 @@ export default function StudentAssignmentResult({
       ? 'No recorded grade'
       : `${entry.displayGrade}%`;
 
+  const step = describeResultNextStep({
+    entry,
+    todayEntry,
+    upNext,
+    ...(nowValue !== undefined ? { nowValue } : {}),
+  });
+  const hasPrimaryHere = step.kind === RESULT_STEP.CONTINUE;
+
   const statusLine = entry.frozen
     ? `Assignment closed ${formatDateTime(entry.lateDueAt)}`
     : entry.lifecycle?.isLate
       ? `Late work open until ${formatDateTime(entry.lateDueAt)}`
-      : `Due ${formatDateTime(entry.dueAt)}`;
+      : studentDueText(entry.dueAt);
 
   return (
     <main
@@ -139,33 +210,105 @@ export default function StudentAssignmentResult({
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', marginBottom: 12,
             borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)',
-            color: 'var(--mm-text)', fontWeight: 900, fontSize: 14, cursor: 'pointer',
+            color: 'var(--mm-text)', fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer',
           }}
         >
           {backLabel}
         </button>
 
-        <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
+        <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
         </div>
-        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {entry.title}
         </h1>
-        <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>{statusLine}</div>
+        <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{statusLine}</div>
+
+        {/* Why this opened here instead of the work (NAV-4, NAV-10): read
+            right after the title, for as long as the student needs. */}
+        {shownNotice && (
+          <div data-result-notice={shownNotice.kind} style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)' }}>
+            <h2 ref={noticeHeadingRef} tabIndex={-1} data-result-notice-heading style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{shownNotice.title}</h2>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{shownNotice.text}</p>
+          </div>
+        )}
 
         <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
-            {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
+            {/* "closed", like the status line above — not the teacher word
+                "frozen" (student pass 3). */}
+            {entry.frozen ? 'Your grade · closed' : 'Your grade'}
           </div>
-          <div style={{ marginTop: 4, fontSize: 'clamp(28px, 9vw, 40px)', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
+          <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
           {entry.exclusionText && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
           )}
         </div>
+
+        {/* WHAT TO DO NOW, from the one "Today" rule. */}
+        {step.kind === RESULT_STEP.CONTINUE && (
+          <div data-result-next="continue" style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid var(--mm-primary)', background: 'var(--mm-surface)' }}>
+            <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>This assignment is open — you can work on it now.</div>
+            <button
+              type="button"
+              style={{ ...actionStyle(true), marginTop: 10, width: '100%' }}
+              onClick={() => onContinue?.(entry.assignmentId, step.questionIndex ?? undefined)}
+            >
+              {step.continueLabel}
+            </button>
+          </div>
+        )}
+        {step.kind === RESULT_STEP.RECOVERY && (
+          <p data-result-next="recovery" style={{ margin: '16px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-primary-soft)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-primary-text)' }}>
+            A Recovery is ready{todayEntry?.lesson?.recoverySection?.label ? ` for ${todayEntry.lesson.recoverySection.label}` : ''}. Start it from the Recovery panel on this page.
+          </p>
+        )}
+        {step.kind === RESULT_STEP.WAITING && (
+          <div data-result-next="waiting" style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
+            <div style={{ fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)' }}>Nothing here is open right now</div>
+            {step.waitText && (
+              <p data-result-wait style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800, lineHeight: 1.5, color: 'var(--mm-text)' }}>{step.waitText}.</p>
+            )}
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
+              {step.upNext ? 'Until then, Up next below is open now.' : 'Until then, Home shows what is open now, including My Math Path.'}
+            </p>
+          </div>
+        )}
+        {step.sections.length > 0 && (
+          <ul data-result-sections aria-label="Each part of this assignment" style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 6 }}>
+            {step.sections.map((section) => (
+              <li
+                key={section.role}
+                data-section-state={section.state}
+                style={{
+                  padding: '8px 12px', borderRadius: 10, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, overflowWrap: 'anywhere',
+                  background: section.open ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                  border: '1px solid var(--mm-border-soft)', color: 'var(--mm-text)',
+                }}
+              >
+                <strong>{section.label}</strong> — {section.text}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {Array.isArray(changes) && changes.length > 0 && (
+          <section aria-labelledby="result-what-changed-heading" data-result-what-changed style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
+            <h2 id="result-what-changed-heading" style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-text-strong)' }}>What changed</h2>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 4, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)' }}>
+              {changes.map((item) => (
+                <li key={item.key} style={{ overflowWrap: 'anywhere' }}>
+                  {item.text}
+                  {item.reasonText ? <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Reason: {item.reasonText}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <GradeSectionBreakdown sections={entry.sections} />
         <TestCycleGradeBreakdown entry={entry} />
@@ -174,46 +317,113 @@ export default function StudentAssignmentResult({
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}
         {entry.feedbackHeld && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-warning-text)' }}>
+          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-warning-text)' }}>
             Your teacher is holding feedback on this assignment. Your work is recorded — the grade appears here as soon as it is released, and it is not counted as a zero in the meantime.
           </p>
         )}
 
-        {receipt.present && receipt.grade !== null && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text)' }}>
-            {receipt.studentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {receipt.grade}% · {receipt.label}
+        {/* The Classroom number, only when the student can see it there too,
+            and never while the teacher is holding feedback: a grade the
+            teacher has not released (a Classroom draft) is not shown here,
+            and neither is the sync's vocabulary ("teacher draft",
+            "checkpoint"). */}
+        {receipt.present && receipt.grade !== null && receipt.studentVisible && !entry.feedbackHeld && (
+          <p data-classroom-receipt style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text)' }}>
+            Google Classroom shows {receipt.grade}%{receipt.isFinal ? ' (final)' : ''}.
             {!receipt.isFinal && !receipt.matchesMathMaster && (
-              <> Your MathMaster grade has changed; Classroom updates at the next checkpoint.</>
+              <> Your MathMaster grade has changed since then; Google Classroom catches up at its next update.</>
             )}
           </p>
         )}
 
-        {entry.frozen && (
-          <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
+        {entry.frozen && !reviewPanel && (
+          <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
+            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade or your Google Classroom score.
+          </p>
+        )}
+        {entry.frozen && reviewPanel && (
+          <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
+            This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade or your Google Classroom score.
           </p>
         )}
 
+        {/* The review of the student's own recorded work, when the caller has
+            one, sits where the "Review My Work" button was and replaces it. */}
+        {reviewPanel && <div data-result-review-panel style={{ marginTop: 14, minWidth: 0 }}>{reviewPanel}</div>}
+
+        {/* UP NEXT: once this assignment asks nothing more (or nothing in it is
+            open now), the next piece of work the "Today" rule would put on
+            Home — never back to the assignment just left. */}
+        {step.upNext && (
+          <div
+            data-result-up-next
+            style={{ marginTop: 18, padding: '14px 16px', borderRadius: 12, border: '2px solid var(--mm-primary)', background: 'var(--mm-primary-soft)', minWidth: 0 }}
+          >
+            <h2 style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>Up next</h2>
+            <div style={{ marginTop: 6, fontSize: 'calc(16 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
+              {step.upNext.assignment?.title || step.upNext.headline}
+            </div>
+            {step.upNext.headline && (
+              <div style={{ marginTop: 2, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', overflowWrap: 'anywhere' }}>{step.upNext.headline}</div>
+            )}
+            <button
+              type="button"
+              style={{ ...actionStyle(!hasPrimaryHere), marginTop: 10, width: '100%' }}
+              onClick={() => onUpNext?.(step.upNext)}
+            >
+              {step.upNext.actionLabel || 'Open'}
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-          {entry.reviewAvailable && (
+          {step.offerHome && (
+            <button type="button" style={actionStyle(true)} onClick={() => onBackToHome?.()}>
+              Back to Home
+            </button>
+          )}
+          {entry.reviewAvailable && !reviewPanel && !closedByTeacher && (
             <button type="button" style={actionStyle(false)} onClick={() => onReviewWork?.(entry.assignmentId)}>
               Review My Work
             </button>
           )}
-          {entry.practiceAvailable && (
-            <button type="button" style={actionStyle(true)} onClick={() => onPractice?.(entry.assignmentId)}>
-              {sectionLabel ? `Practice ${sectionLabel}` : 'Practice This Skill'}
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && !closedByTeacher && (
+            <button type="button" data-result-try-again style={actionStyle(!step.offerHome && !step.upNext)} onClick={() => onPractice?.(entry.assignmentId)}>
+              {resultTryAgainLabel(sectionLabel)}
             </button>
           )}
-          {/* Both lists, always. A Google Classroom deep link arrives with no
-              origin a student chose, and either answer may be the one they
-              want next. */}
-          <button type="button" style={actionStyle(false)} onClick={() => onViewAllAssignments?.()}>
-            All Assignments
-          </button>
-          <button type="button" style={actionStyle(false)} onClick={() => onViewAllGrades?.()}>
-            View All Grades
-          </button>
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && onPracticeSkill && (
+            <button type="button" data-result-practice-skill style={actionStyle(false)} onClick={() => onPracticeSkill()}>
+              {PRACTICE_SKILL_LABEL}
+            </button>
+          )}
+          {/* Never for a Test Cycle (review R3): Home never offered one there. */}
+          {onExportPdf && !closedByTeacher && !entry.isTestCycle && (
+            <button
+              type="button"
+              data-result-export-pdf
+              style={actionStyle(false)}
+              disabled={exportingPdf}
+              onClick={() => {
+                setExportingPdf(true);
+                Promise.resolve(onExportPdf(entry.assignmentId)).finally(() => setExportingPdf(false));
+              }}
+            >
+              {exportingPdf ? 'Preparing PDF…' : 'Export PDF'}
+            </button>
+          )}
+          {/* The other list. The Back control above already names the list the
+              student came from, so it is not offered twice; a Google
+              Classroom deep link still reaches both lists. */}
+          {cameFromGrades ? (
+            <button type="button" style={actionStyle(false)} onClick={() => onViewAllAssignments?.()}>
+              All Assignments
+            </button>
+          ) : (
+            <button type="button" style={actionStyle(false)} onClick={() => onViewAllGrades?.()}>
+              View All Grades
+            </button>
+          )}
         </div>
       </section>
     </main>

@@ -17,30 +17,38 @@
 // the caller's.
 
 import { PURPOSE, PURPOSE_LABEL } from './recommendationV2.js';
-import { attachWeeklyAlternatives } from './weeklyPathChoice.js';
+import { attachWeeklyAlternatives, describeWeeklySlotSwaps } from './weeklyPathChoice.js';
 // The grading half of this module now lives in functions/shared so the Cloud
 // Function that publishes weekly grades to Google Classroom can reach it too.
 // Re-exported here so nothing that already imported these names had to change.
 import {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  publishedWeeklyGoal,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
 
 export {
   GRADING_POLICY,
+  WEEK_TIME_ZONE,
   evaluateWeeklyGoalProgress,
   describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  publishedWeeklyGoal,
   weekKeyFor,
+  weeklyDueDayName,
   weeklySlotKey,
+  requiredWeeklySessions,
 };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -139,6 +147,28 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
 
 
 /**
+ * The planner inputs a class's weekly settings decide, for EVERY screen that
+ * builds a student's week: the student's own Path, the teacher's Weekly Path
+ * table before the week is frozen, and the teacher's profile drawer. Built in
+ * one place, so a teacher's preview asks the planner for the week the
+ * student's screen asks for: the same number of sessions, transfer work only
+ * when the class expects it, and the framework the teacher picked. (A class
+ * that expects no CCMR work previewed an EMPTY week to its teacher while its
+ * students were given four sessions.)
+ */
+export const weeklyPlanClassInputs = ({ config = {}, honors = false } = {}) => {
+  const settings = normalizeWeeklyGoalConfig(config || {}, { honors });
+  return {
+    sessions: settings.sessions,
+    honors: Boolean(honors),
+    interventionMode: Boolean(config?.interventionMode),
+    allowTransfer: settings.ccmrExpectation !== CCMR_EXPECTATION.NONE,
+    pinnedSkills: config?.pinnedSkills || [],
+    ccmrFramework: settings.framework,
+  };
+};
+
+/**
  * The week a moment belongs to, as a stable key.
  *
  * Goals persist per week, and "this week" has to mean the same thing on Monday
@@ -154,7 +184,10 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
 // working Sunday evening would have been marked late for finishing before
 // midnight. A deadline that decides whether work counts has to be the deadline
 // the student was told about.
-export const WEEK_TIME_ZONE = 'America/Chicago';
+//
+// WEEK_TIME_ZONE ('America/Chicago') is defined in weeklyPathGrade.mjs and
+// re-exported above, so the student's "the week closes on Friday night" is
+// named in the same zone this deadline is built in.
 
 // How far the named zone sits from UTC at a given instant. Read from Intl rather
 // than hardcoded, because a fixed offset is wrong for half the year: Central is
@@ -255,6 +288,24 @@ export const buildWeeklyGoal = ({
     ? sessions.filter((session) => session.purpose !== PURPOSE.TRANSFER)
     : sessions;
 
+  // Each slot keeps its frozen key and gains the equally-useful options the
+  // student may put in it instead. Swapping never changes the key, so a week
+  // already in progress keeps counting exactly as it did. No more slots than
+  // the teacher asked for: the server freezes the same first N.
+  const slots = attachWeeklyAlternatives({
+    sessions: filtered.slice(0, settings.sessions).map((session, index) => {
+      const slot = index + 1;
+      return {
+        ...session,
+        slot,
+        weeklySlotKey: weeklySlotKey(session, slot),
+        purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
+        status: 'notStarted',
+      };
+    }),
+    considered: list(plan?.considered),
+  });
+
   return {
     studentId,
     courseId,
@@ -263,24 +314,13 @@ export const buildWeeklyGoal = ({
     createdAt: now,
     settings,
     // The goal is a number of SESSIONS. It is never a number of TEKS, and the
-    // distinction is the whole design.
-    goalSessions: settings.sessions,
-    // Each slot keeps its frozen key and gains the equally-useful options the
-    // student may put in it instead. Swapping never changes the key, so a week
-    // already in progress keeps counting exactly as it did.
-    sessions: attachWeeklyAlternatives({
-      sessions: filtered.map((session, index) => {
-        const slot = index + 1;
-        return {
-          ...session,
-          slot,
-          weeklySlotKey: weeklySlotKey(session, slot),
-          purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
-          status: 'notStarted',
-        };
-      }),
-      considered: list(plan?.considered),
-    }),
+    // distinction is the whole design. It is the sessions this week actually
+    // HAS: when the planner cannot fill every slot the teacher asked for, a
+    // student given three cards is asked for three, not "0 of 4" forever.
+    goalSessions: requiredWeeklySessions({ goalSessions: settings.sessions, sessions: slots }),
+    // What the teacher asked for, kept so a short week is visible as short.
+    requestedSessions: settings.sessions,
+    sessions: slots,
     ccmr: {
       expectation: settings.ccmrExpectation,
       framework: settings.framework,
@@ -373,14 +413,26 @@ export const deriveCompletionsFromEvidence = ({
  * and never recomputed here — a fifth status vocabulary is precisely what this
  * work was meant to stop producing.
  */
+/** "Graded on 3 of 4 requested sessions", or null for a full week. */
+export const describeShortWeek = (goal = null, graded = null) => {
+  const requested = Math.round(Number(goal?.requestedSessions) || 0);
+  const count = Math.round(Number(graded ?? goal?.goalSessions) || 0);
+  if (!requested || !count || count >= requested) return null;
+  return `Graded on ${count} of ${requested} requested sessions`;
+};
+
 export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) => (
   list(entries).map(({ studentId, studentName, goal, completions = [] }) => {
-    const grade = gradeWeeklyGoal({ goal, completions, now });
+    // Graded as the Classroom publisher grades it: the frozen goal, without
+    // the teacher's live settings (publishedWeeklyGoal).
+    const grade = gradeWeeklyGoal({ goal: publishedWeeklyGoal(goal), completions, now });
     const profile = goal?.profile || null;
     return {
       studentId,
       studentName,
-      goal: Number(goal?.goalSessions) || 0,
+      // The count the grade was computed against — never more than the slots
+      // the student was given — so the table and the grade beside it agree.
+      goal: grade.progress.required,
       complete: grade.progress.completed,
       academicProfile: profile
         ? `${profile.instructionalBandLabel} · ${profile.performanceProjectionLabel}`
@@ -389,6 +441,12 @@ export const buildTeacherWeeklyView = (entries = [], { now = Date.now() } = {}) 
       overdue: grade.progress.overdue,
       grade: grade.grade,
       passing: grade.passing,
+      // "Chose X instead of Y" for each slot a swapped session filled, so the
+      // teacher can see the student made a choice, not only that it counted.
+      swaps: describeWeeklySlotSwaps({ goal, completions }),
+      // A week frozen with fewer sessions than the class asks for (the server
+      // accepts one only when the teacher's own selection explains it).
+      shortWeekNote: describeShortWeek(goal, grade.progress.required),
     };
   })
 );

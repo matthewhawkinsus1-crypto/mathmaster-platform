@@ -61,7 +61,7 @@ function Harness() {
         activityRole={role}
         draftKey={`graph-point-check-${role}-${variant}-${params.get('run') || 'a'}`}
         onGrade={async (isCorrect, details, parts, supportUsage, responseKey) => {
-          window.__mmGraded = { isCorrect, parts, responseKey };
+          window.__mmGraded = { isCorrect, parts, responseKey, supportUsage };
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };
         }}
       />

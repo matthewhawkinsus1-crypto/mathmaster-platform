@@ -48,6 +48,7 @@ Static graphs now auto-fit at platform/render time:
 - sensible x-windows are chosen when omitted;
 - points/segments are included in the fit;
 - `lockViewport: true` / `autoFit: false` is the explicit strict-mode escape hatch when the viewing window is itself instructional;
+- figures where angle or shape is the mathematics (two or more lines and nothing else, or drawn segments, with one unit on both axes) are framed with **equal units** (student pass 3, R-1); `equalUnits: true` asks for it on any figure, and a figure that is deliberately distorted (a stretched scale the lesson discusses) needs `equalUnits: false`;
 - validation and actual rendering use the same viewport logic.
 
 Do **not** regress to telling the AI to add `allowClipping: true` merely to satisfy Preflight.

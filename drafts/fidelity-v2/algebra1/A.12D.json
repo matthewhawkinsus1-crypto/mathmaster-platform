@@ -54,7 +54,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -200,7 +201,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12D:v2-geometric-decay-terms-to-formula",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -217,7 +218,8 @@
           "inputProfile": "expression",
           "expected": "{{a}}*(0.5)^(n-1)",
           "accepted": [
-            "{{a}}*(1/2)^(n-1)"
+            "{{a}}*(1/2)^(n-1)",
+            "{{a}}/2^(n-1)"
           ]
         }
       ],
@@ -238,15 +240,10 @@
       "generator": {
         "parameters": {
           "a": {
-            "type": "choice",
-            "values": [
-              32,
-              48,
-              64,
-              80,
-              96,
-              128
-            ]
+            "type": "int",
+            "min": 16,
+            "max": 200,
+            "step": 8
           }
         },
         "derived": {
@@ -304,7 +301,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -373,7 +371,8 @@
           "inputProfile": "expression",
           "expected": "{{a}} {{d|signed}}(n-1)",
           "accepted": [
-            "{{d}}n {{b|signed}}"
+            "{{d}}n {{b|signed}}",
+            "{{d}}(n-1) {{a|signed}}"
           ]
         }
       ],
@@ -480,7 +479,10 @@
               "id": "formula",
               "label": "Correct right-hand side of f(n)",
               "inputProfile": "expression",
-              "expected": "{{a}}+({{d}})*(n-1)"
+              "expected": "{{a}}+({{d}})*(n-1)",
+              "accepted": [
+                "({{d}})*(n-1)+{{a}}"
+              ]
             },
             {
               "id": "check1",
@@ -577,7 +579,10 @@
               "id": "formula",
               "label": "Correct explicit formula: $f(n)=$",
               "inputProfile": "expression",
-              "expected": "{{a}} {{d|signed}}(n-1)"
+              "expected": "{{a}} {{d|signed}}(n-1)",
+              "accepted": [
+                "{{d}}(n-1) {{a|signed}}"
+              ]
             },
             {
               "id": "verify-nine",

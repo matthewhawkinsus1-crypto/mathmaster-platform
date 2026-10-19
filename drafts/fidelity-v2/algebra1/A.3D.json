@@ -41,11 +41,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a solid line, then shade above it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $\\ge$ includes equality, so the points on the boundary are solutions and the line is solid.",
+          "Shading: $y\\ge {{m}}x{{b|signed}}$ keeps the points whose y-value is at or above the line, so shade above. Check $(0,{{t}})$: ${{t}}\\ge {{b}}$ is true, and that point lies above the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $\\ge$ always means above the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Solid line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane above it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -68,6 +71,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b+1"
         }
       }
     },
@@ -109,11 +116,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a dashed line, then shade below it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $<$ is strict, so the points on the boundary are not solutions and the line is dashed.",
+          "Shading: $y<{{m}}x{{b|signed}}$ keeps the points whose y-value is below the line, so shade below. Check $(0,{{t}})$: ${{t}}<{{b}}$ is true, and that point lies below the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $<$ always means below the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Dashed line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane below it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -136,6 +146,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b-1"
         }
       }
     },
@@ -177,11 +191,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a solid line, then shade below it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $\\le$ includes equality, so the points on the boundary are solutions and the line is solid.",
+          "Shading: $y\\le {{m}}x{{b|signed}}$ keeps the points whose y-value is at or below the line, so shade below. Check $(0,{{t}})$: ${{t}}\\le {{b}}$ is true, and that point lies below the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $\\le$ always means below the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Solid line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane below it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -204,6 +221,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b-1"
         }
       },
       "variants": [
@@ -225,13 +246,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A fractional slope changes the boundary construction, not the logic of the inequality.",
+            "headline": "Build the boundary from a rise of {{rise}} over a run of {{run}}, draw it solid, and shade below.",
             "reasoning": [
-              "Use rise {{rise}} over run {{run}} to build two accurate boundary points.",
-              "Because ≤ includes equality, the boundary is solid.",
-              "Because y is less than or equal to the boundary expression, shade below."
+              "Boundary: $y=\\frac{{{rise}}}{{{run}}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$, then a rise of {{rise}} over a run of {{run}} reaches $({{run}},{{q}})$. Draw the line through both points.",
+              "Line style: $\\le$ includes equality, so the points on the boundary are solutions and the line is solid.",
+              "Shading: $y\\le$ the boundary keeps the points at or below the line, so shade below. Check $(0,{{t}})$: ${{t}}\\le {{b}}$ is true, and that point lies below the line."
             ],
-            "answerSummary": "Solid fractional-slope boundary with the region below shaded."
+            "commonError": "Rounding the slope to plot a point at $x=1$. The slope $\\frac{{{rise}}}{{{run}}}$ lands exactly on a grid point after a whole run of {{run}}, so use $(0,{{b}})$ and $({{run}},{{q}})$.",
+            "answerSummary": "Solid line through $(0,{{b}})$ and $({{run}},{{q}})$, with the half-plane below it shaded."
           },
           "attemptFeedback": [
             "Keep the rise/run exact while plotting the boundary; then apply the ≤ symbol."
@@ -268,7 +290,9 @@
               }
             },
             "derived": {
-              "m": "rise/run"
+              "m": "rise/run",
+              "q": "b+rise",
+              "t": "b-1"
             },
             "constraints": [
               "abs(rise)!=run"
@@ -315,11 +339,14 @@
         "yMax": 10
       },
       "solutionReview": {
-        "headline": "A two-variable inequality graph has three decisions.",
+        "headline": "Graph the boundary $y={{m}}x{{b|signed}}$ as a dashed line, then shade above it.",
         "reasoning": [
-          "Graph the boundary equation using two points.",
-          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
-        ]
+          "Boundary: graph $y={{m}}x{{b|signed}}$. Start at the y-intercept $(0,{{b}})$ and use the slope ${{m}}$: one step right reaches $(1,{{p}})$. Draw the line through these two points.",
+          "Line style: $>$ is strict, so the points on the boundary are not solutions and the line is dashed.",
+          "Shading: $y>{{m}}x{{b|signed}}$ keeps the points whose y-value is above the line, so shade above. Check $(0,{{t}})$: ${{t}}>{{b}}$ is true, and that point lies above the line."
+        ],
+        "commonError": "Choosing the side from the slope instead of the symbol. Solved for $y$, $>$ always means above the boundary, whether the slope ${{m}}$ is positive or negative.",
+        "answerSummary": "Dashed line through $(0,{{b}})$ and $(1,{{p}})$, which is $y={{m}}x{{b|signed}}$, with the half-plane above it shaded."
       },
       "attemptFeedback": [
         "Check the boundary points first, then line style, then which side is shaded."
@@ -342,6 +369,10 @@
             "min": -5,
             "max": 5
           }
+        },
+        "derived": {
+          "p": "m+b",
+          "t": "b+1"
         }
       }
     },

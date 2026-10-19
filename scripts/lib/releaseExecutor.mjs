@@ -20,13 +20,22 @@
  * After the functions steps, the verify step (scripts/lib/releasePlan.mjs)
  * requires platformBuildInfo to report this checkout's HEAD, retrying briefly.
  * A wrong commit or no answer is treated exactly like a function that did not
- * deploy.
- * If any function is left undeployed, or the live commit is not proven, the
- * path-admin codebase, rules and Hosting are NOT deployed: the new client may
- * call code that is not there. The report says exactly what to re-run.
+ * deploy. Then the access step (`ensureCallableAccess`, injected) checks that
+ * a browser can reach every callable and grants the Cloud Run invoker binding
+ * the Firebase CLI only grants at create; a callable still unreachable, or a
+ * check that could not run, is treated the same way.
+ * If any function is left undeployed, the live commit is not proven, or a
+ * callable is not proven reachable, the path-admin codebase, rules and Hosting
+ * are NOT deployed: the new client may call code that is not there, or that it
+ * cannot reach. The report says exactly what to re-run.
+ * A functions step planned after the checks (`afterChecks`,
+ * releasePlan.mjs#DEPLOY_LAST_FUNCTIONS) deploys only when every function
+ * shipped and both checks passed. Otherwise it is held, even with
+ * --continue-after-function-failure, which is about rules and Hosting.
  */
 
 import {
+  ACCESS_FUNCTIONS,
   RELEASE_TARGETS,
   RETRYABLE_FAILURES,
   VERIFY_FUNCTIONS,
@@ -36,12 +45,16 @@ import {
   retryDelaySeconds,
 } from './releasePlan.mjs';
 
-const notDeployTarget = (target) => target === RELEASE_TARGETS.FUNCTIONS || target === VERIFY_FUNCTIONS;
+const notDeployTarget = (target) => target === RELEASE_TARGETS.FUNCTIONS || target === VERIFY_FUNCTIONS || target === ACCESS_FUNCTIONS;
 
 export const executeReleasePlan = async ({
   steps,
   runner,
   verifyBuildInfo = async () => ({ reachable: false, error: 'no platformBuildInfo caller was provided' }),
+  // The access step (scripts/verify-callable-access.mjs#ensureCallableAccess):
+  // resolves { ok, checked, reason, summary, grants, redeploy }. Not provided
+  // means not checked, which is never a pass.
+  ensureCallableAccess = async () => ({ ok: false, checked: false, reason: 'no callable access checker was provided' }),
   sleep = async () => {},
   log = () => {},
   maxAttempts = 3,
@@ -51,33 +64,74 @@ export const executeReleasePlan = async ({
 }) => {
   const results = [];
   const failedFunctions = [];
+  // Functions planned after the checks that did not deploy because the checks did not pass.
+  const heldFunctions = [];
   const queue = steps.map((step) => ({ ...step }));
   let stoppedBeforeTargets = null;
   let previousWasFunctions = false;
   // null when the plan has no verify step; otherwise passed | failed | skipped.
   let verification = null;
+  // The same, for the browser-access step.
+  let access = null;
   const skipVerification = (reason) => {
     const pending = queue.find((next) => next.target === VERIFY_FUNCTIONS);
     if (pending && !verification) {
       verification = { status: 'skipped', function: pending.function, expectedGitSha: pending.expectedGitSha || null, reason };
     }
+    if (queue.some((next) => next.target === ACCESS_FUNCTIONS) && !access) access = { status: 'skipped', reason };
   };
 
   while (queue.length) {
     const step = queue.shift();
     const isFunctions = step.target === RELEASE_TARGETS.FUNCTIONS;
     const isVerify = step.target === VERIFY_FUNCTIONS;
-    const functionsUnproven = failedFunctions.length > 0 || verification?.status === 'failed';
+    const isAccess = step.target === ACCESS_FUNCTIONS;
+    const functionsUnproven = failedFunctions.length > 0 || verification?.status === 'failed' || access?.status === 'failed';
+
+    if (isFunctions && step.afterChecks
+      && (failedFunctions.length > 0 || verification?.status !== 'passed' || access?.status !== 'passed')) {
+      heldFunctions.push(...step.group);
+      log(`${step.label}: holding ${step.group.join(', ')}; it ships only after every other function is proven to serve this commit.`);
+      continue;
+    }
 
     if (!isFunctions && functionsUnproven && !continueAfterFunctionFailure) {
       queue.unshift(step);
       skipVerification(`${failedFunctions.length} function(s) did not deploy`);
+      heldFunctions.push(...queue.filter((next) => next.target === RELEASE_TARGETS.FUNCTIONS).flatMap((next) => next.group || []));
       const held = queue.map((next) => next.target).filter((target) => !notDeployTarget(target));
       stoppedBeforeTargets = held.length ? held : null;
+      const before = held.length ? ` before ${held.join(', ')}` : '';
       log(failedFunctions.length
-        ? `Stopping${held.length ? ` before ${held.join(', ')}` : ''}: ${failedFunctions.length} function(s) did not deploy.`
-        : `Stopping${held.length ? ` before ${held.join(', ')}` : ''}: the deployed functions are not proven to serve this commit.`);
+        ? `Stopping${before}: ${failedFunctions.length} function(s) did not deploy.`
+        : verification?.status === 'failed'
+          ? `Stopping${before}: the deployed functions are not proven to serve this commit.`
+          : `Stopping${before}: browsers are not proven able to reach every callable.`);
       break;
+    }
+
+    if (isAccess) {
+      const startedAt = now();
+      log(`${step.label}: checking every callable's Cloud Run invoker binding, granting it where it is missing.`);
+      let observed;
+      try {
+        observed = await ensureCallableAccess(step);
+      } catch (error) {
+        observed = { ok: false, checked: false, reason: String(error?.message || error) };
+      }
+      const failing = observed?.summary?.failing || [];
+      const granted = (observed?.grants || []).filter((grant) => grant.ok).map((grant) => grant.name);
+      const ok = observed?.ok === true && observed?.checked !== false;
+      const detail = observed?.checked === false
+        ? `not checked: ${observed?.reason || 'unknown reason'}`
+        : `${observed?.summary?.total ?? 0} callable(s)${granted.length ? `, granted browser access to ${granted.join(', ')}` : ''}${failing.length ? `; still unreachable: ${failing.join(', ')}` : ''}`;
+      results.push({
+        label: step.label, target: step.target, group: null, ok, attempts: [{ attempt: 1, ok, failure: ok ? null : 'unreachable', seconds: Math.round((now() - startedAt) / 1000) }],
+      });
+      access = { status: ok ? 'passed' : 'failed', detail, granted, failing, redeploy: observed?.redeploy || [] };
+      previousWasFunctions = false;
+      log(ok ? `${step.label}: ${detail}.` : `${step.label} FAILED: ${detail}. Treated like a function that did not deploy.`);
+      continue;
     }
     if (isFunctions && previousWasFunctions && pauseSecondsBetweenGroups > 0) {
       log(`Pausing ${pauseSecondsBetweenGroups}s so the per-minute function quota refills.`);
@@ -164,16 +218,18 @@ export const executeReleasePlan = async ({
     }
     // A rules / index / Hosting step that will not deploy ends the release.
     skipVerification(`${step.target} failed`);
-    stoppedBeforeTargets = queue.map((next) => next.target).filter((target) => target !== VERIFY_FUNCTIONS);
+    stoppedBeforeTargets = queue.map((next) => next.target).filter((target) => target !== VERIFY_FUNCTIONS && target !== ACCESS_FUNCTIONS);
     log(`${step.label} failed (${lastFailure}); stopping.`);
-    return { ok: false, results, failedFunctions, verification, failedStep: step.target, stoppedBeforeTargets };
+    return { ok: false, results, failedFunctions, heldFunctions, verification, access, failedStep: step.target, stoppedBeforeTargets };
   }
 
   return {
-    ok: failedFunctions.length === 0 && verification?.status !== 'failed' && !stoppedBeforeTargets,
+    ok: failedFunctions.length === 0 && heldFunctions.length === 0 && verification?.status !== 'failed' && access?.status !== 'failed' && !stoppedBeforeTargets,
     results,
     failedFunctions,
+    heldFunctions,
     verification,
+    access,
     failedStep: null,
     stoppedBeforeTargets,
   };

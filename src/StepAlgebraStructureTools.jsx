@@ -1,10 +1,10 @@
 /*
  * THE STRUCTURE TOOLS, ON THE EQUATION ITSELF.
  *
- * Presentation for Factor, Split fraction, Cancel factors, Simplify arithmetic
- * and Arrange terms. Every decision is made on the committed equation: terms
- * become tokens in place (the same inline-term architecture Distribute, Rewrite
- * and Combine like terms use), and only the few answer boxes a step needs sit
+ * Presentation for the Rewrite menu's tools: Factor, Split fraction, Cancel
+ * factors and Arrange terms. Every decision is made on the committed equation: terms
+ * become tokens in place (the same inline-term architecture Distribute and
+ * Simplify use), and only the few answer boxes a step needs sit
  * directly under that side. The algebra lives in the pure models; this file
  * only draws their state and turns taps, drags and keys into their actions.
  */
@@ -45,15 +45,6 @@ import {
   findReducibleFraction,
   tapReductionToken,
 } from './algebraFractionReductionModel';
-import {
-  ARITHMETIC_MESSAGES,
-  ARITHMETIC_TOOL,
-  checkArithmeticAnswer,
-  chooseArithmeticProduct,
-  detectArithmeticProducts,
-  findArithmeticProduct,
-  setArithmeticAnswer,
-} from './algebraArithmeticModel';
 import {
   ARRANGE_TOOL,
   arrangedTerms,
@@ -334,7 +325,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
             value={`\\frac{${list.terms[termIndex].sign < 0 ? '-' : ''}${list.terms[termIndex].magnitudeLatex}}{${tool.pulled.latex}}`}
             format="latex"
             inline
-            style={{ fontSize: 19 }}
+            style={{ fontSize: 'calc(19 * var(--mm-px))' }}
             ariaLabel={`${termLabel(termIndex)} divided by ${tool.pulled.text}`}
           />
           <span aria-hidden="true" className="algebra-structure-equals">=</span>
@@ -592,66 +583,6 @@ function ReduceControls({ tool, equation, side, onCommit, disabled, busy }) {
   );
 }
 
-// --- Simplify arithmetic -----------------------------------------------------------------
-
-function ArithmeticSide({ tool, equation, side, update, notify }) {
-  const candidates = detectArithmeticProducts(equation).filter((candidate) => candidate.side === side);
-  if (!candidates.length) return null;
-  const active = tool.candidateId ? findArithmeticProduct(equation, tool.candidateId) : null;
-  return (
-    <AlgebraTermRow
-      terms={splitAdditiveTerms(equation[side]) || []}
-      side={side}
-      selectedIndices={active?.side === side ? [active.sideTermIndex] : []}
-      candidateIndices={active ? [] : candidates.map((candidate) => candidate.sideTermIndex)}
-      onTermClick={(index) => {
-        const candidate = candidates.find((entry) => entry.sideTermIndex === index);
-        if (!candidate) notify({ tone: 'growth', text: 'That term has no numbers to multiply together.' });
-        else update((current) => chooseArithmeticProduct(current, equation, candidate.id));
-      }}
-      interactionLabel="select to multiply its numbers"
-    />
-  );
-}
-
-function ArithmeticControls({ tool, equation, side, update, notify, onCommit, disabled, busy, contextSymbols, collapseSignal }) {
-  const active = tool.candidateId ? findArithmeticProduct(equation, tool.candidateId) : null;
-  const [focusSignal, setFocusSignal] = useState(0);
-  const typedRef = useRef(null);
-  useEffect(() => { typedRef.current = null; }, [tool.answer]);
-  useEffect(() => { if (active) setFocusSignal((signal) => signal + 1); }, [active?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!active || active.side !== side) return null;
-  const check = () => {
-    const current = typedRef.current == null ? tool : { ...tool, answer: typedRef.current };
-    const result = checkArithmeticAnswer(active, current.answer);
-    if (result.ok) { onCommit(current); return; }
-    setFocusSignal((signal) => signal + 1);
-    notify({ tone: 'growth', text: ARITHMETIC_MESSAGES[result.reason] || ARITHMETIC_MESSAGES.wrong });
-  };
-  return (
-    <div className="algebra-inline-mode-controls algebra-inline-editor algebra-structure-controls">
-      <MathDisplay value={`${active.productLatex} =`} format="latex" inline style={{ fontSize: 18 }} ariaLabel="Multiply these numbers" />
-      <MathInput
-        value={tool.answer || ''}
-        onChange={(value) => {
-          typedRef.current = value;
-          update((current) => setArithmeticAnswer(current, value));
-        }}
-        onSubmit={check}
-        placeholder="product"
-        ariaLabel="Enter the product of these numbers"
-        toolProfile="algebra-operation"
-        compact
-        maxWidth={160}
-        focusSignal={focusSignal}
-        contextSymbols={contextSymbols}
-        collapseSignal={collapseSignal}
-      />
-      <button type="button" className="algebra-inline-commit" onClick={check} disabled={disabled || busy}>Check</button>
-    </div>
-  );
-}
-
 // --- Arrange terms -----------------------------------------------------------------------
 
 function ArrangeSide({ tool, equation, side, update }) {
@@ -691,7 +622,6 @@ const SIDE_RENDERERS = {
   [FACTOR_TOOL]: FactorSide,
   [SPLIT_TOOL]: SplitSide,
   [REDUCE_TOOL]: ReduceSide,
-  [ARITHMETIC_TOOL]: ArithmeticSide,
   [ARRANGE_TOOL]: ArrangeSide,
 };
 
@@ -699,7 +629,6 @@ const CONTROL_RENDERERS = {
   [FACTOR_TOOL]: FactorControls,
   [SPLIT_TOOL]: SplitControls,
   [REDUCE_TOOL]: ReduceControls,
-  [ARITHMETIC_TOOL]: ArithmeticControls,
   [ARRANGE_TOOL]: ArrangeControls,
 };
 
@@ -725,7 +654,6 @@ export const structureToolDrawsSide = (tool, equation, side) => {
     const active = tool.candidateId ? findReducibleFraction(equation, tool.candidateId) : null;
     return active ? active.side === side : detectReducibleFractions(equation).some((candidate) => candidate.side === side);
   }
-  if (tool.kind === ARITHMETIC_TOOL) return detectArithmeticProducts(equation).some((candidate) => candidate.side === side);
   if (tool.kind === ARRANGE_TOOL) return (splitAdditiveTerms(equation[side]) || []).length >= 2;
   return false;
 };

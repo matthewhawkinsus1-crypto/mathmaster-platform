@@ -11,6 +11,8 @@ import {
 import {
   selectNextFamily,
 } from '../../functions/shared/pathQuestionSelection.mjs';
+import { pathCardLaunchOptions } from '../../src/platform/path/pathSessionLaunch.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
@@ -313,11 +315,16 @@ test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numb
   const app = readFileSync('src/components/student/MyMathPathApp.jsx', 'utf8');
   const service = readFileSync('src/services/pathSessionService.js', 'utf8');
 
-  assert.match(
-    app,
-    /card\.status === 'extension' \? 'challenge' : null/,
-    'the visible Challenge card must carry a semantic challenge intent',
-  );
+  // The visible Challenge card carries a semantic challenge intent. The map's
+  // card launch now goes through pathCardLaunchOptions (which also turns a
+  // retention-check card into a retention check), so the intent is asserted
+  // where it is decided, and the App is held to calling it.
+  const cardLaunch = region(executableSource(app), 'onChooseSkill={(card) =>', '\n', 'the Path map card launch');
+  assert.match(cardLaunch, /startSession\(code, pathCardLaunchOptions\(card\)\)/,
+    'the visible Challenge card must carry a semantic challenge intent');
+  assert.match(app, /import \{[^}]*\bpathCardLaunchOptions\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/pathSessionLaunch\.js'/);
+  assert.deepEqual(pathCardLaunchOptions({ status: 'extension' }), { coursePracticeIntent: 'challenge' });
+  assert.deepEqual(pathCardLaunchOptions({ status: 'available' }), { coursePracticeIntent: null });
   assert.match(
     service,
     /coursePracticeIntent: coursePracticeIntent === 'challenge' \? 'challenge' : null/,

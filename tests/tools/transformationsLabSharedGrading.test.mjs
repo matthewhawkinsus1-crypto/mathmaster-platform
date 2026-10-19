@@ -160,7 +160,9 @@ const componentRouting = (() => {
   assert.equal(unchained.length, 1, 'exactly one panel is reached only through the fallback');
   // The fallback Check is that panel's own Check (same label on its button).
   const panelBody = region(code, `{mode === '${unchained[0]}' ? <>`, '</> : null}', `${unchained[0]} panel`);
-  assert.ok(panelBody.includes(`>${finalElse[2]}</button>`), 'the fallback action is the remaining panel\'s Check');
+  // The label may be wrapped in <SubmitText> (student pass 3, D9: it reads "Submit
+  // — uses 1 of 3 tries" where the press spends a try); it is still that label.
+  assert.ok(panelBody.includes(`>${finalElse[2]}</button>`) || panelBody.includes(`><SubmitText>${finalElse[2]}</SubmitText></button>`), 'the fallback action is the remaining panel\'s Check');
   return { fallback, panels, unrecognised: unchained[0] };
 })();
 const componentMode = (question) => {
@@ -406,13 +408,22 @@ test('identify: a, b, h, k are each a part; partial credit is the share right', 
   assert.equal(assertLegacyParity(IDENTIFY, { ...IDENTIFY_KEY, a: '-0.52' }).isCorrect, false, 'outside 0.01');
 });
 
-test('identify: parameters, not graphs — a graph-identical but different parameter set is not correct', () => {
+// This used to pin the opposite: a graph-identical parameter set (|2(x − 1)|
+// is 2|x − 1|) was marked wrong. The student only sees the graph, which does
+// not single out the question's own a and b, so Job K (defect 2e) accepts
+// every set that draws the same function — and still marks a different graph
+// wrong, parameter by parameter as before.
+test('identify: a graph-identical but different parameter set is correct; a different graph is not', () => {
   const absolute = q({ mode: 'identify', family: 'absolute', function: { a: 2, b: 1, h: 1, k: 3 } });
   const result = assertLegacyParity(absolute, { a: '1', b: '2', h: '1', k: '3' });
-  assert.equal(result.isCorrect, false);
-  assert.equal(result.score, 0.5);
-  assert.deepEqual(failedIds(result), ['a', 'b']);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
+  assert.deepEqual(failedIds(result), []);
   assert.equal(assertLegacyParity(absolute, { a: '2', b: '1', h: '1', k: '3' }).isCorrect, true);
+  const different = assertLegacyParity(absolute, { a: '1', b: '1.5', h: '1', k: '3' });
+  assert.equal(different.isCorrect, false);
+  assert.equal(different.score, 0.5);
+  assert.deepEqual(failedIds(different), ['a', 'b']);
 });
 
 test('identify: a blank box is incomplete and never correct (was read as 0)', () => {

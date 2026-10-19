@@ -12,21 +12,23 @@ import {
 test('first completed course Path pass is visibly distinct from mastery', () => {
   const view = describeCoursePathPass({ passesCompleted: 1 }, { mastered: false });
   assert.equal(view.hasCompletedPass, true);
-  assert.equal(view.completedLabel, '✓ Path Pass 1 complete');
+  assert.equal(view.completedLabel, '✓ Level 1 round done');
   assert.equal(view.levelLabel, 'Level 2 · Deeper practice');
   assert.equal(view.buttonLabel, 'Start Level 2');
 });
 
-test('second pass announces a Level 3 mastery challenge', () => {
+test('second pass announces Level 3 stretch practice, which is not a mastery claim', () => {
   const view = describeCoursePathPass({ passesCompleted: 2 }, { mastered: false });
-  assert.equal(view.completedLabel, '✓ Path Pass 2 complete');
-  assert.equal(view.nextLabel, 'Next: Level 3 · Mastery challenge');
+  assert.equal(view.completedLabel, '✓ Level 2 round done');
+  assert.equal(view.nextLabel, 'Next: Level 3 · Stretch practice');
+  // Level 3 used to read "Mastery challenge" beside a separate Mastered state.
+  assert.doesNotMatch(`${view.levelLabel} ${view.nextLabel}`, /master/i);
   assert.equal(view.buttonLabel, 'Start Level 3');
 });
 
 test('mastered remains a stronger, separate state after a completed Path pass', () => {
   const view = describeCoursePathPass({ passesCompleted: 1 }, { mastered: true });
-  assert.equal(view.completedLabel, '✓ Path Pass 1 complete');
+  assert.equal(view.completedLabel, '✓ Level 1 round done');
   assert.equal(view.nextLabel, 'Mastered · review anytime');
   assert.equal(view.buttonLabel, 'Review skill');
 });
@@ -34,9 +36,10 @@ test('mastered remains a stronger, separate state after a completed Path pass', 
 test('advanced repeat practice stays available without pretending it is new mastery', () => {
   const view = describeCoursePathPass({ passesCompleted: 4 }, { mastered: false });
   assert.equal(view.hasCompletedPass, true);
-  assert.equal(view.completedLabel, '✓ 4 Path passes complete');
+  assert.equal(view.completedLabel, '✓ 4 practice rounds done');
   assert.equal(view.buttonLabel, 'Continue advanced practice');
-  assert.match(view.nextLabel, /mastery evidence still building/i);
+  // Repeat practice never claims mastery; Mastered is earned from the evidence.
+  assert.match(view.nextLabel, /Mastered is earned from your answers/);
 });
 
 test('Path pass summary counts completed sessions separately from mastered skills', () => {
@@ -55,7 +58,7 @@ test('pass normalization is bounded for level presentation but preserves complet
   assert.equal(normalized.passesCompleted, 7);
   assert.equal(normalized.nextLevel, 3);
   assert.equal(normalized.advancedLoop, true);
-  assert.equal(coursePathLevelName(99), 'Mastery challenge');
+  assert.equal(coursePathLevelName(99), 'Stretch practice');
 });
 
 test('student Path map receives server-owned pass progress and renders completion/next-level language', () => {
@@ -65,9 +68,9 @@ test('student Path map receives server-owned pass progress and renders completio
 
   assert.match(app, /fetchMyMathPathSkillProgress/);
   assert.match(app, /skillProgressByTEKS=\{skillProgressByTEKS\}/);
-  assert.match(presentation, /Path Pass 1 complete/);
+  assert.match(presentation, /Level 1 round done/);
   assert.match(presentation, /Level 2 · Deeper practice/);
-  assert.match(path, /Mastery is tracked separately/);
+  assert.match(path, /Mastered is earned separately from your answers/);
   assert.match(path, /passSummary\.totalCompletedPasses/);
 });
 
@@ -91,7 +94,7 @@ test('one broken higher-level family no longer strands the entire skill', () => 
 test('student error screen distinguishes unavailable next level from lost completion', () => {
   const source = readFileSync('src/components/student/MyMathPathProductionContainer.jsx', 'utf8');
   assert.match(source, /Next level is temporarily unavailable/);
-  assert.match(source, /Your earlier Path pass is still complete/);
-  assert.match(source, /This Path pass is already complete/);
+  assert.match(source, /Your earlier practice round is still done/);
+  assert.match(source, /This practice round is already done/);
   assert.match(source, /Level \$\{coursePassLevel\} complete/);
 });

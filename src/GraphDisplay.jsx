@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
@@ -6,6 +7,8 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
+import { describeCoordinatePlane } from './platform/language/graphDescription.js';
+import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -127,13 +130,41 @@ const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec,
   });
 });
 
-const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
+// Where a curve, followed in from one side, first enters the window: the
+// point on the window's top or bottom edge, and the direction it leaves in.
+const edgeCrossing = (spec, fromX, toX, yMin, yMax) => {
+  const inside = (y) => Number.isFinite(y) && y >= yMin && y <= yMax;
+  const samples = 400;
+  let outsideX = fromX;
+  for (let index = 1; index <= samples; index += 1) {
+    const x = fromX + ((toX - fromX) * index) / samples;
+    if (!inside(evaluateFunction(spec, x))) { outsideX = x; continue; }
+    let [outX, inX] = [outsideX, x];
+    for (let step = 0; step < 40; step += 1) {
+      const middle = (outX + inX) / 2;
+      if (inside(evaluateFunction(spec, middle))) inX = middle; else outX = middle;
+    }
+    const outY = evaluateFunction(spec, outX);
+    if (!Number.isFinite(outY)) return null;
+    const edgeY = outY > yMax ? yMax : yMin;
+    return { point: [inX, edgeY], vector: [outX - inX, outY - evaluateFunction(spec, inX)] };
+  }
+  return null;
+};
+
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax, { throughEdges = false } = {}) => {
   const span = Math.max(1, Number(xMax) - Number(xMin));
   const probe = Math.max(span / 60, 0.05);
 
   const visibleArrow = (spec, functionIndex, side, x, innerX) => {
     const y = evaluateFunction(spec, x);
     const innerY = evaluateFunction(spec, innerX);
+    // An equal-unit window lets a steep line leave through the top or the
+    // bottom (R-1): its arrow goes where it leaves, not nowhere.
+    if (throughEdges && Number.isFinite(y) && (y < yMin || y > yMax)) {
+      const crossing = edgeCrossing(spec, x, side === 'left' ? xMax : xMin, yMin, yMax);
+      return crossing ? [{ id: `function-${functionIndex}-${side}-continuation`, marker: 'arrow', ...crossing }] : [];
+    }
     if (!Number.isFinite(y) || !Number.isFinite(innerY)) return [];
     if (y < yMin || y > yMax) return [];
     return [{
@@ -174,9 +205,60 @@ const axisTitle = (label, unit) => {
  * numeric tick labels until the student supplies them. This is especially
  * useful for graph-labeling and scale questions.
  */
+/*
+ * THE STATIC GRAPH, IN WORDS (student pass 3, Q-8). It was an image named
+ * "Question graph" and nothing else. It now carries the shared plane's
+ * description (graphDescription.js), built from the same data it draws and
+ * under the same rule: while the question can be answered only the kinds of
+ * marks are said, never where they are; a closed question gets the full
+ * reading. An authored `graph.accessibleDescription` always wins.
+ */
+const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail, axisNumbersHidden, positionsWithheldText }) => {
+  const isLine = (spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
+    && Number.isFinite(Number(spec.m ?? spec.slope)) && Number.isFinite(Number(spec.b ?? spec.intercept ?? 0));
+  return describeCoordinatePlane({
+    xMin, xMax, yMin, yMax, xTickStep: xStep, yTickStep: yStep, detail,
+    // An axis-scale item hides its tick numbers until the student gives the
+    // step: the description says neither that axis's range nor any position
+    // (W5-2 review B1).
+    axisNumbersHidden,
+    // A fitted (equal-unit) window can end between ticks: read it at tick precision.
+    windowSteps: { x: xStep, y: yStep },
+    positionsWithheldText,
+    // Read no finer than the grid this graph draws: its minor gridlines where
+    // both axes draw them at one step, otherwise its labelled ticks.
+    snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
+    lines: functions.filter(isLine).map((spec) => ({ m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0) })),
+    functions: functions.filter((spec) => !isLine(spec)).map((spec) => (x) => evaluateFunction(spec, x)),
+    polylines: segments
+      .map((segment) => [segment.from || segment.start, segment.to || segment.end])
+      .filter((pair) => pair.every(Array.isArray)),
+    points: [
+      ...points,
+      ...endpointRequirements
+        .filter((requirement) => Array.isArray(requirement?.point))
+        .map((requirement) => ({
+          x: Number(requirement.point[0]),
+          y: Number(requirement.point[1]),
+          marker: requirement.marker === 'open' || requirement.marker === 'closed' ? requirement.marker : 'arrow',
+          // Which way an arrowhead points (W5-2 review S2): without it every
+          // arrow read "pointing right".
+          ...(Array.isArray(requirement.vector) ? { vector: requirement.vector } : {}),
+        })),
+    ],
+    verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
+    horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
+    emptyText: 'Nothing is plotted.',
+  }).description;
+};
+
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
+  const descriptionId = `mm-graph-desc-${useId()}`;
+  const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
+  const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   if (!graph) return null;
 
+  // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
   const displayGraph = fitStaticGraphViewport(graph);
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
@@ -191,8 +273,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
   const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
-  const xStep = clampRange(displayGraph.xStep, niceStep(xMax - xMin));
-  const yStep = clampRange(displayGraph.yStep, niceStep(yMax - yMin));
+  // Equal units (R-1): one labelled step on both axes, so the grid's squares
+  // read as squares.
+  const sharedStep = displayGraph.equalUnits === true ? niceStep(Math.max(xMax - xMin, yMax - yMin)) : null;
+  const xStep = clampRange(displayGraph.xStep, sharedStep ?? niceStep(xMax - xMin));
+  const yStep = clampRange(displayGraph.yStep, sharedStep ?? niceStep(yMax - yMin));
   const xTicks = majorTicks(xMin, xMax, xStep);
   const yTicks = majorTicks(yMin, yMax, yStep);
   // Sparse labels keep the axes readable, but exact-value assessment still
@@ -219,7 +304,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
-        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: displayGraph.equalUnits === true }),
       ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
@@ -240,6 +325,17 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
 
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
+
+  const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
+  const spokenDescription = authoredDescription || describeStaticGraph({
+    xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
+    minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
+    asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
+    axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
+    // Closed, but its review not shown (an ended DOL, a DOL item before
+    // release): it can no longer be answered, so the sentence says so.
+    positionsWithheldText: questionLocked ? 'Positions are not read out on this question.' : null,
+  });
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -269,7 +365,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             borderRadius: 8,
             background: 'var(--mm-info-bg)',
             color: 'var(--mm-primary)',
-            fontSize: 20,
+            fontSize: 'calc(20 * var(--mm-px))',
             fontWeight: 800,
             boxSizing: 'border-box',
           }}
@@ -283,6 +379,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={graph.ariaLabel || title}
+        aria-describedby={descriptionId}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
         <title>{graph.ariaLabel || title}</title>
@@ -447,9 +544,17 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </text>
           ))}
 
+        {/* An equal-unit window crops steep lines (R-1): drawn inside the
+            plot area only, never over the axis labels around it. */}
+        {displayGraph.equalUnits === true ? (
+          <clipPath id={plotClipId}>
+            <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+          </clipPath>
+        ) : null}
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
             <path
+              clipPath={displayGraph.equalUnits === true ? `url(#${plotClipId})` : undefined}
               key={`function-${functionIndex}-${pathIndex}`}
               d={toPathData(path)}
               fill="none"
@@ -557,9 +662,13 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           </text>
         )}
       </svg>
+      {/* Read through aria-describedby only (hidden from browse mode, so it is
+          not heard twice); inline styles so a host with no UI kit CSS never
+          shows it. */}
+      <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
       {graph.caption && (
-        <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', padding: '8px 6px 2px' }}>
-          <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
+        <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>
+          <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, margin: 0 }}>
             {graph.caption}
           </QuestionPrompt>
         </figcaption>

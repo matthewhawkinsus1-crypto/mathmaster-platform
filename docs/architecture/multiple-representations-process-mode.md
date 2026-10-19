@@ -228,7 +228,11 @@ pair"), nothing is coloured, and a saved fact can be changed until submission.
 - `interactionMode` and `process` are slot fields; every generated version
   keeps them (Pre-Flight samples versions and blocks a slot that loses them).
 - Each version has its own binding, so facts never travel between versions or
-  students; the board clears stale work it finds.
+  students. The board ignores stale work it finds but never erases it on
+  sight: until the first Submit pins the version on the server, another
+  Chromebook can be dealt another version under the same draft key, and
+  erasing there reached every device with the next keystroke. The first work
+  recorded on the version on screen replaces it.
 - `processLog` and `processDraft` are draft-backed (`usePersistentToolState`):
   a refresh, another Chromebook or a lost connection restores the facts, the
   open workspace and the half-done method; the embedded algebra restores its

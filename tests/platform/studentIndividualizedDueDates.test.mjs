@@ -224,9 +224,10 @@ test('the "Do this next" card prints the model\'s due date, not the class date',
 
 test('the Assignments, Grades and result screens print the row\'s dates, not the class dates', () => {
   [
-    ['components/student/StudentAssignmentsCenter.jsx', /formatDateTime\(\s*row\.dueAt\s*\)/],
-    ['components/student/StudentGradeCenter.jsx', /formatDateTime\(\s*entry\.dueAt\s*\)/],
-    ['components/student/StudentAssignmentResult.jsx', /formatDateTime\(\s*entry\.dueAt\s*\)/],
+    // studentDueText: "Due <date>", or "No due date" (NAV-18).
+    ['components/student/StudentAssignmentsCenter.jsx', /studentDueText\(\s*row\.dueAt\s*\)/],
+    ['components/student/StudentGradeCenter.jsx', /studentDueText\(\s*entry\.dueAt\s*\)/],
+    ['components/student/StudentAssignmentResult.jsx', /studentDueText\(\s*entry\.dueAt\s*\)/],
   ].forEach(([path, printsRowDate]) => {
     const source = read(path);
     assert.match(source, printsRowDate, `${path} no longer prints the row's due date`);

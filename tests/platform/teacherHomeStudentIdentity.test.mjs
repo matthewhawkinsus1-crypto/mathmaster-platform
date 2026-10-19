@@ -355,14 +355,21 @@ test("a student's presence carries their roster name or null, and their session 
 });
 
 test('a corrected name in Sign-In Access refetches the compact roster', () => {
-  const renders = [...app.matchAll(/<SignInAccess\b[^>]*\/>/g)].map(([element]) => element);
+  // Both Sign-In Access screens are the teacher's screen, its own module
+  // since G2, given App's refresh by name.
+  const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  assert.match(app, /\n {8}refreshTeacherRosterAfterNameChange=\{refreshTeacherRosterAfterNameChange\}\n/);
+  const renders = [...teacherWorkspace.matchAll(/<SignInAccess\b[^>]*\/>/g)].map(([element]) => element);
   assert.equal(renders.length, 2);
   for (const element of renders) assert.match(element, /onStudentIdentityChanged=\{refreshTeacherRosterAfterNameChange\}/);
   assert.match(app, /const refreshTeacherRosterAfterNameChange = \(\) => fetchTeacherRosterSummaries\(\)\s*\.catch\(/);
 });
 
 test('the identity fix adds no full-grades tab and leaves the full-grades listener as it was', () => {
-  const tabs = region(app, 'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full student data tabs');
+  // Declared in app/screenScopes.js since the App split.
+  const tabs = region(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), 'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full student data tabs');
+  assert.match(app, /\bTEACHER_FULL_STUDENT_DATA_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
+  assert.doesNotMatch(app, /const TEACHER_FULL_STUDENT_DATA_TABS\b/);
   assert.deepEqual(
     [...tabs.matchAll(/'([A-Za-z]+)'/g)].map(([, tab]) => tab),
     ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams'],
@@ -415,7 +422,8 @@ test('screens that receive a stored or server name resolve it by studentId and s
   const inspector = executableSource(read('src/components/teacher/StudentResponseInspector.jsx'));
   assert.match(inspector, /resolveRosterStudentName\(\{\s*studentId: inspectedStudentId, index: studentIdentityIndex/);
   assert.doesNotMatch(inspector, /\{model\.student\.name\}/);
-  assert.match(app, /<StudentResponseInspector[\s\S]*?studentIdentityIndex=\{teacherStudentIdentityIndex\}/);
+  // Mounted by the teacher's screen, its own module since G2.
+  assert.match(read('src/app/teacher/TeacherWorkspace.jsx'), /<StudentResponseInspector[\s\S]*?studentIdentityIndex=\{teacherStudentIdentityIndex\}/);
 
   // Action Center: a projected row with a studentId is named from the roster.
   const actionCenter = executableSource(read('src/components/teacher/TeacherActionCenter.jsx'));

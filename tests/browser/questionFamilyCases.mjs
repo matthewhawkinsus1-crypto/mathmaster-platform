@@ -90,9 +90,9 @@ const horizontalOverflow = (page) => page.evaluate(() => {
   const width = document.documentElement.scrollWidth;
   return width > window.innerWidth + 1 ? `${width}px of content in a ${window.innerWidth}px viewport` : null;
 });
-/** Controls "⤢ Enlarge question" floats over (PQ-025): a tap there would open Work View instead. */
+/** Controls "⤢ Open Work View" floats over (PQ-025): a tap there would open Work View instead. */
 const controlsUnderOpener = (page) => page.evaluate(() => {
-  const opener = [...document.querySelectorAll('button')].find((button) => /Enlarge question/.test(button.textContent || ''));
+  const opener = [...document.querySelectorAll('button')].find((button) => /Open Work View/.test(button.textContent || ''));
   if (!opener || !opener.offsetParent) return [];
   const o = opener.getBoundingClientRect();
   const over = (r) => r.width > 0 && r.height > 0 && r.left < o.right - 1 && r.right > o.left + 1 && r.top < o.bottom - 1 && r.bottom > o.top + 1;
@@ -105,7 +105,7 @@ const checkLayout = async (name, page, moment) => {
   const overflow = await horizontalOverflow(page);
   if (overflow) note(name, `the page scrolls sideways ${moment}: ${overflow}`);
   const covered = await controlsUnderOpener(page);
-  if (covered.length) note(name, `"Enlarge question" covers ${covered.join(', ')} ${moment}`);
+  if (covered.length) note(name, `"Open Work View" covers ${covered.join(', ')} ${moment}`);
 };
 
 /** The server's verdict on the response the browser recorded — ingestion's own resolution. */

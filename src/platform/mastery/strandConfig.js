@@ -60,13 +60,65 @@ const ALGEBRA_II_STRAND_LIST = Object.freeze(
 
 const MIDDLE_SCHOOL_COLORS = Object.freeze(['#1a73e8', '#137333', '#b06000', '#a142f4', '#c5221f', '#0b8043', '#8430ce']);
 
+// What a grade 6-8 strand is ABOUT, in a student's words. These titles used to
+// read "Grade 8 · TEKS 8.4" — a catalogue reference, on the wheel, the skill
+// card and the topic browser. Each name below is written from the standards in
+// that section (texasMiddleSchoolStandards.mjs), keyed by section number; the
+// strand id keeps the section, so nothing keyed on it moves.
+const MIDDLE_SCHOOL_STRAND_TITLES = Object.freeze({
+  grade6: Object.freeze({
+    2: 'Integers and rational numbers',
+    3: 'Operations with integers and fractions',
+    4: 'Ratios, rates and percents',
+    5: 'Solving ratio and percent problems',
+    6: 'Tables, graphs and equations',
+    7: 'Expressions and equivalence',
+    8: 'Triangles, area and volume',
+    9: 'Writing one-step equations and inequalities',
+    10: 'Solving one-step equations and inequalities',
+    11: 'Graphing on the coordinate plane',
+    12: 'Data displays and summaries',
+    13: 'Interpreting data',
+    14: 'Personal finance: banking, credit and college',
+  }),
+  grade7: Object.freeze({
+    2: 'Sets of rational numbers',
+    3: 'Operations with rational numbers',
+    4: 'Rates, proportions and percents',
+    5: 'Similar shapes and scale drawings',
+    6: 'Probability and data',
+    7: 'Linear relationships',
+    8: 'Volume and circle formulas',
+    9: 'Area, volume and surface area problems',
+    10: 'Writing two-step equations and inequalities',
+    11: 'Solving two-step equations and inequalities',
+    12: 'Comparing data and populations',
+    13: 'Personal finance: taxes, budgets and interest',
+  }),
+  grade8: Object.freeze({
+    2: 'Real numbers and scientific notation',
+    3: 'Dilations and similar shapes',
+    4: 'Slope and rate of change',
+    5: 'Proportional and linear functions',
+    6: 'Volume formulas and the Pythagorean Theorem',
+    7: 'Volume, surface area and Pythagorean problems',
+    8: 'Equations with variables on both sides',
+    9: 'Systems of two linear equations',
+    10: 'Transformations',
+    11: 'Scatterplots and data',
+    12: 'Personal finance: credit, saving and college',
+  }),
+});
+
 const buildMiddleSchoolStrands = (courseId) => {
   const standards = getTexasStandardsForCourse(courseId).filter((standard) => standard.classification !== 'process');
   const courseLabel = standards[0]?.course || courseId;
   const sections = [...new Set(standards.map((standard) => Number(standard.strand)).filter(Number.isFinite))].sort((a, b) => a - b);
   return Object.freeze(sections.map((section, index) => strand(
     `${courseId}_strand_${section}`,
-    `${courseLabel} · TEKS ${String(courseId).replace('grade', '')}.${section}`,
+    // A section the table does not name yet (a future TEKS revision) still
+    // gets words rather than a code: the course and the topic's position.
+    MIDDLE_SCHOOL_STRAND_TITLES[courseId]?.[section] || `${courseLabel} topic ${index + 1}`,
     MIDDLE_SCHOOL_COLORS[index % MIDDLE_SCHOOL_COLORS.length],
     standards.filter((standard) => Number(standard.strand) === section).map((standard) => standard.code),
   )).filter((entry) => entry.codes.length));

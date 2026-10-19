@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { canSalvageV5IntakeResult } from '../../src/platform/preflight/assignmentAuthoringState.js';
 import { buildIncompleteAssignmentDraftRecord } from '../../src/platform/preflight/incompleteAssignmentDraft.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 /*
  * THE CASE THE WHOLE REPAIR WORKSPACE EXISTS FOR.
@@ -131,7 +132,7 @@ test('genuinely unreadable input is still rejected rather than salvaged', () => 
  * original.
  */
 test('readAssignmentJson recovers the V5 document instead of discarding it on a throw', () => {
-  const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const appSource = appAndTeacherWorkspaceSource();
   const start = appSource.indexOf('parsed = parseAssignmentBlueprintText(rawText);');
   assert.notEqual(start, -1, 'readAssignmentJson must still compile through parseAssignmentBlueprintText');
   const handler = appSource.slice(start, appSource.indexOf('validateAssignmentQuestions', start));

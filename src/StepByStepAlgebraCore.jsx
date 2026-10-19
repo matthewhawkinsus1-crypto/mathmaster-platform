@@ -31,15 +31,20 @@ import {
   parseOperationOperand,
   splitAdditiveTerms,
 } from './algebraAstEngine';
+import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
+import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import {
-  findLikeTermGroups,
-  replacementIsSingleLikeTerm,
-  replaceSelectedLikeTerms,
-  replaceSingleAdditiveTerm,
-  selectedLikeTermInfo,
-} from './algebraLikeTermsModel.js';
-import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+  chooseSimplifyPart,
+  openSimplify,
+  sanitizeSimplifyState,
+  simplifyHasDecisions,
+  undoSimplify,
+} from './platform/algebra/simplify/simplifyState.js';
+import { rewriteMenuEntries, rewriteMenuOptions } from './platform/algebra/simplify/rewriteMenu.js';
+import { normalizeQuestionRecord } from './attemptPolicy';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { spokenMathValue, spokenOperation } from './tools/shared/spokenMathValue.js';
+import { useFocusSafeDisabled } from './components/common/useFocusSafeDisabled.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 // What each step earns, and the raw work it is reported with: one definition,
@@ -59,10 +64,8 @@ import {
   resolveEquationAfterStudentSimplification, resolveSupportLevel,
 } from './algebraSupportLevels';
 import {
-  STRUCTURE_TOOL_KINDS,
   STRUCTURE_TOOL_LABELS,
   commitStructureTool,
-  detectStructureTools,
   openStructureTool,
   undoStructureTool,
 } from './algebraStructureTools';
@@ -85,15 +88,8 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter } from './tools/shared/ToolRuntimeContext';
-
-const STRUCTURE_TOOL_TITLES = {
-  factor: 'Choose terms, write them as primes, and pull out a factor they share',
-  split: 'Give each numerator term its own copy of the denominator',
-  reduce: 'Write a fraction as prime factors and cancel matching pairs',
-  arithmetic: 'Multiply the numbers in a product',
-  arrange: 'Change the order of the terms on one side',
-};
+import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -155,6 +151,19 @@ const balancedStep = (move, after) => {
   };
 };
 
+// A distribution token or target that runs out of things to do while it has
+// focus keeps the focus instead of dropping it to the top of the page: placing
+// the factor on the focused term disabled that term (pass 3, A11Y-2;
+// useFocusSafeDisabled). A press while it is unavailable does nothing.
+function FocusSafeButton({ available, onClick, children, ...props }) {
+  const availability = useFocusSafeDisabled(available);
+  return (
+    <button type="button" {...props} {...availability} onClick={(event) => { if (available) onClick?.(event); }}>
+      {children}
+    </button>
+  );
+}
+
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
 function CancellationFactorRow({
@@ -175,7 +184,7 @@ function CancellationFactorRow({
         const previous = localIndex > 0 ? factors[localIndex - 1] : null;
         return (
           <span key={`${offset}-${localIndex}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-            {previous && factorNeedsDot(previous, factor) && <span aria-hidden="true" style={{ margin: '0 2px', fontSize: '22px' }}>·</span>}
+            {previous && factorNeedsDot(previous, factor) && <span aria-hidden="true" style={{ margin: '0 2px', fontSize: 'calc(22 * var(--mm-px))' }}>·</span>}
             <span
               data-cancel-index={index}
               onClick={cancellable ? () => onTokenClick(index) : undefined}
@@ -187,7 +196,7 @@ function CancellationFactorRow({
                   onTokenClick(index);
                 }
               } : undefined}
-              aria-label={cancellable ? `${factor.text}, mark this factor for cancellation` : undefined}
+              aria-label={cancellable ? `${spokenMathValue(factor.text)}, mark this factor for cancellation` : undefined}
               aria-pressed={cancellable ? selected || crossed : undefined}
               style={{
                 position: 'relative',
@@ -207,7 +216,7 @@ function CancellationFactorRow({
                 transition: 'opacity .2s ease, background .15s ease, outline-color .15s ease',
               }}
             >
-              <MathDisplay value={factor.latex} format="latex" inline style={{ fontSize: '30px' }} ariaLabel={factor.text} />
+              <MathDisplay value={factor.latex} format="latex" inline style={{ fontSize: 'calc(30 * var(--mm-px))' }} ariaLabel={factor.text} />
               {(selected || crossed) && (
                 <span aria-hidden="true" style={{ position: 'absolute', left: '7%', right: '7%', top: '52%', height: '4px', borderRadius: '999px', background: '#c5221f', transform: 'rotate(-12deg)', boxShadow: '0 0 0 2px rgba(255,255,255,.78)' }} />
               )}
@@ -237,7 +246,12 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     let frame = null;
     const fit = () => {
       const available = Math.max(1, viewport.clientWidth - 8);
-      const computed = Number.parseFloat(window.getComputedStyle(content).fontSize) || base;
+      // Sizes are in --mm-px (one CSS pixel at the default text size), so the
+      // equation grows with the student's text-size setting (WCAG 1.4.4).
+      // `units` is the size now written on the content; `pxPerUnit` is what
+      // the text setting makes of one unit.
+      const units = Number(content.dataset.fitSize) || base;
+      const pxPerUnit = (Number.parseFloat(window.getComputedStyle(content).fontSize) || units) / units;
       const rendered = Math.max(1, content.scrollWidth);
 
       // Estimate the width this exact expression would occupy at the base
@@ -246,8 +260,9 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
       // also observing the content itself. Changing the font changed the
       // observed width, which triggered another resize, producing the visible
       // "pulsing" students saw near the fit boundary.
-      const widthAtBase = Math.max(1, rendered * (base / computed));
-      const target = Math.max(17, Math.min(base, base * (available / widthAtBase) * 0.975));
+      // Fitting wins over size: the floor stays 17 CSS pixels at any setting.
+      const widthAtBase = Math.max(1, rendered * (base / units));
+      const target = Math.max(17 / pxPerUnit, Math.min(base, base * (available / widthAtBase) * 0.975));
 
       setFontSize((current) => (Math.abs(target - current) > 0.35 ? target : current));
     };
@@ -272,7 +287,7 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
 
   return (
     <div ref={viewportRef} className="algebra-expression-fit-viewport">
-      <div ref={contentRef} className="algebra-expression-fit-content" style={{ fontSize: `${fontSize}px` }}>
+      <div ref={contentRef} className="algebra-expression-fit-content" data-fit-size={fontSize} style={{ fontSize: `calc(${fontSize} * var(--mm-px))` }}>
         {children}
       </div>
     </div>
@@ -309,7 +324,6 @@ export default function StepByStepAlgebra({
   onStepGrade,
   onUndoStateChange,
   disabled = false,
-  maximumAttempts = 3,
   attemptsDoNotExpire = false,
   draftKey = null,
   autoOpenDistribution = false,
@@ -341,6 +355,8 @@ export default function StepByStepAlgebra({
   // like every other hint, so the attempt's mastery weight is discounted.
   hintsAllowed: hintsAllowedProp = true,
   onHintUsed: onHintUsedProp = null,
+  // What a hint costs, in the host's words where it has its own (HELP-17).
+  hintCostNote = null,
   // Which equation this workspace was opened on when a host built it — the
   // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
   // the equation the server must check it against. Never a verdict.
@@ -354,8 +370,22 @@ export default function StepByStepAlgebra({
   // them and has no recorder, which is exactly the old default.
   const contextHintsAllowed = useHintsAllowed();
   const contextHintReporter = useHintUseReporter();
+  // Where the activity withholds verdicts (a DOL, quiz or test — a secure item
+  // above all) a committed move is not judged on screen: "longer way round"
+  // and "look for a pair that cancels" are a right-track/wrong-track verdict
+  // and a strategy hint, and "solved" in green is the answer's verdict.
+  // The ACTIVITY's policy, not "this tool has no answer key": Step Algebra
+  // judges a move from the equation it was applied to, so Corrections and
+  // practice keep their coaching under server grading.
+  const verdictsShown = useToolRuntimeContext().verdictsWithheld !== true;
+  // The support level is the teacher's setting. Its badge and sentence are
+  // shown only in a teacher's preview (pass 3, Q-12).
+  const teacherView = useTeacherView();
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
+  // Where the host carries the platform's hint ladder (QuestionEngine), the
+  // strategic hint is a rung of it, not a second hint control (below).
+  const publishHints = useToolHintPublisher();
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
   const question = useContentStableValue(questionProp);
@@ -401,8 +431,14 @@ export default function StepByStepAlgebra({
   // One 1-5 support scale. `resolveSupportLevel` also reads the old
   // rigorous/exploratory values, so saved drafts and old assignment JSON keep
   // working without a migration pass.
+  //
+  // Where help is withheld (a DOL, quiz or secure Test) the QUESTION's level
+  // is the only one read. A saved draft is device storage; on an assessment it
+  // must not be able to bring back level 1, which does the opposite-side
+  // arithmetic for the student. (A secure item arrives at level 5 — see
+  // secureToolCertification — so this only ever closes a tampered draft.)
   const [supportLevel, setSupportLevel] = useState(
-    () => resolveSupportLevel({ workspaceDifficulty: savedDraft?.supportLevel ?? savedDraft?.mode ?? question.workspaceDifficulty ?? question.mode }),
+    () => resolveSupportLevel({ workspaceDifficulty: (hintsAllowed ? (savedDraft?.supportLevel ?? savedDraft?.mode) : null) ?? question.workspaceDifficulty ?? question.mode }),
   );
   const supportPolicy = getSupportPolicy(supportLevel);
   const allowAutoApply = Boolean(question?.supportPresentation?.algebraAutoApply);
@@ -414,7 +450,7 @@ export default function StepByStepAlgebra({
   // Partial distribution (factor placements not yet committed) persists
   // across navigation, same as every other in-progress move.
   const [distributionState, setDistributionState] = useState(savedDraft?.distributionState || null);
-  // Factor, Split fraction, Cancel factors, Simplify arithmetic, Arrange terms:
+  // Factor, Split fraction, Cancel factors, Arrange terms (the Rewrite menu):
   // one open tool at a time, persisted, undone one decision at a time.
   const [structureTool, setStructureTool] = useState(savedDraft?.structureTool || null);
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
@@ -423,25 +459,18 @@ export default function StepByStepAlgebra({
   const [simplificationAnswers, setSimplificationAnswers] = useState(savedDraft?.simplificationAnswers || {});
   const [simplificationFocusSignal, setSimplificationFocusSignal] = useState(0);
   const [promptAnswers, setPromptAnswers] = useState(savedDraft?.promptAnswers || {});
-  const [rewriteOpen, setRewriteOpen] = useState(false);
-  const [rewriteScope, setRewriteScope] = useState('left');
-  const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
-  const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
-  // In inline-expression mode, Rewrite / Simplify turns every additive term
-  // into a neutral selectable token on the balance board. Selecting a token
-  // NEVER changes it and never asks whether it should be simplified; only a
-  // student-authored equivalent replacement can commit.
-  const [inlineRewriteSelection, setInlineRewriteSelection] = useState({ side: null, index: null });
-  const [inlineRewriteAnswer, setInlineRewriteAnswer] = useState('');
-  const [inlineRewriteFocusSignal, setInlineRewriteFocusSignal] = useState(0);
-  // Interactive same-side simplification. A student chooses the side and the
-  // terms they believe are alike, then supplies the combined term. The platform
-  // checks the decision; it never supplies the coefficient/result.
-  const [likeTermsOpen, setLikeTermsOpen] = useState(Boolean(savedDraft?.likeTermsOpen));
-  const [likeTermsSide, setLikeTermsSide] = useState(savedDraft?.likeTermsSide || '');
-  const [selectedLikeTermIndices, setSelectedLikeTermIndices] = useState(savedDraft?.selectedLikeTermIndices || []);
-  const [likeTermsAnswer, setLikeTermsAnswer] = useState(savedDraft?.likeTermsAnswer || '');
-  const [likeTermsFocusSignal, setLikeTermsFocusSignal] = useState(0);
+  // THE ONE SIMPLIFY CONTROL (student push Q): numbers multiplied, like terms
+  // combined, a numeric fraction reduced, parentheses removed — each a part
+  // the student chooses and simplifies, or a whole side they type. The
+  // platform only checks; it never supplies a result. One plain-JSON slot,
+  // persisted with the draft and undone one decision at a time.
+  // A draft saved with an old tool open (Simplify arithmetic, Combine like
+  // terms) arrives here already migrated (algebraDraftState.js).
+  const [simplifyTool, setSimplifyTool] = useState(savedDraft?.simplifyTool || null);
+  const [rewriteMenuOpen, setRewriteMenuOpen] = useState(false);
+  const [simplifyFocusSignal, setSimplifyFocusSignal] = useState(0);
+  const simplifyButtonRef = useRef(null);
+  const rewriteButtonRef = useRef(null);
   // The whole drawn path, in coordinates local to the strike box, so the live
   // ink and the term rectangles share one space.
   const [stroke, setStroke] = useState(null); // { side, points: [{x,y}] } | null
@@ -489,8 +518,10 @@ export default function StepByStepAlgebra({
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   // Cues default to what the level says, and the student may still turn them
   // off. A level 4/5 workspace starts quiet rather than starting loud.
+  // Cancellation cues are help: where the activity withholds hints they are
+  // off, and the toggle that would turn them on is not offered.
   const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(
-    () => getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
+    () => hintsAllowed && getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
   );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
   const [selectedCancellationIndices, setSelectedCancellationIndices] = useState(savedDraft?.selectedCancellationIndices || {}); // { left: number[], right: number[] }
@@ -542,11 +573,8 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setSimplificationAnswers({});
     setPromptAnswers({});
-    setRewriteOpen(false);
-    setRewriteScope('left');
-    setRewriteAnswers({ left: '', right: '' });
-    setInlineRewriteSelection({ side: null, index: null });
-    setInlineRewriteAnswer('');
+    setSimplifyTool(null);
+    setRewriteMenuOpen(false);
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
@@ -599,12 +627,11 @@ export default function StepByStepAlgebra({
       selectedCancellationIndices,
       simplificationAnswers,
       promptAnswers,
-      likeTermsOpen,
-      likeTermsSide,
-      selectedLikeTermIndices,
-      likeTermsAnswer,
+      // The open Simplify slot. The old like-terms fields are no longer
+      // written: a draft that had them was migrated when it opened.
+      simplifyTool,
     });
-  }, [localDraftKey, equation, supportLevel, operand, distributionState, structureTool, workSteps, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
+  }, [localDraftKey, equation, supportLevel, operand, distributionState, structureTool, workSteps, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, simplifyTool]);
 
   // THE WORK THIS WORKSPACE REPORTS: the committed equation and the typed
   // prompt answers — student work only, never a verdict or the objective.
@@ -654,29 +681,35 @@ export default function StepByStepAlgebra({
     if (structureTool && equation && structureTool.equationKey !== equationKey(equation)) setStructureTool(null);
   }, [structureTool, equation]);
 
-  const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
-  const likeTermGroups = useMemo(() => ({
-    left: findLikeTermGroups(equation?.left),
-    right: findLikeTermGroups(equation?.right),
-  }), [equation]);
-  const hasLikeTermOpportunity = Boolean(likeTermGroups.left.length || likeTermGroups.right.length);
-  const currentLikeTermSelection = useMemo(
-    () => (likeTermsSide ? selectedLikeTermInfo(equation?.[likeTermsSide], selectedLikeTermIndices) : null),
-    [equation, likeTermsSide, selectedLikeTermIndices],
-  );
-
+  // Simplify stays open across its own commits while parts are left (the
+  // student usually has more to simplify), but its choices belong to the equation they were made on:
+  // a changed equation keeps the tool open with nothing chosen.
   useEffect(() => {
-    if (!likeTermsOpen || !currentLikeTermSelection?.valid) return;
-    // The answer field is conditionally mounted only after a valid selection.
-    // Move the caret there immediately so the next student action is typing,
-    // not hunting for and clicking the new box.
-    setLikeTermsFocusSignal((signal) => signal + 1);
-  }, [
-    likeTermsOpen,
-    likeTermsSide,
-    currentLikeTermSelection?.valid,
-    currentLikeTermSelection?.selectedExpression,
-  ]);
+    if (!simplifyTool || !equation) return;
+    const key = equationKey(equation);
+    if (simplifyTool.equationKey !== key) setSimplifyTool(sanitizeSimplifyState(simplifyTool, key) || openSimplify(key));
+  }, [simplifyTool, equation]);
+
+  const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
+  // The board's regions and every part Simplify can act on, from the math tree.
+  const simplifyRegions = useMemo(() => (equation?.left && equation?.right ? [
+    { key: 'left', label: 'left side', expression: equation.left, variable: equation.variable || 'x' },
+    { key: 'right', label: 'right side', expression: equation.right, variable: equation.variable || 'x' },
+  ] : []), [equation]);
+  const simplifyParts = useMemo(() => {
+    try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
+  }, [simplifyRegions]);
+  // After the commit that leaves nothing to simplify, Simplify closes so the
+  // confirmation is not pushed under the action bar, and focus goes back to
+  // the Simplify button.
+  const closeSimplifyWhenDoneRef = useRef(false);
+  useEffect(() => {
+    if (!closeSimplifyWhenDoneRef.current) return;
+    closeSimplifyWhenDoneRef.current = false;
+    if (simplifyParts.length) return;
+    setSimplifyTool(null);
+    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
+  }, [simplifyParts]);
 
   const simplificationPromptVisible = Boolean(
     pendingMove?.simplificationTargets?.length
@@ -697,13 +730,7 @@ export default function StepByStepAlgebra({
     || Object.keys(cancelledPairIds).some((side) => cancelledPairIds[side]?.length)
     || Object.values(selectedCancellationIndices).some((indices) => indices?.length)
     || Object.keys(simplificationAnswers).length
-    || rewriteOpen
-    || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
-    || Boolean(inlineRewriteSelection?.side)
-    || String(inlineRewriteAnswer || '').trim()
-    || likeTermsOpen
-    || selectedLikeTermIndices.length
-    || String(likeTermsAnswer || '').trim()
+    || Boolean(simplifyTool)
     || armedTile
     || placedOperationSides.length
     || tapPlacementArmed
@@ -720,13 +747,6 @@ export default function StepByStepAlgebra({
         const pairSides = Object.keys(cancelledPairIds).filter((side) => cancelledPairIds[side]?.length);
         const hasSelectedCancellation = Object.values(selectedCancellationIndices)
           .some((indices) => indices?.length);
-        const hasRewriteEntry = rewriteOpen
-          || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
-          || Boolean(inlineRewriteSelection?.side)
-          || String(inlineRewriteAnswer || '').trim();
-        const hasLikeTermsEntry = likeTermsOpen
-          || selectedLikeTermIndices.length > 0
-          || String(likeTermsAnswer || '').trim();
         const hasOperationStaging = Boolean(
           armedTile
           || placedOperationSides.length
@@ -753,24 +773,10 @@ export default function StepByStepAlgebra({
           setCancelledPairIds({});
           setSelectedCancellationIndices({});
           setSimplificationAnswers({});
-        } else if (hasLikeTermsEntry) {
-          if (String(likeTermsAnswer || '').trim()) {
-            setLikeTermsAnswer('');
-          } else if (selectedLikeTermIndices.length) {
-            setSelectedLikeTermIndices((current) => current.slice(0, -1));
-          } else {
-            setLikeTermsOpen(false);
-            setLikeTermsSide('');
-          }
-        } else if (hasRewriteEntry) {
-          if (String(inlineRewriteAnswer || '').trim()) {
-            setInlineRewriteAnswer('');
-          } else if (inlineRewriteSelection?.side) {
-            setInlineRewriteSelection({ side: null, index: null });
-          } else {
-            setRewriteOpen(false);
-            setRewriteAnswers({ left: '', right: '' });
-          }
+        } else if (simplifyTool) {
+          // One decision inside Simplify: the last text typed, the last sign
+          // chosen, the part chosen. With none left, Simplify itself closes.
+          setSimplifyTool((current) => (simplifyHasDecisions(current) ? undoSimplify(current) : null));
         } else if (structureTool) {
           // One decision inside the open structure tool: the last prime factor
           // chosen, the last denominator placed, the last cancelled pair. With
@@ -801,14 +807,7 @@ export default function StepByStepAlgebra({
             setCancelledPairIds({});
             setSelectedCancellationIndices({});
             setSimplificationAnswers({});
-            setRewriteOpen(false);
-            setRewriteAnswers({ left: '', right: '' });
-            setInlineRewriteSelection({ side: null, index: null });
-            setInlineRewriteAnswer('');
-            setLikeTermsOpen(false);
-            setLikeTermsSide('');
-            setSelectedLikeTermIndices([]);
-            setLikeTermsAnswer('');
+            setSimplifyTool(null);
             setArmedTile(null);
             setOperand('');
             setDistributionState(null);
@@ -839,14 +838,7 @@ export default function StepByStepAlgebra({
     operand,
     pendingMove,
     placedOperationSides,
-    rewriteAnswers,
-    rewriteOpen,
-    inlineRewriteSelection,
-    inlineRewriteAnswer,
-    likeTermsOpen,
-    likeTermsSide,
-    selectedLikeTermIndices,
-    likeTermsAnswer,
+    simplifyTool,
     selectedCancellationIndices,
     simplificationAnswers,
     structureTool,
@@ -861,11 +853,11 @@ export default function StepByStepAlgebra({
     });
   };
 
-  // A balanced move's step: committed (BALANCED_MOVE), reported before it is
-  // committed because it costs an attempt (INEFFICIENT_MOVE), or a rejected
-  // cancellation/simplification of the pending move (REJECTED_MOVE). Credit,
-  // attempt use and the saved state come from the shared definitions; the
-  // raw work travels with them so the server can derive the same credit.
+  // A balanced move's step: committed (BALANCED_MOVE), or a rejected
+  // cancellation/simplification of the pending move (REJECTED_MOVE, a slip).
+  // Credit, attempt use (none, decision D1) and the saved state come from the
+  // shared definitions; the raw work travels with them so the server can
+  // derive the same credit.
   const saveStep = async ({ move, action, equationAfter = equation }) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
@@ -947,6 +939,15 @@ export default function StepByStepAlgebra({
           }
         });
       }
+      if (!verdictsShown) {
+        setMessage({
+          tone: 'neutral',
+          text: nextSolved
+            ? 'The variable is isolated. Record your answer when you are ready.'
+            : 'Move applied. Continue from the equation shown.',
+        });
+        return;
+      }
       setMessage({
         tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
         text: nextSolved
@@ -972,114 +973,58 @@ export default function StepByStepAlgebra({
     await commitMove(pendingMove, { resolution: 'keep' });
   };
 
-  const rewriteSidesForScope = (scope = rewriteScope) => (
-    scope === 'both' ? ['left', 'right'] : [scope]
-  );
-
-  const closeRewriteTool = () => {
-    setRewriteOpen(false);
-    setRewriteAnswers({ left: '', right: '' });
-    setInlineRewriteSelection({ side: null, index: null });
-    setInlineRewriteAnswer('');
-  };
-
-  const closeLikeTermsTool = () => {
-    setLikeTermsOpen(false);
-    setLikeTermsSide('');
-    setSelectedLikeTermIndices([]);
-    setLikeTermsAnswer('');
-  };
-
-  const openLikeTermsTool = () => {
-    if (disabled || savingStep || cancelAnimating) return;
-    if (pendingMove) {
-      setMessage({
-        tone: 'growth',
-        text: 'Finish the balanced operation already in progress first. Then you can combine like terms on either side.',
-      });
-      return;
-    }
+  const clearOperationStaging = () => {
     setArmedTile(null);
     setTapPlacementArmed(false);
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setOperand('');
-    setRewriteOpen(false);
-    setInlineRewriteSelection({ side: null, index: null });
-    setInlineRewriteAnswer('');
-    setDistributionState(null);
-    setStructureTool(null);
-    setLikeTermsSide('');
-    setSelectedLikeTermIndices([]);
-    setLikeTermsAnswer('');
-    setLikeTermsOpen((current) => !current);
-    setMessage(null);
   };
 
-  const chooseLikeTermsSide = (side) => {
-    setLikeTermsSide(side);
-    setSelectedLikeTermIndices([]);
-    setLikeTermsAnswer('');
-    setMessage(null);
+  const closeSimplifyTool = ({ returnFocus = false } = {}) => {
+    setSimplifyTool(null);
+    if (returnFocus) window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
   };
 
-  const toggleLikeTerm = (index) => {
-    setSelectedLikeTermIndices((current) => (
-      current.includes(index)
-        ? current.filter((value) => value !== index)
-        : [...current, index]
-    ));
-    setLikeTermsAnswer('');
-    setMessage(null);
-  };
-
-  const toggleInlineLikeTerm = (side, index) => {
-    if (!inlineExpressionTools || !likeTermsOpen) return;
-    if (likeTermsSide !== side) {
-      setLikeTermsSide(side);
-      setSelectedLikeTermIndices([index]);
-      setLikeTermsAnswer('');
+  // ONE SIMPLIFY (student push Q). Pressing it highlights every simplifiable
+  // part on the board; pressing it again closes it.
+  const toggleSimplifyTool = () => {
+    if (disabled || savingStep || cancelAnimating) return;
+    if (pendingMove) {
+      setMessage({
+        tone: 'growth',
+        text: 'Finish the balanced operation already in progress first. After that, Simplify is available again.',
+      });
+      return;
+    }
+    if (simplifyTool) {
+      closeSimplifyTool();
       setMessage(null);
       return;
     }
-    toggleLikeTerm(index);
-  };
-
-  const selectInlineRewriteTerm = (side, index) => {
-    if (!inlineExpressionTools || !rewriteOpen) return;
-    setInlineRewriteSelection({ side, index });
-    setInlineRewriteAnswer('');
-    setInlineRewriteFocusSignal((signal) => signal + 1);
-    setMessage(null);
-  };
-
-  const openRewriteTool = () => {
-    if (disabled || savingStep || cancelAnimating) return;
-    if (pendingMove) {
-      setMessage({
-        tone: 'growth',
-        text: 'Finish the balanced operation already in progress first. After that, Rewrite / Simplify is available again.',
-      });
-      return;
-    }
-    setArmedTile(null);
-    setTapPlacementArmed(false);
-    setPlacedOperationSides([]);
-    setPlacedOperationPositions({});
-    setOperand('');
-    setRewriteAnswers({ left: '', right: '' });
-    setInlineRewriteSelection({ side: null, index: null });
-    setInlineRewriteAnswer('');
-    closeLikeTermsTool();
+    clearOperationStaging();
     setDistributionState(null);
     setStructureTool(null);
-    if (!rewriteOpen && !inlineExpressionTools) setRewriteFocusSignal((signal) => signal + 1);
-    setRewriteOpen((current) => !current);
+    setRewriteMenuOpen(false);
+    setSimplifyTool(openSimplify(equationKey(equation)));
+    setSimplifyFocusSignal((signal) => signal + 1);
     setMessage(null);
   };
 
-  // A side rewritten into an equivalent form — Rewrite / Simplify, combine like
-  // terms, a one-term rewrite, a structure tool, distribution, cancellation —
+  // A tap on a highlighted board term chooses the part it belongs to. A term
+  // in two parts (2x in a product's like-term group) alternates between them.
+  const chooseSimplifyFromTerm = (side, termIndex) => {
+    if (!simplifyTool || disabled) return;
+    const candidates = partsForTerm(simplifyParts, side, termIndex);
+    if (!candidates.length) return;
+    const currentIndex = candidates.findIndex((part) => part.id === simplifyTool.partId);
+    const next = candidates[(currentIndex + 1) % candidates.length];
+    setSimplifyTool((current) => chooseSimplifyPart(current, next.id));
+    setMessage(null);
+  };
+
+  // A side rewritten into an equivalent form — a Simplify part or a whole side,
+  // a Rewrite-menu tool, distribution, cancellation —
   // earns the shared rewrite credit, and carries the two equations as its raw
   // work so the server can check the rewrite and derive the same credit.
   const rewriteStepPayload = (beforeEquation, nextEquation, { kind, label }) => ({
@@ -1114,234 +1059,40 @@ export default function StepByStepAlgebra({
     }
   };
 
-  const checkLikeTerms = async () => {
-    if (!equation || disabled || savingStep || cancelAnimating || pendingMove || !likeTermsSide) return;
-    const selection = selectedLikeTermInfo(equation[likeTermsSide], selectedLikeTermIndices);
-    if (!selection.valid) {
-      setMessage({ tone: 'growth', text: selection.reason || 'Choose terms that are alike before combining them.' });
-      return;
-    }
-
-    if (!String(likeTermsAnswer || '').trim()) {
-      setLikeTermsFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'growth', text: 'You chose the terms. Now enter the single term they combine to.' });
-      return;
-    }
-
-    let replacement;
-    try {
-      replacement = latexToExpression(likeTermsAnswer);
-    } catch {
-      triggerShake();
-      setLikeTermsFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'error', text: 'MathMaster could not read that combined term yet.' });
-      return;
-    }
-
-    if (!replacementIsSingleLikeTerm(replacement, selection.key)) {
-      triggerShake();
-      setLikeTermsFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'growth',
-        text: 'Enter one combined term with the same variable part. Do not re-enter the two original terms.',
-      });
-      return;
-    }
-
-    if (!expressionsEquivalent(selection.selectedExpression, replacement, equation.variable)) {
-      triggerShake();
-      setLikeTermsFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'growth',
-        text: 'Those terms are alike, but that coefficient does not equal their sum. Recheck the signs and coefficients.',
-      });
-      return;
-    }
-
-    const nextSide = replaceSelectedLikeTerms(equation[likeTermsSide], selection.indices, replacement);
-    if (!nextSide) {
-      setMessage({ tone: 'error', text: 'That combination could not be placed back into the equation safely. Your work was not changed.' });
-      return;
-    }
-
+  // One checked Simplify step: a part (product, like terms, fraction,
+  // parentheses, a factor of 1) or a whole side the student typed. The engine
+  // has already proved it equal and simpler; this commits it with the same
+  // rewrite credit every rewrite earns, under a step kind the server accepts.
+  const commitSimplifyResult = async (result) => {
+    if (!result?.ok || !equation || disabled || savingStep || cancelAnimating || pendingMove) return false;
     const beforeEquation = equation;
-    const nextEquation = { ...equation, [likeTermsSide]: nextSide };
-    await persistStudentRewrite(beforeEquation, nextEquation, [likeTermsSide], {
-      kind: 'combine-like-terms',
-      label: `Combine like terms on the ${likeTermsSide} side`,
-    });
-    pushCommittedEquation(beforeEquation, describedStep('combine-like-terms', [`Combined like terms on the ${likeTermsSide} side`], nextEquation));
+    const nextEquation = { ...equation, [result.region]: result.expression };
+    if (nextEquation[result.region] === beforeEquation[result.region]) return false;
+    const label = result.step.kind === 'student-rewrite'
+      ? `Rewrite / simplify ${result.region}`
+      : result.step.kind === 'combine-like-terms'
+        ? `Combine like terms on the ${result.region} side`
+        : result.step.kind === 'inline-term-rewrite'
+          ? `Rewrite one term on the ${result.region} side`
+          : result.step.description;
+    await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
+    pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
+    closeSimplifyWhenDoneRef.current = true;
     setEquation(nextEquation);
-    if (inlineExpressionTools) {
-      setSelectedLikeTermIndices([]);
-      setLikeTermsAnswer('');
-      setLikeTermsSide('');
-    } else {
-      closeLikeTermsTool();
-    }
     setBalancePulse(true);
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: 'Like terms combined. You chose the terms and supplied the combined term; MathMaster only checked the algebra.',
+      text: `${result.step.description}. You did the algebra; MathMaster only checked it.`,
     });
-  };
-
-  const checkInlineRewrite = async () => {
-    if (!inlineExpressionTools || !equation || disabled || savingStep || cancelAnimating || pendingMove) return;
-    const side = inlineRewriteSelection?.side;
-    const index = Number(inlineRewriteSelection?.index);
-    const terms = side ? (splitAdditiveTerms(equation[side]) || []) : [];
-    const term = Number.isInteger(index) ? terms[index] : null;
-    if (!side || !term) return;
-
-    if (!String(inlineRewriteAnswer || '').trim()) {
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      return;
-    }
-
-    let replacement;
-    try {
-      replacement = latexToExpression(inlineRewriteAnswer);
-    } catch {
-      triggerShake();
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'error', text: 'MathMaster could not read that equivalent term yet.' });
-      return;
-    }
-
-    const replacementTerms = splitAdditiveTerms(replacement) || [];
-    if (replacementTerms.length !== 1) {
-      triggerShake();
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'growth', text: 'Rewrite only the selected term. Keep the rest of the side where it is.' });
-      return;
-    }
-
-    if (!expressionsEquivalent(term.text, replacement, equation.variable)) {
-      triggerShake();
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'growth', text: 'That replacement is not equivalent to the selected term.' });
-      return;
-    }
-
-    const nextSide = replaceSingleAdditiveTerm(equation[side], index, replacement);
-    if (!nextSide) {
-      setMessage({ tone: 'error', text: 'That term could not be placed back into the equation safely. Your work was not changed.' });
-      return;
-    }
-    const beforeKey = String(equation[side] || '').replace(/\s+/g, '');
-    const afterKey = String(nextSide || '').replace(/\s+/g, '');
-    if (beforeKey === afterKey) {
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'growth', text: 'That keeps the selected term exactly as written.' });
-      return;
-    }
-
-    const beforeEquation = equation;
-    const nextEquation = { ...equation, [side]: nextSide };
-    await persistStudentRewrite(beforeEquation, nextEquation, [side], {
-      kind: 'inline-term-rewrite',
-      label: `Rewrite one term on the ${side} side`,
-    });
-    pushCommittedEquation(beforeEquation, describedStep('inline-term-rewrite', [`Rewrote a term on the ${side} side`], nextEquation));
-    setEquation(nextEquation);
-    setInlineRewriteSelection({ side: null, index: null });
-    setInlineRewriteAnswer('');
-    setBalancePulse(true);
-    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
-    setMessage({ tone: 'success', text: 'Equivalent term accepted.' });
-  };
-
-  const checkStudentRewrite = async () => {
-    if (!equation || disabled || savingStep || cancelAnimating || pendingMove) return;
-
-    const sides = rewriteSidesForScope();
-    const enteredSides = sides.filter((side) => String(rewriteAnswers[side] || '').trim());
-
-    if (!enteredSides.length) {
-      setRewriteFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'growth',
-        text: 'Enter the expression you want MathMaster to check. The platform will not generate the simplification for you.',
-      });
-      return;
-    }
-
-    const parsed = {};
-    try {
-      enteredSides.forEach((side) => {
-        parsed[side] = latexToExpression(rewriteAnswers[side]);
-      });
-    } catch {
-      triggerShake();
-      setRewriteFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'error',
-        text: 'MathMaster could not read that expression yet. Enter only the expression for that side, not an equals sign.',
-      });
-      return;
-    }
-
-    const incorrect = enteredSides.filter((side) => {
-      try {
-        return !expressionsEquivalent(parsed[side], equation[side], equation.variable);
-      } catch {
-        return true;
-      }
-    });
-
-    if (incorrect.length) {
-      triggerShake();
-      setRewriteFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'growth',
-        text: `That rewrite is not equivalent on the ${incorrect.join(' and ')} side${incorrect.length > 1 ? 's' : ''}. Your equation has not been changed.`,
-      });
-      return;
-    }
-
-    const nextEquation = { ...equation };
-    const changedSides = [];
-    enteredSides.forEach((side) => {
-      const before = String(equation[side] || '').replace(/\s+/g, '');
-      const after = String(parsed[side] || '').replace(/\s+/g, '');
-      if (before !== after) {
-        nextEquation[side] = parsed[side];
-        changedSides.push(side);
-      }
-    });
-
-    if (!changedSides.length) {
-      setRewriteFocusSignal((signal) => signal + 1);
-      setMessage({
-        tone: 'growth',
-        text: 'That is equivalent, but it is already the expression shown. Enter a different equivalent rewrite if you want to change the workspace.',
-      });
-      return;
-    }
-
-    await persistStudentRewrite(equation, nextEquation, changedSides);
-    pushCommittedEquation(equation, describedStep('student-rewrite', [changedSides.length > 1 ? 'Rewrote both sides' : `Rewrote the ${changedSides[0]} side`], nextEquation));
-    setEquation(nextEquation);
-    setRewriteAnswers({ left: '', right: '' });
-    setRewriteOpen(false);
-    setBalancePulse(true);
-    window.setTimeout(
-      () => setBalancePulse(false),
-      motionDuration(650, reducedMotion, { floor: 60 }),
-    );
-    setMessage({
-      tone: 'success',
-      text: `Rewrite accepted. You supplied the ${changedSides.join(' and ')} expression${changedSides.length > 1 ? 's' : ''}; MathMaster only checked equivalence.`,
-    });
+    return true;
   };
 
   // DISTRIBUTION: copy an outside factor to every signed term of an additive
   // parenthetical group, e.g. `-(2/3)(x + 3)`. This is its own algebra step,
   // separate from simplification: committing leaves the expanded products
-  // unsimplified (`(-2/3)(x) + (-2/3)(3)`), and the existing Rewrite/Simplify
-  // flow above is what evaluates them afterward. See algebraDistributionModel.js.
+  // unsimplified (`(-2/3)(x) + (-2/3)(3)`), and Simplify (its product parts)
+  // is what evaluates them afterward. See algebraDistributionModel.js.
   const distributable = useMemo(() => detectDistributableGroup(equation), [equation]);
   const autoDistributionOpenedForRef = useRef('');
 
@@ -1355,15 +1106,15 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setOperand('');
-    setRewriteOpen(false);
-    closeLikeTermsTool();
+    setSimplifyTool(null);
+    setRewriteMenuOpen(false);
     setStructureTool(null);
     setDistributionState(initDistributionState(distributable));
     setMessage({
       tone: 'growth',
       text: inlineExpressionTools
         ? 'The substitution created a distributive step. Work directly on the equation.'
-        : 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
+        : 'The substitution created a distributive step. Apply the outside factor to each term, then use Simplify.',
     });
   }, [
     autoOpenDistribution,
@@ -1384,8 +1135,8 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setOperand('');
-    setRewriteOpen(false);
-    closeLikeTermsTool();
+    setSimplifyTool(null);
+    setRewriteMenuOpen(false);
     setStructureTool(null);
     setDistributionState(initDistributionState(distributable));
     setMessage(null);
@@ -1430,13 +1181,13 @@ export default function StepByStepAlgebra({
       text: inlineExpressionTools
         ? 'Distribution complete.'
         : simplifyDistributedProducts
-          ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
-          : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
+          ? 'Distribution complete. The individual products are evaluated; use Simplify to combine like terms next.'
+          : 'Distribution complete. The products are not simplified yet — use Simplify to multiply them out, or continue solving.',
     });
   };
 
-  // STRUCTURE TOOLS: Factor, Split fraction, Cancel factors, Simplify
-  // arithmetic, Arrange terms. Each is offered only when the committed equation
+  // THE REWRITE MENU: Factor, Split fraction, Cancel factors, Arrange terms
+  // (rewriteMenu.js). Each is offered only when the committed equation
   // has the structure it acts on (see algebraStructureTools.js), works directly
   // on the equation, and changes nothing until the student commits it. A side
   // that already shows a cancellation pair keeps that interaction instead.
@@ -1451,12 +1202,13 @@ export default function StepByStepAlgebra({
     });
   }, [equation, pendingMove]);
   const lineObjective = ['slopeIntercept', 'factoredLinear', 'linearStandardForm'].includes(equation?.objective?.kind);
-  const structureOptions = useMemo(() => {
-    const detected = detectStructureTools(pendingMove ? null : equation, { excludeSides: cancellationActiveSides });
-    // Reordering terms is part of reaching a line's written form; ordinary
-    // solving does not need it offered on every multi-term side.
-    return lineObjective ? detected : { ...detected, arrange: [] };
-  }, [equation, pendingMove, cancellationActiveSides, lineObjective]);
+  // Reordering terms is part of reaching a line's written form; ordinary
+  // solving does not need it offered on every multi-term side.
+  const structureOptions = useMemo(
+    () => rewriteMenuOptions(pendingMove ? null : equation, { excludeSides: cancellationActiveSides, allowArrange: lineObjective }),
+    [equation, pendingMove, cancellationActiveSides, lineObjective],
+  );
+  const rewriteEntries = rewriteMenuEntries(structureOptions, structureTool?.kind || null);
 
   const updateStructureTool = (change) => setStructureTool((current) => (current ? (change(current) ?? current) : current));
 
@@ -1466,18 +1218,14 @@ export default function StepByStepAlgebra({
       setMessage({ tone: 'growth', text: 'Finish the balanced operation already in progress first.' });
       return;
     }
+    setRewriteMenuOpen(false);
     if (structureTool?.kind === kind) {
       setStructureTool(null);
       setMessage(null);
       return;
     }
-    setArmedTile(null);
-    setTapPlacementArmed(false);
-    setPlacedOperationSides([]);
-    setPlacedOperationPositions({});
-    setOperand('');
-    closeRewriteTool();
-    closeLikeTermsTool();
+    clearOperationStaging();
+    setSimplifyTool(null);
     setDistributionState(null);
     setStructureTool(openStructureTool(kind, equation));
     setMessage(null);
@@ -1524,7 +1272,7 @@ export default function StepByStepAlgebra({
 
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
-    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
+    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your tries will not change.');
     if (!confirmed) return;
 
     setEquation(pristineEquation);
@@ -1539,13 +1287,8 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setSimplificationAnswers({});
     setPromptAnswers({});
-    setRewriteOpen(false);
-    setRewriteScope('left');
-    setRewriteAnswers({ left: '', right: '' });
-    setLikeTermsOpen(false);
-    setLikeTermsSide('');
-    setSelectedLikeTermIndices([]);
-    setLikeTermsAnswer('');
+    setSimplifyTool(null);
+    setRewriteMenuOpen(false);
     setStroke(null);
     setLockedStroke(null);
     setStruckTerms(null);
@@ -1555,7 +1298,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setHeldToken(null);
-    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your attempt count did not change.' });
+    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your tries did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {
@@ -1599,18 +1342,10 @@ export default function StepByStepAlgebra({
     }
 
     // F3. An inefficient move is NOT rejected. It is valid algebra by a longer
-    // road, so it is applied and described; at levels 3 and 4 it also costs an
-    // attempt, which is a pacing decision rather than a verdict on the maths.
-    const verdict = evaluateMove(move, supportLevel);
-    if (verdict.countsAttempt) {
-      const result = await saveStep({ move, action: STEP_ACTIONS.INEFFICIENT_MOVE });
-      if (result?.expired) {
-        setPendingMove(null);
-        setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
-        return;
-      }
-      setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
-    }
+    // road, so it is applied and described, and it never spends a try at any
+    // level (decision D1). The shorter route is coaching: commitMove shows
+    // evaluateMove's message, and the committed step records that the move
+    // was not the efficient one.
 
     if (move.requiredCancellationSides.length === 0) {
       if (move.simplificationTargets?.length) {
@@ -1808,11 +1543,10 @@ export default function StepByStepAlgebra({
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
-        if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
-      } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
+      // A wrong-side tap is a slip, not an answer: feedback, never a try
+      // (decision D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
       return;
     }
     const next = [...new Set([...crossedSides, side])];
@@ -1843,12 +1577,11 @@ export default function StepByStepAlgebra({
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
-      } else {
-        setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
-      }
+      // An intermediate simplification is checked before it is committed, so a
+      // wrong one is a slip to revise, not an answer: never a try (decision
+      // D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
       return;
     }
     const cancellationsComplete = pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side));
@@ -2133,9 +1866,8 @@ export default function StepByStepAlgebra({
 
   const selectOperation = (operation, sourceSide) => {
     if (disabled || savingStep || pendingMove) return;
-    setRewriteOpen(false);
-    setRewriteAnswers({ left: '', right: '' });
-    closeLikeTermsTool();
+    setSimplifyTool(null);
+    setRewriteMenuOpen(false);
     setStructureTool(null);
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
@@ -2181,13 +1913,29 @@ export default function StepByStepAlgebra({
     stagePlacement(side, position);
   };
   const suggestedMove = getSuggestedMove(equation);
-  const attemptsRemaining = attemptsDoNotExpire ? null : getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
+  // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
+  // hint control beside the work bar's Hint: it opened with no try at all and
+  // was recorded only as "a hint was used". Inside a question it is now the
+  // solver's STANDING rung of the platform ladder (toolHintChannel.js): open
+  // from the start as it always was, without taking a family rung's place in
+  // the one-per-try release, and now read through the leak guard, counted
+  // with the other hints, and shown as read in Work View Help too. It follows
+  // the equation on screen, so it changes as the student works. Without a
+  // platform ladder (the tools lab, a server-graded host) the solver keeps its
+  // own disclosure.
+  const strategicHint = hintsAllowed && question.showHint !== false && suggestedMove && !solved
+    ? `Look for a move that cancels a term: ${describeOperation(suggestedMove.operation, suggestedMove.operand)}.`
+    : '';
+  useEffect(() => {
+    if (!publishHints || !strategicHint) return undefined;
+    return publishHints([{ text: strategicHint, standing: true }]);
+  }, [publishHints, strategicHint]);
   const inlineToolActive = Boolean(
-    (inlineExpressionTools && (distributionState || rewriteOpen || likeTermsOpen)) || structureTool,
+    (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,
   );
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
@@ -2271,8 +2019,8 @@ export default function StepByStepAlgebra({
           return (
             <span key={`distribution-${sideTermIndex}`} className="algebra-inline-distribution-group">
               {needsLeadingPlus ? <span aria-hidden="true">+</span> : null}
-              <button
-                type="button"
+              <FocusSafeButton
+                available={!disabled && !isDistributionComplete(distributionState)}
                 className={`algebra-inline-factor-token${distributionState.armed ? ' is-armed' : ''}`}
                 draggable={!isDistributionComplete(distributionState)}
                 onClick={armDistributionFactor}
@@ -2281,20 +2029,19 @@ export default function StepByStepAlgebra({
                   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
                   setDistributionState((current) => armDistributionFactorState(current));
                 }}
-                disabled={disabled || isDistributionComplete(distributionState)}
                 aria-pressed={distributionState.armed}
-                aria-label={`Pick up the factor ${distributionState.factorText}`}
+                aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               >
                 <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-              </button>
+              </FocusSafeButton>
               <span aria-hidden="true">(</span>
               <span className="algebra-inline-distribution-targets">
                 {distributionState.terms.map((term, index) => {
                   const placed = distributionState.placedIndices.includes(index);
                   return (
-                    <button
+                    <FocusSafeButton
                       key={`${index}-${term.text}`}
-                      type="button"
+                      available={!disabled && !placed && distributionState.armed}
                       className={`algebra-inline-distribution-target${placed ? ' is-placed' : ''}${distributionState.armed && !placed ? ' is-ready' : ''}`}
                       onClick={() => placeDistributionFactor(index)}
                       onDragOver={(event) => { if (!placed) event.preventDefault(); }}
@@ -2304,11 +2051,10 @@ export default function StepByStepAlgebra({
                           setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                         }
                       }}
-                      disabled={disabled || placed || !distributionState.armed}
                       aria-pressed={placed}
                       aria-label={placed
-                        ? `Factor applied to ${term.text}`
-                        : `Apply the factor to ${term.text}`}
+                        ? `Factor applied to ${spokenMathValue(term.text)}`
+                        : `Apply the factor to ${spokenMathValue(term.text)}`}
                     >
                       <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
                       {placed ? (
@@ -2316,7 +2062,7 @@ export default function StepByStepAlgebra({
                           × <MathDisplay value={distributionState.factorLatex} format="latex" inline />
                         </span>
                       ) : null}
-                    </button>
+                    </FocusSafeButton>
                   );
                 })}
               </span>
@@ -2403,28 +2149,25 @@ export default function StepByStepAlgebra({
     if (inlineDistribution) return equationSide(inlineDistribution, 'is-inline-distribution');
 
     const terms = splitAdditiveTerms(sideExpression(side));
-    if (inlineExpressionTools && rewriteOpen && !pendingMove && terms?.length) {
+    // Simplify highlights every part it can act on, directly on the equation.
+    // A tap on a highlighted term chooses its part; the parts are also one
+    // keyboard toolbar in the Simplify panel, in this same reading order, so
+    // nothing here is pointer-only. The highlight never says whether a part
+    // is "right" — only that there is something there to compute.
+    if (inlineExpressionTools && simplifyTool && !pendingMove && terms?.length) {
+      const chosen = simplifyParts.find((part) => part.id === simplifyTool.partId);
       return equationSide(
         <AlgebraTermRow
           terms={terms}
           side={side}
-          selectedIndices={inlineRewriteSelection?.side === side ? [inlineRewriteSelection.index] : []}
-          onTermClick={(index) => selectInlineRewriteTerm(side, index)}
-          interactionLabel="select as the term you want to rewrite"
+          candidateIndices={highlightedTermIndices(simplifyParts, side)}
+          interactiveIndices={highlightedTermIndices(simplifyParts, side)}
+          selectedIndices={chosen?.region === side ? chosen.termIndices : []}
+          onTermClick={(index) => chooseSimplifyFromTerm(side, index)}
+          termTabIndex={-1}
+          interactionLabel="choose this part to simplify"
         />,
-        'is-inline-rewrite',
-      );
-    }
-    if (inlineExpressionTools && likeTermsOpen && !pendingMove && terms?.length) {
-      return equationSide(
-        <AlgebraTermRow
-          terms={terms}
-          side={side}
-          selectedIndices={likeTermsSide === side ? selectedLikeTermIndices : []}
-          onTermClick={(index) => toggleInlineLikeTerm(side, index)}
-          interactionLabel="select as a term to combine"
-        />,
-        'is-inline-like-terms',
+        'is-inline-simplify',
       );
     }
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
@@ -2552,7 +2295,7 @@ export default function StepByStepAlgebra({
             Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
           </p>
           {parseError && (
-            <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+            <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
               Details for your teacher: {parseError}
             </p>
           )}
@@ -2575,7 +2318,7 @@ export default function StepByStepAlgebra({
           </div>
         ) : (
           <>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
+            {teacherView ? <div data-support-badge="" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div> : null}
             <div style={{ padding: '8px 12px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 'bold' }}>{objectiveLabel}</div>
           </>
         )}
@@ -2589,47 +2332,26 @@ export default function StepByStepAlgebra({
         )}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
+            ref={simplifyButtonRef}
             type="button"
-            className="algebra-rewrite-toggle"
-            onClick={openRewriteTool}
+            className="algebra-simplify-toggle"
+            onClick={toggleSimplifyTool}
             disabled={disabled || savingStep || cancelAnimating}
-            aria-expanded={rewriteOpen}
-            title={pendingMove ? 'Finish the current balanced operation first' : 'Enter your own equivalent rewrite of either or both sides'}
+            aria-expanded={Boolean(simplifyTool)}
+            title={pendingMove ? 'Finish the current balanced operation first' : 'Compute a part: multiply numbers, combine like terms, reduce a fraction, remove parentheses'}
             style={{
               minHeight: 40,
               padding: '8px 14px',
               borderRadius: 999,
-              border: rewriteOpen ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
-              background: rewriteOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              border: simplifyTool ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+              background: simplifyTool ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
               color: 'var(--mm-primary-text)',
               fontWeight: 800,
               cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
             }}
           >
-            Rewrite / Simplify
+            Simplify
           </button>
-          {(inlineExpressionTools || hasLikeTermOpportunity) && (
-            <button
-              type="button"
-              className="algebra-like-terms-toggle"
-              onClick={openLikeTermsTool}
-              disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
-              aria-expanded={likeTermsOpen}
-              title="Choose and combine like terms on one side of the equation"
-              style={{
-                minHeight: 40,
-                padding: '8px 14px',
-                borderRadius: 999,
-                border: likeTermsOpen ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
-                background: likeTermsOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                color: 'var(--mm-primary-text)',
-                fontWeight: 800,
-                cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Combine like terms
-            </button>
-          )}
           {(distributable || distributionState) && (
             <button
               type="button"
@@ -2652,35 +2374,68 @@ export default function StepByStepAlgebra({
               Distribute
             </button>
           )}
-          {STRUCTURE_TOOL_KINDS
-            .filter((kind) => structureTool?.kind === kind || structureOptions[kind]?.length)
-            .map((kind) => (
+          {rewriteEntries.length > 0 && (
+            // REWRITE changes a part's shape (Factor, Split fraction, Cancel
+            // factors, Arrange terms); only the tools this equation's structure
+            // allows are listed. A disclosure, not an ARIA menu: Tab reaches
+            // each entry, and Escape closes it with focus back on Rewrite.
+            <span
+              className="algebra-rewrite-menu"
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape' || !rewriteMenuOpen) return;
+                event.preventDefault();
+                setRewriteMenuOpen(false);
+                rewriteButtonRef.current?.focus();
+              }}
+            >
               <button
-                key={kind}
+                ref={rewriteButtonRef}
                 type="button"
-                className={`algebra-structure-toggle algebra-structure-toggle--${kind}`}
-                onClick={() => toggleStructureTool(kind)}
+                className="algebra-rewrite-toggle"
+                onClick={() => setRewriteMenuOpen((open) => !open)}
                 disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
-                aria-expanded={structureTool?.kind === kind}
-                title={STRUCTURE_TOOL_TITLES[kind]}
+                aria-expanded={rewriteMenuOpen}
+                aria-controls="algebra-rewrite-menu-list"
+                title="Change a part's shape: factor, split a fraction, cancel factors, arrange terms"
                 style={{
                   minHeight: 40,
                   padding: '8px 14px',
                   borderRadius: 999,
-                  border: structureTool?.kind === kind ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
-                  background: structureTool?.kind === kind ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                  border: structureTool || rewriteMenuOpen ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+                  background: structureTool || rewriteMenuOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                   color: 'var(--mm-primary-text)',
                   fontWeight: 800,
                   cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
                 }}
               >
-                {STRUCTURE_TOOL_LABELS[kind]}
+                {structureTool ? `Rewrite: ${STRUCTURE_TOOL_LABELS[structureTool.kind]}` : 'Rewrite'}
+                <span aria-hidden="true"> ▾</span>
               </button>
-            ))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
-            <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
-            Cancellation hints
-          </label>
+              {rewriteMenuOpen && (
+                <span id="algebra-rewrite-menu-list" role="group" aria-label="Rewrite" className="algebra-rewrite-menu-list">
+                  {rewriteEntries.map(({ kind, label, title }) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      className={`algebra-structure-toggle algebra-structure-toggle--${kind}`}
+                      onClick={() => toggleStructureTool(kind)}
+                      disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
+                      aria-pressed={structureTool?.kind === kind}
+                      title={title}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+          )}
+          {hintsAllowed ? (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
+              <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
+              Cancellation hints
+            </label>
+          ) : null}
           <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
         </div>
       </div>
@@ -2698,34 +2453,33 @@ export default function StepByStepAlgebra({
             {' '}Pick up the factor, then select each term it multiplies.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <button
-              type="button"
+            <FocusSafeButton
+              available={!disabled && !isDistributionComplete(distributionState)}
               draggable={!isDistributionComplete(distributionState)}
               onDragStart={(event) => {
                 event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
                 event.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={armDistributionFactor}
-              disabled={disabled || isDistributionComplete(distributionState)}
               aria-pressed={distributionState.armed}
-              aria-label={`Pick up the factor ${distributionState.factorText}`}
+              aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               style={{
                 minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
                 border: distributionState.armed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
                 background: distributionState.armed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)',
-                fontWeight: 900, fontSize: 22, cursor: 'grab',
+                fontWeight: 900, fontSize: 'calc(22 * var(--mm-px))', cursor: 'grab',
               }}
             >
               <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-            </button>
+            </FocusSafeButton>
             <span aria-hidden="true" style={{ color: 'var(--mm-text-muted)' }}>&rarr;</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {distributionState.terms.map((term, index) => {
                 const placed = distributionState.placedIndices.includes(index);
                 return (
-                  <button
+                  <FocusSafeButton
                     key={`${index}-${term.text}`}
-                    type="button"
+                    available={!disabled && !placed && distributionState.armed}
                     onClick={() => placeDistributionFactor(index)}
                     onDragOver={(event) => { if (!placed) event.preventDefault(); }}
                     onDrop={(event) => {
@@ -2734,11 +2488,10 @@ export default function StepByStepAlgebra({
                         setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                       }
                     }}
-                    disabled={disabled || placed || !distributionState.armed}
                     aria-pressed={placed}
-                    aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
+                    aria-label={placed ? `Factor already applied to ${spokenMathValue(term.text)}` : `Apply the factor to ${spokenMathValue(term.text)}`}
                     style={{
-                      minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 22, fontWeight: 800,
+                      minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 'calc(22 * var(--mm-px))', fontWeight: 800,
                       border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid var(--mm-tint-border)',
                       background: placed ? 'var(--mm-success-bg)' : distributionState.armed ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
                       color: placed ? 'var(--mm-success-text)' : 'var(--mm-text-strong)',
@@ -2752,7 +2505,7 @@ export default function StepByStepAlgebra({
                       format="latex"
                       inline
                     />
-                  </button>
+                  </FocusSafeButton>
                 );
               })}
             </div>
@@ -2778,229 +2531,33 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {likeTermsOpen && !inlineExpressionTools && (
-        <div className="algebra-like-terms-tool">
-          <div className="algebra-like-terms-header">
-            <div>
-              <strong>Combine like terms</strong>
-              <div>Choose the side first, then select the terms you believe belong together. MathMaster will not identify the pair for you.</div>
-            </div>
-            <button type="button" onClick={closeLikeTermsTool} aria-label="Close combine like terms" title="Close">×</button>
-          </div>
-
-          {!likeTermsSide ? (
-            <div className="algebra-like-terms-side-choice" role="group" aria-label="Choose which side to inspect for like terms">
-              <button type="button" onClick={() => chooseLikeTermsSide('left')}>Left side</button>
-              <button type="button" onClick={() => chooseLikeTermsSide('right')}>Right side</button>
-            </div>
-          ) : (
-            <>
-              <div className="algebra-like-terms-side-toolbar">
-                <span>{likeTermsSide === 'left' ? 'Left' : 'Right'} side</span>
-                <button type="button" onClick={() => chooseLikeTermsSide(likeTermsSide === 'left' ? 'right' : 'left')}>
-                  Try the {likeTermsSide === 'left' ? 'right' : 'left'} side
-                </button>
-              </div>
-              <div className="algebra-like-terms-equation-side">
-                <AlgebraTermRow
-                  terms={splitAdditiveTerms(equation[likeTermsSide]) || []}
-                  side={likeTermsSide}
-                  selectedIndices={selectedLikeTermIndices}
-                  onTermClick={toggleLikeTerm}
-                  interactionLabel="select as a term to combine"
-                />
-              </div>
-              <p className="algebra-like-terms-instruction">
-                Select at least two terms. If they are alike, enter the one term they combine to.
-              </p>
-              {selectedLikeTermIndices.length >= 2 && !currentLikeTermSelection?.valid ? (
-                <p className="algebra-like-terms-feedback is-error">
-                  {currentLikeTermSelection?.reason || 'Those selected terms are not alike.'}
-                </p>
-              ) : null}
-              {currentLikeTermSelection?.valid ? (
-                <div className="algebra-like-terms-answer">
-                  <MathInput
-                    value={likeTermsAnswer}
-                    onChange={setLikeTermsAnswer}
-                    onSubmit={checkLikeTerms}
-                    placeholder="Combined term"
-                    ariaLabel="Enter the single term these selected like terms combine to"
-                    toolProfile="algebra-operation"
-                    compact
-                    maxWidth={360}
-                    focusSignal={likeTermsFocusSignal}
-                    contextSymbols={operationContextSymbols}
-                    collapseSignal={mathToolsCollapseSignal}
-                  />
-                  <button type="button" onClick={checkLikeTerms} disabled={savingStep || cancelAnimating}>
-                    Check combination
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      )}
-
-      {rewriteOpen && !inlineExpressionTools && (
-        <div
-          className="algebra-rewrite-tool algebra-rewrite-tool-compact"
-          style={{
-            margin: '0 0 8px',
-            padding: '7px 9px',
-            borderRadius: 10,
-            border: '1px solid var(--mm-primary-border)',
-            background: 'var(--mm-surface-tint)',
-            boxShadow: '0 2px 8px rgba(23,78,166,.06)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13, whiteSpace: 'nowrap', marginRight: 1 }}>
-              Rewrite
-            </strong>
-
-            <div role="group" aria-label="Choose which side to rewrite" style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
-              {[
-                ['left', 'Left'],
-                ['right', 'Right'],
-                ['both', 'Both'],
-              ].map(([value, label]) => (
-                <button
-                  type="button"
-                  key={value}
-                  onClick={() => {
-                    setRewriteScope(value);
-                    setRewriteAnswers({ left: '', right: '' });
-                    setRewriteFocusSignal((signal) => signal + 1);
-                    setMessage(null);
-                  }}
-                  aria-pressed={rewriteScope === value}
-                  style={{
-                    minHeight: 32,
-                    padding: '4px 9px',
-                    borderRadius: 999,
-                    border: rewriteScope === value ? '2px solid #174ea6' : '1px solid var(--mm-tint-border)',
-                    background: rewriteScope === value ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                    color: rewriteScope === value ? 'var(--mm-primary-text)' : 'var(--mm-text)',
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className="algebra-rewrite-compact-inputs"
-              style={{
-                flex: '1 1 320px',
-                minWidth: 220,
-                display: 'grid',
-                gridTemplateColumns: rewriteScope === 'both'
-                  ? 'repeat(2, minmax(min(100%, 180px), 1fr))'
-                  : 'minmax(min(100%, 220px), 520px)',
-                gap: 7,
-                alignItems: 'center',
-              }}
-            >
-              {rewriteSidesForScope().map((side) => {
-                const primarySide = rewriteScope === 'right' ? 'right' : 'left';
-                return (
-                  <div
-                    key={side}
-                    style={{
-                      minWidth: 0,
-                      display: 'grid',
-                      gridTemplateColumns: '22px minmax(0, 1fr)',
-                      gap: 5,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      title={side === 'left' ? 'Left side' : 'Right side'}
-                      style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', textAlign: 'center' }}
-                    >
-                      {side === 'left' ? 'L' : 'R'}
-                    </span>
-                    <MathInput
-                      value={rewriteAnswers[side] || ''}
-                      onChange={(value) => setRewriteAnswers((current) => ({ ...current, [side]: value }))}
-                      placeholder={side === 'left' ? 'Equivalent left side' : 'Equivalent right side'}
-                      ariaLabel={`Your rewritten ${side} side`}
-                      toolProfile="algebra-operation"
-                      contextSymbols={operationContextSymbols}
-                      compact
-                      maxWidth={520}
-                      focusSignal={side === primarySide ? rewriteFocusSignal : 0}
-                      collapseSignal={mathToolsCollapseSignal}
-                      onSubmit={checkStudentRewrite}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="algebra-check-rewrite"
-              onClick={checkStudentRewrite}
-              disabled={savingStep || cancelAnimating}
-              style={{
-                minHeight: 36,
-                padding: '6px 11px',
-                borderRadius: 8,
-                border: 0,
-                background: '#174ea6',
-                color: '#fff',
-                fontSize: 12,
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Check
-            </button>
-
-            <button
-              type="button"
-              onClick={closeRewriteTool}
-              disabled={savingStep}
-              aria-label="Close Rewrite / Simplify"
-              title="Close"
-              style={{
-                width: 32,
-                height: 32,
-                padding: 0,
-                borderRadius: 999,
-                border: '1px solid var(--mm-tint-border)',
-                background: 'var(--mm-surface)',
-                color: 'var(--mm-text-muted)',
-                fontSize: 18,
-                lineHeight: 1,
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{ marginTop: 4, paddingLeft: 2, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.25 }}>
-            Enter your own equivalent expression. MathMaster checks it; it does not generate it.
-          </div>
-        </div>
+      {simplifyTool && !pendingMove && (
+        <SimplifyPanel
+          regions={simplifyRegions}
+          parts={simplifyParts}
+          state={simplifyTool}
+          update={(change) => setSimplifyTool((current) => (current ? (change(current) ?? current) : current))}
+          onCommit={commitSimplifyResult}
+          notify={(next) => { triggerShake(); setMessage(next); }}
+          onClose={() => { closeSimplifyTool({ returnFocus: true }); setMessage(null); }}
+          disabled={disabled || cancelAnimating}
+          busy={savingStep}
+          contextSymbols={operationContextSymbols}
+          collapseSignal={mathToolsCollapseSignal}
+          boardHighlights={inlineExpressionTools}
+          focusSignal={simplifyFocusSignal}
+          onFocusConsumed={() => setSimplifyFocusSignal(0)}
+          idPrefix={`${localDraftKey || 'step-algebra'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
+        />
       )}
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
         <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)' }}>
           <h3 style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)' }}>Algebraic micro-questions</h3>
-          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
           <div style={{ display: 'grid', gap: '12px' }}>
             {question.algebraPrompts.map((prompt, index) => {
               const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: '22px' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
+              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
             })}
           </div>
         </div>
@@ -3027,6 +2584,8 @@ export default function StepByStepAlgebra({
 
         <div
           data-math-state={equationToLatex(equation)}
+          // A named group (axe: aria-label on a role-less div is prohibited).
+          role="group"
           aria-label="Interactive algebra balance scale"
           className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}${structureFocusSides.length === 1 ? ` has-structure-focus-${structureFocusSides[0]}` : ''}`}
           style={structureFocusColumns
@@ -3059,7 +2618,7 @@ export default function StepByStepAlgebra({
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
                 role={sideTapReady ? 'button' : undefined}
                 tabIndex={sideTapReady ? 0 : undefined}
-                aria-label={sideTapReady ? `Place ${describeOperation(armedTile.operation, operand)} on the ${side} side` : undefined}
+                aria-label={sideTapReady ? `Place ${spokenOperation(armedTile.operation, operandLabel)} on the ${side} side` : undefined}
                 onClick={(event) => tapPlacementOnSide(side, event)}
                 onKeyDown={(event) => {
                   /* Not gated on isMobile any more. A student on a Chromebook
@@ -3145,89 +2704,6 @@ export default function StepByStepAlgebra({
                   />
                 ) : null}
 
-                {inlineExpressionTools && rewriteOpen && inlineRewriteSelection?.side === side ? (
-                  <div className="algebra-inline-mode-controls algebra-inline-editor">
-                    <MathInput
-                      value={inlineRewriteAnswer}
-                      onChange={setInlineRewriteAnswer}
-                      onSubmit={checkInlineRewrite}
-                      placeholder="Equivalent term"
-                      ariaLabel={`Equivalent form for the selected ${side} side term`}
-                      toolProfile="algebra-operation"
-                      compact
-                      maxWidth={300}
-                      focusSignal={inlineRewriteFocusSignal}
-                      contextSymbols={operationContextSymbols}
-                      collapseSignal={mathToolsCollapseSignal}
-                    />
-                    <button
-                      type="button"
-                      className="algebra-inline-commit"
-                      onClick={checkInlineRewrite}
-                      disabled={savingStep || cancelAnimating}
-                    >
-                      Check
-                    </button>
-                    <button
-                      type="button"
-                      className="algebra-inline-clear"
-                      onClick={() => {
-                        setInlineRewriteSelection({ side: null, index: null });
-                        setInlineRewriteAnswer('');
-                        setMessage(null);
-                      }}
-                    >
-                      Clear selection
-                    </button>
-                  </div>
-                ) : null}
-
-                {inlineExpressionTools && likeTermsOpen && likeTermsSide === side && selectedLikeTermIndices.length >= 2 ? (
-                  <div className="algebra-inline-mode-controls algebra-inline-editor">
-                    {currentLikeTermSelection?.valid ? (
-                      <>
-                        <MathInput
-                          value={likeTermsAnswer}
-                          onChange={setLikeTermsAnswer}
-                          onSubmit={checkLikeTerms}
-                          placeholder="Combined term"
-                          ariaLabel="Enter the single term these selected terms combine to"
-                          toolProfile="algebra-operation"
-                          compact
-                          maxWidth={300}
-                          focusSignal={likeTermsFocusSignal}
-                          contextSymbols={operationContextSymbols}
-                          collapseSignal={mathToolsCollapseSignal}
-                        />
-                        <button
-                          type="button"
-                          className="algebra-inline-commit"
-                          onClick={checkLikeTerms}
-                          disabled={savingStep || cancelAnimating}
-                        >
-                          Check
-                        </button>
-                      </>
-                    ) : (
-                      <span className="algebra-inline-mode-feedback">
-                        {currentLikeTermSelection?.reason || 'Those selected terms do not combine as one like term.'}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="algebra-inline-clear"
-                      onClick={() => {
-                        setSelectedLikeTermIndices([]);
-                        setLikeTermsAnswer('');
-                        setLikeTermsSide('');
-                        setMessage(null);
-                      }}
-                    >
-                      Clear selection
-                    </button>
-                  </div>
-                ) : null}
-
                 {cancellationActive && !crossedSides.includes(side) && (
                   <div className="algebra-cancellation-cue">
                     <div>
@@ -3249,7 +2725,7 @@ export default function StepByStepAlgebra({
               </div>
             );
           })}
-          <div ref={equalsRef} className={`algebra-balance-equals ${balanceStagingSide ? 'is-unbalanced' : ''}`} style={{ gridColumn: 2, gridRow: 1 }} aria-label="equals">=</div>
+          <div ref={equalsRef} className={`algebra-balance-equals ${balanceStagingSide ? 'is-unbalanced' : ''}`} style={{ gridColumn: 2, gridRow: 1 }} role="img" aria-label="equals">=</div>
           {balanceStagingSide && <div className="algebra-balance-status" aria-live="polite">Balance not restored · place the same move on the {balanceMissingSide} side</div>}
           <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>
@@ -3268,7 +2744,7 @@ export default function StepByStepAlgebra({
         // is not zero. Solving A = bh for h is not the same statement as
         // A = bh, and a student rearranging formulas should see the condition
         // rather than absorb the idea that it never matters.
-        <p style={{ margin: '10px 2px 0', fontSize: 13, color: 'var(--mm-warning-text)', fontWeight: 700 }}>
+        <p style={{ margin: '10px 2px 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 700 }}>
           This step assumes {pendingMove.assumption}.
         </p>
       )}
@@ -3323,7 +2799,8 @@ export default function StepByStepAlgebra({
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
             aria-label={operandLabel
-              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${describeOperationToken(armedTile.operation, operandLabel).text}`
+              // "Pick up divide by negative 3", not the chip's typeset text ("― / -3").
+              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${spokenOperation(armedTile.operation, operandLabel)}`
               : undefined}
           >
             {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}
@@ -3382,19 +2859,27 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
-      {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? 'var(--mm-success-bg)' : message.tone === 'growth' ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: message.tone === 'success' ? 'var(--mm-success-text)' : message.tone === 'growth' ? 'var(--mm-warning-text)' : 'var(--mm-danger)', fontWeight: 'bold' }}>{message.text}</div>}
-      {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '12px' }}>
-        {/* The level's own sentence promises "Hints are available on request";
-            where the activity withholds hints that is no longer true. */}
-        {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
-        {supportPolicy.inefficientMoveCostsAttempt
-          ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
-          : ' A longer route is still correct algebra here and costs nothing.'}
+      {!publishHints && strategicHint && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint? <span data-hint-cost-note="" style={{ fontWeight: 'normal', fontSize: 'calc(12.5 * var(--mm-px))' }}>{hintCostSentence(hintCostNote)}</span></summary><p style={{ margin: '8px 0 0' }}>{strategicHint}</p></details>}
+      {message && (() => {
+        // Where verdicts are withheld, a message keeps its words but loses its
+        // correctness colour; only a genuine error stays red.
+        const tone = !verdictsShown && message.tone !== 'error' ? 'neutral' : message.tone;
+        const background = tone === 'success' ? 'var(--mm-success-bg)' : tone === 'growth' ? 'var(--mm-warning-bg)' : tone === 'neutral' ? 'var(--mm-surface-tint)' : 'var(--mm-error-bg)';
+        const color = tone === 'success' ? 'var(--mm-success-text)' : tone === 'growth' ? 'var(--mm-warning-text)' : tone === 'neutral' ? 'var(--mm-text-strong)' : 'var(--mm-danger)';
+        return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
+      })()}
+      {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '12px' }}>
+        {/* The level's own sentence is teacher policy ("Nothing is simplified
+            for the student"): a teacher's preview only. It promises "Hints are
+            available on request"; where the activity withholds hints that is
+            no longer true. */}
+        {teacherView ? <span data-support-policy="">{hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}{' '}</span> : null}
+        {/* Decision D1: no move or slip spends a try, at any level. */}
+        {'A longer route is still correct algebra and never uses a try.'}
       </p>}
 
       {heldToken && (
-        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
+        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
       )}
     </section>
   );

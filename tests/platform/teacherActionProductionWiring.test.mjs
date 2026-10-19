@@ -4,10 +4,15 @@ import { readFileSync } from 'node:fs';
 import { projectTestCycleTeacherActions } from '../../src/platform/teacher/testCycleActionProjection.js';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+// The Action Center, the sidebar and the parent-contact screen are mounted by
+// the teacher's screen, its own module since G2; App computes what they show.
+const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
 
 test('production Action Center receives shared authoritative grade-transfer and Test Cycle projections', () => {
-  assert.match(app, /gradeTransferUnits=\{actionGradeScope\.units\}/);
-  assert.match(app, /retestRecoveryActions=\{retestRecoveryActions\}/);
+  assert.match(teacherWorkspace, /gradeTransferUnits=\{actionGradeScope\.units\}/);
+  assert.match(teacherWorkspace, /retestRecoveryActions=\{retestRecoveryActions\}/);
+  assert.match(app, /\n {8}actionGradeScope=\{actionGradeScope\}\n/);
+  assert.match(app, /\n {8}retestRecoveryActions=\{retestRecoveryActions\}\n/);
   assert.match(app, /loadTeacherGradeTransferState/);
   assert.match(app, /listTeacherTestCycleRecords[\s\S]*projectTestCycleTeacherActions/);
 });
@@ -22,8 +27,8 @@ test('canonical Test Cycle rows surface only teacher-action and completed histor
 });
 
 test('parent-contact handoff records contact then appends support resolution', () => {
-  assert.match(app, /sourceAction=\{parentContactSourceAction\}/);
-  assert.match(app, /recordParentContact\([\s\S]{0,700}SUPPORT_EVENT_KIND\.RESOLVED[\s\S]{0,300}resolvesEventId: contact\.sourceEventId/);
+  assert.match(teacherWorkspace, /sourceAction=\{parentContactSourceAction\}/);
+  assert.match(teacherWorkspace, /recordParentContact\([\s\S]{0,700}SUPPORT_EVENT_KIND\.RESOLVED[\s\S]{0,300}resolvesEventId: contact\.sourceEventId/);
 });
 
 test('date-only action keys render as local calendar dates instead of UTC instants', () => {
@@ -33,8 +38,11 @@ test('date-only action keys render as local calendar dates instead of UTC instan
 });
 
 test('sidebar badge keeps only the last projected count after Action Center releases heavy data', () => {
-  assert.match(app, /actionCount=\{teacherActionOpenCount\}/);
-  assert.match(app, /const currentTeacherActionOpenCount = openTeacherActionCount\(teacherActionItems\)/);
+  assert.match(teacherWorkspace, /actionCount=\{teacherActionOpenCount\}/);
+  assert.match(app, /\n {8}teacherActionOpenCount=\{teacherActionOpenCount\}\n/);
+  // The count comes from the teacher kit (app/teacher/teacherKit.js); the
+  // teacher's screen renders only once it is here.
+  assert.match(app, /const currentTeacherActionOpenCount = teacherKit \? teacherKit\.openTeacherActionCount\(teacherActionItems\) : 0;/);
   assert.match(app, /setTeacherActionOpenCountCache\(currentTeacherActionOpenCount\)/);
   assert.match(app, /const teacherActionOpenCount = teacherTab === 'actionCenter'/);
 });

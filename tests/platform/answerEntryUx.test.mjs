@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
+import { region } from './helpers/sourceContract.mjs';
 import {
   answerFocusPosition,
   countAnswerControls,
@@ -110,7 +111,12 @@ test('a restore remount puts the cursor back in the student\'s box, or nowhere',
 test('App records the cursor before a restore remount, for that question only, and QuestionEngine spends it', () => {
   const app = readFileSync('src/App.jsx', 'utf8');
   const engine = readFileSync('src/QuestionEngine.jsx', 'utf8');
-  const restoreBranch = app.slice(app.indexOf('if (restoreQuestionDrafts(restorable)) {'), app.indexOf('sync.noteServerCopy(entries);'));
+  // The branch that remounts after the server read wrote drafts in — a
+  // restore, or a fresh workspace settled against the server's copy.
+  // (The restore leaves out drafts already settled answer by answer, Batch 3.)
+  const restoreStart = app.indexOf('const restored = restoreQuestionDrafts(restorable');
+  assert.notEqual(restoreStart, -1, 'the server read still restores drafts');
+  const restoreBranch = app.slice(restoreStart, app.indexOf('sync.noteServerCopy(entries);', restoreStart));
   assert.match(restoreBranch, /setDraftRestoreFocus\(\{\s*questionIndex: currentQuestionIndexRef\.current,\s*position: answerFocusPosition\(assignmentQuestionStageRef\.current\),\s*\}\);\s*setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/);
   assert.match(app, /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
   assert.match(app, /currentQuestionIndexRef\.current = currentQuestionIndex;\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
@@ -130,6 +136,9 @@ test('shared student runtimes use the answer-entry behavior', () => {
   const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   const pathFields = readFileSync(new URL('../../src/components/student/PathResponseFields.jsx', import.meta.url), 'utf8');
   const secureExam = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
+  // The secure exam's field renderer moved into the shared Rich Question
+  // Runtime (the player is now its adapter); the autofocus lives there.
+  const secureRuntime = readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8');
   // The whole live-challenge surface, not one file: the field rendering moved
   // into LiveChallengeFieldQuestion.jsx and this assertion failed while the
   // autofocus it protects was intact one file over.
@@ -145,7 +154,8 @@ test('shared student runtimes use the answer-entry behavior', () => {
   // (tests/platform/enterContract.test.mjs pins its rules).
   assert.match(engine, /resolveQuestionEnterIntent\(\{/);
   assert.match(pathFields, /onSubmit=\{disabled \? null : onSubmit\}/);
-  assert.match(secureExam, /autoFocus=\{fieldIndex === 0\}/);
+  assert.match(secureExam, /<RichQuestionRuntime\b/);
+  assert.match(region(secureRuntime, 'const FieldItem = (', 'const ToolItem = (', 'the secure field renderer'), /autoFocus=\{fieldIndex === 0\}/);
   assert.match(live, /autoFocus=\{fieldIndex === 0\}/);
   assert.match(shell, /resolveToolEnterAction\(\{ field: event\.target, shell: shellRef\.current \}\)/);
   assert.match(engine, /shouldAdvanceOnEnter/);

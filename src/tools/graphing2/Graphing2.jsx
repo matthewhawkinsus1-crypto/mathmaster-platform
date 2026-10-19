@@ -7,11 +7,15 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useOwnHintLadder, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
-import { formatLine, lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
+import { placePoint } from './placePoint.js';
+import MathDisplay from '../../MathDisplay';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
 
@@ -56,12 +60,17 @@ const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 // What to do next, in one sentence. Used by the progress pill inside the tool
 // and registered as the Work View current instruction, so the enlarged view
 // says the same thing the embedded one does instead of inventing its own.
-const nextInstruction = (plottedCount, requiredCount = 2) => (
+// `finalLabel` is the host's name for the final action where it has one (a
+// secure item's "Record answer"): there, pressing it spends the only attempt,
+// so the pill must not invite a "check".
+const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => (
   plottedCount === 0
-    ? 'Click the grid to plot your first point.'
+    ? 'Plot your first point: click or tap the grid, or focus it and use the arrow keys and Enter.'
     : plottedCount < requiredCount
       ? `Now plot point ${plottedCount + 1} of ${requiredCount} on the same line.`
-      : `All ${requiredCount} points plotted — check your construction.`
+      : finalLabel
+        ? `All ${requiredCount} points plotted — move any point, or press ${finalLabel} when you are done.`
+        : `All ${requiredCount} points plotted — check your construction.`
 );
 
 // What the form-aware policy needs to see, before any point is checked, so
@@ -84,7 +93,7 @@ const targetPrompt = (questionData, target) => {
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${questionData.standard?.A}x + ${questionData.standard?.B}y = ${questionData.standard?.C}.`;
   if (mode === 'verticalHorizontal') return `Graph ${questionData.orientation === 'vertical' ? 'x = ' : 'y = '}${questionData.value}.`;
-  return `Graph ${formatLine(target)}.`;
+  return `Graph ${lineReadoutText(target) || 'the line'}.`;
 };
 
 // Whole-number snapping unless the line genuinely lives between the gridlines.
@@ -104,37 +113,41 @@ const resolveSnapStep = (questionData, target) => {
   return Number.isInteger(m) && Number.isInteger(b) ? 1 : 0.5;
 };
 
-const hintsForMode = (mode, target, questionData) => {
+/*
+ * THE RUNGS NAME THE MOVE, NEVER THE POINTS TO PLOT (student pass 3, HELP-10).
+ * The last rung of every mode used to state the answer — "Plot (0, 3) and
+ * (2, 3)", "…landing on (2, 7)" — and three taps on "Stuck? Show a hint"
+ * reached it with no attempt. A rung may restate what the question gives (the
+ * point of a point-slope question, the slope as written) and say how to use
+ * it; the points the student must find stay theirs. The ladder itself is now
+ * the platform's (one more hint per attempt, and a leak guard).
+ */
+export const hintsForMode = (mode, target, questionData) => {
   const common = 'Two points are enough to determine a line — pick the two that are easiest to read exactly.';
   if (mode === 'verticalHorizontal') {
     const vertical = questionData.orientation === 'vertical';
     return [
       vertical ? 'A vertical line has the same x-value at every single point.' : 'A horizontal line has the same y-value at every single point.',
       vertical ? `Every point on this line looks like (${questionData.value}, ?) — the y-value can be anything.` : `Every point on this line looks like (?, ${questionData.value}) — the x-value can be anything.`,
-      vertical ? `Plot (${questionData.value}, 0) and (${questionData.value}, 2).` : `Plot (0, ${questionData.value}) and (2, ${questionData.value}).`,
+      vertical ? 'Choose any two y-values, and plot the two points that use them with that same x-value.' : 'Choose any two x-values, and plot the two points that use them with that same y-value.',
     ];
   }
   if (mode === 'throughPoints') {
-    const given = questionData.givenPoints || [];
     return [
       'The two purple points are already on the line. You need to plot those same two locations yourself.',
       'Read each purple point carefully: go across for x first, then up or down for y.',
-      given.length >= 2 ? `Plot ${formatPoint(given[0])} and ${formatPoint(given[1])}.` : common,
+      'Plot your point exactly on top of each purple point, then check that the two readings match.',
     ];
   }
   if (mode === 'pointSlope') {
     const point = questionData.point || [0, 0];
-    const slope = Number(questionData.slope);
     const step = slopeStepForHint(questionData.slope);
-    const secondPoint = step
-      ? [Number(point[0]) + step.run, Number(point[1]) + step.rise]
-      : Number.isFinite(slope) ? [Number(point[0]) + 1, Number(point[1]) + slope] : null;
     return [
       `Start at the given point ${formatPoint(point)}. Slope tells you how to step to a second point.`,
       step
         ? `Slope ${formatSlopeForHint(questionData.slope)} means rise over run: use a run of ${step.run} and a rise of ${step.rise}.`
         : `Slope ${formatSlopeForHint(questionData.slope)} tells you the vertical change for each horizontal step.`,
-      secondPoint ? `Plot ${formatPoint(point)} and ${formatPoint(secondPoint)}.` : common,
+      'From the given point, take that step — across for the run, up or down for the rise — and plot where you land.',
     ];
   }
   if (mode === 'standardForm') {
@@ -145,11 +158,10 @@ const hintsForMode = (mode, target, questionData) => {
     ];
   }
   if (mode === 'factoredLinear') {
-    const a = Number(questionData.factored?.a); const c = Number(questionData.factored?.c);
     return [
       'In y = a(x − c), c identifies the zero/x-intercept and a is the slope.',
-      Number.isFinite(c) ? `Plot the x-intercept (${c}, 0) yourself first.` : 'Plot the x-intercept first.',
-      Number.isFinite(a) && Number.isFinite(c) ? `Then use slope ${formatSlopeForHint(a)} to establish another valid point from (${c}, 0).` : common,
+      'The x-intercept is where y = 0, which in y = a(x − c) happens when x = c. Plot it yourself first.',
+      'Then use the slope a to step from the x-intercept to another point on the line.',
     ];
   }
   const m = target ? Number(target.m) : Number.NaN;
@@ -157,9 +169,9 @@ const hintsForMode = (mode, target, questionData) => {
   const step = slopeStepForHint(m);
   return [
     'In y = mx + b, the b is where the line crosses the y-axis. Start there.',
-    Number.isFinite(b) ? `Plot the y-intercept at (0, ${b}) first.` : 'Plot the y-intercept first.',
+    'The y-intercept is the point on the y-axis, where x = 0. Plot it first.',
     Number.isFinite(m) && Number.isFinite(b) && step
-      ? `From (0, ${b}), slope ${formatSlopeForHint(m)} means use a run of ${step.run} and a rise of ${step.rise}, landing on ${formatPoint([step.run, b + step.rise])}.`
+      ? `From the y-intercept, slope ${formatSlopeForHint(m)} means use a run of ${step.run} and a rise of ${step.rise}. Plot where that step lands.`
       : Number.isFinite(m) && Number.isFinite(b)
         ? `Use the slope ${formatSlopeForHint(m)} to locate a second exact point on the line.`
         : common,
@@ -178,7 +190,18 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own only where the host has none (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
+  const checkLabel = useSubmitLabel('Check construction');
+  const hostSubmitLabel = useHostSubmitLabel();
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
+  // "Your line: y = 2x − 1" beside a task that says "Graph y = 2x − 1" is a
+  // free check of the answer before it is submitted — MathMaster converting
+  // the construction back into the target's own form. It follows the same
+  // permission as every other self-check (QuestionEngine selfCheckAllowed):
+  // on in practice, absent on a DOL, quiz or secure Test. The plotted points
+  // themselves are always listed; they are the student's own construction.
+  const showLineReadout = hintsAllowed;
   // The student's work, exactly as Check submits it and as a deadline would
   // carry it: the plotted points, plus the "Your line" readout they see. The
   // shared grader marks the points; nothing here is a verdict or a key.
@@ -194,10 +217,16 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
   const anchorNote = anchorInstruction(mode, policy);
+  // The snap step is worked out from the answer line, so "the nearest 0.5"
+  // tells a student the slope or intercept is not whole. Said plainly where
+  // the activity withholds the method (R-10); the anchor note is a grading
+  // requirement and stays.
+  const methodWithheld = useMethodWithheld();
 
   const plot = (point) => {
     clearFeedback();
-    setPoints((current) => (current.length >= requiredPointCount ? [point] : [...current, point]));
+    // A point past the last replaces the nearest one; it no longer restarts the line (placePoint.js).
+    setPoints((current) => placePoint(current, point, requiredPointCount));
   };
 
   /*
@@ -258,9 +287,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
   });
 
   const clear = () => { setPoints([]); clearFeedback(); };
+  // Start over empties the construction and so disables itself: it keeps the
+  // focus it had instead of dropping it to the page (A11Y-2).
+  const startOverAvailability = useFocusSafeDisabled(points.length > 0);
 
   const plottedPoints = [
-    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc' })),
+    // Given points are squares and the student's are dots, so "given" and
+    // "yours" never rest on purple vs blue alone (A11Y-4); each is labelled too.
+    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc', shape: 'square' })),
     ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
@@ -309,14 +343,16 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const constructionIncomplete = !constructionReadyToCheck(points, questionData);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
-    equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
-    instruction: { text: nextInstruction(points.length, requiredPointCount) },
+    equationInput: { label: studentLine && showLineReadout ? `Your line: ${lineReadoutText(studentLine)}` : 'Your line', studentState: true },
+    // Where to click and how many points: controls (W6-4), kept on a DOL.
+    instruction: { text: nextInstruction(points.length, requiredPointCount, hostSubmitLabel), controlsOnly: true },
     task: { text: targetPrompt(normalizedQuestion, target) },
     // The hints ARE this Help. Where the activity withholds them the panel
     // renders nothing, so publishing it would leave a Help button over an
-    // empty drawer; the platform's own directions stand in instead.
-    help: hintsAllowed ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
-    primaryActions: [{ id: 'check-construction', label: 'Check construction', onAction: check, disabled: constructionIncomplete }],
+    // empty drawer; the platform's own directions stand in instead. Inside a
+    // question with the platform ladder, that ladder is the Help (HELP-10).
+    help: ownHintLadder ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
+    primaryActions: [{ id: 'check-construction', label: checkLabel, onAction: check, disabled: constructionIncomplete }],
     secondaryActions: [{ id: 'start-over', label: 'Start over', onAction: clear, disabled: !points.length }],
   };
 
@@ -329,17 +365,20 @@ export default function Graphing2({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={targetPrompt(normalizedQuestion, target)}
+        stepsAreControls
         steps={[
           'Click the grid to plot a point. A crosshair shows the exact coordinate before you click.',
           requiredPointCount > 2
             ? `Plot ${requiredPointCount - 1} more points on the same line — the line is drawn for you automatically.`
             : 'Plot a second point on the same line — the line is drawn for you automatically.',
-          `Press Check construction when all ${requiredPointCount} points are where you want them.`,
+          `Press ${checkLabel} when all ${requiredPointCount} points are where you want them.`,
         ]}
         note={[
-          snapStep === 1
-            ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
-            : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`,
+          methodWithheld
+            ? 'Points snap to the grid as you place them.'
+            : snapStep === 1
+              ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
+              : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`,
           anchorNote,
         ].filter(Boolean).join(' ')}
       />
@@ -359,14 +398,18 @@ export default function Graphing2({ questionData = {}, onAction }) {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '8px 12px',
             borderRadius: 999, background: points.length >= requiredPointCount ? 'var(--mm-success-bg)' : 'var(--mm-primary-soft)',
-            color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13,
+            color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
           }}>
             <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
-            <span>{nextInstruction(points.length, requiredPointCount)}</span>
+            <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
           </div>
           <CoordinatePlane
             {...bounds}
+            // Authored per question (graphBounds.equalUnits, R-1): a line
+            // figure where the angle is the point. Coordinates are unchanged.
+            equalUnits={bounds.equalUnits === true}
             onPlot={plot}
+            plotProgress={`${points.length} of ${requiredPointCount} ${requiredPointCount === 1 ? 'point' : 'points'} plotted.`}
             onMovePoint={movePoint}
             viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={snapStep}
@@ -383,39 +426,43 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {verticalStudentLine}
           </CoordinatePlane>
           {givenPoints.length ? (
-            <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginBottom: 0 }}>
-              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#8a3ffc', marginRight: 6 }} />
-              Purple points are given to you. Blue points are yours.
+            <p data-graphing-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#8a3ffc', marginRight: 6, verticalAlign: 'middle' }} />Purple squares labelled “given” are given to you.</span>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Blue dots labelled P1, P2 are yours.</span>
             </p>
           ) : null}
         </Panel>
 
         <Panel title="Your construction">
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
-            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Points plotted</dt>
+            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Points plotted</dt>
             <dd style={{ margin: 0, fontWeight: 700 }}>{points.length ? points.map(formatPoint).join(' and ') : 'None yet'}</dd>
-            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Your line</dt>
-            <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
+            {showLineReadout ? (
+              <>
+                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Your line</dt>
+                {/* Typeset, in exact fractions: "y = ⅔x + 2", never "y = 0.66666667x + 2" or "y = 1x + 0" (TOOL-7). */}
+                <dd data-line-readout={studentLine ? lineReadoutText(studentLine) : ''} style={{ margin: 0, fontWeight: 700 }}>{studentLine ? <MathDisplay value={lineReadoutLatex(studentLine)} format="latex" inline /> : 'Plot two different points'}</dd>
+              </>
+            ) : null}
           </dl>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
             <button type="button" onClick={check} disabled={constructionIncomplete} style={{ ...primaryButton, opacity: constructionIncomplete ? 0.5 : 1, cursor: constructionIncomplete ? 'not-allowed' : 'pointer' }}>
-              Check construction
+              {checkLabel}
             </button>
             {/* "Undo last point" used to sit here. Universal Undo covers it
                 now: the platform control beside Submit takes the last plotted
                 point back, and unlike the local button it keeps working after a
                 point has been dragged. Start over is not undo — it discards
                 both points at once — so it stays. */}
-            <button className="mm-button-neutral" type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
+            <button className="mm-button-neutral" type="button" onClick={() => { if (points.length) clear(); }} {...startOverAvailability} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>
           </div>
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>
           ) : null}
 

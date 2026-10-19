@@ -17,6 +17,7 @@ import test from 'node:test';
 import { executableSource } from './helpers/sourceContract.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
+const dialogSource = read('src/ui/Dialog.jsx');
 
 for (const [name, path] of [
   ['Find palette', 'src/components/teacher/TeacherQuickSearch.jsx'],
@@ -26,8 +27,14 @@ for (const [name, path] of [
   test(`${name}: no effect re-runs because the parent re-rendered`, () => {
     const source = read(path);
     assert.doesNotMatch(source, /\}, \[[^\]]*\bonClose\b[^\]]*\]\);/, 'no effect depends on the onClose prop');
-    assert.match(source, /const onCloseRef = useRef\(onClose\);/);
-    assert.match(source, /onCloseRef\.current\?\.\(\)/, 'Escape uses the latest onClose');
+    // Escape uses the latest onClose: through the panel's own ref, or handed
+    // to the shared Dialog, which reads it through a ref refreshed every render.
+    const ownRef = /const onCloseRef = useRef\(onClose\);/.test(source) && /onCloseRef\.current\?\.\(\)/.test(source);
+    const viaDialog = /<Dialog\b[^>]*\bonClose=\{onClose\}/.test(source)
+      && /const onCloseRef = useRef\(onClose\);\n\s*const escapeRef = useRef\(closeOnEscape\);\n\s*onCloseRef\.current = onClose;/.test(dialogSource)
+      && /onCloseRef\.current\(event\);/.test(dialogSource)
+      && !/\[[^\]]*\bonClose\b[^\]]*\]\);/.test(dialogSource);
+    assert.ok(ownRef || viaDialog, 'Escape uses the latest onClose');
   });
 }
 

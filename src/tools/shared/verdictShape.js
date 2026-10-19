@@ -26,6 +26,30 @@ export const verdictTextLength = (node) => {
   return 0;
 };
 
+/** The visible words of a verdict's children, in the same reading as verdictTextLength. */
+export const verdictText = (node) => {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(verdictText).join('');
+  if (typeof node === 'object' && node.props) return verdictText(node.props.children);
+  return '';
+};
+
+/**
+ * The words a screen reader hears from a tool with its attempt's outcome
+ * (student pass 3, A11Y-1): the tool's coaching when it gave some, else the
+ * verdict itself, since several tools put the whole sentence in the pill. Each
+ * ends as a sentence, so it is not run into the words after it.
+ */
+const asSentence = (text) => {
+  const words = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!words) return '';
+  return /[.!?…:]$/.test(words) ? words : `${words}.`;
+};
+export const verdictWords = ({ verdict = null, coaching = null } = {}) => (
+  asSentence(verdictText(coaching)) || asSentence(verdictText(verdict))
+);
+
 /**
  * Whether a measured pill holds more than one line. Its content box is compared
  * with one and a half lines: one line of text is a line-height tall, two are

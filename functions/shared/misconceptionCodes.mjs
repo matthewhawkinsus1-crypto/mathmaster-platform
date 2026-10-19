@@ -13,9 +13,22 @@
 //
 // A CODE IS EVIDENCE, NEVER A GRADE. Classification runs after grading, on a
 // copy of its result, and nothing it returns is read by the attempt policy:
-// correctness, score, partial credit, attempts, accommodations and what the
-// student is shown are identical with and without it
+// correctness, score, partial credit, attempts, accommodations and the
+// recorded evidence are identical with and without it
 // (functions/shared/misconceptionClassifiers.mjs).
+//
+// WHAT THE STUDENT IS SHOWN MAY DIFFER — AND ONLY AS DISPLAY. After a graded
+// miss whose outcome feedback is open, the classroom engine runs the same pure
+// classifiers on its own copy of the shared grader's result and shows a
+// non-revealing message for the code (misconceptionStudentMessages.mjs;
+// src/platform/supports/feedback/missDiagnosis.js). That display code is never
+// stored, never sent with the attempt and never read by the attempt policy:
+// the evidence is still only what the server classifies at ingestion. Nothing
+// is shown while an assessment item can still be answered. The one trace the
+// display leaves is a support fact, not a code: the NEXT attempt records
+// feedbackAssisted (a specific message was on screen before it), exactly as a
+// revealed hint records hintUsed — help received, not a diagnosis
+// (src/platform/supports/supportUseMemory.js; PR #462 review M6c).
 //
 // WHERE A CODE IS STORED, AND THE ONLY PLACE IT IS READ FROM:
 //
@@ -269,6 +282,20 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     evidenceRequired: 'Absolute value instance: both submitted solutions are the same correct solution.',
     teks: ['A2.6E'],
   }),
+  // --- Linear: the form of a line's equation (student pass 3, R-3) ---------------------
+  ...[
+    ['slope-intercept', 'slope-intercept form (y = mx + b)'],
+    ['point-slope', 'point-slope form (y − y₁ = m(x − x₁))'],
+    ['standard', 'standard form (Ax + By = C)'],
+  ].map(([form, name]) => code({
+    id: `line-wrong-form-${form}`,
+    concept: 'linear-forms',
+    domain: 'linear',
+    label: `Right line, not in ${name}`,
+    teacherMeaning: `The equation describes the correct line, but it is not written in ${name}, the form the question asks for (or, when the question names none, the form its key is written in).`,
+    evidenceRequired: `multiAnswer field: the submitted equation and the field's key have the same graph; the field was graded wrong; the form asked for is ${name} (named by the field's label or prompt, or the key's own form, and the two do not disagree); and the submitted equation is not written in it.`,
+    teks: ['A.2B'],
+  })),
   // --- Quadratics ---------------------------------------------------------------------
   code({
     id: 'vertex-x-sign-reversed',
@@ -331,6 +358,9 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   ...['full', 'unrecognized', 'association'].map((mode) => classifier(`tool:dataModelingLab/${mode}`, 1, ['correlation-direction-reversed', 'correlation-treated-as-causation'])),
   // The correlation view asks for r and its reading; it shows no causation choice.
   classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
+  // --- Student pass 3 (additive under registry v1) ---
+  // An ordinary multiAnswer field: the right line in the wrong form.
+  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard']),
 ]);
 const CLASSIFIER_BY_ID = new Map(MISCONCEPTION_CLASSIFIERS.map((entry) => [entry.id, entry]));
 

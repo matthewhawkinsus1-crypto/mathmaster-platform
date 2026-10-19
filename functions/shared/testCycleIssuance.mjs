@@ -83,9 +83,30 @@ const pick = (pool, seedKey) => {
  * that can only produce one fixed question would hand a student the identical
  * item back, which is the thing a retest must never do.
  */
-const chooseFamily = ({ slot, approved, avoidFamilyIds, usedInPlan, seedKey }) => {
+const chooseFamily = ({ slot, approved, avoidFamilyIds, usedInPlan, seedKey, preferredTools = null }) => {
   const candidates = slot.familyIds.filter((familyId) => approved.has(familyId));
   if (!candidates.length) return null;
+
+  // THE TOOL IS PART OF THE SKILL — BUT NEVER AT THE PRICE OF THE SAME ITEM.
+  // Where the student met this target with a tool on the Test (graphing, a
+  // number line, response fields), the retest reaches first for a family on
+  // that tool the student has not seen, then for one they have seen that
+  // draws fresh PARAMETERS (a genuinely new item on the same tool), and only
+  // then falls back to the order below. A variants-only family the student
+  // saw is never chosen for its tool: it can land on the very same question.
+  // A target that names its tool is held to it by preflight.
+  if (preferredTools?.size) {
+    const onTool = (familyId) => preferredTools.has(approved.get(familyId)?.toolId || 'fields');
+    const unseenOnTool = candidates.filter((familyId) => onTool(familyId) && !avoidFamilyIds.has(familyId) && !usedInPlan.has(familyId));
+    if (unseenOnTool.length) {
+      return { familyId: pick(unseenOnTool, seedKey), reusedFamily: false, freshParallelVariant: false };
+    }
+    const freshOnTool = candidates.filter((familyId) => onTool(familyId) && !usedInPlan.has(familyId) && approved.get(familyId)?.parameterGenerator);
+    if (freshOnTool.length) {
+      const familyId = pick(freshOnTool, seedKey);
+      return { familyId, reusedFamily: avoidFamilyIds.has(familyId), freshParallelVariant: avoidFamilyIds.has(familyId) };
+    }
+  }
 
   const unseenAndUnused = candidates.filter(
     (familyId) => !avoidFamilyIds.has(familyId) && !usedInPlan.has(familyId),
@@ -125,6 +146,9 @@ export const buildSecureIssuancePlan = ({
   attempt = 1,
   avoidFamilyIds = [],
   avoidInstanceIds = [],
+  // { [targetId]: ['graphing2' | 'fields' | …] } — the tools the student
+  // answered each target with on the Test. Retest only.
+  preferredToolsByTarget = null,
 } = {}) => {
   const normalized = normalizeTestBlueprint(blueprint);
   const approved = indexApprovedFamilies(families);
@@ -146,7 +170,11 @@ export const buildSecureIssuancePlan = ({
 
   slots.forEach((slot) => {
     const slotSeed = `${planId}|${slot.slotId}`;
-    const chosen = chooseFamily({ slot, approved, avoidFamilyIds: avoidSet, usedInPlan, seedKey: slotSeed });
+    const preferred = list(preferredToolsByTarget?.[slot.targetId]).map(clean).filter(Boolean);
+    const chosen = chooseFamily({
+      slot, approved, avoidFamilyIds: avoidSet, usedInPlan, seedKey: slotSeed,
+      preferredTools: preferred.length ? new Set(preferred) : null,
+    });
     if (!chosen?.familyId) {
       unfilledSlots.push({ slotId: slot.slotId, targetId: slot.targetId, reason: 'no_approved_family' });
       return;

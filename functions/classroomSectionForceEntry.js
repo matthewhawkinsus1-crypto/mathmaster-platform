@@ -1,10 +1,11 @@
 "use strict";
 
 const crypto = require("crypto");
-const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const classroomLib = require("./lib/classroom");
+const classroomPushQueue = require("./lib/classroomPushQueue");
 const { readPublicEnv } = require("./lib/config");
 const { encryptLaunchPayload } = require("./lib/linkToken");
 const {
@@ -93,32 +94,25 @@ async function queueGradeSignalForAssignmentAudience({ db, assignmentId, assignm
   const classIds = assignmentClassIds(assignment);
   if (!classIds.length) return 0;
 
-  const byPath = new Map();
+  const studentIds = new Set();
   for (const classId of classIds) {
+    // References only: a grade document is a student's whole year.
     // eslint-disable-next-line no-await-in-loop
-    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
-    snapshot.docs.forEach((doc) => byPath.set(doc.ref.path, doc));
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select().get();
+    snapshot.docs.forEach((doc) => studentIds.add(doc.id));
   }
 
-  const gradeDocs = [...byPath.values()];
-  const requestedAt = new Date().toISOString();
-  for (let offset = 0; offset < gradeDocs.length; offset += 400) {
-    const batch = db.batch();
-    gradeDocs.slice(offset, offset + 400).forEach((gradeDoc) => {
-      batch.update(
-        gradeDoc.ref,
-        new FieldPath("classroomReleaseSignals", assignmentId),
-        // A forced repost replaces the Google CourseWork destination but keeps
-        // the same MathMaster publication id. Mark this as a manual retry so
-        // the section sync cannot skip an equal grade merely because the old
-        // CourseWork already received that grade.
-        { requestedAt, reason: "manual-retry" }
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
-  return gradeDocs.length;
+  // A forced repost replaces the Google CourseWork destination but keeps the
+  // same MathMaster publication id. Mark this as a manual retry so the section
+  // sync cannot skip an equal grade merely because the old CourseWork already
+  // received that grade. Queued, a minute's worth at a time
+  // (lib/classroomPushQueue.js).
+  return classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId,
+    studentIds: [...studentIds],
+    reason: "manual-retry",
+    source: "force-republish",
+  });
 }
 
 async function forceOneSection({

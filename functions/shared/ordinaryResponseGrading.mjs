@@ -21,6 +21,7 @@ import {
   compareMathAnswer,
   compareOrderedPair,
   matchesAnyAnswer,
+  matchesAnyNumberWithThousandsSeparators,
   matchesFieldAnswer,
   normalizeMathAnswer,
   parseOrderedPair,
@@ -119,7 +120,11 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
   const answer = text(rawAnswer);
   const accepted = list(question.acceptedAnswers);
   const isComplete = answer.trim() !== '';
-  const isCorrect = isComplete && matchesAnyAnswer(answer, accepted);
+  // A literal answer is one value, so `8,050` for a key of 8050 (or the
+  // reverse) is the same number. matchesAnyAnswer itself stays comma-literal
+  // because multiAnswer list fields reach it too.
+  const isCorrect = isComplete && (matchesAnyAnswer(answer, accepted)
+    || matchesAnyNumberWithThousandsSeparators(answer, accepted));
   return {
     isComplete,
     isCorrect,
@@ -282,7 +287,8 @@ export const gradeTableResponse = (question = {}, responsesByKey = {}) => {
       label: `Table blank ${key}`,
       graded,
       isComplete: response.trim() !== '',
-      isCorrect: graded && response.trim() !== '' && compareMathAnswer(response, answers[key]),
+      isCorrect: graded && response.trim() !== '' && (compareMathAnswer(response, answers[key])
+        || matchesAnyNumberWithThousandsSeparators(response, [answers[key]])),
       response,
     };
   });

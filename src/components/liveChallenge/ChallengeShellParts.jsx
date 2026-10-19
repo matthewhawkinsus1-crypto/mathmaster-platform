@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { challengeClock, formatChallengeClock, stageHasOpenRound } from '../../platform/liveChallenge/challengeShellModel.js';
-import { useLatest, usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge/challengeHooks.js';
+import { usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge/challengeHooks.js';
 import { formatPoints, standingsWindow } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { SHELL_CSS } from './challengeShellCss.js';
+import Dialog from '../../ui/Dialog.jsx';
 
 /*
  * THE SHARED LIVE CHALLENGE SHELL: pieces every screen uses.
@@ -27,7 +28,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: 'var(--mm-success-text)',
     down: 'var(--mm-error-text)',
     gold: '#b06000',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
   projector: Object.freeze({
@@ -42,7 +43,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#8df7c9',
     down: '#ffb4ab',
     gold: '#ffd166',
-    size: 'clamp(16px, 1.7vw, 24px)',
+    size: 'clamp(calc(16 * var(--mm-px)), calc(1.7vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))',
     rowHeight: 'clamp(40px, 6vh, 56px)',
   }),
   student: Object.freeze({
@@ -57,7 +58,7 @@ export const SHELL_LOOKS = Object.freeze({
     up: '#81c995',
     down: '#ffb4ab',
     gold: '#fdd663',
-    size: 15,
+    size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
 });
@@ -112,9 +113,9 @@ export function ChallengeCountdown({ clock, look = 'projector', title = '', deta
   const fontSize = size || (look === 'projector' ? 'clamp(120px, 28vh, 260px)' : look === 'student' ? 'clamp(88px, 22vw, 150px)' : 96);
   return (
     <div className="mm-shell-count" data-mm-countdown={go ? 'go' : String(step)} style={{ color: style.text, padding: look === 'console' ? 12 : 20 }}>
-      {title && <div style={{ fontSize: look === 'projector' ? 'clamp(20px, 2.6vw, 34px)' : 18, fontWeight: 900, color: style.accent, letterSpacing: '.04em', textTransform: 'uppercase' }}>{title}</div>}
+      {title && <div style={{ fontSize: look === 'projector' ? 'clamp(calc(20 * var(--mm-px)), calc(2.6vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: style.accent, letterSpacing: '.04em', textTransform: 'uppercase' }}>{title}</div>}
       <div key={text} className="mm-shell-count-number" aria-hidden="true" style={{ fontSize, color: go ? style.good : style.text }}>{text}</div>
-      <div aria-live="polite" style={{ fontSize: look === 'projector' ? 'clamp(18px, 2vw, 28px)' : 16, fontWeight: 800, color: style.muted }}>
+      <div aria-live="polite" style={{ fontSize: look === 'projector' ? 'clamp(calc(18 * var(--mm-px)), calc(2vw * var(--mm-text-scale, 1)), calc(28 * var(--mm-px)))' : 'calc(16 * var(--mm-px))', fontWeight: 800, color: style.muted }}>
         {go ? 'Go!' : `Get ready… ${step}`}{detail ? ` · ${detail}` : ''}
       </div>
     </div>
@@ -157,9 +158,20 @@ export function StandingsBoard({
   // How many are playing, when `rows` is only the top of the class and the
   // viewer's own row (a student's standings snapshot).
   totalCount = null,
+  // (hidden) -> the line under a board that leaves players off. A class-wide
+  // board (the projector) says everyone sees their own place on their device
+  // (liveChallengeProjectorModel.projectorMoreText); default "and N more players".
+  describeMore = null,
+  // A public list already decided (liveChallengeProjectorModel.publicStandingsRows:
+  // never a place tied with the last, never one player left unnamed). When
+  // given, it is drawn as it is: its rows, the viewer's own row, its note.
+  board = null,
 }) {
   const style = lookOf(look);
-  const visible = standingsWindow(rows, { limit, selfKey, total: totalCount });
+  const visible = board
+    ? { top: board.rows, self: board.self, hiddenCount: board.hiddenCount + (board.self ? 1 : 0), total: board.totalCount }
+    : standingsWindow(rows, { limit, selfKey, total: totalCount });
+  const unseen = visible.hiddenCount - (visible.self ? 1 : 0);
   if (!visible.total) return <p style={{ margin: 0, color: style.muted }}>{emptyText}</p>;
   const unit = presentation?.total?.short || 'pts';
   const renderRow = (row) => {
@@ -218,9 +230,9 @@ export function StandingsBoard({
           {renderRow(visible.self)}
         </ol>
       )}
-      {visible.hiddenCount > (visible.self ? 1 : 0) && (
-        <div style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          and {visible.hiddenCount - (visible.self ? 1 : 0)} more {visible.hiddenCount - (visible.self ? 1 : 0) === 1 ? 'player' : 'players'}
+      {unseen > 0 && (
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
+          {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
         </div>
       )}
     </div>
@@ -242,13 +254,15 @@ export const roundPerformanceText = (row, presentation) => {
  * One round's results: place in the round, what each player did, and — when
  * a round's place earns the match points (Grand Prix) — the points it earned.
  */
-export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null }) {
+// `board`: a public list already decided (publicStandingsRows), drawn as it is.
+export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null, board = null }) {
   const style = lookOf(look);
   if (!view) return <p style={{ margin: 0, color: style.muted }}>Tallying the round…</p>;
   const rows = view.rows || [];
   if (!rows.length) return <p style={{ margin: 0, color: style.muted }}>Nobody played this round.</p>;
-  const shown = rows.slice(0, limit);
-  const self = selfKey ? rows.find((row) => row.isSelf && !shown.includes(row)) : null;
+  const shown = board ? board.rows : rows.slice(0, limit);
+  const self = board ? board.self : selfKey ? rows.find((row) => row.isSelf && !shown.includes(row)) : null;
+  const unseen = board ? board.hiddenCount : rows.length - shown.length - (self ? 1 : 0);
   const renderRow = (row) => (
     <li key={row.playerKey || row.alias} data-mm-round-result={row.playerKey || ''} style={{
       display: 'grid', gridTemplateColumns: `${look === 'projector' ? '3.4em' : '52px'} minmax(0,1fr) auto auto`, gap: 10, alignItems: 'center',
@@ -268,9 +282,9 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
     <div style={{ display: 'grid', gap: 6 }}>
       <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>{shown.map(renderRow)}</ol>
       {self && <ol aria-label="Your round result" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{renderRow(self)}</ol>}
-      {rows.length > shown.length + (self ? 1 : 0) && (
-        <div style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(14px, 1.4vw, 20px)' : 13, paddingLeft: 4 }}>
-          and {rows.length - shown.length - (self ? 1 : 0)} more
+      {unseen > 0 && (
+        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
+          {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more`}
         </div>
       )}
     </div>
@@ -283,54 +297,22 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
  * that opened it. Harmless controls never ask.
  */
 export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', cancelLabel = 'Keep playing', onConfirm, onCancel, busy = false }) {
-  const dialogRef = useRef(null);
   const cancelRef = useRef(null);
-  const openerRef = useRef(null);
-  // Read through a ref: the console re-renders with a new onCancel every time
-  // a student's progress arrives, and re-running the effect on each one would
-  // pull focus back to "Keep playing" from under a teacher's keyboard.
-  const onCancelRef = useLatest(onCancel);
-  useEffect(() => {
-    if (!open) return undefined;
-    openerRef.current = document.activeElement;
-    cancelRef.current?.focus();
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        onCancelRef.current?.();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      // A modal dialog keeps Tab inside it.
-      const buttons = [...(dialogRef.current?.querySelectorAll('button:not([disabled])') || [])];
-      if (!buttons.length) return;
-      const first = buttons[0];
-      const last = buttons[buttons.length - 1];
-      const inside = dialogRef.current.contains(document.activeElement);
-      if (!inside || (event.shiftKey && document.activeElement === first)) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      openerRef.current?.focus?.();
-    };
-  }, [open, onCancelRef]);
+  // Dialog focuses "Keep playing", traps Tab, cancels on Escape and returns
+  // focus. It reads onCancel through a ref and focuses once per opening: the
+  // console re-renders with a new onCancel every time a student's progress
+  // arrives, and that must not pull focus from under a teacher's keyboard.
   if (!open) return null;
   return (
     <div className="mm-shell-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel?.(); }}>
-      <div ref={dialogRef} role="alertdialog" aria-modal="true" aria-labelledby="mm-shell-dialog-title" aria-describedby="mm-shell-dialog-body" className="mm-shell-dialog">
-        <div id="mm-shell-dialog-title" style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>{title}</div>
+      <Dialog role="alertdialog" onClose={onCancel} initialFocusRef={cancelRef} aria-labelledby="mm-shell-dialog-title" aria-describedby="mm-shell-dialog-body" className="mm-shell-dialog">
+        <div id="mm-shell-dialog-title" style={{ fontSize: 'calc(20 * var(--mm-px))', fontWeight: 900, marginBottom: 8 }}>{title}</div>
         <div id="mm-shell-dialog-body" style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>{body}</div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 18 }}>
           <button ref={cancelRef} type="button" className="mm-shell-button" onClick={onCancel} style={{ minHeight: 44, padding: '10px 16px', borderRadius: 9, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900, cursor: 'pointer' }}>{cancelLabel}</button>
           <button type="button" className="mm-shell-button" disabled={busy} onClick={onConfirm} style={{ minHeight: 44, padding: '10px 16px', borderRadius: 9, border: 0, background: '#b3261e', color: '#fff', fontWeight: 900, cursor: busy ? 'progress' : 'pointer', opacity: busy ? 0.6 : 1 }}>{confirmLabel}</button>
         </div>
-      </div>
+      </Dialog>
     </div>
   );
 }

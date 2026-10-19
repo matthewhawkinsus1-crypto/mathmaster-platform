@@ -46,7 +46,7 @@ test('missing retention timestamps do not become January 1970', () => {
   const now = Date.parse('2026-08-23T18:00:00Z');
   const report = evaluateStudentRetentionSchedule({
     'A.2A': {
-      mastery: { status: 'Secure' },
+      mastery: { status: 'Mastered' },
       dimensions: { lastIndependentSuccessAt: now - 3 * 24 * 60 * 60 * 1000 },
       signals: {},
     },

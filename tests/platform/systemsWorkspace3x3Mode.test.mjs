@@ -123,7 +123,8 @@ test('the reduced 2×2 IS the existing 2×2 workflow, under its own draft scope 
 
 test('in its subsystem role the 2×2 submits nothing, verifies nothing, and reports its solution up', () => {
   assert.match(twoByTwo, /export default function AlgebraicSystemMode\(\{ questionData = \{\}, onAction, draftKey = null, subsystem = null \}\)/);
-  assert.match(twoByTwo, /subsystem \? null : <button type="button" onClick=\{check\} style=\{actionStyle\}>Check my work<\/button>/);
+  // On its own its final action says Submit and its cost (SubmitText, D9).
+  assert.match(twoByTwo, /subsystem \? null : <button type="button" onClick=\{check\} style=\{actionStyle\}><SubmitText>Check my work<\/SubmitText><\/button>/);
   assert.match(twoByTwo, /\{subsystem \? null : <HintPanel/);
   const report = region(twoByTwo, 'const onSubsystemSolutionChange = subsystem?.onSolutionChange;', 'const bothPlaced = ', 'subsystem report');
   assert.match(report, /onSubsystemSolutionChange\(solution \? \{/);
@@ -133,7 +134,13 @@ test('in its subsystem role the 2×2 submits nothing, verifies nothing, and repo
   assert.match(twoByTwo, /subsystem \? 'algebraic-subsystem-embedded-step-algebra' : 'algebraic-system-embedded-step-algebra'/);
   // Values it solves are exact and simplified by the student.
   assert.match(twoByTwo, /const valueText = \(value\) => \(subsystem \? exactNumberText\(value\) : String\(value\)\);/);
-  assert.equal([...twoByTwo.matchAll(/requireSimplifiedFinalForm=\{Boolean\(subsystem\)\}/g)].length, 2);
+  // Both of its solves end on the student's own simplified number: the
+  // reduce solve in the subsystem role, and back-substitution always (a 2×2
+  // standing alone too — y = −4(5) + 12 is not a solved value).
+  const reduceSolve = region(twoByTwo, 'label={`Solve for ${survivingVariable}`}', 'autoReveal', 'the reduce solver');
+  assert.match(reduceSolve, /requireSimplifiedFinalForm=\{Boolean\(subsystem\)\}/);
+  const backSolve = region(twoByTwo, 'label="Solve the back-substitution equation"', '/>', 'the back-substitution solver');
+  assert.match(backSolve, /^\s*requireSimplifiedFinalForm\s*$/m);
 });
 
 test('a solved subsystem is known on the first render after a reload, from its own draft', () => {

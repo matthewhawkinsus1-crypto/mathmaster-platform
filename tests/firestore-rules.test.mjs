@@ -17,6 +17,7 @@ import {
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, deleteField, collection, getDocs, deleteDoc, query, where, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { buildWorkspaceDraftPatch, mergeWorkspaceDraftDocument } from '../functions/shared/workspaceDraftSchema.mjs';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -328,6 +329,29 @@ await check('teacher CANNOT unpublish an assignment with a client write', assert
   { unpublished: true },
   { merge: true },
 )));
+// When the Test is open is decided by updateTestCycleAvailability (teacher of
+// record, bell schedule read on the server); who was added is audited by
+// updateTestCycleAudience. Neither is a field a browser may write.
+await check('teacher CANNOT open a Test window with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { testAvailability: { policy: 'alwaysOpen' } },
+  { merge: true },
+)));
+await check('teacher CANNOT rewrite the Test window audit trail', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { testAvailabilityHistory: [] },
+  { merge: true },
+)));
+await check('teacher CANNOT rewrite the audience audit trail', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { audienceHistory: [{ at: 1, by: 'someone', addedClassIds: ['C1'] }] },
+  { merge: true },
+)));
+await check('student CANNOT open a Test window', assertFails(setDoc(
+  doc(student, 'assignments/A-cycle'),
+  { testAvailability: { policy: 'alwaysOpen' } },
+  { merge: true },
+)));
 await check('teacher still edits an ordinary field on a Test Cycle', assertSucceeds(setDoc(
   doc(teacher, 'assignments/A-cycle'),
   { title: 'Unit 3 Test Cycle (renamed)', dueAt: '2026-11-01T23:59:00.000Z' },
@@ -338,6 +362,9 @@ await check('student CANNOT change a Test Cycle policy', assertFails(setDoc(
   { assessmentPolicy: { mode: 'testCycle', retest: { maxRecordedGrade: 100 } } },
   { merge: true },
 )));
+await check('nobody reads a class-wide Test Cycle operation from a client', assertFails(getDoc(doc(teacher, 'testCycleOperations/A-cycle__op-12345678'))));
+await check('teacher CANNOT forge a class-wide Test Cycle operation', assertFails(setDoc(doc(teacher, 'testCycleOperations/A-cycle__op-12345678'), { status: 'completed' })));
+await check('student CANNOT read a class-wide Test Cycle operation', assertFails(getDoc(doc(student, 'testCycleOperations/A-cycle__op-12345678'))));
 await check('nobody reads or writes the assignment deletion log from a client', assertFails(getDoc(doc(rootAdmin, 'assignmentDeletionLog/A2'))));
 await check('teacher CANNOT forge an assignment deletion log entry', assertFails(setDoc(doc(teacher, 'assignmentDeletionLog/A2'), { deletedBy: 'someone' })));
 await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));
@@ -552,6 +579,37 @@ await check('student CANNOT smuggle evidence into a workspace draft', assertFail
 // A fresh Chromebook has no history and must still be able to save.
 await check('a fresh device with no prior revision can still save a workspace draft', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, entries: [] })));
 await check('student CANNOT delete a workspace draft', assertFails(deleteDoc(workspaceDoc(student, 'S1042__A1'))));
+// Batch 3: multi-answer, Step Algebra and composed-step entries carry their
+// per-answer edit times (`fieldEditedAtJson`, `fieldsFresh`). The document is
+// built by the very merge the client runs, twice (a fresh device, then a
+// second device), so what is checked here is exactly what is stored.
+const fieldRecordDocument = (() => {
+  const key = (suffix) => `mathmaster:draft:v2::S1042:A1:1:0:student:${suffix}`;
+  const first = mergeWorkspaceDraftDocument({
+    existing: null,
+    patch: buildWorkspaceDraftPatch({ studentId: 'S1042', assignmentId: 'A1', classId: 'class-a', entries: [
+      { key: key('multi-answer'), value: { a: '12' }, savedAt: 1_700_000_000_000, savedAtIsEdit: true, fieldEditedAt: { a: 1_700_000_000_000 }, fieldsFresh: true },
+      { key: key('workflow-responses'), value: { s1: 'y=2x' }, savedAt: 1_700_000_000_000, savedAtIsEdit: true, fieldEditedAt: { s1: 1_700_000_000_000 } },
+    ] }),
+  });
+  return mergeWorkspaceDraftDocument({
+    existing: first,
+    patch: buildWorkspaceDraftPatch({ studentId: 'S1042', assignmentId: 'A1', classId: 'class-a', entries: [
+      { key: key('workflow-responses'), value: { s2: '(0, 1)' }, savedAt: 1_700_000_100_000, savedAtIsEdit: true, fieldEditedAt: { s2: 1_700_000_100_000 }, fieldsFresh: true },
+    ] }),
+  });
+})();
+await check('the merged document carries per-answer edit times', fieldRecordDocument.entries.every((entry) => typeof entry.fieldEditedAtJson === 'string')
+  && fieldRecordDocument.entries.find((entry) => entry.key.endsWith(':workflow-responses')).valueJson === JSON.stringify({ s1: 'y=2x', s2: '(0, 1)' })
+  ? Promise.resolve() : Promise.reject(new Error('the merge did not produce field-record entries')));
+await check('student saves a workspace whose entries carry per-answer edit times', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...fieldRecordDocument, updatedAt: serverTimestamp() })));
+await check('student saves it again through a read-then-write transaction', assertSucceeds(runTransaction(student, async (transaction) => {
+  const reference = workspaceDoc(student, 'S1042__A1');
+  await transaction.get(reference);
+  transaction.set(reference, { ...fieldRecordDocument, updatedAt: serverTimestamp() });
+})));
+await check('student CANNOT smuggle a grade beside per-answer edit times', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...fieldRecordDocument, updatedAt: serverTimestamp(), score: 100 })));
+await check('student CANNOT save per-answer edit times into another student workspace', assertFails(setDoc(workspaceDoc(student, 'S2000__A1'), { ...fieldRecordDocument, documentId: 'S2000__A1', studentId: 'S2000', updatedAt: serverTimestamp() })));
 // The real save path (writeWorkspaceDraft) is a transaction that reads first.
 // Before the first save there is no document, so the read must not depend on
 // resource.data — otherwise no student can ever create a draft.

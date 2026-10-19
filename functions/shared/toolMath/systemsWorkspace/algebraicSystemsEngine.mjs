@@ -330,6 +330,15 @@ export const substituteVariable = (text, variable, replacementExpression) => {
     if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'subtract' && n.args.length === 2 && isVariable(n.args[1])) {
       return new OperatorNode('-', 'subtract', [n.args[0].transform(substitute), parse(`1 * (${replacementText})`)]);
     }
+    // The same for a variable ADDED as a bare term (x + y, y + 2x, 5 + y).
+    // Step Algebra's term renderer flattens a parenthesised group inside a
+    // sum, so x + (-2x + 1) reached the student as x - 2x + 1: the
+    // parentheses they had just substituted into were gone. As the product
+    // 1(-2x + 1) the group stays one visible term, removed by the student.
+    if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'add' && n.args.length === 2 && (isVariable(n.args[0]) || isVariable(n.args[1]))) {
+      const side = (arg) => (isVariable(arg) ? parse(`1 * (${replacementText})`) : arg.transform(substitute));
+      return new OperatorNode('+', 'add', [side(n.args[0]), side(n.args[1])]);
+    }
     return isVariable(n) ? replacement : n;
   };
   const transformed = node.transform(substitute);
@@ -523,6 +532,12 @@ export const solveAlgebraicSystem = (coefficients) => {
       x: (eq1.c * eq2.b - eq1.b * eq2.c) / det,
       y: (eq1.a * eq2.c - eq1.c * eq2.a) / det,
     };
+  }
+  // No variable left in either equation: each reads 0 = constant, so the system
+  // is consistent only when both constants are 0 (the minors below are all 0
+  // then, and would call 0 = 5 "infinitely many").
+  if ([eq1.a, eq1.b, eq2.a, eq2.b].every((value) => Math.abs(value) <= EPS)) {
+    return { type: Math.abs(eq1.c) <= EPS && Math.abs(eq2.c) <= EPS ? 'infinite' : 'none' };
   }
   const consistent = Math.abs(eq1.a * eq2.c - eq1.c * eq2.a) <= EPS && Math.abs(eq1.b * eq2.c - eq1.c * eq2.b) <= EPS;
   return { type: consistent ? 'infinite' : 'none' };
@@ -947,6 +962,22 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
   }
   if (dimension === 3) {
+    // A variable with a zero coefficient in every equation (absent, or 0z) is
+    // free whatever the others are, so the system is never unique. It still
+    // works: elimination of another variable classifies it, and a student who
+    // picks this one is asked to choose another. So it is a WARNING, not an
+    // error — an error blocked reusing saved assignments that work (PR-23
+    // review). An equation missing SOME variable is fine: elimination brings
+    // it down as it is. (A three-plane exploration may draw such planes: its
+    // validation forwards only errors.)
+    if (!errors.length) {
+      const trimmed = variables.map((value) => String(value).trim());
+      const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));
+      const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
+      if (nowhere.length) {
+        warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
+      }
+    }
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);

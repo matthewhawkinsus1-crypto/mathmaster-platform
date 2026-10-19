@@ -103,12 +103,12 @@ export default function QuietDisclosure({
           background: strong ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
           color: 'var(--mm-primary-text)',
           font: 'inherit',
-          fontSize: 13,
+          fontSize: 'calc(13 * var(--mm-px))',
           fontWeight: 800,
           cursor: 'pointer',
         }}
       >
-        <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1 }}>{open ? '▾' : '▸'}</span>
+        <span aria-hidden="true" style={{ fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1 }}>{open ? '▾' : '▸'}</span>
         {summary}
       </button>
       {open ? <div style={{ marginTop: 8 }}>{children}</div> : null}

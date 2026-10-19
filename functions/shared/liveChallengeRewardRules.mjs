@@ -35,6 +35,18 @@
  * is a hash of room + student + rule id, so an award staged by the previous
  * code and an award from this code are the SAME transaction.
  *
+ * RECOGNITIONS AND PERSONAL BESTS (evaluateMatchAwards). Beyond the policy's
+ * rules, a finished match rewards what liveChallengeRecognitions.mjs names
+ * (3 Class Points and a badge per individual recognition; 2 Class Points for
+ * the class-wide Team Effort) and a private personal best (3 Class Points,
+ * once per match). Their rule ids are reserved — a teacher's rule can never
+ * share one, so their ledger and grant ids can never collide with a policy
+ * award's. A policy may switch recognitions off (`recognitions: false`).
+ * Whatever a match earns, one student never receives more than
+ * MAX_CLASS_POINTS_PER_MATCH Class Points from it: policy awards come first,
+ * then recognitions in their fixed order, then the personal best, and a Class
+ * Points award that would cross the cap is dropped — the same one, every time.
+ *
  * AWARD IDENTITY. `rewardAwardIdentity` is the plain text that names one award
  * — source, source id, student, rule. The server hashes it into the ledger or
  * grant document id; executing an award is "create that document if it does
@@ -166,9 +178,19 @@ const normalizeReward = (raw = {}) => {
 
 const RULE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{0,59}$/;
 
+// Rule ids the server's own awards use (evaluateMatchAwards). A policy rule
+// named like one would hash to the same ledger transaction.
+export const RECOGNITION_RULE_PREFIX = 'recognition.';
+export const PERSONAL_BEST_RULE_ID = 'personalBest';
+export const isReservedRuleId = (ruleId) => {
+  const id = String(ruleId || '');
+  return id === PERSONAL_BEST_RULE_ID || id.startsWith(RECOGNITION_RULE_PREFIX);
+};
+
 const normalizeRule = (raw = {}) => {
   const ruleId = cleanText(raw?.ruleId, 60);
   if (!RULE_ID_PATTERN.test(ruleId)) fail(`"${ruleId}" is not a valid reward rule id.`);
+  if (isReservedRuleId(ruleId)) fail(`"${ruleId}" is reserved for recognitions and personal bests.`);
   const criterion = normalizeCriterion(raw.criterion);
   const reward = normalizeReward(raw.reward);
   if (reward.amount === null) fail(`Reward rule "${ruleId}" needs an amount.`);
@@ -205,7 +227,12 @@ export const DEFAULT_LIVE_CHALLENGE_REWARD_RULES = Object.freeze([
 export const DEFAULT_LIVE_CHALLENGE_REWARD_POLICY = Object.freeze({
   schemaVersion: REWARD_POLICY_SCHEMA_VERSION,
   rules: DEFAULT_LIVE_CHALLENGE_REWARD_RULES,
+  // Recognitions beyond the podium are on unless a teacher turns them off.
+  recognitions: true,
 });
+
+/** Whether a (stored) policy lets a match earn recognitions. Absent means on. */
+export const recognitionsEnabled = (policy) => policy?.recognitions !== false;
 
 /**
  * Validate a policy a teacher configured. Absent means the default policy.
@@ -231,7 +258,12 @@ export const normalizeRewardPolicy = (raw) => {
   if (pointsTotal > MAX_CLASS_POINTS_PER_MATCH) {
     fail(`A reward policy can credit at most ${MAX_CLASS_POINTS_PER_MATCH} Class Points to one student per match.`);
   }
-  return Object.freeze({ schemaVersion: REWARD_POLICY_SCHEMA_VERSION, rules: Object.freeze(rules) });
+  if (raw.recognitions !== undefined && typeof raw.recognitions !== 'boolean') fail('recognitions must be true or false.');
+  return Object.freeze({
+    schemaVersion: REWARD_POLICY_SCHEMA_VERSION,
+    rules: Object.freeze(rules),
+    recognitions: raw.recognitions !== false,
+  });
 };
 
 /** A stored policy, tolerant of rooms created before policies were stored. */
@@ -357,6 +389,8 @@ export const publicRewardSummary = (policy) => {
     placement: Object.freeze(placement),
     classPoints: normalized.rules.some((rule) => rule.criterion.kind !== REWARD_CRITERION.PLACEMENT
       && rule.reward.kind === REWARD_KIND.CLASS_POINTS),
+    // Whether the end of the game names recognitions beyond the podium.
+    recognitions: recognitionsEnabled(normalized),
   });
 };
 
@@ -396,4 +430,120 @@ export const evaluateRewardPolicy = ({ matchResult = {}, policy = DEFAULT_LIVE_C
     });
   });
   return awards;
+};
+
+/*
+ * RECOGNITION AND PERSONAL-BEST AWARDS. See the header. The match result's
+ * `recognitions` (written in the finishing transaction, player keys only) is
+ * also the marker that a match was finished by code that knows about them: a
+ * result from before has no such field and earns exactly what it always did,
+ * so a sweep re-staging an old match never hands out something new.
+ */
+export const RECOGNITION_POINTS = 3;
+export const TEAM_RECOGNITION_POINTS = 2;
+export const PERSONAL_BEST_POINTS = 3;
+export const recognitionRuleId = (id) => `${RECOGNITION_RULE_PREFIX}${id}`;
+export const recognitionBadgeRuleId = (id) => `${RECOGNITION_RULE_PREFIX}${id}.badge`;
+
+const serverAward = ({ sourceId, studentId, ruleId, reasonLabel, reward }) => Object.freeze({
+  identity: rewardAwardIdentity({ sourceId, studentId, ruleId }),
+  sourceType: REWARD_SOURCE_TYPE.LIVE_CHALLENGE,
+  sourceId,
+  studentId,
+  ruleId,
+  ruleVersion: 1,
+  reasonLabel,
+  reward: Object.freeze(reward),
+});
+
+/** Recognition awards, from the result's recognitions and its standings. */
+export const recognitionAwards = (matchResult = {}) => {
+  if (!Array.isArray(matchResult.recognitions)) return [];
+  const sourceId = String(matchResult.roomId || '');
+  const studentByKey = new Map((Array.isArray(matchResult.standings) ? matchResult.standings : [])
+    .filter((standing) => standing?.joined === true && standing.playerKey && standing.studentId)
+    .map((standing) => [String(standing.playerKey), standing.studentId]));
+  const awards = [];
+  matchResult.recognitions.forEach((entry) => {
+    const id = cleanText(entry?.id, 40);
+    if (!id) return;
+    const label = cleanText(entry.label, 60) || id;
+    const classWide = entry.classWide === true;
+    const studentIds = [...new Set((Array.isArray(entry.playerKeys) ? entry.playerKeys : [])
+      .map((key) => studentByKey.get(String(key)))
+      .filter(Boolean))].sort();
+    studentIds.forEach((studentId) => {
+      awards.push(serverAward({
+        sourceId,
+        studentId,
+        ruleId: recognitionRuleId(id),
+        reasonLabel: `Live Challenge — ${label}`,
+        reward: { kind: REWARD_KIND.CLASS_POINTS, amount: classWide ? TEAM_RECOGNITION_POINTS : RECOGNITION_POINTS },
+      }));
+      if (classWide) return;
+      awards.push(serverAward({
+        sourceId,
+        studentId,
+        ruleId: recognitionBadgeRuleId(id),
+        reasonLabel: `Live Challenge — ${label}`,
+        reward: {
+          kind: REWARD_KIND.GRANT,
+          rewardCode: 'badge',
+          badgeCode: `lc-${id}`,
+          label,
+          expiresInDays: null,
+        },
+      }));
+    });
+  });
+  return awards;
+};
+
+/**
+ * Keep every award but drop, per student, a Class Points award that would
+ * take them past MAX_CLASS_POINTS_PER_MATCH. Order decides what is dropped,
+ * and the order is fixed, so the same awards are dropped on every run.
+ */
+export const capMatchClassPoints = (awards = [], cap = MAX_CLASS_POINTS_PER_MATCH) => {
+  const credited = new Map();
+  return awards.filter((award) => {
+    if (award?.reward?.kind !== REWARD_KIND.CLASS_POINTS) return true;
+    const sum = (credited.get(award.studentId) || 0) + Number(award.reward.amount || 0);
+    if (sum > cap) return false;
+    credited.set(award.studentId, sum);
+    return true;
+  });
+};
+
+/**
+ * Everything a finished match earns: the policy's awards, then recognitions
+ * (unless the policy turned them off), then a personal best for each student
+ * in `personalBestStudentIds` — capped per student. The personal bests are
+ * decided by the caller (they need the student's earlier results), from
+ * results finalized before this one.
+ */
+export const evaluateMatchAwards = ({
+  matchResult = {},
+  policy = DEFAULT_LIVE_CHALLENGE_REWARD_POLICY,
+  personalBestStudentIds = [],
+} = {}) => {
+  const normalized = storedRewardPolicy(policy);
+  const awards = [...evaluateRewardPolicy({ matchResult, policy: normalized })];
+  if (!Array.isArray(matchResult.recognitions)) return awards;
+  if (recognitionsEnabled(normalized)) awards.push(...recognitionAwards(matchResult));
+  const sourceId = String(matchResult.roomId || '');
+  const joined = new Set((Array.isArray(matchResult.standings) ? matchResult.standings : [])
+    .filter((standing) => standing?.joined === true && standing.studentId)
+    .map((standing) => standing.studentId));
+  [...new Set((Array.isArray(personalBestStudentIds) ? personalBestStudentIds : []).map(String))]
+    .filter((studentId) => joined.has(studentId))
+    .sort()
+    .forEach((studentId) => awards.push(serverAward({
+      sourceId,
+      studentId,
+      ruleId: PERSONAL_BEST_RULE_ID,
+      reasonLabel: 'Live Challenge — Personal best',
+      reward: { kind: REWARD_KIND.CLASS_POINTS, amount: PERSONAL_BEST_POINTS },
+    })));
+  return capMatchClassPoints(awards);
 };

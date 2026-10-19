@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/mathmaster-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Native controls and scrollbars follow the active MathMaster theme
          (theme/tokens.css sets color-scheme per [data-theme]). -->
@@ -39,7 +39,7 @@
       html[data-theme='dark'] .mm-boot-recovery { background: #1b1e25; color: #f3f5f9; border-color: #7a3330; }
       html[data-theme='dark'] .mm-boot-recovery h1 { color: #ffb4ab; }
     </style>
-    <title>Vite + React</title>
+    <title>MathMaster</title>
   </head>
   <body>
     <div id="root">
@@ -59,7 +59,7 @@
             '<section class="mm-boot-recovery">' +
             '<h1>MathMaster did not finish loading</h1>' +
             '<p style="margin:0 0 12px;line-height:1.45">' + detail + '</p>' +
-            '<button id="mathmaster-boot-reload" type="button" style="padding:10px 16px;border:0;border-radius:8px;background:#174ea6;color:#fff;font-weight:800;cursor:pointer">Reload current build</button>' +
+            '<button id="mathmaster-boot-reload" type="button" style="padding:10px 16px;border:0;border-radius:8px;background:#174ea6;color:#fff;font-weight:800;cursor:pointer">Reload MathMaster</button>' +
             '</section>';
           document.getElementById('mathmaster-boot-reload')?.addEventListener('click', () => {
             const url = new URL(window.location.href);
@@ -70,13 +70,14 @@
 
         window.addEventListener('error', (event) => {
           if (event?.target?.tagName === 'SCRIPT') {
-            showRecovery('The application bundle could not be loaded. This usually means the browser kept an older page shell after a deployment.');
+            // Read by students (student pass 3, NAV-11): no "bundle" or "Hosting cache".
+            showRecovery('Part of MathMaster did not load. Reload to get the newest version.');
           }
         }, true);
 
         window.setTimeout(() => {
           if (document.getElementById('mathmaster-boot-fallback')) {
-            showRecovery('The application is taking too long to start. Reloading the current build usually clears a stale Hosting cache.');
+            showRecovery('MathMaster is taking too long to start. Reload to try again. If it keeps happening, check the Wi-Fi or tell your teacher.');
           }
         }, 8000);
       })();

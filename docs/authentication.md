@@ -117,6 +117,15 @@ was originally typed. The first time an ID is seen the server scans the roster
 for a case-insensitive match and adopts the existing document, so pre-existing
 grade history is never stranded in a near-duplicate record.
 
+The "student ID" a student signs in with is the **MathMaster account ID** — the
+`grades/{studentId}` document ID. It is not necessarily the **district (SIS)
+ID** grade exports use (`grades/{studentId}.sisStudentId`). The two usually
+match, but a teacher can correct the district ID (Student Access → *Edit
+district ID*, `setStudentSisId`) without touching sign-in: credentials, aliases,
+throttling, the Firebase UID and the Google directory link all stay keyed by
+the account ID, so the student keeps signing in exactly as before. See
+[`STUDENT_DISTRICT_ID.md`](STUDENT_DISTRICT_ID.md).
+
 ## Firestore rules
 
 | Path | Read | Write |

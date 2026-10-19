@@ -324,13 +324,13 @@
             },
             {
               "id": "point1",
-              "label": "First ordered-pair solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second ordered-pair solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }
@@ -412,7 +412,10 @@
           "id": "reduced",
           "label": "Reduced quadratic equation",
           "inputProfile": "equation",
-          "expected": "x^2{{p|signed}}x{{q|signed}}=0"
+          "expected": "x^2{{p|xterm}}{{q|signed}}=0",
+          "accepted": [
+            "x^2{{p|signed}}x{{q|signed}}=0"
+          ]
         },
         {
           "id": "disc",
@@ -436,7 +439,7 @@
       "solutionReview": {
         "headline": "The quadratic formula gives the x-values; substitution completes the system solutions.",
         "reasoning": [
-          "The reduced equation is $x^2{{p|signed}}x{{q|signed}}=0$ with discriminant {{D}}.",
+          "The reduced equation is $x^2{{p|xterm}}{{q|signed}}=0$ with discriminant {{D}}.",
           "The two x-values are $\\frac{-({{p}})\\pm\\sqrt{{{D}}}}{2}$.",
           "Substitute each exact x-value into $y={{m}}x{{b|signed}}$ to obtain the matching y-coordinate."
         ],
@@ -558,13 +561,13 @@
         },
         {
           "id": "point1",
-          "label": "First complete solution",
+          "label": "Solution with the smaller x-value",
           "inputProfile": "orderedPair",
           "expected": "({{u}},{{yu}})"
         },
         {
           "id": "point2",
-          "label": "Second complete solution",
+          "label": "Solution with the larger x-value",
           "inputProfile": "orderedPair",
           "expected": "({{v}},{{yv}})"
         }
@@ -677,13 +680,13 @@
             },
             {
               "id": "point1",
-              "label": "First solution",
+              "label": "Solution with the smaller x-value",
               "inputProfile": "orderedPair",
               "expected": "({{u}},{{yu}})"
             },
             {
               "id": "point2",
-              "label": "Second solution",
+              "label": "Solution with the larger x-value",
               "inputProfile": "orderedPair",
               "expected": "({{v}},{{yv}})"
             }

@@ -39,7 +39,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(44px, max-content));
   column-gap: 0;
-  font-size: 18px;
+  font-size: calc(18 * var(--mm-px));
   border: 1px solid var(--mm-tint-border);
   border-radius: 6px;
   width: max-content;

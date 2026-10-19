@@ -133,7 +133,12 @@ const OPERAND_AT_START = new RegExp(`^(${OPERAND_SOURCE})`);
 const unwrapSingleLetterUnits = (latex) => String(latex).replace(/\\mathrm\{([A-Za-z])\}/g, '$1');
 
 const cleanImplicitMultiplicationLatex = (latex) => {
-  let text = unwrapSingleLetterUnits(latex);
+  // A hidden implicit product is joined with a TeX tie, -2~ x, which draws as
+  // a space: the balance board read "−2 x" (pass 3, Q-31). A plain space is
+  // ignored in math mode, so -2 x draws as -2x, and it still separates the
+  // factors for every reader of this LaTeX: latexToExpression reads b h back
+  // as b times h (never the symbol bh), and \pi r stays \pi then r.
+  let text = unwrapSingleLetterUnits(latex).replace(/\s*~\s*/g, ' ');
   let guard = 40;
 
   while (text.includes('\\cdot') && guard > 0) {
@@ -297,6 +302,40 @@ const groupingIsRedundant = (parent, argIndex, content) => {
   return false;
 };
 
+const unitValue = (node) => {
+  let current = node;
+  while (isParenthesis(current)) current = current.content;
+  if (current?.type === 'ConstantNode') return Number(current.value);
+  if (current?.type === 'OperatorNode' && current.fn === 'unaryMinus' && current.args?.length === 1) {
+    let inner = current.args[0];
+    while (isParenthesis(inner)) inner = inner.content;
+    return inner?.type === 'ConstantNode' ? -Number(inner.value) : null;
+  }
+  return null;
+};
+
+const isGroupedSum = (node) => isParenthesis(node)
+  && node.content?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.content.fn);
+
+// -1(…) is drawn -(…) only where no sign stands straight before it: after a
+// + or a − it would read "+ -(…)" or "- -(…)", and folding that sign would do
+// a sign step for the student, so the -1 stays written there.
+const signBefore = (parent, argIndex) => Boolean(parent?.type === 'OperatorNode' && (
+  parent.fn === 'unaryMinus' || (['add', 'subtract'].includes(parent.fn) && argIndex > 0)
+));
+
+const unitFactorGroup = (fn, args, parent = null, argIndex = 0) => {
+  if (fn !== 'multiply' || args.length !== 2 || !isGroupedSum(args[1])) return null;
+  const unit = unitValue(args[0]);
+  if (unit === 1) return args[1];
+  if (unit === -1 && !signBefore(parent, argIndex)) return new OperatorNode('-', 'unaryMinus', [args[1]]);
+  return null;
+};
+
+const unitGroupPresentation = (node) => (
+  node?.type === 'OperatorNode' ? unitFactorGroup(node.fn, node.args || []) || node : node
+);
+
 const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
   if (isParenthesis(node)) {
     // ((x)) is never more grouped than (x).
@@ -312,6 +351,12 @@ const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
     // -\left(5x\right). Folding the sign onto the product's leading number or
     // letter, (-5)·x, is the same value and is drawn the way it is written: -5x.
     const [only] = args;
+    // A value substituted for an added or subtracted variable is stored as a
+    // unit product, 1(-4x + 12) or -1(-4x + 12), so every term splitter keeps
+    // the group as one term (student push Q). It is drawn as the group the
+    // student substituted into: (-4x + 12), -(-4x + 12). Display only.
+    const unitGroup = unitFactorGroup(node.fn, args, parent, argIndex);
+    if (unitGroup) return unitGroup;
     if (node.fn === 'unaryMinus' && args.length === 1 && only?.type === 'OperatorNode' && only.fn === 'multiply'
       && ['ConstantNode', 'SymbolNode'].includes(only.args?.[0]?.type)
       && !(only.args[0].type === 'ConstantNode' && Number(only.args[0].value) < 0)) {
@@ -399,6 +444,12 @@ const unambiguousTermText = (node) => {
   return node.toString(shown).trim();
 };
 
+const withoutParenthesisWrapper = (node) => {
+  let current = node;
+  while (current?.type === 'ParenthesisNode') current = current.content;
+  return current;
+};
+
 const additiveTermDescriptor = ({ node, sign }, index) => {
   let effectiveSign = sign < 0 ? -1 : 1;
   let magnitudeText = unambiguousTermText(node);
@@ -407,6 +458,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
   let magnitudeLatex = cleanImplicitMultiplicationLatex(
     withoutRedundantGrouping(node).toTex({ parenthesis: 'keep', implicit: 'hide' }),
   ).trim();
+  const originalLatex = magnitudeLatex;
 
   // MathJS can encode a negative coefficient inside an opaque product node
   // instead of as the additive chain's unary-minus sign. Canonicalize that
@@ -428,7 +480,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
     // so the sign exists in exactly one place: the additive operator.
     try {
       magnitudeLatex = cleanImplicitMultiplicationLatex(
-        parse(magnitudeText).toTex({ parenthesis: 'keep', implicit: 'hide' }),
+        unitGroupPresentation(parse(magnitudeText)).toTex({ parenthesis: 'keep', implicit: 'hide' }),
       ).trim();
     } catch {
       magnitudeLatex = magnitudeLatex
@@ -439,13 +491,24 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
 
   const isFirst = index === 0;
   const operator = effectiveSign < 0 ? '-' : '+';
+  // Dividing a side by -2 writes (-10) / (-2). The sign canonicalised above
+  // came out of that grouped numerator, so the board drew -\frac{10}{-2}: a
+  // sign pattern the student never wrote (pass 3, Q-13). A fraction whose
+  // numerator is a written group is drawn as it was written. Display only:
+  // text, sign and the magnitudes stay canonical for every caller that
+  // rebuilds or grades the side.
+  const written = withoutParenthesisWrapper(node);
+  const writtenFraction = written?.type === 'OperatorNode' && written.fn === 'divide'
+    && written.args?.[0]?.type === 'ParenthesisNode' && !originalLatex.startsWith('-');
+  const shownSign = writtenFraction ? (sign < 0 ? -1 : 1) : effectiveSign;
+  const shownLatex = writtenFraction ? originalLatex : magnitudeLatex;
   return {
     text: isFirst
       ? (effectiveSign < 0 ? '-' : '') + magnitudeText
       : operator + ' ' + magnitudeText,
     latex: isFirst
-      ? (effectiveSign < 0 ? '-' : '') + magnitudeLatex
-      : operator + ' ' + magnitudeLatex,
+      ? (shownSign < 0 ? '-' : '') + shownLatex
+      : (shownSign < 0 ? '-' : '+') + ' ' + shownLatex,
     sign: effectiveSign,
     magnitudeText,
     magnitudeLatex,

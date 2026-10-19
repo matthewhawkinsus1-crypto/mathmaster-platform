@@ -47,7 +47,16 @@ test('corrections never reach the secure runtime', () => {
   }
   // What it does use is the instructional correction callables.
   assertCapability(corrections, [/issueTestCycleCorrectionQuestion/], 'corrections issue instructional items.');
-  assertCapability(corrections, [/Show a hint|showHint/], 'hints are allowed during corrections.');
+  // Hints are allowed during corrections: the item renders in the shared Rich
+  // Question Runtime under the CORRECTIONS policy, whose hint capability the
+  // runtime honours (a released hint, a tool's own hint panel via the engine's
+  // activity policy). The runtime itself carries no secure machinery either.
+  assert.match(corrections, /<RichQuestionRuntime[\s\S]{0,200}mode="corrections"/);
+  const runtimeSource = readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8');
+  assert.match(region(runtimeSource, 'const InstructionalSupport = (', 'const FieldItem = (', 'instructional panels'), /caps\.hints && feedback\.hint/);
+  for (const forbidden of ['SecureExamContainer', 'ExamIntegrityLogger', 'secureExamService', 'submitSecureExamResponse']) {
+    assert.doesNotMatch(executableSource(runtimeSource), new RegExp(forbidden), `the shared runtime must not use ${forbidden}`);
+  }
 });
 
 test('integrity monitoring, timers, autosave and proctor lock are not duplicated', () => {
@@ -57,16 +66,36 @@ test('integrity monitoring, timers, autosave and proctor lock are not duplicated
   assert.match(container, /<ExamPrepHeader/);
   assert.match(container, /onTimeExpired=/);
   assert.match(container, /saveSecureExamDraft/);
-  assert.match(container, /Exam paused for proctor review/);
+  // One pause overlay, with the teacher's pause and the integrity pause in it.
+  assert.equal((executableSource(container).match(/data-secure-pause=\{pause\}/g) || []).length, 1, 'one pause overlay');
+  assert.match(container, /Your teacher paused the test/);
   // And the card adds none of its own.
   assert.doesNotMatch(executableSource(card), /ExamIntegrityLogger|recordSecureExamIntegrityEvent/);
+});
+
+test('a secure exam modal never closes on Escape — the proctor lock above all', () => {
+  // The pause — a teacher's pause or the integrity lock — is the shared modal
+  // Dialog (focus kept inside, so Tab cannot reach the exam behind it), but it
+  // is not dismissable from the keyboard: the student has no close at all.
+  // Submitting goes through the review screen, a page of the test rather than
+  // a modal, so the pause is the only one.
+  const code = executableSource(container);
+  const dialogs = [...code.matchAll(/<Dialog\b[^>]*>/g)].map((match) => match[0]);
+  assert.equal(dialogs.length, 1, 'the pause');
+  for (const dialog of dialogs) {
+    assert.match(dialog, /closeOnEscape=\{false\}/, `${dialog} must not close on Escape`);
+    assert.doesNotMatch(dialog, /onClose=/, `${dialog} must not be given a close handler`);
+  }
+  assert.match(code, /\{pause && \(\s*<Dialog ref=\{pauseRef\} role="alertdialog" closeOnEscape=\{false\}/);
+  // No modal outside the primitive.
+  assert.doesNotMatch(code, /aria-modal=/);
 });
 
 test('a course test is a plain exam session, so integrity and proctor actions apply unchanged', () => {
   const integrity = region(
     functionsIndex,
     'exports.recordSecureExamIntegrityEvent = onCall(',
-    'async function applyOpenSecureExamDraft',
+    'async function finalizeSecureSessionInTransaction',
     'integrity event',
   );
   // No exam-type check anywhere in the integrity path: every secure session,
@@ -130,11 +159,17 @@ test('the simulation item-selection path still runs for simulations', () => {
     'function sanitizeSecureExamDraft',
     'issueSecureExamQuestion',
   );
-  // The course-test branch returns early; everything after it is the original
-  // exam-style bank selection, unchanged.
-  assert.match(issue, /if \(secureExam\.isCourseTestSession\(session\)\)/);
-  assert.match(issue, /context\.examStyle === true/);
-  assert.match(issue, /secureExam\.nextDomainId\(session\)/);
+  // A new item comes from the stored plan for a course test and from the
+  // exam-style bank for a simulation; the issue call picks by session type.
+  assert.match(issue, /secureExam\.isCourseTestSession\(session\)\s*\?\s*await buildCourseTestExamItem\(db, \{ session, runtimeMode \}\)\s*:\s*await buildSimulationExamItem\(/);
+  const simulation = region(
+    functionsIndex,
+    'async function buildSimulationExamItem(',
+    'exports.issueSecureExamQuestion = onCall(',
+    'buildSimulationExamItem',
+  );
+  assert.match(simulation, /context\.examStyle === true/);
+  assert.match(simulation, /secureExam\.nextDomainId\(session\)/);
 });
 
 test('a session issuance plan is never returned to any client', () => {

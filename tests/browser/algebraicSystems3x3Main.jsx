@@ -11,6 +11,7 @@
  *       no per-step metadata; dimension and mode are inferred
  *   Q2  a different question, so "leave and come back" is a genuine remount
  *   Q3  standalone Step Algebra -9x + 21 = 1, for the no-staged-preview rule
+ *   Q4, Q5  (indices 3, 4) the Day 2 / Day 1 systems with the widest equations (strip-fit)
  *
  * HOW TO RUN: see algebraicSystems3x3.mjs.
  */
@@ -35,6 +36,10 @@ const QUESTIONS = [
   }),
   Object.freeze({ questionId: 'issue-341-q2-linear', type: 'systemsWorkspace', mode: 'linear', prompt: 'Classify the system.', system: { m1: 2, b1: 1, m2: -1, b2: 7 } }),
   Object.freeze({ questionId: 'issue-341-q3-step', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '-9x + 21 = 1', solveFor: 'x' }),
+  // Q-24: the shipped Day 2 and Day 1 systems with the widest equations, for
+  // the strip of originals above an active solver (strip-fit journey).
+  Object.freeze({ questionId: 'q24-day2-pr1', type: 'systemsWorkspace', prompt: 'Solve the system by substitution.', method: 'substitution', variables: ['x', 'y', 'z'], equations: ['x + y - z = -1', 'x + y + z = 3', '3x - 2y - z = -4'], requireVerification: true }),
+  Object.freeze({ questionId: 'q24-day1-pr2', type: 'systemsWorkspace', prompt: 'Solve the system by substitution.', method: 'substitution', variables: ['x', 'y', 'z'], equations: ['5x + 3y + 2z = 2', '2x + y - z = 5', 'x + 4y + 2z = 16'], requireVerification: true }),
 ];
 
 const SCOPES = {

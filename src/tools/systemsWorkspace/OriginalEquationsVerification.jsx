@@ -16,6 +16,7 @@
  */
 import React from 'react';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import { MathDragToken, VariableDropEquation } from './AlgebraicSystemMode.jsx';
 import { substituteIntoEquation, substitutedEquationLatex } from './algebraicSystemsEngine.js';
@@ -28,7 +29,7 @@ import {
   verificationVariables,
 } from './substitutionReduction.js';
 
-const checkButtonStyle = { marginTop: 8, padding: '9px 14px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 13 };
+const checkButtonStyle = { marginTop: 8, padding: '9px 14px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 'calc(13 * var(--mm-px))' };
 
 const SIDE_NAMES = { left: 'Left side', right: 'Right side' };
 
@@ -58,7 +59,7 @@ export default function OriginalEquationsVerification({
             expression={`${name} = ${display(name)}`}
             label="Solved value"
             onArm={() => setArmedToken({ kind: 'verification', variable: name })}
-            ariaLabel={`Pick up solved value ${display(name)} for ${name}`}
+            ariaLabel={`Pick up solved value ${spokenMathValue(display(name))} for ${name}`}
           />
         ))}
       </div>

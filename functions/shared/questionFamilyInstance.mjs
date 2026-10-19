@@ -222,6 +222,18 @@ export const resolveFamilyQuestionInstance = ({
   // versions excluded where each started). Only deliveryPinAllocationProblem
   // sets it; no new delivery is ever made this way.
   legacyWrapExclusion = false,
+  // `excludeFingerprints` IS this student's whole history on this list, so
+  // the wrap rule below must not rebuild it. That rule is for callers that
+  // cannot list what a student was shown (a section's "New Question"): it
+  // replays the student's earlier variants to recover it. Recovery passes the
+  // real history — every version shown, every Practice and Recovery item —
+  // and a replay walked against that longer list lands on versions the
+  // student has NOT seen; excluding those hid the rest of the family (a
+  // 35-version DOL ran out of Recovery Practice after about 15 questions).
+  // With the history given, the walk skips exactly what was seen, so every
+  // unseen version stays reachable. The pin is unchanged in shape and
+  // replays exactly (reproduceFamilyQuestionFromPin never walks).
+  historyIsComplete = false,
 } = {}) => {
   const slotKey = clean(providedSlotKey) || familySlotKey({ assignmentId, question, storageIndex });
   const definition = resolveQuestionFamilyDefinition(question, { slotKey, support });
@@ -280,7 +292,9 @@ export const resolveFamilyQuestionInstance = ({
   // (distinct − 1) are excluded: a student who has had every version starts
   // again at the one seen longest ago instead of being refused a question.
   const excluded = new Set(external);
-  if (!exact && requested.wrapped && variant > 0 && legacyWrapExclusion) {
+  if (historyIsComplete) {
+    // The caller's exclusions are the history; nothing to reconstruct.
+  } else if (!exact && requested.wrapped && variant > 0 && legacyWrapExclusion) {
     for (let earlier = 0; earlier < variant; earlier += 1) {
       const prior = resolveAt(seat + earlier * stride).instance;
       if (prior) excluded.add(prior.fingerprint);

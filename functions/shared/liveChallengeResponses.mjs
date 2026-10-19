@@ -277,6 +277,12 @@ export const planAttempt = ({
  * questions, each with the target count its attempts recorded. A question
  * nobody has attempted yet keeps a placeholder count — it is incomplete
  * whatever its count, so the placeholder can never change a result.
+ *
+ * A round may hold FEWER questions than its mode's pool: a Graph the Line
+ * Sprint is as long as its teacher chose (5–20), while the mode declares only
+ * the longest. Such a round's attempts record `roundQuestionCount`, and the
+ * round is then that long — rebuilt from the log alone, like the target
+ * counts. A player with no attempts in the round is unfinished either way.
  */
 export const questionSpecsFromReceipts = ({
   receipts,
@@ -284,15 +290,19 @@ export const questionSpecsFromReceipts = ({
   poolSize = MAX_QUESTIONS_PER_ROUND,
   completionRule = COMPLETION_RULE.ALL_TARGETS,
 } = {}) => {
-  const size = Math.max(1, Math.min(MAX_QUESTIONS_PER_ROUND, integerOr(poolSize, MAX_QUESTIONS_PER_ROUND)));
+  let size = Math.max(1, Math.min(MAX_QUESTIONS_PER_ROUND, integerOr(poolSize, MAX_QUESTIONS_PER_ROUND)));
   const counts = new Map();
+  let recordedSize = null;
   receiptList(receipts)
     .filter(([, receipt]) => isAttemptReceipt(receipt) && integerOr(receipt.roundIndex, null) === integerOr(roundIndex, NaN))
     .sort(compareAttempts)
     .forEach(([, receipt]) => {
       const index = integerOr(receipt.questionIndex, 0);
       if (!counts.has(index)) counts.set(index, integerOr(receipt.targetCount, 1));
+      const declared = integerOr(receipt.roundQuestionCount, null);
+      if (declared !== null && declared >= 1) recordedSize = recordedSize === null ? declared : Math.min(recordedSize, declared);
     });
+  if (recordedSize !== null) size = Math.min(size, recordedSize);
   return normalizeRoundQuestionSpecs(Array.from({ length: size }, (_, index) => ({
     questionIndex: index,
     completionRule,

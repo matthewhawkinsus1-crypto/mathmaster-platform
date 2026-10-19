@@ -42,6 +42,9 @@ const labelForCollection = (name) => ({
   examIntegrityEvents: 'Exam integrity events',
   studentMasteryProfiles: 'Student mastery profiles',
   studentRetentionSchedules: 'Student retention schedules',
+  classRewardCatalogs: 'Class reward lists',
+  classRewardRequests: 'Class reward requests',
+  growthRewardState: 'Growth reward baselines',
 }[name] || name);
 
 const preservedLabel = (name) => ({
@@ -165,7 +168,7 @@ export default function PreproductionReset({ onResetComplete }) {
         <h3 style={{ margin: '0 0 8px', color: 'var(--mm-primary-text)' }}>What stays</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 250px),1fr))', gap: 7 }}>
           {(preview?.preservedCollections || []).map((name) => (
-            <div key={name} style={{ color: 'var(--mm-text)', fontSize: 13 }}>
+            <div key={name} style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
               <span aria-hidden="true">✓</span> {preservedLabel(name)}
             </div>
           ))}
@@ -179,16 +182,16 @@ export default function PreproductionReset({ onResetComplete }) {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 190px),1fr))', gap: 10, marginBottom: 14 }}>
               <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Test students</div>
-                <div style={{ fontSize: 25, fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.studentRosterRecords)}</div>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Test students</div>
+                <div style={{ fontSize: 'calc(25 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.studentRosterRecords)}</div>
               </div>
               <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Student sign-ins</div>
-                <div style={{ fontSize: 25, fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.studentAuthUsers)}</div>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Student sign-ins</div>
+                <div style={{ fontSize: 'calc(25 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.studentAuthUsers)}</div>
               </div>
               <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Assignments</div>
-                <div style={{ fontSize: 25, fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.assignments)}</div>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)', textTransform: 'uppercase' }}>Assignments</div>
+                <div style={{ fontSize: 'calc(25 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-error-text)' }}>{formatCount(preview.assignments)}</div>
               </div>
             </div>
 
@@ -197,7 +200,7 @@ export default function PreproductionReset({ onResetComplete }) {
                 <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-error-text)' }}>Show all test/runtime collections</summary>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 260px),1fr))', gap: 5, marginTop: 9 }}>
                   {collectionRows.map(([name, count]) => (
-                    <div key={name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>
+                    <div key={name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                       <span>{labelForCollection(name)}</span><strong>{formatCount(count)}</strong>
                     </div>
                   ))}
@@ -205,7 +208,7 @@ export default function PreproductionReset({ onResetComplete }) {
               </details>
             )}
 
-            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: 13, lineHeight: 1.5 }}>
+            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
               <strong>Google Classroom:</strong> this clears MathMaster&apos;s publication/sync records, but it does not delete coursework
               that was already posted inside Google Classroom. Remove any test Classroom posts there separately if needed.
             </div>
@@ -246,8 +249,8 @@ export default function PreproductionReset({ onResetComplete }) {
           <span>I understand that all current student accounts/work and assignments are test data and will be permanently deleted.</span>
         </label>
 
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>
-          Type <code style={{ fontSize: 13 }}>{confirmationRequired}</code>
+        <label style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>
+          Type <code style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{confirmationRequired}</code>
           <input
             value={confirmation}
             disabled={preview?.resetLocked === true}
@@ -265,7 +268,7 @@ export default function PreproductionReset({ onResetComplete }) {
               padding: '0 12px',
               border: '1px solid var(--mm-border)',
               borderRadius: 8,
-              fontSize: 15,
+              fontSize: 'calc(15 * var(--mm-px))',
               fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
             }}
           />
@@ -323,8 +326,8 @@ export default function PreproductionReset({ onResetComplete }) {
               />
               <span>I understand that MathMaster provides no in-app way to unlock the bulk reset after this action.</span>
             </label>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>
-              Type <code style={{ fontSize: 13 }}>{lockConfirmationRequired}</code>
+            <label style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>
+              Type <code style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{lockConfirmationRequired}</code>
               <input
                 value={lockConfirmation}
                 onChange={(event) => setLockConfirmation(event.target.value)}
@@ -341,7 +344,7 @@ export default function PreproductionReset({ onResetComplete }) {
                   padding: '0 12px',
                   border: '1px solid var(--mm-border)',
                   borderRadius: 8,
-                  fontSize: 15,
+                  fontSize: 'calc(15 * var(--mm-px))',
                   fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
                 }}
               />

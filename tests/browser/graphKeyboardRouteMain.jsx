@@ -5,6 +5,10 @@
 //                      mark both ends, then give the domain and the range
 //   ?q=analysis        a graph to analyse only: a value, the domain, and the
 //                      y-intercept typed as a point
+//   ?q=construct       graph y = 2x + 1 only: two points, the curve, both ends
+//                      (the keyboard-only route, pass 3 TOOL-1)
+//   ?q=inverse         y = 2x + 1 and its inverse: reflect two points across
+//                      y = x and connect them (TOOL-1, the inverse sketch)
 //   ?role=practice|dol the activity policy (default practice)
 //   ?run=<id>          the draft namespace (a new run starts blank)
 //
@@ -37,6 +41,32 @@ const FIXTURES = {
     analysisRequests: [
       { id: 'domain', kind: 'domain', notation: 'interval' },
       { id: 'range', kind: 'range', notation: 'interval' },
+    ],
+  },
+  construct: {
+    type: 'functionGraph',
+    prompt: 'Graph y = 2x + 1.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 },
+    pointTasks: [
+      { id: 'p1', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] },
+      { id: 'p2', label: 'Plot the point where x = 2', x: 2, expected: [2, 5] },
+    ],
+  },
+  inverse: {
+    type: 'functionInvestigation',
+    prompt: 'Graph y = 2x + 1, then reflect it across y = x.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -6, xMax: 6, yMin: -6, yMax: 6 },
+    pointTasks: [
+      { id: 'p0', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] },
+      { id: 'p1', label: 'Plot the point where x = 1', x: 1, expected: [1, 3] },
+    ],
+    inverseReflection: { enabled: true, sourceTaskIds: ['p0', 'p1'], requireInverseSketch: true, requireInverseEquation: true, equationPartId: 'inverse-equation' },
+    analysisRequests: [
+      { id: 'inverse-reflect-p0', kind: 'inversePoint', label: 'Reflect the point at x = 0', sourceTaskId: 'p0', responseMode: 'click' },
+      { id: 'inverse-reflect-p1', kind: 'inversePoint', label: 'Reflect the point at x = 1', sourceTaskId: 'p1', responseMode: 'click' },
+      { id: 'inverse-equation', kind: 'value', label: 'The inverse equation', notation: 'equation', responseMode: 'text', expected: ['y=(x-1)/2'] },
     ],
   },
   analysis: {

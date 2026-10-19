@@ -21,9 +21,12 @@
  * rule, a scoring strategy — rather than branch on its own id somewhere else.
  *
  * Built-in modes: `standard` (the classic secure-bank challenge),
- * `solverRace` (generated algebra-workspace races with milestone speed) and
+ * `solverRace` (generated algebra-workspace races with milestone speed),
  * `graphFeatureRush` (individually generated graphs; tap every feature
- * against the round clock).
+ * against the round clock) and Graph the Line's three formats,
+ * `lineGraphClassic`, `lineGraphSprint` and `lineGraphRush` (draw the line
+ * of an equation, or name the equation of a line; checked the moment the
+ * answer is complete).
  *
  * Pure: shared by Cloud Functions and the browser. The server holds the
  * question planners keyed by `questionSource`; nothing here touches Firestore.
@@ -50,6 +53,8 @@ import { RANK_DIRECTION, normalizeRankingSpec } from './liveChallengeRanking.mjs
 import { PLACEMENT_CURVE, SCORING_STRATEGY_ID, getScoringStrategy, isRegisteredScoringStrategy } from './liveChallengeScoring.mjs';
 import { canonicalSolverRaceDifficulty, canonicalSolverRaceFocus } from './solverRace.mjs';
 import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
+import { LINE_ROUND_LIMITS, LINE_RUSH_POOL, LINE_SPRINT_MAX_POOL, normalizeLineGraphConfig } from './lineGraphConfig.mjs';
+import { LINE_GRAPH_FORMAT } from './lineGraphRules.mjs';
 
 export class ChallengeModeContractError extends Error {
   constructor(message) {
@@ -62,12 +67,16 @@ export const CHALLENGE_MODE_ID = Object.freeze({
   STANDARD: 'standard',
   SOLVER_RACE: 'solverRace',
   GRAPH_FEATURE_RUSH: 'graphFeatureRush',
+  LINE_GRAPH_CLASSIC: 'lineGraphClassic',
+  LINE_GRAPH_SPRINT: 'lineGraphSprint',
+  LINE_GRAPH_RUSH: 'lineGraphRush',
 });
 
 export const QUESTION_SOURCE = Object.freeze({
   SECURE_BANK: 'secureBank',
   SOLVER_RACE_GENERATOR: 'solverRaceGenerator',
   GRAPH_FEATURE_GENERATOR: 'graphFeatureGenerator',
+  LINE_GRAPH_GENERATOR: 'lineGraphGenerator',
 });
 
 /*
@@ -350,10 +359,86 @@ export const graphFeatureRushMode = defineChallengeMode({
   }),
 });
 
+/*
+ * GRAPH THE LINE. Students draw the line of an equation (slope-intercept,
+ * standard form by its intercepts, point-slope) or name the equation of a
+ * line; an answer is checked the moment it is complete. Each FORMAT is its
+ * own mode, so each declares its own pool and limits:
+ *
+ *   Classic  one item a round (by default the same equation for everyone)
+ *   Sprint   a set of 5–20 items; the mode declares the longest, and a
+ *            room's own length travels on its receipts (roundQuestionCount,
+ *            read back by questionSpecsFromReceipts), so a student who has
+ *            worked through it is finished
+ *   Rush     more items than anyone finishes, against the clock
+ *
+ * Every item is one target (its line), so the question-set machinery the
+ * rush proved — per-player issue, allTargets receipts, ranking by work, then
+ * accuracy, then time — applies unchanged. Offered to teachers since whole
+ * classes were certified playing it (tests/integration/lineGraphLaunch); a
+ * mode set back to `teacherSelectable: false` would launch for the platform
+ * administrator only again, as a preview (createLiveChallenge), and the
+ * create panel would offer it to the administrator alone.
+ * See docs/architecture/graph-the-line.md.
+ */
+const lineGraphMode = ({ id, format, label, projectorLabel, description, questionsPerRound }) => defineChallengeMode({
+  id,
+  label,
+  projectorLabel,
+  description,
+  teacherSelectable: true,
+  roundStructure: ROUND_STRUCTURE.QUESTION_SET,
+  questionsPerRound,
+  questionSource: QUESTION_SOURCE.LINE_GRAPH_GENERATOR,
+  questionIssue: QUESTION_ISSUE.PER_PLAYER,
+  questionSpec: { completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount: 1 },
+  defaultScoringStrategy: SCORING_STRATEGY_ID.GRAND_PRIX,
+  scoringStrategies: [SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
+  scoringDefaults: { [SCORING_STRATEGY_ID.GRAND_PRIX]: { placementCurve: PLACEMENT_CURVE.FIELD } },
+  roundLimits: LINE_ROUND_LIMITS[format],
+  capabilities: { secondChance: false, progressMilestones: false, paceTiming: false, closingThreshold: false, dryRun: false, warmupLink: false },
+  normalizeConfig: (raw = {}) => Object.freeze({
+    questionStyle: 'any',
+    solverRaceFocus: null,
+    solverRaceDifficulty: null,
+    lineGraph: normalizeLineGraphConfig(raw?.lineGraph, { format }),
+  }),
+});
+
+export const lineGraphClassicMode = lineGraphMode({
+  id: CHALLENGE_MODE_ID.LINE_GRAPH_CLASSIC,
+  format: LINE_GRAPH_FORMAT.CLASSIC,
+  label: 'Graph the Line: Classic',
+  projectorLabel: 'Graph the Line',
+  description: 'One graph a round: the class graphs the same equation, then sees the line.',
+  questionsPerRound: 1,
+});
+
+export const lineGraphSprintMode = lineGraphMode({
+  id: CHALLENGE_MODE_ID.LINE_GRAPH_SPRINT,
+  format: LINE_GRAPH_FORMAT.SPRINT,
+  label: 'Graph the Line: Sprint',
+  projectorLabel: 'Graph the Line Sprint',
+  description: 'A set of graphs in a row: most right, then fewest misses, then fastest finish.',
+  questionsPerRound: LINE_SPRINT_MAX_POOL,
+});
+
+export const lineGraphRushMode = lineGraphMode({
+  id: CHALLENGE_MODE_ID.LINE_GRAPH_RUSH,
+  format: LINE_GRAPH_FORMAT.RUSH,
+  label: 'Graph the Line: Rush',
+  projectorLabel: 'Graph the Line Rush',
+  description: 'As many graphs as you can before the clock runs out.',
+  questionsPerRound: LINE_RUSH_POOL,
+});
+
 const REGISTRY = new Map([
   [standardMode.id, standardMode],
   [solverRaceMode.id, solverRaceMode],
   [graphFeatureRushMode.id, graphFeatureRushMode],
+  [lineGraphClassicMode.id, lineGraphClassicMode],
+  [lineGraphSprintMode.id, lineGraphSprintMode],
+  [lineGraphRushMode.id, lineGraphRushMode],
 ]);
 
 export const DEFAULT_CHALLENGE_MODE_ID = CHALLENGE_MODE_ID.STANDARD;

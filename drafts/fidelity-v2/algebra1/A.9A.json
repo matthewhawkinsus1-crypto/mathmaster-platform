@@ -272,7 +272,10 @@
           "id": "answer",
           "label": "Contextual domain inequality",
           "inputProfile": "inequality",
-          "expected": "0<=t and t<={{years}}"
+          "expected": "0<=t and t<={{years}}",
+          "accepted": [
+            "0<=t<={{years}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -346,7 +349,10 @@
               "id": "contextual",
               "label": "Contextual domain inequality",
               "inputProfile": "inequality",
-              "expected": "0<=t and t<={{years}}"
+              "expected": "0<=t and t<={{years}}",
+              "accepted": [
+                "0<=t<={{years}}"
+              ]
             },
             {
               "id": "judgment",

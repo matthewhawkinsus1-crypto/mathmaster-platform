@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { challengeClock, nextClockBoundaryMs } from './challengeShellModel.js';
-import { readLiveChallengeRound, watchLiveChallengeRound } from './liveChallengeService.js';
+import { readLiveChallengeRound, readLiveChallengeSolution, watchLiveChallengeRound } from './liveChallengeService.js';
 import { createStandingsPublishPacer, hostStandingsSignature, roomPublishesLiveStandings } from './standingsPublishPacer.js';
 
 /**
@@ -82,16 +82,45 @@ export const useTicker = (intervalMs = 250, active = true) => {
 
 /**
  * One closed round's anonymous result, while `active`. Keyed by room and
- * round, so a value from another round is never returned for this one.
+ * round (and copy), so a value from another round is never returned for this
+ * one. `host`: the teacher's whole table (hostRounds) instead of the class's
+ * copy (liveChallengeService.watchLiveChallengeRound).
  */
-export const useRoundSummary = (roomId, roundIndex, active = true) => {
-  const key = active && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${roomId}:${roundIndex}` : null;
+export const useRoundSummary = (roomId, roundIndex, active = true, { host = false } = {}) => {
+  const key = active && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${host ? 'host' : 'class'}:${roomId}:${roundIndex}` : null;
   const [state, setState] = useState({ key: null, summary: null });
   useEffect(() => {
     if (!key) return undefined;
-    return watchLiveChallengeRound(roomId, roundIndex, (summary) => setState({ key, summary }), () => setState({ key, summary: null }));
+    return watchLiveChallengeRound(roomId, roundIndex, (summary) => setState({ key, summary }), () => setState({ key, summary: null }), { host });
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return state.key === key ? state.summary : null;
+};
+
+// A published solution never changes, so one read per round per page.
+const solutionReads = new Map();
+const SOLUTION_MEMORY = 40;
+
+/**
+ * One round's worked solution, read only once the room lists it as revealed
+ * (challengeSolutionModel). Returns undefined until read, null when missing.
+ */
+export const useRoundSolution = (roomId, roundIndex, revealed = false) => {
+  const key = revealed && roomId && Number.isInteger(roundIndex) && roundIndex >= 0 ? `${roomId}:${roundIndex}` : null;
+  const [state, setState] = useState(() => ({ key, solution: key && solutionReads.has(key) ? solutionReads.get(key) : undefined }));
+  useEffect(() => {
+    if (!key) return undefined;
+    if (solutionReads.has(key)) { setState({ key, solution: solutionReads.get(key) }); return undefined; }
+    let cancelled = false;
+    readLiveChallengeSolution(roomId, roundIndex)
+      .then((solution) => {
+        solutionReads.set(key, solution);
+        if (solutionReads.size > SOLUTION_MEMORY) solutionReads.delete(solutionReads.keys().next().value);
+        if (!cancelled) setState({ key, solution });
+      })
+      .catch(() => { if (!cancelled) setState({ key, solution: null }); });
+    return () => { cancelled = true; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return state.key === key ? state.solution : undefined;
 };
 
 // A round's result never changes once written, so one read serves every
@@ -100,15 +129,15 @@ const pastRounds = new Map();
 const PAST_ROUND_MEMORY = 24;
 
 /** The result of the round BEFORE `roundIndex`, for movement since then. */
-export const usePreviousRoundSummary = (roomId, roundIndex, active = true) => {
+export const usePreviousRoundSummary = (roomId, roundIndex, active = true, { host = false } = {}) => {
   const previous = Number.isInteger(roundIndex) ? roundIndex - 1 : -1;
-  const key = active && roomId && previous >= 0 ? `${roomId}:${previous}` : null;
+  const key = active && roomId && previous >= 0 ? `${host ? 'host' : 'class'}:${roomId}:${previous}` : null;
   const [state, setState] = useState(() => ({ key, summary: key ? pastRounds.get(key) || null : null }));
   useEffect(() => {
     if (!key) return undefined;
     if (pastRounds.has(key)) { setState({ key, summary: pastRounds.get(key) }); return undefined; }
     let cancelled = false;
-    readLiveChallengeRound(roomId, previous)
+    readLiveChallengeRound(roomId, previous, { host })
       .then((summary) => {
         if (summary) {
           pastRounds.set(key, summary);

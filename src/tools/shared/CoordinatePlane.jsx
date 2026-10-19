@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlotHelpSlot } from './plotHelpScope.js';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
@@ -6,6 +6,22 @@ import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
+import { describeCoordinatePlane } from '../../platform/language/graphDescription.js';
+import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { describePlot } from './plotAnnouncement.js';
+import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
+import { equalUnitPlaneHeight } from './planeEqualUnits.js';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
+
+const POINT_LABEL_STYLE = Object.freeze({
+  fill: 'var(--mm-graph-label)',
+  stroke: 'var(--mm-graph-bg)',
+  strokeWidth: 3,
+  strokeLinejoin: 'round',
+  paintOrder: 'stroke',
+});
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -35,11 +51,29 @@ const ZOOM_BUTTON = {
   background: 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
   fontWeight: 800,
-  fontSize: 16,
+  fontSize: 'calc(16 * var(--mm-px))',
   cursor: 'pointer',
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
+// One shared empty list standing in for every empty data prop, so the
+// description memo below is not invalidated by a fresh `[]` default (or a
+// caller's inline `[]`) on each render.
+const NONE = [];
+const orNone = (list) => (Array.isArray(list) && list.length ? list : NONE);
+
+const DATA_TABLE_TOGGLE = {
+  minHeight: 44,
+  padding: '0 10px',
+  border: '1px solid var(--mm-tint-border)',
+  borderRadius: 8,
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
+  fontSize: 'calc(13 * var(--mm-px))',
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+const DATA_CELL = { border: '1px solid var(--mm-tint-border)', padding: '3px 8px', textAlign: 'left' };
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
 // `Math.round(v / step) * step` reintroduces float noise for steps like 0.1,
@@ -57,12 +91,42 @@ const pointXY = (point) => {
 };
 const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${tidy(x)}, ${tidy(y)})`; };
 
+// Tools pass curves inline (`functions={[(x) => …]}`), a new array every
+// render, which re-ran the description memo — sampling every curve — on every
+// render (PR #454 review M2). The same curves, judged by what they draw at a
+// few points across the window, keep the same array.
+const SIGNATURE_SAMPLES = 13;
+const curveSignature = (fns, lo, hi) => fns.map((fn) => {
+  let out = '';
+  for (let i = 0; i < SIGNATURE_SAMPLES; i += 1) {
+    const x = lo + ((hi - lo) * (i + 0.37)) / SIGNATURE_SAMPLES;
+    let y;
+    try { y = fn(x); } catch { y = NaN; }
+    out += `${Number.isFinite(y) ? Number(y).toPrecision(8) : 'x'},`;
+  }
+  return out;
+}).join('|');
+const useStableFunctions = (fns, lo, hi) => {
+  const signature = curveSignature(fns, lo, hi);
+  const kept = useRef({ signature: null, fns });
+  if (kept.current.signature !== signature) kept.current = { signature, fns };
+  return kept.current.fns;
+};
+
 export default function CoordinatePlane({
   xMin: domainXMin = -10, xMax: domainXMax = 10, yMin: domainYMin = -10, yMax: domainYMax = 10,
-  width = 560, height = 380,
+  width = 560, height: authoredHeight = 380,
+  // EQUAL UNITS (student pass 3, R-1). Off by default. When on, the plane's
+  // HEIGHT follows the window so one unit is the same length on both axes and
+  // a right angle looks like one. The window, the snap and every plotted
+  // coordinate are unchanged: only pixels move.
+  equalUnits = false,
   xTickStep = null, yTickStep = null,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
+  // The tool's count after a plot, said with it ("2 of 2 points plotted.").
+  // Optional: without it a screen reader hears what the plot did and no count.
+  plotProgress = '',
   // Given, an existing point can be picked up and moved instead of only being
   // replaced by plotting a new one. Optional: a tool that does not own indexed
   // points simply keeps the plot-only behaviour.
@@ -144,6 +208,27 @@ export default function CoordinatePlane({
   // draws the same snap-step minor grid a plotting plane does. Without it,
   // (3, -1) sits between gridlines two units apart and has to be guessed.
   readableGrid = false,
+  // WHAT A SCREEN READER HEARS BEYOND THE NAME (WCAG 1.1.1).
+  //
+  // By default the plane describes itself from the data it draws
+  // (platform/language/graphDescription.js): the window, each line, curve,
+  // guide, shape and point, read at the grid's resolution and never as an
+  // equation. Authored alt text, when a caller has it, wins.
+  description = null,
+  // WHETHER THE DESCRIPTION MAY STATE FEATURE VALUES (axis crossings, high and
+  // low points, positions) and offer the data table. While a question can be
+  // answered it may not: "crosses the y-axis at −4" answers "What is the
+  // y-intercept?" for anyone with a screen reader on. Null decides, failing
+  // closed: values only once the question is closed (QuestionLifecycle
+  // terminal). A screen that asks nothing (a report, a solution review) passes
+  // true; an authored `description` always wins.
+  describeFeatures = null,
+  // The "Show data table" disclosure under a read-only plane. Only where
+  // feature values may be stated, never where the plane withholds coordinates
+  // (revealCoordinates or pointHoverEnabled false), and left out automatically
+  // inside another control (a graph card that is itself a button), where a
+  // nested button is invalid.
+  dataTable = true,
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -153,6 +238,7 @@ export default function CoordinatePlane({
   enlargeable = enlargeable && !insideParentWorkView;
   const pad = 42;
   const innerW = width - pad * 2;
+  const height = equalUnits ? equalUnitPlaneHeight({ width, pad, xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax, fallback: authoredHeight }) : authoredHeight;
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
 
@@ -175,12 +261,38 @@ export default function CoordinatePlane({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // KEYBOARD MOVE (keyboard sweep S6). Which placed point the keyboard has
+  // picked up — the keyboard twin of `dragIndex` — so a misplaced point is
+  // moved, not only fixable with Undo. Null while the keyboard is plotting.
+  const [keyboardHeldIndex, setKeyboardHeldIndex] = useState(null);
+  // A held point is an index into `points`: a new question or a changed set
+  // of points puts it down rather than move the wrong one.
+  useEffect(() => { setKeyboardHeldIndex(null); }, [viewResetKey, points.length]);
   // Keyboard focus on the plane (Tab, not a click): shows the keyboard help.
   const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
+  // A new question starts without the keyboard sentence until the plane has keyboard focus again.
+  useEffect(() => { setKeyboardHelpVisible(false); }, [viewResetKey]);
   // Which existing point the finger or mouse currently has hold of, and where it
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+
+  // WHAT A PLOT DID, SAID ONCE (plotAnnouncement.js). The points before a plot
+  // are kept until the tool hands the plane its points after it; the sentence
+  // replaces the crosshair readout in the live region until the crosshair
+  // moves again.
+  const plotCommitRef = useRef(null);
+  const [plotAnnouncement, setPlotAnnouncement] = useState('');
+  const commitPlot = (point) => {
+    plotCommitRef.current = { point, before: points.map(pointXY) };
+    onPlot(point);
+  };
+  useEffect(() => {
+    const commit = plotCommitRef.current;
+    if (!commit) return;
+    plotCommitRef.current = null;
+    setPlotAnnouncement(describePlot({ point: commit.point, before: commit.before, after: points.map(pointXY), progress: plotProgress }));
+  }, [points, plotProgress]);
 
   // The plotting rectangle clips the MATHEMATICS — lines, curves, regions —
   // and nothing else. A line is drawn from xMin to xMax whatever its slope, so
@@ -301,6 +413,10 @@ export default function CoordinatePlane({
   };
 
   const resetView = () => setView(null);
+  // Reset view disables itself on the press that resets: it keeps the focus
+  // instead of dropping it to the page (A11Y-2).
+  const resetViewAvailability = useFocusSafeDisabled(Boolean(view));
+
   const HIT_RADIUS = 18;
 
   const pointIndexNear = (graphPoint) => {
@@ -321,6 +437,8 @@ export default function CoordinatePlane({
     if (!interactive) return;
     const point = graphPointFromEvent(event);
     if (!point) return;
+    plotCommitRef.current = null;
+    setPlotAnnouncement('');
     setKeyboardActive(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
@@ -346,7 +464,7 @@ export default function CoordinatePlane({
     try { event.currentTarget.releasePointerCapture?.(event.pointerId); } catch { /* not fatal */ }
     if (!point) return;
     if (movedIndex != null) onMovePoint(movedIndex, point);
-    else onPlot(point);
+    else commitPlot(point);
     // A finger leaves no cursor behind, so the preview goes with it. A mouse
     // keeps hovering, and its next move re-establishes the preview anyway.
     if (event.pointerType === 'touch') setPointerPreview(null);
@@ -365,6 +483,8 @@ export default function CoordinatePlane({
   };
 
   const moveKeyboardCursor = (dx, dy) => {
+    plotCommitRef.current = null;
+    setPlotAnnouncement('');
     setKeyboardActive(true);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
@@ -390,15 +510,112 @@ export default function CoordinatePlane({
         const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
         setKeyboardCursor(target);
         setKeyboardActive(true);
-        onPlot(target);
+        // Holding a point: Enter drops it where the crosshair is.
+        if (keyboardHeldIndex != null) {
+          const moved = keyboardHeldIndex;
+          setKeyboardHeldIndex(null);
+          onMovePoint(moved, [clamp(target[0], domainXMin, domainXMax), clamp(target[1], domainYMin, domainYMax)]);
+          break;
+        }
+        // On a point the tool lets the student move: pick it up, exactly as a
+        // press on it does with a finger or mouse.
+        const onPoint = canMovePoints ? pointIndexNear(target) : null;
+        if (onPoint != null) { setKeyboardHeldIndex(onPoint); break; }
+        commitPlot(target);
         break;
       }
+      case 'Escape':
+        // Put a held point back without moving it — and keep the Escape from
+        // also closing Work View around the plane.
+        if (keyboardHeldIndex != null) {
+          event.preventDefault();
+          event.stopPropagation();
+          setKeyboardHeldIndex(null);
+        }
+        break;
       default: break;
     }
   };
 
+  /*
+   * GRAPHS SPEAK. The name stays short ("Coordinate plane"); what is drawn
+   * goes in the accessible description, so two graphs on one screen no longer
+   * announce identically. Memoised on the data, so a crosshair moving across an
+   * interactive plane does not resample every curve. Marks a tool draws itself
+   * as `children` cannot be read from data, and the text says so rather than
+   * pretending the list is complete.
+   */
+  const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
+  const describedPoints = orNone(points);
+  const describedLines = orNone(lines);
+  const describedFunctions = useStableFunctions(orNone(functions), xMin, xMax);
+  const describedPolylines = orNone(polylines);
+  const describedRegions = orNone(regions);
+  const describedVerticals = orNone(verticalLines);
+  const describedHorizontals = orNone(horizontalLines);
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
+  const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
+  const generatedDescription = useMemo(() => describeCoordinatePlane({
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    detail: descriptionDetail,
+    minorGridDrawn: showMinorGrid,
+    listPlottedPoints: interactive,
+    points: describedPoints,
+    lines: describedLines,
+    functions: describedFunctions,
+    polylines: describedPolylines,
+    regions: describedRegions,
+    verticalLines: describedVerticals,
+    horizontalLines: describedHorizontals,
+    label: ariaLabel,
+    hasUndescribedMarks: hasToolMarks,
+    emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
+  }), [
+    xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
+    describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid,
+  ]);
+  const authoredDescription = typeof description === 'string' ? description.trim() : '';
+  const spokenDescription = authoredDescription || generatedDescription.description;
+  // IDREFs, not url(#…), so useId's own characters are fine here.
+  const descriptionUid = useId();
+  const descriptionId = `mm-plane-desc-${descriptionUid}`;
+  const dataTableId = `mm-plane-table-${descriptionUid}`;
+  const [dataTableOpen, setDataTableOpen] = useState(false);
+  // Null until measured: the toggle must never render, even for one frame,
+  // inside a control it would be nested in.
+  const planeRef = useRef(null);
+  const [insideControl, setInsideControl] = useState(null);
+  useLayoutEffect(() => {
+    const host = planeRef.current?.parentElement;
+    setInsideControl(Boolean(host?.closest?.('button, a[href], label, [role="button"], [role="link"], [role="option"]')));
+  }, []);
+  // How wide the plane is drawn, so its text can keep a readable size on a
+  // phone (planeTextScale.js, TOOL-11). Null until measured: authored sizes.
+  const [renderedWidth, setRenderedWidth] = useState(null);
+  useLayoutEffect(() => {
+    const element = planeRef.current;
+    if (!element) return undefined;
+    const measure = () => {
+      const next = element.getBoundingClientRect?.().width || 0;
+      if (next > 0) setRenderedWidth((current) => (current != null && Math.abs(current - next) < 1 ? current : next));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const svgFont = (size) => planeFontSize(size, width, renderedWidth);
+  const showDataTable = !interactive && dataTable !== false && insideControl === false
+    && descriptionDetail === 'features' && revealCoordinates !== false && pointHoverEnabled !== false
+    && generatedDescription.tables.length > 0;
+
   const preview = keyboardActive ? keyboardCursor : pointerPreview;
-  const previewText = preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
+  const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;
+  const previewText = heldPoint && keyboardCursor
+    ? `Moving the point from ${formatCoordinate(heldPoint)} to ${formatCoordinate(keyboardCursor)}. Enter to drop it here, Escape to put it back.`
+    : preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
   // never gets clipped by the plot border.
@@ -406,11 +623,14 @@ export default function CoordinatePlane({
     if (!preview) return null;
     const cx = sx(preview[0]);
     const cy = sy(preview[1]);
-    const chipWidth = revealCoordinates ? Math.max(58, previewText.length * 7.2) : 0;
+    // Grows with the plane's text on a narrow plane (planeTextScale.js).
+    const grow = planeFontSize(12, width, renderedWidth) / 12;
+    const chipWidth = revealCoordinates ? Math.max(58, previewText.length * 7.2) * grow : 0;
+    const chipHeight = 22 * grow;
     const left = cx + 12 + chipWidth > width - 4 ? cx - 12 - chipWidth : cx + 12;
-    const top = cy - 30 < 4 ? cy + 14 : cy - 30;
-    return { cx, cy, left, top, chipWidth };
-  }, [preview, previewText, revealCoordinates, width, xMin, xMax, yMin, yMax]);
+    const top = cy - 8 - chipHeight < 4 ? cy + 14 : cy - 8 - chipHeight;
+    return { cx, cy, left, top, chipWidth, chipHeight, fontSize: 12 * grow };
+  }, [preview, previewText, revealCoordinates, width, renderedWidth, xMin, xMax, yMin, yMax]);
 
   /*
    * WHAT THIS PLANE CAN DO, TOLD TO WHOEVER IS HOLDING IT.
@@ -443,13 +663,14 @@ export default function CoordinatePlane({
   usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
 
   const plane = (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
       <svg
         className={interactive ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
+        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.${canMovePoints ? ' Enter on a plotted point picks it up to move it.' : ''}` : ariaLabel}
+        aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -462,7 +683,14 @@ export default function CoordinatePlane({
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
           if (keyboard) setKeyboardHelpVisible(true);
         }}
-        onBlur={() => setKeyboardHelpVisible(false)}
+        // Leaving the plane puts down a held point and puts the keyboard
+        // crosshair and its readout chip away (they stayed drawn over the
+        // plotted points after Tab moved on); the cursor position is kept for
+        // the next arrow key. The keyboard sentence STAYS once shown: hiding it
+        // on blur shrank the page under the pointer, so a press on Check right
+        // after plotting by keyboard released on the control below it and
+        // was lost (pass 3, found on the phone with TOOL-7's readout).
+        onBlur={() => { setKeyboardHeldIndex(null); setKeyboardActive(false); }}
         style={{
           // `maxHeight` is NOT set here. It used to be an inline '100%', which
           // beats every stylesheet rule and so silently defeated the
@@ -516,25 +744,28 @@ export default function CoordinatePlane({
         {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
         {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
 
-        <text x={width - pad + 6} y={axisY + 4} fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>x</text>
-        <text x={axisX - 4} y={pad - 10} fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">y</text>
-        {originVisible ? <text x={sx(0) - 9} y={sy(0) + 15} fontSize="10" style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
+        <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>x</text>
+        <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">y</text>
+        {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
+        {originVisible ? <text x={sx(0) - 6} y={sy(0) + baselineBelowAxis(svgFont(10), 15, 5)} textAnchor="end" fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
             <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
-            <text x={sx(x)} y={axisY + 17} textAnchor="middle" fontSize="11" style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
+            <text x={sx(x)} y={axisY + baselineBelowAxis(svgFont(11), 17, 6)} textAnchor="middle" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
           </g>
         ))}
         {yTicks.filter((y) => y !== 0).map((y) => (
           <g key={`ty${y}`}>
             <line x1={axisX - 4} x2={axisX + 4} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
-            <text x={axisX - 9} y={sy(y) + 4} textAnchor="end" fontSize="11" style={{ fill: 'var(--mm-graph-label)' }}>{tidy(y)}</text>
+            <text x={axisX - 9} y={sy(y) + 4} textAnchor="end" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(y)}</text>
           </g>
         ))}
 
         <g clipPath={plotClip}>
-        {verticalLines.map((x, index) => <line key={`v${index}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
+        {/* A bare number is a guide (dashed); an { x, boundaryStyle | relation } entry is a
+            boundary and is solid or dashed like any other (verticalLineStyle.js). */}
+        {verticalLineDrawings(verticalLines).map((line, index) => <line key={`v${index}`} x1={sx(line.x)} x2={sx(line.x)} y1={pad} y2={height - pad} stroke={line.stroke} strokeDasharray={line.dash} strokeWidth={line.strokeWidth} />)}
         {horizontalLines.map((y, index) => <line key={`h${index}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
         {functions.map((fn, index) => (
           <path
@@ -586,8 +817,8 @@ export default function CoordinatePlane({
             <circle cx={chip.cx} cy={chip.cy} r="5" fill="none" stroke="#1a73e8" strokeWidth="2.5" />
             {revealCoordinates ? (
               <>
-                <rect x={chip.left} y={chip.top} width={chip.chipWidth} height="22" rx="7" fill="#174ea6" />
-                <text x={chip.left + chip.chipWidth / 2} y={chip.top + 15} textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff">{formatCoordinate(preview)}</text>
+                <rect x={chip.left} y={chip.top} width={chip.chipWidth} height={chip.chipHeight} rx="7" fill="#174ea6" />
+                <text x={chip.left + chip.chipWidth / 2} y={chip.top + chip.chipHeight * 0.68} textAnchor="middle" fontSize={chip.fontSize} fontWeight="700" fill="#fff">{formatCoordinate(preview)}</text>
               </>
             ) : null}
           </g>
@@ -601,6 +832,7 @@ export default function CoordinatePlane({
           // While a point is held, draw it where the finger is. Leaving it at
           // its old coordinates makes the drag look broken until release.
           if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+          else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
           if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
 
           if (point?.marker === 'arrow') {
@@ -640,7 +872,7 @@ export default function CoordinatePlane({
             );
           }
 
-          const held = dragIndex === index;
+          const held = dragIndex === index || keyboardHeldIndex === index;
           return (
             <g
               key={`p${index}`}
@@ -649,9 +881,18 @@ export default function CoordinatePlane({
               pointerEvents={pointHoverEnabled ? undefined : 'none'}
             >
               {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} /> : null}
-              <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
-              {point?.label ? <text x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
-              {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
+              {/* `shape: 'square'` draws the point as a square: a cue that does
+                  not depend on colour (Graphing's given points, A11Y-4). */}
+              {point?.shape === 'square' ? (() => {
+                const half = (hovered || held ? pointRadius + 2 : pointRadius) * 0.95;
+                return <rect data-point-shape="square" x={sx(pointX) - half} y={sy(pointY) - half} width={half * 2} height={half * 2} rx="1.5" fill={pointFill} stroke="#fff" strokeWidth="2" />;
+              })() : <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />}
+              {/* Labels take the theme's graph label colour, with a halo of the
+                  plane's own background so a grid or plotted line under them
+                  cannot hide them: a fixed #24324a was 1.35:1 on the dark
+                  plane (A11Y-4). */}
+              {point?.label ? <text data-point-label="" x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
+              {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
             </g>
           );
         })}
@@ -660,6 +901,48 @@ export default function CoordinatePlane({
             clipPath so they stop at the plotting rectangle too. */}
         {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
       </svg>
+      {/* The plane's accessible description. aria-describedby reads it even
+          while it is aria-hidden, so browse mode does not hear it a second
+          time as a loose paragraph after the image. Inside a card that is
+          itself a control, it stays exposed: there it is part of the card's
+          name, which is how the student tells the cards apart. */}
+      {/* Inline as well as the class: a host that loads no UI kit CSS must not
+          show the description as a visible paragraph (it pushed a staged
+          question's first step off a phone screen, PR #454). */}
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+
+      {showDataTable ? (
+        <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>
+          <button
+            type="button"
+            aria-expanded={dataTableOpen}
+            aria-controls={dataTableId}
+            onClick={() => setDataTableOpen((open) => !open)}
+            style={DATA_TABLE_TOGGLE}
+          >
+            {dataTableOpen ? 'Hide data table' : 'Show data table'}
+          </button>
+          <div id={dataTableId} hidden={!dataTableOpen} style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            {dataTableOpen ? generatedDescription.tables.map((table) => (
+              <table key={table.caption} style={{ borderCollapse: 'collapse', margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
+                <caption style={{ textAlign: 'left', fontWeight: 700, padding: '0 0 4px', color: 'var(--mm-text-muted)' }}>{table.caption}</caption>
+                <thead>
+                  <tr>{table.columns.map((column) => <th key={column} scope="col" style={DATA_CELL}>{column}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (cellIndex === 0
+                        ? <th key={cellIndex} scope="row" style={DATA_CELL}>{cell}</th>
+                        : <td key={cellIndex} style={DATA_CELL}>{cell}</td>))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )) : null}
+          </div>
+        </div>
+      ) : null}
 
       {zoomable ? (
         <div
@@ -669,11 +952,11 @@ export default function CoordinatePlane({
         >
           <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1 / 1.4)} aria-label="Zoom in" style={ZOOM_BUTTON}>+</button>
           <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1.4)} aria-label="Zoom out" style={ZOOM_BUTTON}>−</button>
-          <button className="mm-button-neutral" type="button" onClick={resetView} disabled={!view} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
+          <button className="mm-button-neutral" type="button" onClick={() => { if (view) resetView(); }} {...resetViewAvailability} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
             Reset view
           </button>
           {view ? (
-            <span aria-live="polite" style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
+            <span aria-live="polite" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               Showing x {tidy(xMin)} to {tidy(xMax)}, y {tidy(yMin)} to {tidy(yMax)}
             </span>
           ) : null}
@@ -682,13 +965,13 @@ export default function CoordinatePlane({
 
       {interactive ? (
         <>
-          <p aria-live="polite" className="mm-sr-only">{previewText}</p>
+          <p aria-live="polite" className="mm-sr-only">{plotAnnouncement || previewText}</p>
           {/* ONE LINE, ONCE PER TOOL (plotHelpScope.js). The gesture a student
               needs is one sentence; keyboard and zoom detail folds away, and
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
           {showPlotHelpHere && (showPlotHelp !== 'keyboard' || keyboardHelpVisible) ? (
-            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', textAlign: 'left' }}>
+            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'left' }}>
               {showPlotHelp === 'keyboard' ? null : (
                 <p style={{ margin: 0 }}>
                   Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you

@@ -25,12 +25,13 @@
 import React from 'react';
 import MathInput from '../../MathInput';
 import { exactNumberText } from './algebraicSystemsEngine.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 // The elimination screens' button styles, defined once: EliminationReductionMode
 // uses these too instead of keeping its own copy.
 export const eliminationActionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-export const eliminationSecondaryButtonStyle = { ...eliminationActionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
-export const eliminationSmallActionStyle = { ...eliminationActionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
+export const eliminationSecondaryButtonStyle = { ...eliminationActionStyle, marginTop: 0, padding: '9px 14px', fontSize: 'calc(13 * var(--mm-px))', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
+export const eliminationSmallActionStyle = { ...eliminationActionStyle, marginTop: 8, padding: '9px 14px', fontSize: 'calc(13 * var(--mm-px))' };
 
 const MINUS = '−';
 
@@ -98,7 +99,7 @@ export function EliminationStackRow({
               className={`mathmaster-elim-term is-target is-markable${cancelled ? ' is-cancelled' : ''}`}
               onClick={onToggleCancel}
               aria-pressed={cancelled}
-              aria-label={`${cancelled ? 'Unmark' : 'Mark'} the ${name} term ${text.replace(/\s+/g, '')} in ${label} as cancelling`}
+              aria-label={`${cancelled ? 'Unmark' : 'Mark'} the ${name} term ${spokenMathValue(text.replace(/\s+/g, ''))} in ${label} as cancelling`}
             >
               {text}
             </button>

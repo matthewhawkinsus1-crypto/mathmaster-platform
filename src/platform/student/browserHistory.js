@@ -10,6 +10,24 @@
 // them a stable way to read/write browser entries.
 
 export const STUDENT_ROUTE_STATE_KEY = '__mathmasterStudentRoute';
+/*
+ * WHOSE ENTRY THIS IS.
+ *
+ * Entries stay in the tab after Log Out. On a shared Chromebook the next
+ * student's Back would otherwise walk into the previous student's screens.
+ * Every entry the app writes carries the signed-in account's uid; a popstate
+ * onto an entry another account wrote is refused (App.jsx). Entries written
+ * by spreading the current state (My Math Path's) inherit it.
+ */
+export const ROUTE_OWNER_STATE_KEY = '__mathmasterRouteOwner';
+// What Assignments was showing (assignmentsCenterMemory.js, NAV-21). It belongs
+// to its one entry: a push does not copy it into the next entry, so opening
+// Assignments afresh starts clean while Back onto that entry restores it.
+export const ASSIGNMENTS_VIEW_STATE_KEY = '__mathmasterAssignmentsView';
+const ENTRY_ONLY_STATE_KEYS = [ASSIGNMENTS_VIEW_STATE_KEY];
+export const readRouteOwner = (state) => (
+  state && typeof state === 'object' ? state[ROUTE_OWNER_STATE_KEY] || null : null
+);
 export const MATH_PATH_ROUTE_STATE_KEY = '__mathmasterMathPathRoute';
 
 const cleanString = (value, fallback = '') => {
@@ -71,10 +89,24 @@ export const normalizeStudentRoute = (route = {}) => {
     };
   }
 
-  return {
-    surface,
-    dashboardMode: cleanString(route.dashboardMode, 'assignments'),
-  };
+  const dashboardMode = cleanString(route.dashboardMode, 'assignments');
+  /*
+   * A TEST CYCLE ENTRY NAMES ITS TEST (student pass 3, NAV-9).
+   *
+   * The card is addressed by assignment, like a result. An entry holding only
+   * the mode restored "testCycle" with no test: browser Back showed Home under
+   * a /test-cycle address, and two tests in a row restored the wrong card.
+   * Where it was opened from rides along, so its Back still names that place.
+   */
+  if (dashboardMode === 'testCycle') {
+    return {
+      surface,
+      dashboardMode,
+      testCycleAssignmentId: cleanString(route.testCycleAssignmentId),
+      origin: cleanString(route.origin, 'assignments'),
+    };
+  }
+  return { surface, dashboardMode };
 };
 
 export const normalizeMathPathRoute = (route = {}) => ({
@@ -95,6 +127,7 @@ export const studentRouteKey = (route = {}) => {
     // and collapsing them into one entry would lose that.
     return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}:${normalized.origin}`;
   }
+  if (normalized.dashboardMode === 'testCycle') return `dashboard:testCycle:${normalized.testCycleAssignmentId}`;
   return `dashboard:${normalized.dashboardMode}`;
 };
 
@@ -127,14 +160,26 @@ const currentStateObject = () => (
     : {}
 );
 
-const writeState = (key, route, { replace = false } = {}) => {
+// `url` is the address of the screen this entry records (app/routes/
+// browserUrl.js); without one the entry keeps the current address. `owner`
+// stamps the entry with the signed-in account; `fresh` drops whatever the
+// current entry held (an entry another account wrote).
+const carriedStateObject = (replace) => {
+  const current = { ...currentStateObject() };
+  // A new entry is a new place: what belongs to the entry being left stays there.
+  if (!replace) ENTRY_ONLY_STATE_KEYS.forEach((entryKey) => { delete current[entryKey]; });
+  return current;
+};
+
+const writeState = (key, route, { replace = false, url = null, owner = null, fresh = false } = {}) => {
   if (typeof window === 'undefined' || !window.history) return;
   const next = {
-    ...currentStateObject(),
+    ...(fresh ? {} : carriedStateObject(replace)),
     [key]: route,
+    ...(owner ? { [ROUTE_OWNER_STATE_KEY]: owner } : {}),
   };
   const method = replace ? 'replaceState' : 'pushState';
-  window.history[method](next, '', window.location.href);
+  window.history[method](next, '', url || window.location.href);
 };
 
 export const writeStudentRouteState = (route, options = {}) => {

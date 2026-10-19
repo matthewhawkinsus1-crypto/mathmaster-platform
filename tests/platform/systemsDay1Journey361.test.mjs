@@ -154,7 +154,16 @@ test('an assigned 3×3 method gets directions for that method; only a real choic
   const steps = region(workspace, 'const MODE_STEPS = {', '};', 'MODE_STEPS');
   const eliminationSteps = region(steps, 'algebraic3Elimination:', '\n', 'elimination steps');
   assert.doesNotMatch(eliminationSteps, /substitution or elimination/i);
-  assert.match(workspace, /steps=\{MODE_STEPS\[taskKey\] \|\| MODE_STEPS\.linear\}/);
+  // The card gets the directions for THIS task — on a secure item with its
+  // "then check" invitations dropped (the final action records the answer),
+  // never another task's.
+  // (`stepsAreControls` sits between task and steps: the inequality build's
+  // steps are process only and stay on an assessment, R-10.)
+  const card = workspace.match(/<TaskCard question=\{questionData\} task=\{MODE_TASKS\[taskKey\] \|\| MODE_TASKS\.linear\}(?: stepsAreControls=\{taskKey === 'inequalitiesConstruct'\})? steps=\{([^}]*)\}/);
+  assert.ok(card, 'the task card names its steps');
+  const named = card[1].match(/MODE_STEPS[\[.][^)\s]*(?: \|\| MODE_STEPS\.linear)?/g) || [];
+  assert.ok(named.length >= 1);
+  named.forEach((source) => assert.equal(source, 'MODE_STEPS[taskKey] || MODE_STEPS.linear', `the card's steps come from ${source}`));
 });
 
 test('the method choice shows the system it asks the student to judge', () => {

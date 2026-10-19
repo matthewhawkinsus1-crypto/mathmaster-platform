@@ -33,7 +33,7 @@
   align-items: center;
   gap: 6px;
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 700;
   color: var(--mm-text-muted);
 }
@@ -42,7 +42,7 @@
   display: inline-block;
   width: 22px;
   height: 0;
-  border-top: 2.5px dashed #202124;
+  border-top: 2.5px dashed var(--mm-text-strong);
 }
 
 .mathmaster-threeplane-choice-field {
@@ -56,7 +56,7 @@
   margin-bottom: 8px;
   padding: 0;
   color: var(--mm-text-strong);
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   font-weight: 800;
 }
 
@@ -76,7 +76,7 @@
   border-radius: 10px;
   background: var(--mm-surface);
   color: var(--mm-text-strong);
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   font-weight: 600;
   line-height: 1.35;
   text-align: left;
@@ -86,7 +86,6 @@
 .mathmaster-threeplane-choice:hover,
 .mathmaster-threeplane-choice:focus-visible {
   border-color: #1a73e8;
-  outline: none;
   box-shadow: 0 0 0 3px rgba(26, 115, 232, .18);
 }
 
@@ -115,7 +114,7 @@
 .mathmaster-threeplane-feedback {
   margin: 8px 0 0;
   color: var(--mm-warning-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 600;
   line-height: 1.45;
 }
@@ -135,7 +134,7 @@
   justify-content: center;
   gap: 7px;
   color: var(--mm-text-muted);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 700;
   text-align: center;
 }
@@ -166,14 +165,28 @@
 }
 
 .mathmaster-threeplane-plane-label {
-  fill: #202124;
-  stroke: #fff;
+  fill: var(--mm-text-strong);
+  stroke: var(--mm-surface-sunken);
   stroke-width: 4px;
   paint-order: stroke;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 900;
   letter-spacing: .02em;
   pointer-events: none;
+}
+
+/* Read by screen readers only: the model's keyboard instructions and the
+   view-angle status after a key press. */
+.mathmaster-threeplane-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -186,10 +199,10 @@
   .mathmaster-threeplane-motion-cue {
     width: 100%;
     padding-inline: 6px;
-    font-size: 11px;
+    font-size: calc(11 * var(--mm-px));
   }
 
   .mathmaster-threeplane-plane-label {
-    font-size: 13px;
+    font-size: calc(13 * var(--mm-px));
   }
 }

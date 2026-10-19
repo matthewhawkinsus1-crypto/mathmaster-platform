@@ -33,6 +33,11 @@
  * platformBuildInfo and then calls it (the callable protocol, no credentials):
  * if it does not report this checkout's HEAD, the release stops before
  * path-admin, rules and Hosting exactly as for a function that failed.
+ * Then it checks, with gcloud, that every callable's Cloud Run service lets
+ * browsers in (allUsers -> roles/run.invoker) and grants that where it is
+ * missing, because the Firebase CLI grants it only when it creates a callable
+ * (scripts/verify-callable-access.mjs). A callable a browser still cannot
+ * reach stops the release the same way.
  *
  * The plan, the order, the verify decision and the retry rules live in
  * scripts/lib/releasePlan.mjs and scripts/lib/releaseExecutor.mjs and are
@@ -62,6 +67,8 @@ import {
   summarizeFunctionLabels,
 } from './lib/releasePlan.mjs';
 import { executeReleasePlan } from './lib/releaseExecutor.mjs';
+import { releaseAccessVerdict } from './lib/callableAccess.mjs';
+import { ensureCallableAccess } from './verify-callable-access.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -281,8 +288,12 @@ if (functionSteps > 1) {
   console.log(`\n  ${functionSteps} function groups of up to ${GROUP_SIZE}, ${PAUSE_SECONDS}s apart — about ${Math.round((functionSteps * (PAUSE_SECONDS + 90)) / 60)} minutes if nothing is throttled.`);
 }
 if (steps.some((step) => step.target === VERIFY_FUNCTIONS)) {
-  console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group; the verify step then requires it to report ${head} before anything after it deploys.`);
+  console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group before the checks; the verify step then requires it to report ${head} before anything after it deploys.`);
 }
+const shipsFirst = steps.filter((step) => step.deployFirst).flatMap((step) => step.group);
+const shipsAfterChecks = steps.filter((step) => step.afterChecks).flatMap((step) => step.group);
+if (shipsFirst.length) console.log(`  First, each alone: ${shipsFirst.join(', ')}.`);
+if (shipsAfterChecks.length) console.log(`  After both checks, each alone, and only if every other function shipped and both passed: ${shipsAfterChecks.join(', ')}.`);
 
 if (!EXECUTE) {
   console.log('\nPlan only. Re-run with --execute to deploy.');
@@ -341,6 +352,21 @@ const outcome = await executeReleasePlan({
   steps,
   runner,
   verifyBuildInfo: (step) => callBuildInfo({ region: BUILD_INFO_REGION, name: step.function }),
+  // Every callable in the default codebase is checked and repaired, so one
+  // that lost its binding at create is fixed by the next release of anything;
+  // only the ones this release deployed can stop it (releaseAccessVerdict).
+  ensureCallableAccess: async (step) => {
+    const verdict = releaseAccessVerdict(await ensureCallableAccess({
+      project: PROJECT,
+      region: CLI_DEFAULT_REGION,
+      codebases: ['default'],
+      inventories: { default: inventoryEntries },
+      fix: true,
+      log: (line) => console.log(`[release]   ${line}`),
+    }), { released: step.functions || null });
+    verdict.warnings.forEach((line) => console.log(`[release]   not in this release, still unreachable: ${line}`));
+    return verdict;
+  },
   sleep: (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000)),
   log: (line) => console.log(`\n[release] ${line}`),
   maxAttempts: MAX_ATTEMPTS,
@@ -362,8 +388,12 @@ const report = {
   ok: outcome.ok,
   results: outcome.results,
   failedFunctions: outcome.failedFunctions,
+  // Planned after the checks and not deployed because they did not pass.
+  heldFunctions: outcome.heldFunctions,
   // passed | failed (sha-mismatch | unreachable) | skipped; null when no default-codebase function was deployed.
   verification: outcome.verification,
+  // passed | failed | skipped, with the callables granted browser access and any still unreachable.
+  access: outcome.access,
   failedStep: outcome.failedStep,
   stoppedBeforeTargets: outcome.stoppedBeforeTargets,
   retryCommand,
@@ -386,6 +416,7 @@ if (outcome.failedFunctions.length) {
   console.log(`Functions that did not deploy (${outcome.failedFunctions.length}):`);
   outcome.failedFunctions.forEach(({ name, failure }) => console.log(`  ${name}  (${failure})`));
 }
+if (outcome.heldFunctions?.length) console.log(`Held until the rest is proven (not deployed): ${outcome.heldFunctions.join(', ')}`);
 if (outcome.verification?.status === 'passed') {
   console.log(`Functions verified: ${outcome.verification.function} serves ${String(outcome.verification.liveGitSha).slice(0, 12)}${outcome.verification.warning ? ` (WARNING: ${outcome.verification.warning})` : ''}.`);
 } else if (outcome.verification?.status === 'failed') {
@@ -393,6 +424,15 @@ if (outcome.verification?.status === 'passed') {
   console.log(`  Asked ${outcome.verification.url}. Check by hand: node scripts/release-firebase.mjs --whats-live`);
 } else if (outcome.verification?.status === 'skipped') {
   console.log(`Functions verification skipped: ${outcome.verification.reason}.`);
+}
+if (outcome.access?.status === 'passed') {
+  console.log(`Browser access verified: ${outcome.access.detail}.`);
+} else if (outcome.access?.status === 'failed') {
+  console.log(`Browser access NOT verified: ${outcome.access.detail}`);
+  outcome.access.redeploy.forEach((command) => console.log(`  ${command}`));
+  console.log('  Check by hand: node scripts/verify-callable-access.mjs --codebase default');
+} else if (outcome.access?.status === 'skipped') {
+  console.log(`Browser access check skipped: ${outcome.access.reason}.`);
 }
 if (outcome.failedStep) console.log(`Failed step: ${outcome.failedStep}`);
 if (outcome.stoppedBeforeTargets?.length) console.log(`Not deployed: ${[...new Set(outcome.stoppedBeforeTargets)].join(', ')}`);

@@ -35,8 +35,8 @@ const section = { marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--mm-
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 800, cursor: 'pointer' };
 const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700, cursor: 'pointer' };
 const danger = { ...quiet, color: 'var(--mm-danger-text)', borderColor: 'var(--mm-error-border-soft)', background: 'var(--mm-danger-soft)' };
-const input = { minHeight: 40, padding: '0 12px', border: '1px solid var(--mm-control-border)', borderRadius: 8, fontSize: 14, background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', minWidth: 0, boxSizing: 'border-box' };
-const muted = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 };
+const input = { minHeight: 40, padding: '0 12px', border: '1px solid var(--mm-control-border)', borderRadius: 8, fontSize: 'calc(14 * var(--mm-px))', background: 'var(--mm-input-bg)', color: 'var(--mm-input-text)', minWidth: 0, boxSizing: 'border-box' };
+const muted = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 };
 const dateTime = (ms) => (Number.isFinite(Number(ms)) && ms !== null ? new Date(Number(ms)).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
 const dateOnly = (key) => (key ? new Date(`${key}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : '—');
 
@@ -47,7 +47,7 @@ const STEP_TONE = {
 };
 
 const ReportTable = ({ rows, label }) => (
-  <table aria-label={label} style={{ borderCollapse: 'collapse', fontSize: 13, marginTop: 8 }}>
+  <table aria-label={label} style={{ borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))', marginTop: 8 }}>
     <tbody>
       {rows.map(([name, value]) => (
         <tr key={name}>
@@ -60,7 +60,7 @@ const ReportTable = ({ rows, label }) => (
 );
 
 const Failures = ({ report }) => ((report?.failures || []).length ? (
-  <ul style={{ margin: '6px 0 0', color: 'var(--mm-error-text)', fontSize: 13 }}>
+  <ul style={{ margin: '6px 0 0', color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
     {report.failures.slice(0, 10).map((failure, index) => <li key={`${failure.assignmentId}-${index}`}>{failure.assignmentId} — {failure.reason}</li>)}
   </ul>
 ) : null);
@@ -157,7 +157,7 @@ export default function StudentControlsMigrationCard() {
 
       <ol aria-label="Migration stages" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {stage.steps.map((step) => (
-          <li key={step.id} data-migration-step={step.id} data-step-state={step.state} style={{ padding: '5px 10px', borderRadius: 999, border: '1px solid', fontSize: 12, fontWeight: 800, ...STEP_TONE[step.state] }}>
+          <li key={step.id} data-migration-step={step.id} data-step-state={step.state} style={{ padding: '5px 10px', borderRadius: 999, border: '1px solid', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, ...STEP_TONE[step.state] }}>
             {step.state === 'done' ? '✓ ' : ''}{step.label}
           </li>
         ))}
@@ -215,7 +215,7 @@ export default function StudentControlsMigrationCard() {
           Recorded: <strong>{cutover ? `${dateTime(cutover.confirmedAtMs)} by ${cutover.confirmedByEmail || 'an administrator'}${cutover.hostingVerified ? ' · build verified by the server' : cutover.hostingAttested ? ' · deployment attested' : ''}` : 'not yet'}</strong>
         </p>
         {hostingUnverified && (
-          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: 'var(--mm-text)', marginBottom: 8 }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', marginBottom: 8 }}>
             <input type="checkbox" checked={attestHosting} onChange={(event) => setAttestHosting(event.target.checked)} />
             <span>MathMaster could not read the live build ({readiness?.hosting?.reason || 'unknown'}). I confirm this release&apos;s Hosting is deployed and live for everyone.</span>
           </label>
@@ -240,7 +240,7 @@ export default function StudentControlsMigrationCard() {
           {Object.entries(GATE_LABELS).map(([id, label]) => {
             const gate = gateFor(id);
             return (
-              <li key={id} data-retirement-gate={id} data-gate-ok={gate?.ok === true ? 'true' : 'false'} style={{ fontSize: 13, color: 'var(--mm-text)' }}>
+              <li key={id} data-retirement-gate={id} data-gate-ok={gate?.ok === true ? 'true' : 'false'} style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
                 <strong style={{ color: gate?.ok ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>{gate?.ok ? '✓' : '○'} {label}</strong>
                 {gate?.detail && <div style={muted}>{gate.detail}</div>}
               </li>
@@ -261,11 +261,11 @@ export default function StudentControlsMigrationCard() {
           </p>
         ) : (
           <div style={{ display: 'grid', gap: 8 }}>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: 'var(--mm-text)' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
               <input type="checkbox" checked={attestSchoolDay} onChange={(event) => setAttestSchoolDay(event.target.checked)} />
               <span>Students used this release for a full school day{districtDay ? ` (${dateOnly(districtDay.dateKey)})` : ''}. MathMaster cannot see holidays or staff days.</span>
             </label>
-            <label style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {RETIRE_CONFIRMATION}
+            <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {RETIRE_CONFIRMATION}
               <input aria-label="Retirement confirmation" value={retireText} onChange={(event) => setRetireText(event.target.value)} style={{ ...input, display: 'block', width: '100%', maxWidth: 360, marginTop: 4 }} />
             </label>
             <div>
@@ -305,7 +305,7 @@ export default function StudentControlsMigrationCard() {
         {retired && (
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {!dryStripReady && <p style={{ ...muted, margin: 0 }}>The strip unlocks after a full dry run (since retiring) finishes with no failures.</p>}
-            <label style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {STRIP_CONFIRMATION}
+            <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {STRIP_CONFIRMATION}
               <input aria-label="Strip confirmation" value={stripText} onChange={(event) => setStripText(event.target.value)} disabled={!dryStripReady} style={{ ...input, display: 'block', width: '100%', maxWidth: 360, marginTop: 4 }} />
             </label>
             <div>
@@ -328,7 +328,7 @@ export default function StudentControlsMigrationCard() {
         </p>
         {retired && (
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--mm-text)' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
               <input type="checkbox" checked={confirmMirror} onChange={(event) => setConfirmMirror(event.target.checked)} />
               <span>Turn retirement off (rollback)</span>
             </label>
@@ -349,7 +349,7 @@ export default function StudentControlsMigrationCard() {
                 {busy === 'restore-dry' ? 'Checking…' : 'Restore dry run'}
               </button>
             </div>
-            <label style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {RESTORE_CONFIRMATION}
+            <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>TYPE {RESTORE_CONFIRMATION}
               <input aria-label="Restore confirmation" value={restoreText} onChange={(event) => setRestoreText(event.target.value)} style={{ ...input, display: 'block', width: '100%', maxWidth: 360, marginTop: 4 }} />
             </label>
             <div>

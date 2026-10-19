@@ -10,9 +10,9 @@ const statusTone = {
 
 const metricBox = (label, value, note = '') => (
   <div style={{ padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 9, background: 'var(--mm-surface)', minWidth: 0 }}>
-    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
-    <div style={{ marginTop: 3, fontWeight: 900, fontSize: 18, color: 'var(--mm-text-strong)' }}>{value}</div>
-    {note && <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 11 }}>{note}</div>}
+    <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
+    <div style={{ marginTop: 3, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{value}</div>
+    {note && <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>{note}</div>}
   </div>
 );
 
@@ -29,12 +29,12 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
     <section aria-label="Section balance and rigor" style={{ marginBottom: 16, padding: 14, border: `2px solid ${tone.border}`, borderRadius: 11, background: tone.bg }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 15, color: 'var(--mm-text-strong)' }}>Section Balance & Rigor</div>
-          <div style={{ marginTop: 3, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
+          <div style={{ fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Section Balance & Rigor</div>
+          <div style={{ marginTop: 3, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
             Classwork should teach deeply with support. Practice should independently revisit the same objectives with comparable rigor and enough volume.
           </div>
         </div>
-        <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${tone.border}`, color: tone.color, fontSize: 11, fontWeight: 900 }}>{tone.label}</span>
+        <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${tone.border}`, color: tone.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{tone.label}</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 12 }}>
@@ -45,7 +45,7 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
       </div>
 
       {report.metrics && (
-        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--mm-text)' }}>
+        <div style={{ marginTop: 10, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
           <strong>Independent coverage:</strong> {Math.round(report.metrics.standardCoverage * 100)}% of Classwork standards · {Math.round(report.metrics.familyCoverage * 100)}% of Classwork experience types
         </div>
       )}
@@ -62,19 +62,19 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
       {suggestions.length > 0 && (
         <details style={{ marginTop: 10 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-text-muted)' }}>{suggestions.length} additional authoring suggestion{suggestions.length === 1 ? '' : 's'}</summary>
-          <ul style={{ margin: '7px 0 0', paddingLeft: 20, lineHeight: 1.5, fontSize: 12 }}>
+          <ul style={{ margin: '7px 0 0', paddingLeft: 20, lineHeight: 1.5, fontSize: 'calc(12 * var(--mm-px))' }}>
             {suggestions.map((entry) => <li key={entry.id}><strong>{entry.title}.</strong> {entry.message}</li>)}
           </ul>
         </details>
       )}
 
       {report.status === 'pass' && (
-        <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: 'var(--mm-success-text)' }}>
+        <div style={{ marginTop: 10, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-success-text)' }}>
           ✓ Practice maintains the lesson's coverage and rigor while providing an appropriate independent follow-through.
         </div>
       )}
 
-      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--mm-text-muted)' }}>
+      <div style={{ marginTop: 10, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
         Advisory only: these balance warnings do not block teacher publishing. Instructional-scope violations remain separate hard guardrails.
       </div>
     </section>

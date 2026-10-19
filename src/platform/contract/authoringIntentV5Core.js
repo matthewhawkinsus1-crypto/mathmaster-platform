@@ -15,6 +15,7 @@ import {
 } from './assignmentSchemaV5.js';
 import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
+import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -38,6 +39,8 @@ const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+
 // before any student's numbers exist, so a whole-field token is carried as
 // written. Every other value is coerced exactly as before.
 const WHOLE_TEMPLATE_TOKEN = /^\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}\}$/;
+// Any placeholder, with the Path generator's optional '|filter' ('{{b|signed}}').
+const TEMPLATE_TOKEN = /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 const numberOrTemplateToken = (value) => (
   typeof value === 'string' && WHOLE_TEMPLATE_TOKEN.test(value.trim()) ? value.trim() : Number(value)
 );
@@ -121,7 +124,28 @@ const ACTION_ALIASES = Object.freeze({
   interpretexpressionmeaning: 'interpretExpressionMeaning', mapexpressionmeaning: 'interpretExpressionMeaning', explainexpressionmeaning: 'interpretExpressionMeaning',
   connectlinearrepresentations: 'connectLinearRepresentations', representationbridge: 'connectLinearRepresentations', bridgerepresentations: 'connectLinearRepresentations',
   connectmultiplerepresentations: 'connectLinearRepresentations', multiplerepresentations: 'connectLinearRepresentations', linearmultiplerepresentations: 'connectLinearRepresentations',
+  // The Matrix Lab (Algebra II, A2.3B: solving systems with technology and matrices).
+  locatematrixelements: 'locateMatrixElements', readmatrix: 'locateMatrixElements', matrixdimensions: 'locateMatrixElements',
+  matrixelements: 'locateMatrixElements', identifymatrixelements: 'locateMatrixElements',
+  operateonmatrices: 'operateOnMatrices', multiplymatrices: 'operateOnMatrices', matrixmultiplication: 'operateOnMatrices',
+  addmatrices: 'operateOnMatrices', checkinversematrices: 'operateOnMatrices', verifymatrixinverse: 'operateOnMatrices',
+  writematrixequation: 'writeMatrixEquation', matrixequation: 'writeMatrixEquation',
+  solvematrixequation: 'solveMatrixEquation', solvewithmatrices: 'solveMatrixEquation', solvesystemwithmatrices: 'solveMatrixEquation',
+  completesingularsystem: 'completeSingularSystem', writethirdequation: 'completeSingularSystem', designsingularsystem: 'completeSingularSystem',
 });
+
+// Which Matrix Lab view each matrix action asks for. An authored `mode` wins.
+const MATRIX_LAB_ACTION_MODES = Object.freeze({
+  locateMatrixElements: 'locate',
+  operateOnMatrices: 'operate',
+  writeMatrixEquation: 'equation',
+  solveMatrixEquation: 'solve',
+  completeSingularSystem: 'completeSystem',
+});
+const matrixLabModeFor = (actions) => {
+  const action = actions.find((candidate) => MATRIX_LAB_ACTION_MODES[candidate]);
+  return action ? MATRIX_LAB_ACTION_MODES[action] : null;
+};
 
 const normalizeActions = (question = {}) => {
   const source = asArray(question.studentActions || question.actions || question.studentAction);
@@ -130,7 +154,10 @@ const normalizeActions = (question = {}) => {
 };
 
 const copyCommon = (source, target = {}) => {
-  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `misconceptions` ([{ match, message }]) is the teacher's feedback keyed to
+  // one wrong answer; missFeedback (attemptFeedbackPlan.js) reads it off the
+  // compiled question, so dropping it here silenced it for every student.
+  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -160,9 +187,25 @@ const copyCommon = (source, target = {}) => {
   // allocator fills only the questions that have none.
   if (source.questionWeight != null && source.questionWeight !== '') target.questionWeight = source.questionWeight;
   if (isObject(source.questionWeightBasis)) target.questionWeightBasis = source.questionWeightBasis;
-  if (source.standard) target.standard = source.standard;
+  // `standard` has two meanings. On most questions it is the curriculum code
+  // ('A.3C'); graphing2 standard form keeps the line's { A, B, C } there, and
+  // its branch has already put that object on the target. Overwriting it with
+  // the code left the tool drawing "undefinedx + undefinedy" with no answer
+  // that could ever be right. The coefficients stay where the tool reads them
+  // and the code travels as primaryStandard, the shorthand the blueprint
+  // compiles into alignments (or as a secondary standard when a different
+  // primary was authored), so neither meaning is lost.
+  const curriculumStandard = source.standard && !isObject(source.standard) ? source.standard : null;
+  const toolOwnsStandard = curriculumStandard != null && isObject(target.standard);
+  if (source.standard && !toolOwnsStandard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
+  if (toolOwnsStandard) {
+    if (!target.primaryStandard) target.primaryStandard = curriculumStandard;
+    else if (target.primaryStandard !== curriculumStandard && !asArray(target.secondaryStandards).includes(curriculumStandard)) {
+      target.secondaryStandards = [...asArray(target.secondaryStandards), curriculumStandard];
+    }
+  }
   if (source.prerequisiteStandards) target.prerequisiteStandards = source.prerequisiteStandards;
   if (source.alignments) target.alignments = source.alignments;
   return target;
@@ -235,6 +278,47 @@ const toolFunctionSpec = (raw = {}) => {
   const core = coreFunctionSpec(raw);
   if (core.type !== 'linear') return core;
   return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
+};
+
+// The exponential/log bridge draws and grades one function only,
+// a·base^(x − h) + k (its logarithm is that function's inverse). A `function`
+// authored there without a type is that exponential: read as the default
+// linear spec it became { type: 'linear', a, k }, dropping h and the base (and
+// taking an a·b^x author's b as the intercept), so the bridge graded a
+// different function from the prompt. A typed spec, or one written with a
+// line's m / slope / intercept, compiles exactly as before.
+//
+// A typed exponential written with `b` and no `base` keeps that b as its base
+// (Job P): the prompts write a·b^x, and the grader, the review and the graph
+// engine all read b that way. It used to compile with b left beside a
+// default base 2, and the bridge graded base 2.
+const exponentialLogFunctionSpec = (raw = {}) => {
+  const typedExponential = isObject(raw) && clean(raw.type || raw.family) === 'exponential';
+  if (typedExponential && raw.base == null && raw.b != null) {
+    const { b, ...rest } = raw;
+    return coreFunctionSpec({ ...rest, base: b });
+  }
+  if (!hasFunctionIntent(raw) || raw.type || raw.family || ['m', 'slope', 'intercept'].some((key) => raw[key] != null)) {
+    return toolFunctionSpec(raw);
+  }
+  const base = raw.base ?? raw.b;
+  return coreFunctionSpec({ ...raw, type: 'exponential', base, b: raw.base == null ? undefined : raw.b });
+};
+
+// The bridge grades its function with `base` (or `b` when base is not given;
+// default 2). A base that is not positive and ≠ 1 leaves every attempt
+// ungraded. That does not change how the question compiles or grades; the
+// warning tells the teacher at import instead of at grade time. A non-numeric
+// value (a template token) is left to the family instance to fill.
+const exponentialLogFunctionWarnings = (question = {}, label = 'question') => {
+  const fn = question.type === 'exponentialLogBridge' && isObject(question.function) ? question.function : null;
+  if (!fn || fn.type !== 'exponential') return [];
+  const warnings = [];
+  const base = fn.base ?? fn.b ?? 2;
+  if (Number.isFinite(Number(base)) && !isValidLogBase(base)) {
+    warnings.push(`${label}: exponentialLogBridge function base ${base} must be positive and not 1; the bridge cannot grade this question.`);
+  }
+  return warnings;
 };
 
 const staticFunctionSpec = (raw = {}) => {
@@ -310,6 +394,19 @@ const hasStudentFacingResponseFields = (q = {}) => {
   return fields.length > 0 && fields.every((field) => isObject(field) && clean(field.label || field.prompt));
 };
 
+// SequenceExplorer's own names for the change are difference / ratio
+// (normalizeSequenceSpec). commonDifference / commonRatio are what authors
+// write; store them under the canonical name, and only when the spec names no
+// change of its own, so the sequence the tool draws is the one it drew before.
+const canonicalSequenceChange = (spec, fallbackKind) => {
+  if (!isObject(spec)) return spec;
+  const kind = spec.kind || fallbackKind;
+  const [alias, canonical] = kind === 'geometric' ? ['commonRatio', 'ratio'] : ['commonDifference', 'difference'];
+  if (spec[alias] == null || spec[canonical] != null || spec.change != null) return spec;
+  const { [alias]: change, ...rest } = spec;
+  return { ...rest, [canonical]: change };
+};
+
 const inferBinaryChoiceOptions = (field = {}) => {
   const label = clean(field.label || field.prompt).toLowerCase();
   const answer = clean(field.answer ?? field.acceptedAnswers?.[0]).toLowerCase();
@@ -344,7 +441,14 @@ const fieldFromIntent = (field, index) => {
       : out.answer !== undefined
         ? [out.answer]
         : [];
-    if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+    // A family key's {{name}} placeholders are template syntax, not set
+    // braces: '{{a}}' or '{{union}}/{{total}}' is the number the generator
+    // substitutes. Reading them as set notation compiled such boxes (Digital
+    // SAT student-produced responses) as set fields. Test the key with each
+    // placeholder standing in as a plain literal, so only braces the author
+    // wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
+    const withoutPlaceholders = (value) => (typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value);
+    if (accepted.some((value) => looksLikeFiniteSetNotation(withoutPlaceholders(value)))) {
       out.type = 'set';
       out.toolProfile = out.toolProfile || 'set';
     }
@@ -638,6 +742,24 @@ const latestStageSource = (workflow = [], preferredKinds = []) => {
   return null;
 };
 
+/*
+ * The equation stage of a function workflow asks for the RULE that the table
+ * and graph are then built from, so it accepts that rule under any name:
+ * `g(n) = 2n`, `y = 2x` and a bare `2x` are all `f(x) = 2x` (the grader's
+ * `acceptEquivalentFunctionRule`, as the relationship-model recipe sets it).
+ *
+ * The exception is a prompt that asks for a particular FORM. With the flag the
+ * grader compares function rules algebraically, so `f(x) = 2(x+1)` would pass
+ * for `f(x) = 2x + 2`; "write it in slope-intercept form" must keep refusing
+ * that. An authored boolean `acceptEquivalentFunctionRule` decides either way.
+ */
+const REQUESTED_FORM = /\b(?:slope[-\s]?intercept|point[-\s]?slope|standard|vertex|factored|intercept|expanded|general|simplest|simplified|exponential|logarithmic)\s+form\b|\bin\s+the\s+form\b|\by\s*=\s*mx\s*\+\s*b\b|\bsimplif(?:y|ied)\b/i;
+
+const acceptsEquivalentFunctionRule = (q = {}) => {
+  if (typeof q.acceptEquivalentFunctionRule === 'boolean') return q.acceptEquivalentFunctionRule;
+  return ![q.equationPrompt, q.prompt].some((text) => REQUESTED_FORM.test(String(text ?? '')));
+};
+
 const compileFunctionWorkflow = (q, actions) => {
   const publicFunctionSpec = functionSpecFromIntentQuestion(q);
   const tableInfo = normalizeIntentTable(q.table);
@@ -702,6 +824,7 @@ const compileFunctionWorkflow = (q, actions) => {
       kind: 'equationInput',
       prompt: q.equationPrompt || 'Write the equation or function rule.',
       functionNotationKeys: functionNotationKeysFromPrompt(q.prompt),
+      acceptEquivalentFunctionRule: acceptsEquivalentFunctionRule(q),
     });
     const expected = expectedEquation(q);
     if (expected !== undefined) grading.equation = expected;
@@ -980,6 +1103,10 @@ const readableInequalityIntent = (q = {}) => [q.inequality, q.inequalityText, q.
 const resolveIntentType = (q, actions) => {
   const hint = clean(q.toolHint || q.destination || q.intentType || q.questionType);
   if (hint) return hint;
+  // Matrix work is its own lab. It is decided before the systems rules below,
+  // which would otherwise send a system written as A·X = B to the Systems
+  // Workspace or to a symbolic answer box.
+  if (matrixLabModeFor(actions)) return 'matrixLab';
   if (q.labDefinition || actions.includes('modelingLab')) return 'modelingLab';
   if (actions.includes('calculateCorrelation')) return 'regressionCalculator';
   if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
@@ -1005,13 +1132,24 @@ const resolveIntentType = (q, actions) => {
     && Array.isArray(q.equations)
     && actions.includes('connectRepresentations');
   if (!isThreePlaneSpatialIntent && (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a)))) return 'representationMatch';
-  const hasSequenceAction = actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const sequenceActions = actions.filter((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  const hasSequenceAction = sequenceActions.length > 0;
   // A sequence is mathematical context, not permission to replace an explicitly
   // authored response contract. If the teacher supplied concrete response
   // fields (for example a₅ + a₉, or one explicit-rule box) and only asked for
   // multipleResponses, preserve those exact fields. SequenceExplorer owns the
   // question only when semantic sequence actions ask it to build that workflow,
   // or when no student-facing response fields were authored at all.
+  //
+  // findSequenceTerm / analyzeSequence alone name no workflow the authored
+  // boxes could not hold: with no targetN, missingIndex or sumN, analyze mode
+  // dropped the boxes and graded a₈ instead of the terms the prompt asks for
+  // (District DOL1's "find the second, third and fifth terms").
+  const asksAuthoredSequenceAnswers = hasSequenceAction
+    && sequenceActions.every((a) => a === 'findSequenceTerm' || a === 'analyzeSequence')
+    && hasStudentFacingResponseFields(q)
+    && [q.targetN, q.missingIndex, q.sumN].every((value) => value == null || value === '');
+  if (asksAuthoredSequenceAnswers) return 'multiAnswer';
   if (hasSequenceAction || (q.sequence && !hasStudentFacingResponseFields(q))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
@@ -1523,6 +1661,9 @@ const compileOne = (q, index, repairs) => {
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
         visual: q.visual,
         mathDisplay: q.mathDisplay,
+        // Named matrices to show beside the fields (QuestionVisual).
+        matrices: q.matrices,
+        matrixLayout: q.matrixLayout,
         generator: q.generator,
       });
       break;
@@ -1816,17 +1957,49 @@ const compileOne = (q, index, repairs) => {
     case 'parabolaGeometryLab': {
       const p = q.parabola || {};
       out = copyCommon(q, { type, mode: q.mode || (p.focus || q.focus ? 'fromGeometry' : 'features'), h: q.h ?? p.h, k: q.k ?? p.k, p: q.p ?? p.p, orientation: q.orientation || p.orientation, focus: q.focus || p.focus, directrix: q.directrix || p.directrix });
+      // The equidistance view measures from `point` (or the parabola point at
+      // `offset`). Dropping them graded a prompt that names P at the lab's
+      // default sampled point instead. Copied only when authored.
+      {
+        const point = q.point ?? p.point;
+        const offset = q.offset ?? p.offset;
+        if (point != null) out.point = point;
+        if (offset != null) out.offset = offset;
+      }
       break;
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
       const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
+      // The factorZero, graphConnection and rationalFeatures views also read
+      // these. Dropping them graded the question with the workshop's defaults
+      // — a different problem from the prompt. Copied only when authored.
+      {
+        const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
+        if (numeratorRoots) out.numeratorRoots = numeratorRoots;
+        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+          const value = q[key] ?? p[key];
+          if (value != null) out[key] = value;
+        });
+      }
       break;
     }
     case 'signSolutionAnalyzer': {
       const s = q.signChart || q.inequalityModel || {};
-      out = copyCommon(q, { type, mode: q.mode || s.mode || 'polynomial', factors: q.factors || s.factors, denominatorFactors: q.denominatorFactors || s.denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      const denominatorFactors = q.denominatorFactors || s.denominatorFactors;
+      // With no authored mode, denominator factors make the chart rational —
+      // the analyzer's own resolution (declarations/signSolutionAnalyzer.mjs).
+      // A 'polynomial' default here made the tool and grader ignore the
+      // denominator: (x − 2)/(x + 3) ≥ 0 was graded as x − 2 ≥ 0.
+      out = copyCommon(q, { type, mode: q.mode || s.mode || (denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      // The analyzer reads `numeratorFactors` ahead of `factors`, and the
+      // router above sends a question to it on numeratorFactors alone;
+      // dropping them graded the default numerator (x + 2)(x − 3) instead.
+      {
+        const numeratorFactors = q.numeratorFactors || s.numeratorFactors;
+        if (numeratorFactors) out.numeratorFactors = numeratorFactors;
+      }
       break;
     }
     case 'sequenceExplorer': {
@@ -1847,13 +2020,13 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, {
         type,
         mode,
-        sequence: q.sequence,
+        sequence: canonicalSequenceChange(q.sequence, q.kind || 'arithmetic'),
         targetN: q.targetN,
         displayCount: q.displayCount,
         missingIndex: q.missingIndex,
         sumN: q.sumN,
-        left: q.left,
-        right: q.right,
+        left: canonicalSequenceChange(q.left, 'arithmetic'),
+        right: canonicalSequenceChange(q.right, 'geometric'),
         compareN: q.compareN,
         leftLabel: q.leftLabel,
         rightLabel: q.rightLabel,
@@ -1868,7 +2041,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'exponentialLogBridge': {
       const e = q.exponentialLog || q.logarithm || {};
-      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? toolFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
+      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? exponentialLogFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
       break;
     }
     case 'transformationsLab': {
@@ -1921,6 +2094,34 @@ const compileOne = (q, index, repairs) => {
         rows: q.rows,
         requiredComparisons: q.requiredComparisons,
         ...(isObject(q.repair) ? { repair: q.repair } : {}),
+      });
+      break;
+    }
+    case 'matrixLab': {
+      out = copyCommon(q, {
+        type,
+        mode: q.mode || matrixLabModeFor(actions) || 'operate',
+        matrices: q.matrices,
+        matrix: q.matrix,
+        targets: q.targets,
+        askDimensions: q.askDimensions,
+        operation: q.operation,
+        left: q.left,
+        right: q.right,
+        askDefined: q.askDefined,
+        fillResult: q.fillResult,
+        showExpansion: q.showExpansion,
+        judgeInverse: q.judgeInverse,
+        resultName: q.resultName,
+        equations: q.equations,
+        variables: q.variables,
+        startFrom: q.startFrom,
+        buildEquation: q.buildEquation,
+        askInverse: q.askInverse,
+        variableMeanings: q.variableMeanings,
+        showEquations: q.showEquations,
+        technology: q.technology,
+        justifySingular: q.justifySingular,
       });
       break;
     }
@@ -2004,6 +2205,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
 
   const repairs = [];
   const decisions = [];
+  const compileWarnings = [];
   const assignment = { ...(input.assignment || {}) };
 
   const compileQuestions = (questions = [], role = null, sectionId = null, sectionTitle = null) => asArray(questions).map((question, index) => {
@@ -2019,6 +2221,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     const compiled = compileOne(source, index, repairs);
     const interactionSafe = normalizeQuestionInteractionContracts(compiled);
     assertFamilyTemplateCompiled(source, interactionSafe, index);
+    compileWarnings.push(...exponentialLogFunctionWarnings(interactionSafe, `${sectionTitle || sectionId || 'Section'} question ${index + 1}`));
     decisions.push({
       index,
       sectionId,
@@ -2072,7 +2275,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     package: packageOut,
     repairs,
     decisions,
-    warnings: validation.warnings,
+    warnings: [...validation.warnings, ...compileWarnings],
   };
 };
 
@@ -2086,4 +2289,5 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
+  'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',
 ]);

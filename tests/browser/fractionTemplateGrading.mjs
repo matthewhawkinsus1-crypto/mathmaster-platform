@@ -85,6 +85,9 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
     const card = document.querySelector('.mathmaster-question-prompt');
     if (!card) return '';
     const copy = card.cloneNode(true);
+    // What the eye reads: MathDisplay's visually hidden spoken copy ("9 over
+    // 18", for screen readers) is not on the screen.
+    copy.querySelectorAll('.mm-math-spoken').forEach((node) => node.remove());
     copy.querySelectorAll('math-span, math-div').forEach((node) => node.replaceWith(`⟨${node.textContent.trim()}⟩`));
     return copy.textContent.replace(/\s+/g, ' ').trim();
   });
@@ -94,7 +97,7 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
   await page.keyboard.type(answer, { delay: 30 });
   await page.waitForTimeout(250);
   const typed = await field.evaluate((element) => element.value);
-  const submit = page.getByRole('button', { name: 'Submit Answer' }).first();
+  const submit = page.getByRole('button', { name: /^Submit — / }).first();
   if (device.touch) await submit.tap();
   else await submit.click();
   await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 8000 }).catch(() => {});

@@ -134,7 +134,11 @@ export function buildWalkthroughMonitor({
     all.push(row);
   }
 
-  const needsCheck = all.filter((row) => row.status === WALKTHROUGH_STATUS.NEEDS_CHECK && !row.checked);
+  // A raised hand comes first, whatever the student's position: one on or
+  // ahead of the teacher's question used to be filtered out before the
+  // help priority was ever read (PR #462 review M5). It stays listed until
+  // the student lowers it, even after the teacher marked them checked.
+  const needsCheck = all.filter((row) => row.helpRequested || (row.status === WALKTHROUGH_STATUS.NEEDS_CHECK && !row.checked));
   const priority = (row) => {
     if (row.helpRequested) return 0;
     if (!row.live?.assignmentId) return 1;

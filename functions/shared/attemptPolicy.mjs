@@ -144,6 +144,12 @@ export const emptyQuestionRecord = () => ({
     teacherAssisted: false,
     scaffoldUsed: false,
     contextScaffoldUsed: false,
+    // The inclusion "Let's back up" step, any source. Only a step written for
+    // this problem (authored or family) also sets scaffoldUsed; the platform's
+    // generic step is recorded here and is not help with the mathematics.
+    backUpStepUsed: false,
+    // A specific miss message was shown before this attempt (PR #462 review M6c).
+    feedbackAssisted: false,
     remediationUsed: false,
     workedExampleUsed: false,
     calculatorUsed: false,
@@ -182,9 +188,20 @@ const clampPercent = (value) =>
 // spaced or dashed. Exported (unchanged) so the server's step verification
 // (serverGrading/stepAlgebraStepVerification.mjs) recognizes a state the way
 // calculateStepPartialCredit below does.
+// A state's identity, not its rendering. Since student push Q a substituted
+// group stored as 1(…) / -1(…) is DRAWN (…) / -(…); records written before
+// that hold the old 1\left(…\right). A unit coefficient straight before a
+// group, at the start or after = + - ( , {, is dropped, so both renderings of
+// one state give one key: continuity (stepAlgebraStepVerification) and the
+// partial-credit dedupe below hold across the deploy. Dropping a 1 never
+// merges two different values.
+// The same holds for MathJS's TeX tie: since pass 3 (Q-31) an implicit product
+// is written 2 x, not 2~ x. A tie is only spacing, so it goes with the spaces
+// and records from either side of that deploy give one key.
 export const compactStepStateKey = (value) => String(value || '')
-  .replace(/\s+/g, '')
-  .replace(/[−–—]/g, '-');
+  .replace(/[\s~]+/g, '')
+  .replace(/[−–—]/g, '-')
+  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(');
 
 export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
   const currentSteps = (Array.isArray(stepGrades) ? stepGrades : []).filter(
@@ -282,6 +299,8 @@ export const normalizeQuestionRecord = (record) => {
       teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
       scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
       contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+      backUpStepUsed: Boolean(record.supportUsage?.backUpStepUsed),
+      feedbackAssisted: Boolean(record.supportUsage?.feedbackAssisted),
       remediationUsed: Boolean(record.supportUsage?.remediationUsed),
       workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
       calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
@@ -290,7 +309,8 @@ export const normalizeQuestionRecord = (record) => {
         && !record.supportUsage?.teacherAssisted
         && !record.supportUsage?.scaffoldUsed
         && !record.supportUsage?.remediationUsed
-        && !record.supportUsage?.workedExampleUsed,
+        && !record.supportUsage?.workedExampleUsed
+        && !record.supportUsage?.feedbackAssisted,
     },
   };
 };
@@ -382,6 +402,8 @@ export const recordQuestionStep = ({
       teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
       contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
+      feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
@@ -390,7 +412,8 @@ export const recordQuestionStep = ({
         && !supportUsage.teacherAssisted
         && !supportUsage.scaffoldUsed
         && !supportUsage.remediationUsed
-        && !supportUsage.workedExampleUsed,
+        && !supportUsage.workedExampleUsed
+        && !supportUsage.feedbackAssisted,
     } : current.supportUsage,
     lastAttemptAt: occurrenceIso,
   };
@@ -516,6 +539,8 @@ export const recordQuestionAttempt = ({
       teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
       contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
+      feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
@@ -524,7 +549,8 @@ export const recordQuestionAttempt = ({
         && !supportUsage.teacherAssisted
         && !supportUsage.scaffoldUsed
         && !supportUsage.remediationUsed
-        && !supportUsage.workedExampleUsed,
+        && !supportUsage.workedExampleUsed
+        && !supportUsage.feedbackAssisted,
     } : current.supportUsage,
     lastAttemptAt: occurrenceIso,
   };

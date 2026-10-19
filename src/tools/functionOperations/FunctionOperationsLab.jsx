@@ -3,6 +3,7 @@ import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import functionOperationsGrader from '../../../functions/shared/serverGrading/tools/functionOperationsLab.mjs';
 import MathInput from '../../MathInput.jsx';
@@ -12,6 +13,7 @@ import {
   normalizeComposeOrder,
   normalizeFunctionOperations,
 } from './functionOperationsMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = {
   width: '100%',
@@ -19,7 +21,7 @@ const inputStyle = {
   border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   boxSizing: 'border-box',
-  fontSize: 17,
+  fontSize: 'calc(17 * var(--mm-px))',
 };
 
 const actionStyle = {
@@ -59,6 +61,14 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
   const [responses, setResponses] = usePersistentToolState('responses', () => Object.fromEntries(operations.map((operation) => [operation, ''])));
   const [restrictionResponse, setRestrictionResponse] = usePersistentToolState('restrictionResponse', '');
 
+  // Universal Undo over every answer box (TOOL-2, useFieldUndoHistory.js); an
+  // Undo clears the verdict as an edit does.
+  useFieldUndoHistory({
+    questionData,
+    fields: { responses: [responses, setResponses], restrictionResponse: [restrictionResponse, setRestrictionResponse] },
+    onRestore: () => clearFeedback?.(),
+  });
+
   const setResponse = (operation, value) => {
     clearFeedback?.();
     setResponses((current) => ({ ...current, [operation]: value }));
@@ -97,7 +107,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
       />
 
       <Panel title="Functions">
-        <div style={{ display: 'grid', gap: 8, fontSize: 20, fontWeight: 800 }}>
+        <div style={{ display: 'grid', gap: 8, fontSize: 'calc(20 * var(--mm-px))', fontWeight: 800 }}>
           <MathDisplay value={`f(x)=${answers.f.expression}`} />
           <MathDisplay value={`g(x)=${answers.g.expression}`} />
         </div>
@@ -134,7 +144,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
                     placeholder="Example: 2, -5"
                     aria-label="Excluded denominator values"
                   />
-                  <span style={{ display: 'block', marginTop: 5, color: 'var(--mm-text-muted)', fontWeight: 500, fontSize: 13 }}>
+                  <span style={{ display: 'block', marginTop: 5, color: 'var(--mm-text-muted)', fontWeight: 500, fontSize: 'calc(13 * var(--mm-px))' }}>
                     Enter all values excluded by the original denominator, separated by commas. Leave blank only when there are none.
                   </span>
                 </label>
@@ -145,7 +155,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
       </ToolGrid>
 
       <Panel title="Check your work">
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check all operations</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check all operations</SubmitText></button>
         {feedback ? (
           <div style={{ marginTop: 12 }}>
             <ResultPill ok={feedback.isCorrect}>

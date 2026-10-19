@@ -115,6 +115,41 @@ round-scoped close command when `roundCloseDue` says so:
   (`alreadyApplied`). A close the server refuses because the round is
   genuinely still running (`round_in_progress`) is retried a few seconds later.
 
+**With no host screen open** (the laptop slept, the tab closed) the server
+does the same through the same commands — `closeOverdueLiveChallengeRounds`,
+every minute (`functions/shared/liveChallengeServerSweep.mjs`):
+
+- an open round `SERVER_CLOSE_GRACE_MS` (10 s) past its deadline is closed by
+  the console's own close transaction — never forced, so a student with
+  extended time still inside their own deadline is waited for. An open
+  console always closes first (1.5 s); if both arrive, one closes it and the
+  other is told it is already closed. A student waits at most about 70 s on
+  "Time is up! The results are coming." instead of until the teacher returns;
+- **only when the owner switches it on** (`platformFlags/liveChallengeServerSweep`,
+  `finishAbandonedGames`, default off): results that have stood
+  `HOST_AWAY_FINISH_MS` (30 min) with no host screen heard for as long are
+  ended by the console's own Finish (End Game: answers given count; one match
+  result, its standings and rewards). Never a game that writes a grade (a
+  Warm-Up), and never one whose host the server has not heard at least once.
+  The console's 30-second clock calibration is its heartbeat (`hostHeardAt`,
+  private state, written at most once a minute), so a teacher talking the
+  round through is never ended; the finish re-checks the round, the heartbeat
+  and the switch inside its transaction, so a Next Round that lands first is
+  played. The room records `endedBy: "hostAway"` (readable by the class).
+  Otherwise results wait for the teacher, as before.
+
+On the same switch, `enabled` set to anything but the boolean `true` (`false`,
+`"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run
+logs that it did nothing. That is the first step of a rollback
+(`docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md`). The switch is read
+at the start of every run and again inside each finish's transaction.
+
+The sweep reads only rooms whose private state is due (`serverSweepDueAt`, set
+when a round opens and closes, cleared at the finish): one single-field range
+query, no composite index, nothing a student listens to. A Pace Race round
+has no deadline until its closing threshold sets one; a paused round and a
+lobby are the host's.
+
 Every mode then shows its **results**, and the next round starts only when the
 teacher presses **Next Round** (or **Finish & Show Final Standings** after the
 last; **Continue** when Second Chance may follow). Nothing auto-advances: the
@@ -173,10 +208,15 @@ longer keeps phantom points until the next round opens.
 
 ## 6. The results moment
 
-A closed round's anonymous result (`liveChallengeRooms/{room}/rounds/{n}`) now
-carries `standingsAfterRound`: the match standings the closing transaction
-just produced (`matchStandingsAfterRound`, the final result's own ranking). So
-the results moment reads ONE document written in ONE commit:
+A closed round's anonymous result carries `standingsAfterRound`: the match
+standings the closing transaction just produced (`matchStandingsAfterRound`,
+the final result's own ranking). It is written in three copies, by reader, in
+ONE commit: the teacher's whole table (`…/hostRounds/{n}`, the console and
+projector), the class's copy (`…/rounds/{n}`: only the public rule's rows of
+both lists) and each student's own entry (`…/playerSummaries/{studentId}`:
+their place in the round and the match after it — `roundResultsView` adds it
+to the class's rows as `ownRound`, and movement comes from their previous
+round's entry). So the results moment reads documents of ONE commit:
 
 - the round's own table (place / what each player did / championship points),
 - the standings it left, with movement since the round before,
@@ -267,6 +307,24 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Legible from the back of a room**: sizes scale with the viewport
   (`clamp(…vh/vw…)`); at 1366×768 and at 125% / 150% browser zoom nothing
   scrolls sideways and the standings stay readable (QA harness).
+- **Nobody is publicly last** (`functions/shared/liveChallengePrivacy.mjs`,
+  `liveChallengeProjectorModel.projectorBoardLimit`): every class-wide board —
+  live, round results, standings after a round, under the podium — shows the
+  top five at most and stops before the last player in a small class, then
+  "and N more players · everyone sees their own place on their device". A
+  teacher may choose "Full standings" at create (`room.standingsDisplay`,
+  kept by Play Again). Students' own cards apply the same limit. The server
+  applies it too: every document a student can read (`standings/current`,
+  `rounds/{n}`) holds only the default rule's rows — whatever the projector
+  shows — and a student reads their own place from their own summary
+  (`playerSummaries/{studentId}`); the projector, a teacher session, reads
+  the whole table (`hostRounds/{n}`, the class's player rows).
+- **Worked solution** at the results moment, handed to the projector by the
+  console (`useRoundSolution`), never during a countdown or an open round.
+- **Recognitions** under the podium (`room.recognitions`, aliases only).
+- **Extended time**: after the class deadline, while a round waits for a
+  student with extended time, "A few students are still finishing — results in
+  a moment" (never who).
 - **Large classes**: the top of the board, then "and N more players" — never
   the bottom of the class singled out. The lobby lists every alias that fits
   (chips shrink before anyone is hidden). Under the final podium the standings
@@ -295,7 +353,11 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Results**: their place in the round, what they did, the points it earned,
   their overall place and movement, the top five (and their own row when they
   are outside it), and what comes next.
-- **Final**: their place ("T-2nd of 24"), their total, then what reached their
+- **Final**: a podium finish leads with the place ("T-2nd of 24"); any other
+  finish leads with what the student did (points, correct answers, personal
+  bests, recognitions), and the place is a quiet line ("Your place: 18th of
+  24 — only you see this" when no class-wide board shows it). Then their
+  total and what reached their
   wallet (`renderMatchRewards(roomId, { offered })` — the app's
   `ChallengeRewardsEarned`, read from the wallet, never computed here; with
   nothing earned it says what the game offered, and a game that offered
@@ -303,7 +365,27 @@ places, from the room's reward summary). Host controls run along the bottom.
   standings arrive (a refresh on the podium) the card says "Loading your
   final place…", never "You joined after the last round". A podium finish
   gets confetti, which reduced motion turns off.
-- **Header**: their live score in the room's unit and their place.
+- **Header**: their live score in the room's unit — never their place.
+- **No board under the question.** While a round can be answered there is no
+  standings board, no rank and no "Rank #" on the answer feedback. A student
+  sees their own place only on the results and final cards, which list the top
+  few (the projector's rule, below) and their own row.
+- **The worked solution** at the results moment, once the server has published
+  it (`room.revealedSolutionRounds`; held while a Second Chance replay may come
+  — "The worked solution is shown after the Second Chance rounds").
+- **Missed rounds**: back from a reconnect, a reload or a sleep, rounds that
+  closed meanwhile without their answer get one notice
+  (`challengeMissedRounds.js`).
+- **Recap**: a finished game lists the student's own rounds — result and worked
+  solution — with private personal bests and their recognitions
+  (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`).
+- **Honest about grades**: a Warm-Up game says "Your accuracy counts as your
+  Warm-Up; game points don't."; a standalone game says game points change no
+  grade.
+- **Accommodations**: extended time counts down to the student's own deadline
+  (invite `timeMultiplier`, `personalRoundClock`); a student whose plan grants
+  text-to-speech gets Read aloud on the round prompt. A Warm-Up game receives
+  the whole support profile and the rewards card a standalone game has.
 
 **Plain words.** What a student reads never carries the server's vocabulary:
 an answer sent before GO is told "This round has not started yet. Wait for
@@ -335,7 +417,13 @@ game stops calibrating.
 ## 10. Joining, leaving, coming back
 
 - **Who can join**: the class roster at create time (`createLiveChallenge`
-  invites each student; nobody else can join a room). Game names are handed
+  invites each student; nobody else can join a room) — and a student added
+  to the class while its game is in the lobby or running (and active in the
+  last 12 hours)
+  (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
+  `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
+  their screen follows at once, and the late-join rule below. A student whose
+  invite is for another class's game that is still live is left in it. Game names are handed
   out in a shuffled order, so a name's number says nothing about who holds
   it, and a Warm-Up link must be one of the class's own assignments.
 - **Late join**: a rostered student who arrives after the start joins at once
@@ -397,14 +485,14 @@ the registry).
 
 | Screen | Listeners | Timers |
 | --- | --- | --- |
-| student | invite (app), room (with metadata), the standings snapshot and their own public row (both paused during a rush round), the current round's result (results stage only), one read of the round before — never a classmate's row | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick; one final-standings repair request if a finished room has no final snapshot after 2.5 s |
-| console | room, players, diagnostics, active-room pointer, the current round's result (results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only); the standings pacer (≤ 1 request/s while its board changes) |
+| student | invite (app), room (with metadata), the standings snapshot and their own public row (both paused during a rush round), their own summary (their own place: changes only at a close and the finish), the current round's class copy (results stage only), one read of the round before — never a classmate's row (the rules refuse it) | clock calibration (30 s, live games only); boundary timeouts; the classic round's quarter-second tick; one final-standings repair request if a finished room has no final snapshot after 2.5 s |
+| console | room, players, diagnostics, active-room pointer, the current round's whole result (`hostRounds`, results stage only), one read of the round before; the roster callable once per room | calibration (30 s, live games only); boundary timeouts; the close schedule; audio cues (250 ms, running only); the standings pacer (≤ 1 request/s while its board changes) |
 | projector | none of its own (the console's data) | the clock digits' own ticker |
 
 **Standings on a student's screen** come from one document,
-`…/standings/current` (engine doc §12a), never from the class's rows: the top
-five, the class's size, and the student's own place and score found by their
-seat. The header's place and the in-round board are the latest live snapshot
+`…/standings/current` (engine doc §12a), never from the class's rows: the
+public rule's rows and the class's size — and from their own summary, the
+student's own place and score. The header's place and the in-round board are the latest live snapshot
 (at most about a second old while answers arrive); the results moment reads
 the round's result document as before; the final card waits for the FINAL
 snapshot, which the finishing transaction writes from the match result, so the
@@ -430,13 +518,12 @@ GC) flat across them.
 - **A pause control.** The timer models pause/resume and the stage exists, but
   no control sends it: a pause that only some devices honoured would be worse
   than none.
-- **A server-side close** for a round whose deadline passed with no host screen
-  open (today students wait on "Time's up! The results are coming." until a
-  console or projector is opened).
 - **Choosing a scoring strategy for the classic modes** in the console (the
   server and every results screen already support Grand Prix and Correct
   Count; only the setup control is missing).
-- **Teacher removal of a student** from a running game, and a roster-change
-  (adding a student to the class mid-game) re-invite.
+- **Teacher removal of a student** from a running game (removal happens
+  through account deletion). Adding a student mid-game invites them (§10).
+- **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
+  server (§4); it waits for the teacher to finish or cancel it.
 - **Sound for the countdown**: the audio director's cues are tied to the
   deadline, not to `startsAt`.

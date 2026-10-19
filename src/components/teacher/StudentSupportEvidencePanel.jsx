@@ -16,6 +16,7 @@ import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { activeEvidence, isStaffEvent } from '../../platform/supportEvidence/evidenceAggregation.js';
 import { fetchServiceLog, fetchSupportEvidence, fetchSupportProfileRevisions } from '../../platform/supportEvidence/supportEvidenceStore.js';
 import { describeEvidenceDetails } from '../../platform/supportEvidence/supportEvidenceReport.js';
+import Dialog from '../../ui/Dialog.jsx';
 import SupportQuickActions from './SupportQuickActions.jsx';
 import ServiceLogDialog from './ServiceLogDialog.jsx';
 import SupportProfileEditor, { SupportClassificationTag } from './SupportProfileEditor.jsx';
@@ -96,15 +97,6 @@ export default function StudentSupportEvidencePanel({
     return () => { cancelled = true; };
   }, [studentId, reloadKey]);
 
-  // The editor is a layer above the drawer: Escape closes it, not the drawer
-  // (the drawer ignores Escape while a later dialog is open).
-  useEffect(() => {
-    if (!editorOpen) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') { event.preventDefault(); setEditorOpen(false); } };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [editorOpen]);
-
   // The student's real assignment instances (their class), current first.
   const studentAssignments = useMemo(() => (student?.classId
     ? assignments
@@ -134,7 +126,7 @@ export default function StudentSupportEvidencePanel({
   return (
     <section className="se-stack" style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-divider, var(--mm-border-soft))' }} aria-labelledby={`supports-evidence-${studentId}`} data-student-support-evidence={studentId}>
       <div className="tw-row" style={{ justifyContent: 'space-between' }}>
-        <h3 id={`supports-evidence-${studentId}`} style={{ margin: 0, fontSize: 16 }}>Supports &amp; evidence</h3>
+        <h3 id={`supports-evidence-${studentId}`} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Supports &amp; evidence</h3>
         <div className="tw-row">
           {onOpenReport && <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" onClick={() => onOpenReport(studentId)}>Support evidence report</button>}
           <button type="button" className="tw-btn tw-btn--sm" onClick={() => setEditorOpen(true)}>{hasProfile ? 'Edit support profile' : 'Add support profile'}</button>
@@ -260,7 +252,8 @@ export default function StudentSupportEvidencePanel({
 
       {editorOpen && (
         <div className="tw-review" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditorOpen(false); }}>
-          <div className="tw-review__panel" role="dialog" aria-modal="true" aria-label={`Support profile for ${student.name}`} style={{ width: 'min(820px, 100%)' }}>
+          {/* A layer above the drawer: Escape closes it, not the drawer (Dialog's stack). */}
+          <Dialog className="tw-review__panel" onClose={() => setEditorOpen(false)} aria-label={`Support profile for ${student.name}`} style={{ width: 'min(820px, 100%)' }}>
             <div className="tw-row" style={{ justifyContent: 'flex-end' }}>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => setEditorOpen(false)}>Close</button>
             </div>
@@ -269,7 +262,7 @@ export default function StudentSupportEvidencePanel({
               teacherEmail={teacherEmail}
               onSaved={(savedId, projection) => { onSupportProfileSaved?.(savedId, projection); setReloadKey((key) => key + 1); }}
             />
-          </div>
+          </Dialog>
         </div>
       )}
     </section>

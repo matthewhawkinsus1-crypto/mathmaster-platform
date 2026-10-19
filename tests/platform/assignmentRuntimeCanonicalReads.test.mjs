@@ -160,7 +160,10 @@ test('student dashboard no longer reads flat questions or assignmentType directl
   assert.doesNotMatch(source, /assignment\.questions|resumeAssignment\?\.questions/);
   assert.doesNotMatch(source, /assignment\.assignmentType/);
   assert.match(source, /getStoredAssignmentQuestions/);
-  assert.match(source, /getStoredAssignmentTypeProjection/);
+  // The type projection was only ever read for the retired "notesClasswork is
+  // finished at Classwork 100" rule; the lesson-finished rule (decision 4,
+  // platform/student/lessonSections.js) reads per-question roles instead, so
+  // the model needs no assignment type at all — directly or projected.
 });
 
 console.log('assignmentRuntimeCanonicalReads.test.mjs: all assertions passed');

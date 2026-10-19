@@ -85,10 +85,19 @@ const mediaBlocks = (css) => {
   return blocks;
 };
 
-test('where the assignment header is hidden, the same panel is in the expanded navigator instead', () => {
+// Pass 3: the navigator starts compact on every size, so the panel no longer
+// rides in its expanded half (a phone would only reach it behind "Show
+// progress"). It is in the chip's panel, and the chip is always there for a
+// student where the header is hidden (tests/browser/teacherWorkflow/
+// assignmentChromeJourneys.mjs opens it on a 390×844 phone).
+test('where the assignment header is hidden, the same panel is behind the always-present chip', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   const nav = region(app, 'className={`mathmaster-assignment-unified-nav', '</nav>', 'assignment navigator');
-  const narrow = region(nav, "{!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (", '/>', 'narrow Support tools mount');
+  assert.match(app, /const assignmentChipShown = !preview && user\?\.role === 'student';/);
+  assert.match(nav, /\{assignmentChipShown && \(\s*<button/);
+  const chipPanel = region(nav, '<div id="mathmaster-assignment-status-panel"', '</div>\n            )}', 'the chip panel');
+  assert.doesNotMatch(nav, /\{!assignmentNavigationCollapsed && !preview && user\?\.role === 'student' && \(\s*<StudentSupportTools/, 'not only in the expanded navigator');
+  const narrow = region(chipPanel, "{!preview && user?.role === 'student' && (", '/>', 'narrow Support tools mount');
   assert.match(narrow, /<StudentSupportTools\s+className="mathmaster-narrow-support-tools"/);
   assert.match(narrow, /onResourceOpened=\{\(supportId\) => recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
   const panel = readFileSync(new URL('../../src/components/student/StudentSupportTools.jsx', import.meta.url), 'utf8');
@@ -97,9 +106,17 @@ test('where the assignment header is hidden, the same panel is in the expanded n
   const stylesheets = ['../../src/App.css', '../../src/components/student/MathToolMobileLayout.css']
     .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'));
   assert.match(stylesheets[0], /^\.mathmaster-narrow-support-tools \{\n {2}display: none;\n\}/m, 'hidden wherever the header shows');
+  // The chip and its panel show exactly where the header is hidden.
+  const chipShows = /\.mathmaster-assignment-screen \.mathmaster-assignment-status-chip \{\s*display: block;/;
   const hidesHeader = /\.mathmaster-assignment-screen \.mathmaster-assignment-header[^{]*\{\s*display: none/;
   const showsPanel = /\.mathmaster-assignment-screen \.mathmaster-narrow-support-tools \{\s*display: block;/;
   const headerless = stylesheets.flatMap(mediaBlocks).filter((block) => hidesHeader.test(block.body));
   assert.ok(headerless.length >= 2, 'phone portrait and short landscape both hide the header');
   headerless.forEach((block) => assert.match(block.body, showsPanel, `${block.query} hides the header, so it must show the panel`));
+  const chipBlocks = stylesheets.flatMap(mediaBlocks).filter((block) => chipShows.test(block.body));
+  assert.ok(chipBlocks.length >= 1, 'a stylesheet shows the chip');
+  headerless.forEach((block) => assert.ok(
+    chipBlocks.some((chip) => block.query.split(/,\s*/).every((part) => chip.query.includes(part.replace('@media ', '').trim())) || chip.query === block.query),
+    `${block.query} hides the header, so the chip must show there`,
+  ));
 });

@@ -7,8 +7,10 @@ const SINGLE_LINE_INPUT_TYPES = new Set([
 const normalizedTag = (target) => String(target?.tagName || target?.nodeName || '').toLowerCase();
 const normalizedType = (target) => String(target?.type || target?.getAttribute?.('type') || '').toLowerCase();
 
+// The keypad drawer, and the graphing calculator (Enter there moves to its
+// next line: pass 3, PR-26).
 const calculatorOwnsEnter = (target) => Boolean(
-  target?.closest?.('.mathmaster-calculator-panel')
+  target?.closest?.('.mathmaster-calculator-panel, [data-graphing-calculator]')
   || target?.getAttribute?.('data-calculator-expression') === 'true',
 );
 

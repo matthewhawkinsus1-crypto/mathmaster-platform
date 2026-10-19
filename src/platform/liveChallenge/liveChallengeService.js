@@ -32,6 +32,14 @@ export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
 
+// Graph the Line. The same shape: a student's place in the round and their
+// next items, and a batch of drawn lines, chosen options, typed equations and
+// skips — graded again on the server. The preview shows a teacher sample items
+// for a format and settings, and writes nothing.
+export const getLineGraphRound = call('getLineGraphRound');
+export const submitLineGraphAttempts = call('submitLineGraphAttempts');
+export const previewLineGraph = call('previewLineGraph');
+
 // Option B room experience. These remain server-authoritative: the browser
 // chooses a policy, but the server owns public aliases and speed-score scaling.
 export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');
@@ -89,31 +97,72 @@ export const watchLiveChallengeRoom = (roomId, onValue, onError = console.error,
   }, onError);
 };
 
-// One closed round's anonymous result (liveChallengeRooms/{room}/rounds/{n}):
-// written once, in the transaction that closes the round, with the standings
-// the round left behind. Watched only while a screen shows that round's
-// results; a document that never changes again costs one read.
-export const watchLiveChallengeRound = (roomId, roundIndex, onValue, onError = console.error) => {
+// One closed round's result: written once, in the transaction that closes the
+// round, with the standings the round left behind. Watched only while a screen
+// shows that round's results; a document that never changes again costs one
+// read. Two copies, by reader (functions/shared/liveChallengeResults.mjs):
+//   rounds/{n}      the CLASS's — only the rows the public rule shows everyone
+//                   (a student's screen; their own row is in their summary);
+//   hostRounds/{n}  the TEACHER's — the whole anonymous table (`host: true`:
+//                   the console and the projector it drives).
+const roundCollection = (host) => (host ? 'hostRounds' : 'rounds');
+export const watchLiveChallengeRound = (roomId, roundIndex, onValue, onError = console.error, { host = false } = {}) => {
   if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) {
     onValue?.(null);
     return () => {};
   }
-  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), 'rounds', String(Number(roundIndex))), (snapshot) => {
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), roundCollection(host), String(Number(roundIndex))), (snapshot) => {
     onValue?.(snapshot.exists() ? snapshot.data() : null);
   }, onError);
 };
 
 // The round before, for movement since then. One read; it never changes.
-export const readLiveChallengeRound = async (roomId, roundIndex) => {
+export const readLiveChallengeRound = async (roomId, roundIndex, { host = false } = {}) => {
   if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return null;
-  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), 'rounds', String(Number(roundIndex))));
+  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), roundCollection(host), String(Number(roundIndex))));
   return snapshot.exists() ? snapshot.data() : null;
 };
 
+// A student's OWN place (functions/shared/liveChallengePlayerSummary.mjs):
+// liveChallengeRooms/{room}/playerSummaries/{studentId}, which only they and
+// their teacher can read. It changes when a round closes and at the finish —
+// never during a round. Null until the first round closes.
+export const watchLiveChallengePlayerSummary = (roomId, studentId, onValue, onError = console.error) => {
+  if (!roomId || !studentId) {
+    onValue?.(null);
+    return () => {};
+  }
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), 'playerSummaries', String(studentId)), (snapshot) => {
+    onValue?.(snapshot.exists() ? snapshot.data() : null);
+  }, onError);
+};
+
+// The same summary, read once: a screen back from a reconnect asks which
+// rounds closed without its student's answer.
+export const readLiveChallengePlayerSummary = async (roomId, studentId) => {
+  if (!roomId || !studentId) return null;
+  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), 'playerSummaries', String(studentId)));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+// A closed round's worked solution (functions/shared/liveChallengeSolutionReveal.mjs).
+// Published once, after nobody can answer the round, and never changed: one
+// read, asked for only once the room lists the round in revealedSolutionRounds.
+export const readLiveChallengeSolution = async (roomId, roundIndex) => {
+  if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return null;
+  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), 'solutions', String(Number(roundIndex))));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+// A student's own end-of-game recap: their rounds with the worked solutions,
+// private personal bests and recognitions. Served by the server from the match
+// result, which no client can read.
+export const getLiveChallengeMatchRecap = call('getLiveChallengeMatchRecap');
+
 // Every public player row: the HOST's board (who has answered, who is racing).
-// One device per room listens to this. A student's screen never does — every
-// answer would be delivered to every screen, N × N per round — it listens to
-// its own row and to the room's standings snapshot (below).
+// One device per room listens to this, and only the room's teacher may
+// (firestore.rules: a row's score is a place). A student's screen listens to
+// its own row, its own summary and the room's standings snapshot (below).
 export const watchLiveChallengePlayers = (roomId, onValue, onError = console.error) => {
   if (!roomId) {
     onValue?.([]);
@@ -139,10 +188,11 @@ export const watchLiveChallengePlayer = (roomId, playerKey, onValue, onError = c
 };
 
 // THE CLASS'S STANDINGS: one small snapshot document
-// (functions/shared/liveChallengeStandingsProjection.mjs), replaced at most
-// once a second while the board moves and exactly at each round's close and at
-// the finish. A missed snapshot loses nothing: the next one is whole. Null
-// until the first is written.
+// (functions/shared/liveChallengeStandingsProjection.mjs) — the public rule's
+// rows and how many play — replaced at most once a second while the board
+// moves and exactly at each round's close and at the finish. A missed
+// snapshot loses nothing: the next one is whole. Null until the first is
+// written.
 export const watchLiveChallengeStandings = (roomId, onValue, onError = console.error) => {
   if (!roomId) {
     onValue?.(null);

@@ -174,9 +174,9 @@ function StudentHarness({ preview }) {
           questionRecord={record}
           generationKey={`${ASSIGNMENT_ID}|${preview ? 'teacher-preview' : STUDENT}|${current}|variant:${record?.variantIndex || 0}`}
           familyContext={familyContext}
-          onFamilyDelivery={preview ? null : (delivery) => {
+          onFamilyDelivery={preview ? null : (delivery, rendered) => {
             events.deliveries.push({ slot: delivery.slot, variant: delivery.variant });
-            writeLocalDeliveryPin({ studentId: STUDENT, delivery });
+            writeLocalDeliveryPin({ studentId: STUDENT, delivery, devicePinDropped: Boolean(rendered?.familyPinNotice) });
           }}
           onGrade={() => { events.grades += 1; return null; }}
           onStepGrade={() => { events.stepGrades += 1; return null; }}

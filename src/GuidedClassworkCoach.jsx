@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import useLocalDraftState from './useLocalDraftState';
 import { resolveGuidedNotes } from './guidedNotes';
+import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 
 export default function GuidedClassworkCoach({
   question,
@@ -10,6 +11,11 @@ export default function GuidedClassworkCoach({
   activeStageId = null,
   workflowProgress = null,
   disabled = false,
+  // Read aloud / Translate for the note on screen (pass 3, HELP-6 / HELP-21):
+  // the same actions, and the same entitlement, as hints and feedback.
+  readAloud = null,
+  translation = null,
+  onSupportEvidence = null,
 }) {
   const steps = useMemo(() => resolveGuidedNotes(question, { mode }), [question, mode]);
   const [manualStepIndex, setManualStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
@@ -46,19 +52,20 @@ export default function GuidedClassworkCoach({
         style={{ width: '100%', minHeight: '46px', padding: '10px 13px', border: 0, background: workflowComplete ? 'var(--mm-success-bg)' : 'var(--mm-surface-tint)', color: workflowComplete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', textAlign: 'left', fontWeight: 900 }}
       >
         <span>
-          <span style={{ display: 'block', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{headerLabel}</span>
-          <span style={{ display: 'block', marginTop: '2px', color: 'var(--mm-text-strong)', fontSize: '14px' }}>{currentStep.title}</span>
+          <span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{headerLabel}</span>
+          <span style={{ display: 'block', marginTop: '2px', color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))' }}>{currentStep.title}</span>
         </span>
-        <span aria-hidden="true" style={{ fontSize: '18px' }}>{collapsed ? '▾' : '▴'}</span>
+        <span aria-hidden="true" style={{ fontSize: 'calc(18 * var(--mm-px))' }}>{collapsed ? '▾' : '▴'}</span>
       </button>
 
       {!collapsed && (
         <div style={{ padding: '12px 14px 13px' }}>
-          <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55, fontSize: '14px' }}>{currentStep.instruction}</p>
+          <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55, fontSize: 'calc(14 * var(--mm-px))' }}>{currentStep.instruction}</p>
+          <SupportedTextActions text={[currentStep.title && `${currentStep.title}${/[.?!:]$/.test(currentStep.title) ? '' : '.'}`, currentStep.instruction].filter(Boolean).join(' ')} readAloud={readAloud} translation={translation} label="the note" onEvidence={onSupportEvidence} />
           {synchronized ? (
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>Follows your current math step</span>
-              {workflowProgress && <span style={{ color: 'var(--mm-text-muted)', fontSize: '11px' }}>{workflowProgress.answered || 0} of {workflowProgress.total || steps.length} workflow steps complete</span>}
+              <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>Follows your current math step</span>
+              {workflowProgress && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>{workflowProgress.answered || 0} of {workflowProgress.total || steps.length} workflow steps complete</span>}
             </div>
           ) : steps.length > 1 ? (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '11px' }}>

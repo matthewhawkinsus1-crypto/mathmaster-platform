@@ -1,6 +1,9 @@
 import { HOST_COMMAND } from '../../platform/liveChallenge/challengeShellModel.js';
 import { PRESENCE } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import MathText from '../common/MathText.jsx';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
+import RevealedLine from './RevealedLine.jsx';
 
 /*
  * THE TEACHER'S CONSOLE DURING A GAME.
@@ -16,7 +19,7 @@ import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
  */
 
 const card = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 16, textAlign: 'left', color: 'var(--mm-text-strong)' };
-const primaryButton = { minHeight: 48, border: 0, borderRadius: 10, padding: '12px 20px', background: 'var(--mm-primary)', color: 'var(--mm-on-primary, #fff)', fontWeight: 900, fontSize: 16, cursor: 'pointer' };
+const primaryButton = { minHeight: 48, border: 0, borderRadius: 10, padding: '12px 20px', background: 'var(--mm-primary)', color: 'var(--mm-on-primary, #fff)', fontWeight: 900, fontSize: 'calc(16 * var(--mm-px))', cursor: 'pointer' };
 const secondaryButton = { minHeight: 44, border: '1px solid var(--mm-border)', borderRadius: 10, padding: '10px 14px', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900, cursor: 'pointer' };
 
 const STAGE_LABELS = Object.freeze({
@@ -89,7 +92,7 @@ export function HostControlBar({
           {busy === control.key && control.busyLabel ? control.busyLabel : control.label}
         </button>
       ))}
-      {action?.hint && <span style={{ flex: '1 1 260px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.45 }}>{action.hint}</span>}
+      {action?.hint && <span style={{ flex: '1 1 260px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45 }}>{action.hint}</span>}
     </div>
   );
 }
@@ -111,14 +114,14 @@ export function HostRosterPanel({ roster, stage, showAliases = false, onToggleAl
   return (
     <section aria-label="Class roster" style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-        <div style={{ fontSize: 18, fontWeight: 900 }}>{title}</div>
-        <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
+        <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}>{title}</div>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>
           {summary.joined} of {summary.invited} joined
           {summary.noSignal > 0 ? ` · ${summary.noSignal} no signal` : ''}
           {summary.multiDevice > 0 ? ` · ${summary.multiDevice} on 2+ devices` : ''}
         </div>
       </div>
-      {!hasNames && <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)', fontSize: 13 }}>Showing game names; student names load in a moment.</p>}
+      {!hasNames && <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Showing game names; student names load in a moment.</p>}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))', gap: 6 }}>
         {entries.map((entry) => {
           const { presence } = entry;
@@ -129,20 +132,20 @@ export function HostRosterPanel({ roster, stage, showAliases = false, onToggleAl
               style={{
                 display: 'grid', gridTemplateColumns: '10px minmax(0,1fr) auto', gap: 8, alignItems: 'center',
                 padding: '7px 10px', borderRadius: 9, background: presence.state === PRESENCE.NOT_JOINED ? 'transparent' : 'var(--mm-surface-muted)',
-                border: `1px ${presence.state === PRESENCE.NOT_JOINED ? 'dashed' : 'solid'} var(--mm-border)`, fontSize: 14,
+                border: `1px ${presence.state === PRESENCE.NOT_JOINED ? 'dashed' : 'solid'} var(--mm-border)`, fontSize: 'calc(14 * var(--mm-px))',
               }}
             >
               <span className="mm-shell-dot" aria-hidden="true" style={{ background: presenceColor(presence) }} />
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: presence.state === PRESENCE.NOT_JOINED ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)' }}>{entry.name}</span>
-                <span style={{ display: 'block', fontSize: 12, color: presenceColor(presence) }}>
+                <span style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', color: presenceColor(presence) }}>
                   {presence.label}
                   {presence.devices > 1 ? ` · ${presence.devices} devices` : ''}
                   {showAliases && entry.alias && hasNames ? ` · ${entry.alias}` : ''}
                 </span>
               </span>
               {inRound && presence.state !== PRESENCE.NOT_JOINED && (
-                <span style={{ fontSize: 12, fontWeight: 900, color: entry.finishedRound ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
+                <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: entry.finishedRound ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
                   {entry.finishedRound ? '✓ done' : 'working'}
                 </span>
               )}
@@ -151,7 +154,7 @@ export function HostRosterPanel({ roster, stage, showAliases = false, onToggleAl
         })}
       </ul>
       {typeof onToggleAliases === 'function' && hasNames && (
-        <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+        <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           <input type="checkbox" checked={showAliases} onChange={(event) => onToggleAliases(event.target.checked)} />
           Show each student&apos;s game name (keep off while this screen is projected)
         </label>
@@ -165,7 +168,7 @@ export function NotJoinedLine({ roster }) {
   const names = roster?.summary?.notJoined || [];
   if (!roster?.hasNames || !names.length) return null;
   return (
-    <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14 }}>
+    <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
       <strong style={{ color: 'var(--mm-text-strong)' }}>Not joined yet:</strong> {names.slice(0, 12).join(', ')}{names.length > 12 ? ` and ${names.length - 12} more` : ''}
     </p>
   );
@@ -179,15 +182,45 @@ export function HostRoundResultsPanel({ view, presentation, roundNumber, fallbac
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 14 }}>
       <section style={card} aria-label={`Round ${roundNumber} results`}>
-        <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 10 }}>Round {roundNumber} results{presentation?.placementPoints ? ' · championship points' : ''}</div>
+        <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, marginBottom: 10 }}>Round {roundNumber} results{presentation?.placementPoints ? ' · championship points' : ''}</div>
         <RoundResultsTable view={view} presentation={presentation} look="console" limit={10} />
       </section>
       <section style={card} aria-label="Standings after this round">
-        <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 10 }}>{presentation?.placementPoints ? 'Championship' : 'Standings'} after round {roundNumber}</div>
+        <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, marginBottom: 10 }}>{presentation?.placementPoints ? 'Championship' : 'Standings'} after round {roundNumber}</div>
         {standings
           ? <StandingsBoard rows={standings} presentation={presentation} look="console" limit={10} showCorrect={!presentation?.placementPoints} label="Standings after this round" />
           : <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Tallying the round…</p>}
       </section>
     </div>
+  );
+}
+
+/**
+ * A closed round's worked solution on the console, so the teacher can talk it
+ * through. The console reads it (useRoundSolution) only once the server has
+ * published it, and renders this only on the results screen; a held round
+ * says it comes after the Second Chance rounds.
+ */
+export function HostSolutionPanel({ solution = null, state = SOLUTION_STATE.NONE }) {
+  if (!state || state === SOLUTION_STATE.NONE) return null;
+  const review = state === SOLUTION_STATE.READY ? solution?.solutionReview || {} : null;
+  const steps = review && Array.isArray(review.reasoning) ? review.reasoning.filter(Boolean) : [];
+  return (
+    <section aria-label="Worked solution" data-mm-host-solution={state} style={card}>
+      <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, marginBottom: 8 }}>Worked solution</div>
+      {!review && <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{solutionStateMessage(state)}</p>}
+      {review && (
+        <div style={{ display: 'grid', gap: 8, lineHeight: 1.5 }}>
+          {solution?.prompt && <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'var(--mm-text-muted)' }}>{solution.prompt}</MathText>}
+          {review.headline && <MathText as="div" style={{ fontWeight: 900, fontSize: 'calc(17 * var(--mm-px))' }}>{review.headline}</MathText>}
+          {/* A Graph the Line round the class played together: its line, and the class's most common mistake. */}
+          {solution?.lineGraph && <RevealedLine lineGraph={solution.lineGraph} size={260} />}
+          {steps.length > 0 && <ol style={{ margin: 0, paddingLeft: 22 }}>{steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}</ol>}
+          {review.answerSummary && <div><strong>{answerSummaryLabel(review.answerSummary)}:</strong> <MathText>{review.answerSummary}</MathText></div>}
+          {review.commonError && <div><strong>Watch out:</strong> <MathText>{review.commonError}</MathText></div>}
+          {review.connection && <div style={{ color: 'var(--mm-text-muted)' }}><MathText>{review.connection}</MathText></div>}
+        </div>
+      )}
+    </section>
   );
 }

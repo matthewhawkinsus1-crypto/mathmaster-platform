@@ -42,7 +42,7 @@ const chip = (active) => ({
 });
 
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
-const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' };
+const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
 export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
   const problem = useMemo(() => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty }), [setup.families, setup.features, setup.difficulty]);
@@ -132,7 +132,7 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
                 </span>
               ))}
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: 13 }}>A student who completes nothing in a round earns nothing for it; ties share a place.</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>A student who completes nothing in a round earns nothing for it; ties share a place.</p>
           </>
         ) : (
           <div style={{ fontWeight: 800 }}>One point per completed graph, added up over every round. Ties are broken by accuracy.</div>

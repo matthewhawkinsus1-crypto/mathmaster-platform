@@ -126,10 +126,20 @@ test('teacher preview is isolated before subscriptions and identity points rende
 test('student name remains the strongest identity element and points are secondary', async () => {
   const source = await read('src/components/student/StudentIdentityBar.jsx');
   assert.match(source, /<strong[\s\S]*?\{name\}\{context/);
-  assert.match(source, /<span aria-label=\{`\$\{classPointsBalance\} Class Points`\}/);
-  assert.ok(source.indexOf('<strong') < source.indexOf('classPointsBalance} Class Points'));
-  assert.match(source, /fontSize: 15/);
-  assert.match(source, /fontSize: 12/);
+  // The points chip reads "N Class Points" from its own text (no aria-label
+  // on a role-less span — axe), and comes after the name.
+  assert.match(source, /\{classPointsBalance\}<span className="mm-identity-points-word"> Class Points<\/span>/);
+  assert.ok(source.indexOf('<strong') < source.indexOf('className="mm-identity-points"'));
+  // The name is set larger than the points chip (15 vs 12 at the default
+  // text size), and both follow the student's text-size setting (--mm-px).
+  const sizeOf = (pattern, what) => {
+    const match = source.match(pattern);
+    assert.ok(match, `${what}: a font size in --mm-px`);
+    return Number(match[1]);
+  };
+  const nameSize = sizeOf(/<strong className="mm-identity-name"[^>]*?fontSize: 'calc\(([\d.]+) \* var\(--mm-px\)\)'/, 'the name');
+  const pointsSize = sizeOf(/className="mm-identity-points" style=\{\{[^}]*?fontSize: 'calc\(([\d.]+) \* var\(--mm-px\)\)'/, 'the points chip');
+  assert.ok(nameSize > pointsSize, `the name (${nameSize}) outranks the points (${pointsSize})`);
 });
 
 test('celebrations use only stored public labels, stay bounded, and never become a leaderboard', async () => {

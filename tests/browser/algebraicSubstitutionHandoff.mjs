@@ -97,7 +97,7 @@ const isolateXWithStepAlgebra = async (page) => {
   await host.locator('[aria-label$="on the right side"]').first().click();
   await page.waitForTimeout(600);
   // The added 2y term, selected to cancel against -2y.
-  await host.locator('[aria-label^="+ 2"][aria-label$="select to cancel"]').first().click();
+  await host.locator('[data-term-text^="+ 2"][aria-label$="select to cancel"]').first().click();
   await page.locator('text=Isolated expression ready').waitFor({ timeout: 10000 });
 };
 
@@ -171,9 +171,13 @@ const assertStepAlgebraOpenedForY = async (page, journey) => {
 };
 
 const assertTokenIsPlainMath = async (page, journey) => {
-  const label = await page.locator('.mathmaster-systems-substitution-token').getAttribute('aria-label');
+  // The label speaks the value in words, so the value itself is checked too.
+  const token = page.locator('.mathmaster-systems-substitution-token');
+  const label = await token.getAttribute('aria-label');
+  const value = await token.getAttribute('data-token-value');
   const chips = await workTrailChips(page);
   if (/~/.test(label || '')) note(journey, `token carries LaTeX spacing: ${label}`);
+  if (/~/.test(value || '')) note(journey, `token value carries LaTeX spacing: ${value}`);
   if (chips.some((chip) => chip.includes('~'))) note(journey, `isolation chip carries LaTeX spacing: ${JSON.stringify(chips)}`);
 };
 
@@ -334,7 +338,7 @@ await shoot(page, 'preview-old-draft');
 
 // 7. PR #336 direct-manipulation acceptance: prove the exact screen the
 //    teacher requested, then actually perform the distribution and open the
-//    inline Rewrite / Simplify interaction. These screenshots are the visual
+//    one Simplify control (student push Q) on the equation itself. These screenshots are the visual
 //    release evidence for the workflow.
 await openFresh(page, { scope: 'teacherPreview' });
 await isolateXWithStepAlgebra(page);
@@ -389,20 +393,25 @@ if (!(await commitInline.count())) {
     note('preview-inline-workspace', `distributed products are not visibly preserved for student work: ${stateAfterDistribution}`);
   }
 
-  await inlineHost.locator('button', { hasText: 'Rewrite / Simplify' }).click();
-  await page.waitForTimeout(200);
-  const rewritePanelCount = await inlineHost.locator('.algebra-rewrite-tool').count();
-  const selectableTerms = await inlineHost.locator('[aria-label$="select as the term you want to rewrite"]').count();
+  // One Simplify: the old three buttons are gone; the products and like terms
+  // are highlighted on the board itself, and listed for the keyboard.
+  const oldControls = (await inlineHost.locator('button').allInnerTexts())
+    .filter((text) => /^(Rewrite \/ Simplify|Simplify arithmetic|Combine like terms)$/.test(text.trim()));
+  if (oldControls.length) note('preview-inline-workspace', `old controls still shown: ${oldControls.join(', ')}`);
+  await inlineHost.locator('button.algebra-simplify-toggle').click();
+  await page.waitForTimeout(250);
+  const selectableTerms = await inlineHost.locator('[aria-label$="choose this part to simplify"]').count();
+  const productParts = await inlineHost.locator('.mm-simplify-part[data-simplify-part="product"]').count();
   const railsInRewriteMode = await inlineHost.locator('.algebra-rail').count();
-  if (rewritePanelCount) note('preview-inline-workspace', 'legacy Rewrite / Simplify panel opened instead of inline term mode');
-  if (selectableTerms < 3) note('preview-inline-workspace', `expected neutral inline term tokens, saw only ${selectableTerms}`);
-  if (railsInRewriteMode) note('preview-inline-workspace', `operation rails remained visible in inline rewrite mode (${railsInRewriteMode})`);
+  if (selectableTerms < 2) note('preview-inline-workspace', `expected the products highlighted on the board, saw only ${selectableTerms}`);
+  if (productParts < 2) note('preview-inline-workspace', `expected 3(-3) and 3(2y) as parts to multiply, saw ${productParts}`);
+  if (railsInRewriteMode) note('preview-inline-workspace', `operation rails remained visible while Simplify was open (${railsInRewriteMode})`);
   await shoot(page, 'inline-rewrite-mode');
 }
 report.push({ journey: 'preview-inline-ui', ...inlineObserved });
 
 // 8. Uniformity contract: the back-substitution Step Algebra instance must use
-// the same inline Rewrite / Simplify interaction as the first one-variable
+// the same inline Simplify interaction as the first one-variable
 // solve. Seed only the already-completed upstream systems state; the embedded
 // back-sub solver itself is mounted fresh.
 {
@@ -429,14 +438,14 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await openFresh(page, { scope: 'teacherPreview', seed: backSubSeed });
   const backHost = solver(page);
   await backHost.waitFor({ timeout: 15000 });
-  await backHost.locator('button', { hasText: 'Rewrite / Simplify' }).click();
+  await backHost.locator('button.algebra-simplify-toggle').click();
   await page.waitForTimeout(250);
-  const legacyRewrite = await backHost.locator('.algebra-rewrite-tool').count();
-  const inlineTerms = await backHost.locator('[aria-label$="select as the term you want to rewrite"]').count();
+  const simplifyPanels = await backHost.locator('.mm-simplify-panel').count();
+  const inlineTerms = await backHost.locator('[aria-label$="choose this part to simplify"]').count();
   const backRails = await backHost.locator('.algebra-rail').count();
-  if (legacyRewrite) note('preview-backsub-uniform', 'back-substitution opened the legacy Rewrite / Simplify panel');
-  if (inlineTerms < 2) note('preview-backsub-uniform', `back-substitution did not expose inline term tokens (${inlineTerms})`);
-  if (backRails) note('preview-backsub-uniform', `operation rails remained visible while inline rewrite owned back-substitution (${backRails})`);
+  if (simplifyPanels !== 1) note('preview-backsub-uniform', `back-substitution did not open the shared Simplify (${simplifyPanels})`);
+  if (inlineTerms < 1) note('preview-backsub-uniform', `back-substitution did not highlight its product on the board (${inlineTerms})`);
+  if (backRails) note('preview-backsub-uniform', `operation rails remained visible while Simplify owned back-substitution (${backRails})`);
   await shoot(page, 'inline-backsub-rewrite-mode');
 }
 
@@ -490,9 +499,12 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await openFresh(page, { scope: 'teacherPreview', seed: exactSeed, questionIndex: 2 });
   const exactToken = page.locator('.mathmaster-systems-substitution-token');
   await exactToken.waitFor({ timeout: 10000 });
+  // The token carries its value; its name says it in words (pass 3, A11Y-3):
+  // "Pick up the solved value 20 over 9", never a decimal.
+  const exactTokenValue = await exactToken.getAttribute('data-token-value');
   const exactTokenLabel = await exactToken.getAttribute('aria-label');
-  if (!/20\s*\/\s*9/.test(exactTokenLabel || '')) {
-    note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenLabel}`);
+  if (!/20\s*\/\s*9/.test(exactTokenValue || '') || !/20 over 9/.test(exactTokenLabel || '')) {
+    note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenValue} / ${exactTokenLabel}`);
   }
   if (/2\.222/.test(exactTokenLabel || '')) {
     note('preview-exact-fraction', `back-substitution token exposed decimal approximation: ${exactTokenLabel}`);

@@ -193,7 +193,9 @@ test('multi-relation algebra can cancel an armed operation and rewrite closes th
   assert.match(source, /const cancelBasicOperation = \(\) =>/);
   assert.match(source, /setOperation\(null\)/);
   assert.match(source, /setOperand\(''\)/);
-  assert.match(source, /const openRewrite = \(\) =>[\s\S]*cancelBasicOperation\(\)/);
+  // Opening Simplify (job Q: what "Rewrite / Simplify" became) closes the composer.
+  const toggle = source.slice(source.indexOf('const toggleSimplify = () =>'), source.indexOf('const commitSimplifyResult = async'));
+  assert.match(toggle, /cancelBasicOperation\(\)/);
   assert.match(source, /aria-label="Cancel current algebra operation"/);
 });
 
@@ -236,16 +238,18 @@ test('server passback re-derives algebra step credit and versioned reconciliatio
  * the DOL cell is computed from the saved tracker, and the gradebook row does
  * not read a score off the finalized DOL snapshot.
  */
+// The teacher's screen left App.jsx for its own lazily loaded module (G2).
+const TEACHER_WORKSPACE = 'src/app/teacher/TeacherWorkspace.jsx';
 const gradebookStudentRow = (app) => {
   const start = app.indexOf('<th>Overall</th>');
-  assert.notEqual(start, -1, 'teacher gradebook table not found in App.jsx');
+  assert.notEqual(start, -1, 'teacher gradebook table not found in the teacher workspace');
   const end = app.indexOf('</table>', start);
   assert.notEqual(end, -1, 'teacher gradebook table is unterminated');
   return app.slice(start, end);
 };
 
 test('closed DOL gradebook display recalculates from saved question records instead of freezing an old snapshot', () => {
-  const row = gradebookStudentRow(read('src/App.jsx'));
+  const row = gradebookStudentRow(read(TEACHER_WORKSPACE));
 
   // The section scores come from the canonical tracker split, so they re-derive
   // from saved question records every render. The row reads the one shared
@@ -296,7 +300,7 @@ test('closed DOL gradebook display recalculates from saved question records inst
  * prevent. Gate the cell on evidence, not on the section merely existing.
  */
 test('teacher gradebook section scores show no evidence rather than a zero for unattempted sections', () => {
-  const row = gradebookStudentRow(read('src/App.jsx'));
+  const row = gradebookStudentRow(read(TEACHER_WORKSPACE));
   for (const section of ['warmup', 'classwork', 'practice', 'dol']) {
     assert.match(
       row,

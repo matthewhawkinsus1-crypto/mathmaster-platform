@@ -47,7 +47,9 @@ const browser = await chromium.launch(launchOptions);
 // --- helpers ------------------------------------------------------------------
 
 // A button the student can see, by its accessible name (exact for a string).
-// A role locator skips the Work View rail's hidden "Submit Answer".
+// A role locator skips the Work View rail's hidden Submit.
+// The engine's Submit says its cost ("Submit — uses 1 of 3 tries", D9).
+const SUBMIT = /^Submit — /;
 const btn = (page, name) => page.getByRole('button', { name, exact: typeof name === 'string' });
 
 // MathLive fields are set through the element's own value API: what the
@@ -103,30 +105,31 @@ const SCRIPTS = {
   // { finalEquation: " x = 4" }.
   algebra: async (page) => {
     await balanceMove(page, 'Subtract', '5');
-    await btn(page, '+ 5, select to cancel').click();
+    await page.locator('[data-term-text="+ 5"][aria-label$="select to cancel"]').first().click();
     await simplifySide(page, 'Right side', '8');
     await balanceMove(page, 'Divide by', '2');
     await btn(page, '2, mark this factor for cancellation').first().click();
     await simplifySide(page, 'Right side', '4');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   system: async (page) => {
     await typeMathField(page, 'Solution to the system as an ordered pair', '(1,3)');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   multiAnswer: async (page) => {
     await typeMathField(page, 'Slope', '3');
     await typeMathField(page, 'y-intercept', '-2');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 
   relationMapping: async (page) => {
     // Click a domain value, then the range value it maps to: (-2,3), (1,2), (3,-1).
     for (const [from, to] of [[-2, 3], [1, 2], [3, -1]]) {
-      await btn(page, `Domain value ${from}`).click();
-      await btn(page, `Range value ${to}`).click();
+      // Nodes name their arrows since pass 3 (TOOL-10): "Domain value -2, no arrow yet".
+      await btn(page, new RegExp(`^Domain value ${String(from).replace('-', '\\-')},`)).click();
+      await btn(page, new RegExp(`^Range value ${String(to).replace('-', '\\-')},`)).click();
       await page.waitForTimeout(80);
     }
     await page.getByRole('textbox', { name: /^Domain/ }).fill('-2, 1, 3');
@@ -163,7 +166,7 @@ const SCRIPTS = {
     await page.getByRole('spinbutton', { name: 'Correlation coefficient r' }).fill('1');
     await page.getByRole('combobox', { name: 'Direction' }).selectOption({ label: 'Positive' });
     await page.getByRole('combobox', { name: 'Strength' }).selectOption({ label: 'Strong' });
-    await btn(page, 'Check data model').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   regressionCalculator: async (page) => {
@@ -185,7 +188,7 @@ const SCRIPTS = {
 
     await page.getByRole('combobox', { name: 'Direction' }).selectOption({ label: 'Positive' });
     await page.getByRole('combobox', { name: 'Strength' }).selectOption({ label: 'Strong' });
-    await btn(page, 'Submit my regression').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   systemsWorkspace: async (page) => {
@@ -193,7 +196,7 @@ const SCRIPTS = {
       .selectOption({ label: 'Exactly one solution' });
     await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('2');
     await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('5');
-    await btn(page, 'Check system').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // x = 1, y = 2, z = 3. The RREF technology first (the work does not count
@@ -205,7 +208,7 @@ const SCRIPTS = {
     for (const [name, value] of [['x', 1], ['y', 2], ['z', 3]]) {
       await page.getByRole('spinbutton', { name, exact: true }).fill(String(value));
     }
-    await btn(page, 'Check matrix solution').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // (5, 1) is not in the region; (0, 2) is.
@@ -214,7 +217,7 @@ const SCRIPTS = {
       .getByRole('button', { name: 'No', exact: true }).click();
     await page.getByRole('spinbutton', { name: 'Your own feasible x', exact: true }).fill('0');
     await page.getByRole('spinbutton', { name: 'Your own feasible y', exact: true }).fill('2');
-    await btn(page, 'Check feasible region').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // y ≥ x through (0, 0) and (1, 1), solid, shaded above; y < -x + 4 through
@@ -232,7 +235,7 @@ const SCRIPTS = {
       await page.getByRole('group', { name: 'Boundary style', exact: true }).nth(index).getByRole('button', { name: style, exact: true }).click();
       await page.getByRole('group', { name: 'Shade', exact: true }).nth(index).getByRole('button', { name: shade, exact: true }).click();
     }
-    await btn(page, 'Check inequality graph').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // y = 2x + 1 through (0, 1) and (2, 5), plotted from the keyboard: the
@@ -243,7 +246,7 @@ const SCRIPTS = {
       for (const key of keys) await page.keyboard.press(key);
       await page.keyboard.press('Enter');
     }
-    await btn(page, 'Check construction').click();
+    await btn(page, SUBMIT).first().click();
   },
 
   // x - 6 = 9 → add 6 to both sides, cross out the zero pair, write 9 + 6 as 15.
@@ -251,9 +254,9 @@ const SCRIPTS = {
   // it does not change the shape of what it submits.
   stepAlgebra: async (page) => {
     await balanceMove(page, 'Add', '6');
-    await btn(page, '+ 6, select to cancel').click();
+    await page.locator('[data-term-text="+ 6"][aria-label$="select to cancel"]').first().click();
     await simplifySide(page, 'Right side', '15');
-    await btn(page, 'Submit Solved Equation').click();
+    await btn(page, SUBMIT).click();
   },
 
   functionInvestigation: async (page) => {
@@ -315,7 +318,7 @@ const SCRIPTS = {
     await page.waitForTimeout(400);
     const analysis = page.getByRole('complementary').filter({ has: page.getByRole('heading', { name: 'Analysis Parts' }) });
     await setMathField(analysis.locator('math-field'), '(-\\infty, \\infty)');
-    await btn(page, 'Submit Answer').click();
+    await btn(page, SUBMIT).click();
   },
 };
 

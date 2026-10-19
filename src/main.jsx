@@ -1,7 +1,9 @@
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import App from './App.jsx';
+// The shell renders sign-in itself and loads App.jsx only for a signed-in
+// account (app/shell/AppShell.jsx): the first load is not the whole app.
+import AppShell from './app/shell/AppShell.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import { ToastProvider } from './ui/Toast.jsx';
 import BuildFreshnessNotice from './components/common/BuildFreshnessNotice.jsx';
@@ -10,8 +12,16 @@ import { installClientDiagnostics } from './platform/runtime/clientDiagnostics.j
 import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
 import { installPerformanceDiagnostics, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { installMathMasterTheme } from './theme/mathMasterTheme.js';
+import { installPinchZoomRootFlag } from './platform/layout/pinchZoomReveal.js';
+import { installTextScale } from './platform/layout/textScale.js';
 
 installMathMasterTheme();
+// html[data-mm-pinch-zoomed] for the whole app, so typing while zoomed does not
+// jump the page (index.css, platform/layout/pinchZoomReveal.js).
+installPinchZoomRootFlag(window);
+// --mm-text-scale: the browser text-size setting as a number, so fluid font
+// sizes (clamp with a viewport term) grow with it too (WCAG 1.4.4).
+installTextScale(window);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -38,7 +48,7 @@ createRoot(rootElement).render(
       <ToastProvider>
         <AuthProvider>
           <Suspense fallback={<main style={{ padding: 24 }}>Opening MathMaster…</main>}>
-            <App />
+            <AppShell />
           </Suspense>
           {/* Tells a long-open tab (or the retired Vercel copy) that it is not
               running the build Hosting serves. Never reloads on its own. */}

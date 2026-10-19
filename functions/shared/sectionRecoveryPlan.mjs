@@ -3,9 +3,10 @@
  *
  * Two kinds of generated question come out of a Recovery:
  *
- *   PRACTICE ITEMS — the mastery gate's evidence. Unlimited, one at a time,
- *   cycling through the original section's families so every skill is
- *   practised, and never repeating a question the student has already seen.
+ *   PRACTICE ITEMS — the mastery gate's evidence. One at a time, for as long
+ *   as the families hold a version the student has not seen, cycling through
+ *   the original section's families so every skill is practised, and never
+ *   repeating a question the student has already seen.
  *
  *   THE RECOVERY ASSESSMENT — for a DOL, one fresh instance of every original
  *   DOL question (same family, same constraints, same tool, so the same skill
@@ -16,7 +17,11 @@
  *
  * "Fresh" is enforced, not hoped for: each instance comes from its own list
  * (a distinct slot key) and the walk skips every fingerprint the student has
- * already met — their original deliveries and their practice items.
+ * already met — their original deliveries and their practice items — and
+ * only those (`historyIsComplete`). The engine's own reconstruction of a
+ * student's earlier variants is for callers that have no such history; run
+ * on top of one, it hid versions the student had never seen, and Practice ran
+ * dry with most of a family unused (tests/platform/recoveryPracticeSupply).
  * Shuffling answer choices would not count as a different question here,
  * because fingerprints ignore choice order.
  *
@@ -27,6 +32,13 @@ import { resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
 import { familyInstanceServerGradable } from './questionFamilyGrading.mjs';
 import { resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
 import { RECOVERY_GRADING_FAILURE, classifyFamilyGenerationError } from './sectionRecoveryEvidence.mjs';
+import {
+  TARGETED_PRACTICE_CANDIDATES,
+  familyTargetsCodes,
+  instanceExposesMisconception,
+  normalizeMisconceptionFocus,
+  orderSlotsForFocus,
+} from './recoveryMisconceptionTargeting.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -50,24 +62,46 @@ export const buildRecoveryPracticeItem = ({
   seatInfo = null,
   seenFingerprints = [],
   opportunity = 1,
+  misconceptionFocus = null,
 } = {}) => {
-  const slots = Array.isArray(readySlots) ? readySlots.filter((slot) => slot?.ready) : [];
+  // Targeted Recovery (recoveryMisconceptionTargeting.mjs): questions with a
+  // diagnosed error lead the rotation; every ready question still follows.
+  const focus = normalizeMisconceptionFocus(misconceptionFocus);
+  const slots = orderSlotsForFocus(Array.isArray(readySlots) ? readySlots.filter((slot) => slot?.ready) : [], focus);
   if (!slots.length) return { error: 'no-ready-slots' };
   const index = Math.max(0, Math.floor(Number(practiceIndex) || 0));
   const slot = slots[index % slots.length];
   const question = questionsByIndex[slot.storageIndex];
   if (!question) return { error: 'slot-question-missing' };
   const round = Math.floor(index / slots.length);
-  const allocation = resolveGenerationAllocation({ seatInfo, variant: round });
-  const result = resolveFamilyQuestionInstance({
+  const resolveVariant = (variant) => resolveFamilyQuestionInstance({
     question,
     assignmentId,
     storageIndex: slot.storageIndex,
     slotKey: recoverySlotKey({ assignmentId, section, kind: 'recoveryPractice', opportunity, questionId: slot.questionId || `index-${slot.storageIndex}` }),
-    allocation,
+    allocation: resolveGenerationAllocation({ seatInfo, variant }),
     excludeFingerprints: seenFingerprints,
+    // Every version the student has been shown — originals and every earlier
+    // Practice item — is in `seenFingerprints`, so nothing is reconstructed.
+    historyIsComplete: true,
   });
+  let result = resolveVariant(round);
   if (result.error) return { error: result.error };
+  // The version in which the student's own error is visible, from a few more
+  // allocations of their own seat (any of them is a pin the server accepts);
+  // none found keeps the untargeted version.
+  const codes = focus[slot.storageIndex] || [];
+  const familyKey = `${result.family?.id}@${result.family?.version}`;
+  if (codes.length && familyTargetsCodes(familyKey, codes)) {
+    for (let step = 0; step < TARGETED_PRACTICE_CANDIDATES; step += 1) {
+      const candidate = step === 0 ? result : resolveVariant(round + step);
+      if (candidate.error) continue;
+      if (instanceExposesMisconception({ familyKey, values: candidate.instance?.values, codes })) {
+        result = candidate;
+        break;
+      }
+    }
+  }
   return {
     itemId: `p${index}`,
     practiceIndex: index,
@@ -110,6 +144,8 @@ export const buildRecoveryAssessmentPlan = ({
       slotKey: recoverySlotKey({ assignmentId, section, kind: 'recovery', opportunity, questionId: slot.questionId || `index-${slot.storageIndex}` }),
       allocation: resolveGenerationAllocation({ seatInfo, variant: round }),
       excludeFingerprints: [...seen],
+      // `seen` is the student's whole history plus this plan's earlier items.
+      historyIsComplete: true,
     });
     if (result.error) return { error: result.error, position };
     // Two Recovery items must not be the same question either.
@@ -208,6 +244,8 @@ export const buildRecoveryReplacementItems = ({
         }),
         allocation: resolveGenerationAllocation({ seatInfo, variant: 0 }),
         excludeFingerprints: [...seen],
+        // Every version the student was shown, the failed pins included.
+        historyIsComplete: true,
       });
     } catch {
       return { error: 'replacement-unavailable', itemId, classification: 'resolution-exception' };

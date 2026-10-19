@@ -32,7 +32,7 @@ const badgeStyle = (state) => {
     display: 'inline-block',
     padding: '3px 9px',
     borderRadius: 999,
-    fontSize: 12,
+    fontSize: 'calc(12 * var(--mm-px))',
     fontWeight: 900,
     background: tone ? `var(--mm-${tone}-bg)` : 'var(--mm-surface-muted)',
     color: tone ? `var(--mm-${tone}-text)` : 'var(--mm-text-muted)',
@@ -53,10 +53,10 @@ const buttonStyle = (primary) => ({
 export function RecoveryMasteryMeter({ percent }) {
   const value = Math.max(0, Math.min(100, Number(percent) || 0));
   return (
-    <div aria-label={`Practice Mastery ${value}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ display: 'grid', gap: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--mm-text-muted)' }}>
-        <span>Practice Mastery</span>
-        <strong style={{ color: 'var(--mm-text-strong)', fontSize: 16 }}>{value}%</strong>
+    <div aria-label={`Recovery practice mastery ${value}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ display: 'grid', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+        <span>Recovery practice mastery</span>
+        <strong style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(16 * var(--mm-px))' }}>{value}%</strong>
       </div>
       <div style={{ height: 8, borderRadius: 999, background: 'var(--mm-surface-muted)', overflow: 'hidden' }}>
         <div style={{ width: `${value}%`, height: '100%', borderRadius: 999, background: 'var(--mm-primary)' }} />
@@ -73,7 +73,10 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
       {anyLocked && (
         <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--mm-info-bg)', border: '1px solid var(--mm-info-border)', color: 'var(--mm-info-text)' }}>
           <strong>Recovery Available</strong>
-          <div style={{ marginTop: 2, fontSize: 13 }}>Improve your Practice mastery to unlock another opportunity.</div>
+          {/* Names the button, because "improve your Practice mastery" sent
+              students to the assignment's own Practice section, which never
+              counts toward unlocking a Recovery. */}
+          <div style={{ marginTop: 2, fontSize: 'calc(13 * var(--mm-px))' }}>Use the “Practice for …” button below to unlock another try. Practice inside the assignment itself does not count toward it.</div>
         </div>
       )}
       {summary.map((entry) => {
@@ -81,30 +84,30 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
         return (
           <article key={entry.section} data-recovery-section={entry.section} data-recovery-state={entry.state} style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 16, color: 'var(--mm-text-strong)' }}>{entry.label}</strong>
+              <strong style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{entry.label}</strong>
               <span style={badgeStyle(entry.state)}>{entry.badge}</span>
             </div>
             {(entry.state === 'locked' || entry.state === 'unlocked') && <RecoveryMasteryMeter percent={entry.masteryPercent} />}
-            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5 }}>{entry.message}</p>
+            <p style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.5 }}>{entry.message}</p>
             {entry.endsAtLabel && (
-              <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--mm-text-strong)' }}>
+              <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)' }}>
                 Open until {entry.endsAtLabel}
               </p>
             )}
             {entry.state === 'locked' && entry.practiceRemaining > 0 && (
-              <p style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>
+              <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 {entry.practiceRemaining} more practice question{entry.practiceRemaining === 1 ? '' : 's'} to go.
               </p>
             )}
             {entry.result && (
-              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, fontSize: 13 }}>
+              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, fontSize: 'calc(13 * var(--mm-px))' }}>
                 <div><dt style={{ color: 'var(--mm-text-muted)' }}>Original</dt><dd style={{ margin: 0, fontWeight: 900 }}>{entry.result.original}</dd></div>
                 <div><dt style={{ color: 'var(--mm-text-muted)' }}>Recovery</dt><dd style={{ margin: 0, fontWeight: 900 }}>{entry.result.recovery}</dd></div>
                 <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900 }}>{entry.result.final}</dd></div>
               </dl>
             )}
             {entry.note && (
-              <p data-recovery-note="true" style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>{entry.note}</p>
+              <p data-recovery-note="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{entry.note}</p>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {entry.canPractice && (

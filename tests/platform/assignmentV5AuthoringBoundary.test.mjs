@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
-const app = fs.readFileSync('src/App.jsx', 'utf8');
+const app = appAndTeacherWorkspaceSource();
 const intake = assignmentIntakeSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const questionEditor = assignmentQuestionEditorSource();

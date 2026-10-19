@@ -10,7 +10,7 @@ import { RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
-import { CHALLENGE_STAGE, HOST_COMMAND, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, questionSetGameOf, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 
 /*
@@ -117,24 +117,34 @@ test('the student screen plays a rush on its own surface, loaded only for a rush
   assert.match(student, /const loadGraphFeatureRushRound = \(\) => import\('\.\/GraphFeatureRushRound\.jsx'\);/);
   assert.match(student, /const GraphFeatureRushRound = lazy\(loadGraphFeatureRushRound\);/);
   assert.match(region(student, 'useEffect(() => {\n    if (rushRoom)', '}, [rushRoom]);', 'rush preload'), /loadGraphFeatureRushRound\(\)/);
-  // An open rush round renders the rush; the classic round never renders for a rush room.
+  // An open rush round renders the rush; the classic round never renders for
+  // a rush room — nor for any room whose game has its own surface (the
+  // client's one helper decides which rooms those are).
   const rushRender = region(student, '{rushRoundOpen && room.currentQuestion', '</Suspense>', 'rush round render');
   assert.match(rushRender, /<GraphFeatureRushRound\b/);
   assert.match(rushRender, /serverNowAtRender: Date\.now\(\) \+ clock\.offsetMs/, 'the round is timed on the calibrated clock');
-  assert.match(student, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
+  assert.match(student, /const questionSetGame = questionSetGameOf\(room\);/);
+  assert.match(student, /const rushRoom = questionSetGame === QUESTION_SET_GAME\.GRAPH_FEATURE_RUSH;/);
+  assert.match(student, /const rushRoundOpen = rushRoom && questionSetRoundOpen;/);
+  assert.match(student, /const questionSetRoom = questionSetGame !== null;/);
+  assert.match(student, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
+  assert.equal(questionSetGameOf({ challengeMode: RUSH_MODE_ID }), QUESTION_SET_GAME.GRAPH_FEATURE_RUSH);
+  assert.equal(questionSetGameOf({ challengeMode: 'standard' }), null);
 });
 
 test('the class\'s taps do not wake every student\'s screen during a rush round', () => {
   const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
   // Both of a student's standings listeners — their own row (each of their
   // own taps changes it) and the class's standings snapshot — are paused while
-  // a rush round is open, and resumed (fresh) when it closes.
+  // a rush round (any question-set round) is open, and resumed (fresh) when it
+  // closes.
+  assert.match(student, /const questionSetRoundOpen = questionSetRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
   const listeners = [
-    ['own row', region(student, '  useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);', 'own-row listener'), 'watchLiveChallengePlayer(', 'SelfFresh'],
-    ['snapshot', region(student, '  useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);', 'standings snapshot listener'), 'watchLiveChallengeStandings(', 'ProjectionFresh'],
+    ['own row', region(student, '  useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, questionSetRoundOpen]);', 'own-row listener'), 'watchLiveChallengePlayer(', 'SelfFresh'],
+    ['snapshot', region(student, '  useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, questionSetRoundOpen]);', 'standings snapshot listener'), 'watchLiveChallengeStandings(', 'ProjectionFresh'],
   ];
   for (const [name, listener, subscribe, fresh] of listeners) {
-    const pause = listener.indexOf('if (rushRoundOpen) return undefined;');
+    const pause = listener.indexOf('if (questionSetRoundOpen) return undefined;');
     assert.ok(pause > 0 && pause < listener.indexOf(subscribe), `${name}: the pause comes before the subscription`);
     assert.match(listener, new RegExp(`set${fresh}\\(false\\)[\\s\\S]*set${fresh}\\(true\\)`));
     // What is held stops counting as current the moment the pause begins.
@@ -147,11 +157,16 @@ test('the class\'s taps do not wake every student\'s screen during a rush round'
   // before the round — and the header shows no score it cannot keep current.
   const results = region(student, 'function StudentRoundResults(', '\n}\n', 'student round results');
   assert.match(results, /useRoundSummary\(room\.roomId, roundIndex, true\)/);
-  assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey \}\)/);
+  // The student's own place in it is their own summary's (the class's copy
+  // lists only the public rows), written in the commit that closed the round.
+  assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey, ownRound, ownPreviousRound, alias \}\)/);
+  assert.match(results, /const ownRound = summaryRound\(ownSummary, roundIndex, /);
   assert.doesNotMatch(executableSource(results), /players|leaderboard/, 'never the standings listener');
   assert.match(student, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
   assert.match(student, /const headerRow = selfEntry && room\.status === 'running' && selfFresh \? selfEntry : null;/);
-  assert.match(student, /const headerPlace = headerRow && projectionFresh && standings\?\.self \? shortPlaceText\(standings\.self\) : null;/);
+  // The header holds no place at all (a rank in the corner of every round is a
+  // rank under the question); its score is the student's own fresh row only.
+  assert.doesNotMatch(executableSource(region(student, 'data-mm-student-score="1"', '</header>', 'score header')), /standings|projection/);
   // With the listener paused, a successful join must not be asked again.
   const join = region(student, 'if (joinRefusedForRef.current === roomId', '.finally(', 'automatic join');
   assert.match(join, /joinedRoomRef\.current === roomId\) return;/);
@@ -174,6 +189,32 @@ test('the rush round: refs for the tap handler, one clock anchor, a persisted qu
   const failure = region(round, '} catch (error) {\n      if (!mountedRef.current) return;\n      const code', '} finally {', 'send failure');
   assert.match(failure, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
   assert.match(failure, /flushTimerRef\.current = window\.setTimeout\(\(\) => flushRef\.current\(\), retryDelayRef\.current\)/, 'anything else is retried');
+  // "Time is up" is the shared rule (challengeAnswerRefusal.js), read on this
+  // device's clock: a deadline-exceeded mid-round (a batch that reached the
+  // server before its GO, or a timeout) is retried, not dropped.
+  const timeIsUp = /rushRefusalIsTimeUp\((?:code|error\?\.code), timing\.endMono - performance\.now\(\)\)/;
+  assert.match(failure, timeIsUp);
+  // The same rule when a reopened round resends what this device stored: the
+  // stored taps are dropped only on a final refusal or when time is up.
+  const resume = region(round, 'let pending = readQueue(queueKey);', 'while (!cancelled) {\n        try {', 'stored-queue resend');
+  const dropped = region(resume, '} catch (error) {', 'pending = [];', 'stored-queue refusal');
+  assert.match(dropped, new RegExp(`if \\(isFinalRefusal\\(error\\) \\|\\| ${timeIsUp.source}\\) \\{\\s*$`));
+  assert.doesNotMatch(executableSource(dropped), /\/deadline-exceeded\//, 'a bare deadline-exceeded does not drop the stored taps');
+  assert.match(resume, /setConnection\('retrying'\);[\s\S]*await wait\(delay\);/, 'anything else is sent again');
+});
+
+// The graph is focused when play begins (so a keyboard is ready at once). The
+// page's :focus-visible ring would then stay on through every tap of a mouse
+// or a finger; the graph draws its own ring, for the keyboard only.
+test('the rush graph draws its own keyboard ring, and a tap takes it away', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const svg = region(graph, '<svg', '>\n', 'the graph');
+  assert.match(svg, /data-focus-ring="own"/);
+  assert.match(svg, /outline: cursorVisible \? '3px solid var\(--mm-focus\)' : 'none'/);
+  assert.match(svg, /onFocus=\{\(\) => setCursorVisible\(lastModality === 'keyboard'\)\}/, 'a keyboard student sees it on arrival');
+  assert.match(region(graph, 'const handlePointerDown = (event) => {', '\n  };', 'pointer down'), /setCursorVisible\(false\);/);
+  const css = read('../../src/index.css');
+  assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /:not\(\[data-focus-ring="own"\]\):focus-visible \{/);
 });
 
 /* --------------------------- the teacher's screens ------------------------- */
@@ -182,13 +223,17 @@ test('the teacher console offers the rush and creates it with its own settings',
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
   assert.match(teacher, /<option value=\{RUSH_MODE_ID\}>Graph Feature Rush<\/option>/);
   assert.match(teacher, /const GraphFeatureRushSetup = lazy\(\(\) => import\('\.\/GraphFeatureRushSetup\.jsx'\)\);/);
-  const create = region(teacher, 'if (rushMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'rush create');
+  // The rush and Graph the Line share the create path of a game with its own
+  // settings (the console has two creates: these games', and the bank's).
+  const create = region(teacher, 'if (rushMode || lineMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
+  assert.match(teacher, /const rushProblem = rushMode \? rushConfigProblem\(rushSetup\) : null;/);
   assert.match(create, /if \(rushProblem\) throw new Error\(rushProblem\);/, 'an impossible game is not sent');
-  assert.match(create, /rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
+  assert.match(create, /rushMode\s*\?\s*rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
   // The Rewards choice is shown for every game type, the rush included.
-  assert.match(teacher, /\{!rushMode && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
+  assert.match(teacher, /const ownSettingsGame = rushMode \|\| lineMode;/);
+  assert.match(teacher, /\{!ownSettingsGame && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
   assert.doesNotMatch(executableSource(create), /assignmentId/, 'a rush is never linked to a Warm-Up');
-  assert.match(teacher, /\{!rushMode && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
+  assert.match(teacher, /\{!ownSettingsGame && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
 });
 
 test('a rush round closes itself after its deadline, and moves on only once closed', () => {

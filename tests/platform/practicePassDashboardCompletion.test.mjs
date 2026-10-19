@@ -172,31 +172,47 @@ test('an assignment whose only content was Practice becomes complete once fully 
   assert.equal(entry.bucket, BUCKET.COMPLETED);
 });
 
-test('a notesClasswork-typed bundle keeps its own (Practice-independent) completion rule, with or without a Practice Pass', () => {
-  // Any bundle containing a classwork/warmup section is "notesClasswork"
-  // type, whose dashboard completion signal is the server-computed
-  // classwork completion projection alone -- Practice was never part of it,
-  // so a Practice Pass has no effect here either way. Documented so a future
-  // change to this rule notices it changed this boundary too.
+/*
+ * DECISION 4: A LESSON IS FINISHED WHEN EVERY SECTION IS DONE, AT ANY ACCURACY.
+ *
+ * This replaced the old pin that a bundle with a Classwork section was
+ * "finished" the moment the server's classwork projection reached 100 —
+ * which filed Lesson 6 (Practice 1/10, DOL 0/3) under Finished in QA round 2.
+ * Classwork at 100 is one section done; Practice still asks for work unless a
+ * Practice Pass excused it.
+ */
+test('a Classwork + Practice bundle is Finished only when both sections are done (decision 4)', () => {
   const assignment = mixedAssignment('a1', {
     sections: [
       { id: 'classwork', role: 'classwork', questions: [{ type: 'algebra', prompt: 'CW', equationLatex: 'x=1', activityRole: 'classwork' }] },
       { id: 'practice', role: 'practice', questions: [{ type: 'algebra', prompt: 'P', equationLatex: 'x=2', activityRole: 'practice' }] },
     ],
   });
-  const withPassNoScore = model({
-    assignments: [assignment],
-    tracker: {},
-    practicePassRedemptionsByAssignment: redemption('a1'),
-  }).allEntries.find((item) => item.assignment.id === 'a1');
-  assert.notEqual(withPassNoScore.bucket, BUCKET.COMPLETED);
+  const entryOf = (overrides) => model({ assignments: [assignment], ...overrides })
+    .allEntries.find((item) => item.assignment.id === 'a1');
 
-  const scoreNoPass = model({
-    assignments: [assignment],
-    tracker: {},
-    classworkGradesByAssignment: { a1: { score: 100 } },
-  }).allEntries.find((item) => item.assignment.id === 'a1');
-  assert.equal(scoreNoPass.bucket, BUCKET.COMPLETED);
+  // The server's classwork projection alone no longer finishes the lesson.
+  const classworkScoreOnly = entryOf({ tracker: {}, classworkGradesByAssignment: { a1: { score: 100 } } });
+  assert.notEqual(classworkScoreOnly.bucket, BUCKET.COMPLETED);
+  assert.equal(classworkScoreOnly.finished, false);
+
+  // Classwork done, Practice untouched: still unfinished.
+  const classworkDone = entryOf({ tracker: { a1: { 0: { status: 'correct', totalAttempts: 1 } } } });
+  assert.equal(classworkDone.finished, false);
+  assert.notEqual(classworkDone.bucket, BUCKET.COMPLETED);
+
+  // At any accuracy: Classwork right, Practice out of tries.
+  const bothDone = entryOf({ tracker: { a1: { 0: { status: 'correct', totalAttempts: 1 }, 1: { status: 'expired', totalAttempts: 3 } } } });
+  assert.equal(bothDone.finished, true);
+  assert.equal(bothDone.bucket, BUCKET.COMPLETED);
+
+  // A Practice Pass excuses Practice, so Classwork done finishes the lesson.
+  const withPass = entryOf({
+    tracker: { a1: { 0: { status: 'correct', totalAttempts: 1 } } },
+    practicePassRedemptionsByAssignment: redemption('a1'),
+  });
+  assert.equal(withPass.finished, true);
+  assert.equal(withPass.bucket, BUCKET.COMPLETED);
 });
 
 test('an assignment without a redemption is unaffected — Practice remains required', () => {

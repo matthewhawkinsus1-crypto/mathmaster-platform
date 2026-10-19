@@ -39,6 +39,15 @@ const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
 const { studentRequiredIndices } = studentWorkloadIndices;
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
+const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
+const {
+  classroomPushFailure,
+  classroomPushHeldForLimit,
+  clearedClassroomErrorFields,
+} = require("./lib/classroomPushErrors");
+const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
+const { deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -69,6 +78,12 @@ const mathPath = require("./lib/mathPath");
 const { compilePathRecordForStorage } = require("./lib/pathFirestoreShape");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
+// Rich Tool items on every secure surface: the mode-aware public payload and
+// the one grading authority (see the file header).
+const secureItems = require("./lib/secureItems");
+const secureExamNavigation = require("./lib/secureExamNavigation");
+const secureExamItems = require("./lib/secureExamItems");
+const secureExamAutoFinalize = require("./lib/secureExamAutoFinalize");
 // The Test Cycle rules are shared ESM; this is the CommonJS bridge to them.
 const testCycleLib = require("./lib/testCycle");
 const adminPolicy = require("./lib/admin");
@@ -78,6 +93,9 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
+// The end-of-session recap: recorded per closed question by submitPathResponse,
+// released by getMyPathSessionRecap only for a completed session.
+const pathSessionRecap = require("./lib/pathSessionRecap");
 const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
@@ -91,8 +109,16 @@ const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProven
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
 // requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
-// prevents a redeploy from silently returning a Cloud Run service to
-// "Require authentication" before Firebase Auth can be inspected.
+// prevents a redeploy from silently returning an onRequest function's Cloud
+// Run service to "Require authentication": the CLI re-applies it every deploy.
+//
+// It does NOT reach callables. firebase-functions leaves `invoker` out of an
+// onCall endpoint, and the Firebase CLI grants a callable allUsers ->
+// roles/run.invoker once, when it creates it, never on a later deploy. A
+// callable whose grant failed at create is deployed and healthy, and every
+// browser call gets a 403 the Firebase client reports as "internal". So every
+// functions release checks and repairs callable access before Hosting ships
+// (scripts/verify-callable-access.mjs, run by scripts/release-firebase.mjs).
 //
 // Every function this codebase deploys also carries the commit it was built
 // from, as the Cloud labels mm-git-sha and mm-tree (`gcloud functions list`;
@@ -101,7 +127,21 @@ const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProven
 // while the CLI discovers the functions. Global options apply to functions
 // defined AFTER this call, which is every function in this codebase: entry.js,
 // platformEntry.js and the Classroom section entry all load this file first.
-setGlobalOptions({ invoker: "public", labels: deployProvenanceLabels });
+//
+// MEMORY. Every function in this codebase loads the whole of it, and that
+// alone costs about 260–330 MiB once a handler has pulled in what it needs
+// (measured from production: 14 different functions were killed at the old
+// 256 MiB default with 257–334 MiB in use). A function left at the default
+// therefore dies part-way through a request, which the browser reports as a
+// bare "internal" with no CORS headers, a trigger drops its event, and a
+// scheduler never finishes: the Classroom section-grade checkpoint job ran out
+// of memory on every five-minute run for a week, and the callable that records
+// students' submitted answers thousands of times a school day. So 512 MiB is
+// the floor for all of them; a function that needs more says so itself
+// (TEST_CYCLE_PANEL_OPTIONS, the Path bank builders). Nothing may ask for less
+// (tests/platform/functionsMemoryFloor.test.mjs reads the real endpoints).
+const FUNCTION_MEMORY_FLOOR = "512MiB";
+setGlobalOptions({ invoker: "public", memory: FUNCTION_MEMORY_FLOOR, labels: deployProvenanceLabels });
 
 initializeApp();
 
@@ -353,6 +393,7 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     decideCheckpointFinalization,
     buildCheckpointFinalization,
   } = await responseCheckpointFinalizer();
+  const { excludedAsSecureWork } = await submissionIngestion();
 
   // The student's class is needed to resolve the class period the Warm-Up/DOL
   // window is defined against. Read it before the transaction so the
@@ -417,7 +458,9 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       question,
       schedule,
       classPeriod,
-      isSecureAssignment: secureAssignmentMode(assignment),
+      // A Test Cycle's Review is ordinary work (excludedAsSecureWork); the
+      // finalizer still refuses an assignment flagged `secure` on its own.
+      isSecureAssignment: excludedAsSecureWork({ testCycle: secureAssignmentMode(assignment), question }),
       privateOverride,
       now,
     });
@@ -806,17 +849,23 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
     const classId = authoritativeStudentClassId(gradeData);
 
+    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
+
     // Secure Test Cycle work keeps its own server-authoritative state machine
-    // and never becomes an ordinary attempt, whatever an envelope claims.
-    if (assignment && (secureAssignmentMode(assignment) || assignment.secure === true)) {
+    // and never becomes an ordinary attempt, whatever an envelope claims. A
+    // cycle's Review is not secure work: it is ingested like any other
+    // question, and it is what the Test gate reads (excludedAsSecureWork).
+    if (assignment && ingestion.excludedAsSecureWork({
+      testCycle: secureAssignmentMode(assignment),
+      secure: assignment.secure === true,
+      question,
+    })) {
       return {
         actionId: envelope.actionId,
         disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
         reason: "secure-assignment-excluded",
       };
     }
-
-    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
     // The activity this work is judged under: the question's own wherever it
     // carries one, never Classwork by omission (withAuthoritativeActivityRole).
     const activityRole = ingestion.withAuthoritativeActivityRole({ envelope, question })?.activityRole || null;
@@ -837,7 +886,9 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       envelope,
       assignmentExists: assignmentSnapshot.exists,
       gradeRecordExists: gradeSnapshot.exists,
-      authorizedForClass: assignment ? studentMatchesAssignmentAudience({ assignment, classId }) : null,
+      authorizedForClass: assignment
+        ? studentMatchesAssignmentAudience({ assignment, classId, gradeData, assignmentId: envelope.assignmentId })
+        : null,
       // Judged at the moment the student pressed Submit, not at the moment the
       // background queue happened to reach this function.
       assignmentClosedAtCapture: finalCloseAtMs === null
@@ -1003,6 +1054,28 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
         reason: built.reason,
       };
     }
+    if (built.final) {
+      // The question is finished (buildIngestedAttempt): no attempt can count,
+      // so its record, response evidence, evidence events and checkpoint stay
+      // exactly as they are. Only the receipt is written, so the device can
+      // retire the delivery.
+      transaction.set(receiptRef, {
+        studentId,
+        actionId: envelope.actionId,
+        assignmentId,
+        questionIndex: envelope.questionIndex,
+        disposition: dispositions.SUBMISSION_DISPOSITION.SUPERSEDED,
+        reason: built.reason,
+        capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+        issuedAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        actionId: envelope.actionId,
+        disposition: dispositions.SUBMISSION_DISPOSITION.SUPERSEDED,
+        reason: built.reason,
+        receiptId: receiptRef.id,
+      };
+    }
 
     if (activityRole === "dol" && dolIndices.length) {
       const { dolSectionProjection } = ingestion;
@@ -1144,15 +1217,21 @@ async function recordOneQuestionProgress({ db, studentId, envelope }) {
       ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
       : null;
     const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
     const decision = ingestion.decideQuestionProgress({
       envelope,
       assignmentExists: assignmentSnapshot.exists,
       gradeRecordExists: gradeSnapshot.exists,
-      secureAssignment: Boolean(assignment && (secureAssignmentMode(assignment) || assignment.secure === true)),
+      // A Test Cycle's Review is ordinary work (excludedAsSecureWork).
+      secureAssignment: Boolean(assignment && ingestion.excludedAsSecureWork({
+        testCycle: secureAssignmentMode(assignment),
+        secure: assignment.secure === true,
+        question,
+      })),
       authorizedForClass: assignment
-        ? studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData) })
+        ? studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData), gradeData, assignmentId: assignment.id })
         : null,
-      question: assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null,
+      question,
       canonicalRecord: gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[questionKey] ?? null,
     });
     if (decision.record) {
@@ -1287,6 +1366,22 @@ async function sectionRecoveryService() {
 
 const RECOVERY_SECTION_KEYS = new Set(["warmup", "dol"]);
 const RECOVERY_ACTIONS_WITH_ATTENDANCE = new Set(["status", "unlock", "start"]);
+// The actions that deal a Practice item, and so read the student's evidence.
+const RECOVERY_ACTIONS_WITH_TARGETING = new Set(["status", "practice"]);
+async function readRecoveryMisconceptionRecords(gradeRef, assignmentId, recoveryEvidenceCollection) {
+  try {
+    const [attemptEvents, recoveryEvidence] = await Promise.all([
+      gradeRef.collection("evidenceEvents").where("source.assignmentId", "==", assignmentId)
+        .select("source", "performance", "occurredAt").get(),
+      gradeRef.collection(recoveryEvidenceCollection).where("source.assignmentId", "==", assignmentId)
+        .select("source", "performance", "occurredAt").get(),
+    ]);
+    return [...attemptEvents.docs, ...recoveryEvidence.docs].map((doc) => doc.data() || {});
+  } catch (error) {
+    logger.warn("Recovery misconception evidence unavailable; Practice is untargeted", { assignmentId, message: error?.message });
+    return null;
+  }
+}
 
 function serverSectionVariantMode(assignment = {}, role = "") {
   const policy = assignment?.variantPolicy && typeof assignment.variantPolicy === "object" ? assignment.variantPolicy : {};
@@ -1344,6 +1439,13 @@ exports.advanceSectionRecovery = onCall(async (request) => {
     }
   }
 
+  // Targeted Recovery Practice: the student's own trusted misconception
+  // evidence on this assignment (job J). Read outside the transaction; a
+  // failed read deals untargeted Practice and never blocks Recovery.
+  const misconceptionRecords = RECOVERY_ACTIONS_WITH_TARGETING.has(action)
+    ? await readRecoveryMisconceptionRecords(gradeRef, assignmentId, service.MISCONCEPTION_EVIDENCE_COLLECTION)
+    : null;
+
   try {
     return await db.runTransaction(async (transaction) => {
       const [assignmentSnapshot, gradeSnapshot, overrideSnapshot] = await Promise.all([
@@ -1388,6 +1490,7 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         // The Recovery end date is the student's own final cutoff, their
         // private extension included — read above, never from the request.
         privateOverride: privateOverrideFrom(overrideSnapshot),
+        misconceptionRecords,
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
@@ -1648,9 +1751,31 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
   }
 });
 
-const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
+/*
+ * A STUDENT ADDED TO A TEST CYCLE ON THEIR OWN, NOT THROUGH A CLASS.
+ *
+ * The proof is on the student's own grade document: the server-written
+ * `testCycleGrades[assignmentId].individuallyAssigned` (a projection of their
+ * Test Cycle record; firestore.rules refuses every client write to that map).
+ * It is deliberately NOT a list of student ids on the assignment, which every
+ * signed-in student can read.
+ */
+function studentIndividuallyAssigned(gradeData, assignmentId) {
+  const id = String(assignmentId || "").trim();
+  return Boolean(id && gradeData?.testCycleGrades?.[id]?.individuallyAssigned === true);
+}
+
+/*
+ * Class membership is the rule. `gradeData` (with the assignment's id) lets
+ * the paths a student's own Test Cycle work travels — the cycle's callables
+ * and the ingestion of its Review answers — also accept a student who was
+ * added individually. A caller that passes only a class is asking only about
+ * the class, exactly as before.
+ */
+const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null, gradeData = null, assignmentId = null } = {}) => {
   const audience = assignmentAudience(assignment);
-  return Boolean(classId && audience.classIds.includes(String(classId)));
+  if (classId && audience.classIds.includes(String(classId))) return true;
+  return studentIndividuallyAssigned(gradeData, assignmentId || assignment?.id);
 };
 
 async function assertTeacherMayManageAssignment(request, assignmentSnap) {
@@ -1692,7 +1817,15 @@ function storedAlgebraStepPartialCredit(record) {
   const currentSteps = steps.filter((step) => Number(step?.variantIndex) === variantIndex);
   if (!currentSteps.length) return 0;
 
-  const stateKey = (value) => String(value || "").replace(/\s+/g, "").replace(/[−–—]/g, "-");
+  // The same key as attemptPolicy's compactStepStateKey, rule for rule
+  // (getQuestionCredit is synchronous, so the ESM module cannot be awaited
+  // here; stepAlgebraStepCredit compares the two over every rule): spaces and
+  // the TeX tie of 2~ x (before pass 3 Q-31) are spacing, any dash is a minus,
+  // and a unit coefficient before a group (push Q's 1\left() is dropped.
+  const stateKey = (value) => String(value || "")
+    .replace(/[\s~]+/g, "")
+    .replace(/[−–—]/g, "-")
+    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(");
   const expectedTotal = currentSteps.reduce(
     (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
     0
@@ -1975,6 +2108,13 @@ exports.inspectStudentResponse = onCall(async (request) => {
     auditHistory,
   });
 });
+
+// Review My Work (student, read-only): the caller's OWN answers beside the
+// worked solutions once the assignment is closed for them and feedback is
+// released. Every gate and projection is in functions/lib/reviewMyWork.js.
+exports.loadMyReviewWork = onCall((request) => require("./lib/reviewMyWork").loadMyReviewWorkHandler({
+  db: getFirestore(), auth: requireStudent(request), data: request.data, now: Date.now(),
+}));
 
 /**
  * Student Case Review (teacher, read-only): the records a case review needs
@@ -2369,6 +2509,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const nowIso = new Date().toISOString();
   const identity = await studentIdentity();
+  const integrityPrivacy = await import("./shared/integrityOverridePrivacy.mjs");
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
@@ -2390,6 +2531,14 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
     const incidentRef = db.collection("studentSupportEvents").doc();
     const parentFollowUpRef = db.collection("studentSupportEvents").doc();
     let nextOverride = null;
+    // The grade doc is the student's own to read, so it gets the consequence
+    // and its fixed reason only. The teacher's note, who acted and the
+    // participant role go on the incident (teacher-only) and the audit —
+    // functions/shared/integrityOverridePrivacy.mjs.
+    const { studentOverride, incidentDetails } = integrityPrivacy.splitIntegrityConsequence({
+      scope, reasonCode, reasonLabel: ASSIGNMENT_ZERO_REASONS[reasonCode], sectionRole: scope === "section" ? sectionRole : null,
+      participantRole, note, actor, incidentId: incidentRef.id, at: nowIso,
+    });
 
     if (scope === "section") {
       const included = runtimeIncludedQuestionIndicesForSection(assignment, sectionRole);
@@ -2399,10 +2548,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         if (assignmentOverrides[stateKey]?.active === true) throw new HttpsError("already-exists", "This section already has an integrity consequence.");
         const previousOverridesByQuestion = Object.fromEntries(included.map((index) => [String(index), assignmentOverrides[String(index)] || null]));
         assignmentOverrides[stateKey] = { active: true, incidentId: incidentRef.id, sectionRole, previousOverridesByQuestion };
-        included.forEach((index) => { assignmentOverrides[String(index)] = {
-          active: true, score: 0, persistent: true, source: "teacher-section-zero", incidentId: incidentRef.id,
-          sectionRole, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], participantRole, note: note || null, actor, at: nowIso,
-        }; });
+        included.forEach((index) => { assignmentOverrides[String(index)] = { ...studentOverride }; });
       } else {
         const saved = assignmentOverrides[stateKey];
         if (saved?.active !== true) throw new HttpsError("failed-precondition", "No section integrity consequence is active.");
@@ -2413,10 +2559,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         delete assignmentOverrides[stateKey];
       }
     } else {
-      nextOverride = action === "issueZero" ? {
-        active: true, score: 0, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || null,
-        source: "teacher-assignment-zero", participantRole, incidentId: incidentRef.id, actor, at: nowIso,
-      } : null;
+      nextOverride = action === "issueZero" ? studentOverride : null;
       if (nextOverride) assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY] = nextOverride;
       else delete assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY];
     }
@@ -2440,8 +2583,9 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
         createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
         source: "teacher", confidence: "confirmed", relatedEventId: incidentRef.id };
       transaction.set(incidentRef, { ...commonEvent, kind: "academicIntegrityIncident", stage: "teacherConfirmed",
-        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || "",
-        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole } });
+        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: incidentDetails.note,
+        actor: incidentDetails.actor,
+        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole: incidentDetails.participantRole } });
       transaction.set(parentFollowUpRef, { ...commonEvent, kind: "parentFollowUp", stage: "teacherConfirmed",
         signalKey: `parentFollowUp:${parentFollowUpRef.id}`, summary: "Parent follow-up for confirmed academic-integrity incident", note: "",
         evidence: { incidentId: incidentRef.id, scope, sectionRole: scope === "section" ? sectionRole : null } });
@@ -2935,6 +3079,17 @@ exports.undoPracticePassRedemption = onCall(async (request) => {
  * Challenges — why each reward rule did or did not pay out and whether the
  * reward arrived. No listener: Refresh re-reads.
  */
+// GROWTH, EFFORT AND MASTERY REWARDS: the signed-in student's own records are
+// re-derived server-side and each award is delivered exactly once
+// (functions/lib/growthRewards.js, functions/shared/growthRewardRules.mjs).
+exports.syncStudentGrowthRewards = onCall((request) => require("./lib/growthRewards").syncStudentGrowthRewardsHandler(request));
+
+// CLASS REWARDS: a teacher's non-academic redeemables, bought with Class Points
+// (functions/lib/classRewardStore.js, functions/shared/classRewardCatalog.mjs).
+exports.saveClassRewardCatalog = onCall((request) => require("./lib/classRewardStore").saveClassRewardCatalogHandler(request));
+exports.redeemClassReward = onCall((request) => require("./lib/classRewardStore").redeemClassRewardHandler(request));
+exports.resolveClassRewardRequest = onCall((request) => require("./lib/classRewardStore").resolveClassRewardRequestHandler(request));
+
 exports.getStudentRewards = onCall(async (request) => {
   const teacher = await rewardTeacher(request);
   const store = await rewardActionStore();
@@ -3196,10 +3351,11 @@ function progressCheckpointStage(progress, { late = false } = {}) {
 // The per-student final cutoff for Classroom passback. Classroom must never
 // call a student "final" earlier than the deadline the student's own dashboard
 // and the server's own submission finalizer already honor for them.
-// `studentFinalCutoff` is that student's individual cutoff as the one override
-// resolver answers it — their private record (studentAssignmentOverrides.mjs)
-// merged with any copy still on the shared document — resolved by the caller
-// (resolvedStudentFinalCutoff below). The class cutoff is never shortened by it.
+// `studentFinalCutoff` is that student's individual cutoff — their private
+// record (studentAssignmentOverrides.mjs) merged with any copy still on the
+// shared document, and their extra-time final date (supportDeadline.mjs) —
+// resolved by the caller (resolvedStudentClassroomDeadlines below). The class
+// cutoff is never shortened by it.
 function studentLateDueAt(assignment, studentFinalCutoff = null) {
   const classFinal = toDate(
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
@@ -3210,28 +3366,38 @@ function studentLateDueAt(assignment, studentFinalCutoff = null) {
   return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
 }
 
-/** One student's individual final cutoff on one assignment, read with the server's authority. */
-async function resolvedStudentFinalCutoff(db, assignmentId, assignment, studentId) {
-  if (!studentId) return null;
-  const overrides = await studentOverrides();
-  const ref = await studentOverrideRef(db, studentId, assignmentId);
-  const snapshot = ref ? await ref.get() : null;
-  return overrides.resolveStudentOverride({
-    assignment,
-    studentId,
-    privateOverride: privateOverrideFrom(snapshot),
-  })?.lateDueAt ?? null;
+// The student's own due time: an extra-time accommodation's individualized
+// due date (supportDeadline.mjs) moves it later; nothing moves it earlier.
+function studentDueDate(assignment, studentDueAt = null) {
+  const classDue = toDate(assignment?.dueAt || assignment?.dueDate);
+  const studentDue = toDate(studentDueAt);
+  if (!classDue) return studentDue;
+  if (!studentDue) return classDue;
+  return studentDue.getTime() > classDue.getTime() ? studentDue : classDue;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null }) {
-  const reason = releaseSignalReason(releaseSignal);
-  if (reason === "final-deadline") return "final-deadline";
-  if (reason === "due-checkpoint") return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+/**
+ * One student's individual due time and final cutoff on one assignment, read
+ * with the server's authority: their private record, and their pinned support
+ * profile (`studentProfile`, from the grade document in hand). Each is null
+ * when it is not individual (lib/classroomStudentCheckpoints.js).
+ */
+async function resolvedStudentClassroomDeadlines(db, assignmentId, assignment, studentId, studentProfile = null) {
+  return classroomStudentCheckpoints.studentClassroomDeadlinesFor({ db, assignmentId, assignment, studentId, studentProfile });
+}
 
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null, studentDueAt = null }) {
+  const reason = releaseSignalReason(releaseSignal);
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const lateDueAt = studentLateDueAt(assignment, studentFinalCutoff);
+  // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
+  // roster at the CLASS's cutoff and due time. They speak for this student
+  // only once THEIR own has arrived; before it the grade is ordinary progress
+  // (not returned), and the scheduler wakes them again at their own time.
+  if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
+  if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -3250,9 +3416,9 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() }) {
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const dueAt = studentDueDate(assignment, studentDueAt);
   const explicitlyStudentVisible = [
     "due-checkpoint",
     "final-complete",
@@ -3394,6 +3560,15 @@ async function studentIdentity() {
   return studentIdentityModule;
 }
 
+// What a student's DISTRICT (SIS) ID is, and that the account ID is not one
+// once a district ID is stored: its format, the duplicate rule and who may
+// change it. Shared with Grade Export and Student Access in the browser.
+let studentDistrictIdModule = null;
+async function studentDistrictIds() {
+  if (!studentDistrictIdModule) studentDistrictIdModule = await import("./shared/studentDistrictId.mjs");
+  return studentDistrictIdModule;
+}
+
 /**
  * The identity-bearing fields of one grades document, plus its id — what the
  * shared resolver needs and nothing from the attempt history. The identifiers
@@ -3531,9 +3706,17 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
       .where("classId", "==", classRecord.classId)
       .get();
     counts.classPointTransactions = await apply(transactionsSnapshot.docs, classPointsChange);
+
+    // Class reward requests were paid from this same wallet, so they follow
+    // it: same class only, same helper. Without this a handed-over class's
+    // pending requests are invisible to the new teacher and unresolvable by
+    // the old one, and the student's points stay locked.
+    counts.classRewardRequests = await require("./lib/classRewardStore")
+      .reauthorizeClassRewardRequests(db, studentId, classRecord);
   } else {
     counts.classPointAccounts = 0;
     counts.classPointTransactions = 0;
+    counts.classRewardRequests = 0;
   }
 
   // A temporary personal Path recommendation belongs to the current teacher /
@@ -3549,7 +3732,10 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   }
 
   // The derived per-student documents are single records, not collections.
-  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
+  // The mastery history follows its profile: a new teacher reads it, and an
+  // earlier non-origin teacher stops reading it, on the same move.
+  // studentCcmrPlans is the student's own CCMR plan (shared/ccmrPlan.mjs).
+  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules", "studentMasteryHistory", "studentCcmrPlans"]) {
     const ref = db.collection(collectionName).doc(studentId);
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await ref.get();
@@ -4298,6 +4484,23 @@ exports.createStudentAccount = onCall(async (request) => {
   if (aliasSnapshot.exists || caseInsensitiveExisting) {
     throw new HttpsError("already-exists", "That student ID already exists in MathMaster. Refresh the account list before creating it again.");
   }
+  // The new account's number is also its district ID, so another student must
+  // not already answer to it — above all one whose district ID a teacher
+  // corrected TO this number (setStudentSisId). Same rule, same shared module.
+  const districtIds = await studentDistrictIds();
+  const districtIdHolders = await db.collection("grades")
+    .where("sisStudentId", "in", districtIds.districtStudentIdVariants(studentId))
+    .select("sisStudentId")
+    .limit(5)
+    .get();
+  const districtConflict = districtIds.findDistrictStudentIdConflict({
+    studentId,
+    districtId: studentId,
+    districtIdHolders: districtIdHolders.docs.map((entry) => entry.id),
+    accountIdHolders: rosterSnapshot.docs.map((entry) => entry.id).filter((id) => districtIds.sameDistrictStudentId(id, studentId)),
+    creating: true,
+  });
+  if (districtConflict) throw new HttpsError("already-exists", districtConflict.message);
 
   // Creation is one atomic batch. A network or audit failure can no longer
   // leave a roster document behind while the UI reports an INTERNAL error.
@@ -4361,6 +4564,8 @@ exports.createStudentAccount = onCall(async (request) => {
       "The student account could not be created. The server logged the exact cause so it can be diagnosed without guessing.",
     );
   }
+  // A student created straight into a class whose Live Challenge is on.
+  if (membership.classId || assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
 
   return {
     studentId,
@@ -4402,6 +4607,7 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
+  if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return { studentId, assignedTeacherEmail, classPeriod };
 });
 
@@ -5853,36 +6059,76 @@ exports.migrateAssignmentPrivacy = onCall({ timeoutSeconds: 540 }, async (reques
 
 /**
  * Root-admin action: turn class-scoped assignment lists for students on or off
- * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs).
+ * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs), and, as a
+ * second independent switch, class-scoped opening of one assignment by id
+ * (`studentGetScoped`, D10 Phase 0 P0-3).
  *
  * Off is the state a release ships in, so open student tabs from the previous
- * release keep their live assignment updates. Turn it on once this release has
- * been live for a school day; turning it off again is the rollback, and needs
- * no deploy.
+ * release keep their live assignment updates. Turn the list on once this
+ * release has been live for a school day; the by-id switch only after that.
+ * By-id on with lists off is never stored: turning by-id on while lists are
+ * off, or lists off while by-id is on, is refused (both in one call is fine).
+ * Turning either off again is the rollback (by-id first), and needs no deploy.
+ * A call with neither boolean only reads.
  */
 exports.setAssignmentReadScope = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   const privacy = await import("./shared/assignmentPrivacy.mjs");
   const ref = db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG);
-  if (typeof request.data?.studentListScoped !== "boolean") {
-    const snapshot = await ref.get();
-    return { studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true, changed: false };
+  const wantsList = typeof request.data?.studentListScoped === "boolean";
+  const wantsGet = typeof request.data?.studentGetScoped === "boolean";
+  // Read and write in one transaction: two racing calls (one turning lists
+  // off, one turning the by-id switch on) cannot end in "by-id on, lists off",
+  // because each re-checks the state it is about to leave behind.
+  const outcome = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const stored = {
+      studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
+      studentGetScoped: snapshot.data()?.[privacy.STUDENT_GET_SCOPED_FIELD] === true,
+    };
+    if (!wantsList && !wantsGet) return { ...stored, changed: false };
+    const next = {
+      studentListScoped: wantsList ? request.data.studentListScoped : stored.studentListScoped,
+      studentGetScoped: wantsGet ? request.data.studentGetScoped : stored.studentGetScoped,
+    };
+    if (next.studentGetScoped && !next.studentListScoped) {
+      throw new HttpsError(
+        "failed-precondition",
+        wantsGet && request.data.studentGetScoped
+          ? "Turn on class-scoped assignment lists first: limiting who opens an assignment protects nothing while every assignment can still be listed."
+          : "Turn off class-scoped opening of an assignment first: it protects nothing once every assignment can be listed again.",
+      );
+    }
+    transaction.set(ref, {
+      ...(wantsList ? { [privacy.STUDENT_LIST_SCOPED_FIELD]: next.studentListScoped } : {}),
+      ...(wantsGet ? { [privacy.STUDENT_GET_SCOPED_FIELD]: next.studentGetScoped } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actor.uid,
+    }, { merge: true });
+    return { ...next, changed: true };
+  });
+  if (!outcome.changed) return outcome;
+  const next = outcome;
+  if (wantsList) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentListScoped: next.studentListScoped },
+    );
   }
-  const studentListScoped = request.data.studentListScoped;
-  await ref.set({
-    [privacy.STUDENT_LIST_SCOPED_FIELD]: studentListScoped,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.uid,
-  }, { merge: true });
-  await writeAdminAudit(
-    db,
-    actor,
-    studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
-    privacy.ASSIGNMENT_READ_SCOPE_FLAG,
-    { studentListScoped },
-  );
-  return { studentListScoped, changed: true };
+  if (wantsGet) {
+    await writeAdminAudit(
+      db,
+      actor,
+      next.studentGetScoped ? "assignment_get_scope_enforced" : "assignment_get_scope_relaxed",
+      privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+      { studentGetScoped: next.studentGetScoped },
+    );
+  }
+  return outcome;
 });
 
 /* =========================================================================
@@ -6308,6 +6554,9 @@ exports.setStudentClass = onCall(async (request) => {
     teacherOfRecord: classRecord?.teacherOfRecord || null,
     reauthorized,
   });
+  // The new class's Live Challenge, if one is on (lobby or running) — after
+  // the audit, so nothing it waits on can come between the move and its record.
+  if (classRecord) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return {
     studentId,
     classId: classRecord?.classId || null,
@@ -6856,21 +7105,74 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
 }
 
 /*
- * A deleted student's Live Challenge footprint beyond Class Points: their item
- * rewards (Practice Passes, badges) and their standing inside finished match
- * results and teacher reports. Results and reports keep the rest of the class
- * — they are the class's record — and lose only this student's row. Both carry
- * a `studentIds` query key for exactly this purpose; reports written before
- * that key existed are not reachable by query and are recorded as a known gap
- * in docs/architecture/live-challenge-engine.md.
+ * A deleted student's Live Challenge footprint beyond Class Points: the match
+ * they are in now, their item rewards (Practice Passes, badges) and their
+ * standing inside finished match results and teacher reports. Results and
+ * reports keep the rest of the class — they are the class's record — and lose
+ * only this student's row. Both carry a `studentIds` query key for exactly this
+ * purpose; reports written before that key existed are not reachable by query
+ * and are recorded as a known gap in docs/architecture/live-challenge-engine.md.
  */
 async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
+  // The match they are in now (lobby or running) has no result yet, so the
+  // results query below cannot find it: their invite names the room. They
+  // leave it whole: the private roster row (without it the match never writes
+  // them again: no summary, no place in the final result or report, no
+  // reward), their anonymous public row and device diagnostics, their own
+  // summary, and the invite itself, which carries their room, alias and class.
+  // One transaction that reads the invite and the roster row it deletes: a
+  // round that closes at the same moment either committed first, and this
+  // removes what it wrote, or reads the roster after them; and an invite that
+  // moved to a new room in between (the teacher started the next match) is
+  // read again, so the room the student leaves is the one the deleted invite
+  // named (as updateLiveChallengeInvitesForRoom guards re-invitation). The
+  // same invite also leads to a room retired before it finished.
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const membership = await db.runTransaction(async (transaction) => {
+    const inviteSnapshot = await transaction.get(inviteRef);
+    if (!inviteSnapshot.exists) return null;
+    const invite = inviteSnapshot.data() || {};
+    const invitedRoomId = String(invite.roomId || "").trim();
+    let rosterRowRemoved = false;
+    if (invitedRoomId) {
+      const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(invitedRoomId);
+      const rosterRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(invitedRoomId).collection("players").doc(studentId);
+      const rosterSnapshot = await transaction.get(rosterRef);
+      const playerKey = String(rosterSnapshot.data()?.playerKey || invite.playerKey || "").trim();
+      transaction.delete(rosterRef);
+      transaction.delete(roomRef.collection("playerSummaries").doc(studentId));
+      if (playerKey) {
+        transaction.delete(roomRef.collection("players").doc(playerKey));
+        transaction.delete(roomRef.collection("diagnostics").doc(playerKey));
+      }
+      rosterRowRemoved = rosterSnapshot.exists;
+    }
+    transaction.delete(inviteRef);
+    return { rosterRowRemoved };
+  });
+  if (membership) {
+    if (membership.rosterRowRemoved) deleted.liveChallengeRoomMemberships = 1;
+    deleted.liveChallengeInvites = 1;
+  }
+
   const grantsSnapshot = await db.collection("rewardGrants").where("studentId", "==", studentId).get();
   for (const grantDoc of grantsSnapshot.docs) {
     // eslint-disable-next-line no-await-in-loop
     await grantDoc.ref.delete();
   }
   if (grantsSnapshot.size) deleted.rewardGrants = grantsSnapshot.size;
+
+  // Their own place in each match they played (liveChallengeRooms/{room}/
+  // playerSummaries/{studentId}, keyed by their id): found through the match
+  // results that list them, before the scrub below takes them off the list.
+  const playedSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).where("studentIds", "array-contains", studentId).get();
+  let summariesDeleted = 0;
+  for (const resultDoc of playedSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(LIVE_CHALLENGE_ROOMS).doc(resultDoc.id).collection("playerSummaries").doc(studentId).delete();
+    summariesDeleted += 1;
+  }
+  if (summariesDeleted) deleted.liveChallengePlayerSummaries = summariesDeleted;
 
   const scrub = async (collectionName, rowFields) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
@@ -8519,22 +8821,18 @@ async function queueRepostedAssignmentGrades({
   }
 
   const gradeRefs = studentIds.map((studentId) => db.doc(`grades/${studentId}`));
-  const gradeSnapshots = await db.getAll(...gradeRefs);
+  // Existence only: a grade document is a student's whole year.
+  const gradeSnapshots = await db.getAll(...gradeRefs, { fieldMask: [] });
   const existingGrades = gradeSnapshots.filter((snapshot) => snapshot.exists);
-  const queuedAt = new Date().toISOString();
 
-  for (let start = 0; start < existingGrades.length; start += 400) {
-    const batch = db.batch();
-    existingGrades.slice(start, start + 400).forEach((snapshot) => {
-      batch.update(
-        snapshot.ref,
-        new FieldPath("classroomReleaseSignals", String(assignmentId)),
-        queuedAt
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
+  // A reposted column has to receive every grade again, so these go as manual
+  // retries, queued a minute's worth at a time (lib/classroomPushQueue.js).
+  await classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId: String(assignmentId),
+    studentIds: existingGrades.map((snapshot) => snapshot.id),
+    reason: "manual-retry",
+    source: "reposted-assignment",
+  });
 
   return {
     linkedStudents: studentIds.length,
@@ -9472,25 +9770,36 @@ async function writeGradeSyncAudit(db, publicationId, studentId, patch) {
 exports.listClassroomGradeSyncs = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const publicationSnap = await db.collection("classroomLinks").limit(500).get();
-  const publicationIds = new Set(
-    publicationSnap.docs
-      .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid)
-      .map((doc) => doc.id)
-  );
-  if (!publicationIds.size) return { syncs: [] };
+  const publicationSnap = await db.collection("classroomLinks")
+    .select("teacherUid", "assignmentId")
+    .limit(2000)
+    .get();
+  const ownPublications = publicationSnap.docs
+    .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid);
+  const publicationIds = new Set(ownPublications.map((doc) => doc.id));
+  if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
+  const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));
 
-  const syncSnap = await db.collection("classroomGradeSyncs").limit(500).get();
+  // The newest rows. Until Oct 14, 2026 this read any 500 of them, so the
+  // monitor (and "Retry all") could miss most of a day's failures.
+  const syncSnap = await db.collection("classroomGradeSyncs")
+    .orderBy("updatedAt", "desc")
+    .limit(500)
+    .get();
+  // Pushes waiting in the paced queue (lib/classroomPushQueue.js).
+  const waiting = (await classroomPushQueue.waitingClassroomPushes(db, { limit: 2000 }))
+    .filter((entry) => ownAssignments.has(entry.assignmentId));
+  const queuedPushes = new Set(waiting.map((entry) => `${entry.assignmentId}/${entry.studentId}`));
   const syncs = syncSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((item) => publicationIds.has(String(item.publicationId)))
     .map((item) => ({
       ...item,
+      queued: queuedPushes.has(`${item.assignmentId}/${item.studentId}`),
       updatedAt: serializableDate(item.updatedAt),
       syncedAt: serializableDate(item.syncedAt),
-    }))
-    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-  return { syncs };
+    }));
+  return { syncs, pushQueue: { waiting: waiting.length } };
 });
 
 exports.retryClassroomGradeSync = onCall(async (request) => {
@@ -9524,25 +9833,82 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
     );
   }
 
-  const gradeRef = db.doc(`grades/${String(studentId)}`);
-  const gradeSnap = await gradeRef.get();
+  // Existence only: a grade document is a student's whole year.
+  const [gradeSnap] = await db.getAll(db.doc(`grades/${String(studentId)}`), { fieldMask: [] });
   if (!gradeSnap.exists) {
     throw new HttpsError("not-found", "Student grade record not found.");
   }
-  await gradeRef.update(
-    new FieldPath("classroomReleaseSignals", String(assignmentId)),
-    {
-      requestedAt: new Date().toISOString(),
-      reason: "manual-retry",
-    }
-  );
+  // Queued like every other push, so retries cannot outrun Google's limit
+  // (lib/classroomPushQueue.js). It goes out within a minute when the queue is empty.
+  await classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId: String(assignmentId),
+    studentIds: [String(studentId)],
+    reason: "manual-retry",
+    source: "teacher-retry",
+  });
   return { queued: true };
+});
+
+// "Retry all eligible failures": every failed push this teacher owns, queued
+// in one call. The browser used to call retryClassroomGradeSync once for each
+// failed row it had been sent (any 500 rows), and every call went to Google
+// at once: on Oct 14, 2026, 208 of them became about 2,000 Classroom requests
+// in 70 seconds against a limit of 600 a minute.
+exports.retryAllClassroomGradeSyncs = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const db = getFirestore();
+  const failedSnap = await db.collection("classroomGradeSyncs")
+    .where("status", "==", "failed")
+    .select("publicationId", "studentId", "assignmentId")
+    .get();
+  const rows = failedSnap.docs
+    .map((doc) => doc.data() || {})
+    .filter((row) => row.publicationId && row.studentId && row.assignmentId);
+  const publicationIds = [...new Set(rows.map((row) => String(row.publicationId)))];
+  const publications = new Map();
+  for (let start = 0; start < publicationIds.length; start += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(
+      ...publicationIds.slice(start, start + 100).map((id) => db.doc(`classroomLinks/${id}`)),
+      { fieldMask: ["teacherUid", "assignmentId"] }
+    );
+    snapshots.forEach((snapshot) => {
+      if (snapshot.exists) publications.set(snapshot.id, snapshot.data() || {});
+    });
+  }
+
+  // The same ownership rule as one row's retry.
+  const studentsByAssignment = new Map();
+  let failedRows = 0;
+  for (const row of rows) {
+    const publication = publications.get(String(row.publicationId));
+    if (!publication) continue;
+    if (publication.teacherUid && publication.teacherUid !== teacherUid) continue;
+    if (String(publication.assignmentId || "") !== String(row.assignmentId)) continue;
+    failedRows += 1;
+    const students = studentsByAssignment.get(String(row.assignmentId)) || new Set();
+    students.add(String(row.studentId));
+    studentsByAssignment.set(String(row.assignmentId), students);
+  }
+
+  let queued = 0;
+  for (const [assignmentId, students] of studentsByAssignment) {
+    // eslint-disable-next-line no-await-in-loop
+    queued += await classroomPushQueue.enqueueClassroomPushes(db, {
+      assignmentId,
+      studentIds: [...students],
+      reason: "manual-retry",
+      source: "teacher-retry-all",
+    });
+  }
+  return { failedRows, queued, assignments: studentsByAssignment.size };
 });
 
 exports.syncGradeToClassroom = onDocumentWritten(
   {
     document: "grades/{studentId}",
     secrets: GOOGLE_API_SECRETS,
+    ...CLASSROOM_GRADE_TRIGGER_CAPACITY,
   },
   async (event) => {
     const after = event.data?.after;
@@ -9600,6 +9966,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
     const db = getFirestore();
     const classroomByTeacher = new Map();
+    // Once Google refuses a teacher for the per-minute limit, this push stops
+    // calling it for that teacher; the rest of the columns wait in the queue.
+    const teachersAtClassroomLimit = new Set();
 
     for (const assignmentId of changedAssignmentIds) {
       // eslint-disable-next-line no-await-in-loop
@@ -9734,20 +10103,40 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         };
       }
-      // The student's own individual cutoff, from their private record.
-      const studentFinalCutoff = isTestCycleAssignment
-        ? null
+      // The student's own individual due time and final cutoff: their private
+      // record and their extra-time dates (H-116).
+      const { studentDueAt, studentFinalCutoff } = isTestCycleAssignment
+        ? { studentDueAt: null, studentFinalCutoff: null }
         // eslint-disable-next-line no-await-in-loop
-        : await resolvedStudentFinalCutoff(db, assignmentId, assignment, event.params.studentId);
+        : await resolvedStudentClassroomDeadlines(db, assignmentId, assignment, event.params.studentId, afterData.profile || null);
+      // One clock for the stage, the deferral and the release: at a student's
+      // own cutoff they are either called final or recorded, never neither.
+      const stageNow = Date.now();
       const stage = isTestCycleAssignment
         ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
           assignment,
           progress,
           releaseSignal,
-          nowValue: Date.now(),
+          nowValue: stageNow,
           studentFinalCutoff,
+          studentDueAt,
         });
+      // H-116: a class-wide "final"/"due" wake-up that reached this student
+      // before their own time is set aside above; record their own time so
+      // the checkpoint scheduler wakes them again then.
+      const deferredCheckpoint = isTestCycleAssignment
+        ? null
+        : deferredClassCheckpoint({ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt });
+      if (deferredCheckpoint) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+          stateRef: db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId),
+          assignmentId,
+          studentId: event.params.studentId,
+          deferred: deferredCheckpoint,
+        });
+      }
       if (!stage) continue;
 
       const grade = progress.grade;
@@ -9783,9 +10172,15 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
-        nowValue: Date.now(),
+        nowValue: stageNow,
+        studentDueAt,
       });
-      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
+      // A push queued again after Google's per-minute limit sends only the
+      // columns that did not go through; the rest are already current.
+      const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
+      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry" && quotaRetry === 0;
+      const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
+      let requeueForLimit = false;
 
       // eslint-disable-next-line no-await-in-loop
       const publicationsSnap = await db
@@ -10016,6 +10411,28 @@ exports.syncGradeToClassroom = onDocumentWritten(
           continue;
         }
 
+        if (teachersAtClassroomLimit.has(classroomKey)) {
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId,
+            courseworkId: publication.courseworkId,
+            stage,
+            grade,
+            classroomGrade,
+            maxPoints,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent: false,
+            ...classroomPushHeldForLimit({ mayRequeue }),
+          });
+          requeueForLimit = requeueForLimit || mayRequeue;
+          continue;
+        }
+
         try {
           // eslint-disable-next-line no-await-in-loop
           const submission = await classroomLib().findSubmissionForStudent(classroom, {
@@ -10071,6 +10488,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10094,16 +10512,26 @@ exports.syncGradeToClassroom = onDocumentWritten(
             `Synced ${stage} grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
           );
         } catch (err) {
+          const failure = classroomPushFailure(err, { mayRequeue });
+          if (failure.quota) {
+            teachersAtClassroomLimit.add(classroomKey);
+            requeueForLimit = requeueForLimit || mayRequeue;
+          }
           logger.error(
             `Grade passback failed for student ${event.params.studentId}, assignment ${assignmentId}, course ${courseId}`,
-            err
+            {
+              step: failure.description.step,
+              httpStatus: failure.description.httpStatus,
+              googleStatus: failure.description.googleStatus,
+              reasons: failure.description.reasons,
+              error: failure.description.message,
+            }
           );
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
-            status: "failed",
             stage,
             grade,
             classroomGrade,
@@ -10114,9 +10542,19 @@ exports.syncGradeToClassroom = onDocumentWritten(
             isFinal,
             studentVisible: releasePolicy.studentVisible,
             returnedToStudent: false,
-            error: String(err.message || err),
+            ...failure.audit,
           });
         }
+      }
+
+      if (requeueForLimit) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomPushQueue.requeueClassroomPushAfterQuota(db, {
+          assignmentId,
+          studentId: event.params.studentId,
+          reason: releaseSignal ? releaseSignalReason(releaseSignal) : null,
+          quotaRetry,
+        });
       }
 
       if (successfulCourses.length) {
@@ -10164,25 +10602,22 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
 
     const assignmentId = event.params.assignmentId;
     const db = getFirestore();
-    const gradesSnap = await db.collection("grades").get();
+    // Only whether each student has this assignment: a grade document is a
+    // student's whole year.
+    const gradesSnap = await db.collection("grades")
+      .select(new FieldPath("gradesByAssignment", assignmentId))
+      .get();
     const targets = gradesSnap.docs.filter((gradeDoc) => (
       gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
     ));
 
-    for (let offset = 0; offset < targets.length; offset += 400) {
-      const batch = db.batch();
-      targets.slice(offset, offset + 400).forEach((gradeDoc) => {
-        batch.update(
-          gradeDoc.ref,
-          new FieldPath("classroomReleaseSignals", assignmentId),
-          {
-            requestedAt: new Date().toISOString(),
-            reason: "assessment-release",
-          }
-        );
-      });
-      await batch.commit();
-    }
+    // Queued, a minute's worth at a time (lib/classroomPushQueue.js).
+    await classroomPushQueue.enqueueClassroomPushes(db, {
+      assignmentId,
+      studentIds: targets.map((gradeDoc) => gradeDoc.id),
+      reason: "assessment-release",
+      source: "assessment-release",
+    });
     logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
   }
 );
@@ -10200,27 +10635,22 @@ async function queueClassroomGradeSignalForAudience({
   const classIds = assignmentAudience(assignment).classIds;
   if (!classIds.length) return 0;
 
-  const gradeDocsByPath = new Map();
+  const studentIds = new Set();
   for (const classId of classIds) {
+    // References only: a grade document is a student's whole year.
     // eslint-disable-next-line no-await-in-loop
-    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
-    snapshot.docs.forEach((gradeDoc) => gradeDocsByPath.set(gradeDoc.ref.path, gradeDoc));
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select().get();
+    snapshot.docs.forEach((gradeDoc) => studentIds.add(gradeDoc.id));
   }
 
-  const gradeDocs = [...gradeDocsByPath.values()];
-  for (let start = 0; start < gradeDocs.length; start += 400) {
-    const batch = db.batch();
-    gradeDocs.slice(start, start + 400).forEach((gradeDoc) => {
-      batch.update(
-        gradeDoc.ref,
-        new FieldPath("classroomReleaseSignals", assignmentId),
-        { requestedAt, reason }
-      );
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
-  return gradeDocs.length;
+  // Queued, a minute's worth at a time (lib/classroomPushQueue.js).
+  return classroomPushQueue.enqueueClassroomPushes(db, {
+    assignmentId,
+    studentIds: [...studentIds],
+    reason,
+    requestedAt,
+    source: reason,
+  });
 }
 
 // Classroom itself marks an unsubmitted item Missing at the due time and may
@@ -10270,6 +10700,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   let finalAssignments = 0;
   let reconcileAssignments = 0;
   let queuedStudents = 0;
+  let studentCheckpointStudents = 0;
 
   for (const assignmentDoc of assignmentSnapshots) {
     if (!assignmentDoc.exists) continue;
@@ -10286,6 +10717,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     // eslint-disable-next-line no-await-in-loop
     const stateSnap = await stateRef.get();
     const state = stateSnap.exists ? stateSnap.data() || {} : {};
+
+    // H-116: a student whose OWN due time or final cutoff is later than the
+    // class's was recorded by the grade trigger when it set the class's
+    // wake-up aside for them (deferredClassCheckpoint); wake them at theirs.
+    // eslint-disable-next-line no-await-in-loop
+    const ownCheckpointsQueued = await classroomStudentCheckpoints.wakeArrivedStudentCheckpoints({
+      stateRef,
+      state,
+      now,
+      enqueue: ({ studentIds, reason }) => classroomPushQueue.enqueueClassroomPushes(db, {
+        assignmentId, studentIds, reason, requestedAt, source: reason,
+      }),
+    });
+    if (ownCheckpointsQueued) {
+      studentCheckpointStudents += ownCheckpointsQueued;
+      queuedStudents += ownCheckpointsQueued;
+    }
 
     // Final cutoff has precedence. On first deploy, do not emit both an old due
     // checkpoint and a final checkpoint for the same assignment.
@@ -10373,11 +10821,12 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
     }
   }
 
-  if (dueAssignments || finalAssignments || reconcileAssignments) {
+  if (dueAssignments || finalAssignments || reconcileAssignments || studentCheckpointStudents) {
     logger.info("Queued Classroom grade checkpoints", {
       dueAssignments,
       finalAssignments,
       reconcileAssignments,
+      studentCheckpointStudents,
       queuedStudents,
     });
   }
@@ -10435,13 +10884,28 @@ async function graphFeatureRushRules() {
   return graphFeatureRushModules;
 }
 
+// GRAPH THE LINE: the mode's own pure rules (attempts, generation, config).
+let lineGraphModuleSet = null;
+async function lineGraphModules() {
+  if (!lineGraphModuleSet) {
+    const [attempts, generator, config, rules] = await Promise.all([
+      import("./shared/lineGraphAttempts.mjs"),
+      import("./shared/lineGraphGenerator.mjs"),
+      import("./shared/lineGraphConfig.mjs"),
+      import("./shared/lineGraphRules.mjs"),
+    ]);
+    lineGraphModuleSet = { attempts, generator, config, rules };
+  }
+  return lineGraphModuleSet;
+}
+
 // THE ENGINE CONTRACTS every Live Challenge callable runs through. They are
 // pure modules shared with the browser; see docs/architecture/
 // live-challenge-engine.md for what each owns.
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10451,10 +10915,29 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengeRewardRules.mjs"),
       import("./shared/liveChallengeExperience.mjs"),
       import("./shared/liveChallengeStandingsProjection.mjs"),
+      import("./shared/liveChallengeSolutionReveal.mjs"),
+      import("./shared/liveChallengeAccommodations.mjs"),
+      import("./shared/liveChallengeDifficulty.mjs"),
+      import("./shared/liveChallengePrivacy.mjs"),
+      import("./shared/liveChallengeRecognitions.mjs"),
+      import("./shared/liveChallengePlayerSummary.mjs"),
+      // A Graph the Line round the class graphed together is published by the
+      // same reveal as a shared question, with the class's own mistake added.
+      import("./shared/lineGraphReveal.mjs"),
+      import("./shared/liveChallengeServerSweep.mjs"),
     ]);
-    liveChallengeEngineModules = { lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings };
+    liveChallengeEngineModules = {
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep,
+    };
   }
   return liveChallengeEngineModules;
+}
+
+// The end-of-game recap and the personal-best history read (lib/liveChallengeRecap.js).
+let liveChallengeRecapModule = null;
+function liveChallengeRecap() {
+  if (!liveChallengeRecapModule) liveChallengeRecapModule = require("./lib/liveChallengeRecap");
+  return liveChallengeRecapModule;
 }
 
 // How many questions are pulled before the issuability gate runs. Every one of
@@ -10470,6 +10953,9 @@ const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
+// A closed round's whole anonymous table, for the room's teacher only
+// (liveChallengeRooms/{room}/hostRounds/{n}); the class reads rounds/{n}.
+const LIVE_CHALLENGE_HOST_ROUNDS = "hostRounds";
 // The durable final result of a finished or cancelled match. Server-only: it
 // names students. Reports, Warm-Up credit, evidence and rewards are all
 // derived from it, so each can be re-run safely after a crash.
@@ -10508,8 +10994,9 @@ const questionStyleLabel = (style) => (
       : ""
 );
 
-async function loadChallengeCandidates(db, { courseId, standardCode, questionStyle = "any" }) {
+async function loadChallengeCandidates(db, { courseId, standardCode, questionStyle = "any", roundSeconds = null, timingMode = "timed" }) {
   const challenge = await liveChallengeRules();
+  const { difficulty } = await liveChallengeEngine();
   const normalized = challenge.canonicalChallengeStandard(standardCode);
   const style = challenge.canonicalQuestionStyle(questionStyle);
   // A RANDOM WINDOW, NOT THE FIRST PAGE. Without ordering, Firestore returns
@@ -10537,12 +11024,28 @@ async function loadChallengeCandidates(db, { courseId, standardCode, questionSty
     // told a teacher who picked Any that their style had emptied the game.
     .filter((question) => challenge.liveChallengeEligible(question))
     .filter((question) => challenge.matchesQuestionStyle(question, style));
+  // DIFFICULTY TARGETING (liveChallengeDifficulty.mjs): a multi-step DOK 3
+  // question never lands under a short countdown, a DOK 4 never under any.
+  // A third gate, after style, so a pool it empties says so in its own words.
+  // A caller that names no round length (an older dry run) is not filtered.
+  // Judged against the length each question's round would actually run
+  // (complexityAdjustedRoundSeconds, as prepareLiveChallengeRoundOpening
+  // computes it), not the teacher's baseline.
+  const fitting = roundSeconds == null
+    ? candidates
+    : candidates.filter((question) => difficulty.fitsTimedRound(question, {
+      roundSeconds: challenge.complexityAdjustedRoundSeconds({ baselineSeconds: roundSeconds, question }),
+      timingMode,
+    }));
 
-  const planned = await Promise.all(candidates.map(async (question) => ({
+  const planned = await Promise.all(fitting.map(async (question) => ({
     question,
     plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
   })));
-  return planned.filter((entry) => entry.plan.issuable);
+  const issuable = planned.filter((entry) => entry.plan.issuable);
+  // How many the timing rule set aside, for the create-time message.
+  issuable.excludedForTiming = candidates.length - fitting.length;
+  return issuable;
 }
 
 async function securelyPlanSolverRace(questions) {
@@ -10596,10 +11099,13 @@ function selectChallengeQuestions(entries, requestedCount) {
  */
 const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
   secureBank: Object.freeze({
-    async plan({ db, courseId, standardCode, modeConfig, roundCount }) {
-      const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle: modeConfig.questionStyle });
+    async plan({ db, courseId, standardCode, modeConfig, roundCount, roundSeconds = null, timingMode = "timed" }) {
+      const candidates = await loadChallengeCandidates(db, {
+        courseId, standardCode, questionStyle: modeConfig.questionStyle, roundSeconds, timingMode,
+      });
       return {
         candidateCount: candidates.length,
+        excludedForTiming: candidates.excludedForTiming || 0,
         selected: selectChallengeQuestions(candidates, roundCount),
         roundQuestions: null,
         seed: null,
@@ -10615,6 +11121,9 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
         // A swap that ignored the style would quietly hand back the kind of
         // question the teacher chose not to have.
         questionStyle: dryRun.questionStyle,
+        // Nor one too long for the round it would fill.
+        roundSeconds: dryRun.roundSeconds ?? null,
+        timingMode: dryRun.timingMode || "timed",
       });
       const inUse = new Set(questionIds);
       const replacement = selectChallengeQuestions(candidates, candidates.length)
@@ -10657,13 +11166,21 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
       )];
       if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
       const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
-      const generated = solverRace.generateSolverRaceQuestion(
-        alternate,
-        `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
-      );
+      // Never an equation, or a same-family answer, another round of this
+      // match already has: its solution is published when that round closes
+      // (review of #464, B1).
+      const usedKeys = new Set(roundQuestions
+        .filter((_, index) => index !== roundIndex)
+        .flatMap((question) => solverRace.solverRaceQuestionKeys(question))
+        .filter(Boolean));
+      const generated = solverRace.generateDistinctSolverRaceQuestion({
+        structure: alternate,
+        seedKey: `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
+        usedKeys,
+      });
       const replacementQuestion = {
         ...generated,
-        id: `${alternate.id}_r${roundIndex + 1}_swap${swapNumber}`,
+        id: `${generated.familyId}_r${roundIndex + 1}_swap${swapNumber}`,
         solverRaceRound: roundIndex,
         solverRaceStage: current?.solverRaceStage,
         solverRaceSwap: swapNumber,
@@ -10722,15 +11239,110 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
   },
 });
 
+/*
+ * GRAPH THE LINE draws nothing up front either: each student's items are
+ * generated from the room's private seed as they reach them
+ * (getLineGraphRound) and regenerated to grade an attempt. A round is a
+ * placeholder id with no standard — a question-set round feeds no mastery
+ * evidence until its outcomes can (docs/architecture/graph-the-line.md §11)
+ * — and its public question is a card, never an equation.
+ */
+const lineGraphRoundPrompt = (format, itemCount) => {
+  if (format === "classic") return "Graph the line on your own screen";
+  if (format === "sprint") return `Work through your ${itemCount} lines`;
+  return "Graph as many lines as you can";
+};
+
+/*
+ * A CLASSIC GAME THE CLASS PLAYS TOGETHER (`sameEquations`, Classic's
+ * default): every student's item in a round is the same line, so the round
+ * has a solution to show at its close (lineGraphReveal.mjs). The shared item
+ * is the generator's for any student; '*' names none.
+ */
+const lineGraphSharesRounds = (config = {}) => config.format === "classic" && config.sameEquations === true;
+const sharedLineItem = (generator, { seed, config, roundIndex }) => generator.generateLineQuestion({
+  seed, studentKey: "*", roundIndex, questionIndex: 0, config,
+});
+
+const LINE_GRAPH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await lineGraphModules();
+    const { lineReveal } = await liveChallengeEngine();
+    const config = modeConfig.lineGraph;
+    const generatorVersion = generator.LINE_GRAPH_GENERATOR_VERSION;
+    // The seed never leaves the server: it is what makes a student's items
+    // theirs and reproducible.
+    const seed = crypto.randomUUID();
+    // A shared round's line is held back while a later round asks the same
+    // line (the reveal's rule for every shared question), so the schedule's
+    // lines are known from the start — privately.
+    const sharedLineKeys = lineGraphSharesRounds(config)
+      ? Array.from({ length: roundCount }, (_, roundIndex) => lineReveal.lineRevealKey(sharedLineItem(generator, { seed, config, roundIndex })))
+      : null;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `lineGraph:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      privateFields: { lineGraph: { seed, config, generatorVersion, ...(sharedLineKeys ? { sharedLineKeys } : {}) } },
+      roomFields: { lineGraph: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Graph the Line items are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const { config: configRules, generator } = await lineGraphModules();
+    const config = privateState.lineGraph?.config || room.lineGraph?.config || {};
+    const itemCount = Math.min(configRules.lineRoundQuestionCount(config.format, config), mode.questionSpecs.length);
+    // The round's shared line, captured privately like a bank question's
+    // solution (published only once nobody can answer it).
+    const lineState = privateState.lineGraph || {};
+    const shared = lineGraphSharesRounds(config) && lineState.seed
+      && Number(lineState.generatorVersion) === generator.LINE_GRAPH_GENERATOR_VERSION;
+    const solution = shared
+      ? engine.lineReveal.lineRoundSolutionRecord(sharedLineItem(generator, { seed: lineState.seed, config, roundIndex }))
+      : null;
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "lineGraph",
+        format: config.format || null,
+        challengeRound: roundIndex,
+        prompt: lineGraphRoundPrompt(config.format, itemCount),
+        itemTypes: Array.isArray(config.itemTypes) ? config.itemTypes : [],
+        forms: Array.isArray(config.forms) ? config.forms : [],
+        difficulty: config.difficulty || null,
+        roundQuestionCount: itemCount,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      solution,
+    };
+  },
+});
+
+// The per-player generated sources, beside the shared-question planners.
+const GENERATED_QUESTION_PLANNERS = Object.freeze({
+  graphFeatureGenerator: GRAPH_FEATURE_RUSH_PLANNER,
+  lineGraphGenerator: LINE_GRAPH_PLANNER,
+});
+
 function liveChallengeQuestionPlanner(mode) {
-  const planner = mode?.questionSource === "graphFeatureGenerator"
-    ? GRAPH_FEATURE_RUSH_PLANNER
-    : LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
+  const source = String(mode?.questionSource || "");
+  const planner = Object.hasOwn(GENERATED_QUESTION_PLANNERS, source)
+    ? GENERATED_QUESTION_PLANNERS[source]
+    : (Object.hasOwn(LIVE_CHALLENGE_QUESTION_PLANNERS, source) ? LIVE_CHALLENGE_QUESTION_PLANNERS[source] : null);
   if (!planner) throw new HttpsError("failed-precondition", `The ${mode?.label || "selected"} game has no question source on this server.`);
   return planner;
 }
 
-async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion = null }) {
+async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion = null, solutionSink = null }) {
   const snapshot = authoredQuestion ? null : await db.collection("pathQuestionBank").doc(questionId).get();
   if (!authoredQuestion && !snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
   const authored = authoredQuestion || snapshot.data() || {};
@@ -10747,6 +11359,18 @@ async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questi
   const displayStandard = (Array.isArray(issued.alignmentKeys) ? issued.alignmentKeys[0] : "")
     ? mathPath.displayAlignmentKey(issued.alignmentKeys[0])
     : null;
+  // THE ROUND'S WORKED SOLUTION, captured from this same draw for the private
+  // state only (liveChallengeSolutionReveal.mjs). It never joins the public
+  // question below; it is published after the round closes.
+  if (solutionSink) {
+    // The draw itself (private), so the opening can read its DOK.
+    solutionSink.issued = issued;
+    const support = await mathPath.buildPrivateSupport(issued);
+    const { solutionReveal } = await liveChallengeEngine();
+    solutionSink.record = solutionReveal.roundSolutionRecord({
+      question: issued, solutionReview: support?.solutionReview || null, displayStandard,
+    });
+  }
   return {
     ...mathPath.buildSanitizedQuestion(
       issued,
@@ -10770,6 +11394,123 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
     ownedInvites.slice(start, start + 450).forEach((invite) => batch.set(invite.ref, fields, { merge: true }));
     // eslint-disable-next-line no-await-in-loop
     await batch.commit();
+  }
+}
+
+/*
+ * A STUDENT ADDED TO A CLASS WHILE ITS GAME IS ON.
+ *
+ * createLiveChallenge invites the class as it stands at create time. A student
+ * enrolled after that sat the game out until the next one. Now the roster
+ * change itself invites them into the class's game while it is still in its
+ * lobby or running, exactly as if they had been on the roster and arrived
+ * late (live-challenge-shell.md §10): the next seat and code name, an invite
+ * their screen follows at once, and joinLiveChallenge's late-join rule —
+ * they play from the round that is open now, and no round that closed
+ * before is counted against them. Grand Prix sizes each round's field from
+ * who played it, so a late player changes nobody's earlier rounds.
+ *
+ * Never takes a student out of another game: an invite to a different room
+ * that is still live is left alone. Only a game active in the last 12 hours.
+ * Never fails the roster change.
+ */
+// A game idle longer than this is not "on" for a newly enrolled student.
+const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+async function inviteStudentToClassLiveChallenge(db, studentId) {
+  const id = String(studentId || "").trim();
+  if (!id) return { invited: false, reason: "no_student" };
+  const challenge = await liveChallengeRules();
+  const gradeRef = db.collection("grades").doc(id);
+  const gradeSnapshot = await gradeRef.get();
+  const grade = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+  const teacherEmail = String(grade?.assignedTeacherEmail || "").trim().toLowerCase();
+  if (!teacherEmail) return { invited: false, reason: "no_teacher" };
+  // One active room per teacher: the pointer names it.
+  const pointer = await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail).get();
+  const roomId = String(pointer.data()?.roomId || "").trim();
+  if (!roomId) return { invited: false, reason: "no_game" };
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const playerRef = privateRef.collection("players").doc(id);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(id);
+  const live = (status) => [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(status);
+  return db.runTransaction(async (transaction) => {
+    const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot, latestGrade] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privateRef), transaction.get(playerRef), transaction.get(inviteRef), transaction.get(gradeRef),
+    ]);
+    if (!roomSnapshot.exists || !privateSnapshot.exists) return { invited: false, reason: "no_game" };
+    const room = roomSnapshot.data() || {};
+    const student = latestGrade.data() || {};
+    if (!live(room.status) || room.teacherEmail !== teacherEmail) return { invited: false, reason: "no_game" };
+    // Today's game, not a lobby left open since yesterday: measured from the
+    // room's latest activity — its round's start, its last change — so a game
+    // created last night and started this morning is today's.
+    const activeMs = Math.max(
+      ...[room.createdAt, room.updatedAt, room.startsAt, room.roundStartedAt, room.roundClosedAt]
+        .map((value) => toDate(value)?.getTime() ?? 0),
+    );
+    if (Date.now() - activeMs > LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS) return { invited: false, reason: "stale_game" };
+    // The same membership rule as loadChallengeRoster.
+    const inClass = room.classId
+      ? String(student.classId || "") === String(room.classId)
+      : Boolean(room.classPeriod) && !student.classId && String(student.classPeriod || "") === String(room.classPeriod);
+    if (!inClass || String(student.assignedTeacherEmail || "").trim().toLowerCase() !== teacherEmail) {
+      return { invited: false, reason: "not_in_class" };
+    }
+    if (playerSnapshot.exists) return { invited: false, reason: "already_invited", roomId };
+    const otherRoomId = inviteSnapshot.exists ? String(inviteSnapshot.data()?.roomId || "") : "";
+    if (otherRoomId && otherRoomId !== roomId) {
+      const otherRoom = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      if (otherRoom.exists && live(otherRoom.data()?.status)) return { invited: false, reason: "in_another_game" };
+    }
+    // The next seat, and its code name from the room's own seed — the one
+    // createLiveChallenge would have given the next student.
+    const slot = Math.max(0, Number(room.eligibleCount) || 0);
+    const aliasSeed = parseInt(crypto.createHash("sha256").update(roomId).digest("hex").slice(0, 6), 16);
+    const player = { playerKey: crypto.randomUUID(), slot, alias: challenge.challengeAlias(slot, aliasSeed) };
+    transaction.set(playerRef, {
+      ...player,
+      joined: false,
+      score: 0,
+      correctCount: 0,
+      roundsAnswered: 0,
+      streak: 0,
+      answeredRound: -1,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(inviteRef, {
+      roomId,
+      title: room.title || null,
+      teacherEmail,
+      assignmentId: room.assignmentId || null,
+      classId: room.classId || null,
+      classPeriod: room.classPeriod || null,
+      className: room.className || null,
+      courseId: room.courseId || null,
+      alias: player.alias,
+      playerKey: player.playerKey,
+      slot,
+      // A running game's invites say so (startLiveChallenge set the rest).
+      status: room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING ? "running" : "invited",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    // The console's "Joined X of N" and its roster read follow the class.
+    transaction.set(roomRef, { eligibleCount: slot + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { invited: true, roomId, status: room.status };
+  });
+}
+
+/** After a roster change: invite the student to their class's game, if one is on. Never throws. */
+async function inviteStudentToClassLiveChallengeSafely(db, studentId) {
+  try {
+    const outcome = await inviteStudentToClassLiveChallenge(db, studentId);
+    if (outcome.invited) logger.info("liveChallenge.lateInvite", { roomId: outcome.roomId, status: outcome.status });
+    return outcome;
+  } catch (error) {
+    logger.error("liveChallenge.lateInvite.failed", { message: error?.message || String(error) });
+    return { invited: false, reason: "failed" };
   }
 }
 
@@ -10887,6 +11628,9 @@ async function requireOwnedChallenge(db, request, roomId) {
   return { teacherEmail, roomRef, room };
 }
 
+// A mode's own settings errors: each carries a sentence a teacher can act on.
+const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "LineGraphConfigError"]);
+
 exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -10952,6 +11696,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   // An unknown mode is the standard game, which is what it always was.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  // A mode not yet offered to teachers (its screens are still being built)
+  // launches for the platform administrator only, to preview it. The create
+  // panel never offers one; this holds for a request that names it anyway.
+  if (!mode.teacherSelectable && !authLib.isRootAdminEmail(teacherEmail)) {
+    throw new HttpsError("failed-precondition", `${mode.label} is still in preview and cannot be launched for a class yet.`);
+  }
   if (assignmentId && !mode.capabilities.warmupLink) {
     throw new HttpsError("failed-precondition", `${mode.label} cannot run as an assignment's Warm-Up yet. Launch it from Live Challenge instead.`);
   }
@@ -10981,7 +11731,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   try {
     modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
   } catch (error) {
-    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    if (LIVE_CHALLENGE_CONFIG_ERRORS.has(error?.name)) throw new HttpsError("invalid-argument", error.message);
     throw error;
   }
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
@@ -11017,8 +11767,15 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${className || classPeriod}.`);
 
   const planned = await liveChallengeQuestionPlanner(mode).plan({
-    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
+    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount, roundSeconds, timingMode,
   });
+  const timingShortfall = engine.difficulty.timedRoundShortfallMessage({
+    before: planned.candidateCount + (planned.excludedForTiming || 0),
+    after: planned.candidateCount,
+    needed: mode.roundLimits.minRounds,
+    roundSeconds,
+  });
+  if (timingShortfall) throw new HttpsError("failed-precondition", timingShortfall);
   if (planned.candidateCount < mode.roundLimits.minRounds) {
     throw new HttpsError(
       "failed-precondition",
@@ -11105,6 +11862,14 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // screens. Names rewards, never students; the policy itself stays private
     // and rewards are still delivered only from the match result.
     rewardSummary: engine.rewardRules.publicRewardSummary(rewardPolicy),
+    // Nobody is publicly last (liveChallengePrivacy.mjs): the projector shows
+    // the top few unless the teacher opted into full standings.
+    standingsDisplay: engine.privacy.normalizeStandingsDisplay(request.data?.standingsDisplay),
+    // Rounds whose worked solutions are public (liveChallengeSolutionReveal.mjs).
+    revealedSolutionRounds: [],
+    // Whether anyone joined has extended time, set when a round opens — never
+    // who (liveChallengeAccommodations.mjs).
+    extendedTimeInPlay: false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -11328,8 +12093,15 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
   const planned = await liveChallengeQuestionPlanner(mode).plan({
-    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
+    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount, roundSeconds, timingMode,
   });
+  const timingShortfall = engine.difficulty.timedRoundShortfallMessage({
+    before: planned.candidateCount + (planned.excludedForTiming || 0),
+    after: planned.candidateCount,
+    needed: challenge.MIN_ROUND_COUNT,
+    roundSeconds,
+  });
+  if (timingShortfall) throw new HttpsError("failed-precondition", timingShortfall);
   if (planned.candidateCount < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
@@ -11488,8 +12260,26 @@ function lifecycleHttpsError(plan) {
   return new HttpsError(
     "failed-precondition",
     plan?.message || "That Live Challenge action is not available right now.",
-    { lifecycle: plan?.code || null },
+    // Why a round is not ready (e.g. 'extended_time'), for the console's words.
+    { lifecycle: plan?.code || null, ...(plan?.readiness ? { readiness: plan.readiness } : {}) },
   );
+}
+
+/**
+ * A refused round command. When the refusal is a round held past the class's
+ * deadline for extended time, the room learns `extendedTimeInPlay` here if
+ * the round's opening did not set it (a student with extended time joined
+ * mid-round): the console and projector then say "still finishing" and offer
+ * End Round Now, not a frozen "Time!". The write belongs to the host's close,
+ * not to any student's row, and says nothing the held round does not already
+ * show. Returns the refusal for the caller to throw after the commit.
+ */
+function refuseLiveChallengeRoundCommand(transaction, { roomRef, room, plan }) {
+  if (plan?.readiness === "extended_time" && room?.extendedTimeInPlay !== true) {
+    transaction.set(roomRef, { extendedTimeInPlay: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { refused: plan };
+  }
+  throw lifecycleHttpsError(plan);
 }
 
 function playersFromSnapshot(snapshot) {
@@ -11539,11 +12329,12 @@ function liveChallengeRoundResponse(roomId, room = {}, extra = {}) {
  * inputs to the close guard. "Finished" is the mode's completion rule applied
  * to the receipt log, with the legacy answeredRound marker as a fallback.
  */
-function liveChallengeRoundCompletion(engine, room, players) {
+function liveChallengeRoundCompletion(engine, room, players, nowMs = Date.now()) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
   const roundIndex = Number(room.currentRound);
   let joinedCount = 0;
   let completedCount = 0;
+  const progress = [];
   players.forEach((player) => {
     if (player.joined !== true) return;
     joinedCount += 1;
@@ -11553,8 +12344,17 @@ function liveChallengeRoundCompletion(engine, room, players) {
     const finished = Number(player.answeredRound) === roundIndex
       || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
     if (finished) completedCount += 1;
+    progress.push({ joined: true, finished, timeMultiplier: player.timeMultiplier });
   });
-  return { joinedCount, completedCount };
+  // Unfinished players still inside their own extended deadline (plus the
+  // arrival grace an answer sent at their 0:00 still gets).
+  const extendedPendingCount = engine.accommodations.extendedTimePendingCount({
+    timer: engine.timer.timerFromRoom(room),
+    players: progress,
+    nowMs,
+    fullDurationMs: engine.accommodations.roomFullRoundMs(room),
+  });
+  return { joinedCount, completedCount, extendedPendingCount };
 }
 
 /** The next round's public question and duration. Deterministic for a given room/round/question. */
@@ -11569,17 +12369,36 @@ async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState
   const questionId = privateState.questionIds?.[roundIndex];
   if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
   const authoredQuestion = privateState.roundQuestions?.[roundIndex] || null;
-  const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion });
-  const roundSeconds = challenge.complexityAdjustedRoundSeconds({
-    baselineSeconds: room.roundSeconds,
-    question: authoredQuestion || currentQuestion,
+  const solutionSink = {};
+  const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion, solutionSink });
+  // A multi-step (DOK 3+) question never runs under DOK3_MIN_ROUND_SECONDS in
+  // a timed round, whatever the adjustment gave (liveChallengeDifficulty.mjs).
+  const { difficulty } = await liveChallengeEngine();
+  const roundSeconds = difficulty.timedRoundSecondsFor({
+    question: solutionSink.issued || authoredQuestion || currentQuestion,
+    adjustedSeconds: challenge.complexityAdjustedRoundSeconds({
+      baselineSeconds: room.roundSeconds,
+      question: authoredQuestion || currentQuestion,
+    }),
+    timingMode: room.timingMode,
   });
-  return { roundIndex, questionId, currentQuestion, roundSeconds };
+  return { roundIndex, questionId, currentQuestion, roundSeconds, solution: solutionSink.record || null };
 }
+
+/** Whether any joined player has extended time in a mode that allows it. */
+function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (engine.modes.roundStructureFor(mode).id !== engine.modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION) return false;
+  return (Array.isArray(players) ? players : [])
+    .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
+}
+
+/** A sweep due time as Firestore stores it: a Date, or null for "never". */
+const liveChallengeSweepDate = (ms) => (Number.isFinite(ms) ? new Date(ms) : null);
 
 /** Open a round inside a transaction. Room and private state move together. */
 function applyLiveChallengeRoundOpening(transaction, {
-  engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs,
+  engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs, players = [],
 }) {
   const { lifecycle } = engine;
   const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
@@ -11601,11 +12420,16 @@ function applyLiveChallengeRoundOpening(transaction, {
 
   transaction.set(privateRef, {
     ...privatePatch,
+    // Private until the round closes (and any replay of it has).
+    ...(opening.solution ? { roundSolutions: { [String(roundIndex)]: opening.solution } } : {}),
     status: lifecycle.SESSION_STATUS.RUNNING,
     roundState: lifecycle.ROUND_STATE.OPEN,
     currentRound: roundIndex,
     roundVersion,
     roundToken,
+    // When the server closes this round if no host screen does
+    // (liveChallengeServerSweep.mjs). None for a Pace Race: no deadline.
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs })),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   transaction.set(roomRef, {
@@ -11625,6 +12449,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     roundStartedAt: startsAt,
     roundEndsAt: endsAt,
     activeRoundSeconds: opening.roundSeconds,
+    // Set at the opening, from everyone joined so far — no join or answer
+    // commits with it, so it says that someone has more time, never who.
+    extendedTimeInPlay: liveChallengeExtendedTimeInPlay(engine, room, players),
     closingStartedAt: null,
     roundClosedAt: null,
     pausedAt: null,
@@ -11652,6 +12479,13 @@ function applyLiveChallengeRoundOpening(transaction, {
 function applyLiveChallengeRoundClose(transaction, {
   engine, roomRef, privateRef, room, privateState, players, roundIndex, nowMs,
 }) {
+  // Answers given in extended time after the class's deadline reach the
+  // public rows now, with everyone else's — never while the class waits.
+  players.forEach((player) => {
+    if (player.joined !== true || !player.playerKey || Number(player.publicRowPendingRound) !== Number(roundIndex)) return;
+    transaction.set(roomRef.collection("players").doc(String(player.playerKey)), liveChallengePublicAnswerRow(player, player, roundIndex), { merge: true });
+    transaction.set(privateRef.collection("players").doc(player.studentId), { publicRowPendingRound: null }, { merge: true });
+  });
   const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);
   const strategy = engine.scoring.getScoringStrategy(scoringStrategyId);
   const roundResult = engine.results.buildRoundResult({
@@ -11688,14 +12522,86 @@ function applyLiveChallengeRoundClose(transaction, {
   const standingsAfterRound = engine.results.matchStandingsAfterRound({
     players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
   });
-  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult, { standingsAfterRound }),
+  // NOBODY IS PUBLICLY LAST, ALSO IN FIRESTORE. Three copies, by who reads
+  // them: the class's (rounds/{n}) holds only the rows the public rule shows
+  // everyone; the teacher's (hostRounds/{n}) the whole anonymous table, for
+  // the console and the projector it drives; and each student's own summary
+  // their own place in the round and the match (liveChallengePlayerSummary).
+  const hostSummary = engine.results.publicRoundSummary(roundResult, { standingsAfterRound });
+  transaction.set(roomRef.collection(LIVE_CHALLENGE_HOST_ROUNDS).doc(String(roundIndex)), {
+    ...hostSummary,
     closedAt: FieldValue.serverTimestamp(),
   });
+  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
+    ...engine.results.classRoundSummary(roundResult, { standingsAfterRound }),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary: hostSummary, standingsAfterRound });
   // The caller writes the class's standings snapshot from these same
   // standings (writeExactStandingsProjection), or the final one when the
   // match ends in the same transaction.
   return { roundResult, players: updatedPlayers, standingsAfterRound };
+}
+
+/*
+ * EACH STUDENT'S OWN SUMMARY (functions/shared/liveChallengePlayerSummary.mjs):
+ * liveChallengeRooms/{room}/playerSummaries/{studentId}, readable by that
+ * student and the room's teacher only. Written in the commit that closes a
+ * round (their place in it, and in the match after it) and in the commit that
+ * finishes the match (their final place), beside the class's documents for the
+ * same moment — so a student's own place and the class's top rows are always
+ * one moment.
+ */
+const liveChallengePlayerSummaryRef = (roomRef, engine, studentId) => roomRef
+  .collection(engine.playerSummary.PLAYER_SUMMARY_COLLECTION)
+  .doc(String(studentId));
+
+function writeLiveChallengeRoundSummaries(transaction, { engine, roomRef, roundResult, summary, standingsAfterRound }) {
+  const entries = engine.playerSummary.roundSummaryEntries({
+    roundResult, summary, standingsAfterRound, byPoints: engine.results.roundTableByPoints(summary),
+  });
+  entries.forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      // Merged: one entry per closed round, kept for the whole match.
+      rounds: { [String(item.roundIndex)]: item.entry },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+/** Each placed player's final place, from the match result's standings (a finished match only). */
+function writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings, status }) {
+  engine.playerSummary.finalSummaryEntries({ standings }).forEach((item) => {
+    transaction.set(liveChallengePlayerSummaryRef(roomRef, engine, item.studentId), {
+      schemaVersion: engine.playerSummary.PLAYER_SUMMARY_SCHEMA_VERSION,
+      roomId: roomRef.id,
+      playerKey: item.playerKey,
+      alias: item.alias,
+      status,
+      final: item.entry,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+/** The public row an answer updates: anonymous counters only (alias, never a student id). */
+function liveChallengePublicAnswerRow(player, finalPlayer, roundIndex) {
+  return {
+    playerKey: player.playerKey,
+    alias: player.alias,
+    joined: true,
+    score: finalPlayer.score,
+    rawScore: finalPlayer.rawScore,
+    correctCount: finalPlayer.correctCount,
+    roundsAnswered: finalPlayer.roundsAnswered,
+    streak: finalPlayer.streak,
+    answeredRound: roundIndex,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
 }
 
 /*
@@ -11716,11 +12622,11 @@ function applyLiveChallengeRoundClose(transaction, {
 const standingsProjectionRef = (roomRef, standings) => roomRef.collection(standings.STANDINGS_COLLECTION).doc(standings.STANDINGS_DOC_ID);
 
 function writeExactStandingsProjection(transaction, {
-  engine, roomRef, room, kind, standings, players, status = null, nowMs, source,
+  engine, roomRef, room, kind, standings, status = null, nowMs, source,
 }) {
   try {
     const projection = engine.standings.exactProjectionFromStandings({
-      roomId: roomRef.id, room, kind, standings, players, status,
+      roomId: roomRef.id, room, kind, standings, status,
     });
     transaction.set(standingsProjectionRef(roomRef, engine.standings), {
       ...projection,
@@ -11797,6 +12703,91 @@ function applyLiveChallengeRoundPlayerTotals(transaction, {
   });
 }
 
+/** Whether a room may still append Second Chance replays (the one predicate both callers use). */
+function liveChallengeSecondChancePossible(room = {}, mode = {}) {
+  return Boolean(mode?.capabilities?.secondChance) && room.secondChanceMode !== "off";
+}
+
+/*
+ * SOLUTION REVEAL (liveChallengeSolutionReveal.mjs). Which rounds' worked
+ * solutions may be public once `closedThrough` has closed: every closed round,
+ * except that while Second Chance may still replay a question its solution is
+ * held — until the replay plan is known, and for a replayed question until
+ * its replay has closed. The plan is pure (planNextLiveChallengeRound), so at
+ * the close of the last scheduled round it is computed here, from the same
+ * records the Continue press will plan from, before it is persisted.
+ */
+function liveChallengeRevealableRounds({ challenge, engine, room, privateState, players, closedThrough, finished = false }) {
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  // A per-player round (Graph Feature Rush) has no shared question to solve —
+  // unless the class played it together: a Graph the Line Classic round with
+  // the same line for everyone, published at its close (no Second Chance in
+  // these modes), held while a later round asks the same line.
+  if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    const sharedLineKeys = privateState.lineGraph?.sharedLineKeys;
+    if (!Array.isArray(sharedLineKeys)) return [];
+    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+    return engine.solutionReveal.revealableRounds({
+      closedThrough,
+      scheduledRoundCount: sharedLineKeys.length,
+      secondChancePossible: false,
+      replayOf: {},
+      finished,
+      questionKeys: sharedLineKeys.map((key) => (key ? [key] : null)),
+    }).filter((round) => round <= reached);
+  }
+  const questionIds = Array.isArray(privateState.questionIds) ? privateState.questionIds : [];
+  const scheduledRoundCount = Number(privateState.scheduledRoundCount) || questionIds.length;
+  // The same condition planNextLiveChallengeRound replays under, so a room
+  // that may replay never reveals early.
+  const secondChancePossible = liveChallengeSecondChancePossible(room, mode);
+  let replayOf = null;
+  if (finished || privateState.secondChancePlanned) replayOf = privateState.secondChanceOf || {};
+  else if (!secondChancePossible) replayOf = {};
+  else if (Number(closedThrough) >= scheduledRoundCount - 1) {
+    const next = planNextLiveChallengeRound({ challenge, engine, room, privateState, players, roundIndex: closedThrough });
+    replayOf = next.finish ? {} : (next.privateState?.secondChanceOf || {});
+  }
+  const rounds = engine.solutionReveal.revealableRounds({
+    closedThrough, scheduledRoundCount, secondChancePossible, replayOf, finished,
+    // Solver Race: never publish a solution while a later round asks the same equation.
+    questionKeys: engine.solutionReveal.roundQuestionKeys(privateState.roundQuestions, questionIds),
+  });
+  // Never a round the match did not reach.
+  const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+  return rounds.filter((round) => round <= reached);
+}
+
+/**
+ * Publish the newly revealable rounds' solutions inside the caller's
+ * transaction. `players` are the private player records: a Graph the Line
+ * round the class played together publishes what the class drew most often
+ * (counts only), now that nobody can answer it.
+ */
+function applyLiveChallengeSolutionReveals(transaction, { engine, roomRef, room, privateState, rounds, nowMs, players = [] }) {
+  const already = Array.isArray(room.revealedSolutionRounds) ? room.revealedSolutionRounds : [];
+  const fresh = engine.solutionReveal.newlyRevealedRounds(rounds, already);
+  if (!fresh.length) return already;
+  const secondChanceOf = privateState.secondChanceOf || {};
+  fresh.forEach((round) => {
+    const original = secondChanceOf[String(round)];
+    const stored = privateState.roundSolutions?.[String(round)] || null;
+    const record = stored?.lineGraph ? engine.lineReveal.withClassLineFacts({ record: stored, players, roundIndex: round }) : stored;
+    transaction.set(roomRef.collection(engine.solutionReveal.SOLUTIONS_COLLECTION).doc(String(round)), {
+      ...engine.solutionReveal.publicSolutionDocument({
+        roundIndex: round,
+        record,
+        originalRoundIndex: original === undefined ? null : original,
+        revealedAtMs: nowMs,
+      }),
+      revealedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  const revealed = [...new Set([...already.map(Number), ...fresh])].sort((a, b) => a - b);
+  transaction.set(roomRef, { revealedSolutionRounds: revealed }, { merge: true });
+  return revealed;
+}
+
 /**
  * What follows the round that just ended: the next scheduled round, the
  * second-chance replays (planned exactly once), or the end of the match.
@@ -11816,7 +12807,7 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
   // Appended only once — `secondChancePlanned` stops a replay of a replay,
   // which would otherwise let a game run on as long as students kept missing.
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  if (privateState.secondChancePlanned || room.secondChanceMode === "off" || !mode.capabilities.secondChance) {
+  if (privateState.secondChancePlanned || !liveChallengeSecondChancePossible(room, mode)) {
     return { finish: true };
   }
   const scheduled = Number(privateState.scheduledRoundCount) || questionIds.length;
@@ -11882,8 +12873,19 @@ function applyLiveChallengeMatchFinalization(transaction, {
   const matchResult = engine.results.buildMatchResult({
     roomId: roomRef.id, room, privateState, players, status, finalizedAtMs: nowMs, finalizationId,
   });
+  // RECOGNITION BEYOND THE PODIUM (liveChallengeRecognitions.mjs), decided
+  // from this result in this commit, so the podium screen and the rewards
+  // effect read the same list. Aliases and player keys only. A finished match
+  // always carries the field (empty when the policy turned recognitions off):
+  // it also tells the rewards effect this match may earn recognition and
+  // personal-best rewards, which a match finished before them never does.
+  const finished = status === lifecycle.SESSION_STATUS.FINISHED;
+  const recognitions = finished && engine.rewardRules.recognitionsEnabled(engine.rewardRules.storedRewardPolicy(privateState.rewardPolicy || null))
+    ? engine.recognitions.publicRecognitions(engine.recognitions.matchRecognitions(matchResult))
+    : [];
   transaction.set(db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomRef.id), {
     ...matchResult,
+    ...(finished ? { recognitions } : {}),
     // Lets permanent student deletion find this document.
     studentIds: matchResult.standings.map((standing) => standing.studentId),
     rewardPolicy: privateState.rewardPolicy || null,
@@ -11908,9 +12910,28 @@ function applyLiveChallengeMatchFinalization(transaction, {
     roundEndsAt: null,
     pausedAt: null,
     finishedAt: FieldValue.serverTimestamp(),
+    // The room shows only the recognitions that name no struggle (the full
+    // list stays on the server-only result, for rewards and each recap).
+    ...(finished ? { recognitions: engine.recognitions.classVisibleRecognitions(recognitions, { warmup: Boolean(room.assignmentId) }) } : {}),
   }, { merge: true });
-  transaction.set(privateRef, terminal, { merge: true });
+  // A terminal match is never swept again.
+  transaction.set(privateRef, { ...terminal, serverSweepDueAt: null }, { merge: true });
   if (pointsHere) transaction.delete(pointerRef);
+  // THE RECAP: a finished match publishes every solution it held. Nothing can
+  // be answered any more. A cancelled match publishes nothing.
+  if (status === lifecycle.SESSION_STATUS.FINISHED) {
+    applyLiveChallengeSolutionReveals(transaction, {
+      engine,
+      roomRef,
+      room,
+      privateState,
+      rounds: liveChallengeRevealableRounds({
+        challenge: null, engine, room, privateState, players, closedThrough: Number(room.currentRound), finished: true,
+      }),
+      nowMs,
+      players,
+    });
+  }
   // The final standings and podium every screen shows ARE the match result's:
   // written in this commit, from its standings, and never replaced after.
   writeExactStandingsProjection(transaction, {
@@ -11919,11 +12940,13 @@ function applyLiveChallengeMatchFinalization(transaction, {
     room: { ...room, status },
     kind: engine.standings.PROJECTION_KIND.FINAL,
     standings: matchResult.standings,
-    players,
     status,
     nowMs,
     source: "finish",
   });
+  // And each student's own final place, from the same standings. A cancelled
+  // match records nothing, so it places nobody.
+  if (finished) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: matchResult.standings, status });
   return matchResult;
 }
 
@@ -11954,6 +12977,17 @@ async function updateLiveChallengeInvitesForRoom(db, { roomId, studentIds = [], 
  * facts about the mathematics and the score is partly a fact about reaction
  * time.
  */
+/*
+ * A question-set mode's own report, and the key the report document stores it
+ * under. Chosen by the mode's question source, as its planner is.
+ */
+async function questionSetModeReport(mode, result) {
+  if (mode.questionSource === "lineGraphGenerator") {
+    return { key: "lineGraph", report: (await lineGraphModules()).attempts.buildLineGraphReport(result) };
+  }
+  return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
+}
+
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
   const challengeRules = await liveChallengeRules();
@@ -11979,16 +13013,18 @@ async function writeLiveChallengeReportFromResult(db, result) {
   });
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
   // A question-set game has no one question per round and no standard per
-  // round: its report is the breakdown by feature and family, and its class
-  // accuracy is every tap.
+  // round: its report is its mode's own breakdown (by feature and family for
+  // the rush; by form, item type and mistake for Graph the Line), stored
+  // under the mode's key, and its class accuracy is every attempt.
   const { modes } = await liveChallengeEngine();
-  const questionSet = modes.roundStructureFor(modes.getChallengeMode(result.modeId)).id === modes.ROUND_STRUCTURE.QUESTION_SET;
-  const rushReport = questionSet ? (await graphFeatureRushRules()).rush.buildRushReport(result) : null;
+  const resultMode = modes.getChallengeMode(result.modeId);
+  const questionSet = modes.roundStructureFor(resultMode).id === modes.ROUND_STRUCTURE.QUESTION_SET;
+  const modeReport = questionSet ? await questionSetModeReport(resultMode, result) : null;
   await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
     ...report,
-    ...(rushReport ? {
-      graphFeatureRush: rushReport,
-      classAccuracyPercent: rushReport.accuracyPercent,
+    ...(modeReport ? {
+      [modeReport.key]: modeReport.report,
+      classAccuracyPercent: modeReport.report.accuracyPercent,
       rounds: [],
       standards: [],
       weakestStandard: null,
@@ -12075,7 +13111,12 @@ async function writeChallengeEvidenceFromResult(db, result) {
 async function deliverLiveChallengeRewardsFromResult(db, result) {
   if (result.status !== "finished") return;
   const rewards = await liveChallengeClassPoints();
-  const delivery = await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  // Who set a personal best, from results finalized BEFORE this one — the
+  // same answer on every retry. Empty for a result from before personal bests.
+  const personalBestStudentIds = await liveChallengeRecap().personalBestStudentIds(db, result);
+  const delivery = await rewards.processLiveChallengeMatchRewards(db, {
+    matchResult: result, policy: result.rewardPolicy || null, personalBestStudentIds,
+  });
   // A match whose rewards were skipped as a whole (an archived class, a class
   // with no teacher of record) writes no award job, so without this the
   // teacher's reward diagnostics could not say why nobody was rewarded.
@@ -12175,8 +13216,15 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
  * Finish or cancel a match. Idempotent: the first call makes the room terminal
  * and writes its result; any later or concurrent call finds it terminal and
  * only resumes outstanding effects.
+ *
+ * `stillWanted`, when given, is asked inside the transaction (it may read
+ * more through the transaction it is handed), with the room and private
+ * state as it read them, whether this finish should still happen
+ * (the server's finish of an abandoned game: not if the teacher opened a
+ * round or was heard since). No: nothing is written, `{ skipped: true }`.
+ * `endedBy` is recorded on the room ("hostAway": the server ended it).
  */
-async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }) {
+async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status, stillWanted = null, endedBy = null }) {
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
   const roomId = roomRef.id;
@@ -12199,6 +13247,9 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const plan = lifecycle.planLifecycleCommand({ command, room: currentRoom });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (stillWanted && !(await stillWanted({ transaction, room: currentRoom, privateState: privateSnapshot.exists ? privateSnapshot.data() || {} : {} }))) {
+      return { skipped: true };
+    }
     const pointsHere = Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId);
     const hadRound = Number.isInteger(Number(currentRoom.currentRound)) && Number(currentRoom.currentRound) >= 0;
 
@@ -12242,9 +13293,11 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     applyLiveChallengeMatchFinalization(transaction, {
       engine, db, roomRef, privateRef, pointerRef, pointsHere, room: currentRoom, privateState, players, status, nowMs,
     });
+    if (endedBy) transaction.set(roomRef, { endedBy }, { merge: true });
     return { finalized: true };
   });
 
+  if (outcome.skipped) return { roomId, skipped: true };
   if (outcome.staleCancelled) {
     await updateLiveChallengeInvitesByRoom(db, {
       roomId,
@@ -12270,7 +13323,7 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
 exports.joinLiveChallenge = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
-  const { lifecycle } = await liveChallengeEngine();
+  const { lifecycle, modes, accommodations } = await liveChallengeEngine();
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
 
@@ -12278,10 +13331,11 @@ exports.joinLiveChallenge = onCall(async (request) => {
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
   const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const gradeRef = db.collection("grades").doc(studentId);
 
   const joined = await db.runTransaction(async (transaction) => {
-    const [inviteSnapshot, roomSnapshot, playerSnapshot] = await Promise.all([
-      transaction.get(inviteRef), transaction.get(roomRef), transaction.get(privatePlayerRef),
+    const [inviteSnapshot, roomSnapshot, playerSnapshot, gradeSnapshot] = await Promise.all([
+      transaction.get(inviteRef), transaction.get(roomRef), transaction.get(privatePlayerRef), transaction.get(gradeRef),
     ]);
     if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
     if (!roomSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
@@ -12302,7 +13356,21 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // participation of the one person whose device failed them. A round that
     // already closed is not one they could play, so it is not counted either.
     const joinedAtRound = lifecycle.joinRoundFor({ room, recordedJoinRound: player.joinedAtRound });
-    const joinedPlayer = { ...player, joined: true, joinedAtRound, updatedAt: FieldValue.serverTimestamp() };
+    // EXTENDED TIME, from the student's own support profile, where the mode
+    // allows it: a synchronized question round. Read at every join, so a plan
+    // changed since the last game applies to this one. Private: the student's
+    // record and their own invite. The room learns only the largest multiplier
+    // in play, never whose (liveChallengeAccommodations.mjs).
+    const extendedTimeAllowed = modes.roundStructureFor(modes.getChallengeMode(room.challengeMode)).id
+      === modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION;
+    const timeMultiplier = extendedTimeAllowed
+      ? accommodations.gameTimeMultiplierFor(gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null)
+      : 1;
+    const joinedPlayer = { ...player, joined: true, joinedAtRound, timeMultiplier, updatedAt: FieldValue.serverTimestamp() };
+    // Nothing about it reaches the room here: a room field that changed in
+    // the same commit as this student's public row would name them. The room
+    // learns only, when a round opens, whether anyone in it has extended time
+    // (extendedTimeInPlay).
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     // The same identity every time: the player key and alias were fixed when
     // the room was created, so a reconnect can never mint a second player.
@@ -12323,13 +13391,51 @@ exports.joinLiveChallenge = onCall(async (request) => {
     }, { merge: true });
     transaction.set(inviteRef, {
       status: room.status === lifecycle.SESSION_STATUS.RUNNING ? "running" : "joined",
+      // The student's own round clock (1 = the class's). Only they read it.
+      timeMultiplier,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return { playerKey: player.playerKey, rejoined: player.joined === true };
+    return { playerKey: player.playerKey, rejoined: player.joined === true, timeMultiplier };
   });
 
-  return { roomId, joined: true, playerKey: joined.playerKey, rejoined: joined.rejoined };
+  return { roomId, joined: true, playerKey: joined.playerKey, rejoined: joined.rejoined, timeMultiplier: joined.timeMultiplier };
 });
+
+/*
+ * THE HOST'S HEARTBEAT. A console calibrates its clock every 30 s while its
+ * game is live; that call is how the server knows a host screen is still on
+ * the game, so the sweep never ends results a teacher is talking through
+ * (liveChallengeServerSweep.mjs). Written to the server-only private state —
+ * nothing a student listens to — at most once a minute per room, and from
+ * this instance's memory first, so four of a calibration's five samples skip
+ * the read and the clock estimate (a median) is untouched. Never fails the
+ * calibration.
+ */
+const liveChallengeHostHeardInInstance = new Map();
+async function recordLiveChallengeHostHeard(request, roomId, nowMs) {
+  try {
+    const { serverSweep } = await liveChallengeEngine();
+    const teacherEmail = callerEmail(request);
+    const instanceKey = `${roomId}|${teacherEmail}`;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: liveChallengeHostHeardInInstance.get(instanceKey) ?? null, nowMs })) return;
+    if (liveChallengeHostHeardInInstance.size > 500) liveChallengeHostHeardInInstance.clear();
+    liveChallengeHostHeardInInstance.set(instanceKey, nowMs);
+    const privateRef = getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+    const privateSnapshot = await privateRef.get();
+    if (!privateSnapshot.exists) return;
+    const privateState = privateSnapshot.data() || {};
+    if (privateState.teacherEmail !== teacherEmail && !authLib.isRootAdminEmail(teacherEmail)) return;
+    if (!serverSweep.hostHeartbeatDue({ hostHeardAt: privateState.hostHeardAt ?? null, nowMs })) return;
+    // update, not set: a finished game's private state, deleted meanwhile,
+    // is never brought back.
+    await privateRef.update({ hostHeardAt: new Date(nowMs) });
+  } catch (error) {
+    // NOT_FOUND: the game ended and its private state is gone.
+    if (error?.code !== 5) {
+      logger.warn("liveChallenge.hostHeard.failed", { roomId, message: error?.message || String(error) });
+    }
+  }
+}
 
 // A deliberately tiny calibration endpoint. Calling it several times lets the
 // browser estimate offset/RTT without granting it any scoring authority.
@@ -12339,6 +13445,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
   if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
+  if (isTeacher && roomId) await recordLiveChallengeHostHeard(request, roomId, serverAt);
   if (studentId && roomId && (request.data?.quality || request.data?.launchReport)) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
@@ -12463,10 +13570,11 @@ exports.startLiveChallenge = onCall(async (request) => {
   });
 
   const outcome = await db.runTransaction(async (transaction) => {
-    const [roomSnapshot, latestPrivate, latestJoined] = await Promise.all([
+    const [roomSnapshot, latestPrivate, latestJoined, privatePlayers] = await Promise.all([
       transaction.get(roomRef),
       transaction.get(privateRef),
       transaction.get(roomRef.collection("players").limit(1)),
+      transaction.get(privateRef.collection("players")),
     ]);
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
     if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
@@ -12479,6 +13587,7 @@ exports.startLiveChallenge = onCall(async (request) => {
     return {
       opened: applyLiveChallengeRoundOpening(transaction, {
         engine, challenge, roomRef, privateRef, room: currentRoom, privateState: latestPrivate.data() || {}, opening, nowMs: Date.now(),
+        players: playersFromSnapshot(privatePlayers),
       }),
     };
   });
@@ -12507,11 +13616,23 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  return closeLiveChallengeRoundForRoom(db, {
+    roomRef, expected: expectedRoundFromRequest(request.data, room), force: request.data?.force === true,
+  });
+});
+
+/**
+ * The close itself, for the host's command and for the server's own close of
+ * an overdue round (closeOverdueLiveChallengeRounds): one transaction, so a
+ * console and the sweep arriving together close the round once and the other
+ * is told it is already closed.
+ */
+async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = false }) {
+  const roomId = roomRef.id;
+  const challenge = await liveChallengeRules();
   const engine = await liveChallengeEngine();
   const { lifecycle } = engine;
-  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  const expected = expectedRoundFromRequest(request.data, room);
-  const force = request.data?.force === true;
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
 
   const outcome = await db.runTransaction(async (transaction) => {
@@ -12523,24 +13644,38 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
     const currentRoom = roomSnapshot.data() || {};
     const players = playersFromSnapshot(latestPlayers);
-    const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
     const nowMs = Date.now();
+    const counts = liveChallengeRoundCompletion(engine, currentRoom, players, nowMs);
     const plan = lifecycle.planLifecycleCommand({
       command: lifecycle.LIFECYCLE_COMMAND.CLOSE_ROUND,
       room: currentRoom,
       expected,
       joinedCount: counts.joinedCount,
       completedCount: counts.completedCount,
+      extendedPendingCount: counts.extendedPendingCount,
       nowMs,
       force,
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
-    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) return refuseLiveChallengeRoundCommand(transaction, { roomRef, room: currentRoom, plan });
     // As in advance: a close that raced a Finish is answered from the room.
     if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
     const privateState = latestPrivate.data() || {};
     const { roundResult, players: roundPlayers, standingsAfterRound } = applyLiveChallengeRoundClose(transaction, {
       engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
+    });
+    // The worked solution, now that nobody can answer this round (held while
+    // a Second Chance replay of it may still come).
+    applyLiveChallengeSolutionReveals(transaction, {
+      engine,
+      roomRef,
+      room: currentRoom,
+      privateState,
+      rounds: liveChallengeRevealableRounds({
+        challenge, engine, room: currentRoom, privateState, players: roundPlayers, closedThrough: plan.roundIndex,
+      }),
+      nowMs,
+      players: roundPlayers,
     });
     // Every screen's standings, exact as of the close.
     writeExactStandingsProjection(transaction, {
@@ -12549,7 +13684,6 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
       room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
       kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
       standings: standingsAfterRound,
-      players: roundPlayers,
       nowMs,
       source: "roundClose",
     });
@@ -12561,12 +13695,157 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     }, { merge: true });
     transaction.set(privateRef, {
       roundState: lifecycle.ROUND_STATE.CLOSED,
+      // Results nobody moves on from, with no host screen heard, end the
+      // game (liveChallengeServerSweep.mjs).
+      serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterCloseMs({ nowMs })),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return { roundResult: engine.results.publicRoundSummary(roundResult) };
   });
+  if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   return { roomId, roundIndex: outcome.roundResult.roundIndex, roundState: lifecycle.ROUND_STATE.CLOSED, roundResult: outcome.roundResult };
+}
+
+/*
+ * THE SERVER CLOSES WHAT NO HOST SCREEN CLOSES (liveChallengeServerSweep.mjs).
+ *
+ * Every minute: the rooms whose private state says they are due. An open
+ * round past its deadline (plus a grace no open console ever reaches) is
+ * closed by the console's own close; results that have stood with no host
+ * screen heard for the host-away window are ended by the console's own
+ * Finish, which writes the match result, standings and rewards once. Each
+ * decision is re-checked inside the command's own transaction, so a console,
+ * a retry or a second run arriving at the same moment changes nothing twice.
+ */
+async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
+  const engine = await liveChallengeEngine();
+  const { serverSweep, lifecycle } = engine;
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(privateDoc.id);
+  const roomSnapshot = await roomRef.get();
+  const room = roomSnapshot.exists ? roomSnapshot.data() || {} : null;
+  const privateState = privateDoc.data() || {};
+  const plan = serverSweep.planServerSweep({ room, privateState, nowMs, settings });
+  const seenDueMs = toDate(privateState.serverSweepDueAt)?.getTime() ?? null;
+  // Moves this room's due time only if nothing (a close, an opening, another
+  // run) has moved it since this run read it. A move that fails pushes the
+  // room back instead — still only if the document is exactly as this run's
+  // query read it — so a room that cannot be written never holds the batch
+  // every minute, and a fresh due time an opening just set is never lost.
+  // Resolves to the outcome this run reports.
+  const reschedule = (nextDueMs, outcome) => db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(privateDoc.ref);
+    if (!latest.exists) return;
+    if ((toDate(latest.data()?.serverSweepDueAt)?.getTime() ?? null) !== seenDueMs) return;
+    transaction.update(privateDoc.ref, { serverSweepDueAt: liveChallengeSweepDate(nextDueMs) });
+  }).then(() => outcome, async (error) => {
+    logger.error("liveChallenge.serverSweep.rescheduleFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+    await privateDoc.ref.update({
+      serverSweepDueAt: liveChallengeSweepDate(nowMs + serverSweep.SERVER_RESCHEDULE_FAILURE_BACKOFF_MS),
+    }, { lastUpdateTime: privateDoc.updateTime }).catch(() => {});
+    return "backedOff";
+  });
+
+  if (plan.action === serverSweep.SWEEP_ACTION.CLEAR) return reschedule(null, "cleared");
+  if (plan.action === serverSweep.SWEEP_ACTION.RESCHEDULE) return reschedule(plan.nextDueMs, "rescheduled");
+  try {
+    if (plan.action === serverSweep.SWEEP_ACTION.CLOSE) {
+      const closed = await closeLiveChallengeRoundForRoom(db, { roomRef, expected: plan.expected });
+      if (!closed.alreadyApplied) {
+        logger.info("liveChallenge.serverClose", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+      }
+      return closed.alreadyApplied ? "alreadyClosed" : "closed";
+    }
+    const finished = await finalizeLiveChallengeMatch(db, {
+      roomRef,
+      room,
+      command: lifecycle.LIFECYCLE_COMMAND.FINISH,
+      status: lifecycle.SESSION_STATUS.FINISHED,
+      // The switch is read again here, in the finish's own transaction: a
+      // flip during a long run is honoured by the very next finish.
+      stillWanted: async ({ transaction, room: latestRoom, privateState: latestPrivate }) => {
+        const latestSwitch = await transaction.get(liveChallengeSweepSwitchRef(db, serverSweep));
+        return serverSweep.stillAbandoned({
+          room: latestRoom,
+          privateState: latestPrivate,
+          expected: plan.expected,
+          nowMs: Date.now(),
+          settings: serverSweep.sweepSettingsFrom(latestSwitch.exists ? latestSwitch.data() : null),
+        });
+      },
+      endedBy: "hostAway",
+    });
+    if (finished.skipped) {
+      // The teacher came back (or moved on): look again after the window.
+      await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS, "kept");
+      return "kept";
+    }
+    if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
+    return finished.alreadyApplied ? "alreadyFinished" : "finished";
+  } catch (error) {
+    // The round is still running (a student with extended time is inside
+    // their own deadline): look again soon. Anything else: back off.
+    const stillRunning = error?.details?.lifecycle === lifecycle.LIFECYCLE_REJECTION.ROUND_IN_PROGRESS;
+    if (!stillRunning) {
+      logger.error("liveChallenge.serverSweep.failed", { roomId: roomRef.id, action: plan.action, message: error?.message || String(error) });
+    }
+    await reschedule(nowMs + (stillRunning ? serverSweep.SERVER_RECHECK_MS : serverSweep.SERVER_FAILURE_BACKOFF_MS), null);
+    return stillRunning ? "stillRunning" : "failed";
+  }
+}
+
+const liveChallengeSweepSwitchRef = (db, serverSweep) => db
+  .collection(serverSweep.SWEEP_SETTINGS_COLLECTION)
+  .doc(serverSweep.SWEEP_SETTINGS_FLAG);
+
+async function sweepOverdueLiveChallengeRooms(db, { dueByMs, nowMs = Date.now() }) {
+  const { serverSweep } = await liveChallengeEngine();
+  // The switch, read on every run: off, the run does nothing (and says so).
+  const switchSnapshot = await liveChallengeSweepSwitchRef(db, serverSweep).get();
+  const settings = serverSweep.sweepSettingsFrom(switchSnapshot.exists ? switchSnapshot.data() : null);
+  if (!settings.enabled) {
+    logger.info("liveChallenge.serverSweep.disabled", { flag: `${serverSweep.SWEEP_SETTINGS_COLLECTION}/${serverSweep.SWEEP_SETTINGS_FLAG}` });
+    return { scanned: 0, disabled: true, outcomes: {} };
+  }
+  // One single-field range: no composite index, and an idle minute is one read.
+  // Only the two fields the sweep reads: never a room's questions or solutions.
+  const due = await db.collection(LIVE_CHALLENGE_PRIVATE)
+    .where("serverSweepDueAt", "<=", new Date(Math.min(dueByMs, nowMs)))
+    .orderBy("serverSweepDueAt")
+    .select("serverSweepDueAt", "hostHeardAt")
+    .limit(serverSweep.SERVER_SWEEP_LIMIT)
+    .get();
+  const outcomes = {};
+  for (const privateDoc of due.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await sweepLiveChallengeRoom(db, privateDoc, nowMs, settings).catch((error) => {
+      logger.error("liveChallenge.serverSweep.roomFailed", { roomId: privateDoc.id, message: error?.message || String(error) });
+      return "failed";
+    });
+    outcomes[privateDoc.id] = outcome;
+  }
+  return { scanned: due.size, outcomes };
+}
+
+exports.closeOverdueLiveChallengeRounds = onSchedule({
+  schedule: "every 1 minutes",
+  invoker: "private",
+  // One run at a time, with room for up to SERVER_SWEEP_LIMIT finishes and
+  // their effects. A run that still overlapped the next would be safe —
+  // every decision is re-checked in its command's transaction — only slower.
+  maxInstances: 1,
+  timeoutSeconds: 300,
+}, async (event) => {
+  // A run takes the rooms that were due by the time it was scheduled for
+  // (a late run is no different); each room's decision uses the real now.
+  const scheduledMs = Date.parse(event?.scheduleTime || "");
+  const nowMs = Date.now();
+  const result = await sweepOverdueLiveChallengeRooms(getFirestore(), {
+    dueByMs: Number.isFinite(scheduledMs) ? scheduledMs : nowMs,
+    nowMs,
+  });
+  if (result.scanned) logger.info("liveChallenge.serverSweep", result);
+  return result;
 });
 
 exports.advanceLiveChallenge = onCall(async (request) => {
@@ -12615,8 +13894,8 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
     const currentRoom = roomSnapshot.data() || {};
     const players = playersFromSnapshot(latestPlayers);
-    const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
     const nowMs = Date.now();
+    const counts = liveChallengeRoundCompletion(engine, currentRoom, players, nowMs);
     // Everyone who joined has answered, or the authoritative deadline passed.
     const plan = lifecycle.planLifecycleCommand({
       command: lifecycle.LIFECYCLE_COMMAND.ADVANCE,
@@ -12624,10 +13903,11 @@ exports.advanceLiveChallenge = onCall(async (request) => {
       expected,
       joinedCount: counts.joinedCount,
       completedCount: counts.completedCount,
+      extendedPendingCount: counts.extendedPendingCount,
       nowMs,
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
-    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) return refuseLiveChallengeRoundCommand(transaction, { roomRef, room: currentRoom, plan });
     // Required only by a command that changes the match: a press that raced a
     // Finish was answered above, from the room, even after the finished
     // match's effects deleted its private state.
@@ -12657,7 +13937,6 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         room: { ...currentRoom, roundState: lifecycle.ROUND_STATE.CLOSED },
         kind: engine.standings.PROJECTION_KIND.ROUND_CLOSED,
         standings: closedStandings,
-        players: roundPlayers,
         nowMs,
         source: "roundClose",
       });
@@ -12678,6 +13957,18 @@ exports.advanceLiveChallenge = onCall(async (request) => {
       });
       return { finished: true };
     }
+    // Solutions this close (or the replay plan it just made) released.
+    applyLiveChallengeSolutionReveals(transaction, {
+      engine,
+      roomRef,
+      room: currentRoom,
+      privateState: next.privateState,
+      rounds: liveChallengeRevealableRounds({
+        challenge, engine, room: currentRoom, privateState: next.privateState, players: roundPlayers, closedThrough: plan.roundIndex,
+      }),
+      nowMs,
+      players: roundPlayers,
+    });
     // The drafted question is reused unless the transaction saw a different
     // next round (a late answer changed which question the class missed most).
     const opening = draftOpening && draftOpening.roundIndex === next.roundIndex && draftOpening.questionId === next.questionId
@@ -12694,10 +13985,12 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         privatePatch: next.privatePatch,
         opening,
         nowMs,
+        players: roundPlayers,
       }),
     };
   });
 
+  if (outcome.refused) throw lifecycleHttpsError(outcome.refused);
   if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
   if (outcome.finished) {
     await runLiveChallengeFinalizationEffects(db, roomId).catch((error) => logger.error(
@@ -12822,56 +14115,83 @@ exports.publishLiveChallengeStandings = onCall(async (request) => {
 });
 
 /*
+ * THE END-OF-GAME RECAP (lib/liveChallengeRecap.js): a student's own rounds
+ * with their worked solutions, their private personal bests and the
+ * recognitions they earned — for a FINISHED match they were in, and nothing
+ * about anyone else.
+ */
+exports.getLiveChallengeMatchRecap = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId || roomId.length > 200 || roomId.includes("/")) throw new HttpsError("invalid-argument", "roomId is required.");
+  return liveChallengeRecap().buildLiveChallengeMatchRecap(getFirestore(), {
+    roomId,
+    studentId,
+    fail: (code, message) => new HttpsError(code, message),
+  });
+});
+
+/*
  * A FINISHED ROOM'S FINAL STANDINGS, REBUILT FROM ITS MATCH RESULT IF MISSING.
  *
- * The finishing transaction writes the final snapshot. A room that finished
- * before snapshots existed — or one whose final snapshot could not be built —
- * has none, and a screen opened on it would wait for its final place forever.
- * Its own students and teacher may ask for it: the server rebuilds it from the
- * durable match result (the same standings the podium and rewards use) and
- * writes it once. Asking again changes nothing.
+ * The finishing transaction writes the final snapshot and each student's own
+ * final place. A room that finished before either existed — or one whose
+ * final snapshot could not be built, or is of a version the screens no longer
+ * read (one that listed every seat's rank) — would leave a screen waiting for
+ * its final place forever. Its own students and teacher may ask for it: the
+ * server rebuilds what is missing from the durable match result (the same
+ * standings the podium and rewards use) and writes it once. Asking again
+ * changes nothing.
  */
 exports.ensureLiveChallengeFinalStandings = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  let studentId = null;
   if (request.auth?.token?.role === "teacher") {
     await requireOwnedChallenge(db, request, roomId);
   } else {
-    const { studentId } = requireStudent(request);
+    ({ studentId } = requireStudent(request));
     const invite = await db.collection(LIVE_CHALLENGE_INVITES).doc(studentId).get();
     if (!invite.exists || invite.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const engine = await liveChallengeEngine();
-  const { standings } = engine;
+  const { standings, playerSummary } = engine;
   const roomSnapshot = await roomRef.get();
   if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
   const room = roomSnapshot.data() || {};
   if (!["finished", "cancelled"].includes(room.status)) return { ensured: false, reason: "not-finished" };
   const ref = standingsProjectionRef(roomRef, standings);
-  const existing = await ref.get();
-  if (existing.exists && existing.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
+  const finalIsCurrent = (snapshot) => snapshot.exists
+    && snapshot.data()?.kind === standings.PROJECTION_KIND.FINAL
+    && Number(snapshot.data()?.schemaVersion) === standings.STANDINGS_PROJECTION_SCHEMA_VERSION;
+  // A student of a finished match also needs their own final place.
+  const summaryRef = studentId && room.status === "finished" ? liveChallengePlayerSummaryRef(roomRef, engine, studentId) : null;
+  const summaryIsCurrent = (snapshot) => !snapshot || Boolean(playerSummary.summaryFinal(snapshot.exists ? snapshot.data() : null, { roomId }));
+  const [existing, existingSummary] = await Promise.all([ref.get(), summaryRef ? summaryRef.get() : Promise.resolve(null)]);
+  if (finalIsCurrent(existing) && summaryIsCurrent(existingSummary)) return { ensured: true, existing: true };
   const resultSnapshot = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
   if (!resultSnapshot.exists) return { ensured: false, reason: "no-result" };
   const result = resultSnapshot.data() || {};
   const resultStandings = Array.isArray(result.standings) ? result.standings : [];
   return db.runTransaction(async (transaction) => {
-    const latest = await transaction.get(ref);
-    if (latest.exists && latest.data()?.kind === standings.PROJECTION_KIND.FINAL) return { ensured: true, existing: true };
-    const written = writeExactStandingsProjection(transaction, {
+    const [latest, latestSummary] = await Promise.all([transaction.get(ref), summaryRef ? transaction.get(summaryRef) : Promise.resolve(null)]);
+    const projectionDone = finalIsCurrent(latest);
+    const summariesDone = summaryIsCurrent(latestSummary);
+    if (projectionDone && summariesDone) return { ensured: true, existing: true };
+    const written = projectionDone || writeExactStandingsProjection(transaction, {
       engine,
       roomRef,
       room,
       kind: standings.PROJECTION_KIND.FINAL,
-      // The match result's standings carry each player's seat; a result from
-      // before seats is seated by player key instead.
       standings: resultStandings,
-      players: resultStandings,
       status: room.status,
       nowMs: Date.now(),
       source: "repair",
     });
+    // Every player's own final place, from the same standings, in one commit.
+    if (!summariesDone) writeLiveChallengeFinalSummaries(transaction, { engine, roomRef, standings: resultStandings, status: room.status });
     return written ? { ensured: true, repaired: true } : { ensured: false, reason: "unbuildable" };
   });
 });
@@ -13127,6 +14447,14 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
     // already started the closing countdown, or the round moved on.
     if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
   }
+  if (compressed) {
+    // The new deadline is when the server closes it if no host screen does —
+    // the first deadline a Pace Race round has.
+    const { serverSweep } = await liveChallengeEngine();
+    await getFirestore().collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id).update({
+      serverSweepDueAt: liveChallengeSweepDate(serverSweep.sweepDueAfterOpeningMs({ endsAtMs: targetEndsAtMs })),
+    }).catch((error) => logger.warn("liveChallenge.compress.sweepDue.failed", { roomId: roomRef.id, message: error?.message || String(error) }));
+  }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
 }
@@ -13201,8 +14529,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
   if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   const room = roomSnapshot.data() || {};
-  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
-    throw new HttpsError("failed-precondition", "This game is played by tapping graphs, not by submitting an answer.");
+  const roomMode = engine.modes.getChallengeMode(room.challengeMode);
+  if (roomMode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    throw new HttpsError("failed-precondition", `${roomMode.label} is played on its own game screen, not by submitting an answer.`);
   }
   const submittedVersion = requestedVersion ?? Number(room.roundVersion || 0);
   const submittedToken = requestedToken ?? String(room.roundToken || "");
@@ -13215,7 +14544,14 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   // round is still open.
   const submitPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected: expectedRound });
   if (submitPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", submitPlan.message);
-  const initialArrival = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
+  // A student with extended time answers against their own deadline
+  // (liveChallengeAccommodations.mjs); everyone else against the room's.
+  const initialArrival = roundTimer.timerAcceptsArrival(
+    engine.accommodations.personalRoundTimer(roundTimer.timerFromRoom(room), currentPlayer.timeMultiplier, {
+      fullDurationMs: engine.accommodations.roomFullRoundMs(room),
+    }),
+    requestArrivedAt,
+  );
   if (!initialArrival.accepted) throw liveChallengeArrivalRefusal(initialArrival);
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
   // The response model decides whether this question can take another
@@ -13268,7 +14604,12 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const latestEndsAtMs = latestTimer.endsAtMs || 0;
     const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
-    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    const arrival = roundTimer.timerAcceptsArrival(
+      engine.accommodations.personalRoundTimer(latestTimer, player.timeMultiplier, {
+        fullDurationMs: engine.accommodations.roomFullRoundMs(latestRoom),
+      }),
+      requestArrivedAt,
+    );
     if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
     if (Number(player.answeredRound) === submittedRound || attemptPlanFor(player).decision === responses.ATTEMPT_DECISION.REJECT) {
@@ -13284,9 +14625,18 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
     const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
 
-    const activeRoundMs = challenge.normalizeRoundSeconds(
+    // AN ACCOMMODATION MUST NOT COST POINTS. A student with extended time is
+    // scored for speed against their own round — its length times their
+    // multiplier, to their own deadline — so a correct answer at 17 s of
+    // their 22.5 s earns what a classmate's at 11 s of 15 s does, never the
+    // "time expired" tier of the class's clock.
+    const timeMultiplier = engine.accommodations.storedTimeMultiplier(player.timeMultiplier);
+    const activeRoundMs = Math.round(challenge.normalizeRoundSeconds(
       latestRoom.activeRoundSeconds || latestRoom.roundSeconds,
-    ) * 1000;
+    ) * 1000 * timeMultiplier);
+    const personalEndsAtMs = engine.accommodations.personalRoundTimer(latestTimer, timeMultiplier, {
+      fullDurationMs: engine.accommodations.roomFullRoundMs(latestRoom),
+    }).endsAtMs || 0;
     const officialElapsedMs = request.data?.autoFinalizedAtRoundEnd === true
       ? activeRoundMs
       : parity.authoritativeElapsed({
@@ -13304,7 +14654,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     finalScore = strategy.scoreResponse({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
-      remainingMs: latestEndsAtMs ? Math.max(0, latestEndsAtMs - nowMs) : 0,
+      remainingMs: personalEndsAtMs ? Math.max(0, personalEndsAtMs - nowMs) : 0,
       totalMs: activeRoundMs,
       elapsedMs: officialElapsedMs,
       previousStreak: player.streak || 0,
@@ -13414,19 +14764,20 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     // where they are read instead. See deriveRoundTallies.
 
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
-    transaction.set(privatePlayerRef, finalPlayer, { merge: true });
-    transaction.set(publicPlayerRef, {
-      playerKey: player.playerKey,
-      alias: player.alias,
-      joined: true,
-      score: finalPlayer.score,
-      rawScore,
-      correctCount: finalPlayer.correctCount,
-      roundsAnswered: finalPlayer.roundsAnswered,
-      streak: finalPlayer.streak,
-      answeredRound: submittedRound,
-      updatedAt: FieldValue.serverTimestamp(),
+    // AN ANSWER AFTER THE CLASS'S DEADLINE comes only from a student with
+    // extended time. Writing it to their public row now would show the class
+    // who that is (the row whose answer lands after "Time!", and its score
+    // moving on the projector). It stays private until the round closes, when
+    // the close copies it (liveChallengePublicRowAfterClose).
+    const answeredAfterClassDeadline = Boolean(latestEndsAtMs)
+      && requestArrivedAt > latestEndsAtMs + parity.SUBMISSION_ARRIVAL_GRACE_MS;
+    transaction.set(privatePlayerRef, {
+      ...finalPlayer,
+      publicRowPendingRound: answeredAfterClassDeadline ? submittedRound : null,
     }, { merge: true });
+    if (!answeredAfterClassDeadline) {
+      transaction.set(publicPlayerRef, liveChallengePublicAnswerRow(player, finalPlayer, submittedRound), { merge: true });
+    }
   });
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
@@ -13706,6 +15057,249 @@ exports.previewGraphFeatureRush = onCall(async (request) => {
   return { config: normalized, questions };
 });
 
+// ---------------------------------------------------------------------------
+// GRAPH THE LINE (docs/architecture/graph-the-line.md)
+//
+// Classic, Sprint and Rush open, close and finish through the same lifecycle
+// commands as every mode, on the room's authoritative clock. What the game
+// adds is how a student gets items and answers them — the rush's shape:
+//
+//   getLineGraphRound        where the student stands in the round, read
+//                            from their receipts, and their next items,
+//                            generated from the room's private seed. Writes
+//                            nothing.
+//   submitLineGraphAttempts  a batch of drawn lines, chosen options, typed
+//                            equations and skips, graded in ONE transaction
+//                            against the server's own regenerated items
+//                            (lineGraphAttempts.applyLineGraphAttempts) and
+//                            recorded as targetAttempt receipts. A retried
+//                            batch replays by attempt id; an item completes
+//                            once.
+//   previewLineGraph         sample items for a teacher's settings.
+//
+// The device checks each answer the moment it is complete with the same
+// functions; the server's verdict is the one that counts, and the device
+// resynchronizes to it.
+// ---------------------------------------------------------------------------
+
+async function loadLineGraphContext(db, { studentId, roomId }) {
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) {
+    throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  }
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
+    throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const room = roomSnapshot.data() || {};
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (mode.questionSource !== engine.modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR) {
+    throw new HttpsError("failed-precondition", "This Live Challenge is not a Graph the Line game.");
+  }
+  const modules = await lineGraphModules();
+  const lineState = (privateSnapshot.data() || {}).lineGraph || {};
+  // A room is graded with the generator it was created under, or not at all:
+  // regenerating under different rules would grade a line against an
+  // equation the student never saw.
+  if (!lineState.seed || Number(lineState.generatorVersion) !== modules.generator.LINE_GRAPH_GENERATOR_VERSION) {
+    throw new HttpsError("failed-precondition", "This Graph the Line game was created before an update. Ask your teacher to start a new game.");
+  }
+  // The format is the mode's; a Sprint's length is the room's own (never
+  // more than the mode declares).
+  const config = { ...lineState.config, format: modules.rules.lineGraphFormatOfMode(mode.id) };
+  const poolSize = Math.min(modules.config.lineRoundQuestionCount(config.format, config), mode.questionSpecs.length);
+  return {
+    engine, modules, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, lineState, config, poolSize,
+  };
+}
+
+/** Item k of one student's round: deterministic, generated once per call. */
+function lineGraphIssuer({ modules, lineState, config, studentId, roundIndex }) {
+  const issued = new Map();
+  return (questionIndex) => {
+    if (!issued.has(questionIndex)) {
+      issued.set(questionIndex, modules.generator.generateLineQuestion({
+        seed: lineState.seed, studentKey: studentId, roundIndex, questionIndex, config,
+      }));
+    }
+    return issued.get(questionIndex);
+  };
+}
+
+exports.getLineGraphRound = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || Number.isNaN(roundVersion)) {
+    throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+  }
+  const { engine, modules, room, player, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
+  const state = modules.attempts.lineRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  const roundOpen = lifecycle.planLifecycleCommand({
+    command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
+    room,
+    expected: { roundIndex, roundVersion, roundToken },
+  }).outcome === lifecycle.LIFECYCLE_OUTCOME.APPLY;
+  // Items only for an open round the student has joined, starting no earlier
+  // than where they are and no further ahead than two batches.
+  const requested = Number(request.data?.fromIndex);
+  const fromIndex = Number.isInteger(requested)
+    ? Math.min(Math.max(requested, state.cursor), state.cursor + 2 * modules.rules.LINE_LIMITS.issueBatch)
+    : state.cursor;
+  const count = Math.max(0, Math.min(modules.rules.LINE_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
+  const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
+  const joined = player.joined === true;
+  const questions = roundOpen && joined
+    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => modules.generator.publicLineQuestion(issue(fromIndex + offset)))
+    : [];
+  // `poolSize` is where the round's items end (a Sprint's length); `joined`
+  // tells a device whose join is still on its way to ask again.
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+});
+
+exports.submitLineGraphAttempts = onCall(async (request) => {
+  const requestArrivedAt = Date.now();
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  const attempts = Array.isArray(request.data?.attempts) ? request.data.attempts : [];
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
+    throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
+  }
+  const { engine, modules, mode, room, roomRef, privatePlayerRef, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle, timer: roundTimer } = engine;
+  const expected = { roundIndex, roundVersion, roundToken };
+  // Cheap refusals before the transaction: a stale round, a closed one, or a
+  // request that arrived after the deadline's bounded grace.
+  const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
+  if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+    throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
+  }
+  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
+    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  }
+  const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) {
+      throw new HttpsError("not-found", "That Live Challenge ended before your answers could be saved.");
+    }
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const player = latestPlayerSnapshot.data() || {};
+    const plan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room: latestRoom, expected });
+    if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+      throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
+    }
+    const latestTimer = roundTimer.timerFromRoom(latestRoom);
+    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
+    const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
+    const applied = modules.attempts.applyLineGraphAttempts({
+      player,
+      roundIndex,
+      roundVersion,
+      attempts,
+      questionFor: issue,
+      config,
+      arrivedAtMs: requestArrivedAt,
+      arrivalElapsedMs: arrival.elapsedMs,
+      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      strategy,
+      poolSize,
+    });
+    // Replays, repeated answers and resolved items record nothing, so a batch
+    // of only those writes nothing either. Never `answeredRound`: it would
+    // mark the player finished with the round (liveChallengeRoundCompletion).
+    if (applied.recorded > 0) {
+      const { totals } = applied;
+      transaction.set(privatePlayerRef, {
+        submissionReceipts: applied.receipts,
+        attemptSequence: applied.attemptSequence,
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        answeredRounds: totals.answeredRounds,
+        targetAttempts: totals.targetAttempts,
+        targetHits: totals.targetHits,
+        matchAccuracy: totals.matchAccuracy,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      // The player's own public row: the board's numbers and the host's
+      // "racing now" signal, in the race fields the rush's board already
+      // reads — and whether they have worked through the whole round, which
+      // the host's early close of a Classic or Sprint round counts (the
+      // server's close guard reads the same receipts). No student id, no
+      // answers.
+      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        matchAccuracy: totals.matchAccuracy,
+        rushRound: roundIndex,
+        rushRoundCompleted: applied.state.questionsCorrect,
+        rushRoundFinished: applied.state.finished === true,
+        rushActiveAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    return {
+      verdicts: applied.verdicts,
+      state: applied.state,
+      recorded: applied.recorded,
+      score: applied.totals.score,
+      correctCount: applied.totals.correctCount,
+    };
+  });
+  return { roomId, roundIndex, ...outcome };
+});
+
+exports.previewLineGraph = onCall(async (request) => {
+  await requireTeacher(request);
+  const { generator, config: configRules, rules } = await lineGraphModules();
+  const format = String(request.data?.format || "");
+  if (!rules.LINE_GRAPH_FORMAT_IDS.includes(format)) throw new HttpsError("invalid-argument", "Choose Classic, Sprint or Rush.");
+  let normalized;
+  try {
+    normalized = configRules.normalizeLineGraphConfig(request.data?.lineGraph || {}, { format });
+  } catch (error) {
+    if (error?.name === "LineGraphConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time: the teacher sees what a student might get, and
+  // nothing is written anywhere. A Classic game's items run across rounds.
+  // Up to a whole Sprint (its longest set), so practice plays the real length.
+  const seed = crypto.randomUUID();
+  const classic = format === rules.LINE_GRAPH_FORMAT.CLASSIC;
+  const count = Math.max(1, Math.min(configRules.LINE_SPRINT_MAX_POOL, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, index) => generator.publicLineQuestion(generator.generateLineQuestion({
+    seed,
+    studentKey: "preview",
+    roundIndex: classic ? index : 0,
+    questionIndex: classic ? 0 : index,
+    config: normalized,
+  })));
+  return { config: normalized, questions };
+});
+
 // Phase 5D: secure My Math Path production seam
 // ---------------------------------------------------------------------------
 
@@ -13722,6 +15316,8 @@ function pathSessionRequiredQuestions(sessionKind, requested) {
   return Math.max(2, Math.min(10, Number(requested) || 5));
 }
 
+// Pinned equal to WEEKLY_PATH_FRAMEWORKS (shared/weeklyPathSlotAuthority.mjs),
+// which the simulator and the browser use, by weeklyPathSlotAuthority.test.mjs.
 const PATH_ASSESSMENT_FRAMEWORKS = new Set(["digitalSAT", "act", "tsia2", "asvab"]);
 
 function normalizePathAssessmentFramework(value) {
@@ -13901,73 +15497,34 @@ exports.getMyMathPathSkillProgress = onCall((request) => withPathCallableDiagnos
 
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
-function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
-  const weekKey = String(goal?.weekKey || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
-    throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
-  }
-  const classId = String(classRecord?.classId || "").trim();
-  const courseId = String(classRecord?.course || "").trim();
-  if (!classId || !courseId) throw new HttpsError("failed-precondition", "Your MathMaster class is not fully configured yet.");
-  if (goal?.courseId && String(goal.courseId) !== courseId) {
-    throw new HttpsError("failed-precondition", "This weekly Path proposal belongs to a different course.");
-  }
-  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
-  const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
-  if (!proposed.length) throw new HttpsError("failed-precondition", "MathMaster could not build any weekly Path sessions for this week.");
+// The canonicalizers every weekly-slot decision uses on this side of the wire.
+const WEEKLY_SLOT_TEKS_TOOLS = Object.freeze({
+  canonicalTeks: mathPath.canonicalAlignmentKey,
+  displayTeks: mathPath.displayAlignmentKey,
+  normalizeFramework: normalizePathAssessmentFramework,
+});
 
-  const sessions = proposed.map((session, index) => {
-    const slot = index + 1;
-    const displayCode = mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(session?.teksCode || session?.skillId));
-    if (!displayCode) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} has no valid standard.`);
-    const context = normalizePathAssessmentFramework(session?.context) || "course";
-    const dok = Math.max(1, Math.min(4, Math.round(Number(session?.dok) || 2)));
-    const difficultyBand = Math.max(1, Math.min(5, Math.round(Number(session?.difficultyBand) || 3)));
-    const suppliedKey = String(session?.weeklySlotKey || "").trim();
-    const weeklySlotKey = suppliedKey || [
-      slot,
-      String(session?.skillId || ""),
-      displayCode,
-      String(session?.purpose || "practice"),
-      context,
-      dok,
-      difficultyBand,
-    ].join("|");
-    if (weeklySlotKey.length > 300) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} key is too long.`);
-    return {
-      slot,
-      weeklySlotKey,
-      skillId: String(session?.skillId || "").slice(0, 180) || null,
-      teksCode: displayCode,
-      purpose: String(session?.purpose || "practice").slice(0, 60),
-      context,
-      dok,
-      difficultyBand,
-      studentLabel: session?.studentLabel ? String(session.studentLabel).slice(0, 180) : null,
-      purposeLabel: session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null,
-      studentExplanation: session?.studentExplanation ? String(session.studentExplanation).slice(0, 400) : null,
-      targetReason: session?.targetReason ? String(session.targetReason).slice(0, 180) : null,
-      status: "notStarted",
-    };
-  });
-
-  return {
-    schemaVersion: 1,
-    studentId,
-    classId,
-    courseId,
-    weekKey,
-    dueAt: Number(goal?.dueAt) || null,
-    goalSessions: requested,
-    sessions,
-    ccmr: goal?.ccmr && typeof goal.ccmr === "object" ? {
-      expectation: String(goal.ccmr.expectation || "none").slice(0, 40),
-      framework: String(goal.ccmr.framework || "auto").slice(0, 40),
-      transferCount: Math.max(0, Number(goal.ccmr.transferCount) || 0),
-      satisfied: goal.ccmr.satisfied !== false,
-      shortfallReason: goal.ccmr.shortfallReason ? String(goal.ccmr.shortfallReason).slice(0, 160) : null,
-    } : null,
-  };
+// The freeze — every slot field, and each slot's sanitized "Swap a skill"
+// alternatives — lives in shared/weeklyPathSlotAuthority.mjs, so the Teacher
+// Path Simulator freezes a week by the same rule. Its errors already carry the
+// HttpsError code to answer with.
+async function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord, freezeInputs = {} }) {
+  const slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+  try {
+    return slotAuthority.freezeWeeklyPathGoalProposal(goal, {
+      studentId,
+      classId: classRecord?.classId,
+      courseId: classRecord?.course,
+      now: Date.now(),
+      // The graded count, the short-week reason and the retention checks
+      // come from the server's records, never the proposal.
+      ...freezeInputs,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+  } catch (error) {
+    if (error?.name === "WeeklyPathGoalError") throw new HttpsError(error.code, error.message);
+    throw error;
+  }
 }
 
 /** Freeze the student's proposed autonomous week exactly once. */
@@ -13978,7 +15535,18 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
   if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
   const classRecord = await loadStudentClass(db, studentSnapshot.data());
   if (!classRecord) throw new HttpsError("failed-precondition", "Your MathMaster class has not been assigned yet.");
-  const proposed = sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
+  // A week already frozen is returned as it is: the checks below decide only
+  // what a NEW snapshot may hold.
+  const requestedWeekKey = String(request.data?.goal?.weekKey || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
+    const frozen = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
+    if (frozen.exists) return { success: true, goal: frozen.data() };
+  }
+  const { loadWeeklyFreezeInputs } = require("./lib/weeklyPathFreezeInputs");
+  // The proposal is passed only so a short one can be checked against the
+  // server's own plan for the week; nothing in it sets the count.
+  const freezeInputs = await loadWeeklyFreezeInputs({ db, studentId, studentData: studentSnapshot.data(), classRecord, goal: request.data?.goal || {}, now: Date.now() });
+  const proposed = await sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord, freezeInputs });
   const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
   const assigned = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
@@ -14009,6 +15577,108 @@ exports.getStudentWeeklyPathGoalSnapshot = onCall(async (request) => {
 });
 
 /**
+ * The student's own recent weeks of Path: each frozen weekly goal graded by the
+ * functions the Classroom publisher uses (weeklyPathCompletion.mjs and
+ * gradeWeeklyGoal), and the "weeks hit" streak (weeklyPathHistory.mjs). Every
+ * read is addressed by the caller's own studentId — goal ids are computed, not
+ * scanned — and nothing in request.data can widen it. Aggregate facts only.
+ */
+exports.getMyWeeklyPathHistory = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathHistory", async () => {
+  const { studentId } = requireStudent(request);
+  const { loadWeeklyPathHistory } = require("./lib/weeklyPathHistory");
+  const history = await loadWeeklyPathHistory(getFirestore(), {
+    studentId,
+    now: Date.now(),
+    displayTeks: mathPath.displayAlignmentKey,
+    goalCollection: WEEKLY_PATH_GOAL_SNAPSHOTS,
+  });
+  return { success: true, ...history };
+}));
+
+/**
+ * The student's own weekly Path completions, counted by the SAME rule the
+ * teacher table and the Classroom publisher use (weeklyPathCompletion.mjs):
+ * only a session the server marked "completed" counts. Also returns the
+ * student's unfinished sessions for this week's slots so the panel can offer
+ * Resume. Only the caller's own sessions; aggregate facts only, no payloads.
+ */
+exports.getMyWeeklyPathCompletions = onCall((request) => withPathCallableDiagnostics("getMyWeeklyPathCompletions", async () => {
+  const { studentId } = requireStudent(request);
+  const weekKey = String(request.data?.weekKey || "").trim();
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
+  const db = getFirestore();
+  const sessions = [];
+  const collect = (snapshot) => snapshot.docs.forEach((doc) => sessions.push({ id: doc.id, data: doc.data() || {} }));
+
+  // Every session launched from this week's slots, in any status. Two
+  // equality filters are served by Firestore's single-field index merge, so
+  // this needs no composite index and has no cap that could drop a slot.
+  collect(await db.collection("pathSessions")
+    .where("studentId", "==", studentId)
+    .where("weekKey", "==", weekKey)
+    .get());
+
+  // Open practice finished inside the week. The grader's legacy rule lets a
+  // completed session on the slot's own TEKS fill it, so the student must see
+  // the same sessions the teacher's table sees.
+  let truncated = false;
+  try {
+    collect(await db.collection("pathSessions")
+      .where("studentId", "==", studentId)
+      .where("completedAt", ">=", completionWindow.start)
+      .where("completedAt", "<", completionWindow.end)
+      .get());
+  } catch (error) {
+    // Composite index (studentId, completedAt) not built yet: fall back to the
+    // student's sessions without a range, filtered here.
+    if (Number(error?.code) !== 9 && error?.code !== "failed-precondition") throw error;
+    const LIMIT = 1000;
+    const fallback = await db.collection("pathSessions").where("studentId", "==", studentId).limit(LIMIT).get();
+    truncated = fallback.size >= LIMIT;
+    collect(fallback);
+  }
+
+  const { completions, inProgress } = weeklyCompletion.collectWeeklyPathSessions({
+    sessions,
+    weekKey,
+    displayTeks: mathPath.displayAlignmentKey,
+  });
+  return { success: true, weekKey, completions, inProgress, truncated };
+}));
+
+/**
+ * Save the signed-in student's own CCMR plan: the tests they are preparing for
+ * and an optional test date. The ONLY write path for studentCcmrPlans — the
+ * rules refuse every client write. Validation, caps and the record shape live
+ * in shared/ccmrPlan.mjs; this reads the roster row for the authorization
+ * context and writes once, inside a transaction, only when something changed.
+ */
+exports.setMyCcmrPlan = onCall((request) => withPathCallableDiagnostics("setMyCcmrPlan", async () => {
+  const { studentId } = requireStudent(request);
+  const ccmrPlan = await import("./shared/ccmrPlan.mjs");
+  const validated = ccmrPlan.validateCcmrPlanInput(request.data, { now: Date.now() });
+  if (!validated.ok) throw new HttpsError("invalid-argument", validated.message);
+  const db = getFirestore();
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
+  const student = studentSnapshot.data() || {};
+  const classRecord = await loadStudentClass(db, student);
+  const ref = db.collection(ccmrPlan.CCMR_PLAN_COLLECTION).doc(studentId);
+  const saved = await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    const { record, unchanged } = ccmrPlan.buildCcmrPlanRecord({
+      studentId, plan: validated.plan, existing: existing.exists ? existing.data() : null, student, classRecord, now: Date.now(),
+    });
+    if (unchanged) return existing.data();
+    transaction.set(ref, record);
+    return record;
+  });
+  return { success: true, plan: ccmrPlan.publicCcmrPlan(saved) };
+}));
+
+/**
  * Teacher-only weekly Path progress for one real class.
  *
  * `pathSessions` is intentionally server-only. The teacher UI needs completion
@@ -14037,9 +15707,12 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
     throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
   }
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
-  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
+  // The Classroom publisher's window (the week plus the Sunday-evening day), so
+  // the teacher's table counts exactly the sessions the grade will count.
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const studentIds = new Set(roster.docs
@@ -14091,25 +15764,13 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
     if (page === MAX_PAGES - 1) truncated = true;
   }
 
+  // The same completion rule the student panel and the Classroom publisher use.
   sessionDocs.forEach((sessionDoc) => {
     const session = sessionDoc.data() || {};
     const studentId = String(session.studentId || "");
-    if (!studentIds.has(studentId) || session.status !== "completed") return;
-    const completedQuestions = Number(session.summary?.completedQuestions || 0);
-    const correctQuestions = Number(session.summary?.correctQuestions || 0);
-    const alignmentKey = String(session.target?.alignmentKey || "");
-    byStudentId[studentId].push({
-      status: "completed",
-      sessionId: sessionDoc.id,
-      completedAt: Number(session.completedAt || session.updatedAt || 0),
-      teksCode: alignmentKey ? mathPath.displayAlignmentKey(alignmentKey) : null,
-      accuracy: completedQuestions > 0 ? Math.max(0, Math.min(1, correctQuestions / completedQuestions)) : null,
-      sessionKind: session.sessionKind || "practice",
-      assessmentFramework: session.assessmentFramework || null,
-      weekKey: session.weekKey || null,
-      weeklySlotKey: session.weeklySlotKey || null,
-      weeklySlot: session.weeklySlot || null,
-    });
+    if (!studentIds.has(studentId)) return;
+    const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+    if (completion) byStudentId[studentId].push(completion);
   });
 
   Object.values(byStudentId).forEach((rows) => rows.sort((a, b) => a.completedAt - b.completedAt));
@@ -14191,15 +15852,13 @@ exports.setWeeklyPathClassroomSync = onCall(async (request) => {
  * grades that are quietly too low, and the sync refuses to publish on it.
  */
 async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
-  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
-  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
-  // One extra day past the UTC week boundary. The week closes at midnight in
-  // the school's own timezone, which is early Monday in UTC, so a window that
-  // stopped at the UTC boundary would silently drop every session finished on
-  // Sunday evening — the busiest hours of a Sunday-night deadline. Sessions
-  // pulled in from the next week cannot be miscounted: matching is by frozen
-  // slot key and weekKey, not by timestamp.
-  const weekEnd = weekStart + (8 * 24 * 60 * 60 * 1000);
+  // One extra day past the UTC week boundary (see weeklyPathCompletion.mjs):
+  // the week closes at local midnight, which is early Monday in UTC. Matching
+  // is by frozen slot key and weekKey, so the extra day cannot miscount.
+  const weeklyCompletion = await import("./shared/weeklyPathCompletion.mjs");
+  const completionWindow = weeklyCompletion.weeklyCompletionWindow(weekKey);
+  if (!completionWindow) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  const { start: weekStart, end: weekEnd } = completionWindow;
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const students = roster.docs
@@ -14233,22 +15892,9 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
     pageDocs.docs.forEach((sessionDoc) => {
       const session = sessionDoc.data() || {};
       const studentId = String(session.studentId || "");
-      if (!ids.has(studentId) || session.status !== "completed") return;
-      const completedQuestions = Number(session.summary?.completedQuestions || 0);
-      const correctQuestions = Number(session.summary?.correctQuestions || 0);
-      completionsByStudentId[studentId].push({
-        status: "completed",
-        completedAt: Number(session.completedAt || session.updatedAt || 0),
-        teksCode: session.target?.alignmentKey
-          ? mathPath.displayAlignmentKey(String(session.target.alignmentKey))
-          : null,
-        accuracy: completedQuestions > 0
-          ? Math.max(0, Math.min(1, correctQuestions / completedQuestions))
-          : null,
-        assessmentFramework: session.assessmentFramework || null,
-        weekKey: session.weekKey || null,
-        weeklySlotKey: session.weeklySlotKey || null,
-      });
+      if (!ids.has(studentId)) return;
+      const completion = weeklyCompletion.completionFromPathSession(sessionDoc.id, session, { displayTeks: mathPath.displayAlignmentKey });
+      if (completion) completionsByStudentId[studentId].push(completion);
     });
     cursor = pageDocs.docs[pageDocs.docs.length - 1];
     if (pageDocs.size < PAGE_SIZE) break;
@@ -14511,7 +16157,8 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const { studentId } = requireStudent(request);
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
-  const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
+  // `let`: a weekly slot's frozen purpose can settle the kind below.
+  let sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
@@ -14540,33 +16187,55 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   }
 
   // Weekly launches are resolved against the frozen server commitment. The
-  // browser may choose which assigned row the student clicks, but it cannot
-  // turn that row into another TEKS, framework, DOK or difficulty.
+  // browser may choose which assigned row the student clicks — and, on a row
+  // frozen with "Swap a skill" alternatives, which of those standards to
+  // practise — but it cannot turn that row into any other TEKS, framework, DOK
+  // or difficulty. The rule is shared with the Teacher Path Simulator
+  // (shared/weeklyPathSlotAuthority.mjs).
   const requestedWeekKey = String(request.data?.weekKey || "").trim() || null;
   const requestedWeeklySlotKey = String(request.data?.weeklySlotKey || "").trim() || null;
   let weeklySlot = null;
+  let weeklySwap = null;
+  let slotAuthority = null;
   if (requestedWeeklySlotKey || requestedWeekKey) {
     if (!requestedWeeklySlotKey || !requestedWeekKey || !/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
       throw new HttpsError("invalid-argument", "weekKey and weeklySlotKey are both required for an assigned weekly session.");
     }
     const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
-    if (!snapshot.exists) throw new HttpsError("failed-precondition", "This weekly commitment has not been assigned yet. Return to My Math Path and reload the week.");
-    const weeklyGoal = snapshot.data() || {};
-    if (studentClass?.classId && weeklyGoal.classId !== studentClass.classId) {
-      throw new HttpsError("failed-precondition", "This weekly commitment belongs to a different class.");
+    slotAuthority = await import("./shared/weeklyPathSlotAuthority.mjs");
+    const authorization = slotAuthority.authorizeWeeklySlotLaunch({
+      goal: snapshot.exists ? (snapshot.data() || {}) : null,
+      weeklySlotKey: requestedWeeklySlotKey,
+      targetAlignmentKey,
+      requestedFramework: assessmentFramework,
+      // Which option the browser says it picked. A label, never a permission:
+      // the target must still be one of the slot's frozen standards.
+      chosenSkillId: String(request.data?.chosenSkillId || "").trim().slice(0, 180) || null,
+      classId: studentClass?.classId || null,
+      ...WEEKLY_SLOT_TEKS_TOOLS,
+    });
+    if (!authorization.ok) throw new HttpsError(authorization.code, authorization.message, { reason: authorization.reason });
+    weeklySlot = authorization.slot;
+    weeklySwap = authorization.swapped
+      ? { swappedFromTeks: authorization.swappedFromTeks, chosenAlternative: authorization.chosenAlternative }
+      : null;
+    assessmentFramework = authorization.assessmentFramework;
+  }
+
+  // A RETENTION SLOT IS A RETENTION CHECK (functions/shared/pathRetentionCheck.mjs).
+  // The slot's frozen purpose decides the session kind, not the browser: only
+  // a retentionProbe moves the retention schedule, so practice launched on a
+  // Retention slot filled it without ever clearing the check. A browser a
+  // release behind still asks for practice and is given the check; a check
+  // asked for on any other slot is refused.
+  const retentionCheck = await import("./shared/pathRetentionCheck.mjs");
+  if (weeklySlot) {
+    const weeklyKind = retentionCheck.resolveWeeklySlotSessionKind({ slotPurpose: weeklySlot.purpose, requestedSessionKind: sessionKind });
+    if (!weeklyKind.ok) throw new HttpsError("failed-precondition", weeklyKind.message, { reason: weeklyKind.reason });
+    if (weeklyKind.sessionKind !== sessionKind) {
+      sessionKind = weeklyKind.sessionKind;
+      requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
     }
-    weeklySlot = (Array.isArray(weeklyGoal.sessions) ? weeklyGoal.sessions : [])
-      .find((slot) => String(slot?.weeklySlotKey || "") === requestedWeeklySlotKey) || null;
-    if (!weeklySlot) throw new HttpsError("failed-precondition", "That weekly Path slot is no longer part of the assigned week.");
-    const assignedTarget = mathPath.canonicalAlignmentKey(weeklySlot.teksCode);
-    if (!assignedTarget || assignedTarget !== targetAlignmentKey) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly standard.");
-    }
-    const assignedFramework = normalizePathAssessmentFramework(weeklySlot.context);
-    if (assessmentFramework && assessmentFramework !== assignedFramework) {
-      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
-    }
-    assessmentFramework = assignedFramework;
   }
 
   // A weekly slot can supply the assessment framework after the initial request
@@ -14674,11 +16343,33 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const session = await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const lock = await transaction.get(lockRef);
-    if (lock.exists && lock.data()?.sessionId) {
-      const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
+    let existingSessionId = lock.exists ? (lock.data()?.sessionId || null) : null;
+    // One open session per weekly slot. The lock is keyed by target, and a slot
+    // frozen with "Swap a skill" alternatives can be launched on more than one
+    // standard, so a launch for a slot that already has an open session on
+    // another of them resumes that session instead of opening a second
+    // (shared/weeklyPathSlotAuthority.mjs, which the simulator also runs).
+    if (requestedWeeklySlotKey && slotAuthority) {
+      const weekSessions = await transaction.get(db.collection("pathSessions")
+        .where("studentId", "==", studentId)
+        .where("weekKey", "==", requestedWeekKey));
+      const openSlotSession = slotAuthority.openWeeklySlotSession({
+        sessions: weekSessions.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} })),
+        studentId,
+        weekKey: requestedWeekKey,
+        weeklySlotKey: requestedWeeklySlotKey,
+        preferSessionId: existingSessionId,
+      });
+      if (openSlotSession) existingSessionId = openSlotSession.id;
+    }
+    if (existingSessionId) {
+      const existingRef = db.collection("pathSessions").doc(existingSessionId);
       const existing = await transaction.get(existingRef);
       if (existing.exists && existing.data()?.status === "active" && existing.data()?.studentId === studentId) {
-        if (existing.data()?.sessionKind !== sessionKind) {
+        // A weekly slot's open session is resumed whatever kind it was opened
+        // as (practice opened on a Retention slot before it became a check);
+        // refusing it would leave a Resume button that can never work.
+        if (!retentionCheck.canResumeOpenSession({ existingSessionKind: existing.data()?.sessionKind, sessionKind, weeklySlotKey: requestedWeeklySlotKey })) {
           throw new HttpsError("failed-precondition", "Finish the active session for this TEKS before starting a different check.");
         }
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
@@ -14733,6 +16424,11 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       intendedDok: weeklySlot?.dok || null,
       intendedDifficultyBand: weeklySlot?.difficultyBand || null,
       weeklyPurpose: weeklySlot?.purpose || null,
+      // A swap is recorded, not hidden: the frozen standard the slot named and
+      // the alternative the student practised instead. The slot key above is
+      // unchanged, so the completion still fills the slot it was launched for.
+      swappedFromTeks: weeklySwap?.swappedFromTeks || null,
+      chosenAlternative: weeklySwap?.chosenAlternative || null,
       requiredQuestions,
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
@@ -14777,7 +16473,10 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   const session = sessionSnapshot.data();
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
-    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
+    // Stored with its tool fields encoded when they nest arrays (secureItemStorage).
+    const openQuestion = secureItems.readStoredItem(session.currentQuestion);
+    // `issued: true` — the stored item is already sanitized; keep its ids.
+    return { questionInstance: mathPath.buildSanitizedQuestion(openQuestion, { questionInstanceId: openQuestion.questionInstanceId, attemptsAllowed: openQuestion.attemptsAllowed, attemptsUsed: openQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(openQuestion), issued: true }) };
   }
 
   if (session.assessmentFramework) {
@@ -14807,12 +16506,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
         }
         const freshData = fresh.data();
         if (freshData.currentQuestion) {
+          const openQuestion = secureItems.readStoredItem(freshData.currentQuestion);
           return {
-            questionInstance: mathPath.buildSanitizedQuestion(freshData.currentQuestion, {
-              questionInstanceId: freshData.currentQuestion.questionInstanceId,
-              attemptsAllowed: freshData.currentQuestion.attemptsAllowed,
-              attemptsUsed: freshData.currentQuestion.attemptsUsed,
-              toolPayload: mathPath.storedToolPayload(freshData.currentQuestion),
+            questionInstance: mathPath.buildSanitizedQuestion(openQuestion, {
+              questionInstanceId: openQuestion.questionInstanceId,
+              attemptsAllowed: openQuestion.attemptsAllowed,
+              attemptsUsed: openQuestion.attemptsUsed,
+              toolPayload: mathPath.storedToolPayload(openQuestion),
+              issued: true,
             }),
           };
         }
@@ -15207,11 +16908,16 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const fresh = await transaction.get(sessionRef);
     const freshData = fresh.data();
     if (!fresh.exists || freshData?.studentId !== studentId || freshData?.status !== "active") throw new HttpsError("failed-precondition", "This session changed before the question could be issued.");
-    if (freshData.currentQuestion) return freshData.currentQuestion;
+    if (freshData.currentQuestion) return secureItems.readStoredItem(freshData.currentQuestion);
     // Remember which family was issued, so the next question in this session
     // reaches for one the student has not seen.
     transaction.update(sessionRef, {
-      currentQuestion,
+      // A Data Modeling, Mapping Diagram, reflection or 3×3 RREF item nests
+      // arrays in its tool fields, which Firestore refuses: those fields are
+      // stored encoded (secureItemStorage), every other item exactly as before.
+      // Without this the transaction failed and, selection being
+      // deterministic, the session could never issue its next question.
+      currentQuestion: secureItems.storableItem(currentQuestion),
       familyUsage: selection.recordFamilyUse(freshData.familyUsage || {}, authored.id),
       usedRepresentations: [...new Set([...(freshData.usedRepresentations || []), choice.representation].filter(Boolean))],
       usedTaskTypes: [...new Set([...(freshData.usedTaskTypes || []), choice.taskType].filter(Boolean))],
@@ -15220,7 +16926,9 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     return currentQuestion;
   });
 
-  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion) }) };
+  // Either branch of the transaction yields the stored (already sanitized)
+  // item, so the re-send keeps its ids: `issued: true`.
+  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion), issued: true }) };
 }));
 
 /**
@@ -15247,6 +16955,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     pathRouting.routing(),
     pathRouting.skillGraph(),
   ]);
+  const recapRules = await pathSessionRecap.pathSessionRecapRules();
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -15282,7 +16991,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (!sessionSnapshot.exists || sessionSnapshot.data()?.studentId !== studentId) throw new HttpsError("not-found", "That My Math Path session is not available.");
     const session = sessionSnapshot.data();
     if (session.status !== "active" || !session.currentQuestion) throw new HttpsError("failed-precondition", "There is no open question to submit.");
-    const currentQuestion = session.currentQuestion;
+    const currentQuestion = secureItems.readStoredItem(session.currentQuestion);
     if (currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer the active question.");
 
     // The grader is chosen from the question the SERVER stored, never from a
@@ -15329,9 +17038,13 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     const claimed = request.data?.supportUsage && typeof request.data.supportUsage === "object"
       ? request.data.supportUsage
       : {};
-    const priorSupport = currentQuestion.supportReleased || {};
-    const hintReleased = Boolean(priorSupport.hintReleased) || Boolean(attemptSupport.support?.hint);
-    const reviewReleased = Boolean(priorSupport.reviewReleased) || Boolean(attemptSupport.solutionReview);
+    // Only support shown BEFORE this answer marks it; what this response
+    // releases (the review of a closed item, a hint after a second miss) is
+    // carried to the next attempt (mathPath.pathAttemptSupport).
+    const { used: supportBeforeAttempt, released: supportReleased } = mathPath.pathAttemptSupport({
+      priorSupport: currentQuestion.supportReleased || {},
+      attemptSupport,
+    });
     // ACCOMMODATION DELIVERY, reconciled.
     //
     // Three different facts, from three different places, deliberately kept
@@ -15360,9 +17073,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
 
     const supportUsage = {
       // Server-observed. Not accepted from the request.
-      hintUsed: hintReleased,
-      workedExampleUsed: reviewReleased,
-      scaffoldUsed: hintReleased,
+      hintUsed: supportBeforeAttempt.hintUsed,
+      workedExampleUsed: supportBeforeAttempt.workedExampleUsed,
+      scaffoldUsed: supportBeforeAttempt.scaffoldUsed,
       // Client-reported, but about the room rather than about the mathematics.
       teacherAssisted: Boolean(claimed.teacherAssisted),
       calculatorUsed: Boolean(claimed.calculatorUsed),
@@ -15394,7 +17107,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     let nextCurrentQuestion = {
       ...currentQuestion,
       attemptsUsed: attemptNumber,
-      supportReleased: { hintReleased, reviewReleased },
+      supportReleased,
     };
 
     // The routing decision. Only a FINALIZED question is evidence — attempts
@@ -15455,7 +17168,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       status: nextStatus,
       summary: nextSummary,
       pathState: { ...(session.pathState || {}), counters: { ...(session.pathState?.counters || {}), questionsThisSession: nextSummary.completedQuestions || 0 } },
-      currentQuestion: nextCurrentQuestion,
+      currentQuestion: secureItems.storableItem(nextCurrentQuestion),
       ...(routed ? {
         currentSkillCode: routed.currentSkillCode,
         excursion: routed.excursion,
@@ -15527,25 +17240,19 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     if (retentionSnapshot) {
       const displayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
       const schedules = retentionSnapshot.exists ? retentionSnapshot.data()?.schedules || {} : {};
-      const currentSchedule = schedules[displayCode] || {};
-      const passed = nextSummary.completedQuestions >= 2 && nextSummary.independentSuccesses >= 2;
-      const successfulCheckCount = passed ? Number(currentSchedule.successfulCheckCount || 0) + 1 : Number(currentSchedule.successfulCheckCount || 0);
-      const updatedSchedule = passed ? {
-        ...currentSchedule,
+      // ONE verdict for a finished retention check, shared with the Teacher
+      // Path Simulator (functions/shared/pathRetentionCheck.mjs): both answers
+      // right on the student's own moves the next check out (14/30/60 days);
+      // anything less marks a concern and keeps the check due.
+      const { retentionCheckOutcome } = await import("./shared/pathRetentionCheck.mjs");
+      const verdict = retentionCheckOutcome({
         teksCode: displayCode,
-        status: "scheduled",
-        lastVerifiedAt: now,
-        successfulCheckCount,
-        nextCheckDueAt: mathPath.nextRetentionDue(now, successfulCheckCount),
-        daysOverdue: 0,
-      } : {
-        ...currentSchedule,
-        teksCode: displayCode,
-        status: "concern",
-        lastFailedCheckAt: now,
-      };
-      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: updatedSchedule }, updatedAt: now }, { merge: true });
-      nextSession.retentionOutcome = passed ? "passed" : "failed";
+        summary: nextSummary,
+        currentSchedule: schedules[displayCode] || {},
+        now,
+      });
+      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: verdict.schedule }, updatedAt: now }, { merge: true });
+      nextSession.retentionOutcome = verdict.outcome;
     }
 
     if (questionFinalized && currentQuestion.assessmentContext?.examStyle === true) {
@@ -15598,11 +17305,42 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       session: publicPathSession(nextSession),
       needsNextQuestion: questionFinalized && nextStatus === "active",
     };
-    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result });
+    // A CLOSED question leaves its recap entry (the question as issued, the
+    // student's answer, the correct answer, the review) on this server-only
+    // document. getMyPathSessionRecap releases it once the session is completed.
+    const recapJson = pathSessionRecap.closedQuestionRecapJson(recapRules, {
+      sessionId,
+      currentQuestion,
+      responsePayload: request.data?.responsePayload || {},
+      grading: result.grading,
+      solutionReview: attemptSupport.solutionReview,
+      questionNumber: nextSummary.completedQuestions,
+      skillCode: activeSkillCode,
+      closedAt: now,
+      onError: (error) => logger.warn("Path recap entry was not recorded", { sessionId, questionInstanceId, message: error?.message || String(error) }),
+    });
+    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result, ...(recapJson ? { recapJson } : {}) });
     return { duplicate: false, result };
   });
 
   return transactionResult.result;
+}));
+
+/**
+ * The end-of-session recap: the questions the student missed or got partly
+ * right, each as they saw it, with their answer, the correct answer and the
+ * worked solution. ONLY the caller's own session, and ONLY once the server has
+ * marked it completed — an active or paused session is refused, so nothing
+ * here can reveal anything while an item can still be answered. Rules:
+ * functions/shared/pathSessionRecap.mjs.
+ */
+exports.getMyPathSessionRecap = onCall((request) => withPathCallableDiagnostics("getMyPathSessionRecap", async () => {
+  const { studentId } = requireStudent(request);
+  const sessionId = String(request.data?.sessionId || "").trim();
+  if (!sessionId || sessionId.length > 180) throw new HttpsError("invalid-argument", "sessionId is required.");
+  const loaded = await pathSessionRecap.loadMyPathSessionRecap(getFirestore(), { studentId, sessionId });
+  if (loaded.refused) throw new HttpsError(loaded.refused.code, loaded.refused.message);
+  return { success: true, sessionId, ...loaded.recap };
 }));
 
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
@@ -15729,9 +17467,18 @@ function secureExamAlignmentKeys(question = {}) {
   return [...new Set(source.map(mathPath.canonicalAlignmentKey).filter(Boolean))];
 }
 
-function secureExamPublicQuestion(question = {}) {
+/*
+ * ONE SECURE ITEM AS A STUDENT'S BROWSER RECEIVES IT.
+ *
+ * Built by `secureItems.publicItem`, which carries a Rich Tool item's
+ * allowlisted tool payload (it used to be dropped here, so a graphing item
+ * arrived as a bare "Answer" box) with every assistance key stripped for the
+ * secure mode, then by `publicQuestion`, which removes the metadata that cues
+ * a student about what is being assessed.
+ */
+async function secureExamPublicQuestion(question = {}, { mode = null } = {}) {
   return secureExam.publicQuestion(
-    mathPath.buildSanitizedQuestion(question, question),
+    await secureItems.publicItem(question, { mode: mode || "secureTest" }),
     { examCalculatorMode: question.examCalculatorMode || question.calculatorMode || null },
   );
 }
@@ -15745,9 +17492,53 @@ function assertStudentExamSession(snapshot, studentId) {
 
 function assertExamInProgress(session) {
   if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam has already been submitted.");
-  if (secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is locked. Ask the proctor to review the session.");
+  if (secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is locked. Ask the proctor to review the session.", { status: session.status });
   if (session.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam is not currently in progress.");
   if (secureExam.isExpired(session)) throw new HttpsError("deadline-exceeded", "The exam time has expired.");
+}
+
+/*
+ * THE STUDENT'S EXTENDED-TIME ACCOMMODATION, FROM THEIR SUPPORT PROFILE.
+ *
+ * Read from `grades/{studentId}.profile` through the one entitlement resolver
+ * (functions/shared/supportEntitlements.mjs), so a district SIS multiplier and
+ * the teacher UI's "extra time" box mean the same thing here as everywhere
+ * else. Applied once, when the student starts the session (below), so it
+ * covers every kind of secure session — a practice test, a course Test, a
+ * Retest — through one path. A profile that cannot be read grants nothing
+ * extra rather than blocking the start.
+ */
+async function secureExamTimeMultiplierFromProfile(profile, studentId = null) {
+  try {
+    const entitlements = await mathPath.resolveEntitlements(profile || null);
+    const multiplier = Number(entitlements?.extendedTimeMultiplier);
+    return Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 1;
+  } catch (error) {
+    console.error("secure_exam_time_accommodation_unreadable", { studentId, message: error?.message || String(error) });
+    return 1;
+  }
+}
+
+async function secureExamTimeMultiplier(db, studentId) {
+  const snapshot = await db.collection("grades").doc(studentId).get();
+  return secureExamTimeMultiplierFromProfile(snapshot.exists ? snapshot.data()?.profile || null : null, studentId);
+}
+
+/*
+ * The time a not-yet-started session WILL have, so the start screen and the
+ * Test Cycle card can say "includes your extended time" before the student
+ * presses Start. The server applies the same multiplier at start; this only
+ * describes it.
+ */
+function projectedSecureExamTime(session, multiplier) {
+  if (session?.status !== "not_started" || !(multiplier > 1)) return {};
+  const base = secureExam.timeLimitSecondsOf(session);
+  if (base === null) return {};
+  return {
+    baseTimeLimitSeconds: base,
+    timeLimitSeconds: secureExamNavigation.accommodatedTimeLimitSeconds(base, multiplier),
+    extendedTimeMultiplier: multiplier,
+  };
 }
 
 /** Teacher action: create a server-owned session for a rostered student. */
@@ -15775,16 +17566,23 @@ exports.createSecureExamSession = onCall(async (request) => {
     title: String(request.data?.title || policy.title).trim().slice(0, 160) || policy.title,
     status: "not_started",
     requiredQuestions,
-    timeLimitSeconds: policy.timeLimitSeconds,
+    // A shortened practice test keeps the real test's pace, not its whole
+    // clock (secureExamNavigation.proportionalTimeLimitSeconds).
+    timeLimitSeconds: secureExamNavigation.proportionalTimeLimitSeconds(policy, requiredQuestions),
     addedTimeSeconds: 0,
     calculatorMode: policy.calculatorMode,
     accommodationsConfirmed: request.data?.accommodationsConfirmed === true,
     feedbackReleased: false,
+    // A practice test's results (score, answers, worked solutions) are the
+    // student's as soon as they submit. A teacher who wants to hold them asks
+    // for teacher release explicitly.
+    releasePolicy: request.data?.releasePolicy === "teacher" ? "teacher" : "automatic",
     violationCount: 0,
     summary: { completedQuestions: 0, correctQuestions: 0 },
     responses: {},
     usedQuestionIds: [],
     currentQuestion: null,
+    navigation: secureExamNavigation.initialNavigation({ examType, requiredQuestions }),
     createdBy: teacherUid,
     createdAt: now,
     updatedAt: now,
@@ -15803,15 +17601,60 @@ exports.startSecureExamSession = onCall(async (request) => {
   // the stage the Test Cycle says the student is on. A simulation has no
   // `courseTest` block and this is a no-op for it.
   const entrySnapshot = await ref.get();
-  await assertCourseTestEntryAllowed(db, assertStudentExamSession(entrySnapshot, studentId), studentId);
+  const entrySession = assertStudentExamSession(entrySnapshot, studentId);
+  try {
+    await assertCourseTestEntryAllowed(db, entrySession, studentId);
+  } catch (error) {
+    // A Test under way that the teacher has paused or archived: the screen
+    // gets where it stands (states only, the clock stopped) and shows the
+    // pause, rather than an error. Nothing is issued, saved or submitted.
+    if (secureExam.pauseHoldsOf(entrySession).includes("assignment")
+      && (entrySession.status === "in_progress" || secureExam.LOCKED_STATES.has(entrySession.status))) {
+      return { success: true, session: secureExam.publicSession(entrySession) };
+    }
+    throw error;
+  }
+  const timeMultiplier = entrySession.status === "not_started" ? await secureExamTimeMultiplier(db, studentId) : 1;
   const session = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const current = assertStudentExamSession(snapshot, studentId);
     if (secureExam.TERMINAL_STATES.has(current.status)) return current;
     if (secureExam.LOCKED_STATES.has(current.status)) return current;
     if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
-    if (current.status === "in_progress") return current;
-    const next = { ...current, status: "in_progress", startedAt: Date.now(), updatedAt: Date.now() };
+    if (current.status === "in_progress") {
+      // A resume of a session started before the finalizer's hint existed
+      // stores it now, derived the way every call derives the deadline.
+      if (current.autoFinalizeAt !== undefined) return current;
+      const resumed = { ...current, autoFinalizeAt: secureExam.autoFinalizeAtFor(current, Date.now()) };
+      transaction.set(ref, { autoFinalizeAt: resumed.autoFinalizeAt }, { merge: true });
+      return resumed;
+    }
+    // The course gate again, through this transaction: a pause or archive that
+    // lands while the start is in flight is seen here (or retries it), so a
+    // Test never starts on a closed assessment, where no clock hold would
+    // cover it (holdCourseTestClocks holds only Tests already under way).
+    await assertCourseTestEntryAllowed(db, current, studentId, { transaction });
+    const now = Date.now();
+    // The accommodation multiplies the test's own limit once, at start; an
+    // untimed test stays untimed.
+    const baseLimit = secureExam.timeLimitSecondsOf(current);
+    const accommodated = baseLimit !== null && timeMultiplier > 1 && current.extendedTimeMultiplier === undefined
+      ? {
+        baseTimeLimitSeconds: baseLimit,
+        timeLimitSeconds: secureExamNavigation.accommodatedTimeLimitSeconds(baseLimit, timeMultiplier),
+        extendedTimeMultiplier: timeMultiplier,
+      }
+      : {};
+    const started = {
+      ...current,
+      ...accommodated,
+      navigation: secureExamNavigation.navigationOf(current),
+      status: "in_progress",
+      startedAt: now,
+      updatedAt: now,
+    };
+    // Where the abandoned-test finalizer will look (secureExam.autoFinalizeAtFor).
+    const next = { ...started, autoFinalizeAt: secureExam.autoFinalizeAtFor(started, now) };
     transaction.set(ref, next);
     return next;
   });
@@ -15822,14 +17665,65 @@ exports.startSecureExamSession = onCall(async (request) => {
 /** Student dashboard: discover only the caller's assigned secure sessions. */
 exports.listStudentSecureExamSessions = onCall(async (request) => {
   const { studentId } = requireStudent(request);
-  const snapshot = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+  const db = getFirestore();
+  const [snapshot, timeMultiplier] = await Promise.all([
+    db.collection("examSessions").where("studentId", "==", studentId).limit(50).get(),
+    secureExamTimeMultiplier(db, studentId),
+  ]);
+  const stale = await staleCourseTestSessionIds(db, studentId, snapshot.docs.map((docSnapshot) => docSnapshot.data()));
   const sessions = snapshot.docs
-    .map((docSnapshot) => secureExam.publicSession(docSnapshot.data()))
+    .filter((docSnapshot) => !stale.has(docSnapshot.id))
+    .map((docSnapshot) => {
+      const session = docSnapshot.data();
+      return secureExam.publicSession({ ...session, ...projectedSecureExamTime(session, timeMultiplier) });
+    })
     .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   return { sessions };
 });
 
-/** Student review: released correctness plus the original sanitized item and standards. */
+/*
+ * COURSE-TEST SESSIONS A STUDENT SHOULD NO LONGER BE SHOWN.
+ *
+ * Starting any of these is already refused (assertCourseTestEntryAllowed), but
+ * the list still handed the student a card for it — a Start button that could
+ * only ever answer "no longer available". A session is left off the list when:
+ *
+ *   - its assessment was deleted;
+ *   - it was replaced (a teacher reset, or the original Test started after a
+ *     stand-in Retest was opened): the record's stage points elsewhere;
+ *   - its assessment is archived and the session was never finished. A
+ *     finished one stays, because a student may still read results that were
+ *     released before the archive.
+ *
+ * Practice tests (no `courseTest`) are never touched.
+ */
+async function staleCourseTestSessionIds(db, studentId, sessions) {
+  const stale = new Set();
+  const course = sessions.filter((session) => validDocumentId(session?.courseTest?.assignmentId));
+  if (!course.length) return stale;
+  const shared = await testCycleLib.shared();
+  const assignmentIds = [...new Set(course.map((session) => String(session.courseTest.assignmentId)))];
+  const [assignmentSnapshots, recordSnapshots] = await Promise.all([
+    db.getAll(...assignmentIds.map((id) => db.collection("assignments").doc(id)), { fieldMask: ["archived"] }),
+    db.getAll(...assignmentIds.map((id) => db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(id, studentId)))),
+  ]);
+  const assignments = new Map(assignmentSnapshots.map((entry) => [entry.id, entry.exists ? entry.data() || {} : null]));
+  const records = new Map(recordSnapshots.map((entry, index) => [assignmentIds[index], entry.exists ? entry.data() : null]));
+  course.forEach((session) => {
+    const assignmentId = String(session.courseTest.assignmentId);
+    const assignment = assignments.get(assignmentId);
+    const record = shared.record.normalizeTestCycleRecord(records.get(assignmentId) || { assignmentId, studentId });
+    const finished = secureExam.TERMINAL_STATES.has(session.status);
+    if (!assignment
+      || !recordStageSessionIsCurrent(shared, record, session)
+      || (assignment.archived === true && !finished)) {
+      stale.add(String(session.examSessionId || ""));
+    }
+  });
+  return stale;
+}
+
+/** Student review: released correctness, answers and worked solutions. */
 exports.getStudentSecureExamReview = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -15841,55 +17735,259 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
   if (session.feedbackReleased !== true) {
     throw new HttpsError("failed-precondition", "Your teacher has not released feedback for this exam yet.");
   }
-  const review = secureExam.publicReview(session);
+  /*
+   * NOT AN OPEN BOOK FOR ANOTHER ATTEMPT (secureExam.courseReviewBlockedBy).
+   *
+   * A released course Test's or Retest's review stays closed while the student
+   * has another attempt of the cycle open: the Retest, or the new Test or
+   * Retest a teacher's reset assigned (the old session keeps its release). The
+   * Test Cycle card hides "Review my Test" at the same stages; this is the
+   * server holding the line for any screen that asks.
+   */
+  let withSolutions = true;
+  if (secureExam.isCourseTestSession(session) && session.courseTest?.assignmentId) {
+    const shared = await testCycleLib.shared();
+    const record = await readTestCycleRecord(getFirestore(), session.courseTest.assignmentId, studentId, shared);
+    const blocked = secureExam.courseReviewBlockedBy(record, { examSessionId, cycleStage: session.courseTest.cycleStage });
+    if (blocked) throw new HttpsError("failed-precondition", blocked.message, { reason: blocked.reason });
+    const stage = String(session.courseTest.cycleStage || "") === "retest" ? "retest" : "test";
+    try {
+      withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage, { cacheRoster: true })).released;
+    } catch (error) {
+      // Fail closed: the review shows, and the answers wait.
+      console.error("course_answers_release_failed", { examSessionId, message: error?.message || String(error) });
+      withSolutions = false;
+    }
+  }
+  /*
+   * The same line for practice tests. Two practice tests of one exam draw from
+   * the same exam-style item families, so a released practice test's answers
+   * and solutions stay closed while the student has another practice test of
+   * that exam under way (started, or paused), and open again once it is
+   * submitted. A practice test that has not been started does not close it.
+   */
+  if (!secureExam.isCourseTestSession(session)) {
+    // Every session of this exam, with no cap: a capped, unordered read of the
+    // student's whole history could miss the one under way.
+    const examType = String(session.examType || "");
+    const sessions = getFirestore().collection("examSessions").where("studentId", "==", studentId);
+    const others = await (examType ? sessions.where("examType", "==", examType) : sessions).get();
+    const openSameExam = others.docs.some((docSnapshot) => {
+      const other = docSnapshot.data() || {};
+      return docSnapshot.id !== examSessionId
+        && String(other.examType || "") === String(session.examType || "")
+        && (other.status === "in_progress" || secureExam.LOCKED_STATES.has(other.status));
+    });
+    if (openSameExam) {
+      throw new HttpsError("failed-precondition", "These results open again when you finish the practice test you have started.", { reason: "practice_test_open" });
+    }
+  }
+  const review = secureExam.publicReview(session, { withSolutions });
   return { success: true, review };
 });
 
-/** Issue one sanitized exam item; expected answers never leave Functions. */
-exports.issueSecureExamQuestion = onCall(async (request) => {
-  const { studentId } = requireStudent(request);
-  const examSessionId = secureExamSessionId(request);
+/*
+ * A COURSE TEST'S ANSWERS AND WORKED SOLUTIONS WAIT FOR THE CLASS.
+ *
+ * Scores and the question review (each question with the student's own
+ * answer, right or wrong) release as they always have. The correct answers
+ * and worked solutions the review now adds are held while anyone who can
+ * still sit that stage could be handed them: every active student in every
+ * class the assignment is assigned to (one with no record yet, in a period
+ * whose sessions are not open, included) and anyone holding a record. They
+ * open once none of them is left, or when the teacher releases them
+ * (releaseTestCycleAnswers) — and that release covers only the students, at
+ * the attempts, its confirm named. One it did not name (a student who joined
+ * later, or one whose attempt a teacher reset since) holds them again until
+ * they finish.
+ */
+/*
+ * THE TEACHER'S TEST CYCLE CALLABLES NEED MORE THAN THE DEFAULT INSTANCE.
+ *
+ * On the default 256 MiB and 60 seconds, this codebase alone takes about 156
+ * MiB once loaded. In production on 7 and 8 October 2026 the panel's loader
+ * (listTeacherTestCycleRecords) was killed for exceeding its memory on 29 of
+ * 36 teacher calls, and teacherTestCycleAction and assignTestCycleSessions ran
+ * into the 60-second limit — which a browser reports as the server not
+ * answering. Three settings, by what each callable does:
+ *
+ *   panel    reads a whole class: the most headroom.
+ *   action   one student, or one bounded batch of a bulk operation.
+ *   sweep    walks a class inside one request (opening sessions the old way,
+ *            releasing results): the longest limit, so a large class finishes
+ *            rather than being cut off half-way.
+ */
+const TEST_CYCLE_PANEL_OPTIONS = Object.freeze({ memory: "1GiB", timeoutSeconds: 120 });
+const TEST_CYCLE_ACTION_OPTIONS = Object.freeze({ memory: "512MiB", timeoutSeconds: 120 });
+const TEST_CYCLE_SWEEP_OPTIONS = Object.freeze({ memory: "512MiB", timeoutSeconds: 300 });
+
+const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
+
+/*
+ * A student at their current attempts: the unit an explicit release covers.
+ * A reset gives the stage a new attempt, so the key changes and no release
+ * that did not confirm the new attempt can cover it — however the release
+ * and the reset interleave. A Test reset changes the key for both stages.
+ */
+function answerCoverageKey(record) {
+  return `${record.studentId}#${record.test.attempt}.${record.retest.attempt}`;
+}
+
+/*
+ * Who can still sit a stage. The Test: anyone whose Test is not submitted,
+ * except where the stage machine says they never will (an external original
+ * that passed, a retest a teacher closed). The Retest: anyone who has not
+ * submitted one and is not done without one (passed, retest closed or
+ * released): before or in the Test, awaiting its release, in Corrections,
+ * waiting for or sitting the Retest.
+ */
+function stillToSitStage(shared, policy, stage, raw) {
+  const record = shared.record.normalizeTestCycleRecord(raw);
+  const finished = [shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED];
+  const STAGE = shared.stages.TEST_CYCLE_STAGE;
+  const state = shared.stages.resolveTestCycleStage({ policy, record });
+  if (stage === "test") {
+    if (finished.includes(record.test.state)) return false;
+    return !(state?.stage === STAGE.RETEST_CLOSED && (state.grade.originalTestGrade !== null || state.teacherControls.retestDisabled));
+  }
+  // An external original's one secure session lives in the Test slot.
+  if (policy?.externalAssessment) return false;
+  if (finished.includes(record.retest.state)) return false;
+  return ![STAGE.PASSED, STAGE.COMPLETE, STAGE.RETEST_CLOSED, STAGE.RETEST_SUBMITTED].includes(state?.stage);
+}
+
+/** Every active student in the assignment's classes, by id. */
+async function testCycleRosterIds(db, assignment) {
+  const ids = new Set();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select("status").get();
+    snapshot.docs.forEach((doc) => {
+      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") ids.add(doc.id);
+    });
+  }
+  return ids;
+}
+
+/*
+ * THE ROSTER, CACHED FOR A REVIEW'S RE-CHECKS — AND ONLY EVER TO HOLD.
+ *
+ * A student with a review open asks again every 30 seconds, and each ask
+ * read every class's roster. On that path the roster is cached per assignment
+ * (per server instance, for a minute, keyed by its class list). A cached
+ * roster can only miss a student, and a missing student can only make the
+ * answers look released, so a released verdict is always recomputed from a
+ * fresh read: while classmates still test (the common case) the re-check
+ * reads no roster, and nothing opens early.
+ */
+const ROSTER_CACHE_TTL_MS = 60 * 1000;
+const ROSTER_CACHE_LIMIT = 500;
+const testCycleRosterCache = new Map();
+async function cachedTestCycleRosterIds(db, assignment, assignmentId, { fresh = false } = {}) {
+  const classKey = assignmentAudience(assignment).classIds.join("|");
+  const cached = testCycleRosterCache.get(assignmentId);
+  if (!fresh && cached && cached.classKey === classKey && Date.now() - cached.at < ROSTER_CACHE_TTL_MS) {
+    return { ids: cached.ids, cached: true };
+  }
+  const ids = await testCycleRosterIds(db, assignment);
+  testCycleRosterCache.delete(assignmentId);
+  testCycleRosterCache.set(assignmentId, { at: Date.now(), classKey, ids });
+  if (testCycleRosterCache.size > ROSTER_CACHE_LIMIT) testCycleRosterCache.delete(testCycleRosterCache.keys().next().value);
+  return { ids, cached: false };
+}
+
+async function courseAnswersRelease(db, shared, assignmentId, stage, known = {}) {
+  const id = String(assignmentId);
+  const release = (await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get()).data()?.[stage] || null;
+  const assignment = known.assignment || (await db.collection("assignments").doc(id).get()).data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
+  const records = known.records || new Map((await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", id).get())
+    .docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
+  let rosterIds = known.rosterIds;
+  let rosterFromCache = false;
+  if (!rosterIds && known.cacheRoster) {
+    const roster = await cachedTestCycleRosterIds(db, assignment, id);
+    rosterIds = roster.ids;
+    rosterFromCache = roster.cached;
+  }
+  if (!rosterIds) rosterIds = await testCycleRosterIds(db, assignment);
+  const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
+  const stillTestingRecords = everyone
+    .map((studentId) => shared.record.normalizeTestCycleRecord(records.get(studentId) || { assignmentId: id, studentId }))
+    .filter((record) => stillToSitStage(shared, policy, stage, record));
+  const stillTesting = stillTestingRecords.map((record) => record.studentId);
+  const stillTestingKeys = stillTestingRecords.map(answerCoverageKey);
+  const explicit = Boolean(release?.releasedAt);
+  // An earlier release's student-only list covers nobody: it named no attempts.
+  const covered = new Set(explicit && Array.isArray(release.coveredKeys) ? release.coveredKeys.map(String) : []);
+  const heldFor = stillTestingRecords.filter((record) => !covered.has(answerCoverageKey(record))).map((record) => record.studentId);
+  if (rosterFromCache && heldFor.length === 0) {
+    // A cached roster only holds: a released verdict is checked against a fresh one.
+    const fresh = await cachedTestCycleRosterIds(db, assignment, id, { fresh: true });
+    return courseAnswersRelease(db, shared, assignmentId, stage, { assignment, records, rosterIds: fresh.ids });
+  }
+  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, stillTestingKeys, heldFor };
+}
+
+/*
+ * "RELEASE ANSWERS AND WORKED SOLUTIONS": the teacher opens them before every
+ * student who can still sit the stage has submitted. The screen's confirm
+ * names those students and sends back their coverage keys (student and
+ * attempts, answerCoverageKey); the release covers exactly those. If anyone
+ * still testing is not on that list (someone joined, or an attempt was reset,
+ * since the page loaded), nothing is released: the teacher refreshes and
+ * confirms the new list, rather than opening the answers to a student nobody
+ * was told about.
+ */
+exports.releaseTestCycleAnswers = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const sessionRef = db.collection("examSessions").doc(examSessionId);
-  const snapshot = await sessionRef.get();
-  const session = assertStudentExamSession(snapshot, studentId);
-  assertExamInProgress(session);
-  /*
-   * THE GATE IS RE-CHECKED ON EVERY ISSUE, NOT ONLY AT START.
-   *
-   * Start is the only call a screen makes once, so it used to be the only call
-   * that asked the Test Cycle whether this student may be here. Everything that
-   * changes after that — a teacher closing the retest, resetting the session,
-   * archiving or pausing the assessment — went unnoticed by a tab that was
-   * already open: it kept issuing secure questions. The open item is still
-   * returned below for an unchanged session, so a teacher action never strands
-   * an answer half-typed; it stops the NEXT question.
-   */
-  if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
-  if (session.currentQuestion) {
-    return { questionInstance: secureExamPublicQuestion(session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
+  const confirmed = new Set((Array.isArray(request.data?.confirmed) ? request.data.confirmed : []).slice(0, 5000).map(String));
+  const { stillTestingKeys } = await courseAnswersRelease(db, shared, assignmentId, stage, { assignment });
+  const unnamed = stillTestingKeys.filter((key) => !confirmed.has(key));
+  if (unnamed.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${unnamed.length === 1 ? "1 student who is" : `${unnamed.length} students who are`} still testing ${unnamed.length === 1 ? "was" : "were"} not on the list you confirmed. Refresh, check the list and release again.`,
+      { reason: "still_testing_changed", unnamed: unnamed.length },
+    );
   }
-  if (Number(session.summary?.completedQuestions || 0) >= Number(session.requiredQuestions || 1)) {
-    throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
-  }
-  // A teacher-created course Test/Retest reads its next item from the issuance
-  // plan written before the student could start. The simulation path below is
-  // untouched, which is what keeps SAT/ACT/TSIA2/ASVAB delivery identical.
-  if (secureExam.isCourseTestSession(session)) {
-    const issuedCourseTest = await issueCourseTestQuestion(db, { sessionRef, session, studentId });
-    return {
-      questionInstance: secureExamPublicQuestion(issuedCourseTest.currentQuestion),
-      draftResponse: issuedCourseTest.currentQuestion?.draftResponse || null,
-      session: secureExam.publicSession(issuedCourseTest),
-    };
-  }
-  // Secure simulations use the same verified, generator-backed assessment
-  // families as CCMR My Path. The old `examQuestionBank` had no bundled seed,
-  // so a teacher could create an exam that had nothing reliable to issue.
-  // Selecting from the trusted built-in Path package keeps exam format, answer
-  // generation and grading on the same server-side contract students already
-  // use for assessment-specific Path practice.
-  const used = new Set(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []);
+  await db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(assignmentId).set({
+    assignmentId,
+    [stage]: { releasedAt: Date.now(), releasedBy: teacherUid, coveredKeys: stillTestingKeys },
+  }, { merge: true });
+  return { success: true, stage, covered: stillTestingKeys.length };
+});
+
+/** Where a navigation request may go, or the student-facing refusal. */
+function secureExamTarget(session, position, closeModule) {
+  const target = secureExamNavigation.resolveTarget(session, { position, closeModule });
+  if (target.error === "complete") throw new HttpsError("failed-precondition", target.reason);
+  if (target.error === "invalid") throw new HttpsError("invalid-argument", target.reason);
+  if (target.error) throw new HttpsError("failed-precondition", target.reason, { navigation: target.error });
+  return target;
+}
+
+/*
+ * The next simulation item, drawn at random from the trusted exam-style bank.
+ *
+ * Secure simulations use the same verified, generator-backed assessment
+ * families as CCMR My Path. Selecting from the trusted built-in Path package
+ * keeps exam format, answer generation and grading on the same server-side
+ * contract students already use for assessment-specific Path practice. The
+ * draw is seeded by the session and the question number
+ * (secureExamNavigation.seededOrder): random across sessions, reproducible on
+ * a retry, never chosen by the browser.
+ */
+async function buildSimulationExamItem({ examSessionId, session, position, runtimeMode }) {
+  const navigationState = secureExamNavigation.navigationOf(session);
+  const used = new Set([
+    ...(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []),
+    ...navigationState.itemOrder.map((id) => String(navigationState.items[id]?.bankQuestionId || "")).filter(Boolean),
+  ]);
   const targetDomainId = secureExam.nextDomainId(session);
   const assessmentItems = loadBuiltInStarterPathSeed().filter((question) => {
     const context = question?.assessmentContext || {};
@@ -15903,40 +18001,162 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   const domainCandidates = targetDomainId ? assessmentItems.filter((question) => domainFor(question) === targetDomainId) : assessmentItems;
   const candidates = domainCandidates.length ? domainCandidates : assessmentItems;
   if (!candidates.length) throw new HttpsError("failed-precondition", `No unused secure ${session.examType} exam items are available.`);
-  candidates.sort((left, right) => String(left.id || "").localeCompare(String(right.id || "")));
-  const authored = candidates[Number(session.summary?.completedQuestions || 0) % candidates.length];
+  const authored = secureExamNavigation.seededOrder(`${examSessionId}|${position}`, candidates, (question) => question?.id)[0];
   const questionInstanceId = mathPath.runtimeId("examq");
   const instantiated = await mathPath.instantiateQuestion(authored, `${examSessionId}|${questionInstanceId}`);
   if (!instantiated.question) throw new HttpsError("failed-precondition", "This secure exam item could not be generated.");
   const issuedQuestion = instantiated.question;
   const issuePlan = await mathPath.buildIssuePlan(issuedQuestion);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "This secure exam item could not be graded securely.");
-  const assessmentDomainId = domainFor(authored);
-  const currentQuestion = {
-    ...issuedQuestion,
-    bankQuestionId: authored.id,
-    alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
-    questionInstanceId,
-    attemptsAllowed: 1,
-    attemptsUsed: 0,
-    assessmentDomainId,
-    generatorParameters: instantiated.parameters,
-    privateGrading: issuePlan.privateGrading,
-    ...(issuePlan.toolPayload || {}),
+  // A simulation item that names a tool must be a tool certified for secure
+  // delivery, exactly as a course Test item must. No simulation bank item uses
+  // one today; this is what keeps it that way unless one is certified.
+  const simulationCertification = await secureItems.certifyItem(issuedQuestion, { mode: runtimeMode });
+  if (!simulationCertification.compatible) throw new HttpsError("failed-precondition", simulationCertification.reason || "This secure exam item cannot be delivered securely.");
+  return {
+    storedItem: secureItems.storableItem({
+      ...issuedQuestion,
+      bankQuestionId: authored.id,
+      alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
+      questionInstanceId,
+      attemptsAllowed: 1,
+      attemptsUsed: 0,
+      assessmentDomainId: domainFor(authored),
+      generatorParameters: instantiated.parameters,
+      privateGrading: issuePlan.privateGrading,
+      ...(issuePlan.toolPayload || {}),
+    }),
+    planEntry: null,
   };
-  const issued = await db.runTransaction(async (transaction) => {
+}
+
+/*
+ * ISSUE OR REOPEN ONE QUESTION BY NUMBER.
+ *
+ * `position` (zero-based) names the question the student is moving to: any
+ * question already opened, or the next unopened one — which is how a student
+ * skips. An item is still issued only when the student first reaches it, from
+ * the plan stored before they could start. Without `position` this is the
+ * older linear call: the first open question, else the next new one.
+ *
+ * Expected answers never leave Functions, and nothing here says whether any
+ * saved answer is right.
+ */
+exports.issueSecureExamQuestion = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const requestedPosition = request.data?.position;
+  const closeModule = request.data?.closeModule === true;
+  const db = getFirestore();
+  const sessionRef = db.collection("examSessions").doc(examSessionId);
+  const snapshot = await sessionRef.get();
+  const session = assertStudentExamSession(snapshot, studentId);
+  assertExamInProgress(session);
+  /*
+   * THE GATE IS RE-CHECKED ON EVERY ISSUE, NOT ONLY AT START.
+   *
+   * Start is the only call a screen makes once, so it used to be the only call
+   * that asked the Test Cycle whether this student may be here. Everything that
+   * changes after that — a teacher closing the retest, resetting the session,
+   * archiving or pausing the assessment — went unnoticed by a tab that was
+   * already open: it kept issuing secure questions.
+   */
+  if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
+  // The mode every item of this session renders under: Secure Test, or Secure
+  // Retest for a Test Cycle's retest. Never a practice mode.
+  const runtimeMode = await secureItems.runtimeModeForSession(session);
+  const target = secureExamTarget(session, requestedPosition, closeModule);
+
+  // A new item is generated before the transaction (generation reads the bank)
+  // and appended inside it only if that position is still unissued.
+  const generated = target.issuing
+    ? (secureExam.isCourseTestSession(session)
+      ? await buildCourseTestExamItem(db, { session, runtimeMode })
+      : await buildSimulationExamItem({ examSessionId, session, position: target.position, runtimeMode }))
+    : null;
+
+  const outcome = await db.runTransaction(async (transaction) => {
     const freshSnapshot = await transaction.get(sessionRef);
     const fresh = assertStudentExamSession(freshSnapshot, studentId);
     assertExamInProgress(fresh);
-    if (fresh.currentQuestion) return fresh;
-    const next = { ...fresh, currentQuestion, updatedAt: Date.now() };
+    const upgrade = await secureExamItems.upgradeSession(sessionRef, fresh);
+    const current = upgrade.session;
+    const navigationState = secureExamNavigation.navigationOf(current);
+    const position = target.position;
+    let next = current;
+    let itemData = null;
+    let questionInstanceId = navigationState.itemOrder[position] || null;
+    if (questionInstanceId) {
+      // Reopening (or a concurrent issue already filled this position).
+      const pending = upgrade.writes.find((write) => write.ref.id === questionInstanceId);
+      if (pending) itemData = pending.data;
+      else if (navigationState.items[questionInstanceId]?.state === secureExamNavigation.ITEM_STATE.OPEN) {
+        const itemSnapshot = await transaction.get(secureExamItems.itemRef(sessionRef, questionInstanceId));
+        itemData = itemSnapshot.exists ? itemSnapshot.data() : null;
+      }
+      next = { ...current, navigation: { ...navigationState, cursor: position } };
+    } else {
+      if (!generated || position !== navigationState.itemOrder.length) {
+        throw new HttpsError("aborted", "The test changed while this question was opening. Try again.");
+      }
+      const stored = generated.storedItem;
+      questionInstanceId = String(stored.questionInstanceId);
+      itemData = { item: stored, draftResponse: null, issuedAt: Date.now() };
+      const items = { ...navigationState.items, [questionInstanceId]: secureExamItems.navigationEntryFor(stored, position) };
+      next = {
+        ...current,
+        navigation: {
+          ...navigationState,
+          itemOrder: [...navigationState.itemOrder, questionInstanceId],
+          items,
+          cursor: position,
+          closedThrough: target.closesThrough !== null && target.closesThrough !== undefined
+            ? Math.max(navigationState.closedThrough, target.closesThrough)
+            : navigationState.closedThrough,
+        },
+        usedQuestionIds: [...new Set([...(current.usedQuestionIds || []), stored.bankQuestionId].filter(Boolean))],
+        // The issued instance id is written back onto the plan entry, which is
+        // what later lets the corrections algorithm join evidence to blueprint
+        // slots and lets the retest audit prove it reused nothing.
+        ...(generated.planEntry ? {
+          issuancePlan: {
+            ...current.issuancePlan,
+            entries: (current.issuancePlan?.entries || []).map((planEntry) => (
+              planEntry.slotId === generated.planEntry.slotId ? { ...planEntry, questionInstanceId } : planEntry
+            )),
+          },
+        } : {}),
+      };
+      transaction.set(secureExamItems.itemRef(sessionRef, questionInstanceId), itemData);
+    }
+    upgrade.writes.forEach((write) => transaction.set(write.ref, write.data));
+    next = { ...next, updatedAt: Date.now() };
     transaction.set(sessionRef, next);
-    return next;
+    return { next, itemData, position, questionInstanceId };
   });
-  return { questionInstance: secureExamPublicQuestion(issued.currentQuestion), draftResponse: issued.currentQuestion?.draftResponse || null, session: secureExam.publicSession(issued) };
+  const recorded = !outcome.itemData;
+  return {
+    position: outcome.position,
+    recorded,
+    questionInstance: recorded ? null : await secureExamPublicQuestion(outcome.itemData.item, { mode: runtimeMode }),
+    draftResponse: recorded ? null : secureItems.publicDraft(outcome.itemData.draftResponse),
+    session: secureExam.publicSession(outcome.next),
+  };
 });
 
-function sanitizeSecureExamDraft(responsePayload, supportUsage) {
+/*
+ * A secure response or draft, as the server will store it.
+ *
+ * `responses` are typed field answers; `toolState` is the regression panel's
+ * calculator work; `rawJson` is a Rich Tool's serialized construction — the
+ * student's graph, intervals, final relation, placement state — bounded and
+ * stripped of any verdict the browser attached. `workspaceDraftsJson` is the
+ * tool's own internal draft, kept ONLY on an open item's draft so a reload on
+ * another device reopens the same construction; it is never part of a
+ * recorded response. Both JSON fields are strings because Firestore cannot
+ * hold an array inside an array, and tool work is full of coordinate pairs.
+ */
+async function sanitizeSecureExamDraft(responsePayload, supportUsage, { draftKey = null, includeWorkspaceDrafts = false } = {}) {
   const { sanitizeSecureExamToolDraft } = require("./lib/secureExamToolDraft");
   const toolState = sanitizeSecureExamToolDraft(responsePayload?.toolState);
   const source = responsePayload?.responses && typeof responsePayload.responses === "object" && !Array.isArray(responsePayload.responses) ? responsePayload.responses : {};
@@ -15946,9 +18166,16 @@ function sanitizeSecureExamDraft(responsePayload, supportUsage) {
     if (id) responses[id] = String(value ?? "").slice(0, 2000);
   });
   if (JSON.stringify(responses).length > 10000) throw new HttpsError("invalid-argument", "Secure exam draft is too large.");
+  let toolFields = {};
+  try {
+    toolFields = await secureItems.storedToolFields(responsePayload, { draftKey, includeWorkspaceDrafts });
+  } catch (error) {
+    if (error?.code === "raw_too_large") throw new HttpsError("invalid-argument", "This answer is too large to record. Remove some work and try again.");
+    throw error;
+  }
   const sourceSupport = supportUsage && typeof supportUsage === "object" ? supportUsage : {};
   return {
-    responsePayload: { responses, ...(toolState ? { toolState } : {}) },
+    responsePayload: { responses, ...(toolState ? { toolState } : {}), ...toolFields },
     supportUsage: {
       accommodations: Array.isArray(sourceSupport.accommodations) ? sourceSupport.accommodations.map(String).slice(0, 20) : [],
       modifications: Array.isArray(sourceSupport.modifications) ? sourceSupport.modifications.map(String).slice(0, 20) : [],
@@ -15958,26 +18185,114 @@ function sanitizeSecureExamDraft(responsePayload, supportUsage) {
   };
 }
 
-/** Transactional draft autosave. Draft values are student-authored and private. */
+/** An open, writable item of this session, or the refusal a stale screen gets. */
+async function readWritableExamItem(transaction, sessionRef, upgrade, questionInstanceId) {
+  const navigationState = secureExamNavigation.navigationOf(upgrade.session);
+  const entry = navigationState.items[questionInstanceId];
+  const position = navigationState.itemOrder.indexOf(questionInstanceId);
+  if (!entry || entry.state !== secureExamNavigation.ITEM_STATE.OPEN || position < 0 || secureExamNavigation.positionClosed(navigationState, position)) {
+    throw new HttpsError("failed-precondition", "That question is no longer active.");
+  }
+  const pending = upgrade.writes.find((write) => write.ref.id === questionInstanceId);
+  if (pending) return { navigationState, entry, itemData: pending.data };
+  const itemSnapshot = await transaction.get(secureExamItems.itemRef(sessionRef, questionInstanceId));
+  if (!itemSnapshot.exists) throw new HttpsError("failed-precondition", "That question is no longer active.");
+  return { navigationState, entry, itemData: itemSnapshot.data() || {} };
+}
+
+/*
+ * Transactional draft autosave, for ANY open question of the session. Draft
+ * values are student-authored and private. `flagged` marks the question for
+ * review; it may be sent alone (no `responsePayload`) without touching the
+ * saved answer. Nothing is graded here.
+ */
 exports.saveSecureExamDraft = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
-  if (!questionInstanceId) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
-  const draft = sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage);
+  if (!questionInstanceId || questionInstanceId.length > 180) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
+  const hasPayload = request.data?.responsePayload !== undefined && request.data?.responsePayload !== null;
+  const flagged = typeof request.data?.flagged === "boolean" ? request.data.flagged : undefined;
+  if (!hasPayload && flagged === undefined) throw new HttpsError("invalid-argument", "Send an answer draft or a review flag.");
+  // Only the open item's own workspace drafts are accepted (secureItemDraftKey).
+  const draft = hasPayload
+    ? await sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage, {
+      draftKey: await secureItems.examItemDraftKey(examSessionId, questionInstanceId),
+      includeWorkspaceDrafts: true,
+    })
+    : null;
+  const hasWork = draft ? await secureItems.payloadHasWork(secureExamItems.recordedPayloadOf(draft)) : undefined;
+  // Which page sent this save and how new it is (secureExamItems.staleDraftWrite).
+  const stamp = draft ? secureExamItems.draftStampOf(request.data) : null;
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
-  await db.runTransaction(async (transaction) => {
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
+    // A course Test the teacher has paused, archived or closed takes no edits,
+    // just as it issues no questions: what finalize grades is what was saved
+    // while it was open. Not a lock — the work resumes when it reopens.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
-    if (!session.currentQuestion || session.currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
-    transaction.set(ref, { ...session, currentQuestion: { ...session.currentQuestion, draftResponse: draft }, updatedAt: Date.now() });
+    const upgrade = await secureExamItems.upgradeSession(ref, session);
+    const { navigationState, entry, itemData } = await readWritableExamItem(transaction, ref, upgrade, questionInstanceId);
+    // An older save from this page, arriving after a newer one: write nothing.
+    if (draft && secureExamItems.staleDraftWrite(itemData?.draftResponse, stamp)) {
+      return { next: upgrade.session, stale: true, answeredChanged: false };
+    }
+    const now = Date.now();
+    const nextEntry = {
+      ...entry,
+      ...(hasWork !== undefined ? { hasWork } : {}),
+      ...(flagged !== undefined ? { flagged } : {}),
+    };
+    const navigationNext = { ...navigationState, items: { ...navigationState.items, [questionInstanceId]: nextEntry } };
+    const base = { ...upgrade.session, navigation: navigationNext, updatedAt: now };
+    const next = { ...base, summary: { ...(base.summary || {}), completedQuestions: secureExamNavigation.answeredCount(base) } };
+    upgrade.writes.forEach((write) => {
+      if (write.ref.id !== questionInstanceId || !draft) transaction.set(write.ref, write.data);
+    });
+    if (draft) transaction.set(secureExamItems.itemRef(ref, questionInstanceId), { ...itemData, draftResponse: { ...draft, ...(stamp || {}) }, updatedAt: now });
+    transaction.set(ref, next);
+    return { next, answeredChanged: hasWork !== undefined && hasWork !== (entry.hasWork === true) };
   });
-  return { success: true, recorded: true };
+  // The teacher's table reads "in progress, 12 of 25" — kept current only
+  // when the answered count actually moved, not on every keystroke.
+  if (outcome.answeredChanged && secureExam.isCourseTestSession(outcome.next)) await syncTestCycleSessionState(db, outcome.next);
+  return { success: true, recorded: outcome.stale !== true, ...(outcome.stale ? { stale: true } : {}), navigation: secureExam.publicSession(outcome.next).navigation, answeredQuestions: secureExamNavigation.answeredCount(outcome.next) };
 });
 
-/** Grade and autosave one secure response. Correctness stays server-only. */
+/*
+ * RELEASE A PRACTICE TEST'S RESULTS THE MOMENT IT IS FINISHED.
+ *
+ * Only a session created with `releasePolicy: "automatic"` (a practice test;
+ * never a course Test, whose release writes a recorded grade and is the
+ * teacher's call). It runs the same release a teacher's button runs, so the
+ * released evidence and the review are identical.
+ */
+async function autoReleaseSecureSession(db, session) {
+  if (!session || session.releasePolicy !== "automatic" || secureExam.isCourseTestSession(session)) return session;
+  if (!secureExam.TERMINAL_STATES.has(session.status) || session.feedbackReleased === true) return session;
+  const ref = db.collection("examSessions").doc(String(session.examSessionId));
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return session;
+    const fresh = snapshot.data() || {};
+    if (fresh.feedbackReleased === true || !secureExam.TERMINAL_STATES.has(fresh.status)) return fresh;
+    return releaseSessionFeedbackInTransaction(transaction, db, {
+      ref, session: fresh, examSessionId: fresh.examSessionId, teacherUid: "system:automaticRelease", now: Date.now(),
+    });
+  });
+}
+
+/*
+ * RECORD ONE ANSWER AND LOCK IT — the older, linear call.
+ *
+ * The navigation runtime saves drafts and grades them all at finalize; this
+ * call remains so a browser still running the previous build during a deploy
+ * can finish its test. The item is graded now, its result held, and it can no
+ * longer be edited. Correctness stays server-only.
+ */
 exports.submitSecureExamResponse = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -15997,59 +18312,51 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       if (String(marker.data()?.studentId || "") !== studentId) throw new HttpsError("not-found", "That secure exam session is not available.");
       return marker.data()?.result;
     }
+    // Recording an answer is an edit: a course Test the teacher has paused,
+    // archived or closed takes none, by this older call either.
+    if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
     assertExamInProgress(session);
-    const current = session.currentQuestion;
-    if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
-    // Awaited: `gradeResponse` became async when scalar equivalence moved into
-    // the shared ESM module. Reading `.isCorrect` off the un-awaited promise
-    // marked every secure-exam answer wrong and wrote an undefined score.
-    const grading = await mathPath.gradeResponse(current.privateGrading, request.data?.responsePayload || {});
+    const upgrade = await secureExamItems.upgradeSession(sessionRef, session);
+    const { navigationState, entry, itemData } = await readWritableExamItem(transaction, sessionRef, upgrade, questionInstanceId);
+    // ONE GRADING AUTHORITY for field and Rich Tool items alike: a tool item is
+    // graded by its Path Tool Contract grader on the student's bounded raw work.
+    // Nothing the browser claims about correctness is read.
+    const grading = await secureItems.gradeIssuedItem(itemData.item, request.data?.responsePayload || {});
+    // Work that is not shaped like an answer to this item is an interface
+    // problem ("complete the construction"), not a wrong answer: it is refused
+    // before anything is recorded, so the student's one attempt is not spent
+    // on a half-built graph. It says nothing about correctness.
+    if (grading.rejected) {
+      throw new HttpsError("invalid-argument", grading.detail || "This answer is not complete yet. Finish your work in the tool, then record it.");
+    }
     const now = Date.now();
-    const completedQuestions = Number(session.summary?.completedQuestions || 0) + 1;
-    const correctQuestions = Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0);
-    const safeSupport = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? {
-      accommodations: Array.isArray(request.data.supportUsage.accommodations) ? request.data.supportUsage.accommodations.map(String).slice(0, 20) : [],
-      modifications: Array.isArray(request.data.supportUsage.modifications) ? request.data.supportUsage.modifications.map(String).slice(0, 20) : [],
-      calculatorUsed: Boolean(request.data.supportUsage.calculatorUsed),
-      teacherAssisted: Boolean(request.data.supportUsage.teacherAssisted),
-    } : {};
-    const safeResponsePayload = sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport).responsePayload;
-    const responseRecord = {
-      questionInstanceId,
-      bankQuestionId: current.bankQuestionId,
-      alignmentKeys: current.alignmentKeys || [],
-      questionType: current.questionType,
-      familyId: current.familyId,
-      assessmentDomainId: current.assessmentDomainId || null,
-      dok: current.dok,
-      // Blueprint provenance for a course Test. Null on a simulation, which is
-      // why the corrections algorithm only ever runs on a Test Cycle session.
-      slotId: current.slotId || null,
-      targetId: current.targetId || null,
-      planWeight: current.planWeight ?? null,
-      grading: { score: grading.score, isCorrect: grading.isCorrect },
-      supportUsage: safeSupport,
-      // Stored server-side while feedback is held. `publicSession` strips the
-      // whole responses map, and `publicReview` releases only this sanitized
-      // question/response after an authenticated teacher releases feedback.
-      questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
-      responsePayload: safeResponsePayload,
-      submittedAt: now,
-    };
-    const finished = completedQuestions >= Number(session.requiredQuestions || 1);
+    const safeSupport = secureExamItems.safeSupportUsage(request.data?.supportUsage);
+    const safeResponsePayload = (await sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport)).responsePayload;
+    const responseRecord = await secureExamItems.buildResponseRecord(itemData.item, {
+      session: upgrade.session, responsePayload: safeResponsePayload, supportUsage: safeSupport, now,
+    });
+    const items = { ...navigationState.items, [questionInstanceId]: { ...entry, state: secureExamNavigation.ITEM_STATE.RECORDED, hasWork: true } };
+    const navigationNext = { ...navigationState, items };
+    const responses = { ...(upgrade.session.responses || {}), [questionInstanceId]: responseRecord };
+    const finished = navigationNext.itemOrder.length >= Number(upgrade.session.requiredQuestions || 1)
+      && secureExamNavigation.openItemIds(navigationNext).length === 0;
+    const base = { ...upgrade.session, navigation: navigationNext, responses };
     const next = {
-      ...session,
+      ...base,
       status: finished ? "submitted" : "in_progress",
-      submittedAt: finished ? now : session.submittedAt || null,
-      summary: { completedQuestions, correctQuestions },
-      responses: { ...(session.responses || {}), [questionInstanceId]: responseRecord },
-      usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
+      submittedAt: finished ? now : upgrade.session.submittedAt || null,
+      summary: {
+        completedQuestions: secureExamNavigation.answeredCount(base),
+        correctQuestions: Object.values(responses).filter((response) => response?.grading?.isCorrect === true).length,
+      },
+      usedQuestionIds: [...new Set([...(upgrade.session.usedQuestionIds || []), responseRecord.bankQuestionId].filter(Boolean))],
       currentQuestion: null,
       updatedAt: now,
     };
     const publicResult = { success: true, submissionId, recorded: true, correctnessReleased: false, needsNextQuestion: !finished, session: secureExam.publicSession(next) };
+    upgrade.writes.forEach((write) => transaction.set(write.ref, write.data));
     transaction.set(sessionRef, next);
-    transaction.set(markerRef, { examSessionId, studentId, submittedSlotId: current.slotId || null, submissionId, createdAt: now, result: publicResult });
+    transaction.set(markerRef, { examSessionId, studentId, submittedSlotId: entry.slotId || null, submissionId, createdAt: now, result: publicResult });
     return publicResult;
   });
   // A finished course Test moves the student's card from "Test" to "submitted"
@@ -16060,10 +18367,15 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   if (afterSnapshot.exists && secureExam.isCourseTestSession(afterSnapshot.data())) {
     await syncTestCycleSessionState(db, afterSnapshot.data());
   }
+  if (afterSnapshot.exists && result?.needsNextQuestion === false) await autoReleaseSecureSession(db, afterSnapshot.data());
   return result;
 });
 
-/** Student-observed browser integrity events are idempotent and can only lock. */
+/*
+ * Student-observed browser integrity events are idempotent and can only lock.
+ * The response says how many events the session has and where the lock is, so
+ * the screen can warn BEFORE the event that pauses the test.
+ */
 exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
@@ -16075,52 +18387,43 @@ exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("examSessions").doc(examSessionId);
   const eventRef = db.collection("examIntegrityEvents").doc(mathPath.opaqueId("integrity", examSessionId, eventId));
+  const threshold = secureExam.INTEGRITY_LOCK_THRESHOLD;
   return db.runTransaction(async (transaction) => {
     const [sessionSnapshot, existingEvent] = await Promise.all([transaction.get(sessionRef), transaction.get(eventRef)]);
     const session = assertStudentExamSession(sessionSnapshot, studentId);
-    if (existingEvent.exists) return { success: true, duplicate: true, status: session.status, violationCount: Number(session.violationCount || 0) };
+    if (existingEvent.exists) return { success: true, duplicate: true, status: session.status, violationCount: Number(session.violationCount || 0), lockThreshold: threshold };
     if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is already submitted.");
     const count = Number(session.violationCount || 0) + 1;
-    const status = count >= 3 && session.status === "in_progress" ? "locked_integrity" : session.status;
+    const status = count >= threshold && session.status === "in_progress" ? "locked_integrity" : session.status;
     const now = Date.now();
     transaction.set(eventRef, { eventId, examSessionId, studentId, type, details, receivedAt: now });
     transaction.set(sessionRef, { ...session, violationCount: count, status, lockReason: status === "locked_integrity" ? "Integrity event threshold reached; proctor review required." : session.lockReason || null, lockedAt: status === "locked_integrity" ? now : session.lockedAt || null, updatedAt: now });
-    return { success: true, status, violationCount: count };
+    return {
+      success: true,
+      status,
+      violationCount: count,
+      lockThreshold: threshold,
+      // One more event will pause the test: the screen warns now.
+      warning: status === "in_progress" && count === threshold - 1,
+    };
   });
 });
 
-async function applyOpenSecureExamDraft(session, now) {
-  const current = session.currentQuestion;
-  const draft = current?.draftResponse;
-  const responses = draft?.responsePayload?.responses && typeof draft.responsePayload.responses === "object" ? draft.responsePayload.responses : {};
-  if (!current || !Object.values(responses).some((value) => String(value ?? "").trim())) return session;
-  const grading = await mathPath.gradeResponse(current.privateGrading, draft.responsePayload);
-  const responseRecord = {
-    questionInstanceId: current.questionInstanceId,
-    bankQuestionId: current.bankQuestionId,
-    alignmentKeys: current.alignmentKeys || [],
-    questionType: current.questionType,
-    familyId: current.familyId,
-    dok: current.dok,
-    slotId: current.slotId || null,
-    targetId: current.targetId || null,
-    planWeight: current.planWeight ?? null,
-    grading: { score: grading.score, isCorrect: grading.isCorrect },
-    supportUsage: draft.supportUsage || {},
-    questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
-    responsePayload: draft.responsePayload || { responses: {} },
-    submittedAt: now,
-    finalizedFromAutosave: true,
-  };
-  return {
-    ...session,
-    summary: {
-      completedQuestions: Number(session.summary?.completedQuestions || 0) + 1,
-      correctQuestions: Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0),
-    },
-    responses: { ...(session.responses || {}), [current.questionInstanceId]: responseRecord },
-    usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
-  };
+/*
+ * FINALIZE A SESSION INSIDE THE CALLER'S TRANSACTION: grade every open item.
+ *
+ * Shared by the student's submit, the verified timer and the proctor's
+ * force-submit, so there is one definition of how a test ends. Reads first
+ * (Firestore requires every transaction read before any write); the caller
+ * writes the returned session.
+ */
+async function finalizeSecureSessionInTransaction(transaction, ref, session, { status, now }) {
+  const upgrade = await secureExamItems.upgradeSession(ref, session);
+  const openItems = await secureExamItems.readOpenItems(transaction, ref, upgrade.session);
+  upgrade.writes.forEach((write) => { if (!openItems.has(write.ref.id)) openItems.set(write.ref.id, write.data); });
+  const graded = await secureExamItems.finalizeOpenItems(upgrade.session, openItems, now);
+  // A finished test leaves the abandoned-test finalizer's sight.
+  return { ...graded, status, submittedAt: now, updatedAt: now, autoFinalizeAt: null };
 }
 
 /** Student submit / verified timer autosubmit. */
@@ -16144,6 +18447,13 @@ exports.finalizeSecureExam = onCall(async (request) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
     if (secureExam.TERMINAL_STATES.has(session.status)) return session;
+    // A student's own Submit waits while the teacher has the course Test
+    // paused, archived or closed, as saves and questions do. Time running out
+    // still finishes it (the deadline is checked below), grading the drafts
+    // saved while it was open.
+    if (reason !== "timeExpired" && secureExam.isCourseTestSession(session)) {
+      await assertCourseTestEntryAllowed(db, session, studentId, { transaction });
+    }
     /*
      * AN EXAM THAT WAS NEVER STARTED HAS NOTHING TO SUBMIT.
      *
@@ -16158,27 +18468,180 @@ exports.finalizeSecureExam = onCall(async (request) => {
     if (session.status === "not_started") throw new HttpsError("failed-precondition", "Start the exam before submitting it.");
     if (reason === "timeExpired" && !secureExam.isExpired(session)) throw new HttpsError("failed-precondition", "The server-side exam deadline has not been reached.");
     if (reason !== "timeExpired" && secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "A locked exam must be resolved by the proctor.");
-    const now = Date.now();
-    const withDraft = await applyOpenSecureExamDraft(session, now);
-    const updated = { ...withDraft, status: reason === "timeExpired" ? "time_expired" : "submitted", submittedAt: now, currentQuestion: null, updatedAt: now };
+    const updated = await finalizeSecureSessionInTransaction(transaction, ref, session, {
+      status: reason === "timeExpired" ? "time_expired" : "submitted",
+      now: Date.now(),
+    });
     transaction.set(ref, updated);
     return updated;
   });
   await syncTestCycleSessionState(db, next);
-  return { success: true, session: secureExam.publicSession(next) };
+  const released = await autoReleaseSecureSession(db, next);
+  return { success: true, session: secureExam.publicSession(released || next) };
+});
+
+/*
+ * AN EXPIRED, ABANDONED TIMED TEST IS FINISHED BY THE SERVER.
+ *
+ * A student who walks away from a secure Test, Retest or practice test after
+ * its time ran out used to leave it "in progress" until they came back or a
+ * teacher force-submitted it, holding their own results and, for a course
+ * Test, the class's released answers and worked solutions. This finishes it
+ * exactly as the student's own time-up would (`finalizeSecureExam` with
+ * `timeExpired`): every saved draft is graded on the server as it was saved,
+ * status `time_expired`, then the Test Cycle record is synced (the card, the
+ * teacher's table and the answer hold read it) and a practice test with
+ * automatic release is released.
+ *
+ * Never early: the session is read in a transaction and finished only when
+ * `secureExam.autoFinalizeDue` says its time is up by the rule every call uses
+ * and the grace has passed. A student still working, one with extended time
+ * left, a test a teacher's pause stopped, and one a proctor paused are not
+ * finished; a stale hint is written back true instead.
+ *
+ * Exactly once: the transaction sees a session submitted meanwhile (by the
+ * student, a proctor or a reset) and writes nothing to it, and Firestore re-runs
+ * it if anyone writes the session first. Our own finalize keeps its hint until
+ * the record sync and release after it have run, so a failure there is finished
+ * by the next run; then the hint is cleared and a second run finds nothing.
+ */
+async function settleAutoFinalizedSecureSession(db, ref, session) {
+  await syncTestCycleSessionState(db, session);
+  await autoReleaseSecureSession(db, session);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.data() || {};
+    if (!secureExam.TERMINAL_STATES.has(current.status)) return;
+    if (current.autoFinalizeAt !== null && current.autoFinalizeAt !== undefined) transaction.set(ref, { autoFinalizeAt: null }, { merge: true });
+  });
+}
+
+async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly = false } = {}) {
+  const snapshot = await ref.get();
+  if (!snapshot.exists) return "missing";
+  const before = snapshot.data() || {};
+  if (legacyOnly && before.autoFinalizeAt !== undefined) return "hinted";
+  // A course-test session a reset replaced is the teacher's, as it is for the
+  // student's own Submit (finalizeSecureExam). It leaves the finalizer's sight.
+  const replaced = secureExam.isCourseTestSession(before)
+    && !secureExam.TERMINAL_STATES.has(before.status)
+    && !(await courseTestSessionIsCurrent(db, before));
+  const result = await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(ref);
+    if (!fresh.exists) return { outcome: "missing" };
+    const session = fresh.data() || {};
+    if (secureExam.TERMINAL_STATES.has(session.status)) {
+      // Finished by us on an earlier run whose follow-ups did not complete.
+      if (Number(session.autoFinalizedAt) > 0 && session.autoFinalizeAt !== null && session.autoFinalizeAt !== undefined) {
+        return { outcome: "settled", session };
+      }
+      // Finished some other way: nothing of the student's is touched. A hint
+      // left by a path that did not clear it (a previous build) is dropped.
+      if (session.autoFinalizeAt !== null && session.autoFinalizeAt !== undefined) {
+        transaction.set(ref, { autoFinalizeAt: null }, { merge: true });
+      }
+      return { outcome: "alreadyFinished" };
+    }
+    if (legacyOnly && session.autoFinalizeAt !== undefined) return { outcome: "hinted" };
+    if (!replaced && secureExam.autoFinalizeDue(session, now)) {
+      const finalized = await finalizeSecureSessionInTransaction(transaction, ref, session, { status: "time_expired", now });
+      // The hint stays (cleared once the follow-ups below have run).
+      const updated = { ...finalized, autoFinalizedAt: now, autoFinalizeAt: now };
+      transaction.set(ref, updated);
+      return { outcome: "finalized", session: updated };
+    }
+    const hint = replaced ? null : secureExam.autoFinalizeAtFor(session, now);
+    if (session.autoFinalizeAt === hint) return { outcome: "notDue" };
+    transaction.set(ref, { autoFinalizeAt: hint }, { merge: true });
+    return { outcome: hint === null ? "leftForTeacher" : "rehinted" };
+  });
+  if (result.session) await settleAutoFinalizedSecureSession(db, ref, result.session);
+  return result.outcome;
+}
+
+async function autoFinalizeSecureSessionSafely(db, ref, options, outcomes) {
+  try {
+    const outcome = await autoFinalizeSecureSession(db, ref, options);
+    outcomes[outcome] = (outcomes[outcome] || 0) + 1;
+    return outcome;
+  } catch (error) {
+    // One session that cannot be finished must not stop the batch. It is
+    // looked at again after the backoff, so it cannot hold the batch's places.
+    outcomes.failed = (outcomes.failed || 0) + 1;
+    logger.error("Could not finalize an abandoned secure exam", { examSessionId: ref.id, message: error?.message || String(error) });
+    const retryAt = Date.now() + secureExamAutoFinalize.RETRY_BACKOFF_MS;
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      const current = snapshot.data() || {};
+      if (!snapshot.exists || !(Number(current.autoFinalizeAt) > 0 || current.autoFinalizeAt === undefined)) return;
+      transaction.set(ref, { autoFinalizeAt: retryAt }, { merge: true });
+    }).catch((backoffError) => logger.error("Could not defer an abandoned secure exam", { examSessionId: ref.id, message: backoffError?.message || String(backoffError) }));
+    return "failed";
+  }
+}
+
+async function finalizeAbandonedSecureExamBatch(db, now = Date.now()) {
+  const outcomes = {};
+  const due = await db.collection("examSessions")
+    .where("autoFinalizeAt", "<=", now)
+    .orderBy("autoFinalizeAt")
+    .limit(secureExamAutoFinalize.MAIN_BATCH_LIMIT)
+    .get();
+  for (const doc of due.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await autoFinalizeSecureSessionSafely(db, doc.ref, { now }, outcomes);
+  }
+
+  // Sessions started before the hint existed: one page per run, derived.
+  const sweepRef = db.collection("platformMigrations").doc(secureExamAutoFinalize.SWEEP_DOC_ID);
+  const sweepSnapshot = await sweepRef.get();
+  const state = secureExamAutoFinalize.sweepStateOf(sweepSnapshot.exists ? sweepSnapshot.data() : null, now);
+  let legacy = 0;
+  if (state) {
+    let page = db.collection("examSessions")
+      .where("status", "in", secureExamAutoFinalize.SWEEP_STATES)
+      .orderBy(FieldPath.documentId())
+      .limit(secureExamAutoFinalize.SWEEP_PAGE_LIMIT);
+    if (state.cursor) page = page.startAfter(state.cursor);
+    const sessions = await page.get();
+    for (const doc of sessions.docs) {
+      if (doc.data()?.autoFinalizeAt !== undefined) continue;
+      legacy += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await autoFinalizeSecureSessionSafely(db, doc.ref, { now, legacyOnly: true }, outcomes);
+    }
+    const next = secureExamAutoFinalize.nextSweepState(state, {
+      now, returned: sessions.size, lastId: sessions.docs[sessions.size - 1]?.id || null, foundLegacy: legacy,
+    });
+    const stored = sweepSnapshot.exists ? secureExamAutoFinalize.sweepStateOf(sweepSnapshot.data(), now) : null;
+    if (!stored || !secureExamAutoFinalize.sameSweepState(stored, next)) {
+      await sweepRef.set({ ...next, updatedAt: now }, { merge: true });
+    }
+  }
+  if (due.size || legacy) logger.info("Abandoned secure exam batch complete", { examined: due.size, legacy, ...outcomes });
+  return { examined: due.size, legacy, outcomes };
+}
+
+exports.finalizeAbandonedSecureExams = onSchedule({
+  schedule: "every 5 minutes",
+  timeoutSeconds: 300,
+  // Server infrastructure, private like the other schedulers: the global
+  // public invoker exists for client callables only.
+  invoker: "private",
+}, async () => {
+  await finalizeAbandonedSecureExamBatch(getFirestore(), Date.now());
 });
 
 /** Teacher-only live monitor summaries. No answer payloads are returned. */
 exports.listProctorExamSessions = onCall(async (request) => {
-  await requireTeacher(request);
+  const teacherUid = await requireTeacher(request);
   const examType = String(request.data?.examType || "").trim();
   const db = getFirestore();
   let query = db.collection("examSessions");
   if (examType && secureExam.supportsExamType(examType)) query = query.where("examType", "==", examType);
   const snapshot = await query.limit(200).get();
   // Course-test sessions are scoped to the teacher of record for the student's
-  // class. Simulation scope is unchanged: widening or narrowing it is existing
-  // behaviour this change has no business touching.
+  // class; practice tests to the student's own teachers (below).
   const ownedClassIds = await teacherOwnedClassIds(db, request);
   const byId = new Map();
   snapshot.docs
@@ -16208,7 +18671,36 @@ exports.listProctorExamSessions = onCall(async (request) => {
     }
   }
   const sessions = [...byId.values()];
-  return { sessions: sessions.map((session) => secureExam.publicSession(session, { teacher: true })) };
+  /*
+   * A PRACTICE TEST GOES TO THE STUDENT'S OWN TEACHERS, AND SO DOES THEIR
+   * EXTENDED TIME.
+   *
+   * A practice-test session names a student, not a class, so its class is the
+   * student's: a teacher sees those for students in their own classes, and the
+   * ones they created. Extended time (the multiplier and the base limit it
+   * multiplied) is accommodation data and goes only to a teacher of the
+   * student's class. The root administrator (ownedClassIds null) sees all.
+   */
+  const practiceStudentIds = [...new Set(sessions
+    .filter((session) => !secureExam.isCourseTestSession(session))
+    .map((session) => String(session.studentId || ""))
+    .filter(Boolean))];
+  const studentClassIds = new Map();
+  if (ownedClassIds !== null && practiceStudentIds.length) {
+    const snapshots = await db.getAll(...practiceStudentIds.map((id) => db.collection("grades").doc(id)));
+    snapshots.forEach((snapshot) => studentClassIds.set(snapshot.id, String(snapshot.data()?.classId || "")));
+  }
+  const teachesStudent = (session) => ownedClassIds === null || ownedClassIds.has(secureExam.isCourseTestSession(session)
+    ? String(session.classId || "")
+    : (studentClassIds.get(String(session.studentId || "")) || ""));
+  return {
+    sessions: sessions
+      .filter((session) => teachesStudent(session) || String(session.createdBy || "") === String(teacherUid))
+      .map((session) => {
+        const row = secureExam.publicSession(session, { teacher: true });
+        return teachesStudent(session) ? row : withoutExtendedTime(row);
+      }),
+  };
 });
 
 function releasedExamEvidence(session, response) {
@@ -16241,6 +18733,9 @@ function releaseSessionFeedbackInTransaction(transaction, db, { ref, session, ex
   if (!secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "Submit the exam before releasing feedback.");
   if (!session.feedbackReleased) {
     Object.values(session.responses || {}).forEach((response) => {
+      // A question the student left blank says nothing about the skill; it
+      // counts zero in the score but is not mastery evidence.
+      if (response?.unanswered === true) return;
       const eventKey = mathPath.opaqueId("evexam", examSessionId, response.questionInstanceId);
       const eventRef = db.collection("grades").doc(session.studentId).collection("evidenceEvents").doc(eventKey);
       transaction.set(eventRef, { ...releasedExamEvidence(session, response), eventKey });
@@ -16270,7 +18765,7 @@ exports.proctorExamAction = onCall(async (request) => {
   const proctorSnapshot = await ref.get();
   if (!proctorSnapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
   const proctorSession = proctorSnapshot.data() || {};
-  await assertMayProctorCourseTest(db, request, proctorSession);
+  const scope = await secureExamProctorScope(db, request, proctorSession, teacherUid);
   if (
     action === "releaseFeedback"
     && secureExam.isCourseTestSession(proctorSession)
@@ -16312,13 +18807,17 @@ exports.proctorExamAction = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "This exam is untimed; there is no time limit to extend.");
     }
     let updated = { ...session, updatedAt: now, lastProctorActionBy: teacherUid };
-    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now };
-    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now };
+    // A proctor's pause stops the clock until the unlock (secureExam.withPauseHold).
+    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now, ...secureExam.withoutPauseHold(session, "proctor", now) };
+    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now, ...secureExam.withPauseHold(session, "proctor", now) };
     if (action === "extendTime") {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
     }
-    if (action === "forceSubmit") updated = { ...(await applyOpenSecureExamDraft(updated, now)), status: "force_submitted", submittedAt: now, currentQuestion: null };
+    // A pause, a resume and added time all move the deadline the finalizer reads.
+    if (action !== "forceSubmit") updated = { ...updated, autoFinalizeAt: secureExam.autoFinalizeAtFor(updated, now) };
+    // Every open draft is graded exactly as a student's own submit grades it.
+    if (action === "forceSubmit") updated = { ...(await finalizeSecureSessionInTransaction(transaction, ref, updated, { status: "force_submitted", now })), lastProctorActionBy: teacherUid };
     transaction.set(ref, updated);
     return updated;
   });
@@ -16327,7 +18826,10 @@ exports.proctorExamAction = onCall(async (request) => {
   // simulation session has no `courseTest` block and both helpers no-op.
   if (action === "releaseFeedback") await applyTestCycleFeedbackRelease(db, next);
   else await syncTestCycleSessionState(db, next);
-  return { success: true, session: secureExam.publicSession(next, { teacher: true }) };
+  // A practice test a proctor submitted is released like one the student did.
+  const settled = action === "forceSubmit" ? (await autoReleaseSecureSession(db, next)) || next : next;
+  const row = secureExam.publicSession(settled, { teacher: true });
+  return { success: true, session: scope.teachesStudent ? row : withoutExtendedTime(row) };
 });
 
 // --- Test Cycle: one assignment, four stages, one recorded grade ------------
@@ -16354,9 +18856,99 @@ const TEST_CYCLE_RECORDS = "testCycleRecords";
 const TEST_CYCLE_CORRECTION_PLANS = "testCycleCorrectionPlans";
 const TEST_CYCLE_RETEST_PLANS = "testCycleRetestPlans";
 const TEST_CYCLE_MAX_BATCH_STUDENTS = 200;
+const TEST_CYCLE_OPERATIONS = "testCycleOperations";
 
 function testCycleRecordKey(assignmentId, studentId) {
   return `${String(assignmentId || "").trim()}__${String(studentId || "").trim()}`;
+}
+
+/** An id Firestore will accept as one document id: not empty, not a path, not reserved. */
+function validDocumentId(value) {
+  const id = String(value || "").trim();
+  return Boolean(id) && id.length <= 180 && !id.includes("/") && id !== "." && id !== ".." && !/^__.*__$/.test(id);
+}
+
+/**
+ * The assignment a TEACHER callable is about — asked for in the right order.
+ *
+ * These callables used to read the assignment first and ask who was calling
+ * second. A request with no assignmentId then crashed on the read (the browser
+ * was shown a bare server error), and an unauthenticated caller could learn
+ * which assignment ids exist from "not found" versus "not allowed". Now: the
+ * caller must be a signed-in teacher before anything is read, and an id that
+ * cannot be a document id is refused in words.
+ */
+async function assignmentForTeacherCall(request, db) {
+  await requireTeacher(request);
+  const id = String(request.data?.assignmentId || "").trim();
+  if (!validDocumentId(id)) throw new HttpsError("invalid-argument", "A valid assignmentId is required.");
+  const snapshot = await db.collection("assignments").doc(id).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  return snapshot;
+}
+
+/** The bell schedule the platform already stores. Read, never re-entered. */
+async function readBellSchedule(db) {
+  const snapshot = await db.collection("settings").doc("classSchedule").get();
+  return snapshot.exists ? snapshot.data() || null : null;
+}
+
+/**
+ * When each secure part of this cycle is open for ONE student, right now.
+ *
+ * The class whose windows a student follows is their own class — or, for a
+ * student added individually, the assigned class the teacher said they sit the
+ * Test with. Their own reopened window (on their record) is honoured on top.
+ *
+ * Returns null for an external-original cycle, whose one secure session keeps
+ * the rules it always had. Reads nothing when nothing has been set: a cycle
+ * with no windows costs no bell-schedule read on any student's entry.
+ */
+async function studentTestCycleSchedule(db, shared, {
+  assignment, policy, gradeData = null, record = null, bell = undefined, periodCache = new Map(), now = Date.now(),
+}) {
+  if (policy?.externalAssessment) return null;
+  const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
+  const studentAvailability = record?.availability || null;
+  const timeZone = shared.timeZone;
+  if (!availability.configured && !studentAvailability) {
+    return shared.schedule.resolveStudentTestCycleSchedule({ assignment, now, timeZone });
+  }
+  const ownClassId = authoritativeStudentClassId(gradeData) || record?.classId || null;
+  const sitsWith = String(record?.audience?.withClassId || "").trim();
+  const classId = sitsWith && availability.classWindows[sitsWith] ? sitsWith : ownClassId;
+  const followsBell = Boolean(classId) && (availability.classWindows[classId] || [])
+    .some((window) => window.mode === shared.schedule.TEST_WINDOW_MODE.CLASS_PERIOD);
+  const schedule = followsBell ? (bell !== undefined ? bell : await readBellSchedule(db)) : null;
+  const classPeriod = followsBell
+    ? await resolveCheckpointClassPeriod(db, classId, classId === ownClassId ? gradeData : {}, periodCache)
+    : null;
+  return shared.schedule.resolveStudentTestCycleSchedule({
+    assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
+  });
+}
+
+/** A schedule as a student's or teacher's screen receives it: instants and the sentences. */
+function publicTestCycleSchedule(shared, schedule, { audience = "student", missedTest = false } = {}) {
+  if (!schedule) return null;
+  const timeZone = shared.timeZone;
+  const part = (status, describe) => ({
+    state: status.state,
+    enforced: status.enforced === true,
+    opensAt: status.opensAt ?? null,
+    closesAt: status.closesAt ?? null,
+    workFromHome: status.workFromHome === true,
+    // The Test day never got class time and waits for a new one.
+    ...(status.stranded === true ? { stranded: true } : {}),
+    // A student who missed the Test has a Retest and no Corrections.
+    ...describe(status, { timeZone, audience, retestOnly: missedTest === true }),
+  });
+  return {
+    timeZone,
+    missedTest: missedTest === true,
+    test: part(schedule.test, shared.schedule.describeTestWindow),
+    followUp: part(schedule.followUp, shared.schedule.describeFollowUpWindow),
+  };
 }
 
 async function resolveSecureTestBlueprint(db, assignment, shared) {
@@ -16389,7 +18981,7 @@ async function resolveSecureTestBlueprint(db, assignment, shared) {
 
 async function loadTestCycleAssignment(db, assignmentId, { allowInvalid = false } = {}) {
   const id = String(assignmentId || "").trim();
-  if (!id || id.length > 180) throw new HttpsError("invalid-argument", "A valid assignmentId is required.");
+  if (!validDocumentId(id)) throw new HttpsError("invalid-argument", "A valid assignmentId is required.");
   const snapshot = await db.collection("assignments").doc(id).get();
   if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const assignment = snapshot.data() || {};
@@ -16484,12 +19076,31 @@ function blueprintFamilyIds(blueprint) {
  */
 async function testCycleFamilyIssuability(families) {
   const verdicts = {};
+  const generation = await mathPath.pathGeneration();
+  const { secureTools } = await secureItems.sharedModules();
   for (const family of families) {
     const id = String(family?.id || family?.familyId || "").trim();
     if (!id) continue;
     // eslint-disable-next-line no-await-in-loop
     const plan = await mathPath.buildTemplateIssuePlan(family, { samples: 4 });
-    verdicts[id] = { issuable: plan.issuable === true, reason: plan.reason || null };
+    // "Can it be graded?" and "can it be TAKEN securely?" are two questions.
+    // The second is answered from generated instances, because a generator
+    // can change the tool between variants and the student gets an instance.
+    const generative = generation.hasPathGenerator(family) || generation.hasPathVariants(family);
+    // Every variant, not only the ones four random draws reach: issue time
+    // picks the variant ranked best for the target's DOK and band, which the
+    // random samples can miss (35 of 213 Algebra I variant cells did).
+    const perVariant = generation.hasPathVariants(family)
+      ? generation.effectivePathVariants(family).map((variant, index) => generation.generatePathInstance(variant.template, `certify-variant-${index}`).question)
+      : [];
+    const instances = generative
+      ? [...generation.samplePathInstances(family, 4).map((entry) => entry.question), ...perVariant].filter(Boolean)
+      : [family];
+    verdicts[id] = {
+      issuable: plan.issuable === true,
+      reason: plan.reason || null,
+      secure: secureTools.certifySecureFamily(family, { instances }),
+    };
   }
   return verdicts;
 }
@@ -16535,6 +19146,12 @@ function testCycleGradeProjection(record, gradeState, stage, previous = null) {
     correctionsTotal: Number(record.corrections?.total || 0),
     correctionsCompleted: Number(record.corrections?.completedTargets || 0),
     blueprintId: record.blueprintId || null,
+    // Present only for a student added on their own: this is what lets their
+    // device find the assessment and the server accept their Review answers
+    // (studentIndividuallyAssigned). Never set from a client.
+    ...(record.audience?.individual === true ? { individuallyAssigned: true } : {}),
+    // A Retest taken without an original Test, so a list can say so.
+    ...(record.retest?.withoutOriginal === true ? { retestWithoutOriginal: true } : {}),
     updatedAt: now,
   };
 }
@@ -16711,21 +19328,28 @@ async function assertTestCycleAssessmentOpen(shared, assignment) {
  * not reached its release time — the assignment-level gate the stage machine
  * deliberately does not know about.
  */
-async function assertCourseTestEntryAllowed(db, session, studentId) {
+async function assertCourseTestEntryAllowed(db, session, studentId, { transaction = null } = {}) {
   const courseTest = session?.courseTest;
   if (!courseTest?.assignmentId) return;
+  // Inside a caller's transaction every read is the transaction's, so a pause,
+  // archive or reset written while the call is in flight either lands first
+  // and is seen here, or retries the call: nothing is written after it.
+  const read = (ref) => (transaction ? transaction.get(ref) : ref.get());
   const shared = await testCycleLib.shared();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(courseTest.assignmentId)).get();
+  const assignmentSnapshot = await read(db.collection("assignments").doc(String(courseTest.assignmentId)));
   if (!assignmentSnapshot.exists) throw new HttpsError("failed-precondition", "This assessment is no longer available.");
   const assignment = assignmentSnapshot.data() || {};
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
   if (!policy) throw new HttpsError("failed-precondition", "This assessment is no longer a Test Cycle.");
 
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const [gradeSnapshot, record] = await Promise.all([
-    db.collection("grades").doc(studentId).get(),
-    readTestCycleRecord(db, courseTest.assignmentId, studentId, shared),
+  const [gradeSnapshot, recordSnapshot] = await Promise.all([
+    read(db.collection("grades").doc(studentId)),
+    read(db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(courseTest.assignmentId, studentId))),
   ]);
+  const record = shared.record.normalizeTestCycleRecord(
+    recordSnapshot.exists ? recordSnapshot.data() : { assignmentId: courseTest.assignmentId, studentId },
+  );
 
   /*
    * SUPERSESSION IS CHECKED BEFORE ANYTHING ELSE, TERMINAL STATE INCLUDED.
@@ -16752,16 +19376,32 @@ async function assertCourseTestEntryAllowed(db, session, studentId) {
   await assertTestCycleAssessmentOpen(shared, assignment);
 
   const tracker = gradeSnapshot.data()?.gradesByAssignment?.[courseTest.assignmentId] || {};
+  /*
+   * WHEN, AS WELL AS WHETHER. The original Test starts only inside the
+   * student's class-time window, and the Retest only inside the home window;
+   * an attempt already under way is let through to finish (the stage machine
+   * decides both, from the same schedule the card shows). This is the check
+   * every route into a secure session passes — the card's button, the Tests &
+   * Exams list, a saved link — because they all call start and issue.
+   */
+  const schedule = await studentTestCycleSchedule(db, shared, {
+    assignment, policy, gradeData: gradeSnapshot.data() || {}, record,
+  });
   const state = shared.stages.resolveTestCycleStage({
     policy,
     record,
     reviewProgress: testCycleLib.reviewProgress(assignment, tracker),
+    schedule,
   });
   const expectedStage = isRetest
     ? shared.stages.TEST_CYCLE_STAGE.RETEST
     : shared.stages.TEST_CYCLE_STAGE.TEST;
   if (state?.stage !== expectedStage || state.canEnter !== true) {
-    throw new HttpsError("failed-precondition", state?.detail || "This part of the assessment is not open to you yet.");
+    throw new HttpsError(
+      "failed-precondition",
+      state?.detail || "This part of the assessment is not open to you yet.",
+      state?.windowClosed ? { window: state.windowClosed } : undefined,
+    );
   }
 }
 
@@ -16781,25 +19421,42 @@ async function teacherOwnedClassIds(db, request) {
 }
 
 /**
- * May this teacher proctor this course-test session?
+ * May this teacher proctor this session, and do they teach its student?
  *
- * `proctorExamAction` has always accepted any authenticated teacher, which was
- * a defensible scope while the only thing it could do was unlock a simulation.
- * Releasing a COURSE test now writes a student's recorded assessment grade and
- * pushes it to Google Classroom, so the same call in the same shape is a much
- * larger action and needs the teacher of record for that student's class.
- *
- * Scoped to course tests on purpose: the simulation proctor scope is existing
- * behaviour this change has no business widening.
+ * `proctorExamAction` used to accept any authenticated teacher. Releasing a
+ * COURSE test writes a student's recorded assessment grade and pushes it to
+ * Google Classroom, so it needs the teacher of record for that student's
+ * class. A practice test is the student's own teachers' and its creator's.
  */
-async function assertMayProctorCourseTest(db, request, session) {
-  if (!secureExam.isCourseTestSession(session)) return;
+async function secureExamProctorScope(db, request, session, teacherUid) {
   const ownedClassIds = await teacherOwnedClassIds(db, request);
-  if (ownedClassIds === null) return;
-  const classId = String(session.classId || "");
-  if (!classId || !ownedClassIds.has(classId)) {
-    throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+  if (ownedClassIds === null) return { teachesStudent: true };
+  if (secureExam.isCourseTestSession(session)) {
+    const classId = String(session.classId || "");
+    if (!classId || !ownedClassIds.has(classId)) {
+      throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+    }
+    return { teachesStudent: true };
   }
+  /*
+   * A PRACTICE TEST: the teacher who set it, or a teacher of the student's
+   * class — the same teachers the live monitor lists it for. Another teacher
+   * holding its id could otherwise unlock, extend or submit it. A creator who
+   * does not teach the student proctors it without their extended time.
+   */
+  const studentId = String(session.studentId || "");
+  const studentClassId = studentId ? String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") : "";
+  const teachesStudent = Boolean(studentClassId) && ownedClassIds.has(studentClassId);
+  if (!teachesStudent && String(session.createdBy || "") !== String(teacherUid)) {
+    throw new HttpsError("permission-denied", "Only the teacher who set this practice test, or a teacher of this student's class, can proctor it.");
+  }
+  return { teachesStudent };
+}
+
+/** Extended time is accommodation data: a session row without it, for a teacher who does not teach the student. */
+function withoutExtendedTime(row) {
+  const { extendedTimeMultiplier: _multiplier, baseTimeLimitSeconds: _baseLimit, ...rest } = row;
+  return rest;
 }
 
 /**
@@ -16845,19 +19502,221 @@ async function assertStudentInTestCycleAudience(db, { assignment, assignmentId, 
     db.collection("grades").doc(id).get(),
   ]);
   if (recordSnapshot.exists) return { studentId: id, gradeData: gradeSnapshot.data() || {} };
-  if (gradeSnapshot.exists && studentMatchesAssignmentAudience({ assignment, classId: gradeSnapshot.data()?.classId || null })) {
+  if (gradeSnapshot.exists && studentMatchesAssignmentAudience({
+    assignment, classId: gradeSnapshot.data()?.classId || null, gradeData: gradeSnapshot.data(), assignmentId,
+  })) {
     return { studentId: id, gradeData: gradeSnapshot.data() || {} };
   }
   throw new HttpsError("permission-denied", "That student is not assigned this Test Cycle.");
 }
 
+/**
+ * Open ONE student's secure Test session.
+ *
+ * The record is re-read INSIDE the transaction that creates the session, so a
+ * second click, a second teacher tab, or a bulk operation resumed after a
+ * dropped connection reuses the session the first one created instead of
+ * minting a parallel Test for the same student. That is what makes opening
+ * sessions safe to repeat. Returns `{ reused: true }` or the new session's id.
+ */
+async function openTestSessionForStudent(db, {
+  assignmentId, assignment, policy, blueprint, families, shared, teacherUid,
+}, studentId, studentData, { originalScore = undefined } = {}) {
+  const plan = shared.issuance.buildSecureIssuancePlan({
+    blueprint,
+    families,
+    studentId,
+    assignmentId,
+    stage: shared.issuance.CYCLE_STAGE.TEST,
+    attempt: 1,
+  });
+  if (shared.issuance.planRequiresLiveGeneration(plan)) {
+    throw new HttpsError("failed-precondition", `The secure Test plan for ${studentId} could not be completed from approved families.`);
+  }
+  const outcome = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (record, { transaction }) => {
+      if (record.test.examSessionId) return { value: { reused: true } };
+      /*
+       * A STUDENT ON THE RETEST THAT REPLACED A MISSED TEST IS NOT GIVEN A TEST.
+       * They are sitting it, have submitted it, or have it released: a Test
+       * session opened now could never be entered, and would count them as
+       * "still to sit the Test" for every classmate waiting on the answers.
+       */
+      if (record.retest.withoutOriginal === true && [
+        shared.record.SESSION_STATE.IN_PROGRESS, shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED,
+      ].includes(record.retest.state)) {
+        return { value: { reused: false, notEligible: true, examSessionId: null } };
+      }
+      const { ref, session } = buildCourseTestSession(db, {
+        assignmentId,
+        assignment,
+        studentId,
+        studentData,
+        blueprint,
+        plan,
+        cycleStage: shared.issuance.CYCLE_STAGE.TEST,
+        teacherUid,
+        title: assignment?.title,
+      });
+      transaction.set(ref, session);
+      return {
+        value: { reused: false, examSessionId: session.examSessionId },
+        record: {
+          ...record,
+          classId: session.classId,
+          ...(policy.externalAssessment ? { externalAssessment: {
+            originalScore,
+            source: policy.externalAssessment.source,
+            recordedBy: teacherUid,
+            recordedAt: Date.now(),
+          } } : {}),
+          blueprintId: blueprint.blueprintId,
+          blueprintVersion: blueprint.version,
+          review: { ...record.review, required: policy.review.required },
+          test: {
+            examSessionId: session.examSessionId,
+            planId: plan.planId,
+            blueprintId: plan.blueprintId,
+            blueprintVersion: plan.blueprintVersion,
+            attempt: plan.attempt,
+            state: shared.record.SESSION_STATE.ASSIGNED,
+            totalQuestions: plan.totalQuestions,
+          },
+        },
+      };
+    },
+  });
+  return outcome.value || { reused: false, examSessionId: null };
+}
+
+/**
+ * The Retest for a student who never took the original Test.
+ *
+ * WHO. A student whose class-time Test window has closed without their ever
+ * starting the Test (`studentMissedOriginalTest`), and whose Review gate is
+ * open. They are not sent to Corrections — there are no answers of theirs to
+ * correct — and they are not left waiting on an original score that will never
+ * exist.
+ *
+ * WHAT. A full Retest form: the whole Test blueprint, issued for the retest
+ * stage (a different plan seed than the Test, so not the form their classmates
+ * sat). The targeted 70/30 retest needs a student's own missed skills, and
+ * this student has none on record.
+ *
+ * The record marks it `withoutOriginal`, which is what keeps its score a
+ * Retest score everywhere it is shown. Re-checked inside the transaction, so
+ * it is safe to call from the student's card, a teacher action and a bulk
+ * operation at once: one of them opens it and the rest find it open.
+ */
+async function ensureMissedTestRetestSession(db, {
+  assignmentId, assignment, policy, blueprint, shared, studentId, schedule, teacherUid = null,
+}) {
+  if (policy.externalAssessment || !schedule) return null;
+  const preview = await readTestCycleRecord(db, assignmentId, studentId, shared);
+  if (preview.retest.examSessionId || preview.teacherControls.retestDisabled) return null;
+  if (!shared.stages.studentMissedOriginalTest({ record: preview, schedule })) return null;
+
+  const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  const outcome = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (current, { transaction }) => {
+      if (current.retest.examSessionId
+        || current.teacherControls.retestDisabled
+        || !shared.stages.studentMissedOriginalTest({ record: current, schedule })) {
+        return { value: null };
+      }
+      const plan = shared.issuance.buildSecureIssuancePlan({
+        blueprint,
+        families,
+        studentId,
+        assignmentId,
+        stage: shared.issuance.CYCLE_STAGE.RETEST,
+        attempt: Number(current.retest.attempt || 1),
+      });
+      if (shared.issuance.planRequiresLiveGeneration(plan)) return { value: null };
+      const { ref, session } = buildCourseTestSession(db, {
+        assignmentId,
+        assignment,
+        studentId,
+        studentData: studentSnapshot.data() || {},
+        blueprint,
+        plan,
+        cycleStage: shared.issuance.CYCLE_STAGE.RETEST,
+        teacherUid,
+        title: `${assignment?.title || blueprint.title} — Retest`,
+      });
+      transaction.set(ref, { ...session, courseTest: { ...session.courseTest, withoutOriginal: true } });
+      transaction.set(db.collection(TEST_CYCLE_RETEST_PLANS).doc(current.recordId), {
+        recordId: current.recordId,
+        assignmentId,
+        studentId,
+        blueprint,
+        // The same audit shape a targeted retest stores, saying plainly that
+        // nothing was targeted: there was no Test to target from.
+        audit: {
+          withoutOriginal: true,
+          questionCount: plan.totalQuestions,
+          targetedQuestionCount: 0,
+          anchorQuestionCount: plan.totalQuestions,
+          actualWeakShare: 0,
+          actualAnchorShare: 1,
+          originalQuestionCount: plan.totalQuestions,
+        },
+        plan,
+        createdAt: Date.now(),
+      });
+      return {
+        value: { examSessionId: session.examSessionId },
+        record: {
+          ...current,
+          classId: current.classId || session.classId,
+          blueprintId: current.blueprintId || blueprint.blueprintId,
+          blueprintVersion: current.blueprintId ? current.blueprintVersion : blueprint.version,
+          retest: {
+            ...current.retest,
+            examSessionId: session.examSessionId,
+            planId: plan.planId,
+            blueprintId: plan.blueprintId,
+            blueprintVersion: plan.blueprintVersion,
+            state: shared.record.SESSION_STATE.ASSIGNED,
+            totalQuestions: plan.totalQuestions,
+            withoutOriginal: true,
+          },
+        },
+      };
+    },
+  });
+  return outcome.value || null;
+}
+
+/** The same, for a caller that holds the student's roster row but no schedule yet. */
+async function ensureMissedTestRetestIfDue(db, {
+  assignmentId, assignment, policy, blueprint, shared, studentId, gradeData, teacherUid = null,
+}) {
+  if (policy.externalAssessment) return null;
+  const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
+  const schedule = await studentTestCycleSchedule(db, shared, { assignment, policy, gradeData, record });
+  const reviewProgress = testCycleLib.reviewProgress(assignment, gradeData?.gradesByAssignment?.[assignmentId] || {});
+  const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress, schedule });
+  // Only once the Review gate is open: a Retest is not opened behind it.
+  if (!state?.missedTest || state.stage !== shared.stages.TEST_CYCLE_STAGE.RETEST_READY) return null;
+  return ensureMissedTestRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, schedule, teacherUid });
+}
+
 /** Teacher action: open secure Test sessions for a whole class at once. */
-exports.assignTestCycleSessions = onCall(async (request) => {
+exports.assignTestCycleSessions = onCall(TEST_CYCLE_SWEEP_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignmentId, assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
 
   // Sessions can be opened ahead of a scheduled release (the release time still
   // gates entry), but not for an assessment the teacher has archived or paused:
@@ -16918,8 +19777,9 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     .filter(([studentId, data]) => studentId !== "test_connection"
       && data?.status !== "inactive"
       // Named students are checked here rather than trusted: a grade document
-      // id is not proof that this assignment was ever assigned to them.
-      && studentMatchesAssignmentAudience({ assignment, classId: data?.classId || null }))
+      // id is not proof that this assignment was ever assigned to them. Their
+      // class being assigned is proof, and so is having been added on their own.
+      && studentMatchesAssignmentAudience({ assignment, classId: data?.classId || null, gradeData: data, assignmentId }))
     .slice(0, TEST_CYCLE_MAX_BATCH_STUDENTS);
   if (!eligible.length) {
     throw new HttpsError("failed-precondition", "No eligible students were found for this Test Cycle.");
@@ -16962,69 +19822,17 @@ exports.assignTestCycleSessions = onCall(async (request) => {
         continue;
       }
     }
-    const plan = shared.issuance.buildSecureIssuancePlan({
-      blueprint,
-      families,
-      studentId,
-      assignmentId,
-      stage: shared.issuance.CYCLE_STAGE.TEST,
-      attempt: 1,
-    });
-    if (shared.issuance.planRequiresLiveGeneration(plan)) {
-      throw new HttpsError("failed-precondition", `The secure Test plan for ${studentId} could not be completed from approved families.`);
-    }
-    // The record is re-read INSIDE the transaction that creates the session,
-    // so a second click (or a second teacher tab) reuses the session the first
-    // one created instead of minting a parallel Test for the same student.
     // eslint-disable-next-line no-await-in-loop
-    const outcome = await mutateTestCycleRecord(db, {
-      assignmentId,
+    const opened = await openTestSessionForStudent(
+      db,
+      { assignmentId, assignment, policy, blueprint, families, shared, teacherUid },
       studentId,
-      shared,
-      policy,
-      mutate: (record, { transaction }) => {
-        if (record.test.examSessionId) return { value: { reused: true } };
-        const { ref, session } = buildCourseTestSession(db, {
-          assignmentId,
-          assignment,
-          studentId,
-          studentData,
-          blueprint,
-          plan,
-          cycleStage: shared.issuance.CYCLE_STAGE.TEST,
-          teacherUid,
-          title: assignment?.title,
-        });
-        transaction.set(ref, session);
-        return {
-          value: { reused: false, examSessionId: session.examSessionId },
-          record: {
-            ...record,
-            classId: session.classId,
-            ...(policy.externalAssessment ? { externalAssessment: {
-              originalScore: originalScores.get(studentId),
-              source: policy.externalAssessment.source,
-              recordedBy: teacherUid,
-              recordedAt: Date.now(),
-            } } : {}),
-            blueprintId: blueprint.blueprintId,
-            blueprintVersion: blueprint.version,
-            review: { ...record.review, required: policy.review.required },
-            test: {
-              examSessionId: session.examSessionId,
-              planId: plan.planId,
-              blueprintId: plan.blueprintId,
-              blueprintVersion: plan.blueprintVersion,
-              attempt: plan.attempt,
-              state: shared.record.SESSION_STATE.ASSIGNED,
-              totalQuestions: plan.totalQuestions,
-            },
-          },
-        };
-      },
-    });
-    if (outcome.value?.reused) reused.push(studentId);
-    else created.push({ studentId, examSessionId: outcome.value?.examSessionId || null });
+      studentData,
+      { originalScore: originalScores.get(studentId) },
+    );
+    if (opened.notEligible) skipped.push({ studentId, reason: "retestInPlaceOfTest" });
+    else if (opened.reused) reused.push(studentId);
+    else created.push({ studentId, examSessionId: opened.examSessionId || null });
   }
 
   return {
@@ -17045,12 +19853,11 @@ exports.assignTestCycleSessions = onCall(async (request) => {
  * standards and coverage, which is exactly what a secure Test keeps out of
  * students' hands and is not another teacher's business either.
  */
-exports.preflightTestCycleAssignment = onCall(async (request) => {
+exports.preflightTestCycleAssignment = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
   const { result } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved });
   return { success: true, preflight: result };
 });
@@ -17087,12 +19894,16 @@ exports.preflightTestCycleCandidate = onCall(async (request) => {
  * UNTIMED, and the card says so in as many words, so a student is never left
  * guessing whether a clock is running.
  */
-function testCycleDeliveryFacts(blueprint) {
-  const seconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+function testCycleDeliveryFacts(blueprint, { timeMultiplier = 1 } = {}) {
+  const baseSeconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+  // The student's own extended time, as the server will apply it at start.
+  const extended = baseSeconds !== null && timeMultiplier > 1;
+  const seconds = extended ? secureExamNavigation.accommodatedTimeLimitSeconds(baseSeconds, timeMultiplier) : baseSeconds;
   const calculatorMode = String(blueprint?.calculatorMode || "questionSpecific");
   return {
     timed: seconds !== null,
     timeLimitMinutes: seconds === null ? null : Math.round(seconds / 60),
+    ...(extended ? { baseTimeLimitMinutes: Math.round(baseSeconds / 60), extendedTimeMultiplier: timeMultiplier } : {}),
     calculatorMode,
     questionCount: Array.isArray(blueprint?.targets)
       ? blueprint.targets.reduce((sum, target) => sum + Math.max(0, Number(target?.questionCount) || 0), 0)
@@ -17107,9 +19918,14 @@ function testCycleDeliveryFacts(blueprint) {
  * actually in the Corrections stage, so a student who has submitted a test and
  * is waiting for release cannot infer their result from the payload.
  */
-exports.getStudentTestCycle = onCall(async (request) => {
+exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
+  // A READ-ONLY LOOK, for Tests & Exams listing a Test whose session is not
+  // open yet: the same question-free card, but opening nothing (no stand-in
+  // Retest for a missed Test) and reading no Corrections. Only the card itself,
+  // opened by the student, does those.
+  const preview = request.data?.preview === true;
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
 
   const [gradeSnapshot, recordSnapshot] = await Promise.all([
@@ -17120,10 +19936,12 @@ exports.getStudentTestCycle = onCall(async (request) => {
   // students rather than a whole class, and that student's own secure session
   // is as good an answer to "is this yours?" as a class id is.
   if (!recordSnapshot.exists
-    && !studentMatchesAssignmentAudience({ assignment, classId: gradeSnapshot.data()?.classId || null })) {
+    && !studentMatchesAssignmentAudience({
+      assignment, classId: gradeSnapshot.data()?.classId || null, gradeData: gradeSnapshot.data(), assignmentId,
+    })) {
     throw new HttpsError("permission-denied", "That assessment is not assigned to you.");
   }
-  const record = shared.record.normalizeTestCycleRecord(
+  let record = shared.record.normalizeTestCycleRecord(
     recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId },
   );
   const tracker = gradeSnapshot.data()?.gradesByAssignment?.[assignmentId] || {};
@@ -17132,21 +19950,66 @@ exports.getStudentTestCycle = onCall(async (request) => {
   // not-yet-open assessment keeps its stage but cannot be entered, and the card
   // says why in the words the server would refuse with.
   const availability = shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() });
-  const state = shared.stages.applyAssessmentAvailability(
-    shared.stages.resolveTestCycleStage({ policy, record, reviewProgress }),
+  // When each secure part is open for this student: the class-time Test
+  // window and the home window. The same schedule the entry gate reads.
+  const schedule = await studentTestCycleSchedule(db, shared, {
+    assignment, policy, gradeData: gradeSnapshot.data() || {}, record,
+  });
+  const resolveCard = () => shared.stages.applyAssessmentAvailability(
+    shared.stages.resolveTestCycleStage({ policy, record, reviewProgress, schedule }),
     availability,
   );
+  let state = resolveCard();
+  /*
+   * A STUDENT WHO MISSED THE TEST IS GIVEN THEIR RETEST HERE.
+   *
+   * Nothing else would ever open it: there is no released Test to trigger
+   * one, and waiting for a teacher to notice is exactly how an absent student
+   * was stranded. Past the Review gate, with the home window not yet over and
+   * the assessment open, opening their card opens their Retest.
+   */
+  if (!preview
+    && state.missedTest
+    && state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST_READY
+    && availability.open
+    && schedule?.followUp?.state !== shared.schedule.WINDOW_STATE.CLOSED) {
+    const opened = await ensureMissedTestRetestSession(db, {
+      assignmentId, assignment, policy, blueprint, shared, studentId, schedule,
+    });
+    if (opened) {
+      record = await readTestCycleRecord(db, assignmentId, studentId, shared);
+      state = resolveCard();
+    }
+  }
 
   let corrections = null;
-  if (state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open) {
+  const inCorrections = !preview && state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open;
+  if (inCorrections) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
+  }
+  // Whether the Test review offered beside Corrections would hold its answers
+  // and worked solutions (courseAnswersRelease), so Corrections says what it
+  // opens. Asked only there, where it is shown: it reads the cycle's records.
+  const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
+    && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
+  let testAnswersHeld = null;
+  if (testReviewOffered && inCorrections) {
+    try {
+      testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
+    } catch {
+      testAnswersHeld = true;
+    }
   }
 
   return {
     success: true,
     assignmentId,
+    // A look also says whether this student has ANY secure session for the
+    // cycle, from their record — the complete answer, where the session list
+    // (capped, unordered) may not be.
+    ...(preview ? { preview: true, hasSecureSession: Boolean(record.test.examSessionId || record.retest.examSessionId) } : {}),
     title: blueprint.title || assignment?.title || "Test Cycle",
     stage: state.stage,
     secure: state.secure,
@@ -17166,11 +20029,26 @@ exports.getStudentTestCycle = onCall(async (request) => {
       : record.test.state === shared.record.SESSION_STATE.RELEASED
         ? record.test.examSessionId
         : null,
+    // The original Test's released session on its own, so "Review my Test"
+    // still reaches it once a released Retest has taken over the field above.
+    // The card offers it only at stages where no secure item can be answered,
+    // and it is not sent at all while a Retest session is assigned or under
+    // way — the line getStudentSecureExamReview holds (`retest_open`). A
+    // teacher closing retesting does not end a Retest already issued, so the
+    // stage alone ("retestClosed") cannot say the review would open.
+    // Offered exactly when getStudentSecureExamReview would open it: the same
+    // rule (secureExam.courseReviewBlockedBy) decides both.
+    testReviewExamSessionId: testReviewOffered ? record.test.examSessionId : null,
+    testAnswersHeld,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
     // Everything below is question-free and score-free: what a student needs
     // to understand the card without asking anyone.
     availability: { open: availability.open, reason: availability.reason, opensAt: availability.opensAt },
+    // The exact opening and closing times, in the school's zone, for the Test
+    // and for Corrections and the Retest, and whether each may be done from
+    // home. Null for an external-original cycle, which has no such windows.
+    schedule: publicTestCycleSchedule(shared, schedule, { audience: "student", missedTest: state.missedTest === true }),
     dueAt: assignment?.dueAt || assignment?.dueDate || null,
     reviewProgress: {
       attempted: reviewProgress.attempted,
@@ -17187,9 +20065,31 @@ exports.getStudentTestCycle = onCall(async (request) => {
       summary: state.policySummary,
       external: Boolean(policy.externalAssessment),
     },
-    delivery: testCycleDeliveryFacts(blueprint),
+    delivery: testCycleDeliveryFacts(blueprint, {
+      timeMultiplier: await secureExamTimeMultiplierFromProfile(gradeSnapshot.data()?.profile || null, studentId),
+    }),
+    // "What's on this test": the skills the blueprint covers and how many
+    // questions each gets — what a real test's study guide says. Never which
+    // question is which (not even by the list's order), and nothing about
+    // families, seeds or answers.
+    testSkills: await testCycleSkillList(blueprint),
+    // The Review, skill by skill: answered and correct so far, from the same
+    // tracker the gate reads. Instruction only — nothing from the secure Test,
+    // and it does not change what unlocks it (reviewProgress does that).
+    reviewBySkill: await testCycleLib.reviewProgressBySkill(assignment, tracker, { targets: blueprint?.targets }),
   };
 });
+
+/*
+ * The blueprint's skills for the student card. The rules live in
+ * functions/lib/testCycle.js `testSkillList`, where node tests run them on a
+ * real normalized blueprint: a label is sent only when it is a name (never the
+ * code normalizeTestBlueprint puts in an empty label), and the list's order
+ * says nothing about the order questions are issued in.
+ */
+function testCycleSkillList(blueprint) {
+  return testCycleLib.testSkillList(blueprint);
+}
 
 /**
  * Corrections, as a student may see them.
@@ -17212,6 +20112,10 @@ function studentVisibleCorrectionPlan(plan) {
       label: target.label,
       alignmentKey: target.alignmentKey,
       diagnosis: target.diagnosis,
+      // The canonical code behind a `misconception` diagnosis, so the screen
+      // can show its student message (misconceptionStudentMessages.mjs). A
+      // registry code names an error, never an answer.
+      misconception: target.diagnosis === "misconception" ? (target.misconception || null) : null,
       diagnosisDetail: target.diagnosisDetail,
       missed: target.missed,
       requiredCorrectResponses: target.requiredCorrectResponses,
@@ -17222,6 +20126,53 @@ function studentVisibleCorrectionPlan(plan) {
 }
 
 const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
+
+/** The display-only diagnosis of a corrections miss, or null. Never throws. */
+async function correctionMissDiagnosisFor(storedItem, grading, responsePayload) {
+  try {
+    const privateGrading = secureItems.readStoredItem(storedItem)?.privateGrading || null;
+    if (!privateGrading?.pathToolId) return null;
+    const raw = await secureItems.rawWorkOf(responsePayload || {});
+    const { diagnoseCorrectionMiss } = await import("./shared/correctionMissDiagnosis.mjs");
+    return diagnoseCorrectionMiss({ privateGrading, grading, raw });
+  } catch {
+    return null;
+  }
+}
+
+/*
+ * CORRECTIONS CLOSE WHILE THE STUDENT'S OWN TEST OR RETEST IS OPEN.
+ *
+ * Corrections hand out hints and, after a third miss, a worked solution, on
+ * parallel items from the same families the Test and the Retest draw on. Once
+ * either is assigned or under way, that is an open book for it: a Retest a
+ * teacher opened with the plan unfinished (waived corrections, an unlocked
+ * retest), or the new Test a teacher's reset assigned while the old plan is
+ * still there. No correction question is issued and no response is taken
+ * until that attempt is submitted.
+ */
+function assertCorrectionsOpenFor(shared, record) {
+  const { ASSIGNED, IN_PROGRESS } = shared.record.SESSION_STATE;
+  const open = (state) => state === ASSIGNED || state === IN_PROGRESS;
+  const sitting = open(record.retest.state) ? "Retest" : open(record.test.state) ? "Test" : null;
+  if (sitting) {
+    throw new HttpsError("failed-precondition", `Corrections are closed while your ${sitting} is open. They open again once you submit it.`, {
+      reason: sitting === "Retest" ? "retest_open" : "test_open",
+    });
+  }
+}
+
+/**
+ * Is the home window (Corrections and the Retest) open for this student?
+ *
+ * Read from their record's class, so it needs no second read of their grade
+ * document. Nothing is enforced until a teacher has set a Test day or a close.
+ */
+async function assertFollowUpWindowOpen(db, shared, { assignment, policy, record, what, plural = false }) {
+  const schedule = await studentTestCycleSchedule(db, shared, { assignment, policy, record });
+  const refusal = schedule ? shared.schedule.followUpRefusal(schedule.followUp, { timeZone: shared.timeZone, what, plural }) : null;
+  if (refusal) throw new HttpsError("failed-precondition", refusal, { window: "followUp" });
+}
 
 /**
  * Issue one CORRECTION question.
@@ -17241,6 +20192,12 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   const db = getFirestore();
   const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   await assertTestCycleAssessmentOpen(shared, assignment);
+  const correctionsRecord = await readTestCycleRecord(db, assignmentId, studentId, shared);
+  assertCorrectionsOpenFor(shared, correctionsRecord);
+  // A NEW correction question is issued only inside the home window. An answer
+  // to a question already issued is still taken after it closes
+  // (submitTestCycleCorrectionResponse): work begun in time is not thrown away.
+  await assertFollowUpWindowOpen(db, shared, { assignment, policy, record: correctionsRecord, what: "Corrections", plural: true });
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
   const planSnapshot = await planRef.get();
@@ -17255,7 +20212,9 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   if (open) {
     return {
       success: true,
-      questionInstance: mathPath.buildSanitizedQuestion(open, open),
+      // The same Rich Tool the Test used, under the Corrections policy: hints
+      // and immediate feedback on, the answer still on the server.
+      questionInstance: await secureItems.publicItem(open, { mode: "corrections" }),
       attemptsAllowed: open.attemptsAllowed,
       attemptsUsed: Number(open.attemptsUsed || 0),
       hintsAllowed: true,
@@ -17274,11 +20233,20 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
    * minted fresh here and could never collide with the exam's, which is why
    * checking them would be a test that can only pass.
    */
-  const families = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  const declaredFamilies = await resolveBlueprintFamilies(db, target.practiceFamilyIds || []);
+  const { secureTools: correctionTools } = await secureItems.sharedModules();
   const attemptIndex = Number(target.correctResponses || 0) + Number(stored.issuedCounts?.[correctionId] || 0);
+  // Approved families only, the student's Test tool first, rotating per item
+  // (orderCorrectionFamilies says why).
+  const families = shared.corrections.orderCorrectionFamilies({
+    families: declaredFamilies,
+    testToolIds: target.testToolIds || [],
+    toolOf: (family) => correctionTools.resolveSecureToolId(family) || "fields",
+    attemptIndex,
+  });
   let issued = null;
   for (let offset = 0; offset < Math.max(1, families.length); offset += 1) {
-    const family = families[(attemptIndex + offset) % Math.max(1, families.length)];
+    const family = families[offset];
     if (!family) break;
     const questionInstanceId = mathPath.runtimeId("correction");
     // eslint-disable-next-line no-await-in-loop
@@ -17291,7 +20259,14 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
     // eslint-disable-next-line no-await-in-loop
     const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
     if (!issuePlan.issuable) continue;
-    issued = {
+    // A family whose tool is not certified for Corrections is skipped for the
+    // next parallel family, never delivered as a downgraded text box.
+    // eslint-disable-next-line no-await-in-loop
+    const certification = await secureItems.certifyItem(instantiated.question, { mode: "corrections" });
+    if (!certification.compatible) continue;
+    // Stored on the correction plan with its tool fields encoded (see
+    // secureItemStorage): arrays of arrays cannot be stored.
+    issued = secureItems.storableItem({
       ...instantiated.question,
       bankQuestionId: family.id,
       familyId: family.id,
@@ -17302,7 +20277,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
       attemptsUsed: 0,
       privateGrading: issuePlan.privateGrading,
       ...issuePlan.toolPayload,
-    };
+    });
     break;
   }
   if (!issued) throw new HttpsError("failed-precondition", "No parallel practice item could be generated for this correction.");
@@ -17323,7 +20298,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
 
   return {
     success: true,
-    questionInstance: mathPath.buildSanitizedQuestion(active, active),
+    questionInstance: await secureItems.publicItem(active, { mode: "corrections" }),
     attemptsAllowed: CORRECTION_ATTEMPTS_PER_QUESTION,
     attemptsUsed: Number(active.attemptsUsed || 0),
     hintsAllowed: true,
@@ -17353,8 +20328,11 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   if (!correctionId || !questionInstanceId) throw new HttpsError("invalid-argument", "correctionId and questionInstanceId are required.");
   const db = getFirestore();
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  // Paused or archived: no responses, as no questions are issued.
+  await assertTestCycleAssessmentOpen(shared, assignment);
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
+  const recordRef = db.collection(TEST_CYCLE_RECORDS).doc(recordId);
   const preview = (await planRef.get()).data() || null;
   if (!preview) throw new HttpsError("not-found", "You have no corrections for this assessment.");
   if (String(preview.studentId || "") !== studentId) throw new HttpsError("not-found", "You have no corrections for this assessment.");
@@ -17365,11 +20343,19 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   // Graded once, outside the transaction; the transaction below re-checks that
   // this exact question is still open before it records anything, so a double
   // click or a second tab cannot credit the same answer twice.
-  const grading = await mathPath.gradeResponse(openForGrading.privateGrading, request.data?.responsePayload || {});
+  const grading = await secureItems.gradeIssuedItem(openForGrading, request.data?.responsePayload || {});
+  // An unfinished construction is told so, and does not spend one of the
+  // three tries — exactly as a secure item refuses it.
+  if (grading.rejected) {
+    throw new HttpsError("invalid-argument", grading.detail || "Finish your work in the tool, then check it.");
+  }
   const now = Date.now();
 
   const applied = await db.runTransaction(async (transaction) => {
-    const stored = (await transaction.get(planRef)).data() || {};
+    const [planSnapshot, recordSnapshot] = await Promise.all([transaction.get(planRef), transaction.get(recordRef)]);
+    // Checked with the write, so a Retest opened meanwhile gets no worked solution.
+    assertCorrectionsOpenFor(shared, shared.record.normalizeTestCycleRecord(recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId }));
+    const stored = planSnapshot.data() || {};
     const open = stored.activeQuestions?.[correctionId];
     if (!open || open.questionInstanceId !== questionInstanceId) {
       throw new HttpsError("failed-precondition", "That correction question is no longer active.");
@@ -17428,10 +20414,39 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     });
   }
 
+  /*
+   * THE INSTRUCTION, RELEASED THE WAY MY MATH PATH RELEASES IT.
+   *
+   * Corrections is where help is the point, so a miss gets the item's own
+   * authored feedback (a specific misconception message where the answer
+   * matches one), a hint from the SECOND miss on, and — only once this
+   * parallel item is closed and a fresh one will replace it — its worked
+   * review. Never the secure Test item: this is a parallel instance.
+   */
+  // A miss the item's own work explains gets the student message for it, not
+  // the generic line (correctionMissDiagnosis.mjs). Display only: it is read
+  // from the same server-held definition the grader used, after grading.
+  const diagnosis = grading.isCorrect === true ? null : await correctionMissDiagnosisFor(openForGrading, grading, request.data?.responsePayload);
+  const support = await mathPath.attemptSupport({
+    support: await mathPath.buildPrivateSupport(openForGrading),
+    attemptNumber: applied.attemptsUsed,
+    attemptsAllowed: Number(openForGrading.attemptsAllowed || CORRECTION_ATTEMPTS_PER_QUESTION),
+    isCorrect: grading.isCorrect === true,
+    questionFinalized: applied.questionClosed,
+    responsePayload: request.data?.responsePayload || null,
+    diagnosis,
+  });
+
   return {
     success: true,
     isCorrect: grading.isCorrect === true,
     score: grading.score,
+    // Per-part verdicts: Corrections is instructional, so a multi-part tool
+    // item may colour the parts the student still has to fix.
+    parts: grading.parts,
+    feedbackMessage: support?.feedback?.message || null,
+    hint: support?.support?.hint || null,
+    solutionReview: applied.questionClosed ? (support?.solutionReview || null) : null,
     attemptsUsed: applied.attemptsUsed,
     attemptsRemaining: applied.attemptsRemaining,
     questionClosed: applied.questionClosed,
@@ -17484,6 +20499,8 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
     attempt: Number(record.retest.attempt || 1),
     avoidFamilyIds: generated.audit.avoidFamilyIds,
     avoidInstanceIds: generated.audit.avoidInstanceIds,
+    // A missed graphing skill is retested on the graphing tool.
+    preferredToolsByTarget: shared.retest.retestToolPreferences({ profile, retestBlueprint: generated.blueprint }),
   });
   if (shared.issuance.planRequiresLiveGeneration(plan)) return null;
 
@@ -17544,12 +20561,11 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
 }
 
 /** Teacher overrides. Each one is an explicit decision, recorded as such. */
-exports.teacherTestCycleAction = onCall(async (request) => {
+exports.teacherTestCycleAction = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
   const action = String(request.data?.action || "").trim();
   if (policy.externalAssessment && (["requireCorrections", "waiveCorrections"].includes(action)
     || (action === "resetSecureSession" && request.data?.stage === "retest"))) {
@@ -17573,7 +20589,7 @@ exports.teacherTestCycleAction = onCall(async (request) => {
     studentId,
     shared,
     policy,
-    mutate: (record, { transaction }) => {
+    mutate: async (record, { transaction }) => {
       const controls = shared.policy.applyTeacherControlAction(record.teacherControls, action);
       let next = { ...record, teacherControls: controls };
 
@@ -17597,13 +20613,16 @@ exports.teacherTestCycleAction = onCall(async (request) => {
           next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
         }
 
+        // The new attempt is a new coverage key (answerCoverageKey): no
+        // explicit answer release covers it until a teacher confirms it.
+
         if (current.examSessionId) {
           // The old session is closed, not deleted: the evidence a student produced
           // stays readable, and the new attempt draws a genuinely different plan
           // because `attempt` is part of the plan seed.
           transaction.set(
             db.collection("examSessions").doc(current.examSessionId),
-            { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now() },
+            { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now(), autoFinalizeAt: null },
             { merge: true },
           );
         }
@@ -17666,6 +20685,14 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   if (["waiveCorrections", "unlockRetest"].includes(action) || resetRetest) {
     retest = await ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid });
   }
+  // A student who missed the Test has no released Test for that to build
+  // from: their Retest is the full form. Waiving their Review, reopening
+  // their retest or resetting it leaves them somewhere to go as well.
+  if (!retest && (["waiveReview", "waiveCorrections", "unlockRetest"].includes(action) || resetRetest)) {
+    retest = await ensureMissedTestRetestIfDue(db, {
+      assignmentId, assignment, policy, blueprint, shared, studentId, gradeData, teacherUid,
+    });
+  }
 
   return {
     success: true,
@@ -17701,6 +20728,9 @@ const TEACHER_ROW_BUCKET = Object.freeze({
   COMPLETE: "complete",
   RETEST_CLOSED: "retestClosed",
   NEEDS_ATTENTION: "needsAttention",
+  // Never started the Test before its class-time window closed, and has not
+  // yet submitted the Retest that replaces it.
+  MISSED_TEST: "missedTest",
 });
 
 /*
@@ -17730,6 +20760,9 @@ function testCycleRowAttention(record, lockedSessions) {
 
 function teacherRowBucket(stages, state, record, reviewProgress) {
   const stage = state?.stage;
+  if (state?.missedTest && [stages.REVIEW, stages.RETEST, stages.RETEST_READY].includes(stage)) {
+    return TEACHER_ROW_BUCKET.MISSED_TEST;
+  }
   if (stage === stages.REVIEW) {
     return Number(reviewProgress?.attempted || 0) > 0 ? TEACHER_ROW_BUCKET.IN_REVIEW : TEACHER_ROW_BUCKET.NOT_STARTED;
   }
@@ -17746,35 +20779,200 @@ function teacherRowBucket(stages, state, record, reviewProgress) {
   return TEACHER_ROW_BUCKET.NOT_STARTED;
 }
 
+/*
+ * WHAT THE PANEL READS OF EACH STUDENT — AND NOTHING ELSE.
+ *
+ * A grade document holds a student's whole history: every assignment's
+ * tracker, every attempt. The panel used to read all of it for every student
+ * in every assigned class, which is what pushed this callable past its memory
+ * limit for a real class. It needs the roster facts, the name, and this ONE
+ * assignment's Review tracker, so that is all Firestore is asked to send.
+ */
+function testCycleRosterFieldMask(identity, assignmentId) {
+  return [
+    "classId", "classPeriod", "status", "sisStudentId", "googleUserId", "profile",
+    ...identity.STUDENT_IDENTITY_FIELDS,
+    new FieldPath("gradesByAssignment", assignmentId),
+  ];
+}
+
+/** Every active student this Test Cycle is for: its classes, and anyone added on their own. */
+async function loadTestCycleRoster(db, { assignment, assignmentId, recordsByStudent, identity }) {
+  const fieldMask = testCycleRosterFieldMask(identity, assignmentId);
+  const gradeDataByStudent = new Map();
+  const classSizes = new Map();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const classSnapshot = await db.collection("grades").where("classId", "==", classId).select(...fieldMask).get();
+    let size = 0;
+    classSnapshot.docs.forEach((doc) => {
+      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") {
+        gradeDataByStudent.set(doc.id, doc.data() || {});
+        size += 1;
+      }
+    });
+    classSizes.set(classId, size);
+  }
+  // Record holders outside the current classes (moved class, or added on
+  // their own) keep their row: their evidence still exists.
+  const missing = [...recordsByStudent.keys()].filter((studentId) => studentId && !gradeDataByStudent.has(studentId));
+  for (let index = 0; index < missing.length; index += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(
+      ...missing.slice(index, index + 100).map((id) => db.collection("grades").doc(id)),
+      { fieldMask },
+    );
+    snapshots.forEach((gradeSnapshot) => gradeDataByStudent.set(gradeSnapshot.id, gradeSnapshot.exists ? gradeSnapshot.data() || {} : {}));
+  }
+  return { gradeDataByStudent, classSizes };
+}
+
+/**
+ * Each assigned class's Test window as the teacher's panel shows it: the exact
+ * times read from the bell schedule, whether students may work from home, and
+ * the next days the class sits — so a Test day is picked, never typed.
+ */
+/**
+ * Per class (the one whose windows each student follows): how many have
+ * started the Test, and how many are still waiting to start it — Test ahead,
+ * not missed. What the windows panel needs to say a stranded day honestly.
+ */
+function classSittingsOf(shared, rows) {
+  const stages = shared.stages.TEST_CYCLE_STAGE;
+  const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+  const byClass = new Map();
+  rows.forEach((row) => {
+    const classId = row.sitsWithClassId || row.classId;
+    if (!classId) return;
+    const entry = byClass.get(classId) || { started: 0, waiting: 0 };
+    if (!notStarted.includes(row.test?.state || shared.record.SESSION_STATE.NONE)) entry.started += 1;
+    else if (!row.missedTest && [stages.REVIEW, stages.TEST].includes(row.stage)) entry.waiting += 1;
+    byClass.set(classId, entry);
+  });
+  return byClass;
+}
+
+async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
+  if (policy.externalAssessment) return null;
+  const timeZone = shared.timeZone;
+  const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
+  const classIds = assignmentAudience(assignment).classIds;
+  const classSnapshots = classIds.length
+    ? await db.getAll(...classIds.map((classId) => db.collection(CLASS_COLLECTION).doc(classId)))
+    : [];
+  const todayKey = schoolTodayKey(shared, now);
+  const classes = classSnapshots.map((classSnapshot) => {
+    const classRecord = classSnapshot.exists ? classSnapshot.data() || {} : {};
+    const classId = classSnapshot.id;
+    const classPeriod = String(classRecord.period || "") || null;
+    const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
+    const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
+    const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
+    const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
+    return {
+      classId,
+      name: String(classRecord.name || classRecord.period || classId).slice(0, 160),
+      period: classPeriod,
+      studentCount: classSizes.get(classId) || 0,
+      test: {
+        state: test.state,
+        enforced: test.enforced === true,
+        opensAt: test.opensAt ?? null,
+        closesAt: test.closesAt ?? null,
+        workFromHome: test.workFromHome === true,
+        // The Test day passed without class time (or was set after the class
+        // met, or no longer resolves): somebody is still waiting to start it,
+        // and cannot until the teacher sets a new day. A finished class is not
+        // flagged, and one where anybody started is not told the day never
+        // happened (classSittingsOf).
+        needsNewDay: shared.schedule.classNeedsNewTestDay(test, classSittings.get(classId)),
+        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null }),
+      },
+      followUp: {
+        state: followUp.state,
+        enforced: followUp.enforced === true,
+        closesAt: followUp.closesAt ?? null,
+        closeSource: followUp.closeSource || null,
+        ...shared.schedule.describeFollowUpWindow(followUp, { timeZone, audience: "teacher" }),
+      },
+      windows: windows.map((window) => ({
+        id: window.id,
+        source: window.source,
+        dateKey: window.dateKey || null,
+        resolved: window.resolved === true,
+        pending: window.pending === true,
+        reason: window.reason || null,
+        opensAt: window.opensAt ?? null,
+        closesAt: window.closesAt ?? null,
+        extended: window.extended === true,
+        label: window.resolved
+          ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
+          : window.reason === "endedBeforeSet"
+            ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
+            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+      })),
+      // The next days this class sits, straight from the bell schedule.
+      upcomingDays: upcoming.days.map((day) => ({
+        dateKey: day.dateKey,
+        opensAt: day.opensAt,
+        closesAt: day.closesAt,
+        label: shared.schedule.formatSchoolRange(day.opensAt, day.closesAt, timeZone),
+      })),
+      undesignatedDays: upcoming.pending.slice(0, 4).map((dateKey) => ({
+        dateKey, label: shared.schedule.formatSchoolDate(dateKey, timeZone),
+      })),
+      hasPeriodOnSchedule: Boolean(classPeriod),
+    };
+  });
+  const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);
+  return {
+    timeZone,
+    configured: availability.configured,
+    policy: availability.policy,
+    followUpClose: {
+      mode: availability.followUp.mode,
+      closesAt: availability.followUp.mode === shared.schedule.FOLLOW_UP_CLOSE.CUSTOM ? availability.followUp.closesAt : lateDue,
+      label: availability.followUp.mode === shared.schedule.FOLLOW_UP_CLOSE.NONE
+        ? "No closing time"
+        : shared.schedule.formatSchoolDateTime(
+          availability.followUp.mode === shared.schedule.FOLLOW_UP_CLOSE.CUSTOM ? availability.followUp.closesAt : lateDue,
+          timeZone,
+        ) || "No due date is set, so there is no closing time",
+      lateDueAt: lateDue,
+      lateDueLabel: shared.schedule.formatSchoolDateTime(lateDue, timeZone),
+    },
+    classes,
+    history: (Array.isArray(assignment?.testAvailabilityHistory) ? assignment.testAvailabilityHistory : []).slice(-12),
+  };
+}
+
+/** Today's date in the school's zone, as a YYYY-MM-DD key. */
+function schoolTodayKey(shared, now) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: shared.timeZone, year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(new Date(now));
+  const part = (type) => parts.find((entry) => entry.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 /** Teacher gradebook: the canonical record for every student on this cycle. */
-exports.listTeacherTestCycleRecords = onCall(async (request) => {
+exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
   const identity = await studentIdentity();
 
   const snapshot = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get();
   const recordsByStudent = new Map(snapshot.docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
 
-  // The audience: every active student in the assignment's classes.
-  const gradeDataByStudent = new Map();
-  for (const classId of assignmentAudience(assignment).classIds) {
-    // eslint-disable-next-line no-await-in-loop
-    const classSnapshot = await db.collection("grades").where("classId", "==", classId).get();
-    classSnapshot.docs.forEach((doc) => {
-      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") gradeDataByStudent.set(doc.id, doc.data() || {});
-    });
-  }
-  // Record holders outside the current audience (moved class, named student)
-  // keep their row: their evidence still exists.
-  const missing = [...recordsByStudent.keys()].filter((studentId) => studentId && !gradeDataByStudent.has(studentId));
-  for (let index = 0; index < missing.length; index += 100) {
-    // eslint-disable-next-line no-await-in-loop
-    const snapshots = await db.getAll(...missing.slice(index, index + 100).map((id) => db.collection("grades").doc(id)));
-    snapshots.forEach((gradeSnapshot) => gradeDataByStudent.set(gradeSnapshot.id, gradeSnapshot.exists ? gradeSnapshot.data() || {} : {}));
-  }
+  // The audience: every active student in the assignment's classes, plus
+  // anyone added on their own (a record holder outside those classes).
+  const { gradeDataByStudent, classSizes } = await loadTestCycleRoster(db, { assignment, assignmentId, recordsByStudent, identity });
+  // One bell-schedule read for the whole table, and each class's period once.
+  const now = Date.now();
+  const hasWindows = !policy.externalAssessment;
+  const bell = hasWindows ? await readBellSchedule(db) : null;
+  const periodCache = new Map();
 
   // Only the sessions of students mid-Test can be locked; read exactly those.
   const liveSessionIds = [];
@@ -17798,13 +20996,24 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
   }
 
   const stages = shared.stages.TEST_CYCLE_STAGE;
-  const rows = [...gradeDataByStudent.entries()].map(([studentId, gradeData]) => {
+  const rows = [];
+  for (const [studentId, gradeData] of gradeDataByStudent.entries()) {
     const record = shared.record.normalizeTestCycleRecord(recordsByStudent.get(studentId) || { assignmentId, studentId });
     const grade = shared.record.recordGradeState(record, policy);
-    const reviewProgress = testCycleLib.reviewProgress(assignment, gradeData?.gradesByAssignment?.[assignmentId] || {});
-    const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress });
+    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+    const reviewProgress = testCycleLib.reviewProgress(assignment, tracker);
+    // The Review as a grade a teacher can read and use: from the same tracker
+    // the gate reads, so the two cannot disagree (testCycleLib.reviewSummary).
+    const reviewSummary = testCycleLib.reviewSummary(assignment, tracker);
+    // The windows as they stand for THIS student (their class's, plus any
+    // reopened for them), so the stage here is the stage their card shows.
+    // eslint-disable-next-line no-await-in-loop
+    const schedule = hasWindows
+      ? await studentTestCycleSchedule(db, shared, { assignment, policy, gradeData, record, bell, periodCache, now })
+      : null;
+    const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress, schedule });
     const attention = testCycleRowAttention(record, lockedSessions);
-    return {
+    rows.push({
       studentId,
       studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)) || null,
       classId: record.classId || gradeData?.classId || null,
@@ -17813,11 +21022,32 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       statusLabel: state?.statusLabel || null,
       bucket: attention ? TEACHER_ROW_BUCKET.NEEDS_ATTENTION : teacherRowBucket(stages, state, record, reviewProgress),
       attention,
+      // Added on their own rather than through an assigned class.
+      individuallyAssigned: record.audience?.individual === true,
+      sitsWithClassId: record.audience?.withClassId || null,
+      missedTest: state?.missedTest === true,
+      // Whether what they have earned can be entered now, and why not.
+      canEnterNow: state?.canEnter === true,
+      windowClosed: state?.windowClosed || null,
+      schedule: schedule ? {
+        test: { state: schedule.test.state, opensAt: schedule.test.opensAt ?? null, closesAt: schedule.test.closesAt ?? null },
+        followUp: { state: schedule.followUp.state, closesAt: schedule.followUp.closesAt ?? null, closeSource: schedule.followUp.closeSource || null },
+        ownTestWindow: Boolean(record.availability?.testWindows?.length),
+        ownFollowUpClose: record.availability?.followUpClosesAt ?? null,
+      } : null,
       review: {
         attempted: reviewProgress.attempted,
         total: reviewProgress.total,
         complete: reviewProgress.complete || record.review.complete === true,
         ...(reviewProgress.minimumMastery !== undefined ? { mastery: reviewProgress.mastery, minimumMastery: reviewProgress.minimumMastery } : {}),
+        // Kept apart from the secure scores: instruction, done with hints.
+        earnedPoints: reviewSummary.earnedPoints,
+        possiblePoints: reviewSummary.possiblePoints,
+        percent: reviewSummary.percent,
+        correct: reviewSummary.correct,
+        status: record.teacherControls.reviewWaived && !reviewSummary.complete ? "waived" : reviewSummary.status,
+        lastSavedAt: reviewSummary.lastSavedAt,
+        lastSavedLabel: reviewSummary.lastSavedAt ? shared.schedule.formatSchoolDateTime(reviewSummary.lastSavedAt, shared.timeZone) : null,
       },
       test: {
         state: record.test.state,
@@ -17844,11 +21074,16 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       recordedGrade: grade.recordedGrade,
       recordedGradeSource: grade.recordedGradeSource,
       gradeReason: grade.reason,
+      // A Retest with no original Test, and a grade a teacher set by hand:
+      // each is said, with the number the rule alone would have recorded.
+      retestWithoutOriginal: grade.retestWithoutOriginal === true || record.retest.withoutOriginal === true,
+      gradeAdjustment: grade.gradeAdjustment || null,
+      ruleRecordedGrade: grade.gradeAdjustment ? grade.ruleRecordedGrade : grade.recordedGrade,
       corrections: record.corrections,
       teacherControls: record.teacherControls,
       history: record.history,
-    };
-  });
+    });
+  }
 
   const summary = Object.fromEntries(Object.values(TEACHER_ROW_BUCKET).map((bucket) => [bucket, 0]));
   rows.forEach((row) => { summary[row.bucket] = (summary[row.bucket] || 0) + 1; });
@@ -17877,10 +21112,43 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
     },
     delivery: testCycleDeliveryFacts(blueprint),
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
+    // When the Test and the home window are open for each class, in exact
+    // school-zone times. Null for an external-original cycle.
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
+    // Who this Test is for: its classes, anyone added on their own, and the
+    // record of every addition.
+    audience: {
+      classIds: assignmentAudience(assignment).classIds,
+      individualStudentIds: rows.filter((row) => row.individuallyAssigned).map((row) => row.studentId),
+      studentCount: rows.length,
+      history: (Array.isArray(assignment?.audienceHistory) ? assignment.audienceHistory : []).slice(-12),
+    },
+    // Class-wide operations on this cycle, newest first: an interrupted one
+    // is here to be finished, and a finished one keeps its per-student account.
+    operations: await recentTestCycleOperations(db, shared, assignmentId),
     readyToRelease: {
       test: rows.filter((row) => row.test.state === "submitted").length,
       retest: rows.filter((row) => row.retest.state === "submitted").length,
     },
+    // Whether the answers and worked solutions are open to students yet, and
+    // who can still sit each stage (courseAnswersRelease): the list a release
+    // confirm names and sends back.
+    answersRelease: Object.fromEntries(await Promise.all(["test", "retest"].map(async (stage) => {
+      // The table reads at most 400 records; past that, the release reads
+      // them all, so a record holder beyond the first 400 is on the list the
+      // confirm names (or the release would refuse it as unnamed, forever).
+      const release = await courseAnswersRelease(db, shared, assignmentId, stage, {
+        assignment, records: snapshot.size < 400 ? recordsByStudent : null, rosterIds: [...gradeDataByStudent.keys()],
+      });
+      return [stage, {
+        released: release.released,
+        explicit: release.explicit,
+        stillTesting: release.stillTesting.length,
+        stillTestingIds: release.stillTesting,
+        confirmKeys: release.stillTestingKeys,
+        heldFor: release.heldFor.length,
+      }];
+    }))),
   };
 });
 
@@ -17925,12 +21193,11 @@ function testCyclePolicyLocks(shared, records, { external = false } = {}) {
 }
 
 /** Teacher inspection of a generated correction or retest plan. */
-exports.getTeacherTestCyclePlans = onCall(async (request) => {
+exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignmentId, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
   const studentId = String(request.data?.studentId || "").trim();
   if (!studentId) throw new HttpsError("invalid-argument", "A studentId is required.");
   const recordId = testCycleRecordKey(assignmentId, studentId);
@@ -17994,7 +21261,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
   // 69.99 is not 70: keep its precision.
   const rawScore = testCycleLib.weightedSessionScorePercent(session, { preservePrecision: Boolean(policy.externalAssessment) });
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const answeredQuestions = Object.keys(session.responses || {}).length;
+  const answeredQuestions = secureExamNavigation.answeredCount(session);
   const totalQuestions = Number(session.requiredQuestions || 0);
 
   const released = await mutateTestCycleRecord(db, {
@@ -18160,13 +21427,13 @@ async function syncTestCycleSessionState(db, session) {
     studentId,
     shared,
     policy,
-    mutate: (record) => {
+    mutate: (record, { transaction }) => {
       const current = isRetest ? record.retest : record.test;
       // Exact match: an emptied stage (a reset) is not a wildcard, and a
       // superseded session cannot move the card.
       if (String(current.examSessionId || "") !== String(session.examSessionId || "")) return null;
       if (current.state === shared.record.SESSION_STATE.RELEASED) return null;
-      const answeredQuestions = Object.keys(session.responses || {}).length;
+      const answeredQuestions = secureExamNavigation.answeredCount(session);
       if (state === current.state && answeredQuestions === current.answeredQuestions) return null;
 
       const stageRecord = {
@@ -18197,11 +21464,46 @@ async function syncTestCycleSessionState(db, session) {
         ? { ...record.review, complete: true, completedAt: record.review.completedAt || Date.now() }
         : record.review;
 
+      /*
+       * THE ORIGINAL TEST, STARTED AFTER ALL, RETIRES THE RETEST THAT STOOD IN
+       * FOR IT. A student who missed the window was given a Retest to take
+       * from home; if their teacher then reopened the window and they started
+       * the Test, that unstarted Retest must go. Left assigned, it would be a
+       * second secure attempt the student could open, and it would hold their
+       * Corrections closed ("your Retest is open") after a failed Test. It is
+       * closed, not deleted, and the record's Retest slot is emptied so the
+       * ordinary path builds a targeted one if they come to need it.
+       */
+      const standIn = !isRetest
+        && state === shared.record.SESSION_STATE.IN_PROGRESS
+        && record.retest.withoutOriginal === true
+        && record.retest.state === shared.record.SESSION_STATE.ASSIGNED
+        && record.retest.examSessionId;
+      if (standIn) {
+        const now = Date.now();
+        transaction.set(
+          db.collection("examSessions").doc(String(record.retest.examSessionId)),
+          { status: "force_submitted", supersededByOriginalTest: true, supersededAt: now, updatedAt: now, autoFinalizeAt: null },
+          { merge: true },
+        );
+      }
+      const { withoutOriginal: _standInMarker, ...retestSlot } = record.retest;
+
       return {
         record: {
           ...record,
           review,
           ...(isRetest ? { retest: stageRecord } : { test: stageRecord }),
+          ...(standIn ? {
+            retest: {
+              ...retestSlot,
+              examSessionId: null,
+              planId: null,
+              state: shared.record.SESSION_STATE.NONE,
+              attempt: Number(record.retest.attempt || 1) + 1,
+              answeredQuestions: 0,
+            },
+          } : {}),
         },
       };
     },
@@ -18213,19 +21515,17 @@ async function syncTestCycleSessionState(db, session) {
  *
  * No selection happens here and no model is consulted: the plan already named
  * the approved family and the generator seed. This instantiates that family
- * with that seed and checks it can still be privately graded.
- *
- * The issued instance id is written back onto the plan entry, which is what
- * later lets the corrections algorithm join evidence to blueprint slots and
- * lets the retest audit prove it reused nothing.
+ * with that seed and checks it can still be privately graded. The caller
+ * (issueSecureExamQuestion) appends it in its transaction and writes the
+ * issued instance id back onto the plan entry, which is what later lets the
+ * corrections algorithm join evidence to blueprint slots and lets the retest
+ * audit prove it reused nothing.
  */
-async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
+async function buildCourseTestExamItem(db, { session, runtimeMode = "secureTest" }) {
   const shared = await testCycleLib.shared();
   const plan = session.issuancePlan || {};
-  const completedSlotIds = Object.values(session.responses || {})
-    .map((response) => String(response?.slotId || ""))
-    .filter(Boolean);
-  const entry = shared.issuance.nextPlanEntry(plan, completedSlotIds);
+  // Every slot already issued — answered, skipped or still open.
+  const entry = shared.issuance.nextPlanEntry(plan, secureExamNavigation.issuedSlotIds(session));
   if (!entry) throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
 
   const families = await resolveBlueprintFamilies(db, [entry.familyId]);
@@ -18240,8 +21540,17 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
   if (!instantiated.question) throw new HttpsError("failed-precondition", "This secure exam item could not be generated.");
   const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "This secure exam item could not be graded securely.");
+  // Fail closed on an uncertified tool. Preflight refuses to publish one, so
+  // reaching here means the bank changed under a published Test — the student
+  // is told the item cannot be delivered, never handed a degraded text box.
+  const certification = await secureItems.certifyItem(instantiated.question, { mode: runtimeMode });
+  if (!certification.compatible) {
+    console.error("secure_item_not_certified", { familyId: entry.familyId, toolId: certification.toolId, mode: runtimeMode });
+    throw new HttpsError("failed-precondition", "This secure item uses a tool that is not certified for secure delivery. Ask your teacher.");
+  }
 
-  const currentQuestion = {
+  // Stored with its tool fields encoded: arrays of arrays cannot be stored.
+  const storedItem = secureItems.storableItem({
     ...instantiated.question,
     bankQuestionId: family.id,
     familyId: entry.familyId,
@@ -18259,26 +21568,8 @@ async function issueCourseTestQuestion(db, { sessionRef, session, studentId }) {
     generatorParameters: instantiated.parameters,
     privateGrading: issuePlan.privateGrading,
     ...issuePlan.toolPayload,
-  };
-
-  const issued = await db.runTransaction(async (transaction) => {
-    const freshSnapshot = await transaction.get(sessionRef);
-    const fresh = assertStudentExamSession(freshSnapshot, studentId);
-    assertExamInProgress(fresh);
-    if (fresh.currentQuestion) return fresh;
-    const entries = (fresh.issuancePlan?.entries || []).map((planEntry) => (
-      planEntry.slotId === entry.slotId ? { ...planEntry, questionInstanceId } : planEntry
-    ));
-    const next = {
-      ...fresh,
-      currentQuestion,
-      issuancePlan: { ...fresh.issuancePlan, entries },
-      updatedAt: Date.now(),
-    };
-    transaction.set(sessionRef, next);
-    return next;
   });
-  return issued;
+  return { storedItem, planEntry: entry };
 }
 
 // Immutable evidence drives the Phase 5A mastery wheel. A separate idempotency
@@ -18292,115 +21583,78 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const studentId = event.params.studentId;
     if (evidence.studentId && String(evidence.studentId) !== String(studentId)) return;
     const eventKey = String(evidence.eventKey || event.params.eventId);
-    const alignmentKeys = [...new Set((evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || [])
-      .map(mathPath.canonicalAlignmentKey)
-      .filter((key) => key.startsWith("texas:")))];
-    if (!alignmentKeys.length) return;
+    // Each QUESTION is one event, scored by its final attempt, as the
+    // assignment record scores it (functions/shared/masteryScoring.mjs): a
+    // question right on the second try reads 100%, not 50%, so the Path map,
+    // the wheel, its card and the weekly planner read the same number.
+    //
+    // The support discount is NOT folded into the weight (that was a real bug:
+    // the 0.85 divided straight back out and a hint on every question still
+    // reached Mastered). WEIGHT is how much an event counts as evidence and
+    // stays in the denominator; CREDIT is what the student demonstrated,
+    // discounted for support. Both live in masteryEventFacts now.
+    const masteryScoring = await import("./shared/masteryScoring.mjs");
+    const facts = masteryScoring.masteryEventFacts(evidence, mathPath, { eventId: event.params.eventId });
+    if (!facts.codes.length) return;
 
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    // liveChallenge sits below practice on purpose. The answer is real and the
-    // grader is the same, but one attempt against a countdown with a
-    // leaderboard in view is noisier evidence than the same question at a desk
-    // — a wrong answer may mean "cannot do this" or may mean "ran out of
-    // seconds", and the estimate should not treat those as equally informative.
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15, liveChallenge: 0.7 }[evidence.source?.activityRole] || 1;
-    const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
-    const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
-    const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
-
-    // THE BUG THIS REPLACED, and it was not a small one.
-    //
-    // The support discount used to be folded into `weight`:
-    //
-    //     weight = roleWeight * (independent ? 1 : 0.85)
-    //     estimate = Σ(score × weight) / Σ(weight)
-    //
-    // The 0.85 appears in BOTH the numerator and the denominator, so for a
-    // correct answer (score = 1) it divides straight back out. A student who
-    // took a hint on every single question reached an estimate of 100 and was
-    // labelled Mastered — exactly the "clicking through Path inflates mastery"
-    // failure the design forbids.
-    //
-    // The fix separates two different questions that were being answered with
-    // one number:
-    //
-    //   WEIGHT  — how much this event counts as evidence at all. Stays in the
-    //             denominator. A hinted answer is still evidence.
-    //   CREDIT  — what the student actually demonstrated. Discounted for
-    //             support, so a supported success is worth less than an
-    //             independent one no matter how many of them there are.
-    const weight = modified ? 0 : roleWeight;
-    // Deliberately below the Mastered threshold: a student whose every success
-    // needed the platform to supply the mathematical idea has not shown mastery
-    // of it, and no quantity of such successes should add up to that claim.
-    const SUPPORTED_CREDIT = 0.75;
-    const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
-    const dok = Number(evidence.questionSnapshot?.dok) || null;
-    const familyId = evidence.questionSnapshot?.familyId || null;
+    // Growth over time: one compact snapshot per week, written in this same
+    // transaction from the same profiles (functions/shared/masteryHistory.mjs).
+    const masteryHistory = await import("./shared/masteryHistory.mjs");
+    const historyRef = db.collection(masteryHistory.MASTERY_HISTORY_COLLECTION).doc(studentId);
 
     await db.runTransaction(async (transaction) => {
-      const [application, profileSnapshot] = await Promise.all([
+      const [application, profileSnapshot, historySnapshot] = await Promise.all([
         transaction.get(applicationRef),
         transaction.get(profileRef),
+        transaction.get(historyRef),
       ]);
       if (application.exists) return;
-      const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
+      const stored = profileSnapshot.exists ? (profileSnapshot.data() || {}) : {};
+      const profiles = { ...(stored.profiles || {}) };
 
-      alignmentKeys.forEach((alignmentKey) => {
-        const code = mathPath.displayAlignmentKey(alignmentKey);
-        const previous = profiles[code] || {};
-        const accumulator = previous.accumulator || {};
-        const effectiveWeight = Number(accumulator.effectiveWeight || 0) + weight;
-        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + creditedScore * weight;
-        const eligibleEvents = Number(accumulator.eligibleEvents || 0) + (weight > 0 ? 1 : 0);
-        const modifiedEvents = Number(accumulator.modifiedEvents || 0) + (modified ? 1 : 0);
-        // Independent successes are counted separately, because "can do this"
-        // and "can do this when the platform supplies the idea" are different
-        // claims and the mastery label is only allowed to make the first one.
-        const independentSuccesses = Number(accumulator.independentSuccesses || 0)
-          + (evidence.performance?.isCorrect && independent && weight > 0 ? 1 : 0);
-        const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
-        const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
-        const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
-        let status = "Not Enough Evidence";
-        if (eligibleEvents >= 2 && effectiveWeight >= 1.1) {
-          // Mastered additionally requires evidence the student did the
-          // mathematics themselves. Without this, a high estimate assembled
-          // entirely from supported successes would still read as mastery.
-          if (estimate >= 85 && eligibleEvents >= 4 && independentSuccesses >= 2 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
-          else if (estimate >= 70) status = "Secure";
-          else if (estimate >= 50) status = "Developing";
-          else status = "Needs Attention";
-        }
-        const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
-        const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
-          ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
-          : previous.dimensions?.lastIndependentSuccessAt || null;
-        profiles[code] = {
-          ...previous,
-          teksCode: code,
-          mastery: { estimate, observedPerformance: estimate, status, confidence },
-          signals: { ...(previous.signals || {}), breadth: dokRepresented.length >= 2 ? "broad" : "developing", retention: previous.signals?.retention || "stable" },
-          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, independentSuccesses, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
-          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents, independentSuccesses },
-          recommendation: { reason: status === "Needs Attention" ? "Rebuild this skill with targeted grade-level support." : "Continue building independent accuracy and breadth." },
-          updatedAt: Date.now(),
-        };
+      // ONE definition of Mastered (functions/shared/masteryRule.mjs), read
+      // by the wheel, the Path map, Recommended and the prerequisite locks.
+      facts.codes.forEach((code) => {
+        profiles[code] = masteryScoring.applyMasteryEvent(profiles[code], facts, code, { now: Date.now() }).entry;
       });
+      // Held well under Firestore's 1 MiB document limit, however long the
+      // history (masteryScoring.mjs compactQuestionRows).
+      masteryScoring.compactQuestionRows(profiles);
 
       // The mastery profile inherits the evidence's authorization context, so
-      // a derived record is never readable by anyone the source was not.
+      // a derived record is never readable by anyone the source was not. The
+      // history below inherits the very same context object.
+      const authorization = masteryHistory.derivedMasteryAuthorization(evidence);
+      // Whole, not merged: a merge would keep question rows dropped from the
+      // bounded lists. `stored` was read in this transaction, so nothing else
+      // on the document is lost.
       transaction.set(profileRef, {
+        ...stored,
         profiles,
         studentId,
-        classId: evidence.classId ?? null,
-        originClassId: evidence.originClassId ?? evidence.classId ?? null,
-        originTeacherEmail: evidence.originTeacherEmail ?? null,
-        authorizedTeacherEmails: Array.isArray(evidence.authorizedTeacherEmails) ? evidence.authorizedTeacherEmails : [],
+        ...authorization,
         updatedAt: Date.now(),
-      }, { merge: true });
+      });
+      // An addition, never a gate: if a snapshot cannot be built, the profile
+      // update above still lands and the history simply skips this answer.
+      let historyDocument = null;
+      try {
+        historyDocument = masteryHistory.buildMasteryHistoryDocument({
+          existing: historySnapshot.exists ? historySnapshot.data() : null,
+          profiles,
+          studentId,
+          authorization,
+          occurredAt: evidence.occurredAt,
+          now: Date.now(),
+        });
+      } catch (error) {
+        logger.warn("Mastery history snapshot skipped", { studentId, eventKey, message: error?.message || String(error) });
+      }
+      // Whole, not merged: the pruned weeks map replaces the old one.
+      if (historyDocument) transaction.set(historyRef, historyDocument);
       transaction.set(applicationRef, { studentId, eventKey, appliedAt: Date.now() });
     });
   },
@@ -19931,7 +23185,6 @@ exports.createAssignmentContentVersion = onCall(async (request) => {
 exports.assignmentAiSelfTest = onCall({
   secrets: ASSIGNMENT_AI_SECRETS,
   timeoutSeconds: 90,
-  memory: "256MiB",
 }, async (request) => {
   await requireRootAdmin(request);
   const requestedModel = assignmentAiModel();
@@ -20431,7 +23684,7 @@ exports.reconcileAssignmentActivityProjection = onCall(async (request) => {
   const gradeData = gradeSnapshot.data() || {};
   const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
   const classId = authoritativeStudentClassId(gradeData);
-  if (!studentMatchesAssignmentAudience({ assignment, classId })) {
+  if (!studentMatchesAssignmentAudience({ assignment, classId, gradeData, assignmentId: assignment.id })) {
     return { reconciled: false, reason: "assignment-not-assigned-to-class", classworkGrade: null };
   }
   if (secureAssignmentMode(assignment) || assignment.secure === true) {
@@ -21548,53 +24801,96 @@ exports.confirmGradeTransferUploaded = onCall(async (request) => {
   return { transferId, confirmed: true };
 });
 
+/**
+ * Teacher action: set or CORRECT a student's district (SIS) ID — the number
+ * Grade Export writes into every TEAMS file for this student.
+ *
+ * This is how a student whose MathMaster account was created with a mistyped
+ * but valid-looking number (account 123456, district record 123465) gets
+ * their grades onto their real district record. Only grades/{studentId}
+ * .sisStudentId and its verification stamp change. The account ID does not,
+ * so nothing keyed by it moves: attempts, grades, evidence, rewards, supports,
+ * Classroom links, the PIN credential, sign-in aliases and the Google link all
+ * stay exactly where they are, and the student signs in exactly as before.
+ * See functions/shared/studentDistrictId.mjs for what each ID is for.
+ *
+ * Authorized like setStudentName: the root administrator, the student's
+ * roster teacher, or the teacher of record of the student's class. Refused,
+ * writing nothing, when the number is not 1–20 digits or when another student
+ * already answers to it (the shared duplicate rule — a stored district ID or
+ * an account ID, leading zeros ignored). The duplicate check, the write and
+ * the audit entry are one transaction, and every read is a field mask: no
+ * student's attempt history is loaded. The audit entry keeps the previous
+ * district ID, so a correction can always be traced and undone.
+ */
 exports.setStudentSisId = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
+  const districtIds = await studentDistrictIds();
   const studentId = String(request.data?.studentId || "").trim();
-  if (!studentId) throw new HttpsError("invalid-argument", "studentId is required.");
-  const sisStudentId = normalizeTeamsSisStudentId(request.data?.sisStudentId);
-  const studentRef = db.collection("grades").doc(studentId);
-  const studentSnapshot = await studentRef.get();
-  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
-
+  if (!studentId || studentId.length > 180 || studentId.includes("/")) {
+    throw new HttpsError("invalid-argument", "studentId is required.");
+  }
+  const checked = districtIds.validateDistrictStudentIdInput(request.data?.sisStudentId);
+  if (!checked.ok) throw new HttpsError("invalid-argument", checked.error);
+  const sisStudentId = checked.value;
   const email = callerEmail(request);
   const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
-  const student = studentSnapshot.data() || {};
-  let authorized = isRootAdmin
-    || String(student.assignedTeacherEmail || "").trim().toLowerCase() === email;
-  const classId = String(student.classId || "").trim();
-  if (!authorized && classId) {
-    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
-    authorized = classSnapshot.exists
-      && String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email;
-  }
-  if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can set the SIS Student ID.");
+  const studentRef = db.collection("grades").doc(studentId);
+  const auditRef = db.collection(authLib.ADMIN_AUDIT_COLLECTION).doc();
+  // Every way this number can be stored (leading zeros do not make a
+  // different district number): at most 20, so one `in` query and one getAll.
+  const variants = districtIds.districtStudentIdVariants(sisStudentId);
 
-  const [sameField, sameDocument] = await Promise.all([
-    db.collection("grades").where("sisStudentId", "==", sisStudentId).limit(2).get(),
-    db.collection("grades").doc(sisStudentId).get(),
-  ]);
-  const conflictingField = sameField.docs.find((entry) => entry.id !== studentId);
-  const conflictingDocument = sameDocument.exists && sameDocument.id !== studentId ? sameDocument : null;
-  if (conflictingField || conflictingDocument) {
-    throw new HttpsError("already-exists", "That SIS Student ID is already assigned to another MathMaster student.");
-  }
+  return db.runTransaction(async (transaction) => {
+    const [snapshot] = await transaction.getAll(studentRef, { fieldMask: ["assignedTeacherEmail", "classId", "sisStudentId"] });
+    if (!snapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+    const student = snapshot.data() || {};
+    const classId = String(student.classId || "").trim();
 
-  await studentRef.set({
-    sisStudentId,
-    sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
-    sisStudentIdVerifiedBy: email,
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  await writeAdminAudit(
-    db,
-    { uid: request.auth?.uid || null, email },
-    "sis_student_id_set",
-    studentId,
-    { sisStudentId, classId: classId || null },
-  );
-  return { studentId, sisStudentId };
+    let authorized = districtIds.mayChangeStudentDistrictId({ callerEmail: email, isRootAdmin, student });
+    if (!authorized && classId) {
+      const classSnapshot = await transaction.get(db.collection(CLASS_COLLECTION).doc(classId));
+      authorized = districtIds.mayChangeStudentDistrictId({
+        callerEmail: email,
+        isRootAdmin,
+        student,
+        classRecord: classSnapshot.exists ? classSnapshot.data() || {} : null,
+      });
+    }
+    if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can change the student's district ID.");
+
+    // Every other record that already answers to this number — as its stored
+    // district ID, or as its account ID. Ids and one field only.
+    const [districtIdHolders, accountIdHolders] = await Promise.all([
+      transaction.get(db.collection("grades").where("sisStudentId", "in", variants).select("sisStudentId").limit(5)),
+      transaction.getAll(...variants.map((variant) => db.collection("grades").doc(variant)), { fieldMask: ["sisStudentId"] }),
+    ]);
+    const conflict = districtIds.findDistrictStudentIdConflict({
+      studentId,
+      districtId: sisStudentId,
+      districtIdHolders: districtIdHolders.docs.map((entry) => entry.id),
+      accountIdHolders: accountIdHolders.filter((entry) => entry.exists).map((entry) => entry.id),
+    });
+    if (conflict) throw new HttpsError("already-exists", conflict.message);
+
+    const change = districtIds.districtIdChangeRecord({ studentId, student, districtId: sisStudentId, classId });
+    transaction.update(studentRef, {
+      sisStudentId,
+      sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
+      sisStudentIdVerifiedBy: email,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(auditRef, {
+      actorUid: request.auth?.uid || null,
+      actorEmail: email,
+      action: "sis_student_id_set",
+      target: studentId,
+      details: change.details,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return change.response;
+  });
 });
 
 /**
@@ -21785,12 +25081,11 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
 // authority — not a client write any signed-in teacher could make.
 
 /** Release every submitted, current secure session of one stage in one action. */
-exports.releaseTestCycleResults = onCall(async (request) => {
+exports.releaseTestCycleResults = onCall(TEST_CYCLE_SWEEP_OPTIONS, async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignmentId, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
   const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
   const onlyStudentIds = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : [])
     .map((value) => String(value || "").trim()).filter(Boolean));
@@ -21834,11 +25129,10 @@ exports.releaseTestCycleResults = onCall(async (request) => {
  * only, validated, normalized, refused once the change would contradict
  * results already released (see `testCyclePolicyLocks`), and audited.
  */
-exports.updateTestCyclePolicy = onCall(async (request) => {
+exports.updateTestCyclePolicy = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
-  const assignmentSnapshot = await ref.get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const ref = assignmentSnapshot.ref;
   const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, ref.id, { allowInvalid: true });
   const requested = request.data?.policy && typeof request.data.policy === "object" ? request.data.policy : {};
@@ -21958,12 +25252,54 @@ function decodePreviewItem(text) {
   }
 }
 
+/*
+ * PREVIEW A TEST CYCLE BEFORE IT IS SAVED.
+ *
+ * A teacher reviewing an import has no assignment id yet, and while preflight
+ * blocks the save never gets one, so the one screen that shows how the Test,
+ * its Corrections and its Retest look to a student was unreachable exactly
+ * when the teacher needed it. A candidate is previewed by the same plan,
+ * instantiation, certification and sanitizer as a saved Test Cycle, and
+ * nothing is written.
+ *
+ * Its grading boundary is the saved preview's: the family must be one the
+ * candidate's own blueprint names, and the seed must name this teacher's
+ * preview student. Any teacher can make a blueprint real by saving it, so this
+ * is no wider an answer oracle than a saved Test Cycle already is.
+ */
+async function loadTestCycleCandidate(db, candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    throw new HttpsError("invalid-argument", "A Test Cycle assignment candidate is required.");
+  }
+  const shared = await testCycleLib.shared();
+  if (!shared.policy.declaresTestCycle(candidate)) {
+    throw new HttpsError("failed-precondition", "That assignment is not a MathMaster Test Cycle.");
+  }
+  const policy = shared.policy.normalizeTestCyclePolicy(candidate.assessmentPolicy)
+    || shared.policy.defaultTestCyclePolicy();
+  const { blueprint } = await resolveSecureTestBlueprint(db, candidate, shared);
+  // Issuance seeds need an assignment id. A candidate's is its blueprint's
+  // digest: the same review shows the same draw, and an edited blueprint a
+  // new one. It is never a real assignment's id, so no student's seed matches.
+  const digest = crypto.createHash("sha256").update(JSON.stringify(blueprint)).digest("hex").slice(0, 24);
+  return { assignmentId: `candidate-${digest}`, assignment: candidate, policy, blueprint, shared };
+}
+
 exports.previewTestCycleSecureItems = onCall(async (request) => {
   const db = getFirestore();
-  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
-  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  let teacherUid;
+  let loaded;
+  if (request.data?.assignmentId) {
+    const assignmentSnapshot = await db.collection("assignments").doc(String(request.data.assignmentId).trim()).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+    ({ teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot));
+    loaded = await loadTestCycleAssignment(db, request.data.assignmentId, { allowInvalid: true });
+  } else {
+    // The unsaved Test Cycle on the teacher's review screen.
+    teacherUid = await requireTeacher(request);
+    loaded = { ...(await loadTestCycleCandidate(db, request.data?.assignment)), candidate: true };
+  }
+  const { assignmentId, assignment, policy, blueprint, shared } = loaded;
   if (!blueprint.targets.length) throw new HttpsError("failed-precondition", "This Test Cycle has no secure Test blueprint to preview.");
 
   const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
@@ -21978,6 +25314,12 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     attempt: draw,
   });
   const familiesById = new Map(families.map((family) => [String(family.id), family]));
+  // Preview runs under the SAME capability policy a student's Test (or Retest)
+  // does — the point is to see what they will see, Rich Tools included.
+  // ...or, for the Corrections preview, the Corrections policy a correcting
+  // student works under (hints and an immediate verdict on).
+  const requestedStage = String(request.data?.stage || "");
+  const runtimeMode = requestedStage === "retest" ? "secureRetest" : requestedStage === "corrections" ? "corrections" : "secureTest";
   const items = [];
   for (const entry of plan.entries.slice(0, TEST_CYCLE_PREVIEW_MAX_ITEMS)) {
     const family = familiesById.get(String(entry.familyId));
@@ -21996,6 +25338,8 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     }
     // eslint-disable-next-line no-await-in-loop
     const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
+    // eslint-disable-next-line no-await-in-loop
+    const certification = await secureItems.certifyItem(instantiated.question, { mode: runtimeMode });
     const questionInstanceId = `preview-${entry.ordinal}`;
     const issued = {
       ...instantiated.question,
@@ -22007,9 +25351,14 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
     items.push({
       ordinal: entry.ordinal,
       // What a STUDENT receives: the same sanitizer as `issueSecureExamQuestion`.
-      questionInstance: secureExamPublicQuestion(issued),
-      gradable: issuePlan.issuable === true,
-      // What only the TEACHER sees: which blueprint slot this fills.
+      // An item the secure runtime could not deliver is shown to the teacher
+      // as the error a student would meet, not rendered some other way.
+      // eslint-disable-next-line no-await-in-loop
+      questionInstance: certification.compatible ? await secureExamPublicQuestion(issued, { mode: runtimeMode }) : null,
+      ...(certification.compatible ? {} : { error: certification.reason }),
+      gradable: issuePlan.issuable === true && certification.compatible,
+      // What only the TEACHER sees: which blueprint slot this fills, and the
+      // secure rendering contract of the item that filled it.
       slot: {
         targetId: entry.targetId,
         alignmentKey: entry.alignmentKey,
@@ -22019,18 +25368,31 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
         anchor: entry.anchor === true,
         weight: entry.weight,
         familyId: entry.familyId,
+        toolId: certification.toolId || null,
+        toolLabel: certification.label,
+        secureCompatible: certification.compatible,
+        devices: certification.devices || null,
       },
-      previewItemId: encodePreviewItem({ a: assignmentId, f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand }),
+      // A candidate's item is regraded against the candidate the teacher
+      // sends back (`c`), a saved one against the stored assignment (`a`).
+      previewItemId: encodePreviewItem({
+        ...(loaded.candidate ? { c: 1 } : { a: assignmentId }),
+        f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand,
+      }),
     });
   }
   return {
     success: true,
-    assignmentId,
+    assignmentId: loaded.candidate ? null : assignmentId,
+    candidate: loaded.candidate === true,
     title: blueprint.title || assignment?.title || "Test",
     draw,
     totalQuestions: plan.totalQuestions,
     shown: items.length,
     unfilledSlots: plan.unfilledSlots.length,
+    // Which blueprint targets have no family to preview (teacher only), so the
+    // screen can say "Question 8 is missing" rather than show nine of ten.
+    unfilledTargetIds: [...new Set(plan.unfilledSlots.map((slot) => slot.targetId))],
     delivery: testCycleDeliveryFacts(blueprint),
     policy: {
       passingScore: policy.passingScore,
@@ -22046,11 +25408,20 @@ exports.previewTestCycleSecureItems = onCall(async (request) => {
 exports.gradeTestCyclePreviewItem = onCall(async (request) => {
   const db = getFirestore();
   const decoded = decodePreviewItem(request.data?.previewItemId);
-  if (!decoded?.a || !decoded?.f || !decoded?.s) throw new HttpsError("invalid-argument", "That preview item is not valid.");
-  const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
-  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { blueprint } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  if (!(decoded?.a || decoded?.c === 1) || !decoded?.f || !decoded?.s) throw new HttpsError("invalid-argument", "That preview item is not valid.");
+  let teacherUid;
+  let blueprint;
+  if (decoded.c === 1) {
+    // An unsaved candidate's item: judged against the candidate the teacher
+    // is reviewing, under the same family and preview-seed checks below.
+    teacherUid = await requireTeacher(request);
+    ({ blueprint } = await loadTestCycleCandidate(db, request.data?.assignment));
+  } else {
+    const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+    ({ teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot));
+    ({ blueprint } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true }));
+  }
   if (!blueprintFamilyIds(blueprint).includes(String(decoded.f))) {
     throw new HttpsError("permission-denied", "That family is not part of this Test's blueprint.");
   }
@@ -22067,8 +25438,18 @@ exports.gradeTestCyclePreviewItem = onCall(async (request) => {
   if (!instantiated.question) throw new HttpsError("failed-precondition", "That preview item could not be regenerated.");
   const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
   if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "That item cannot be graded securely.");
-  const grading = await mathPath.gradeResponse(issuePlan.privateGrading, request.data?.responsePayload || {});
-  return { success: true, isCorrect: grading.isCorrect === true, score: Number(grading.score) || 0, writes: "none" };
+  // The same authority a student's secure answer meets, Rich Tools included.
+  const grading = await secureItems.gradeItem(issuePlan.privateGrading, request.data?.responsePayload || {});
+  return {
+    success: true,
+    isCorrect: grading.isCorrect === true,
+    score: Number(grading.score) || 0,
+    // An unfinished construction would be refused for a student before it was
+    // recorded; the teacher is told the same thing.
+    incomplete: grading.rejected === true,
+    detail: grading.rejected ? grading.detail : null,
+    writes: "none",
+  };
 });
 
 /*
@@ -22117,25 +25498,52 @@ async function assertTeacherMayManageAssignmentLifecycle(request, assignmentSnap
   return assertTeacherMayManageAssignment(request, assignmentSnapshot);
 }
 
+const ASSIGNMENT_EVIDENCE_SCAN_LIMIT = 400;
+
 async function assignmentEvidenceSummary(db, assignmentId, assignment) {
   const studentsWithWork = new Set();
+  // Only this assignment's entry in each evidence map is read: a whole grade
+  // document per student is every assignment that student ever did.
+  const evidenceMask = ASSIGNMENT_EVIDENCE_GRADE_MAPS.map((field) => new FieldPath(field, assignmentId));
+  const noteWork = (studentId, data) => {
+    const hasWork = ASSIGNMENT_EVIDENCE_GRADE_MAPS.some((field) => {
+      const entry = data?.[field]?.[assignmentId];
+      return entry !== undefined && entry !== null && (typeof entry !== "object" || Object.keys(entry).length > 0);
+    });
+    if (hasWork) studentsWithWork.add(studentId);
+  };
+  const scanned = new Set();
   for (const classId of assignmentAudience(assignment).classIds) {
     // eslint-disable-next-line no-await-in-loop
-    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
+    const snapshot = await db.collection("grades").where("classId", "==", classId).select(...evidenceMask).get();
     snapshot.docs.forEach((doc) => {
-      const data = doc.data() || {};
-      const hasWork = ASSIGNMENT_EVIDENCE_GRADE_MAPS.some((field) => {
-        const entry = data?.[field]?.[assignmentId];
-        return entry !== undefined && entry !== null && (typeof entry !== "object" || Object.keys(entry).length > 0);
-      });
-      if (hasWork) studentsWithWork.add(doc.id);
+      scanned.add(doc.id);
+      noteWork(doc.id, doc.data() || {});
     });
   }
-  const [records, sessions, publications] = await Promise.all([
-    db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get(),
-    db.collection("examSessions").where("courseTest.assignmentId", "==", assignmentId).limit(400).get(),
+  const [records, sessions, publications, operations] = await Promise.all([
+    db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(ASSIGNMENT_EVIDENCE_SCAN_LIMIT).get(),
+    db.collection("examSessions").where("courseTest.assignmentId", "==", assignmentId).limit(ASSIGNMENT_EVIDENCE_SCAN_LIMIT).get(),
     db.collection("classroomLinks").where("assignmentId", "==", assignmentId).limit(50).get(),
+    db.collection(TEST_CYCLE_OPERATIONS).where("assignmentId", "==", assignmentId).limit(200).select().get(),
   ]);
+  /*
+   * A STUDENT ADDED ON THEIR OWN, OR MOVED TO ANOTHER CLASS, STILL HAS WORK.
+   * Their class is not one of the assignment's, so the class scan above never
+   * saw their Review answers. Every record holder outside those classes is
+   * read by id, so "nobody has worked on this" is true of everybody.
+   */
+  const outside = [...new Set(records.docs.map((doc) => String(doc.data()?.studentId || "")).filter((id) => id && !scanned.has(id)))];
+  for (let index = 0; index < outside.length; index += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(
+      ...outside.slice(index, index + 100).map((id) => db.collection("grades").doc(id)),
+      { fieldMask: evidenceMask },
+    );
+    snapshots.forEach((gradeSnapshot) => { if (gradeSnapshot.exists) noteWork(gradeSnapshot.id, gradeSnapshot.data() || {}); });
+  }
+  // More than one scan can hold: what was not read cannot be called empty.
+  const scanIncomplete = records.size >= ASSIGNMENT_EVIDENCE_SCAN_LIMIT || sessions.size >= ASSIGNMENT_EVIDENCE_SCAN_LIMIT;
   const startedSessions = sessions.docs.filter((doc) => String(doc.data()?.status || "") !== "not_started");
   startedSessions.forEach((doc) => studentsWithWork.add(String(doc.data()?.studentId || "")));
   records.docs.forEach((doc) => {
@@ -22152,28 +25560,69 @@ async function assignmentEvidenceSummary(db, assignmentId, assignment) {
     secureSessions: sessions.size,
     startedSecureSessions: startedSessions.length,
     classroomPublications,
-    canDelete: studentsWithWork.size === 0,
+    scanIncomplete,
+    canDelete: studentsWithWork.size === 0 && !scanIncomplete,
     unstartedSessionIds: sessions.docs.filter((doc) => String(doc.data()?.status || "") === "not_started").map((doc) => doc.id),
     recordIds: records.docs.map((doc) => doc.id),
     recordStudentIds: records.docs.map((doc) => String(doc.data()?.studentId || "")).filter(Boolean),
+    operationIds: operations.docs.map((doc) => doc.id),
   };
 }
 
-exports.getAssignmentEvidenceSummary = onCall(async (request) => {
+exports.getAssignmentEvidenceSummary = onCall(TEST_CYCLE_PANEL_OPTIONS, async (request) => {
   const db = getFirestore();
-  const snapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const snapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
   const summary = await assignmentEvidenceSummary(db, snapshot.id, snapshot.data() || {});
-  const { unstartedSessionIds: _unstarted, recordIds: _records, recordStudentIds: _recordStudents, ...publicSummary } = summary;
+  const {
+    unstartedSessionIds: _unstarted, recordIds: _records, recordStudentIds: _recordStudents, operationIds: _operations,
+    ...publicSummary
+  } = summary;
   return { success: true, assignmentId: snapshot.id, ...publicSummary };
 });
 
-exports.manageAssignmentLifecycle = onCall(async (request) => {
+/*
+ * A PAUSED OR ARCHIVED TEST CYCLE STOPS THE CLOCK OF EVERY TEST UNDER WAY.
+ *
+ * Students cannot work while the teacher has the assessment paused or
+ * archived, so their time does not run either: each course session that is
+ * started and not finished gets the "assignment" hold (secureExam.withPauseHold),
+ * and loses it when the assessment is open again, which extends its deadline
+ * by the time it was closed. Each session changes in its own transaction, so a
+ * proctor's pause or a save landing at the same moment is never lost — and
+ * that transaction reads the assignment, so the hold follows whether the
+ * assessment is closed then, not when this call began: an archive racing an
+ * unarchive (two tabs, two teachers) ends with the hold matching where the
+ * assessment ended up. A Test starting meanwhile is gated inside its own start
+ * transaction (startSecureExamSession).
+ */
+async function holdCourseTestClocks(db, assignmentId) {
+  const assignmentRef = db.collection("assignments").doc(String(assignmentId));
+  const snapshot = await db.collection("examSessions").where("courseTest.assignmentId", "==", String(assignmentId)).get();
+  const live = (session) => session.status === "in_progress" || secureExam.LOCKED_STATES.has(session.status);
+  await Promise.all(snapshot.docs
+    .filter((doc) => live(doc.data() || {}))
+    .map((doc) => db.runTransaction(async (transaction) => {
+      const [sessionSnapshot, assignmentSnapshot] = await Promise.all([transaction.get(doc.ref), transaction.get(assignmentRef)]);
+      const session = sessionSnapshot.data() || {};
+      if (!live(session)) return;
+      const assignment = assignmentSnapshot.data() || {};
+      const closed = assignment.archived === true || assignment.unpublished === true;
+      const now = Date.now();
+      const change = closed ? secureExam.withPauseHold(session, "assignment", now) : secureExam.withoutPauseHold(session, "assignment", now);
+      // The hold stops or restarts the clock, so the finalizer's deadline moves with it.
+      if (Object.keys(change).length) {
+        transaction.set(doc.ref, {
+          ...change, autoFinalizeAt: secureExam.autoFinalizeAtFor({ ...session, ...change }, now), updatedAt: now,
+        }, { merge: true });
+      }
+    })));
+}
+
+exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (request) => {
   const db = getFirestore();
-  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
-  const snapshot = await ref.get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const snapshot = await assignmentForTeacherCall(request, db);
+  const ref = snapshot.ref;
   const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
   const assignment = snapshot.data() || {};
   const action = String(request.data?.action || "").trim();
@@ -22191,6 +25640,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, archived };
   }
   if (action === "unpublish" || action === "publish") {
@@ -22202,6 +25652,7 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       lifecycleHistory: audit(action),
       updatedAt: stamp,
     });
+    await holdCourseTestClocks(db, ref.id);
     return { success: true, assignmentId: ref.id, action, unpublished };
   }
   if (action !== "delete") throw new HttpsError("invalid-argument", "Choose archive, unarchive, unpublish, publish or delete.");
@@ -22213,6 +25664,13 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "Type the assignment's exact title to confirm deletion.");
   }
   const summary = await assignmentEvidenceSummary(db, ref.id, assignment);
+  if (summary.scanIncomplete && summary.studentsWithWork === 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This assessment has more secure sessions than can be checked for student work in one pass. Archive it instead: archiving hides it from students and keeps everything.",
+      { evidence: { scanIncomplete: true } },
+    );
+  }
   if (!summary.canDelete) {
     throw new HttpsError(
       "failed-precondition",
@@ -22227,25 +25685,48 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
       { evidence: { classroomPublications: summary.classroomPublications } },
     );
   }
-  // No student has worked on it, so the only things to remove are the
-  // assignment and any untouched secure scaffolding opened for it.
-  const batch = db.batch();
-  summary.unstartedSessionIds.forEach((id) => batch.delete(db.collection("examSessions").doc(id)));
-  // The score-less projections opening sessions wrote go with the records, so
-  // no student's grade document keeps an entry for an assignment that is gone.
-  const projectionHolders = summary.recordStudentIds.length
-    ? await db.getAll(...summary.recordStudentIds.map((id) => db.collection("grades").doc(id)))
-    : [];
+  /*
+   * No student has worked on it, so the only things to remove are the
+   * assignment and the untouched secure scaffolding opened for it: unstarted
+   * sessions, score-less records and their plans, the projection each record
+   * wrote on its student's grade document, any answer release, and the
+   * class-wide operation logs.
+   *
+   * ORDER, AND WHY IT IS NOT ONE BATCH. A batch holds 500 writes and a class
+   * set can need more, which used to fail the whole delete with a bare server
+   * error. The scaffolding goes first, in groups; the assignment goes LAST. If
+   * a group fails, the assignment is still there, still refusing students
+   * (their sessions and records are already gone or about to be), and the
+   * teacher runs delete again. The other order could leave sessions behind for
+   * an assignment that no longer exists.
+   */
+  const writes = [];
+  summary.unstartedSessionIds.forEach((id) => writes.push((batch) => batch.delete(db.collection("examSessions").doc(id))));
+  const projectionHolders = [];
+  for (let index = 0; index < summary.recordStudentIds.length; index += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    projectionHolders.push(...await db.getAll(
+      ...summary.recordStudentIds.slice(index, index + 100).map((id) => db.collection("grades").doc(id)),
+      { fieldMask: [new FieldPath("testCycleGrades", ref.id)] },
+    ));
+  }
   projectionHolders
     .filter((gradeSnapshot) => gradeSnapshot.exists && gradeSnapshot.data()?.testCycleGrades?.[ref.id] !== undefined)
-    .forEach((gradeSnapshot) => batch.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", ref.id), FieldValue.delete()));
+    .forEach((gradeSnapshot) => writes.push((batch) => batch.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", ref.id), FieldValue.delete())));
   summary.recordIds.forEach((id) => {
-    batch.delete(db.collection(TEST_CYCLE_RECORDS).doc(id));
-    batch.delete(db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(id));
-    batch.delete(db.collection(TEST_CYCLE_RETEST_PLANS).doc(id));
+    writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_RECORDS).doc(id)));
+    writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(id)));
+    writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_RETEST_PLANS).doc(id)));
   });
-  batch.delete(ref);
-  await batch.commit();
+  summary.operationIds.forEach((id) => writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_OPERATIONS).doc(id))));
+  writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(ref.id)));
+  for (let index = 0; index < writes.length; index += 400) {
+    const batch = db.batch();
+    writes.slice(index, index + 400).forEach((write) => write(batch));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  await ref.delete();
   await db.collection("assignmentDeletionLog").doc(ref.id).set({
     assignmentId: ref.id,
     title: String(assignment.title || "").slice(0, 200),
@@ -22275,11 +25756,10 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
  * students' "equivalent" Tests different tests. Policy-only changes after that
  * point go through `updateTestCyclePolicy`, which has its own locks.
  */
-exports.attachTestCycleContract = onCall(async (request) => {
+exports.attachTestCycleContract = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
-  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
-  const snapshot = await ref.get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const snapshot = await assignmentForTeacherCall(request, db);
+  const ref = snapshot.ref;
   const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
   const shared = await testCycleLib.shared();
   const assignment = snapshot.data() || {};
@@ -22331,4 +25811,775 @@ exports.attachTestCycleContract = onCall(async (request) => {
     updatedAt: new Date(now).toISOString(),
   });
   return { success: true, assignmentId: ref.id, attached: true, preflight: { warnings: result.warnings, checks: result.checks } };
+});
+
+
+// --- Secure Test Cycle: audience, class-time windows, class-wide operations --
+//
+// What a teacher does to a Test Cycle from the Secure Test screen once it is
+// running: add a class or a student to it, set when the Test is open, act on
+// many students at once, and set a grade by hand. Each is a server decision
+// made for the teacher of record, and each leaves a record of who did it.
+
+/** The newest class-wide operations on a cycle; an unfinished one is always among them. */
+async function recentTestCycleOperations(db, shared, assignmentId) {
+  const snapshot = await db.collection(TEST_CYCLE_OPERATIONS).where("assignmentId", "==", assignmentId).limit(60).get();
+  const operations = snapshot.docs.map((doc) => doc.data() || {})
+    .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
+  const running = operations.filter((operation) => shared.bulk.bulkStatus(operation) === shared.bulk.BULK_STATUS.RUNNING);
+  const chosen = [...new Set([...running, ...operations.slice(0, 3)])].slice(0, 5);
+  return chosen.map((operation) => shared.bulk.bulkOperationView(operation));
+}
+
+const cleanIdList = (value, limit) => [...new Set((Array.isArray(value) ? value : [])
+  .map((entry) => String(entry || "").trim()).filter(Boolean))].slice(0, limit);
+
+/*
+ * ADD CLASSES AND STUDENTS TO A TEST THAT ALREADY EXISTS.
+ *
+ * Until now the only way to give a second class a Test was the assignment
+ * editor, which makes a separate copy: a second Test, with its own records and
+ * its own Google Classroom item. This adds to the SAME Test.
+ *
+ * WHO MAY ADD WHOM. The caller is the teacher of record for the Test's classes
+ * already (assertTeacherMayManageAssignment). They must also be teacher of
+ * record for every class they add, and for the class of every student they add.
+ *
+ * NOTHING THAT EXISTS IS TOUCHED. A class is appended to `assignedClassIds`; a
+ * student gets a Test Cycle record marked as individually assigned (and the
+ * proof on their own grade document). No session, score, Review answer or
+ * correction is read into a new shape, reset or replaced, and no session is
+ * created here — opening sessions is its own step and reuses any that exist.
+ * Adding something already there is reported as already assigned, not done
+ * twice.
+ *
+ * A STUDENT ADDED ON THEIR OWN is not listed on the shared assignment document
+ * (every signed-in student can read it). They sit the Test in the window of an
+ * assigned class the teacher names (`sitsWithClassId`), or in a window opened
+ * for them.
+ */
+exports.updateTestCycleAudience = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  if (assignment.archived === true) {
+    throw new HttpsError("failed-precondition", "This assessment is archived. Restore it before adding classes or students.");
+  }
+  const addClassIds = cleanIdList(request.data?.addClassIds, 20).filter(validDocumentId);
+  const addStudentIds = cleanIdList(request.data?.addStudentIds, 100).filter(validDocumentId);
+  if (!addClassIds.length && !addStudentIds.length) {
+    throw new HttpsError("invalid-argument", "Choose at least one class or student to add.");
+  }
+  const actor = teacherEmail || teacherUid;
+  const now = Date.now();
+  const ownedClassIds = await teacherOwnedClassIds(db, request);
+  const audienceClassIds = assignmentAudience(assignment).classIds;
+  const assignmentCourse = String(assignment.courseId || assignment.courseProfile?.course || "").trim();
+
+  // --- classes -------------------------------------------------------------
+  const classResults = [];
+  const classesToAdd = [];
+  const classSnapshots = addClassIds.length
+    ? await db.getAll(...addClassIds.map((classId) => db.collection(CLASS_COLLECTION).doc(classId)))
+    : [];
+  classSnapshots.forEach((classSnapshot) => {
+    const classId = classSnapshot.id;
+    const classRecord = classSnapshot.exists ? classSnapshot.data() || {} : null;
+    const name = classRecord ? String(classRecord.name || classRecord.period || classId).slice(0, 160) : classId;
+    if (audienceClassIds.includes(classId)) {
+      classResults.push({ classId, name, outcome: "alreadyAssigned", detail: "This class already has this Test." });
+    } else if (!classRecord) {
+      classResults.push({ classId, name, outcome: "failed", detail: "That class was not found." });
+    } else if (classRecord.status === "archived") {
+      classResults.push({ classId, name, outcome: "failed", detail: "That class is archived." });
+    } else if (ownedClassIds !== null && !ownedClassIds.has(classId)) {
+      classResults.push({ classId, name, outcome: "failed", detail: "You are not the teacher of record for that class." });
+    } else {
+      const course = String(classRecord.course || "").trim();
+      classesToAdd.push({ classId, period: String(classRecord.period || "").trim() || null });
+      classResults.push({
+        classId,
+        name,
+        outcome: "added",
+        detail: assignmentCourse && course && course !== assignmentCourse
+          ? `Added. Note: this class's course (${course}) is not the Test's course (${assignmentCourse}).`
+          : null,
+      });
+    }
+  });
+  const classIdsAfter = [...audienceClassIds, ...classesToAdd.map((entry) => entry.classId)];
+
+  // --- students ------------------------------------------------------------
+  // The assigned class whose Test window an added student follows. Named by
+  // the teacher, or the Test's first class: a student following no class would
+  // have no class-time window at all, however the Test's classes are limited.
+  const requestedSitsWith = String(request.data?.sitsWithClassId || "").trim() || null;
+  if (requestedSitsWith && !classIdsAfter.includes(requestedSitsWith)) {
+    throw new HttpsError("invalid-argument", "Students can only sit the Test with a class that is assigned it.");
+  }
+  const sitsWithClassId = requestedSitsWith || classIdsAfter[0] || null;
+  const identity = await studentIdentity();
+  const studentResults = [];
+  const studentsToAdd = [];
+  const studentSnapshots = addStudentIds.length
+    ? await db.getAll(
+      ...addStudentIds.map((studentId) => db.collection("grades").doc(studentId)),
+      { fieldMask: ["classId", "classPeriod", "status", "profile", ...identity.STUDENT_IDENTITY_FIELDS, new FieldPath("testCycleGrades", assignmentId)] },
+    )
+    : [];
+  studentSnapshots.forEach((gradeSnapshot) => {
+    const studentId = gradeSnapshot.id;
+    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    const studentName = gradeData ? identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)) || null : null;
+    const result = (outcome, detail = null) => studentResults.push({ studentId, studentName, outcome, detail });
+    const classId = authoritativeStudentClassId(gradeData);
+    if (!gradeData || studentId === "test_connection") result("failed", "No student with that ID is on the roster.");
+    else if (gradeData.status === "inactive") result("failed", "That student is inactive.");
+    else if (classId && classIdsAfter.includes(classId)) result("alreadyAssigned", "Already assigned through their class.");
+    else if (studentIndividuallyAssigned(gradeData, assignmentId)) result("alreadyAssigned", "Already added to this Test.");
+    else if (!classId) result("failed", "That student is not in a class yet. Place them in a class first.");
+    else if (ownedClassIds !== null && !ownedClassIds.has(classId)) result("failed", "You are not the teacher of record for that student's class.");
+    else {
+      studentsToAdd.push({ studentId, classId });
+      result("added");
+    }
+  });
+
+  // --- write: the classes in one update, then each student's own record ----
+  if (classesToAdd.length) {
+    const periods = [...new Set(classesToAdd.map((entry) => entry.period).filter(Boolean))];
+    await assignmentSnapshot.ref.update({
+      assignedClassIds: FieldValue.arrayUnion(...classesToAdd.map((entry) => entry.classId)),
+      // Kept in step for the surfaces that still address a class by period.
+      ...(periods.length ? { assignedClassPeriods: FieldValue.arrayUnion(...periods) } : {}),
+      audienceHistory: FieldValue.arrayUnion({ at: now, by: actor, addedClassIds: classesToAdd.map((entry) => entry.classId) }),
+      updatedAt: new Date(now).toISOString(),
+    });
+  }
+  for (const { studentId, classId } of studentsToAdd) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await mutateTestCycleRecord(db, {
+        assignmentId,
+        studentId,
+        shared,
+        policy,
+        mutate: (record) => {
+          if (record.audience?.individual === true) return { value: { already: true } };
+          return {
+            value: { already: false },
+            record: {
+              ...record,
+              classId: record.classId || classId,
+              audience: { individual: true, withClassId: sitsWithClassId, addedBy: actor, addedAt: now },
+            },
+          };
+        },
+      });
+    } catch (error) {
+      logger.error("testCycle.audience.addStudentFailed", { assignmentId, studentId, message: error?.message || String(error) });
+      const entry = studentResults.find((result) => result.studentId === studentId);
+      entry.outcome = "failed";
+      entry.detail = "A server error stopped this student being added. Nothing was changed for them; try again.";
+    }
+  }
+  const addedStudents = studentResults.filter((result) => result.outcome === "added").length;
+  if (addedStudents) {
+    // A count, never the ids: this document is readable by every student.
+    await assignmentSnapshot.ref.update({
+      audienceHistory: FieldValue.arrayUnion({ at: now + 1, by: actor, addedStudentCount: addedStudents }),
+      updatedAt: new Date(now).toISOString(),
+    });
+  }
+  const count = (results, outcome) => results.filter((result) => result.outcome === outcome).length;
+  return {
+    success: true,
+    assignmentId,
+    classes: classResults,
+    students: studentResults,
+    counts: {
+      classesAdded: count(classResults, "added"),
+      studentsAdded: count(studentResults, "added"),
+      alreadyAssigned: count(classResults, "alreadyAssigned") + count(studentResults, "alreadyAssigned"),
+      failed: count(classResults, "failed") + count(studentResults, "failed"),
+    },
+    audienceClassIds: classIdsAfter,
+  };
+});
+
+/*
+ * WHEN THE TEST IS OPEN — SET, EXTENDED OR REOPENED BY THE TEACHER OF RECORD.
+ *
+ * The window itself is read from the bell schedule (testCycleAvailability.mjs);
+ * what a teacher decides here is the DAY, and any exception to it:
+ *
+ *   setClassTestDay       this class sits the Test in its period on this day.
+ *   setTestDayForClasses  every assigned class, each on its first meeting on or
+ *                         after a date (an A/B rotation puts them on different
+ *                         days, and each gets its own).
+ *   extendClassWindow     keep a class's window open past the bell.
+ *   reopenClassWindow     open it again for a class, between two times.
+ *   clearClassWindows     back to "no class-time window" for a class.
+ *   setTestPolicy         class time, or open at any time (an explicit choice).
+ *   setFollowUpClose      when Corrections and the Retest close from home:
+ *                         the late due date, a time, or never.
+ *   reopenStudentTest     open the Test for one student between two times.
+ *   setStudentFollowUpClose  give one student longer for Corrections/Retest.
+ *
+ * A class change is one transaction on the assignment with an audit entry. A
+ * student's change is written to that student's own record, never to the
+ * shared assignment document, and names who made it and when.
+ */
+const TEST_WINDOW_MAX_SPAN_MS = 21 * 24 * 60 * 60 * 1000;
+
+exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  if (policy.externalAssessment) {
+    throw new HttpsError("failed-precondition", "An external-original assessment has no class-time Test window: its one secure session is the retest.");
+  }
+  const action = String(request.data?.action || "").trim();
+  const actor = teacherEmail || teacherUid;
+  const now = Date.now();
+  const timeZone = shared.timeZone;
+  const sched = shared.schedule;
+  const audienceClassIds = assignmentAudience(assignment).classIds;
+  const instantOf = (value, label) => {
+    const at = Number(value);
+    if (!Number.isFinite(at) || at <= 0) throw new HttpsError("invalid-argument", `${label} is required.`);
+    return at;
+  };
+  const assignedClass = () => {
+    const classId = String(request.data?.classId || "").trim();
+    if (!audienceClassIds.includes(classId)) throw new HttpsError("invalid-argument", "That class is not assigned this Test Cycle.");
+    return classId;
+  };
+  const windowOf = () => {
+    const opensAt = instantOf(request.data?.opensAt, "An opening time");
+    const closesAt = instantOf(request.data?.closesAt, "A closing time");
+    if (closesAt <= opensAt) throw new HttpsError("invalid-argument", "The closing time must be after the opening time.");
+    if (closesAt <= now) throw new HttpsError("invalid-argument", "The closing time has already passed.");
+    if (closesAt - opensAt > TEST_WINDOW_MAX_SPAN_MS) throw new HttpsError("invalid-argument", "A Test window can be at most 21 days long.");
+    return { opensAt, closesAt };
+  };
+  const asRefusal = (work) => {
+    try { return work(); } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("invalid-argument", error.message || "That change is not valid.");
+    }
+  };
+
+  // --- one student ---------------------------------------------------------
+  if (action === "reopenStudentTest" || action === "setStudentFollowUpClose") {
+    const { studentId } = await assertStudentInTestCycleAudience(db, { assignment, assignmentId, studentId: request.data?.studentId });
+    const reason = String(request.data?.reason || "").trim().slice(0, 200);
+    const window = action === "reopenStudentTest" ? windowOf() : null;
+    const closesAt = action === "setStudentFollowUpClose" && request.data?.closesAt !== null && request.data?.closesAt !== undefined
+      ? instantOf(request.data.closesAt, "A closing time")
+      : null;
+    if (closesAt !== null && closesAt <= now) throw new HttpsError("invalid-argument", "The closing time has already passed.");
+    const written = await mutateTestCycleRecord(db, {
+      assignmentId,
+      studentId,
+      shared,
+      policy,
+      mutate: (record) => ({
+        record: {
+          ...record,
+          availability: asRefusal(() => (window
+            ? sched.withStudentTestWindow(record.availability, { ...window, reason, by: actor, at: now })
+            : sched.withStudentFollowUpClose(record.availability, { closesAt }))),
+        },
+      }),
+    });
+    return {
+      success: true,
+      assignmentId,
+      action,
+      studentId,
+      availability: written.record.availability || null,
+      label: window
+        ? `Test open for this student ${sched.formatSchoolRange(window.opensAt, window.closesAt, timeZone)}.`
+        : closesAt === null
+          ? "This student follows the class's closing time again."
+          : `Corrections and the Retest stay open for this student until ${sched.formatSchoolDateTime(closesAt, timeZone)}.`,
+    };
+  }
+
+  // --- a class, or the whole Test ------------------------------------------
+  const bell = ["setClassTestDay", "setTestDayForClasses"].includes(action) ? await readBellSchedule(db) : null;
+  const todayKey = schoolTodayKey(shared, now);
+  const classPeriodOf = async (classId) => {
+    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
+    return classSnapshot.exists ? String(classSnapshot.data()?.period || "").trim() || null : null;
+  };
+  const notes = [];
+  let audit = { action };
+  let edit;
+
+  if (action === "setClassTestDay") {
+    const classId = assignedClass();
+    const dateKey = String(request.data?.dateKey || "").trim();
+    if (!sched.isDateKey(dateKey)) throw new HttpsError("invalid-argument", "Choose the Test day.");
+    if (dateKey < todayKey) throw new HttpsError("invalid-argument", "That day has already passed.");
+    const classPeriod = await classPeriodOf(classId);
+    if (!classPeriod) {
+      throw new HttpsError("failed-precondition", "This class has no period, so the bell schedule cannot say when it meets. Set the class's period, or reopen the window between two times instead.");
+    }
+    const day = sched.resolveClassPeriodDay({ schedule: bell, classPeriod, dateKey, timeZone });
+    const nextMeetings = () => sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 3, timeZone, now }).days
+      .map((entry) => sched.formatSchoolRange(entry.opensAt, entry.closesAt, timeZone));
+    if (!day.resolved && !day.pending) {
+      const next = nextMeetings();
+      throw new HttpsError(
+        "failed-precondition",
+        `${classPeriod} does not meet on ${sched.formatSchoolDate(dateKey, timeZone)} according to the bell schedule.${next.length ? ` It next meets: ${next.join("; ")}.` : ""}`,
+        { reason: day.reason },
+      );
+    }
+    // Today's period after its bell: a window that is already closed would mark
+    // every student in the class as having missed the Test and move them to a
+    // Retest. Refuse it, and say when the class meets next.
+    if (day.resolved && day.closesAt <= now) {
+      const next = nextMeetings();
+      throw new HttpsError(
+        "failed-precondition",
+        `${classPeriod} already met today (${sched.formatSchoolRange(day.opensAt, day.closesAt, timeZone)}), so that class time has ended.${next.length ? ` It next meets: ${next.join("; ")}.` : ""} To give the Test today anyway, reopen the window between two times.`,
+        { reason: "meetingEnded" },
+      );
+    }
+    notes.push(day.resolved
+      ? `Test window: ${sched.formatSchoolRange(day.opensAt, day.closesAt, timeZone)}.`
+      : `Test day set for ${sched.formatSchoolDate(dateKey, timeZone)}. The times will follow the bell schedule once that day's A/B day is set.`);
+    audit = { action, classId, dateKey, addDay: request.data?.addDay === true };
+    edit = (current) => sched.withClassTestDay(current, { classId, dateKey, by: actor, at: now, replace: request.data?.addDay !== true });
+  } else if (action === "setTestDayForClasses") {
+    const fromDateKey = String(request.data?.fromDateKey || "").trim();
+    if (!sched.isDateKey(fromDateKey)) throw new HttpsError("invalid-argument", "Choose the first Test day.");
+    if (fromDateKey < todayKey) throw new HttpsError("invalid-argument", "That day has already passed.");
+    const chosen = [];
+    for (const classId of audienceClassIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const classPeriod = await classPeriodOf(classId);
+      // A class whose window has already opened (it sat the Test, or is
+      // sitting it) is kept: moving it would put its Corrections back behind a
+      // new window and un-miss its absent students. Its own row moves it.
+      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
+        .filter((window) => window.resolved && window.opensAt <= now)
+        .sort((left, right) => right.opensAt - left.opensAt)[0];
+      if (ran) {
+        notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
+        continue;
+      }
+      const first = classPeriod
+        ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
+        : null;
+      if (first) {
+        chosen.push({ classId, dateKey: first.dateKey });
+        notes.push(`${classPeriod}: ${sched.formatSchoolRange(first.opensAt, first.closesAt, timeZone)}.`);
+      } else {
+        notes.push(`${classPeriod || classId}: no meeting found on the bell schedule from that day, so no window was set.`);
+      }
+    }
+    if (!chosen.length) {
+      throw new HttpsError("failed-precondition", notes.some((note) => note.includes(": kept — "))
+        ? `No class was moved. ${notes.join(" ")}`
+        : "None of this Test's classes meets on the bell schedule from that day.");
+    }
+    audit = { action, fromDateKey, classDays: chosen };
+    edit = (current) => chosen.reduce(
+      (next, entry) => sched.withClassTestDay(next, { ...entry, by: actor, at: now, replace: true }),
+      current,
+    );
+  } else if (action === "extendClassWindow") {
+    const classId = assignedClass();
+    const windowId = String(request.data?.windowId || "").trim();
+    const closesAt = instantOf(request.data?.closesAt, "A new closing time");
+    if (closesAt <= now) throw new HttpsError("invalid-argument", "The new closing time has already passed.");
+    notes.push(`Window open until ${sched.formatSchoolDateTime(closesAt, timeZone)}.`);
+    audit = { action, classId, windowId, closesAt };
+    edit = (current) => sched.withClassWindowExtended(current, { classId, windowId, closesAt, by: actor, at: now });
+  } else if (action === "reopenClassWindow") {
+    const classId = assignedClass();
+    const window = windowOf();
+    notes.push(`Test open ${sched.formatSchoolRange(window.opensAt, window.closesAt, timeZone)}.`);
+    audit = { action, classId, ...window };
+    edit = (current) => sched.withClassCustomWindow(current, {
+      classId, ...window, reason: String(request.data?.reason || "").trim(), by: actor, at: now,
+    });
+  } else if (action === "clearClassWindows") {
+    const classId = assignedClass();
+    notes.push("This class has no class-time window again: its Test can be started whenever its session is open.");
+    audit = { action, classId };
+    edit = (current) => sched.withoutClassWindows(current, { classId });
+  } else if (action === "setTestPolicy") {
+    const wanted = String(request.data?.policy || "").trim();
+    notes.push(wanted === sched.TEST_AVAILABILITY_POLICY.ALWAYS_OPEN
+      ? "The Test is open at any time, including from home."
+      : "The Test is open in class time, on the days set for each class.");
+    audit = { action, policy: wanted };
+    edit = (current) => sched.withTestPolicy(current, { policy: wanted });
+  } else if (action === "setFollowUpClose") {
+    const mode = String(request.data?.mode || "").trim();
+    const closesAt = mode === sched.FOLLOW_UP_CLOSE.CUSTOM ? instantOf(request.data?.closesAt, "A closing time") : null;
+    if (closesAt !== null && closesAt <= now) throw new HttpsError("invalid-argument", "The closing time has already passed.");
+    notes.push(mode === sched.FOLLOW_UP_CLOSE.CUSTOM
+      ? `Corrections and the Retest close ${sched.formatSchoolDateTime(closesAt, timeZone)}.`
+      : mode === sched.FOLLOW_UP_CLOSE.NONE
+        ? "Corrections and the Retest have no closing time."
+        : "Corrections and the Retest close at the assignment's final due date.");
+    audit = { action, mode, closesAt };
+    edit = (current) => sched.withFollowUpClose(current, { mode, closesAt });
+  } else {
+    throw new HttpsError("invalid-argument", "Choose a supported Test window change.");
+  }
+
+  // Read-modify-write on the assignment, so two tabs cannot undo each other.
+  const stored = await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(assignmentSnapshot.ref);
+    if (!fresh.exists) throw new HttpsError("not-found", "That assignment was not found.");
+    const next = asRefusal(() => edit(fresh.data()?.testAvailability || null));
+    transaction.update(assignmentSnapshot.ref, {
+      testAvailability: next,
+      testAvailabilityHistory: FieldValue.arrayUnion({ at: now, by: actor, ...audit }),
+      updatedAt: new Date(now).toISOString(),
+    });
+    return next;
+  });
+  return { success: true, assignmentId, action, testAvailability: stored, notes };
+});
+
+/*
+ * A TEACHER SETS A STUDENT'S RECORDED GRADE BY HAND — AND SAYS FROM WHAT.
+ *
+ * The grade rule records what the secure Test and Retest earned. A teacher may
+ * decide otherwise: use the student's Review score, use the Retest's actual
+ * score instead of its capped one, or enter a grade. The number for the first
+ * two is read HERE, from the saved Review work and the released Retest, never
+ * taken from the browser. A typed grade needs a note. Every adjustment, and
+ * its removal, is an audit row on the record: who, when, from what, and the
+ * grade it replaced. The secure scores themselves are never changed.
+ *
+ * Google Classroom follows the recorded grade on the same grade item, and — as
+ * for every Test Cycle grade — is never lowered automatically.
+ */
+exports.adjustTestCycleGrade = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { studentId, gradeData } = await assertStudentInTestCycleAudience(db, {
+    assignment, assignmentId, studentId: request.data?.studentId,
+  });
+  const actor = teacherEmail || teacherUid;
+  const now = Date.now();
+  const SOURCE = shared.record.GRADE_ADJUSTMENT_SOURCE;
+
+  if (request.data?.clear === true) {
+    const cleared = await mutateTestCycleRecord(db, {
+      assignmentId,
+      studentId,
+      shared,
+      policy,
+      mutate: (record) => (record.gradeAdjustment
+        ? { record: shared.record.clearTeacherGradeAdjustment(record, { by: actor, at: now, policy }), value: { cleared: true } }
+        : { value: { cleared: false } }),
+    });
+    const grade = shared.record.recordGradeState(cleared.record, policy);
+    return { success: true, assignmentId, studentId, cleared: cleared.value?.cleared === true, recordedGrade: grade.recordedGrade, reason: grade.reason };
+  }
+
+  const source = String(request.data?.source || "").trim();
+  if (!shared.record.GRADE_ADJUSTMENT_SOURCES.includes(source)) {
+    throw new HttpsError("invalid-argument", "Choose where the grade comes from: the Review score, the actual Retest score, or a grade you enter.");
+  }
+  const note = String(request.data?.note || "").trim().slice(0, 300);
+  let grade;
+  if (source === SOURCE.REVIEW) {
+    const summary = testCycleLib.reviewSummary(assignment, gradeData?.gradesByAssignment?.[assignmentId] || {});
+    if (summary.percent === null) throw new HttpsError("failed-precondition", "This assessment has no Review questions to take a score from.");
+    grade = summary.percent;
+  } else if (source === SOURCE.RETEST_ACTUAL) {
+    const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
+    const actual = shared.record.recordGradeState({ ...record, gradeAdjustment: null }, policy).rawRetestGrade;
+    if (actual === null) throw new HttpsError("failed-precondition", "This student has no released Retest score yet. Release the Retest first.");
+    grade = actual;
+  } else {
+    const typed = Number(request.data?.grade);
+    if (request.data?.grade === null || request.data?.grade === undefined || request.data?.grade === ""
+      || !Number.isFinite(typed) || typed < 0 || typed > 100) {
+      throw new HttpsError("invalid-argument", "Enter a grade from 0 to 100.");
+    }
+    if (!note) throw new HttpsError("invalid-argument", "Add a short note saying why you are setting this grade.");
+    grade = typed;
+  }
+
+  const written = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (record) => ({
+      record: shared.record.applyTeacherGradeAdjustment(record, { grade, source, note, by: actor, at: now, policy }),
+    }),
+  });
+  const state = shared.record.recordGradeState(written.record, policy);
+  return {
+    success: true,
+    assignmentId,
+    studentId,
+    recordedGrade: state.recordedGrade,
+    ruleRecordedGrade: state.ruleRecordedGrade ?? null,
+    source,
+    reason: state.reason,
+  };
+});
+
+/*
+ * ONE STUDENT'S STEP OF A CLASS-WIDE OPERATION.
+ *
+ * Each step is safe to run twice: waiving a Review that is waived, or opening
+ * a session that is open, reports "already complete" and changes nothing. That
+ * is what lets an interrupted operation be resumed without doing any student
+ * twice. A failure is caught HERE and becomes that student's outcome, with the
+ * reason — one student's error never stops, or hides, the rest.
+ */
+async function runTestCycleBulkStep(db, context, action, studentId) {
+  const { assignmentId, assignment, policy, blueprint, shared, teacherUid } = context;
+  const { BULK_ACTION, BULK_OUTCOME } = shared.bulk;
+  try {
+    if (!validDocumentId(studentId)) return { outcome: BULK_OUTCOME.FAILED, detail: "That is not a valid student ID." };
+    const [recordSnapshot, [gradeSnapshot]] = await Promise.all([
+      db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(assignmentId, studentId)).get(),
+      db.getAll(db.collection("grades").doc(studentId), {
+        fieldMask: ["classId", "classPeriod", "status", new FieldPath("gradesByAssignment", assignmentId), new FieldPath("testCycleGrades", assignmentId)],
+      }),
+    ]);
+    if (!gradeSnapshot.exists || studentId === "test_connection") {
+      return { outcome: BULK_OUTCOME.NOT_ELIGIBLE, detail: "No student with that ID is on the roster." };
+    }
+    const gradeData = gradeSnapshot.data() || {};
+    // The same audience rule every teacher action uses: a record, an assigned
+    // class, or having been added on their own.
+    if (!recordSnapshot.exists && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null, gradeData, assignmentId })) {
+      return { outcome: BULK_OUTCOME.NOT_ELIGIBLE, detail: "This student is not assigned this Test Cycle." };
+    }
+    if (gradeData.status === "inactive") return { outcome: BULK_OUTCOME.NOT_ELIGIBLE, detail: "This student is inactive." };
+    const record = shared.record.normalizeTestCycleRecord(recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId });
+
+    if (action === BULK_ACTION.WAIVE_REVIEW) {
+      if (record.teacherControls.reviewWaived) return { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Review was already waived." };
+      const reviewProgress = testCycleLib.reviewProgress(assignment, gradeData.gradesByAssignment?.[assignmentId] || {});
+      const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress });
+      if (state?.stage !== shared.stages.TEST_CYCLE_STAGE.REVIEW) {
+        return { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Review is already finished or not required." };
+      }
+      const written = await mutateTestCycleRecord(db, {
+        assignmentId,
+        studentId,
+        shared,
+        policy,
+        mutate: (current) => (current.teacherControls.reviewWaived
+          ? { value: { already: true } }
+          : { value: { already: false }, record: { ...current, teacherControls: shared.policy.applyTeacherControlAction(current.teacherControls, "waiveReview") } }),
+      });
+      if (written.value?.already) return { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Review was already waived." };
+      // A student who missed the Test is past the gate now: open their Retest.
+      await ensureMissedTestRetestIfDue(db, { assignmentId, assignment, policy, blueprint, shared, studentId, gradeData, teacherUid })
+        .catch((error) => logger.warn("testCycle.bulk.missedRetestNotOpened", { assignmentId, studentId, message: error?.message || String(error) }));
+      return {
+        outcome: BULK_OUTCOME.SUCCEEDED,
+        detail: written.record.test.examSessionId ? null : "Their Test session is not open yet.",
+      };
+    }
+
+    if (record.test.examSessionId) return { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Their Test session is already open." };
+    const opened = await openTestSessionForStudent(db, context, studentId, gradeData);
+    if (opened.notEligible) {
+      return { outcome: BULK_OUTCOME.NOT_ELIGIBLE, detail: "They missed the Test and are on the Retest that replaced it." };
+    }
+    return opened.reused
+      ? { outcome: BULK_OUTCOME.ALREADY_COMPLETE, detail: "Their Test session is already open." }
+      : { outcome: BULK_OUTCOME.SUCCEEDED, detail: null };
+  } catch (error) {
+    logger.error("testCycle.bulk.stepFailed", { assignmentId, studentId, action, message: error?.message || String(error) });
+    return {
+      outcome: BULK_OUTCOME.FAILED,
+      detail: error instanceof HttpsError
+        ? error.message
+        : "A server error stopped this student's change. Nothing was changed for them; run it again.",
+    };
+  }
+}
+
+/** Who a class-wide operation applies to, resolved once, on the server. */
+async function resolveTestCycleBulkTargets(db, shared, { assignment, assignmentId, scope }) {
+  const kind = String(scope?.kind || "").trim();
+  const audienceClassIds = assignmentAudience(assignment).classIds;
+  let ids;
+  let stored;
+  if (kind === "students") {
+    ids = cleanIdList(scope?.studentIds, shared.bulk.BULK_MAX_TARGETS + 1);
+    if (!ids.length) throw new HttpsError("invalid-argument", "Select at least one student.");
+    stored = { kind };
+  } else if (kind === "class") {
+    const classId = String(scope?.classId || "").trim();
+    if (!audienceClassIds.includes(classId)) throw new HttpsError("invalid-argument", "That class is not assigned this Test Cycle.");
+    ids = [...await testCycleRosterIds(db, { assignedClassIds: [classId] })];
+    stored = { kind, classId };
+  } else if (kind === "all") {
+    const roster = await testCycleRosterIds(db, assignment);
+    // Anyone added on their own is part of "everyone" too.
+    const individual = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).select("studentId", "audience").get();
+    individual.docs.forEach((doc) => {
+      if (doc.data()?.audience?.individual === true && doc.data()?.studentId) roster.add(String(doc.data().studentId));
+    });
+    ids = [...roster];
+    stored = { kind };
+  } else {
+    throw new HttpsError("invalid-argument", "Choose everyone, a class, or selected students.");
+  }
+  if (ids.length > shared.bulk.BULK_MAX_TARGETS) {
+    throw new HttpsError("failed-precondition", `That is ${ids.length} students. Run it for one class at a time (at most ${shared.bulk.BULK_MAX_TARGETS} per operation).`);
+  }
+  return { ids: ids.sort(), scope: stored };
+}
+
+const BULK_LEASE_MS = 60 * 1000;
+
+/*
+ * A CLASS-WIDE ACTION, AS ONE SERVER OPERATION.
+ *
+ * `operationId` is chosen by the browser and is the idempotency key: sending it
+ * again continues the same operation rather than starting another. The server
+ * resolves who it applies to once (when the operation is created), works
+ * through them a few at a time inside a time budget, and stores each student's
+ * outcome as it goes. If students remain when the budget is spent it returns
+ * `running` with the tally so far, and the browser calls again to continue.
+ * Only one call works an operation at a time (a short lease); a second caller
+ * is shown the progress instead of repeating the work.
+ *
+ * The operation document is also the audit record: who asked, when, for which
+ * action, and what happened for every student.
+ */
+exports.runTestCycleBulkAction = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const loaded = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { assignmentId, assignment, policy, blueprint, secureReferenceResolved, shared } = loaded;
+  const { bulk } = shared;
+  const action = String(request.data?.action || "").trim();
+  if (!bulk.BULK_ACTIONS.includes(action)) throw new HttpsError("invalid-argument", "Choose a supported class-wide action.");
+  const operationId = bulk.normalizeBulkOperationId(request.data?.operationId);
+  if (!operationId) throw new HttpsError("invalid-argument", "A class-wide action needs an operation id.");
+
+  const availability = shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() });
+  if (!availability.open && availability.reason !== shared.availability.ASSESSMENT_AVAILABILITY.SCHEDULED) {
+    throw new HttpsError("failed-precondition", "This assessment is archived or paused. Restore it before changing it for a class.");
+  }
+  if (action === bulk.BULK_ACTION.OPEN_TEST_SESSIONS && policy.externalAssessment) {
+    throw new HttpsError("failed-precondition", "An external-original assessment opens retest sessions from the original scores you enter. Use \"Open secure Retest sessions\".");
+  }
+
+  const operationRef = db.collection(TEST_CYCLE_OPERATIONS).doc(`${assignmentId}__${operationId}`);
+  const leaseId = crypto.randomUUID();
+  const existing = await operationRef.get();
+  const targets = existing.exists
+    ? null
+    : await resolveTestCycleBulkTargets(db, shared, { assignment, assignmentId, scope: request.data?.scope });
+
+  // Create the operation, or take over an unfinished one, under a lease.
+  const claim = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(operationRef);
+    const now = Date.now();
+    if (!snapshot.exists) {
+      if (!targets) throw new HttpsError("aborted", "That operation changed while it was starting. Try again.");
+      const created = {
+        ...bulk.newBulkOperation({
+          operationId, assignmentId, action, targetStudentIds: targets.ids, scope: targets.scope, requestedBy: teacherEmail || teacherUid, now,
+        }),
+        requestedByUid: teacherUid,
+        lease: { id: leaseId, until: now + BULK_LEASE_MS },
+      };
+      // No students at all is a finished operation, not a running one.
+      created.status = bulk.bulkStatus(created);
+      created.completedAt = created.status === bulk.BULK_STATUS.RUNNING ? null : now;
+      transaction.set(operationRef, created);
+      return { operation: created, mine: created.status === bulk.BULK_STATUS.RUNNING };
+    }
+    const stored = snapshot.data() || {};
+    if (String(stored.assignmentId) !== assignmentId || String(stored.action) !== action) {
+      throw new HttpsError("failed-precondition", "That operation id was already used for a different action. Start a new one.");
+    }
+    if (bulk.bulkStatus(stored) !== bulk.BULK_STATUS.RUNNING) return { operation: stored, mine: false };
+    if (Number(stored.lease?.until) > now) return { operation: stored, mine: false, busy: true };
+    transaction.update(operationRef, { lease: { id: leaseId, until: now + BULK_LEASE_MS }, updatedAt: now });
+    return { operation: { ...stored, lease: { id: leaseId, until: now + BULK_LEASE_MS } }, mine: true };
+  });
+  if (!claim.mine) return { success: true, busy: claim.busy === true, ...bulk.bulkOperationView(claim.operation) };
+
+  let operation = claim.operation;
+  const release = () => operationRef.update({ lease: FieldValue.delete() }).catch(() => null);
+  try {
+    const context = { assignmentId, assignment, policy, blueprint, shared, teacherUid, families: [] };
+    if (action === bulk.BULK_ACTION.OPEN_TEST_SESSIONS) {
+      // Once per call, never once per student: a Test Cycle that cannot issue
+      // equivalent secure coverage is refused before any session exists.
+      const { families, result: preflight } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved });
+      if (preflight.blocked) {
+        throw new HttpsError("failed-precondition", `This Test Cycle cannot be assigned securely: ${preflight.errors[0]}`, { preflight });
+      }
+      context.families = families;
+    }
+
+    const stopAt = Date.now() + bulk.BULK_TIME_BUDGET_MS;
+    let pending = bulk.pendingBulkTargets(operation);
+    while (pending.length && Date.now() < stopAt) {
+      const batch = pending.slice(0, bulk.BULK_CONCURRENCY);
+      // eslint-disable-next-line no-await-in-loop
+      const outcomes = await Promise.all(batch.map((studentId) => runTestCycleBulkStep(db, context, action, studentId)));
+      const at = Date.now();
+      const writes = [];
+      batch.forEach((studentId, index) => {
+        operation = bulk.withBulkResult(operation, studentId, outcomes[index], at);
+        writes.push(new FieldPath("results", studentId), operation.results[studentId]);
+      });
+      // Progress is stored after every batch, so a dropped connection or a
+      // closed tab loses nothing that was done.
+      // eslint-disable-next-line no-await-in-loop
+      await operationRef.update(
+        "status", operation.status,
+        "updatedAt", at,
+        "completedAt", operation.completedAt,
+        "lease", { id: leaseId, until: at + BULK_LEASE_MS },
+        ...writes,
+      );
+      pending = bulk.pendingBulkTargets(operation);
+    }
+  } finally {
+    await release();
+  }
+  return { success: true, busy: false, ...bulk.bulkOperationView(operation) };
+});
+
+/** A class-wide operation's progress and per-student account, for its teacher. */
+exports.getTestCycleOperation = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const shared = await testCycleLib.shared();
+  const operationId = shared.bulk.normalizeBulkOperationId(request.data?.operationId);
+  if (!operationId) throw new HttpsError("invalid-argument", "An operation id is required.");
+  const snapshot = await db.collection(TEST_CYCLE_OPERATIONS).doc(`${assignmentSnapshot.id}__${operationId}`).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That operation was not found.");
+  const operation = snapshot.data() || {};
+  return {
+    success: true,
+    busy: Number(operation.lease?.until) > Date.now(),
+    ...shared.bulk.bulkOperationView(operation),
+  };
 });

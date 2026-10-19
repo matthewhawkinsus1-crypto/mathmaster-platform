@@ -107,6 +107,10 @@ test('the authority lists do not overlap and name every grade field the server w
    * honest about what is on the document.
    */
   const ASSIGNMENT_DOCUMENT_FIELDS = new Set(['studentOverrides', 'lessonResources', 'dol']);
+  // A class-wide Test Cycle operation stores each student's outcome under
+  // `testCycleOperations/{id}.results[studentId]` (runTestCycleBulkAction). It
+  // is a field of that server-only audit document, never of a grade document.
+  const OPERATION_DOCUMENT_FIELDS = new Set(['results']);
   const functionsSources = [
     'functions/index.js', 'functions/classroomSectionEntry.js', 'functions/classroomSectionForceEntry.js',
     ...readdirSync(new URL('../../functions/lib/', import.meta.url)).filter((name) => name.endsWith('.js')).map((name) => `functions/lib/${name}`),
@@ -115,7 +119,9 @@ test('the authority lists do not overlap and name every grade field the server w
   const unclassified = new Set();
   for (const path of functionsSources) {
     for (const match of executableSource(read(path)).matchAll(/new FieldPath\(\s*"([A-Za-z]+)"/g)) {
-      if (!ASSIGNMENT_DOCUMENT_FIELDS.has(match[1]) && !classified.has(match[1])) unclassified.add(`${path}: ${match[1]}`);
+      if (!ASSIGNMENT_DOCUMENT_FIELDS.has(match[1]) && !OPERATION_DOCUMENT_FIELDS.has(match[1]) && !classified.has(match[1])) {
+        unclassified.add(`${path}: ${match[1]}`);
+      }
     }
   }
   assert.deepEqual([...unclassified], [], 'classify every grade-document field in functions/shared/gradeDocumentAuthority.mjs');
@@ -293,7 +299,10 @@ test('the ingestion callable routes progress to its own writer, with the caller\
     functionsSource, 'async function recordOneQuestionProgress', '// Ingestion stops starting new envelopes', 'progress writer',
   ));
   assert.match(writer, /db\.collection\("grades"\)\.doc\(studentId\)/);
-  assert.match(writer, /studentMatchesAssignmentAudience\(\{ assignment, classId: authoritativeStudentClassId\(gradeData\) \}\)/);
+  // The audience is judged from the server's own roster row: the student's
+  // class, or the server-written proof on that row that they were added to a
+  // secure Test individually. Nothing in the envelope can claim either.
+  assert.match(writer, /studentMatchesAssignmentAudience\(\{ assignment, classId: authoritativeStudentClassId\(gradeData\), gradeData, assignmentId: assignment\.id \}\)/);
   assert.match(writer, /if \(decision\.record\) \{\s*transaction\.update\(\s*gradeRef,\s*new FieldPath\("gradesByAssignment", envelope\.assignmentId, questionKey\),\s*decision\.record,/);
   // No receipt, no evidence, no projection: time is not academic evidence.
   assert.doesNotMatch(writer, /studentSubmissionReceipts|SUBMISSION_RECEIPT_COLLECTION|evidenceEvents|classworkGradesByAssignment|dolGradesByAssignment/);

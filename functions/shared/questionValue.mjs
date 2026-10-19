@@ -460,6 +460,29 @@ const linearTableWork = (question, mode) => {
   return items;
 };
 
+// The Matrix Lab: what one question asks, by mode (matrixLabModel.mjs).
+const matrixLabWork = (question, mode) => {
+  const targets = list(question?.targets).length;
+  if (mode === 'locate') {
+    return [...(question?.askDimensions === false ? [] : respond('Dimensions')), ...select('Element located', Math.max(1, targets))];
+  }
+  if (mode === 'equation') return construct('Matrix equation');
+  if (mode === 'solve') {
+    return [
+      ...(list(question?.equations).length && question?.buildEquation !== false ? construct('Matrix equation') : []),
+      ...(question?.askInverse === true ? construct('Inverse matrix') : []),
+      ...select('Number of solutions'),
+      ...respond('Solution'),
+    ];
+  }
+  if (mode === 'completeSystem') return construct('Third equation', Math.max(1, targets));
+  return [
+    ...(question?.askDefined === false ? [] : [...select('Is the result defined?'), ...respond('Dimensions')]),
+    ...(question?.fillResult === false ? [] : construct('Result matrix')),
+    ...(question?.judgeInverse === true ? select('Are the matrices inverses?') : []),
+  ];
+};
+
 const SURFACE_WORK = Object.freeze({
   // Ordinary question types.
   literal: () => respond('Answer'),
@@ -621,6 +644,7 @@ const SURFACE_WORK = Object.freeze({
   representationBridge: (question, mode) => (mode === 'linearMultipleRepresentations'
     ? linearMultipleRepresentationsWork(question)
     : linearBridgeWork(question)),
+  matrixLab: matrixLabWork,
 });
 
 /** Surfaces the profiles cover, for the coverage test. */

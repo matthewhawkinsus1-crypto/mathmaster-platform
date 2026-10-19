@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
@@ -12,6 +12,7 @@ import {
 import useToolSubmission from '../shared/useToolSubmission';
 import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import dataModelingGrader from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
 import {
@@ -26,9 +27,10 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
+import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
-  <label style={{ display:'block', fontSize:13, color:'var(--mm-text-muted)', fontWeight:700 }}>
+  <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
     {label}
     <div style={{ marginTop:5 }}>{children}</div>
   </label>
@@ -50,23 +52,59 @@ const FitStepper = ({ label, value, control, onChange }) => {
   const change = (direction) => onChange(stepFitControl(value, direction, control));
   return (
     <div role="group" aria-label={label} style={{ border:'1px solid var(--mm-tint-border)', borderRadius:10, padding:10, background:'var(--mm-surface)' }}>
-      <div style={{ fontSize:13, color:'var(--mm-text-muted)', fontWeight:800, marginBottom:7 }}>{label}</div>
+      <div style={{ fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:800, marginBottom:7 }}>{label}</div>
       <div style={{ display:'grid', gridTemplateColumns:'52px minmax(86px,1fr) 52px', gap:8, alignItems:'center' }}>
         <button type="button" aria-label={`Decrease ${label}`} disabled={lowerDisabled} onClick={() => change(-1)}
-          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:24, fontWeight:900 }}>−</button>
-        <output aria-live="polite" style={{ minHeight:48, display:'grid', placeItems:'center', borderRadius:9, background:'var(--mm-surface-sunken)', color:'var(--mm-text-strong)', fontWeight:900, fontVariantNumeric:'tabular-nums', fontSize:18 }}>
+          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:'calc(24 * var(--mm-px))', fontWeight:900 }}>−</button>
+        <output aria-live="polite" style={{ minHeight:48, display:'grid', placeItems:'center', borderRadius:9, background:'var(--mm-surface-sunken)', color:'var(--mm-text-strong)', fontWeight:900, fontVariantNumeric:'tabular-nums', fontSize:'calc(18 * var(--mm-px))' }}>
           {display}
         </output>
         <button type="button" aria-label={`Increase ${label}`} disabled={upperDisabled} onClick={() => change(1)}
-          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:24, fontWeight:900 }}>+</button>
+          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:'calc(24 * var(--mm-px))', fontWeight:900 }}>+</button>
       </div>
-      <div style={{ marginTop:6, color:'var(--mm-text-muted)', fontSize:12 }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
+      <div style={{ marginTop:6, color:'var(--mm-text-muted)', fontSize:'calc(12 * var(--mm-px))' }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
     </div>
   );
 };
 
 const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFit': 'Use linear regression technology to write the line of best fit for the complete data set.', 'quadraticFit': 'Use quadratic regression technology to write a quadratic function that fits the complete data set.', 'exponentialFit': 'Use exponential regression technology to write an exponential function that fits the complete data set.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'squareRootFitPrediction': 'Use square-root regression technology to write y = a√(x-h)+k from the table, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
 const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFit': ['Run linear regression on all observations.', 'Enter the regression slope m and intercept b.', 'Use the residual display to confirm the entered regression line matches the data.'], 'quadraticFit': ['Run quadratic regression on all observations.', 'Enter a, b, and c in y = ax² + bx + c.', 'Use the residual display to confirm the entered regression model matches the data.'], 'exponentialFit': ['Run exponential regression on all observations.', 'Enter a and base b in y = a(b)^x.', 'Use the residual display to confirm the entered regression model matches the data.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'squareRootFitPrediction': ['Run the square-root fit on the full table.', 'Enter a, h, and k in y = a√(x-h)+k.', 'Use the fitted model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+// Where hints are withheld (a secure Test or Retest), the steps say what to
+// do, never how to judge it: the judging is what those parts grade. Each of
+// these replaces a step that repeated a withheld teaching note — the residual
+// plot's ideal, how to read r, what interpolation means, how to choose a model.
+const SECURE_MODE_STEPS = {
+  'full': ['Adjust the slope and intercept to fit a line to the data.', 'Read the correlation and describe the association.', 'Compare the model families, then predict and classify.'],
+  'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Use the residual plot to judge your line.'],
+  // Box instructions since W6-4 (review S3): "Run a correlation calculation …
+  // using statistical technology" and "Use the model to compute the predicted
+  // y" named how the answer is found, and these lists are control steps.
+  'correlation': ['Enter r, to at least the thousandths place, in the Correlation coefficient r box.', 'Classify the direction and strength of the association.'],
+  'prediction': ['Enter the x-value you are predicting at.', 'Enter the predicted y in the Predicted y box.', 'Classify the prediction.'],
+  'modelCompare': ['Look at each candidate model against the data.', 'Select the best model.'],
+  // The regression modes (student pass 3, W6-4) had no list here, so a test
+  // showed no steps at all. Each step names a box and what the screen does;
+  // none says how the coefficients are found (the route the item measures:
+  // the teaching list's "Run a linear regression" stays out), how to judge
+  // the residuals, or which way to classify a prediction.
+  ...Object.fromEntries([
+    ['linearFit', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFit', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFit', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['linearFitPrediction', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFitPrediction', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFitPrediction', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['squareRootFitPrediction', 'Enter a, h and k of y = a√(x-h)+k in the three boxes.'],
+  // (No "the residual table redraws from your numbers": that pointed at the
+  // tune-against-the-residuals loop a test does not offer; review S3.)
+  ].map(([mode, entry]) => [mode, [
+    entry,
+    ...(mode.endsWith('Prediction') ? ['Enter your predicted y in the Predicted y box, then classify the prediction.'] : []),
+  ]])),
+  'association': ['Choose the direction and the strength of the association.', 'Choose what this observational data can justify.'],
+};
+// A host that names the final action ("Record answer") is the only check.
+const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/ and check\.$/, '.'));
 const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFit': ['Use the linear-regression command on the full data list.', 'Record both m and b from technology.', 'Do not replace regression with a line through two hand-picked points.'], 'quadraticFit': ['Use the quadratic-regression command on the full data list.', 'Record all three coefficients a, b, and c from technology.', 'Do not replace regression with a hand-fit through only three selected points.'], 'exponentialFit': ['Use exponential regression on the full data list.', 'Record both a and the multiplicative base b.', 'For decay the base should be between 0 and 1; for growth it should exceed 1.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'squareRootFitPrediction': ['Use the square-root regression feature on the complete table rather than selecting two convenient points.', 'Record all three fitted parameters a, h, and k in y = a√(x-h)+k.', 'The endpoint-anchored fit uses the smallest x-value as h and the endpoint output as k, then fits a from all remaining observations.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 function ResidualPlot({ rows, xMin, xMax }) {
@@ -74,7 +112,7 @@ function ResidualPlot({ rows, xMin, xMax }) {
   return (
     <CoordinatePlane xMin={xMin} xMax={xMax} yMin={scale.min} yMax={scale.max} height={250}
       points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
-      horizontalLines={[0]} enlargeable={false} />
+      horizontalLines={[0]} enlargeable={false} ariaLabel="Residual plot" />
   );
 }
 
@@ -158,6 +196,64 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
   const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // Universal Undo over every answer in the lab (TOOL-2, useFieldUndoHistory.js):
+  // a stepper press, a choice, a typed value, or running regression (which
+  // writes the line and keeps the estimate) is one step. An Undo clears the
+  // verdict as an edit does.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      m: [m, setM],
+      b: [b, setB],
+      direction: [direction, setDirection],
+      strength: [strength, setStrength],
+      causation: [causation, setCausation],
+      modelChoice: [modelChoice, setModelChoice],
+      predictionX: [predictionX, setPredictionX],
+      predictionY: [predictionY, setPredictionY],
+      predictionType: [predictionType, setPredictionType],
+      correlationEntry: [correlationEntry, setCorrelationEntry],
+      regressionTechnologyRun: [regressionTechnologyRun, setRegressionTechnologyRun],
+      regressionEstimate: [regressionEstimate, setRegressionEstimate],
+      quadraticA: [quadraticA, setQuadraticA],
+      quadraticB: [quadraticB, setQuadraticB],
+      quadraticC: [quadraticC, setQuadraticC],
+      exponentialA: [exponentialA, setExponentialA],
+      exponentialBase: [exponentialBase, setExponentialBase],
+      squareRootA: [squareRootA, setSquareRootA],
+      squareRootH: [squareRootH, setSquareRootH],
+      squareRootK: [squareRootK, setSquareRootK],
+    },
+    onRestore: () => clearFeedback(),
+  });
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check data model');
+  // The lab's teaching notes (how to read r, what a residual plot should look
+  // like, how to choose a model) answer parts it asks. They are hints: shown
+  // where hints are, withheld on a secure item.
+  // Withheld wherever the method is (W6-4 review N3): hints off, or verdicts
+  // withheld with hints on.
+  const methodWithheld = useMethodWithheld();
+  const teachingNotes = !methodWithheld;
+  // THE ERROR READOUTS ARE A VERDICT (student pass 3, W6-4; found on the base).
+  // The live MAE · RMSE under the student's model let them tune until the
+  // numbers bottomed out, and each candidate's RMSE · MAE in modelCompare
+  // ranks the candidates — nearly the answer to "Select the best model".
+  // Where the activity withholds verdicts and the method (an exit ticket,
+  // quiz or test before release) neither is shown; practice keeps both.
+  const errorReadouts = !methodWithheld;
+  const hostSubmitLabel = useHostSubmitLabel();
+  const guideSteps = teachingNotes
+    ? (MODE_STEPS[mode] || MODE_STEPS.full)
+    : (SECURE_MODE_STEPS[mode] || MODE_STEPS[mode] || SECURE_MODE_STEPS.full);
+  // A secure list says only how to work the boxes, so each of its steps is a
+  // control step and stays on a test; the teaching list is the method and
+  // goes wherever the method is withheld (W6-4). Marked step by step rather
+  // than `stepsAreControls`, so the directions sentence ("Use linear
+  // regression technology…", which names the route) never comes back with it.
+  const secureSteps = !teachingNotes && Boolean(SECURE_MODE_STEPS[mode]);
+  const wordedSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
+  const taskSteps = secureSteps ? wordedSteps.map(controlStep) : wordedSteps;
 
   const studentPredict = useMemo(() => {
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -287,10 +383,15 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
-      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
+      {/* The secure lists were written to say what to do, never how to judge
+          it, so they are shown where the method is withheld (R-10). A mode
+          with no secure list falls back to its teaching steps, which are not. */}
+      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} />
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane
+            // Named for what it is (student pass 3, Q-8): it read "Coordinate plane".
+            ariaLabel="Scatter plot of the data and your model"
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
@@ -328,7 +429,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
                         <div>
                           <strong style={{ color:'var(--mm-primary-text)' }}>Regression technology</strong>
-                          <div style={{ marginTop:3, color:'var(--mm-text-muted)', fontSize:12 }}>After making your estimate, run linear regression on the full data set. Its line becomes your model.</div>
+                          <div style={{ marginTop:3, color:'var(--mm-text-muted)', fontSize:'calc(12 * var(--mm-px))' }}>After making your estimate, run linear regression on the full data set. Its line becomes your model.</div>
                         </div>
                         <button
                           type="button"
@@ -358,7 +459,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                             <span style={{ marginLeft:10, color:'var(--mm-text-muted)', fontWeight:700 }}>r ≈ {formatCorrelation(r)}</span>
                           </output>
                           {regressionEstimate ? (
-                            <span style={{ color:'var(--mm-text-muted)', fontSize:13 }}>
+                            <span style={{ color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>
                               Your estimate was y = {regressionEstimate.m}x {Number(regressionEstimate.b) >= 0 ? '+' : '−'} {Math.abs(Number(regressionEstimate.b))}
                             </span>
                           ) : null}
@@ -392,14 +493,14 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
                         : <>y = {shownSlope}x {Number(b) >= 0 ? '+' : '−'} {shownInterceptMagnitude}</>}
-                  <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
+                  {errorReadouts ? <><br/><span data-model-error-readout="" style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span></> : null}
                 </div>
               ) : (
-                <p style={{margin:'10px 0 0',fontSize:13,color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
+                <p style={{margin:'10px 0 0',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
               )}
             </>
           ) : (
-            <p style={{margin:'12px 0 0',fontSize:13,color:'var(--mm-text-muted)'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
+            <p style={{margin:'12px 0 0',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
         </Panel>
 
@@ -417,7 +518,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   style={inputStyle}
                 />
               </Field>
-              <p style={{ margin:'7px 0 0', color:'var(--mm-text-muted)', fontSize:13 }}>
+              <p style={{ margin:'7px 0 0', color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>
                 Calculate r from the x- and y-data using statistical technology. The lab intentionally does not display r in this mode.
               </p>
             </div>
@@ -437,24 +538,30 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </select>
             </Field>
           ) : null}
-          <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
-            {mode === 'correlation'
-              ? 'Interpret r by its sign (direction) and magnitude (strength).'
-              : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
-          </div>
+          {teachingNotes ? (
+            <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:'calc(13 * var(--mm-px))' }}>
+              {mode === 'correlation'
+                ? 'Interpret r by its sign (direction) and magnitude (strength).'
+                : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
+            </div>
+          ) : null}
         </Panel> : null}
 
         {showResidualPanel ? <Panel title={`${panelNumbers.residual} · Residual evidence`}>
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
-              <div style={{ maxHeight:185, overflow:'auto', border:'1px solid var(--mm-border-soft)', borderRadius:8, marginTop:10 }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              {/* A scrolling box is a tab stop in Chrome whether or not it says
+                  so; this one is named, so a keyboard or screen-reader student
+                  lands on "Residual table" and scrolls it with the arrow keys
+                  (keyboard sweep T6). */}
+              <div role="region" aria-label="Residual table" tabIndex={0} data-residual-table-scroller="true" style={{ maxHeight:185, overflow:'auto', border:'1px solid var(--mm-border-soft)', borderRadius:8, marginTop:10 }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'calc(12 * var(--mm-px))' }}>
                   <thead><tr style={{ background:'var(--mm-surface-sunken)' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
                   <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
                 </table>
               </div>
-              <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+              {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))', marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p> : null}
             </div>
           ) : (
             <p style={{margin:0,color:'var(--mm-text-muted)'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
@@ -466,11 +573,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             {candidateModels.map((entry) => (
               <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:modelChoice===entry.id?'var(--mm-primary-subtle)':'var(--mm-surface)' }}>
                 <input type="radio" name="modelChoice" checked={modelChoice===entry.id} onChange={()=>setModelChoice(entry.id)} />
-                <span><strong>{entry.label}</strong><br/><span style={{fontSize:12,color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
+                <span><strong>{entry.label}</strong>{errorReadouts ? <><br/><span data-model-error-readout="" style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></> : null}</span>
               </label>
             ))}
           </div>
-          <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
+          {teachingNotes ? <p style={{ color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p> : null}
         </Panel> : null}
 
         {showPredictionPanel ? <Panel title={`${panelNumbers.prediction} · ${asksPredictionType ? 'Prediction and reasonableness' : 'Prediction'}`}>
@@ -479,18 +586,17 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
           {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
-          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
+          {asksPredictionType && teachingNotes ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div> : null}
         </Panel> : null}
 
         <Panel title="Submit model reasoning">
           <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>Check data model</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>{submitActionLabel}</button>
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
               {(() => {
                 const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
                 const missed = parts.filter((part) => !part.isCorrect).map((part) => part.id);
@@ -498,9 +604,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
-                return <p style={{ margin:'9px 0 0', color:'var(--mm-text)', lineHeight:1.55 }}>{text}</p>;
+                return <ResultPill ok={feedback.isCorrect} message={text}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>;
               })()}
-              <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:13, color:'var(--mm-text-muted)' }}>
+              <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
                 <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.
               </div>
             </div>

@@ -48,12 +48,19 @@ import {
   STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS,
   buildTeacherRosterSummaryRow, compareStudentIdentities, validateStudentNameInput,
 } from '../../../functions/shared/studentIdentity.mjs';
+import {
+  districtIdChangeRecord, districtStudentIdVariants, findDistrictStudentIdConflict,
+  mayChangeStudentDistrictId, validateDistrictStudentIdInput,
+} from '../../../functions/shared/studentDistrictId.mjs';
 import { runSectionRecoveryAction } from '../../../functions/shared/sectionRecoveryActions.mjs';
+import { collectWeeklyPathSessions, weeklyCompletionWindow } from '../../../functions/shared/weeklyPathCompletion.mjs';
+import { buildWeeklyPathHistory } from '../../../functions/shared/weeklyPathHistory.mjs';
 import {
   HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryActionsFor, heldRecoveryItemIds, isHeldRecoveryAction,
 } from '../../../functions/shared/sectionRecoveryResolution.mjs';
 import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
 import { recoveryContextFor } from './recoveryFixture.js';
+import { ingestStudentSubmissions as ingestLikeTheServer } from './fakeServer.js';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -150,11 +157,18 @@ const writeRecoveryRecord = ({ studentId, assignmentId, section, record }) => {
   byAssignment[assignmentId] = { ...byAssignment[assignmentId], [section]: record };
   harnessStore.set(path, { ...grade, sectionRecoveryByAssignment: byAssignment });
 };
-const harnessRecoveryContext = ({ studentId, assignmentId, section }) => {
+// The student's stored evidence on this assignment, as advanceSectionRecovery
+// reads it for the actions that deal a Practice item (targeted Recovery).
+const harnessMisconceptionRecords = ({ studentId, assignmentId }) => ['evidenceEvents', 'misconceptionEvidence']
+  .flatMap((collection) => harnessStore.paths(`grades/${studentId}/${collection}/`))
+  .map((path) => harnessStore.get(path))
+  .filter((data) => data?.source?.assignmentId === assignmentId);
+const harnessRecoveryContext = ({ studentId, assignmentId, section, action = 'status' }) => {
   const stored = harnessStore.get(`assignments/${assignmentId}`);
   if (!stored) throw rejection('not-found', 'That assignment is no longer available.');
   const gradeData = harnessStore.get(`grades/${studentId}`) || {};
   return recoveryContextFor({
+    misconceptionRecords: ['status', 'practice'].includes(action) ? harnessMisconceptionRecords({ studentId, assignmentId }) : null,
     assignment: { id: assignmentId, ...stored },
     gradeData,
     studentId,
@@ -209,7 +223,7 @@ const MIGRATION_COUNTERS = [
 const handlers = {
   advanceSectionRecovery: ({ assignmentId, section, action = 'status', payload = {} } = {}) => {
     const studentId = requireStudent();
-    const context = harnessRecoveryContext({ studentId, assignmentId, section });
+    const context = harnessRecoveryContext({ studentId, assignmentId, section, action });
     let outcome;
     try {
       outcome = runSectionRecoveryAction({ context, action, payload: payload || {}, at: Date.now() });
@@ -580,9 +594,46 @@ const handlers = {
     if (!existing.uploadConfirmedAt) harnessStore.update(path, { uploadConfirmedAt: Timestamp.now(), uploadConfirmedByEmail: TEACHER_EMAIL });
     return { transferId, confirmed: true };
   },
-  setStudentSisId: ({ studentId, sisStudentId }) => {
-    harnessStore.update(`grades/${studentId}`, { sisStudentId });
-    return { studentId, sisStudentId };
+  // Setting or correcting a district (SIS) ID, with the REAL rules the
+  // callable runs (functions/shared/studentDistrictId.mjs): digits only; the
+  // teacher of record or the root administrator; refused when another student
+  // already answers to the number — as a stored district ID or as an account
+  // ID, leading zeros ignored; and an audit entry keeping the previous value.
+  // Only the district ID fields change: never the account ID or the work.
+  setStudentSisId: ({ studentId: rawId, sisStudentId: rawDistrictId } = {}) => {
+    const studentId = String(rawId || '').trim();
+    if (!studentId || studentId.length > 180 || studentId.includes('/')) throw callableError('invalid-argument', 'studentId is required.');
+    const checked = validateDistrictStudentIdInput(rawDistrictId);
+    if (!checked.ok) throw callableError('invalid-argument', checked.error);
+    const path = `grades/${studentId}`;
+    const stored = harnessStore.get(path);
+    if (!stored) throw callableError('not-found', 'That student is not on the MathMaster roster.');
+    const student = selectFields(stored, ['assignedTeacherEmail', 'classId', 'sisStudentId']);
+    const classRecord = student.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    if (!mayChangeStudentDistrictId({ callerEmail: TEACHER_EMAIL, isRootAdmin: harness.rootAdmin === true, student, classRecord })) {
+      throw callableError('permission-denied', "Only this student's teacher of record can change the student's district ID.");
+    }
+    const variants = new Set(districtStudentIdVariants(checked.value));
+    const roster = rosterPaths().map((rosterPath) => ({ id: rosterPath.split('/')[1], data: harnessStore.get(rosterPath) || {} }));
+    const conflict = findDistrictStudentIdConflict({
+      studentId,
+      districtId: checked.value,
+      districtIdHolders: roster.filter(({ data }) => variants.has(String(data.sisStudentId ?? '').trim())).map(({ id }) => id),
+      accountIdHolders: roster.filter(({ id }) => variants.has(id)).map(({ id }) => id),
+    });
+    if (conflict) throw callableError('already-exists', conflict.message);
+    const change = districtIdChangeRecord({ studentId, student, districtId: checked.value, classId: student.classId || null });
+    harnessStore.update(path, {
+      sisStudentId: checked.value,
+      sisStudentIdVerifiedAt: Timestamp.now(),
+      sisStudentIdVerifiedBy: TEACHER_EMAIL,
+      updatedAt: Timestamp.now(),
+    });
+    harnessStore.set(`adminAuditLog/sis_${studentId}_${Date.now()}`, {
+      actorUid: 'harness-teacher-uid', actorEmail: TEACHER_EMAIL, action: 'sis_student_id_set', target: studentId,
+      details: change.details, createdAt: Timestamp.now(),
+    });
+    return change.response;
   },
   // The Student Case Review's read-only callable, with the real request
   // validation, teacher-of-record decision and response projection
@@ -655,6 +706,10 @@ const handlers = {
   // class's teacher of record only, the student in that class, then the
   // student's grants, redemptions, latest Class Points and Live Challenge
   // reward explanations for the class.
+  // Growth rewards (functions/lib/growthRewards.js): a signed-in student's app
+  // asks once per session for awards earned since the last visit. The harness
+  // has no records that earn one, so it answers like a sync with nothing new.
+  syncStudentGrowthRewards: () => ({ delivered: [], alreadyDelivered: 0, skipped: [] }),
   getStudentRewards: ({ studentId, classId } = {}) => {
     const student = String(studentId || '').trim();
     const cls = String(classId || '').trim();
@@ -697,6 +752,35 @@ const handlers = {
     }
     return { success: true, goal: harnessStore.get(`weeklyPathGoalSnapshots/${studentId}__${key}`) || null };
   },
+  // The signed-in student's weekly Path completions (functions/index.js
+  // getMyWeeklyPathCompletions): the shared completion rule
+  // (weeklyPathCompletion.mjs) over the student's own pathSessions documents —
+  // only a session the server marked "completed" counts.
+  getMyWeeklyPathCompletions: ({ weekKey } = {}) => {
+    const studentId = requireStudent();
+    const key = String(weekKey || '').trim();
+    if (!weeklyCompletionWindow(key)) throw rejection('invalid-argument', 'A valid weekly Path weekKey is required.');
+    const sessions = harnessStore.paths('pathSessions/')
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => entry.data?.studentId === studentId);
+    const { completions, inProgress } = collectWeeklyPathSessions({ sessions, weekKey: key });
+    return { success: true, weekKey: key, completions, inProgress, truncated: false };
+  },
+  // The signed-in student's past weekly goals and grades (functions/index.js
+  // getMyWeeklyPathHistory), built by the callable's own builder from the
+  // frozen goals and sessions in the harness.
+  getMyWeeklyPathHistory: () => {
+    const studentId = requireStudent();
+    const goalsByWeekKey = {};
+    harnessStore.paths(`weeklyPathGoalSnapshots/${studentId}__`).forEach((path) => {
+      const goal = harnessStore.get(path);
+      if (goal?.weekKey) goalsByWeekKey[goal.weekKey] = goal;
+    });
+    const sessions = harnessStore.paths('pathSessions/')
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => entry.data?.studentId === studentId);
+    return { success: true, ...buildWeeklyPathHistory({ goalsByWeekKey, sessions, now: Date.now() }) };
+  },
   // A student device's report of what its durable queue still holds
   // (functions/index.js reportStudentDeviceQueue): counts only, written as a
   // whole snapshot, and only when strictly newer than the stored report.
@@ -737,6 +821,15 @@ const handlers = {
 };
 
 export const getFunctions = () => ({ region: 'harness' });
+// `?server=1`: the harness runs server ingestion (fakeServer.js — the shared
+// modules functions/index.js runs), so a Submit becomes a canonical attempt
+// instead of staying queued. Off by default: the journeys written before it
+// read "submitted" from the device's own queue, and still do.
+harness.serverIngestion = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('server') === '1';
+if (harness.serverIngestion) {
+  handlers.ingestStudentSubmissions = ({ submissions = [] } = {}) => ingestLikeTheServer({ studentId: requireStudent(), submissions });
+}
+
 export const connectFunctionsEmulator = () => {};
 export const unimplementedCallableError = (name) => Object.assign(
   new Error(`The teacher harness has no fake for the callable "${name}" (functions/unimplemented). Add one to tests/browser/teacherWorkflow/fakeFunctions.js if a journey needs it.`),

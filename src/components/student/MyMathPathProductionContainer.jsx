@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { questionCountText } from '../../platform/student/countText.js';
 import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
@@ -9,6 +10,43 @@ import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js
 import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
+import { describeRetentionCheckOutcome } from '../../platform/retention/retentionCheckPresentation.js';
+import { SESSION_END_STEP, chooseSessionEndNextStep } from '../../platform/path/pathSessionEnd.js';
+import {
+  SKILLS_UPDATE_PATIENCE_MS, describeSessionSkillsMoved, snapshotMasteryAtSessionStart,
+} from '../../platform/mastery/sessionSkillMovement.js';
+import { weeklyStartLabel } from './WeeklyPathGoalPanel.jsx';
+import MyMathPathSessionRecap from './MyMathPathSessionRecap.jsx';
+import MyMathPathSkillsMoved from './MyMathPathSkillsMoved.jsx';
+
+const END_PRIMARY = { minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
+const END_SECONDARY = { minHeight: 44, padding: '11px 18px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' };
+
+// What the end screen leads with: the next weekly session when the week has
+// one left (chooseSessionEndNextStep), and always the way back to the Path.
+function SessionEndActions({ nextStep, onStartNext, onReturnToDashboard, showProgress = true }) {
+  const startNext = nextStep?.kind === SESSION_END_STEP.START_NEXT_WEEKLY && typeof onStartNext === 'function';
+  const next = startNext ? nextStep.nextSession : null;
+  const done = startNext ? Math.max(0, Number(nextStep.required || 0) - Number(nextStep.remaining || 0)) : 0;
+  return (
+    <div style={{ display: 'grid', gap: 10, justifyItems: 'center' }}>
+      {startNext && showProgress && nextStep.required > 0 && (
+        <p style={{ margin: 0, color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 750, lineHeight: 1.5 }}>
+          {done} of {nextStep.required} weekly sessions done — {nextStep.remaining} to go.
+          {next?.studentLabel || next?.teksCode ? <> Next up: <strong>{next.studentLabel || next.teksCode}</strong>.</> : null}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {startNext && (
+          <button type="button" onClick={() => onStartNext(next)} style={END_PRIMARY}>
+            {weeklyStartLabel(next, nextStep.nextInProgress, nextStep.required)}
+          </button>
+        )}
+        <button type="button" onClick={onReturnToDashboard} style={startNext ? END_SECONDARY : END_PRIMARY}>Back to My Math Path</button>
+      </div>
+    </div>
+  );
+}
 
 // The session runtime is injected.
 //
@@ -31,6 +69,9 @@ export const MyMathPathProductionContainer = ({
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  // The alternative swapped into this weekly slot, if any. A label for the
+  // server, which authorizes the launch against the frozen slot.
+  chosenSkillId = null,
   intendedDok = null,
   intendedDifficultyBand = null,
   weeklyPurpose = null,
@@ -38,6 +79,15 @@ export const MyMathPathProductionContainer = ({
   completesWeeklyGoal = false,
   studentProfile,
   sessionProvider = null,
+  // The unified mastery profiles the Path renders from, and the live server
+  // profile (the live app only; null in the simulator). "Skills that moved"
+  // compares the two across this session.
+  masteryProfilesByTEKS = null,
+  liveServerMasteryProfiles = null,
+  // The week once this session is counted (describeWeeklySessionEnd), and the
+  // launcher for the next weekly session — null wherever launching is refused.
+  weeklySessionEnd = null,
+  onStartNextWeeklySession = null,
   onReturnToDashboard,
   onSessionComplete,
   onSimulationController = null,
@@ -49,6 +99,7 @@ export const MyMathPathProductionContainer = ({
     fetchNextSanitizedQuestion,
     submitStudentResponse,
     forceCurrentQuestionOutcome = null,
+    fetchPathSessionRecap = null,
   } = provider;
   const [session, setSession] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -78,6 +129,20 @@ export const MyMathPathProductionContainer = ({
   // leading with Retry and leads with the way out instead.
   const [retryCount, setRetryCount] = useState(0);
   const [slowLoad, setSlowLoad] = useState(false);
+  // Where the student's mastery stood when this session opened. Frozen at
+  // mount — the container is keyed per launch — so "Skills that moved" is
+  // measured from before the session, not from the last reload.
+  const [masteryAtStart] = useState(() => snapshotMasteryAtSessionStart({
+    masteryProfilesByTEKS,
+    serverProfiles: liveServerMasteryProfiles,
+  }));
+  // What the session already held when it first loaded here. A resumed
+  // session carries answers from before the break; "Skills that moved" waits
+  // only for the answers given on this screen.
+  const [evidenceAtLoad, setEvidenceAtLoad] = useState(null);
+  const [recap, setRecap] = useState({ status: 'idle' });
+  const [recapRequest, setRecapRequest] = useState(0);
+  const [skillsPatienceExpired, setSkillsPatienceExpired] = useState(false);
 
   // One canonical launch description is reused for start and release rollover.
   // This is what keeps a frozen weekly slot, its assessment framework, and its
@@ -91,13 +156,16 @@ export const MyMathPathProductionContainer = ({
     weekKey,
     weeklySlotKey,
     weeklySlot,
+    // Forwarded by both runtimes, so a swapped weekly session is relaunched
+    // as the same swap after a content-release rollover.
+    chosenSkillId,
     // Synthetic Teacher Path Runtime consumes these. The live service
     // deliberately does not forward them to Firebase; production resolves
     // rigor from the frozen server weekly snapshot.
     intendedDok,
     intendedDifficultyBand,
     weeklyPurpose,
-  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, intendedDok, intendedDifficultyBand, weeklyPurpose]);
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, chosenSkillId, intendedDok, intendedDifficultyBand, weeklyPurpose]);
 
   const contentRefreshNotice = {
     headline: 'Practice updated',
@@ -424,6 +492,42 @@ export const MyMathPathProductionContainer = ({
     return () => onSimulationController(null);
   }, [onSimulationController, session, currentQuestion, submitting, forceCurrentQuestionOutcome, forceOutcomeFromSimulator]);
 
+  // THE RECAP IS ASKED FOR ONLY ONCE THE SESSION IS COMPLETED. Every item in it
+  // is closed by then; the server refuses an active session regardless.
+  const sessionCompleted = session?.status === 'completed';
+  const completedSessionId = sessionCompleted ? session?.sessionId || null : null;
+  useEffect(() => {
+    if (!completedSessionId || typeof fetchPathSessionRecap !== 'function') return undefined;
+    let cancelled = false;
+    setRecap({ status: 'loading' });
+    fetchPathSessionRecap({ sessionId: completedSessionId })
+      .then((data) => { if (!cancelled) setRecap({ status: 'ready', data: data || {} }); })
+      .catch((caught) => { if (!cancelled) setRecap({ status: 'error', message: caught?.message || null }); });
+    return () => { cancelled = true; };
+  }, [completedSessionId, fetchPathSessionRecap, recapRequest]);
+
+  // The mastery trigger lands a moment after the last answer. Wait for it, but
+  // not forever: after a while the screen says where the update will appear.
+  useEffect(() => {
+    if (!sessionCompleted) return undefined;
+    const timer = setTimeout(() => setSkillsPatienceExpired(true), SKILLS_UPDATE_PATIENCE_MS);
+    return () => clearTimeout(timer);
+  }, [sessionCompleted]);
+
+  useEffect(() => {
+    if (session && evidenceAtLoad === null) setEvidenceAtLoad(session.evidenceBySkill || {});
+  }, [session, evidenceAtLoad]);
+
+  const skillsMoved = useMemo(() => describeSessionSkillsMoved({
+    session,
+    start: masteryAtStart,
+    liveServerProfiles: liveServerMasteryProfiles,
+    currentProfiles: masteryProfilesByTEKS,
+    simulated: Boolean(sessionProvider),
+    patienceExpired: skillsPatienceExpired,
+    evidenceAtLoad,
+  }), [session, masteryAtStart, liveServerMasteryProfiles, masteryProfilesByTEKS, sessionProvider, skillsPatienceExpired, evidenceAtLoad]);
+
   if (loading) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--mm-primary-text)' }}>
@@ -432,7 +536,7 @@ export const MyMathPathProductionContainer = ({
             the browser's Back button. */}
         {slowLoad && (
           <div style={{ marginTop: 18 }}>
-            <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.6 }}>
               This is taking longer than it should. Your work is safe — you can wait, or go back and try a different skill.
             </p>
             {onReturnToDashboard && <button
@@ -451,12 +555,12 @@ export const MyMathPathProductionContainer = ({
   if (configurationError) {
     return (
       <section role="alert" style={{ maxWidth: 620, margin: '40px auto', padding: 24, borderRadius: 12, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', textAlign: 'left' }}>
-        <h1 style={{ margin: '0 0 8px', fontSize: 20, color: 'var(--mm-warning-text)' }}>My Math Path is not available right now</h1>
+        <h1 style={{ margin: '0 0 8px', fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>My Math Path is not available right now</h1>
         <p style={{ margin: '0 0 12px', lineHeight: 1.6 }}>
           This is a setup problem on the site, not a problem with your work. Nothing you have done has been lost.
           Please tell your teacher.
         </p>
-        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>{configurationError}</p>
+        <p style={{ margin: '0 0 14px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>{configurationError}</p>
         {/* THE TRAP THIS ENDS. Both error screens used to offer Retry and
             nothing else. A configuration problem does not fix itself between
             two clicks, so the student pressed Retry, saw the same message, and
@@ -476,7 +580,7 @@ export const MyMathPathProductionContainer = ({
         </button>}
         </div>
         {retryCount >= 2 && (
-          <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
+          <p style={{ margin: '12px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
             Trying again has not helped, so this needs your teacher rather than another click. Everything else on your path is still open.
           </p>
         )}
@@ -502,16 +606,16 @@ export const MyMathPathProductionContainer = ({
           textAlign: 'left',
         }}
       >
-        <h1 style={{ margin: '0 0 8px', fontSize: 21, color: 'inherit' }}>
-          {completedSessionError ? 'This Path pass is already complete' : 'Next level is temporarily unavailable'}
+        <h1 style={{ margin: '0 0 8px', fontSize: 'calc(21 * var(--mm-px))', color: 'inherit' }}>
+          {completedSessionError ? 'This practice round is already done' : 'Next level is temporarily unavailable'}
         </h1>
         <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: 'var(--mm-text)' }}>
           {completedSessionError
             ? 'Your completed pass is saved. Return to My Math Path to see its completion badge and choose the next level or another open skill.'
-            : 'Your earlier Path pass is still complete. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
+            : 'Your earlier practice round is still done. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
         </p>
         {!completedSessionError && (
-          <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: 'var(--mm-warning-text)' }}>
+          <p style={{ margin: '0 0 14px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6, color: 'var(--mm-warning-text)' }}>
             Your teacher can repair the affected question family in Path content coverage. This does not erase the level you already completed.
           </p>
         )}
@@ -536,7 +640,7 @@ export const MyMathPathProductionContainer = ({
       <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', textAlign: 'left' }}>
         <strong style={{ display: 'block', marginBottom: 6 }}>This skill could not start</strong>
         <p style={{ margin: '0 0 10px', lineHeight: 1.6 }}>{error}</p>
-        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 14px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
           Nothing you have done has been lost, and the rest of your path is still open.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -565,7 +669,17 @@ export const MyMathPathProductionContainer = ({
     const sessionAccuracy = Number(session?.summary?.correctQuestions || 0) / completedCount;
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
-    const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
+    // The week as it stands once THIS session is counted — by the server's
+    // completion rule, so a paused session never reads as the goal met.
+    const nextStep = chooseSessionEndNextStep({
+      session,
+      weeklyEnd: weeklySessionEnd,
+      completesWeeklyGoal,
+      canStartNext: typeof onStartNextWeeklySession === 'function',
+    });
+    const weeklyTargetReached = nextStep.kind === SESSION_END_STEP.WEEKLY_GOAL_COMPLETE;
+    const goalSessions = nextStep.required || weeklyGoalRequired;
+    const recapHasItems = recap.status === 'ready' && Array.isArray(recap.data?.items) && recap.data.items.length > 0;
     const weeklyPurposeLabel = session?.weeklySlotKey
       ? (PURPOSE_LABEL[session?.weeklyPurpose] || 'Weekly Path')
       : null;
@@ -578,7 +692,11 @@ export const MyMathPathProductionContainer = ({
       : null;
     const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
     const nextCourseLevel = coursePassLevel && coursePassLevel < 3 ? coursePassLevel + 1 : null;
+    // The server's verdict on a finished retention check, so the student learns
+    // what it showed before the Path reloads with the moved schedule.
+    const retentionVerdict = paused ? null : describeRetentionCheckOutcome(session);
     return (
+      <div style={{ padding: '0 16px', boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
       <section style={{
         maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
         border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid var(--mm-border)',
@@ -587,8 +705,11 @@ export const MyMathPathProductionContainer = ({
         textAlign: 'center',
         boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
       }}>
-        {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
-        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+        {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 'calc(54 * var(--mm-px))', lineHeight: 1, marginBottom: 8 }}>🎉</div>}
+        {/* Sized here: the global h1 is 56px with no line height, so a
+            two-line title ("Current learning complete", "Retention check
+            complete") drew its lines on top of each other. */}
+        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 'clamp(calc(26 * var(--mm-px)), calc(7vw * var(--mm-text-scale, 1)), calc(32 * var(--mm-px)))' : 'clamp(calc(24 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))', lineHeight: 1.2, letterSpacing: '-0.3px', margin: '0 0 12px' }}>
           {weeklyTargetReached
             ? 'Weekly target reached!'
             : paused
@@ -601,36 +722,44 @@ export const MyMathPathProductionContainer = ({
                     ? 'Challenge complete'
                     : coursePassLevel
                     ? `Level ${coursePassLevel} complete`
-                    : 'Session complete'}
+                    : session?.sessionKind === 'retentionProbe'
+                      ? `${PURPOSE_LABEL.retention} complete`
+                      : 'Session complete'}
         </h1>
+        {retentionVerdict && (
+          <div role="status" style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: retentionVerdict.passed ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: retentionVerdict.passed ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55, textAlign: 'left' }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>{retentionVerdict.headline}</strong>
+            {retentionVerdict.message}
+          </div>
+        )}
         {weeklyTargetReached && (
-          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: 'var(--mm-success-text)', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
-            {weeklyGoalRequired
-              ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
+          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: 'var(--mm-success-text)', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 800, lineHeight: 1.55 }}>
+            {goalSessions
+              ? `You completed all ${goalSessions} of ${goalSessions} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
-            {' '}Free-choice paths are unlocked for the rest of the week.
+            {' '}Anything else you practise this week is extra.
           </div>
         )}
         {courseChallengeIntent && !paused && (
           <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', lineHeight: 1.55 }}>
             <strong style={{ display: 'block', marginBottom: 3 }}>Ahead-of-class Challenge complete</strong>
-            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Mastery challenge pass loop for this skill.
+            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Stretch practice levels for this skill.
           </div>
         )}
         {coursePassLevel && !paused && (
           <div style={{ margin: '0 auto 16px', maxWidth: 540 }}>
-            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
-              ✓ Path Pass {coursePassLevel} complete · {coursePassName}
+            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+              ✓ Level {coursePassLevel} round done · {coursePassName}
             </div>
-            <p style={{ margin: '10px 0 0', color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '10px 0 0', color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.6 }}>
               {nextCourseLevel
-                ? `This pass is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
-                : 'This advanced pass is recorded on your Path card. If the mastery evidence is not complete yet, you can continue advanced practice without losing any completed passes.'}
+                ? `This round is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
+                : 'This Level 3 round is recorded on your Path card. If the mastery evidence is not complete yet, you can keep practising at this level without losing any completed rounds.'}
             </p>
           </div>
         )}
         {directAssessment && !paused && (
-          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}>
+          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
             {FRAMEWORK_LABELS[session.assessmentFramework] || session.assessmentFramework} · {challenge.shortLabel}
           </div>
         )}
@@ -638,8 +767,8 @@ export const MyMathPathProductionContainer = ({
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
             : coursePassLevel
-              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this Path pass.`
-              : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
+              ? `You completed ${questionCountText(session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0)} in this practice round.`
+              : `You worked through ${questionCountText(session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0)}.`}
         </p>
         {!paused && (
           <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', lineHeight: 1.6 }}>
@@ -667,8 +796,17 @@ export const MyMathPathProductionContainer = ({
               : 'This set stays at the current level on your next visit so you can strengthen the assessment format before the difficulty rises.'}
           </div>
         )}
-        <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to My Math Path</button>
+        <MyMathPathSkillsMoved skillsMoved={skillsMoved} />
+        <SessionEndActions nextStep={nextStep} onStartNext={onStartNextWeeklySession} onReturnToDashboard={onReturnToDashboard} />
       </section>
+      <MyMathPathSessionRecap recap={recap} onRetry={() => setRecapRequest((value) => value + 1)} />
+      {/* A long review ends where it was read, with the same way on. */}
+      {recapHasItems && (
+        <div style={{ maxWidth: 650, margin: '-16px auto 40px' }}>
+          <SessionEndActions nextStep={nextStep} onStartNext={onStartNextWeeklySession} onReturnToDashboard={onReturnToDashboard} showProgress={false} />
+        </div>
+      )}
+      </div>
     );
   }
 

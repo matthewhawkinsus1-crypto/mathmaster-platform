@@ -20,14 +20,15 @@ test('signed-in clients subscribe to live class schedule changes', () => {
 });
 
 test('student pack-up message remains final-five-minutes only', () => {
-  const start = app.indexOf('const renderStudentPackUpBanner');
+  const start = app.indexOf('const renderStudentPackUpNotice');
   const end = app.indexOf('const renderStudentWarmupBanner', start);
-  assert.ok(start >= 0 && end > start, 'student pack-up banner block must exist');
+  assert.ok(start >= 0 && end > start, 'student pack-up line block must exist');
   const block = app.slice(start, end);
 
   assert.match(block, /minutesBeforeEnd: 5/);
   assert.match(block, /if \(packUp\.status !== 'active'\) return null/);
-  assert.match(block, /PACK UP & RETURN TECHNOLOGY/);
+  // NAV-24: a slim line, not a full-width shout; it still says to pack up.
+  assert.match(block, /Pack up and return your device\./);
   assert.doesNotMatch(block, /Return technology at/i);
   assert.doesNotMatch(block, /scheduled return/i);
   assert.doesNotMatch(block, /pack up early/i);

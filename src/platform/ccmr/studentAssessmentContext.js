@@ -6,46 +6,14 @@
 // per screen would let two CCMR surfaces disagree about the same student, which
 // is the mistake `studentPathOptions.js` exists to prevent on the course side.
 //
-// Pure apart from the goal store, which is deliberately local: a student's
-// "I'm preparing for the ACT" is a preference, not an academic record, and it
-// should not need a Firestore rule deploy to work.
+// Pure. The student's goals arrive as data: they are the framework ids of the
+// student's saved CCMR plan (studentCcmrPlans, read by ccmrPlanStore.js). They
+// used to be kept in each browser's localStorage, which tied a goal to a
+// laptop and showed a teacher their OWN browser's copy instead of the
+// student's plan.
 
 import { buildAssessmentEvidence } from './assessmentEvidence.js';
 import { getDirectAlignmentIndex, ASSESSMENT_FRAMEWORKS } from './assessmentCrosswalk.js';
-
-const GOAL_STORAGE_PREFIX = 'mathmaster:ccmrGoals:';
-
-const storage = () => {
-  try {
-    return typeof window !== 'undefined' ? window.localStorage : null;
-  } catch {
-    // Private browsing and blocked storage both throw on access rather than
-    // returning null, and neither is a reason to break the screen.
-    return null;
-  }
-};
-
-export const readCcmrGoals = (studentId) => {
-  if (!studentId) return [];
-  try {
-    const raw = storage()?.getItem(`${GOAL_STORAGE_PREFIX}${studentId}`);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id) => ASSESSMENT_FRAMEWORKS.includes(id)) : [];
-  } catch {
-    return [];
-  }
-};
-
-export const writeCcmrGoals = (studentId, goals) => {
-  if (!studentId) return;
-  try {
-    const clean = (Array.isArray(goals) ? goals : []).filter((id) => ASSESSMENT_FRAMEWORKS.includes(id));
-    storage()?.setItem(`${GOAL_STORAGE_PREFIX}${studentId}`, JSON.stringify(clean));
-  } catch {
-    // A student whose browser refuses storage still gets the session's choice;
-    // it simply does not survive a reload.
-  }
-};
 
 /**
  * The assessment context for one student.

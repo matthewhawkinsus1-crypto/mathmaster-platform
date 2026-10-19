@@ -1,0 +1,1647 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Solving Systems with Matrices",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Module 1/Topic 2/Lesson 3",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "shared",
+      "dol": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Getting Started: Track What Sold",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3m-wu-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting Started — Track What Sold. The lacrosse team sold $20, $25, and $50 gas cards and grocery cards in November and December. Mr. Lopez wrote the sales in sentences. Ms. Tanaka recorded them as the two arrays below: rows are the card values, columns are the card type.",
+          "matrices": {
+            "Nov": {
+              "rows": [
+                [
+                  230,
+                  112
+                ],
+                [
+                  110,
+                  89
+                ],
+                [
+                  550,
+                  95
+                ]
+              ],
+              "rowLabels": [
+                "$20 cards",
+                "$25 cards",
+                "$50 cards"
+              ],
+              "colLabels": [
+                "Gas",
+                "Grocery"
+              ],
+              "caption": "November"
+            },
+            "Dec": {
+              "rows": [
+                [
+                  496,
+                  129
+                ],
+                [
+                  850,
+                  233
+                ],
+                [
+                  348,
+                  308
+                ]
+              ],
+              "rowLabels": [
+                "$20 cards",
+                "$25 cards",
+                "$50 cards"
+              ],
+              "colLabels": [
+                "Gas",
+                "Grocery"
+              ],
+              "caption": "December"
+            }
+          },
+          "matrixLayout": [
+            "Nov",
+            "+",
+            "Dec"
+          ],
+          "responses": [
+            {
+              "id": "same",
+              "label": "Mr. Lopez wrote: “In November the team sold 230 gas cards for $20, 110 gas cards for $25, and 550 gas cards for $50 …” Does Ms. Tanaka's record give the same information as his sentences?",
+              "type": "choice",
+              "options": [
+                "Yes — the same numbers, organized in rows and columns",
+                "No — the arrays leave out the grocery cards",
+                "No — the arrays only show December"
+              ],
+              "answer": "Yes — the same numbers, organized in rows and columns"
+            },
+            {
+              "id": "grocery25",
+              "label": "Total money collected selling $25 grocery cards (both months), in dollars",
+              "answer": "8050"
+            },
+            {
+              "id": "gas50",
+              "label": "Total money collected selling $50 gas cards (both months), in dollars",
+              "answer": "44900"
+            },
+            {
+              "id": "least",
+              "label": "Over both months, which of the 6 types of cards sold the fewest cards?",
+              "type": "choice",
+              "options": [
+                "$20 grocery cards",
+                "$25 grocery cards",
+                "$50 grocery cards",
+                "$20 gas cards"
+              ],
+              "answer": "$20 grocery cards"
+            }
+          ],
+          "hints": [
+            "Find the $25 row and the Grocery column in each month, add the two counts, then multiply by $25.",
+            "$50 gas cards: 550 in November and 348 in December.",
+            "Add each card type across both months before you compare."
+          ]
+        },
+        {
+          "questionId": "l3m-wu-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "addMatrices"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Ms. Tanaka put a plus sign between her two arrays. Add them: write one array that shows the total number of each card sold over both months.",
+          "matrices": {
+            "Nov": {
+              "rows": [
+                [
+                  230,
+                  112
+                ],
+                [
+                  110,
+                  89
+                ],
+                [
+                  550,
+                  95
+                ]
+              ],
+              "rowLabels": [
+                "$20 cards",
+                "$25 cards",
+                "$50 cards"
+              ],
+              "colLabels": [
+                "Gas",
+                "Grocery"
+              ],
+              "caption": "November"
+            },
+            "Dec": {
+              "rows": [
+                [
+                  496,
+                  129
+                ],
+                [
+                  850,
+                  233
+                ],
+                [
+                  348,
+                  308
+                ]
+              ],
+              "rowLabels": [
+                "$20 cards",
+                "$25 cards",
+                "$50 cards"
+              ],
+              "colLabels": [
+                "Gas",
+                "Grocery"
+              ],
+              "caption": "December"
+            }
+          },
+          "operation": "add",
+          "left": "Nov",
+          "right": "Dec",
+          "resultName": "Total",
+          "hints": [
+            "Two arrays can be added only when they have the same number of rows and the same number of columns.",
+            "Add the numbers in matching positions: November $20 gas + December $20 gas, and so on."
+          ]
+        },
+        {
+          "questionId": "l3m-wu-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Reconnect: for any real number n ≠ 0, the multiplicative inverse of n is 1/n, because n · (1/n) = 1. The number 1 is the multiplicative identity.",
+          "responses": [
+            {
+              "id": "inv5",
+              "label": "The multiplicative inverse of 5",
+              "answer": "1/5"
+            },
+            {
+              "id": "invFrac",
+              "label": "The multiplicative inverse of −2/3",
+              "answer": "-3/2"
+            },
+            {
+              "id": "product",
+              "label": "(−2/3) · (its inverse) =",
+              "answer": "1"
+            },
+            {
+              "id": "none",
+              "label": "Which real number has no multiplicative inverse?",
+              "type": "choice",
+              "options": [
+                "0",
+                "1",
+                "−1",
+                "1/2"
+              ],
+              "answer": "0"
+            }
+          ],
+          "hints": [
+            "Flip the number: the inverse of a/b is b/a, with the same sign.",
+            "A number times its multiplicative inverse is always the multiplicative identity.",
+            "Which number times anything is never 1?"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Matrices, Their Inverses, and Matrix Equations",
+      "recommendedMinutes": 32,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3m-cw-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "locateMatrixElements"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Activity 3.1 — A shoe store tracks its running-shoe inventory in matrix A: each row is a width (C, D, E, EE) and each column is a size (9 through 13). Give the dimensions of A, then tap each named element. After a tap, the lab tells you which width and size that element counts.",
+          "matrices": {
+            "A": {
+              "rows": [
+                [
+                  3,
+                  5,
+                  3,
+                  5,
+                  0
+                ],
+                [
+                  5,
+                  7,
+                  6,
+                  4,
+                  3
+                ],
+                [
+                  6,
+                  5,
+                  7,
+                  7,
+                  2
+                ],
+                [
+                  2,
+                  0,
+                  8,
+                  5,
+                  2
+                ]
+              ],
+              "rowLabels": [
+                "C",
+                "D",
+                "E",
+                "EE"
+              ],
+              "colLabels": [
+                "9",
+                "10",
+                "11",
+                "12",
+                "13"
+              ],
+              "rowTitle": "Width",
+              "colTitle": "Size"
+            }
+          },
+          "matrix": "A",
+          "askDimensions": true,
+          "targets": [
+            {
+              "id": "a34",
+              "kind": "tap",
+              "row": 3,
+              "col": 4
+            },
+            {
+              "id": "a45",
+              "kind": "tap",
+              "row": 4,
+              "col": 5
+            },
+            {
+              "id": "a21",
+              "kind": "tap",
+              "row": 2,
+              "col": 1
+            }
+          ],
+          "hints": [
+            "Count the rows (widths), then the columns (sizes).",
+            "a₃₄ is row 3, column 4 — row first.",
+            "Row 3 is width E and column 4 is size 12."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Matrix",
+                "instruction": "A matrix is a rectangular array of numbers in rows (horizontal) and columns (vertical), named with a capital letter."
+              },
+              {
+                "title": "Dimensions",
+                "instruction": "A matrix with n rows and m columns is an n × m matrix — rows first. A square matrix has as many rows as columns."
+              },
+              {
+                "title": "Element",
+                "instruction": "Each number is an element. aᵢⱼ is the element in row i and column j of matrix A."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3m-cw-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "locateMatrixElements"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A store in a neighboring town keeps its inventory in matrix B, with one more width (EEE) and sizes 10 through 13. Give the dimensions of B, then write each element in matrix notation (row, then column).",
+          "matrices": {
+            "B": {
+              "rows": [
+                [
+                  1,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  4,
+                  4,
+                  6
+                ],
+                [
+                  1,
+                  5,
+                  5,
+                  7
+                ],
+                [
+                  2,
+                  3,
+                  3,
+                  5
+                ],
+                [
+                  2,
+                  2,
+                  2,
+                  6
+                ]
+              ],
+              "rowLabels": [
+                "C",
+                "D",
+                "E",
+                "EE",
+                "EEE"
+              ],
+              "colLabels": [
+                "10",
+                "11",
+                "12",
+                "13"
+              ],
+              "rowTitle": "Width",
+              "colTitle": "Size"
+            }
+          },
+          "matrix": "B",
+          "askDimensions": true,
+          "targets": [
+            {
+              "id": "size10E",
+              "kind": "notation",
+              "row": 3,
+              "col": 1,
+              "description": "The number of pairs of size 10E shoes"
+            },
+            {
+              "id": "size11EE",
+              "kind": "notation",
+              "row": 4,
+              "col": 2,
+              "description": "The number of pairs of size 11EE shoes"
+            },
+            {
+              "id": "size13D",
+              "kind": "notation",
+              "row": 2,
+              "col": 4,
+              "description": "The number of pairs of size 13D shoes"
+            }
+          ],
+          "hints": [
+            "B has a row for each width and a column for each size.",
+            "For size 10E, find width E down the side and size 10 across the top. Which row and which column are they?",
+            "In matrix notation the first number after b is always the row, and the second is the column."
+          ]
+        },
+        {
+          "questionId": "l3m-cw-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Coach Flores' sprinters: matrix A shows how many times each sprinter finished in each place, and matrix B is the scoring (10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th). Multiply A · B to find every sprinter's score. Tap a cell of the product to see which row and column it pairs.",
+          "matrices": {
+            "A": {
+              "rows": [
+                [
+                  3,
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  2,
+                  0,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  3,
+                  1,
+                  2
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  1,
+                  1
+                ]
+              ],
+              "rowLabels": [
+                "Lauren",
+                "Nakota",
+                "Alejandra",
+                "Hailey"
+              ],
+              "colLabels": [
+                "1st",
+                "2nd",
+                "3rd",
+                "4th",
+                "5th"
+              ],
+              "caption": "Sprinters' finishes"
+            },
+            "B": {
+              "rows": [
+                [
+                  10
+                ],
+                [
+                  8
+                ],
+                [
+                  6
+                ],
+                [
+                  4
+                ],
+                [
+                  2
+                ]
+              ],
+              "rowLabels": [
+                "1st",
+                "2nd",
+                "3rd",
+                "4th",
+                "5th"
+              ],
+              "colLabels": [
+                "Points"
+              ],
+              "caption": "Points per finish"
+            }
+          },
+          "left": "A",
+          "right": "B",
+          "resultName": "Results",
+          "showExpansion": true,
+          "hints": [
+            "A is 4 × 5 and B is 5 × 1: the inner dimensions match, so the product is defined.",
+            "The product takes the outer dimensions: one row per sprinter, one Points column.",
+            "Lauren: 3(10) + 1(8) + 0(6) + 0(4) + 0(2)."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Matrix multiplication",
+                "instruction": "Element (p, q) of A·B is row p of A times column q of B: multiply matching elements and add the products."
+              },
+              {
+                "title": "When it is defined",
+                "instruction": "A·B is defined only when the number of columns of A equals the number of rows of B."
+              },
+              {
+                "title": "Outer dimensions",
+                "instruction": "(n × m) · (m × p) gives an n × p product: sprinters by medals · medals by points = sprinters by points."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3m-cw-4",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Joey said: “sprinters by medals · medals by points = sprinters by points.” Use his idea. Sort each product: is it defined, and if so, how big is it?",
+          "figures": [
+            {
+              "id": "p1",
+              "text": "(2 × 3) · (3 × 4)",
+              "category": "twoByFour"
+            },
+            {
+              "id": "p2",
+              "text": "(2 × 4) · (4 × 4)",
+              "category": "twoByFour"
+            },
+            {
+              "id": "p3",
+              "text": "(3 × 2) · (3 × 2)",
+              "category": "undefined"
+            },
+            {
+              "id": "p4",
+              "text": "(4 × 2) · (4 × 2)",
+              "category": "undefined"
+            },
+            {
+              "id": "p5",
+              "text": "(2 × 2) · (4 × 4)",
+              "category": "undefined"
+            },
+            {
+              "id": "p6",
+              "text": "(4 × 1) · (1 × 4)",
+              "category": "fourByFour"
+            },
+            {
+              "id": "p7",
+              "text": "(4 × 3) · (3 × 4)",
+              "category": "fourByFour"
+            },
+            {
+              "id": "p8",
+              "text": "(2 × 5) · (5 × 4)",
+              "category": "twoByFour"
+            }
+          ],
+          "categories": [
+            {
+              "id": "twoByFour",
+              "label": "Defined — the product is 2 × 4"
+            },
+            {
+              "id": "fourByFour",
+              "label": "Defined — the product is 4 × 4"
+            },
+            {
+              "id": "undefined",
+              "label": "Not defined"
+            }
+          ],
+          "hints": [
+            "Compare the INNER numbers: columns of the first, rows of the second.",
+            "If they match, the product has the OUTER numbers.",
+            "For example, (3 × 1) · (1 × 5): the inner 1s match, so the product is 3 × 5."
+          ]
+        },
+        {
+          "questionId": "l3m-cw-5",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "checkInverseMatrices"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Recall that a number times its multiplicative inverse is 1. For matrices, A times its inverse A⁻¹ is the identity matrix I (1s on the diagonal, 0s elsewhere). Jackson says S is the inverse of R “because each element of S is the reciprocal of the matching element of R.” Multiply R · S to test his claim.",
+          "matrices": {
+            "R": {
+              "rows": [
+                [
+                  "2/3",
+                  1
+                ],
+                [
+                  6,
+                  -1
+                ]
+              ]
+            },
+            "S": {
+              "rows": [
+                [
+                  "3/2",
+                  1
+                ],
+                [
+                  "1/6",
+                  -1
+                ]
+              ]
+            }
+          },
+          "left": "R",
+          "right": "S",
+          "askDefined": false,
+          "judgeInverse": true,
+          "showExpansion": true,
+          "hints": [
+            "Row 1 of R times column 1 of S: (2/3)(3/2) + 1(1/6).",
+            "The identity matrix I₂ has 1, 0 in row 1 and 0, 1 in row 2.",
+            "If R · S is not I, then S is not the inverse of R."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Identity matrix",
+                "instruction": "The identity matrix I is square, with 1s from upper left to lower right and 0s everywhere else. A · I = A."
+              },
+              {
+                "title": "Inverse of a matrix",
+                "instruction": "The inverse of A, written A⁻¹, is the matrix with A · A⁻¹ = I. Only a square matrix can have an inverse."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3m-cw-6",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "checkInverseMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use technology to decide whether G and H are inverses: enter the product G · H from the matrix calculator, then decide.",
+          "matrices": {
+            "G": {
+              "rows": [
+                [
+                  1,
+                  2,
+                  3
+                ],
+                [
+                  0,
+                  -4,
+                  1
+                ],
+                [
+                  0,
+                  3,
+                  0
+                ]
+              ]
+            },
+            "H": {
+              "rows": [
+                [
+                  1,
+                  11,
+                  14
+                ],
+                [
+                  0,
+                  -1,
+                  -1
+                ],
+                [
+                  0,
+                  -3,
+                  -4
+                ]
+              ]
+            }
+          },
+          "left": "G",
+          "right": "H",
+          "askDefined": false,
+          "judgeInverse": true,
+          "technology": {
+            "operations": [
+              "multiply"
+            ]
+          },
+          "hints": [
+            "Press [G]·[H] on the calculator.",
+            "Compare the product with I₃, the 3 × 3 identity matrix."
+          ]
+        },
+        {
+          "questionId": "l3m-cw-7",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "writeMatrixEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 3.2 — A system in standard form Ax + By + Cz = D can be written as one matrix equation A · X = B. Write this system as a matrix equation: the coefficient matrix A, the variable matrix X, and the constant matrix B.",
+          "equations": [
+            "2x - y - 2z = 3",
+            "3x + y - 2z = 11",
+            "-2x - y + z = -8"
+          ],
+          "hints": [
+            "Row 1 of A is the coefficients of the first equation, in the order x, y, z.",
+            "A coefficient of −y is −1.",
+            "B holds the three constants, in the same order."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Coefficient matrix",
+                "instruction": "A holds every coefficient of every equation, in order, with each equation in standard form. With n equations it is n × n."
+              },
+              {
+                "title": "Variable and constant matrices",
+                "instruction": "X is the column of variables (x, y, z). B is the column of constants. Each is n × 1."
+              },
+              {
+                "title": "Why it works",
+                "instruction": "Multiplying A · X row by column gives back the left side of each equation, so A · X = B says the whole system at once."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3m-cw-8",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "writeMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Nicky wrote the matrix equation already shown for the system 2x − 4y = 5z − 1, −x = 5y − 3z, 3x − 5y − 3z = 14. Two rows are wrong. Find her error and fix the matrix equation.",
+          "equations": [
+            "2x - 4y = 5z - 1",
+            "-x = 5y - 3z",
+            "3x - 5y - 3z = 14"
+          ],
+          "startFrom": {
+            "A": [
+              [
+                2,
+                -4,
+                5
+              ],
+              [
+                -1,
+                5,
+                -3
+              ],
+              [
+                3,
+                -5,
+                -3
+              ]
+            ],
+            "B": [
+              -1,
+              0,
+              14
+            ]
+          },
+          "hints": [
+            "Is each equation of the form Ax + By + Cz = D?",
+            "Equation 1 has 5z on the right side. When you move it to the left side, what happens to its sign?",
+            "Equation 2 has its y and z terms on the right and no constant. Move the terms to the left: what is left on the right side?"
+          ]
+        },
+        {
+          "questionId": "l3m-cw-9",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve the system with technology and matrices: write A · X = B, then use the calculator to find X = A⁻¹ · B.",
+          "equations": [
+            "2x - 3y = 7",
+            "y + z = -5",
+            "x + 2y + 4z = -17"
+          ],
+          "hints": [
+            "Equation 1 has no z term and equation 2 has no x term: use 0 for each.",
+            "Run [A]⁻¹·[B] on the calculator.",
+            "Read x, y and z from the result, top to bottom."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Solving A · X = B",
+                "instruction": "Multiply both sides by A⁻¹: A⁻¹ · A · X = A⁻¹ · B, and A⁻¹ · A = I, so X = A⁻¹ · B."
+              },
+              {
+                "title": "With technology",
+                "instruction": "Enter A and B, compute [A]⁻¹·[B], and read the solution (x, y, z) from the column."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3m-cw-10",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Nia solved this system with technology and got an error message: the coefficient matrix is noninvertible. Write the matrix equation, run the calculator, and decide what the error means for the system.",
+          "justifySingular": true,
+          "equations": [
+            "x + 2y - z = 1",
+            "2x - 2y - z = 2",
+            "3x + 6y - 3z = 3"
+          ],
+          "hints": [
+            "ERR: SINGULAR MATRIX means A has no inverse: the system does not have exactly one solution.",
+            "Compare row 3 of A with row 1. Is it a multiple?",
+            "Check the constants: is 3 the same multiple of 1?"
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Noninvertible",
+                "instruction": "When a row of A is a multiple of another row, A has no inverse, and the system has no solution or infinitely many."
+              },
+              {
+                "title": "Many or none?",
+                "instruction": "If the constants follow the same multiple, the equations agree: infinitely many solutions. If not, they contradict: no solution."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving Systems with Matrices",
+      "recommendedMinutes": 36,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3m-pr-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Consider A (2 × 4) and B (4 × 2). Decide whether A · B is defined, give its dimensions, and compute it.",
+          "matrices": {
+            "A": {
+              "rows": [
+                [
+                  1,
+                  0,
+                  -5,
+                  3
+                ],
+                [
+                  -2,
+                  1,
+                  4,
+                  7
+                ]
+              ]
+            },
+            "B": {
+              "rows": [
+                [
+                  -3,
+                  2
+                ],
+                [
+                  0,
+                  1
+                ],
+                [
+                  -1,
+                  5
+                ],
+                [
+                  2,
+                  0
+                ]
+              ]
+            }
+          },
+          "left": "A",
+          "right": "B",
+          "hints": [
+            "A has 4 columns and B has 4 rows.",
+            "Row 1 of A times column 1 of B: 1(−3) + 0(0) + (−5)(−1) + 3(2)."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "checkInverseMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use matrix multiplication to decide whether A and B are inverses.",
+          "matrices": {
+            "A": {
+              "rows": [
+                [
+                  2,
+                  3
+                ],
+                [
+                  1,
+                  2
+                ]
+              ]
+            },
+            "B": {
+              "rows": [
+                [
+                  2,
+                  -3
+                ],
+                [
+                  -1,
+                  2
+                ]
+              ]
+            }
+          },
+          "left": "A",
+          "right": "B",
+          "askDefined": false,
+          "judgeInverse": true,
+          "hints": [
+            "Two matrices are inverses when their product is the identity matrix.",
+            "Row 1 of A times column 2 of B: 2(−3) + 3(2)."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "checkInverseMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use technology to decide whether M and N are inverses: record M · N from the calculator, then decide.",
+          "matrices": {
+            "M": {
+              "rows": [
+                [
+                  2,
+                  -1,
+                  0
+                ],
+                [
+                  1,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  -2,
+                  1
+                ]
+              ]
+            },
+            "N": {
+              "rows": [
+                [
+                  -1,
+                  0,
+                  0
+                ],
+                [
+                  -2,
+                  1,
+                  1
+                ],
+                [
+                  -3,
+                  1,
+                  2
+                ]
+              ]
+            }
+          },
+          "left": "M",
+          "right": "N",
+          "askDefined": false,
+          "judgeInverse": true,
+          "technology": {
+            "operations": [
+              "multiply"
+            ]
+          },
+          "hints": [
+            "Press [M]·[N].",
+            "Is the product I₃?"
+          ]
+        },
+        {
+          "questionId": "l3m-pr-4",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "writeMatrixEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write the system as a matrix equation A · X = B. Two of the equations are not in standard form yet.",
+          "equations": [
+            "3x + 2y + 2z = 4",
+            "5x = -4y",
+            "-x + 2y = 12 + z"
+          ],
+          "hints": [
+            "In 5x = −4y, move the y term to the left side. Which variable is missing from this equation, and what is its coefficient?",
+            "In −x + 2y = 12 + z, move the z term to the left side and keep the constant on the right."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-5",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Write the matrix equation, use technology to find A⁻¹ (record it exactly — fractions are fine), and solve the system.",
+          "equations": [
+            "2x + 2z = 2",
+            "5x + 3y = 4",
+            "3y - 4z = 4"
+          ],
+          "askInverse": true,
+          "hints": [
+            "Each equation is missing one variable: its coefficient is 0.",
+            "Press [A]⁻¹, then ▸Frac to read the fractions.",
+            "Then press [A]⁻¹·[B]."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-6",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve the system using technology with matrices.",
+          "equations": [
+            "x - 4y + 3z = -7",
+            "2x + 3y - 5z = 19",
+            "4x + y - z = 17"
+          ],
+          "hints": [
+            "Enter A and B, then press [A]⁻¹·[B].",
+            "Decimals such as 3.5 are fine."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-7",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system using technology with matrices. Give exact answers.",
+          "equations": [
+            "2x - 3z = 4",
+            "2x + y - 5z = -1",
+            "3y - 4z = 2"
+          ],
+          "hints": [
+            "Equation 1 has no y term; equation 3 has no x term.",
+            "Use ▸Frac to see the exact values."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-8",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve the system using technology with matrices. If the calculator cannot, decide why from the equations.",
+          "justifySingular": true,
+          "equations": [
+            "5x + y + 3z = 9",
+            "-x - 2y - z = -16",
+            "2x + 4y + 2z = -30"
+          ],
+          "hints": [
+            "A singular coefficient matrix means no solution or infinitely many.",
+            "Multiply equation 2 by −2. What do you get?",
+            "Compare that with equation 3, constant included."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-9",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "completeSingularSystem"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Two of the three equations of a system are given. Write a third equation that gives a system with NO solution, and another that gives INFINITELY MANY solutions. Test each system on the calculator.",
+          "equations": [
+            "5x - 3y + z = -4",
+            "x + 2y - 3z = 0"
+          ],
+          "targets": [
+            {
+              "id": "none",
+              "classification": "none"
+            },
+            {
+              "id": "many",
+              "classification": "many"
+            }
+          ],
+          "hints": [
+            "Start from a multiple of the first equation: every coefficient times 2.",
+            "For infinitely many solutions, multiply the constant by 2 too.",
+            "For no solution, use any other constant."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-10",
+          "standard": "A2.3A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Talk the Talk — The Key Club sold 80 fruit baskets for charity: small baskets for $15.75, medium baskets for $25, and large baskets for $32.50. They took in $2,086.25 and sold twice as many large baskets as small baskets. Write a matrix equation for the situation, solve it with technology, and report how many of each basket they sold.",
+          "equations": [
+            "x + y + z = 80",
+            "15.75x + 25y + 32.5z = 2086.25",
+            "2x = z"
+          ],
+          "showEquations": false,
+          "variableMeanings": {
+            "x": "small baskets",
+            "y": "medium baskets",
+            "z": "large baskets"
+          },
+          "hints": [
+            "One equation counts baskets, one counts dollars, and one compares large and small baskets.",
+            "“Twice as many large as small” compares two of the variables. Which is twice which? Write that as an equation, then move every variable to the left side.",
+            "Then press [A]⁻¹·[B]."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-11",
+          "standard": "A2.3A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "A theater department sold 82 tickets for $495: child tickets for $3.50, student tickets for $5, and adult tickets for $8.50. It sold the same number of student tickets as adult tickets. Write a matrix equation, solve it with technology, and report how many of each ticket were sold.",
+          "equations": [
+            "x + y + z = 82",
+            "y = z",
+            "3.5x + 5y + 8.5z = 495"
+          ],
+          "showEquations": false,
+          "variableMeanings": {
+            "x": "child tickets",
+            "y": "student tickets",
+            "z": "adult tickets"
+          },
+          "hints": [
+            "“The same number of student tickets as adult tickets” is an equation between two of the variables. Which two? Then move both to the left side.",
+            "The money equation uses the three prices."
+          ]
+        },
+        {
+          "questionId": "l3m-pr-12-ccmr",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "act",
+              "domainId": "preparingHigherMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "[College-Readiness — ACT style] Matrices A and B are shown. Matrix C has dimensions 3 × 2 and matrix D has dimensions 2 × 4.",
+          "assessmentContext": {
+            "framework": "act",
+            "examStyle": true
+          },
+          "matrices": {
+            "A": {
+              "rows": [
+                [
+                  2,
+                  -1
+                ],
+                [
+                  0,
+                  3
+                ]
+              ]
+            },
+            "B": {
+              "rows": [
+                [
+                  4,
+                  1
+                ],
+                [
+                  -2,
+                  5
+                ]
+              ]
+            }
+          },
+          "matrixLayout": [
+            "A",
+            "B"
+          ],
+          "responses": [
+            {
+              "id": "entry21",
+              "label": "What is the entry in row 2, column 1 of the product AB?",
+              "type": "choice",
+              "options": [
+                "−6",
+                "6",
+                "0",
+                "−2"
+              ],
+              "answer": "−6"
+            },
+            {
+              "id": "dimsCD",
+              "label": "What are the dimensions of CD?",
+              "type": "choice",
+              "options": [
+                "3 × 4",
+                "2 × 2",
+                "4 × 3",
+                "CD is not defined"
+              ],
+              "answer": "3 × 4"
+            },
+            {
+              "id": "dimsDC",
+              "label": "What are the dimensions of DC?",
+              "type": "choice",
+              "options": [
+                "DC is not defined",
+                "2 × 2",
+                "4 × 3",
+                "3 × 4"
+              ],
+              "answer": "DC is not defined"
+            }
+          ],
+          "hints": [
+            "Row 2 of A is (0, 3); column 1 of B is (4, −2).",
+            "Inner dimensions must match; the product has the outer ones."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Systems with Matrices",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "l3m-dol-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyMatrices"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Decide whether P · Q is defined. If it is, give its dimensions and compute it.",
+          "matrices": {
+            "P": {
+              "rows": [
+                [
+                  1,
+                  -2,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  -1
+                ]
+              ]
+            },
+            "Q": {
+              "rows": [
+                [
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  -3
+                ],
+                [
+                  4,
+                  5
+                ]
+              ]
+            }
+          },
+          "left": "P",
+          "right": "Q"
+        },
+        {
+          "questionId": "l3m-dol-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Write the system as a matrix equation and solve it using technology with matrices.",
+          "equations": [
+            "x + 2y + z = 3",
+            "3x - y = 4 + z",
+            "2x + 3z = y + 14"
+          ]
+        },
+        {
+          "questionId": "l3m-dol-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveMatrixEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Write the matrix equation and use technology. Then classify the system.",
+          "justifySingular": true,
+          "equations": [
+            "x - 2y + 3z = 4",
+            "2x + y - z = 1",
+            "-3x + 6y - 9z = 12"
+          ]
+        }
+      ]
+    }
+  ]
+}

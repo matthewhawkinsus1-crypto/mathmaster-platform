@@ -69,6 +69,21 @@ jobs:
         timeout-minutes: 10
         run: npm run test:identity-repair:emulator
 
+      # The read-only pre-#456 Path multiple-choice report against Firestore,
+      # over answers the real submitPathResponse recorded. Its own emulator
+      # run: the report reads every submission in its window, so another
+      # suite's Path answers in a shared emulator would change what it finds.
+      - name: Certify the Path choice-id report against Firestore
+        timeout-minutes: 10
+        run: npm run test:path-choice-report:emulator
+
+      # The read-only classroom re-grade report (K's grading fixes) against
+      # Firestore, over attempts the real ingestStudentSubmissions recorded.
+      # Its own emulator run, for the same reason as the Path report above.
+      - name: Certify the classroom re-grade report against Firestore
+        timeout-minutes: 10
+        run: npm run test:classroom-regrade-report:emulator
+
       # Whole classes (5-64 students) launching Live Challenge against the real
       # callables and real listeners, then 4 matches in a row on the same open
       # screens. Its budgets and waits are measured for one class at a time, so
@@ -77,6 +92,31 @@ jobs:
       - name: Certify Live Challenge launch at class scale against Firestore
         timeout-minutes: 12
         run: npm run test:live-challenge-launch:emulator
+
+      # Graph the Line at class scale: a 30-student Sprint, a 35-student
+      # Classic with its reveal, a 30-student Rush — whole classes playing
+      # through the real callables and listeners, rounds closed by the
+      # console's own rule. Its own emulator run, for the reason above.
+      - name: Certify Graph the Line at class scale against Firestore
+        timeout-minutes: 10
+        run: npm run test:line-graph-launch:emulator
+
+      # A Warm-Up question through the real ingestion, the real deadline
+      # finalizer and a teacher reopen, then the real QuestionEngine rendering
+      # the record those functions wrote (the lmr-wu-1 incident). It runs in
+      # real time around a class period it schedules for today, and it writes
+      # the school's bell schedule, so it has its own emulator run.
+      - name: Certify the Warm-Up reopen lifecycle against the real functions
+        timeout-minutes: 10
+        run: npm run test:warmup-reopen:emulator
+
+      # The scheduled finalizer for abandoned timed tests, run by hand against
+      # the real secure-exam callables. It finishes every expired session in
+      # its project, so it has its own emulator run: beside the parallel
+      # integration suites below it would finish their sessions too.
+      - name: Certify the abandoned-test finalizer against the real functions
+        timeout-minutes: 10
+        run: npm run test:secure-exam-auto-finalize
 
       # Runs the real finishLiveChallenge against the emulator and reads back
       # the report, the Warm-Up credit and the mastery evidence. Source
@@ -103,6 +143,12 @@ jobs:
       - name: Build standard web runtime
         if: always()
         run: npm run build
+
+      # What a student downloads before sign-in and before Home, against
+      # scripts/first-load-baseline.json (scripts/lib/firstLoadBudget.mjs).
+      - name: Student first-load budget
+        if: always()
+        run: node scripts/check-first-load-budget.mjs --report
 
       - name: Build Firebase production web runtime
         if: always()

@@ -7,27 +7,34 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
+// The teacher's screen (drawer, gradebook, roster, report mount) is its own
+// module since G2; App keeps openIEPReport and hands it over by name.
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
 const view = read('src/components/teacher/SupportEvidenceReportView.jsx');
 const css = read('src/components/teacher/supportEvidence.css');
 
 test('every entry point opens the new report; the old pop-up generator is gone', () => {
   assert.doesNotMatch(executableSource(app), /buildIEPReportHtml|reportWindow\.document\.write/);
+  assert.doesNotMatch(executableSource(teacherWorkspace), /buildIEPReportHtml|reportWindow\.document\.write/);
   assert.doesNotMatch(executableSource(read('src/studentSupport.js')), /buildIEPReportHtml/);
   assert.match(region(app, 'const openIEPReport = (student) => {', '\n  };', 'openIEPReport'), /setSupportReportStudentId\(student\.id\);/);
-  const drawerMount = executableSource(region(app, '<StudentProfileDrawer', '/>', 'drawer mount'));
+  const drawerMount = executableSource(region(teacherWorkspace, '<StudentProfileDrawer', '/>', 'drawer mount'));
   assert.match(drawerMount, /onOpenSupportReport=\{\(studentId\) => setSupportReportStudentId\(studentId\)\}/);
-  // Gradebook and roster keep calling openIEPReport.
-  assert.match(app, /onClick=\{\(\) => openIEPReport\(student\)\}/);
-  assert.match(app, /onGenerateIEPReport=\{openIEPReport\}/);
+  // Gradebook and roster keep calling openIEPReport, App's.
+  assert.match(teacherWorkspace, /onClick=\{\(\) => openIEPReport\(student\)\}/);
+  assert.match(teacherWorkspace, /onGenerateIEPReport=\{openIEPReport\}/);
+  assert.match(app, /\n {8}openIEPReport=\{openIEPReport\}\n/);
 });
 
 test('the report view is imported, mounted above the drawer, and closes to it', () => {
-  assert.match(app, /import SupportEvidenceReportView from '\.\/components\/teacher\/SupportEvidenceReportView\.jsx';/);
-  assert.ok(app.indexOf('<SupportEvidenceReportView') > app.indexOf('<StudentProfileDrawer'), 'renders after the drawer so it stacks on top');
-  const mount = region(app, '<SupportEvidenceReportView', '/>', 'report mount');
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SupportEvidenceReportView', 'src/components/teacher/SupportEvidenceReportView.jsx'));
+  assert.ok(teacherWorkspace.indexOf('<SupportEvidenceReportView') > teacherWorkspace.indexOf('<StudentProfileDrawer'), 'renders after the drawer so it stacks on top');
+  const mount = region(teacherWorkspace, '<SupportEvidenceReportView', '/>', 'report mount');
   assert.match(mount, /onClose=\{\(\) => setSupportReportStudentId\(null\)\}/);
   assert.match(mount, /teacherEmail=\{user\?\.email \|\| ''\}/);
 });

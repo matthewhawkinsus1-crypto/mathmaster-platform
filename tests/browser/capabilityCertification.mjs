@@ -40,7 +40,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { balancedMove, cancelFactor, cancellationLabels, combineLikeTerms, distribute, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, cancellationLabels, termSelector, combineLikeTerms, distribute, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
 import { expressionsEquivalent, latexToExpression } from '../../src/algebraAstEngine.js';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -199,9 +199,9 @@ const subtractSeven = async (page, step) => {
   await settle(page, 600);
   step('cancel +7 with −7');
   const labels = await cancellationLabels(host);
-  const plusSeven = labels.find((label) => /^\+\s*7,/.test(label));
+  const plusSeven = labels.find((label) => /^\+\s*7$/.test(label));
   check(Boolean(plusSeven), `a +7 to cancel: ${JSON.stringify(labels)}`);
-  await page.locator(`[aria-label="${plusSeven}"]:visible`).first().click();
+  await page.locator(`${termSelector(plusSeven, 'select to cancel')}:visible`).first().click();
   await settle(page, 1200);
   if (await page.locator('.algebra-optional-simplification').count()) {
     step('simplify the right side to 16');
@@ -254,7 +254,7 @@ await journey('work-view', 'balanced-solve', async (page, step) => {
   await subtractSeven(page, step);
   const moved = await state(page);
   step('open Work View');
-  const opener = page.locator('.mathmaster-work-view-host[data-open="false"] button').filter({ hasText: /enlarge/i }).first();
+  const opener = page.locator('.mathmaster-work-view-host[data-open="false"] button').filter({ hasText: /enlarge|work view/i }).first();
   await opener.click();
   const shell = page.locator('.mathmaster-work-view-host[data-open="true"]').first();
   await shell.waitFor({ timeout: 10000 });
@@ -326,7 +326,7 @@ await journey('history-notation', 'inequality-reversal', async (page, step) => {
   await divideRelationByNegativeTwo(page, step);
   await chooseSymbol(page, '<');
   step('open Work View and its Help panel to read the work history');
-  await page.locator('.mathmaster-work-view-host[data-open="false"] button:visible').filter({ hasText: /enlarge/i }).first().click();
+  await page.locator('.mathmaster-work-view-host[data-open="false"] button:visible').filter({ hasText: /enlarge|work view/i }).first().click();
   await page.locator('.mathmaster-work-view-host[data-open="true"]').first().waitFor({ timeout: 10000 });
   await visibleButton(page, /^Help$/).click();
   await settle(page, 500);
@@ -368,15 +368,17 @@ await journey('inequality-distribution', 'inequality-distribute', async (page, s
 
 await journey('inequality-like-terms', 'inequality-like-terms', async (page, step) => {
   check(await route(page) === 'relation', `route ${await route(page)}`);
-  step('open Combine like terms and choose 2x and 3x');
-  await visibleButton(page, /^Combine like terms$/).click();
+  // Combining like terms is a part of the one Simplify control (student push Q).
+  step('open Simplify and choose the like terms 2x and 3x');
+  await visibleButton(page, /^Simplify$/).click();
   await settle(page, 300);
-  await visibleLabelled(page, '2 x, select as a term to combine').click();
-  await visibleLabelled(page, '3 x, select as a term to combine').click();
-  await settle(page, 300);
-  const field = page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first();
+  const highlighted = await page.locator('.multi-relation-expression-region button[style*="dashed"]:visible').count();
+  check(highlighted >= 2, `2x and 3x are highlighted on the board (${highlighted})`);
+  await page.locator('.mm-simplify-part[data-simplify-part="likeTerms"]:visible').first().click();
+  await settle(page, 400);
+  const field = page.locator('.mm-simplify-box math-field:visible').first();
   const focused = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());
-  check(focused === 'math-field', `the answer box takes focus once two terms are chosen (${focused})`);
+  check(focused === 'math-field', `the answer box takes focus once the part is chosen (${focused})`);
   step('a wrong sum is refused');
   await setMathField(page, field, '6x');
   await page.keyboard.press('Enter');
@@ -387,7 +389,8 @@ await journey('inequality-like-terms', 'inequality-like-terms', async (page, ste
   await field.press('Enter');
   await settle(page, 700);
   const after = await state(page);
-  check(/^5\s*x\s*-\s*4\s*<=\s*11$/.test(after), `2x + 3x became 5x: ${after}`);
+  // Stored with its multiplication written out (5 * x), as engine terms are.
+  check(/^5\s*\*?\s*x\s*-\s*4\s*<=\s*11$/.test(after), `2x + 3x became 5x: ${after}`);
   return { after };
 });
 

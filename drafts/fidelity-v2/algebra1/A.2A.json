@@ -26,7 +26,10 @@
           "id": "answer",
           "label": "Range inequality",
           "inputProfile": "inequality",
-          "expected": "{{ylo}}<=y and y<={{yhi}}"
+          "expected": "{{ylo}}<=y and y<={{yhi}}",
+          "accepted": [
+            "{{ylo}}<=y<={{yhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -96,13 +99,19 @@
           "id": "domain",
           "label": "Reasonable domain of h",
           "inputProfile": "inequality",
-          "expected": "0<=h and h<={{maxh}}"
+          "expected": "0<=h and h<={{maxh}}",
+          "accepted": [
+            "0<=h<={{maxh}}"
+          ]
         },
         {
           "id": "range",
           "label": "Corresponding range of C",
           "inputProfile": "inequality",
-          "expected": "{{fee}}<=C and C<={{maxcost}}"
+          "expected": "{{fee}}<=C and C<={{maxcost}}",
+          "accepted": [
+            "{{fee}}<=C<={{maxcost}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -156,7 +165,10 @@
               "id": "domain",
               "label": "Reasonable domain of h",
               "inputProfile": "inequality",
-              "expected": "0<=h and h<={{maxh}}"
+              "expected": "0<=h and h<={{maxh}}",
+              "accepted": [
+                "0<=h<={{maxh}}"
+              ]
             },
             {
               "id": "min-cost",
@@ -174,7 +186,10 @@
               "id": "range",
               "label": "Range of C",
               "inputProfile": "inequality",
-              "expected": "{{fee}}<=C and C<={{maxCost}}"
+              "expected": "{{fee}}<=C and C<={{maxCost}}",
+              "accepted": [
+                "{{fee}}<=C<={{maxCost}}"
+              ]
             }
           ],
           "generator": {
@@ -255,7 +270,10 @@
               "id": "inequality",
               "label": "Range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ],
           "generator": {
@@ -407,13 +425,19 @@
               "id": "domain",
               "label": "Reasonable domain",
               "inputProfile": "inequality",
-              "expected": "0<=t and t<={{maxT}}"
+              "expected": "0<=t and t<={{maxT}}",
+              "accepted": [
+                "0<=t<={{maxT}}"
+              ]
             },
             {
               "id": "range",
               "label": "Reasonable range",
               "inputProfile": "inequality",
-              "expected": "{{start}}<=V and V<={{maxV}}"
+              "expected": "{{start}}<=V and V<={{maxV}}",
+              "accepted": [
+                "{{start}}<=V<={{maxV}}"
+              ]
             },
             {
               "id": "continuity",
@@ -506,7 +530,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -516,7 +540,7 @@
       "taskType": "representationTranslation",
       "representation": "orderedPairs",
       "type": "relationMapping",
-      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs $({{x0}}, {{y0}})$, $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$, and $({{x3}}, {{y3}})$. Use the mapping to identify its domain and range.",
       "pairs": [
         {
           "x": "{{x0}}",
@@ -541,11 +565,15 @@
         "isFunction"
       ],
       "solutionReview": {
-        "headline": "For a discrete function, the listed input values are the domain and the listed outputs are the range.",
+        "headline": "The domain is the set of the four listed inputs and the range is the set of the four listed outputs.",
         "reasoning": [
-          "Read the first coordinate of each ordered pair to build the domain.",
-          "Read the second coordinates for the range; each listed input has exactly one output, so this relation is a function."
-        ]
+          "The function is exactly the four pairs $({{x0}}, {{y0}})$, $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$ and $({{x3}}, {{y3}})$. It is discrete, so no input between them belongs to it.",
+          "Domain: collect the first coordinates, $\\{{{x0}}, {{x1}}, {{x2}}, {{x3}}\\}$.",
+          "Range: collect the second coordinates, $\\{{{y0}}, {{y1}}, {{y2}}, {{y3}}\\}$. Each output is {{m}} more than the one before while each input goes up by 1, so the pairs lie on one line.",
+          "Each input appears exactly once and has exactly one output, so the relation is a function."
+        ],
+        "commonError": "Writing the domain as the interval ${{x0}}\\le x\\le {{x3}}$. A discrete function contains only the listed inputs, so the domain is a set of four numbers, not every value between them.",
+        "answerSummary": "Domain $\\{{{x0}}, {{x1}}, {{x2}}, {{x3}}\\}$; range $\\{{{y0}}, {{y1}}, {{y2}}, {{y3}}\\}$; it is a function."
       },
       "attemptFeedback": [
         "Keep inputs and outputs separate: domain comes from x-values, range from y-values."
@@ -579,7 +607,10 @@
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "y3": "m*x3+b"
-        }
+        },
+        "constraints": [
+          "m != 1 || b != 0"
+        ]
       }
     },
     {
@@ -812,7 +843,10 @@
           "id": "answer",
           "label": "Correct range inequality",
           "inputProfile": "inequality",
-          "expected": "{{rlo}}<=y and y<={{rhi}}"
+          "expected": "{{rlo}}<=y and y<={{rhi}}",
+          "accepted": [
+            "{{rlo}}<=y<={{rhi}}"
+          ]
         }
       ],
       "solutionReview": {
@@ -903,7 +937,10 @@
               "id": "range",
               "label": "Correct range inequality",
               "inputProfile": "inequality",
-              "expected": "{{yright}}<=y and y<={{yleft}}"
+              "expected": "{{yright}}<=y and y<={{yleft}}",
+              "accepted": [
+                "{{yright}}<=y<={{yleft}}"
+              ]
             }
           ]
         }

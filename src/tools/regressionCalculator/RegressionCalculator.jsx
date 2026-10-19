@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { AttemptOutcome, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -11,7 +11,15 @@ import regressionCalculatorGrader, {
 } from '../../../functions/shared/serverGrading/tools/regressionCalculator.mjs';
 import { resolveRegressionCalculatorMode } from '../../../functions/shared/serverGrading/declarations/regressionCalculator.mjs';
 import { cleanRegressionPoints, regressionCalculatorStats } from './regressionCalculatorMath.js';
+import {
+  addMenuEnabled,
+  addMenuMoveIndex,
+  addMenuOpenIndex,
+  resolveAddMenuChoice,
+} from './regressionAddMenu.js';
 import './RegressionCalculator.css';
+import { useSubmitLabel } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -54,7 +62,13 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const [redoDepth, setRedoDepth] = useState(0);
   const redoStackRef = useRef([]);
   const inputRefs = useRef([]);
+  const addTriggerRef = useRef(null);
+  const addMenuId = useId();
+  const addMenuItemRefs = useRef([]);
+  const addMenuRef = useRef(null);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Submit my regression');
 
   const record = (type, detail = {}) => setProcessEvidence((events) => [...events, { type, ...detail }]);
   const commitRows = (next) => setRows(next);
@@ -170,57 +184,80 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
 
   const focusExpression = (row) => requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
 
-  const addExpression = () => {
+  // Choosing an Add Item entry — by click, by Enter / Space on the item, or by
+  // Enter in the last expression box — goes through one resolver, so every
+  // route records the same state (regressionAddMenu.js).
+  const chooseAddItem = (choice) => {
     clearRedo();
-    const existingBlank = rows.find((row) => row.type === 'expression' && !String(row.value).trim());
-    if (existingBlank) {
-      setSelectedId(existingBlank.id);
-      setEditOpen(false);
-      setAddMenuOpen(false);
-      setNotice('');
-      focusExpression(existingBlank);
-      return;
-    }
-    const row = EMPTY_EXPRESSION();
-    commitRows([...rows, row]);
-    setSelectedId(row.id);
-    setEditOpen(false);
     setAddMenuOpen(false);
-    record('expressionAdded');
-    setNotice('');
-    focusExpression(row);
+    const outcome = resolveAddMenuChoice(choice, {
+      rows,
+      selectedId,
+      sourceLength: source.length,
+      makeId: () => crypto.randomUUID(),
+    });
+    if (!outcome) return;
+    if (outcome.rows !== rows) commitRows(outcome.rows);
+    setSelectedId(outcome.selectedId);
+    setEditOpen(false);
+    outcome.events.forEach(([type, detail]) => record(type, detail));
+    setNotice(outcome.notice);
+    if (outcome.focusId) focusExpression({ id: outcome.focusId });
+    // The chosen item is about to unmount; do not drop focus to <body>.
+    else if (addMenuRef.current?.contains(document.activeElement)) addTriggerRef.current?.focus();
   };
+  const addExpression = () => chooseAddItem('expression');
+  const addBlankTable = () => chooseAddItem('table');
 
-  const addBlankTable = () => {
-    clearRedo();
-    if (tableRow) {
+  // The menu button pattern: the menu takes focus when it opens, arrows rove
+  // over the enabled items, Escape returns to the trigger, Tab leaves.
+  const addMenuItemsEnabled = addMenuEnabled(rows);
+  const focusAddMenuItem = (index) => {
+    if (index < 0) return;
+    addMenuItemRefs.current[index]?.focus();
+  };
+  const openAddMenu = (key) => {
+    setAddMenuOpen(true);
+    const index = addMenuOpenIndex(key, addMenuItemsEnabled);
+    requestAnimationFrame(() => focusAddMenuItem(index));
+  };
+  const closeAddMenu = ({ returnFocus }) => {
+    setAddMenuOpen(false);
+    if (returnFocus) addTriggerRef.current?.focus();
+  };
+  const onAddTriggerClick = () => {
+    if (addMenuOpen) setAddMenuOpen(false);
+    else openAddMenu(null);
+  };
+  const onAddTriggerKeyDown = (event) => {
+    if (event.key === 'Escape' && addMenuOpen) {
+      event.preventDefault();
+      closeAddMenu({ returnFocus: true });
+      return;
+    }
+    // Enter and Space reach the click handler natively; only the arrows open
+    // the menu here.
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    openAddMenu(event.key);
+  };
+  const onAddMenuKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeAddMenu({ returnFocus: true });
+      return;
+    }
+    if (event.key === 'Tab') {
+      // Tab moves on from the menu as from the trigger; the menu closes.
       setAddMenuOpen(false);
       return;
     }
-    const table = {
-      id: crypto.randomUUID(),
-      type: 'table',
-      rows: Array.from({ length: Math.max(4, source.length || 0) }, () => ['', '']),
-    };
-    const selectedIndex = rows.findIndex((row) => row.id === selectedId);
-    const fallbackBlankIndex = rows.findIndex((row) => row.type === 'expression' && !String(row.value).trim());
-    const replaceIndex = selectedIndex >= 0
-      && rows[selectedIndex]?.type === 'expression'
-      && !String(rows[selectedIndex]?.value).trim()
-      ? selectedIndex
-      : fallbackBlankIndex;
-    const next = replaceIndex >= 0
-      ? rows.map((row, index) => index === replaceIndex ? table : row)
-      : [...rows, table];
-    if (!next.some((row) => row.type === 'expression' && !String(row.value).trim())) {
-      next.push(EMPTY_EXPRESSION());
-    }
-    commitRows(next);
-    setSelectedId(table.id);
-    setEditOpen(false);
-    setAddMenuOpen(false);
-    setNotice('Table created.');
-    record('tableCreated', { fromAddMenu: true });
+    const current = addMenuItemRefs.current.indexOf(document.activeElement);
+    const next = addMenuMoveIndex(event.key, current, addMenuItemsEnabled);
+    if (next === null) return;
+    event.preventDefault();
+    focusAddMenuItem(next);
   };
 
   const openEdit = () => {
@@ -350,10 +387,21 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       subtitle="Build a table and regression expression in the calculator workspace."
       badge="Assessment statistics"
     >
+      {/* The steps a first-time student needs (pass 3, TOOL-9): this panel
+          looks like a desktop graphing calculator and said nothing about how
+          to use it. */}
       <TaskCard
         question={questionData}
         task="Use the calculator to model the source data and interpret its correlation."
-        steps={[]}
+        /* How to work the calculator, never which model to choose: shown on
+           every activity, assessments included (R-10: stepsAreControls). The
+           calculator fits one model, so naming it names the button's effect. */
+        stepsAreControls
+        steps={[
+          'Press + (Add Item), choose table, and type each data point: x in the x₁ column, y in the y₁ column.',
+          'Press Add Regression, the curve button beside the table, to add the regression y₁ ~ mx₁ + b.',
+          'Read r and the equation in the calculator\'s result, answer, then submit.',
+        ]}
       />
 
       {sourceMode === 'data' ? (
@@ -374,7 +422,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
               pointHoverEnabled={false}
               enlargeable={false}
               panZoom={false}
-              ariaLabel="Source scatterplot; coordinates are intentionally not revealed"
+              ariaLabel="Source scatterplot"
             />
           </div>
         </aside>
@@ -394,13 +442,12 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
             points={plotted.map(([x, y]) => ({ x, y }))}
             lines={run ? [{ m: run.m, b: run.b }] : []}
             enlargeable={false}
-            panZoom={false}
+            // Real zoom (TOOL-9): the plane's own Zoom in / Zoom out / Reset
+            // view. Its ＋/− glyphs in the corner were drawings that did
+            // nothing. The view is the camera, never part of the answer or Undo.
+            panZoom
             ariaLabel="Student data graph and fitted regression line"
           />
-          <div className="regression-graph-controls" aria-hidden="true">
-            <span>＋</span>
-            <span>−</span>
-          </div>
         </section>
 
         <nav className={`regression-toolbar ${editOpen ? 'is-editing' : ''}`} aria-label="Calculator toolbar">
@@ -410,8 +457,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 Delete All
               </button>
               <span className="regression-toolbar-spacer" />
-              <button type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo">↶</button>
-              <button type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo">↷</button>
+              <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo">↶</FocusSafeButton>
+              <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
             </>
@@ -419,29 +466,32 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
             <>
               <div className="regression-add-wrap">
                 <button
+                  ref={addTriggerRef}
                   className="regression-tool-icon regression-add"
                   type="button"
-                  onClick={() => setAddMenuOpen((open) => !open)}
+                  onClick={onAddTriggerClick}
+                  onKeyDown={onAddTriggerKeyDown}
                   aria-label="Add Item"
                   aria-expanded={addMenuOpen}
                   aria-haspopup="menu"
+                  aria-controls={addMenuOpen ? addMenuId : undefined}
                   data-tooltip="Add Item"
                 >
                   ＋
                 </button>
                 {addMenuOpen ? (
-                  <div className="regression-add-menu" role="menu" aria-label="Add Item">
-                    <button type="button" role="menuitem" onClick={addExpression}>
+                  <div ref={addMenuRef} id={addMenuId} className="regression-add-menu" role="menu" aria-label="Add Item" onKeyDown={onAddMenuKeyDown}>
+                    <button ref={(node) => { addMenuItemRefs.current[0] = node; }} type="button" role="menuitem" tabIndex={-1} onClick={addExpression}>
                       <span className="regression-add-menu-expression" aria-hidden="true">ƒ(x)</span>
                       <span>expression</span>
                     </button>
-                    <button type="button" role="menuitem" onClick={addBlankTable} disabled={Boolean(tableRow)}>
+                    <button ref={(node) => { addMenuItemRefs.current[1] = node; }} type="button" role="menuitem" tabIndex={-1} onClick={addBlankTable} disabled={!addMenuItemsEnabled[1]}>
                       <span className="regression-add-menu-table" aria-hidden="true">
                         <i /><i /><i /><i />
                       </span>
                       <span>table</span>
                     </button>
-                    <button type="button" role="menuitem" disabled aria-disabled="true" title="Inference is not used in this activity">
+                    <button ref={(node) => { addMenuItemRefs.current[2] = node; }} type="button" role="menuitem" tabIndex={-1} disabled={!addMenuItemsEnabled[2]} aria-disabled="true" title="Inference is not used in this activity">
                       <span className="regression-add-menu-inference" aria-hidden="true">⌒</span>
                       <span>inference</span>
                     </button>
@@ -449,8 +499,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 ) : null}
               </div>
               <span className="regression-toolbar-spacer" />
-              <button className="regression-tool-icon" type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo" title="Undo">↶</button>
-              <button className="regression-tool-icon" type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo" title="Redo">↷</button>
+              <FocusSafeButton className="regression-tool-icon" onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo" title="Undo">↶</FocusSafeButton>
+              <FocusSafeButton className="regression-tool-icon" onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo" title="Redo">↷</FocusSafeButton>
               <span className="regression-toolbar-spacer" />
               <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>
@@ -692,7 +742,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         {/* The student's words, not the platform's: "workflow" is our
             vocabulary for a sequence of steps, not theirs (PQ-029). */}
         <button className="regression-submit" data-primary-answer-action="true" type="button" onClick={check}>
-          Submit my regression
+          {submitActionLabel}
         </button>
         {/* Its verdict is already a live region, so the attempt outcome
             (PQ-022) is read as part of it rather than as a second one. */}

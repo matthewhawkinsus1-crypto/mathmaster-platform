@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
@@ -98,6 +98,12 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
   for (let x = PAD; x <= WIDTH - PAD; x += 42) gridLines.push(<line key={`vx-${x}`} x1={x} y1={PAD} x2={x} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
   for (let y = PAD; y <= HEIGHT - PAD; y += 42) gridLines.push(<line key={`hy-${y}`} x1={PAD} y1={y} x2={WIDTH - PAD} y2={y} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
 
+  // The sketch in words (student pass 3, Q-8): its axes as the student named
+  // them and how many strokes they drew. It is their own drawing.
+  const sketchDescriptionId = useId();
+  const strokeCount = Array.isArray(values.strokes) ? values.strokes.length : 0;
+  const sketchDescription = `x-axis: ${values.xLabel || 'x'}. y-axis: ${values.yLabel || 'y'}. ${strokeCount ? `You drew ${strokeCount} ${strokeCount === 1 ? 'stroke' : 'strokes'}.` : 'Nothing is drawn yet.'}`;
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
       <h2 style={{ textAlign: 'center', marginTop: 0 }}>{hasSourceGraph ? 'Read the Graph and Tell Its Story' : 'Write a Scenario and Sketch Its Graph'}</h2>
@@ -111,12 +117,12 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
         {[
           ['independent', 'Independent quantity'], ['dependent', 'Dependent quantity'],
           ['xLabel', 'X-axis label'], ['xUnit', 'X-axis unit'], ['yLabel', 'Y-axis label'], ['yUnit', 'Y-axis unit'],
-        ].map(([field, label]) => <label key={field} style={{ fontWeight: 800 }}>{label}<input value={values[field]} onChange={(event) => setField(field, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid var(--mm-border)', fontSize: '16px' }} /></label>)}
+        ].map(([field, label]) => <label key={field} style={{ fontWeight: 800 }}>{label}<input value={values[field]} onChange={(event) => setField(field, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid var(--mm-border)', fontSize: 'calc(16 * var(--mm-px))' }} /></label>)}
       </div>
       {requireSketch && <section style={{ marginTop: '22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><h3 style={{ margin: 0 }}>Graph sketch</h3><button type="button" onClick={() => setField('strokes', [])} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d93025', background: 'var(--mm-surface)', color: 'var(--mm-danger)', fontWeight: 800 }}>Clear graph</button></div>
         <EnlargeableFigure label="Graph story plane" enlargeLabel="Enlarge plane" style={{ width: '100%' }}>
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} onPointerDown={startStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} style={{ display: 'block', width: '100%', marginTop: '10px', border: '2px solid var(--mm-primary-border)', borderRadius: '12px', background: 'var(--mm-surface)', touchAction: 'none', cursor: 'crosshair' }} role="img" aria-label="Blank coordinate plane for graph story">
+        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} onPointerDown={startStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} style={{ display: 'block', width: '100%', marginTop: '10px', border: '2px solid var(--mm-primary-border)', borderRadius: '12px', background: 'var(--mm-surface)', touchAction: 'none', cursor: 'crosshair' }} role="img" aria-label="Graph story sketch" aria-describedby={sketchDescriptionId}>
           <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} style={{ fill: 'var(--mm-graph-bg)', stroke: 'var(--mm-graph-grid)' }} />
           {gridLines}
           <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" />
@@ -125,6 +131,7 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
           <text x={PAD + 10} y={PAD + 20} fontSize="17" style={{ fill: 'var(--mm-graph-label)' }}>{values.yLabel || 'y'}</text>
           {values.strokes.map((stroke, index) => <polyline key={index} points={stroke.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#1a73e8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
+        <span id={sketchDescriptionId} data-graph-story-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{sketchDescription}</span>
         </EnlargeableFigure>
       </section>}
       <label style={{ display: 'block', marginTop: '20px', fontWeight: 800 }}>Explain what the points, segments, or smooth curve represent

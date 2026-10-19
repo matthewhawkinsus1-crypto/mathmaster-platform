@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS } from '../../tools/shared/usePersistentToolState.js';
 import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { submitModelingLab } from '../../services/modelingLabService.js';
 import { modelingLabResultView } from './modelingLabResultView.js';
@@ -17,10 +18,20 @@ export const InteractiveModelingLabPlayer = ({
   revealEvaluation = true,
 }) => {
   const lab = useMemo(() => normalizeLabDefinition(rawLabSpec || {}), [rawLabSpec]);
-  const [paramValues, setParamValues] = useState(() => Object.fromEntries(lab.parameters.map((parameter) => [parameter.id, parameter.defaultValue])));
-  const [hypothesis, setHypothesis] = useState('');
-  const [justification, setJustification] = useState('');
-  const [trialHistory, setTrialHistory] = useState([]);
+  const defaultParams = useMemo(() => Object.fromEntries(lab.parameters.map((parameter) => [parameter.id, parameter.defaultValue])), [lab]);
+  // The student's work — the hypothesis, the parameters, every recorded trial
+  // and the justification — is draft-backed, so another question, a reload or
+  // another Chromebook brings it back; it used to be component state, gone at
+  // the first Next. QuestionEngine opens the draft scope; without one (a
+  // teacher's preview) these are ordinary state. A slider drag writes at
+  // display rate, so its writes coalesce, as an endpoint drag's do.
+  const [savedParams, setParamValues] = usePersistentToolState('paramValues', defaultParams, { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  // A parameter the lab gained after this draft was saved starts at its default.
+  const paramValues = useMemo(() => ({ ...defaultParams, ...savedParams }), [defaultParams, savedParams]);
+  const [hypothesis, setHypothesis] = usePersistentToolState('hypothesis', '');
+  const [justification, setJustification] = usePersistentToolState('justification', '');
+  const [trialHistory, setTrialHistory] = usePersistentToolState('trialHistory', []);
+  // The server's evaluation of a submission: a grading result, never a draft.
   const [evaluation, setEvaluation] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -67,31 +78,31 @@ export const InteractiveModelingLabPlayer = ({
   return (
     <section className="mathmaster-interactive-lab" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', padding: 'clamp(14px, 3vw, 24px)', boxSizing: 'border-box', textAlign: 'left', background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)', touchAction: 'pan-y' }}>
       <header style={{ borderBottom: '2px solid #1a73e8', paddingBottom: 14, marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 12, fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
         <h2 style={{ margin: '9px 0 5px' }}>{lab.title}</h2>
         <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.5 }}>{lab.scenarioDescription}</p>
       </header>
 
       <div style={{ padding: 15, marginBottom: 18, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', borderRadius: 9 }}>
         <strong style={{ color: 'var(--mm-primary-text)' }}>Guiding question</strong><div style={{ margin: '5px 0 12px', fontWeight: 650 }}>{lab.guidingQuestion}</div>
-        <label style={{ display: 'block', fontWeight: 800, fontSize: 13 }}>Initial hypothesis<input disabled={disabled || Boolean(evaluation)} value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} placeholder="State what you predict and why…" style={{ width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5, border: '1px solid var(--mm-border)', borderRadius: 7 }} /></label>
+        <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Initial hypothesis<input disabled={disabled || Boolean(evaluation)} value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} placeholder="State what you predict and why…" style={{ width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5, border: '1px solid var(--mm-border)', borderRadius: 7 }} /></label>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 18, marginBottom: 20 }}>
         <div style={{ padding: 17, borderRadius: 9, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
-          <h3 style={{ marginTop: 0, fontSize: 16 }}>System parameters</h3>
-          {lab.parameters.map((parameter) => <label key={parameter.id} style={{ display: 'block', marginBottom: 17, fontSize: 13, fontWeight: 700 }}><span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>{parameter.label} ({parameter.symbol})</span><strong style={{ color: 'var(--mm-primary-text)' }}>{paramValues[parameter.id]} {parameter.unit}</strong></span><input disabled={disabled || Boolean(evaluation)} type="range" min={parameter.min} max={parameter.max} step={parameter.step} value={paramValues[parameter.id]} onChange={(event) => setParamValues((current) => ({ ...current, [parameter.id]: Number(event.target.value) }))} style={{ width: '100%', minHeight: 32 }} /><small style={{ color: 'var(--mm-text-muted)' }}>{parameter.description}</small></label>)}
+          <h3 style={{ marginTop: 0, fontSize: 'calc(16 * var(--mm-px))' }}>System parameters</h3>
+          {lab.parameters.map((parameter) => <label key={parameter.id} style={{ display: 'block', marginBottom: 17, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}><span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>{parameter.label} ({parameter.symbol})</span><strong style={{ color: 'var(--mm-primary-text)' }}>{paramValues[parameter.id]} {parameter.unit}</strong></span><input disabled={disabled || Boolean(evaluation)} type="range" min={parameter.min} max={parameter.max} step={parameter.step} value={paramValues[parameter.id]} onChange={(event) => setParamValues((current) => ({ ...current, [parameter.id]: Number(event.target.value) }))} style={{ width: '100%', minHeight: 32 }} /><small style={{ color: 'var(--mm-text-muted)' }}>{parameter.description}</small></label>)}
           <button type="button" disabled={disabled || Boolean(evaluation)} onClick={recordTrial} style={{ minHeight: 44, width: '100%', border: 0, borderRadius: 7, background: '#137333', color: '#fff', fontWeight: 900 }}>Record Trial #{trialHistory.length + 1}</button>
         </div>
         <div style={{ padding: 17, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', minWidth: 0 }}>
-          <h3 style={{ marginTop: 0, fontSize: 16 }}>Experimental trial history ({trialHistory.length})</h3>
-          {!trialHistory.length ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Adjust the parameters and record at least one trial. Your full trial sequence is submitted as evidence.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}><thead><tr style={{ background: 'var(--mm-surface-control)' }}><th style={{ padding: 8 }}>Trial</th><th style={{ padding: 8 }}>Parameters</th></tr></thead><tbody>{trialHistory.map((trial) => <tr key={trial.trialNumber} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: 8, fontWeight: 800 }}>#{trial.trialNumber}</td><td style={{ padding: 8 }}>{Object.entries(trial.parameters).map(([key, value]) => `${key}: ${value}`).join(' · ')}</td></tr>)}</tbody></table></div>}
+          <h3 style={{ marginTop: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Experimental trial history ({trialHistory.length})</h3>
+          {!trialHistory.length ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Adjust the parameters and record at least one trial. Your full trial sequence is submitted as evidence.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))' }}><thead><tr style={{ background: 'var(--mm-surface-control)' }}><th style={{ padding: 8 }}>Trial</th><th style={{ padding: 8 }}>Parameters</th></tr></thead><tbody>{trialHistory.map((trial) => <tr key={trial.trialNumber} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: 8, fontWeight: 800 }}>#{trial.trialNumber}</td><td style={{ padding: 8 }}>{Object.entries(trial.parameters).map(([key, value]) => `${key}: ${value}`).join(' · ')}</td></tr>)}</tbody></table></div>}
           {lab.constraints.length > 0 && <aside style={{ marginTop: 14, padding: 11, borderRadius: 7, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}><strong>Model constraints</strong><ul style={{ margin: '7px 0 0', paddingLeft: 20 }}>{lab.constraints.map((constraint) => <li key={constraint.id}>{constraint.label}: <code>{constraint.expression}</code></li>)}</ul></aside>}
         </div>
       </div>
 
-      <label style={{ display: 'block', fontWeight: 800, fontSize: 13 }}>Mathematical justification<textarea disabled={disabled || Boolean(evaluation)} rows={5} value={justification} onChange={(event) => setJustification(event.target.value)} placeholder="Use your trial evidence and mathematical constraints to justify the final model…" style={{ width: '100%', boxSizing: 'border-box', marginTop: 5, padding: 11, border: '1px solid var(--mm-border)', borderRadius: 7, font: 'inherit' }} /></label>
-      <div style={{ margin: '5px 0 14px', color: 'var(--mm-text-muted)', fontSize: 12 }}>{wordCount(justification)} words · target at least {lab.rubric.minimumJustificationWords} for a complete written explanation.</div>
+      <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Mathematical justification<textarea disabled={disabled || Boolean(evaluation)} rows={5} value={justification} onChange={(event) => setJustification(event.target.value)} placeholder="Use your trial evidence and mathematical constraints to justify the final model…" style={{ width: '100%', boxSizing: 'border-box', marginTop: 5, padding: 11, border: '1px solid var(--mm-border)', borderRadius: 7, font: 'inherit' }} /></label>
+      <div style={{ margin: '5px 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{wordCount(justification)} words · target at least {lab.rubric.minimumJustificationWords} for a complete written explanation.</div>
 
       {error && <div role="alert" style={{ padding: 11, marginBottom: 12, borderRadius: 7, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{error}</div>}
       {result ? <div role="status" data-lab-result={result.tone} style={{ padding: 16, borderRadius: 9, background: result.tone === 'mastered' ? 'var(--mm-success-bg)' : result.tone === 'growth' ? 'var(--mm-warning-soft)' : 'var(--mm-primary-soft)', color: 'var(--mm-text)' }}><strong>{result.title}</strong><p style={{ margin: '6px 0 0' }}>{result.detail}</p></div> : <button type="button" disabled={disabled || busy || !trialHistory.length || !justification.trim()} onClick={handleSubmit} style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 8, background: disabled || busy || !trialHistory.length || !justification.trim() ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{busy ? 'Submitting securely…' : 'Submit Modeling Lab'}</button>}

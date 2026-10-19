@@ -26,6 +26,9 @@ const svgNode = (width, height, label) => {
   return svg;
 };
 
+// Clip ids must be unique in a printed packet that holds many graphs.
+let worksheetClipCount = 0;
+
 const addSvg = (svg, tag, attrs = {}, text = null) => {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
   Object.entries(attrs).forEach(([key, value]) => {
@@ -60,7 +63,7 @@ const ticks = (min, max, requested) => {
   return values;
 };
 
-const normalizeGraph = (source = {}) => {
+const normalizeGraph = (source = {}, plotAspect = undefined) => {
   const graph = {
     ...source,
     functions: Array.isArray(source.functions)
@@ -74,7 +77,7 @@ const normalizeGraph = (source = {}) => {
   if (Number.isFinite(Number(source.m)) || Number.isFinite(Number(source.b))) {
     graph.functions.push({ type: 'line', m: Number(source.m || 0), b: Number(source.b || 0) });
   }
-  return fitStaticGraphViewport(graph);
+  return fitStaticGraphViewport(graph, { plotAspect });
 };
 
 const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
@@ -97,7 +100,8 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
   }
 
   const source = blank ? { ...(visual.bounds || {}) } : (visual.graph || {});
-  const graph = normalizeGraph(source);
+  // The printed plot's own proportions, so equal units stay equal (R-1).
+  const graph = normalizeGraph(source, compact ? (280 - 60) / (210 - 60) : (430 - 76) / (300 - 76));
   let xMin = finite(graph.xMin, -10);
   let xMax = finite(graph.xMax, 10);
   let yMin = finite(graph.yMin, -10);
@@ -147,6 +151,16 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
     }, tick);
   });
 
+  // An equal-unit window crops a steep line on purpose (R-1): on paper too it
+  // stops at the plot's edge, never running through the tick labels.
+  let plotClip = null;
+  if (!blank && graph.equalUnits === true) {
+    worksheetClipCount += 1;
+    plotClip = `mm-worksheet-plot-${worksheetClipCount}`;
+    const clip = addSvg(svg, 'clipPath', { id: plotClip });
+    addSvg(clip, 'rect', { x: pad, y: pad, width: plotW, height: plotH });
+  }
+
   if (!blank) {
     (graph.functions || []).forEach((spec) => {
       const sampleCount = compact ? 120 : 220;
@@ -168,7 +182,7 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
         drawing = true;
         previousY = y;
       }
-      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5 });
+      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5, 'clip-path': plotClip ? `url(#${plotClip})` : null });
     });
 
     (graph.segments || []).forEach((segment) => {
@@ -232,6 +246,52 @@ const tableVisual = (visual = {}) => {
   });
   node.appendChild(body);
   wrap.appendChild(node);
+  return wrap;
+};
+
+// Named matrices on paper: [A] = [ … ] with brackets, row and column labels,
+// and the symbols between them (Nov + Dec). The same layout QuestionVisual
+// draws on screen (src/platform/math/displayMatrices.js).
+const matrixNode = (matrix = {}) => {
+  const rows = Array.isArray(matrix.rows) ? matrix.rows : [];
+  const width = rows.length ? Math.max(...rows.map((row) => (Array.isArray(row) ? row.length : 0))) : 0;
+  const hasRowLabels = Array.isArray(matrix.rowLabels) && matrix.rowLabels.length === rows.length;
+  const hasColLabels = Array.isArray(matrix.colLabels) && matrix.colLabels.length === width;
+  const wrap = make('div', { display: 'inline-flex', alignItems: 'center', gap: '6px' });
+  if (matrix.name) wrap.appendChild(make('span', { fontStyle: 'italic', fontFamily: 'Georgia, serif', fontWeight: '700', fontSize: '14px' }, `${matrix.name} =`));
+  const node = make('table', { borderCollapse: 'separate', borderSpacing: '0', fontSize: '12px' });
+  if (hasColLabels) {
+    const head = make('tr');
+    if (hasRowLabels) head.appendChild(make('td'));
+    matrix.colLabels.forEach((label) => head.appendChild(make('th', { padding: '2px 7px', fontSize: '10px', color: '#174ea6', fontWeight: '800' }, String(label))));
+    node.appendChild(head);
+  }
+  rows.forEach((row, i) => {
+    const tr = make('tr');
+    if (hasRowLabels) tr.appendChild(make('th', { padding: '2px 6px', fontSize: '10px', color: '#174ea6', fontWeight: '800', textAlign: 'right' }, String(matrix.rowLabels[i])));
+    (Array.isArray(row) ? row : []).forEach((cell, j) => {
+      const first = j === 0;
+      const last = j === row.length - 1;
+      tr.appendChild(make('td', {
+        padding: '3px 8px', textAlign: 'center', fontWeight: '600',
+        borderLeft: first ? '2px solid #202124' : 'none',
+        borderRight: last ? '2px solid #202124' : 'none',
+        borderTop: i === 0 ? '2px solid #202124' : 'none',
+        borderBottom: i === rows.length - 1 ? '2px solid #202124' : 'none',
+      }, String(cell ?? '').replace(/-/g, '−')));
+    });
+    node.appendChild(tr);
+  });
+  wrap.appendChild(node);
+  return wrap;
+};
+
+const matricesVisual = (visual = {}) => {
+  const wrap = make('div', { marginTop: '11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '10px 14px' });
+  (Array.isArray(visual.items) ? visual.items : []).forEach((item) => {
+    if (item?.kind === 'matrix') wrap.appendChild(matrixNode(item.matrix));
+    else if (item?.kind === 'symbol') wrap.appendChild(make('span', { fontSize: '18px', fontWeight: '800' }, String(item.text)));
+  });
   return wrap;
 };
 
@@ -366,6 +426,7 @@ export const renderWorksheetVisual = (visual = {}) => {
   if (visual.kind === 'numberLine') return numberLineVisual(visual);
   if (visual.kind === 'mapping') return mappingVisual(visual);
   if (visual.kind === 'graphChoices') return graphChoicesVisual(visual);
+  if (visual.kind === 'matrices') return matricesVisual(visual);
   return null;
 };
 
@@ -376,4 +437,5 @@ export const SUPPORTED_WORKSHEET_VISUAL_KINDS = Object.freeze([
   'numberLine',
   'mapping',
   'graphChoices',
+  'matrices',
 ]);

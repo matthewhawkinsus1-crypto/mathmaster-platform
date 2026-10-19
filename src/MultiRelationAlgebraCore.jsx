@@ -39,7 +39,10 @@ import {
   takeSquareRootOfRelation,
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
-import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
+import { RelationDistributionPanel } from './RelationStructureTools.jsx';
+import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
+import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { chooseSimplifyPart, openSimplify, simplifyHasDecisions, undoSimplify } from './platform/algebra/simplify/simplifyState.js';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { relationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
@@ -52,7 +55,7 @@ import {
   relationStepWork,
   stepActionCountsAttempt,
 } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
-import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
+import { relationDistributionCandidates } from './algebraRelationStructureModel.js';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
 
@@ -151,8 +154,6 @@ const initialPendingRelationFlipFor = (draftKey) => readRelationDraft(draftKey).
 
 const initialCandidateChecksFor = (draftKey) => readRelationDraft(draftKey).candidateChecks;
 
-const compactText = (value) => String(value ?? '').replace(/\s+/g, '');
-
 function StagedAdditivePreview({
   operation,
   operandLatex,
@@ -167,7 +168,7 @@ function StagedAdditivePreview({
         gap: 2,
         color: 'var(--mm-primary-text)',
         fontWeight: 900,
-        fontSize: compact ? 16 : 24,
+        fontSize: compact ? 'calc(16 * var(--mm-px))' : 'calc(24 * var(--mm-px))',
         whiteSpace: 'nowrap',
       }}
     >
@@ -217,7 +218,7 @@ function PlacementMiniMenu({
             borderRadius: 7,
             background: 'var(--mm-surface)',
             color: 'var(--mm-primary-text)',
-            fontSize: 11,
+            fontSize: 'calc(11 * var(--mm-px))',
             fontWeight: 800,
             cursor: 'pointer',
           }}
@@ -255,8 +256,10 @@ function AdditiveExpressionRegion({
   selectedCancellationIndex,
   onCancellationToken,
   onCancellationDragStart,
-  rewriteMode,
-  onRewriteTarget,
+  simplifyMode = false,
+  simplifyTerms = [],
+  simplifyChosenTerms = [],
+  onSimplifyTerm,
   placementMode,
   placement,
   onPlacement,
@@ -283,7 +286,7 @@ function AdditiveExpressionRegion({
     // still negative three-halves. Keep staging interactive, but use one
     // canonical sign renderer once the balanced operation is committed.
     return (
-      <span style={{ fontSize: 30, minWidth: 70, textAlign: 'center' }}>
+      <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
         <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
       </span>
     );
@@ -368,11 +371,16 @@ function AdditiveExpressionRegion({
                     ));
                     return;
                   }
-                  if (rewriteMode) onRewriteTarget();
-                  else onCancellationToken(termIndex);
+                  // Simplify: only a highlighted part takes a tap. Its
+                  // keyboard route is the Simplify panel's parts toolbar.
+                  if (simplifyMode) {
+                    if (simplifyTerms.includes(termIndex)) onSimplifyTerm?.(termIndex);
+                    return;
+                  }
+                  onCancellationToken(termIndex);
                 }}
                 onPointerDown={(event) => {
-                  if (rewriteMode || placementMode) return;
+                  if (simplifyMode || placementMode) return;
                   event.stopPropagation();
                   onCancellationDragStart(termIndex, event);
                 }}
@@ -385,8 +393,10 @@ function AdditiveExpressionRegion({
                   minHeight: 44,
                   padding: '4px 5px',
                   borderRadius: 8,
-                  border: placementTargetIndex === termIndex
+                  border: placementTargetIndex === termIndex || simplifyChosenTerms.includes(termIndex)
                     ? '2px solid #174ea6'
+                    : simplifyMode && simplifyTerms.includes(termIndex)
+                      ? '2px dashed var(--mm-primary-border)'
                     : isSelected
                       ? '2px solid #174ea6'
                       : cancellationHints && canCancel
@@ -401,11 +411,11 @@ function AdditiveExpressionRegion({
                         : 'transparent',
                   color: 'inherit',
                   font: 'inherit',
-                  cursor: placementMode ? 'crosshair' : rewriteMode ? 'text' : activeBranch ? 'pointer' : 'default',
+                  cursor: placementMode ? 'crosshair' : simplifyMode ? (simplifyTerms.includes(termIndex) ? 'pointer' : 'default') : activeBranch ? 'pointer' : 'default',
                   opacity: activeBranch ? 1 : 0.8,
                 }}
               >
-                <span style={{ fontSize: 30 }}>
+                <span style={{ fontSize: 'calc(30 * var(--mm-px))' }}>
                   <MathDisplay value={visibleTermLatex} format="latex" inline />
                 </span>
               </button>
@@ -435,7 +445,7 @@ function AdditiveExpressionRegion({
                   color: 'var(--mm-primary-text)',
                                 }}
               >
-                <span aria-hidden="true" style={{ fontSize: 11, fontWeight: 900 }}>↓</span>
+                <span aria-hidden="true" style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>↓</span>
                 <StagedAdditivePreview
                   operation={operation}
                   operandLatex={operandLatex}
@@ -469,8 +479,7 @@ function FractionCancellationRegion({
   cancellationHints,
   onCancellationToken,
   onCancellationDragStart,
-  rewriteMode,
-  onRewriteTarget,
+  simplifyMode = false,
 }) {
   const model = useMemo(
     () => relationCancellationCandidates(expression, variable),
@@ -479,7 +488,7 @@ function FractionCancellationRegion({
 
   if (!model || model.kind !== 'fraction') {
     return (
-      <span style={{ fontSize: 30, minWidth: 70, textAlign: 'center' }}>
+      <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
         <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
       </span>
     );
@@ -502,11 +511,11 @@ function FractionCancellationRegion({
         data-cancel-index={index}
         onClick={(event) => {
           event.stopPropagation();
-          if (rewriteMode) onRewriteTarget();
-          else onCancellationToken(index);
+          if (simplifyMode) return;
+          onCancellationToken(index);
         }}
         onPointerDown={(event) => {
-          if (rewriteMode) return;
+          if (simplifyMode) return;
           event.stopPropagation();
           onCancellationDragStart(index, event);
         }}
@@ -520,10 +529,10 @@ function FractionCancellationRegion({
           border: selected ? '2px solid #174ea6' : hinted ? '1px dashed #7b61ff' : '1px solid transparent',
           background: selected ? 'var(--mm-primary-soft)' : hinted ? 'var(--mm-accent-subtle)' : 'transparent',
           color: 'var(--mm-text-strong)',
-                  cursor: rewriteMode ? 'text' : 'pointer',
+                  cursor: simplifyMode ? 'default' : 'pointer',
         }}
       >
-        <span style={{ fontSize: 24, color: 'var(--mm-text-strong)' }}>
+        <span style={{ fontSize: 'calc(24 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
           <MathDisplay
             value={factor.latex || expressionToLatex(factor.text)}
             format="latex"
@@ -625,12 +634,16 @@ export default function MultiRelationAlgebra({
   const [operationFocusSignal, setOperationFocusSignal] = useState(0);
   const [placementByKey, setPlacementByKey] = useState({});
 
-  const [rewriteOpen, setRewriteOpen] = useState(false);
-  const [rewriteIndex, setRewriteIndex] = useState(0);
-  const [rewriteValue, setRewriteValue] = useState('');
-  const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
-  // Distribute / Combine like terms, the same shared operations the equation
-  // engine uses (RelationStructureTools.jsx). One open at a time.
+  // THE ONE SIMPLIFY CONTROL (student push Q), the same panel and engine the
+  // equation workspace uses (src/platform/algebra/simplify/): parts on the
+  // active branch's regions, or a whole region typed simpler. One plain-JSON
+  // slot, undone one decision at a time.
+  const [simplifyTool, setSimplifyTool] = useState(null);
+  const [simplifyFocusSignal, setSimplifyFocusSignal] = useState(0);
+  const simplifyButtonRef = useRef(null);
+  const simplifyOpen = Boolean(simplifyTool);
+  // Distribute: the shared distribution operation the equation engine uses
+  // (RelationStructureTools.jsx).
   const [structurePanel, setStructurePanel] = useState(null);
 
   const [otherOpen, setOtherOpen] = useState(otherOperationsOpenByDefault);
@@ -667,7 +680,7 @@ export default function MultiRelationAlgebra({
   // in (defaults — outcomes shown, no hint recorder — anywhere else). False on
   // a DOL, quiz or test: there the number-line stage below is recorded when
   // the student checks it, not passed only once it is right.
-  const { showImmediateFeedback, onHintUsed: reportHintUse } = useToolRuntimeContext();
+  const { showImmediateFeedback, onHintUsed: reportHintUse, hintsAllowed: contextHintsAllowed } = useToolRuntimeContext();
   const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
@@ -678,9 +691,8 @@ export default function MultiRelationAlgebra({
     setOperation(null);
     setOperand('');
     setPlacementByKey({});
-    setRewriteOpen(false);
+    setSimplifyTool(null);
     setStructurePanel(null);
-    setRewriteValue('');
     setOtherOpen(otherOperationsOpenByDefault);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
@@ -769,7 +781,7 @@ export default function MultiRelationAlgebra({
   useEffect(() => {
     if (!pendingRelationFlip && summary.solved) {
       setMessage((current) => (current == null ? current : null));
-      setRewriteOpen(false);
+      setSimplifyTool(null);
       setOtherOpen(false);
       setOperation(null);
       setOperand('');
@@ -845,8 +857,7 @@ export default function MultiRelationAlgebra({
     || operation
     || String(operand || '').trim()
     || Object.keys(placementByKey).length
-    || rewriteOpen
-    || String(rewriteValue || '').trim()
+    || simplifyOpen
     || completeSquareOpen
     || String(completeSquareValue || '').trim()
     || Object.keys(cancellationSelection).length
@@ -862,6 +873,12 @@ export default function MultiRelationAlgebra({
       canUndo: hasTransientUndo || history.length > 0,
       label: hasTransientUndo ? 'Undo the pending relation action' : 'Undo the last relation step',
       onUndo: () => {
+        // Inside Simplify, one decision at a time: the text typed, a sign, the
+        // part chosen. Only then does the tool itself close.
+        if (simplifyTool && simplifyHasDecisions(simplifyTool) && !pendingRelationFlip) {
+          setSimplifyTool((current) => undoSimplify(current) || openSimplify(current?.equationKey));
+          return;
+        }
         if (hasTransientUndo) {
           if (pendingRelationFlip?.before) {
             setRelationState(cloneRelationState(pendingRelationFlip.before));
@@ -869,8 +886,7 @@ export default function MultiRelationAlgebra({
           setOperation(null);
           setOperand('');
           setPlacementByKey({});
-          setRewriteOpen(false);
-          setRewriteValue('');
+          setSimplifyTool(null);
           setCompleteSquareOpen(false);
           setCompleteSquareValue('');
           setCancellationSelection({});
@@ -929,8 +945,7 @@ export default function MultiRelationAlgebra({
     pendingRelationFlip,
     placementByKey,
     relationPicker,
-    rewriteOpen,
-    rewriteValue,
+    simplifyTool,
   ]);
 
   // `transition` is the validation context the step was checked with
@@ -1119,7 +1134,7 @@ export default function MultiRelationAlgebra({
           text: operation === 'divide'
             ? branchCount > 1
               ? `Division recorded on every selected side across ${branchCount} branches. The quotients are intentionally unsimplified.`
-              : 'Division recorded on every side. The quotient is intentionally unsimplified; use Rewrite / Simplify when you want to reduce it.'
+              : 'Division recorded on every side. The quotient is intentionally unsimplified; use Simplify when you want to reduce it.'
             : branchCount > 1
               ? `Balanced operation committed on ${branchCount} branches at the same time. Nothing was simplified automatically.`
               : 'Balanced operation applied exactly where you placed it. Nothing was simplified automatically.',
@@ -1141,68 +1156,49 @@ export default function MultiRelationAlgebra({
     setOperationFocusSignal((value) => value + 1);
   };
 
-  const openRewrite = () => {
+  const toggleSimplify = () => {
     if (disabled || relationState.special) return;
     if (pendingRelationFlip) {
       setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
       return;
     }
     setStructurePanel(null);
-    // Rewrite/Simplify is a different action. Never leave a stale operation
-    // composer or staged placement hanging open underneath it.
+    // Simplify is a different action. Never leave a stale operation composer
+    // or staged placement hanging open underneath it.
     cancelBasicOperation();
-    setRewriteOpen((value) => !value);
-    setRewriteValue('');
-    setRewriteFocusSignal((value) => value + 1);
     setOtherOpen(false);
     setCompleteSquareOpen(false);
+    setMessage(null);
+    if (simplifyTool) {
+      setSimplifyTool(null);
+      return;
+    }
+    setSimplifyTool(openSimplify(simplifyKey));
+    setSimplifyFocusSignal((value) => value + 1);
   };
 
-  const checkRewrite = async () => {
-    const branch = relationState.branches?.[activeBranch];
-    const current = branch?.expressions?.[rewriteIndex];
-    if (!current || !String(rewriteValue || '').trim()) {
-      setMessage({ tone: 'growth', text: 'Enter your equivalent expression first.' });
-      setRewriteFocusSignal((value) => value + 1);
-      return;
-    }
-
-    let parsed;
-    try {
-      parsed = normalizeRelationExpressionInput(rewriteValue);
-    } catch {
-      setMessage({ tone: 'growth', text: 'MathMaster could not read that expression yet.' });
-      setRewriteFocusSignal((value) => value + 1);
-      return;
-    }
-
-    if (!relationExpressionsEquivalent(parsed, current, relationState.variable)) {
-      setMessage({ tone: 'growth', text: 'That expression is not equivalent. The relation was not changed.' });
-      setRewriteFocusSignal((value) => value + 1);
-      return;
-    }
-
-    if (compactText(parsed) === compactText(current)) {
-      setMessage({ tone: 'growth', text: 'That is the same expression. Rewrite it in the form you want to use next.' });
-      setRewriteFocusSignal((value) => value + 1);
-      return;
-    }
-
+  // One checked Simplify step on the active branch, through the relation
+  // workspace's own validated commit (Undo, history, the saved draft).
+  const commitSimplifyResult = async (result) => {
+    if (!result?.ok) return false;
+    const index = Number(result.region);
     const next = cloneRelationState(relationState);
-    next.branches[activeBranch].expressions[rewriteIndex] = parsed;
+    if (!next.branches?.[activeBranch]?.expressions || !Number.isInteger(index)) return false;
+    next.branches[activeBranch].expressions[index] = result.expression;
+    // Armed before the save: the new expressions render while it is awaited.
+    closeSimplifyWhenDoneRef.current = true;
     const committed = await commitState(
       next,
-      `Student rewrite of expression ${rewriteIndex + 1} on Branch ${branchLabel(activeBranch)}`,
-      'student-rewrite',
+      `${result.step.description} on Branch ${branchLabel(activeBranch)}`,
+      result.step.kind,
       { kind: 'equivalentRewrite' },
     );
-    if (!committed) return;
-    setRewriteValue('');
-    setRewriteFocusSignal((value) => value + 1);
-    setMessage({
-      tone: 'success',
-      text: 'Rewrite accepted. Click another expression to keep simplifying, or close the rewrite bar when you are done.',
-    });
+    if (!committed) {
+      closeSimplifyWhenDoneRef.current = false;
+      return false;
+    }
+    setMessage({ tone: 'success', text: `${result.step.description}. You did the algebra; MathMaster only checked it.` });
+    return true;
   };
 
   const finishCancellation = async (key, secondIndex, firstIndexOverride = null) => {
@@ -1248,7 +1244,7 @@ export default function MultiRelationAlgebra({
   };
 
   const cancellationTokenPressed = async (branchIndex, expressionIndex, tokenIndex) => {
-    if (disabled || relationState.special || rewriteOpen || pendingRelationFlip) return;
+    if (disabled || relationState.special || simplifyOpen || pendingRelationFlip) return;
     if (Date.now() < suppressCancellationClickUntil.current) return;
     setActiveBranch(branchIndex);
     const key = expressionKey(branchIndex, expressionIndex);
@@ -1272,7 +1268,7 @@ export default function MultiRelationAlgebra({
   };
 
   const cancellationDragStart = (branchIndex, expressionIndex, tokenIndex, event) => {
-    if (disabled || relationState.special || rewriteOpen || pendingRelationFlip) return;
+    if (disabled || relationState.special || simplifyOpen || pendingRelationFlip) return;
     const key = expressionKey(branchIndex, expressionIndex);
     const stroke = {
       id: `${key}:${tokenIndex}:${Date.now()}`,
@@ -1329,11 +1325,19 @@ export default function MultiRelationAlgebra({
     };
   }, [dragStroke?.id]);
 
-  const selectRewriteTarget = (branchIndex, expressionIndex) => {
-    setActiveBranch(branchIndex);
-    setRewriteIndex(expressionIndex);
-    setRewriteValue('');
-    setRewriteFocusSignal((value) => value + 1);
+  // A tap on a highlighted board term chooses its Simplify part (on that
+  // branch); a term in two parts alternates between them.
+  const chooseSimplifyFromTerm = (branchIndex, expressionIndex, termIndex) => {
+    if (!simplifyTool || disabled) return;
+    if (branchIndex !== activeBranch) {
+      setActiveBranch(branchIndex);
+      return;
+    }
+    const candidates = partsForTerm(simplifyParts, String(expressionIndex), termIndex);
+    if (!candidates.length) return;
+    const currentIndex = candidates.findIndex((part) => part.id === simplifyTool.partId);
+    const next = candidates[(currentIndex + 1) % candidates.length];
+    setSimplifyTool((current) => chooseSimplifyPart(current, next.id));
   };
 
   const chooseRelationSymbol = async (branchIndex, relationIndex, choice) => {
@@ -1481,8 +1485,7 @@ export default function MultiRelationAlgebra({
 
   const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
-    setRewriteOpen(false);
-    setRewriteValue('');
+    setSimplifyTool(null);
 
     if (id === 'completeSquare') {
       // Completing the square is a strategy choice, not an automatic algebra
@@ -1610,8 +1613,7 @@ export default function MultiRelationAlgebra({
     setOperation(null);
     setOperand('');
     setPlacementByKey({});
-    setRewriteOpen(false);
-    setRewriteValue('');
+    setSimplifyTool(null);
     setOtherOpen(otherOperationsOpenByDefault);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
@@ -1632,23 +1634,55 @@ export default function MultiRelationAlgebra({
 
   const active = relationState.branches?.[activeBranch] || null;
   const distributionAvailable = useMemo(() => relationDistributionCandidates(active).length > 0, [active]);
-  const likeTermsAvailable = useMemo(() => relationLikeTermCandidates(active).length > 0, [active]);
+  // Simplify reads the active branch's two or three regions.
+  const simplifyRegions = useMemo(() => (active?.expressions || []).map((expression, index, all) => ({
+    key: String(index),
+    label: all.length === 3
+      ? ['left region', 'middle region', 'right region'][index]
+      : (['left side', 'right side'][index] || `expression ${index + 1}`),
+    expression,
+    variable: relationState.variable || 'x',
+  })), [active, relationState.variable]);
+  const simplifyKey = `${activeBranch}|${(active?.expressions || []).join(' ; ')}`;
+  const simplifyParts = useMemo(() => {
+    try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
+  }, [simplifyRegions]);
+  // Its choices belong to the expressions they were made on: a commit, an
+  // Undo or another branch keeps Simplify open with nothing chosen.
+  useEffect(() => {
+    if (simplifyTool && simplifyTool.equationKey !== simplifyKey) setSimplifyTool(openSimplify(simplifyKey));
+  }, [simplifyTool, simplifyKey]);
+  // (Declared after the reset above, so its close is the last word.)
+  // After the commit that leaves nothing to simplify, Simplify closes so the
+  // confirmation stays in view, and focus goes back to the Simplify button.
+  const closeSimplifyWhenDoneRef = useRef(false);
+  useEffect(() => {
+    if (!closeSimplifyWhenDoneRef.current) return;
+    closeSimplifyWhenDoneRef.current = false;
+    if (simplifyParts.length) return;
+    setSimplifyTool(null);
+    window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
+  }, [simplifyParts]);
+  // A relation region is read the way the relation workspace reads it
+  // (absolute values, roots), and must still not leave more to simplify.
+  const relationRegionCheck = useMemo(() => ({
+    read: (answer) => normalizeRelationExpressionInput(answer),
+    equivalent: (typed, current) => relationExpressionsEquivalent(typed, current, relationState.variable),
+  }), [relationState.variable]);
   const commitStructureStep = async (next, label, kind) => {
     const committed = await commitState(next, label, kind, { kind: 'equivalentRewrite' });
     if (committed) {
       setStructurePanel(null);
       setMessage({
         tone: 'success',
-        text: kind === 'distribution'
-          ? 'Distributed. The products are left as you wrote them; rewrite them when you are ready.'
-          : 'Like terms combined.',
+        text: 'Distributed. The products are left as you wrote them; use Simplify when you are ready.',
       });
     }
     return committed;
   };
   const toggleStructurePanel = (panel) => {
     cancelBasicOperation();
-    setRewriteOpen(false);
+    setSimplifyTool(null);
     setStructurePanel((current) => (current === panel ? null : panel));
   };
 
@@ -1688,7 +1722,7 @@ export default function MultiRelationAlgebra({
                 borderRadius: 999,
                 background: 'var(--mm-primary-soft)',
                 color: 'var(--mm-primary-text)',
-                fontSize: 11,
+                fontSize: 'calc(11 * var(--mm-px))',
                 fontWeight: 900,
                 whiteSpace: 'nowrap',
               }}
@@ -1708,8 +1742,7 @@ export default function MultiRelationAlgebra({
                 setOperand('');
                 setPlacementByKey({});
                 setOperationFocusSignal((value) => value + 1);
-                setRewriteOpen(false);
-                setRewriteValue('');
+                setSimplifyTool(null);
                 setCompleteSquareOpen(false);
                 setOtherOpen(false);
               }}
@@ -1719,7 +1752,7 @@ export default function MultiRelationAlgebra({
                 padding: '5px 9px',
               }}
             >
-              <span style={{ fontSize: 16, marginRight: 3 }}>{item.symbol}</span>
+              <span style={{ fontSize: 'calc(16 * var(--mm-px))', marginRight: 3 }}>{item.symbol}</span>
               {item.label}
             </button>
           ))}
@@ -1790,7 +1823,7 @@ export default function MultiRelationAlgebra({
           style={{
             marginTop: 5,
             textAlign: 'center',
-            fontSize: 10.5,
+            fontSize: 'calc(10.5 * var(--mm-px))',
             color: 'var(--mm-text-muted)',
             lineHeight: 1.3,
           }}
@@ -1834,12 +1867,16 @@ export default function MultiRelationAlgebra({
       >
         <div style={{ display: 'inline-flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
+            ref={simplifyButtonRef}
             type="button"
-            onClick={openRewrite}
+            className="algebra-simplify-toggle"
+            onClick={toggleSimplify}
             disabled={disabled || relationState.special}
-            style={buttonStyle(rewriteOpen)}
+            style={buttonStyle(simplifyOpen)}
+            aria-expanded={simplifyOpen}
+            title="Compute a part: multiply numbers, combine like terms, reduce a fraction, remove parentheses"
           >
-            Rewrite / Simplify
+            Simplify
           </button>
 
           {distributionAvailable && (
@@ -1854,24 +1891,13 @@ export default function MultiRelationAlgebra({
             </button>
           )}
 
-          {likeTermsAvailable && (
-            <button
-              type="button"
-              onClick={() => toggleStructurePanel('combine')}
-              disabled={disabled || relationState.special || Boolean(pendingRelationFlip)}
-              style={buttonStyle(structurePanel === 'combine')}
-              aria-expanded={structurePanel === 'combine'}
-            >
-              Combine like terms
-            </button>
-          )}
 
           <button
             type="button"
             onClick={() => {
               cancelBasicOperation();
               setOtherOpen((value) => !value);
-              setRewriteOpen(false);
+              setSimplifyTool(null);
               setCompleteSquareOpen(false);
             }}
             disabled={disabled || relationState.special}
@@ -1881,35 +1907,40 @@ export default function MultiRelationAlgebra({
             Other operations {otherOpen ? '▴' : '▾'}
           </button>
 
-          <label
-            style={{
-              display: 'inline-flex',
-              gap: 6,
-              alignItems: 'center',
-              minHeight: 36,
-              padding: '5px 8px',
-              color: 'var(--mm-text-muted)',
-              background: 'var(--mm-surface)',
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 700,
-                        }}
-          >
-            <input
-              type="checkbox"
-              style={{ accentColor: '#174ea6' }}
-              checked={cancellationHintsEnabled}
-              onChange={(event) => setCancellationHintsEnabled(event.target.checked)}
-            />
-            Cancellation hints
-          </label>
+          {/* Cues are help: absent where the activity withholds hints. */}
+          {contextHintsAllowed !== false ? (
+            <label
+              style={{
+                display: 'inline-flex',
+                gap: 6,
+                alignItems: 'center',
+                minHeight: 36,
+                padding: '5px 8px',
+                color: 'var(--mm-text-muted)',
+                background: 'var(--mm-surface)',
+                borderRadius: 8,
+                fontSize: 'calc(12 * var(--mm-px))',
+                fontWeight: 700,
+                          }}
+            >
+              <input
+                type="checkbox"
+                style={{ accentColor: '#174ea6' }}
+                checked={cancellationHintsEnabled}
+                onChange={(event) => setCancellationHintsEnabled(event.target.checked)}
+              />
+              Cancellation hints
+            </label>
+          ) : null}
         </div>
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          {stepCreditPercent > 0 && (
+          {/* Step credit is a running score. Where the verdict is withheld (a
+              DOL, quiz or secure Test) a score is withheld with it. */}
+          {stepCreditPercent > 0 && showImmediateFeedback && (
             <span
               title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
-              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}
+              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}
             >
               Step credit {stepCreditPercent}%
             </span>
@@ -1939,7 +1970,7 @@ export default function MultiRelationAlgebra({
           <span
             style={{
               color: 'var(--mm-text-muted)',
-              fontSize: 11,
+              fontSize: 'calc(11 * var(--mm-px))',
               fontWeight: 800,
               marginRight: 2,
             }}
@@ -1960,7 +1991,7 @@ export default function MultiRelationAlgebra({
                 borderRadius: 8,
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-primary-text)',
-                fontSize: 12,
+                fontSize: 'calc(12 * var(--mm-px))',
                 fontWeight: 800,
                 cursor: disabled || relationState.special ? 'not-allowed' : 'pointer',
                 opacity: disabled || relationState.special ? 0.6 : 1,
@@ -1974,7 +2005,7 @@ export default function MultiRelationAlgebra({
             style={{
               width: '100%',
               color: 'var(--mm-text-muted)',
-              fontSize: 10.5,
+              fontSize: 'calc(10.5 * var(--mm-px))',
               lineHeight: 1.3,
             }}
           >
@@ -1992,89 +2023,27 @@ export default function MultiRelationAlgebra({
         />
       )}
 
-      {structurePanel === 'combine' && active && likeTermsAvailable && (
-        <RelationLikeTermsPanel
-          state={relationState}
-          branchIndex={activeBranch}
-          onCommit={commitStructureStep}
-          onClose={() => setStructurePanel(null)}
-        />
-      )}
 
-      {rewriteOpen && active && (
-        <div
-          className="multi-relation-rewrite-compact"
-          style={{
-            display: 'flex',
-            gap: 7,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            marginBottom: 8,
-            padding: '7px 9px',
-            border: '1px solid var(--mm-primary-border)',
-            borderRadius: 10,
-            background: 'var(--mm-surface-tint)',
+      {simplifyOpen && active && !pendingRelationFlip && (
+        <SimplifyPanel
+          regions={simplifyRegions}
+          parts={simplifyParts}
+          state={simplifyTool}
+          update={(change) => setSimplifyTool((current) => (current ? (change(current) ?? current) : current))}
+          onCommit={commitSimplifyResult}
+          notify={setMessage}
+          onClose={() => {
+            setSimplifyTool(null);
+            setMessage(null);
+            window.requestAnimationFrame(() => simplifyButtonRef.current?.focus());
           }}
-        >
-          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Rewrite</strong>
-          <span
-            style={{
-              minHeight: 34,
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '4px 9px',
-              borderRadius: 8,
-              border: '1px solid var(--mm-primary-border)',
-              background: 'var(--mm-surface)',
-              color: 'var(--mm-text)',
-              fontSize: 12,
-              fontWeight: 800,
-            }}
-          >
-            {active.expressions.length === 3
-              ? ['Left region', 'Middle region', 'Right region'][rewriteIndex]
-              : `Expression ${rewriteIndex + 1}`}
-          </span>
-
-          <div
-            style={{ flex: '1 1 300px', minWidth: 220 }}
-            onKeyDownCapture={(event) => {
-              if (
-                event.key !== 'Enter'
-                || event.shiftKey
-                || event.repeat
-                || event.nativeEvent?.isComposing
-              ) return;
-
-              event.preventDefault();
-              event.stopPropagation();
-              void checkRewrite();
-            }}
-          >
-            <MathInput
-              value={rewriteValue}
-              onChange={setRewriteValue}
-              placeholder="Your equivalent expression"
-              ariaLabel="Equivalent expression. Press Enter to check."
-              toolProfile="algebra-operation"
-              compact
-              focusSignal={rewriteFocusSignal}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={checkRewrite}
-            style={{ ...buttonStyle(true), background: '#174ea6', color: '#fff' }}
-          >
-            Check
-          </button>
-          <button type="button" onClick={() => setRewriteOpen(false)} style={buttonStyle(false)}>×</button>
-
-          <span style={{ width: '100%', color: 'var(--mm-text-muted)', fontSize: 11 }}>
-            Click any expression below to select it. Type your equivalent expression, then press Enter or Check. MathMaster only checks it.
-          </span>
-        </div>
+          disabled={disabled}
+          host="relation"
+          regionCheck={relationRegionCheck}
+          focusSignal={simplifyFocusSignal}
+          onFocusConsumed={() => setSimplifyFocusSignal(0)}
+          idPrefix={`${draftKey || 'relation'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
+        />
       )}
 
       {absoluteSplitOpen && (
@@ -2092,7 +2061,7 @@ export default function MultiRelationAlgebra({
             background: 'var(--mm-surface-tint)',
           }}
         >
-          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Reverse absolute value</strong>
+          <strong style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Reverse absolute value</strong>
           <button
             type="button"
             onClick={() => applyAbsoluteSplitChoice('or')}
@@ -2128,7 +2097,7 @@ export default function MultiRelationAlgebra({
                 borderTop: '1px solid var(--mm-tint-border)',
               }}
             >
-              <div className="multi-relation-absolute-split-instructions" style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>
+              <div className="multi-relation-absolute-split-instructions" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>
                 {absoluteSplitStructure === 'or'
                   ? absoluteSplitModel.relation === '='
                     ? 'Type the right side of both equations. The platform will not create the positive/negative pair for you.'
@@ -2156,7 +2125,7 @@ export default function MultiRelationAlgebra({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
-                        fontSize: 22,
+                        fontSize: 'calc(22 * var(--mm-px))',
                         color: 'var(--mm-text-strong)',
                       }}
                     >
@@ -2168,7 +2137,7 @@ export default function MultiRelationAlgebra({
                     </div>
 
                     {absoluteSplitModel.relation === '=' ? (
-                      <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 22 }}>=</span>
+                      <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(22 * var(--mm-px))' }}>=</span>
                     ) : (
                       <select
                         value={absoluteSplitRelations[index] || ''}
@@ -2179,7 +2148,7 @@ export default function MultiRelationAlgebra({
                           )));
                         }}
                         aria-label={`Branch ${branchLabel(index)} inequality symbol`}
-                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                       >
                         <option value="">?</option>
                         {['<', '<=', '>', '>='].map((choice) => (
@@ -2232,21 +2201,21 @@ export default function MultiRelationAlgebra({
                     value={absoluteSplitRelations[0] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [event.target.value, current[1]])}
                     aria-label="Left inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
                       <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
                     ))}
                   </select>
-                  <div style={{ textAlign: 'center', fontSize: 22, color: 'var(--mm-text-strong)' }}>
+                  <div style={{ textAlign: 'center', fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
                     <MathDisplay value={relationExpressionToLatex(absoluteSplitModel.inner)} format="latex" inline />
                   </div>
                   <select
                     value={absoluteSplitRelations[1] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [current[0], event.target.value])}
                     aria-label="Right inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
@@ -2302,7 +2271,7 @@ export default function MultiRelationAlgebra({
 
 
       {relationState.special ? (
-        <div style={{ padding: 28, border: '2px solid var(--mm-success-border)', borderRadius: 14, textAlign: 'center', background: 'var(--mm-success-subtle)', fontSize: 24, fontWeight: 800 }}>
+        <div style={{ padding: 28, border: '2px solid var(--mm-success-border)', borderRadius: 14, textAlign: 'center', background: 'var(--mm-success-subtle)', fontSize: 'calc(24 * var(--mm-px))', fontWeight: 800 }}>
           {relationState.special === 'noSolution' ? 'No solution' : 'All real numbers'}
         </div>
       ) : (
@@ -2347,25 +2316,12 @@ export default function MultiRelationAlgebra({
                   return (
                     <span
                       key={key}
-                      onClick={(event) => {
-                        if (!rewriteOpen) return;
-                        event.stopPropagation();
-                        selectRewriteTarget(branchIndex, expressionIndex);
-                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 12,
                         maxWidth: '100%',
-                        padding: rewriteOpen ? '4px' : 0,
                         borderRadius: 10,
-                        outline: rewriteOpen && activeBranch === branchIndex && rewriteIndex === expressionIndex
-                          ? '2px solid var(--mm-primary-border)'
-                          : 'none',
-                        background: rewriteOpen && activeBranch === branchIndex && rewriteIndex === expressionIndex
-                          ? 'var(--mm-primary-subtle)'
-                          : 'transparent',
-                        cursor: rewriteOpen ? 'text' : 'default',
                       }}
                     >
                       <span style={{ display: 'inline-grid', justifyItems: 'center', gap: 5 }}>
@@ -2379,8 +2335,12 @@ export default function MultiRelationAlgebra({
                           selectedCancellationIndex={cancellationSelection[key]}
                           onCancellationToken={(tokenIndex) => cancellationTokenPressed(branchIndex, expressionIndex, tokenIndex)}
                           onCancellationDragStart={(tokenIndex, event) => cancellationDragStart(branchIndex, expressionIndex, tokenIndex, event)}
-                          rewriteMode={rewriteOpen}
-                          onRewriteTarget={() => selectRewriteTarget(branchIndex, expressionIndex)}
+                          simplifyMode={simplifyOpen}
+                          simplifyTerms={simplifyOpen && activeBranch === branchIndex ? highlightedTermIndices(simplifyParts, String(expressionIndex)) : []}
+                          simplifyChosenTerms={simplifyOpen && activeBranch === branchIndex
+                            ? (simplifyParts.find((part) => part.id === simplifyTool?.partId && part.region === String(expressionIndex))?.termIndices || [])
+                            : []}
+                          onSimplifyTerm={(termIndex) => chooseSimplifyFromTerm(branchIndex, expressionIndex, termIndex)}
                           placementMode={placementMode}
                           placement={placementByKey[key] || null}
                           onPlacement={(placement) => {
@@ -2442,7 +2402,7 @@ export default function MultiRelationAlgebra({
                             >
                               {placementByKey[key]?.kind === 'whole-operation'
                                 ? (
-                                  <span style={{ fontSize: 20, color: 'var(--mm-text-strong)' }}>
+                                  <span style={{ fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
                                     <MathDisplay value={operand} format="latex" inline />
                                   </span>
                                 )
@@ -2477,7 +2437,7 @@ export default function MultiRelationAlgebra({
                                 ? 'var(--mm-primary-soft)'
                                 : 'var(--mm-surface)',
                               color: 'var(--mm-primary-text)',
-                              fontSize: 11,
+                              fontSize: 'calc(11 * var(--mm-px))',
                               fontWeight: 800,
                               cursor: 'pointer',
                             }}
@@ -2501,7 +2461,7 @@ export default function MultiRelationAlgebra({
 
                         if (!needsChoice) {
                           return (
-                            <span style={{ fontSize: 30, fontWeight: 900, color: 'var(--mm-primary-text)' }}>
+                            <span style={{ fontSize: 'calc(30 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' }}>
                               {RELATION_GLYPH[relation] || relation}
                             </span>
                           );
@@ -2523,7 +2483,7 @@ export default function MultiRelationAlgebra({
                                 border: '2px solid #f9ab00',
                                 background: 'var(--mm-warning-bg)',
                                 color: 'var(--mm-primary-text)',
-                                fontSize: 30,
+                                fontSize: 'calc(30 * var(--mm-px))',
                                 fontWeight: 900,
                                 cursor: 'pointer',
                               }}
@@ -2555,7 +2515,7 @@ export default function MultiRelationAlgebra({
                                       event.stopPropagation();
                                       chooseRelationSymbol(branchIndex, expressionIndex, choice);
                                     }}
-                                    style={{ ...buttonStyle(false), minWidth: 38, padding: '4px 7px', fontSize: 18 }}
+                                    style={{ ...buttonStyle(false), minWidth: 38, padding: '4px 7px', fontSize: 'calc(18 * var(--mm-px))' }}
                                   >
                                     {RELATION_GLYPH[choice]}
                                   </button>
@@ -2573,7 +2533,7 @@ export default function MultiRelationAlgebra({
               {relationState.branches.length > 1 && (
                 <div
                   className={`multi-relation-branch-status${denseWorkspace ? ' multi-relation-branch-status--dense' : ''}`}
-                  style={{ textAlign: 'center', fontSize: 11, color: activeBranch === branchIndex ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', marginTop: 3 }}
+                  style={{ textAlign: 'center', fontSize: 'calc(11 * var(--mm-px))', color: activeBranch === branchIndex ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', marginTop: 3 }}
                 >
                   {denseWorkspace
                     ? <>Branch {branchLabel(branchIndex)}{activeBranch === branchIndex ? ' · active' : ''}</>
@@ -2587,7 +2547,7 @@ export default function MultiRelationAlgebra({
 
       {relationState.branches.length === 1 && operationDock}
 
-      <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.35 }}>
+      <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
         Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
         Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
       </div>
@@ -2630,7 +2590,7 @@ export default function MultiRelationAlgebra({
         >
           <div
             style={{
-              fontSize: 15,
+              fontSize: 'calc(15 * var(--mm-px))',
               fontWeight: 900,
               marginBottom: 9,
               textAlign: 'center',
@@ -2656,7 +2616,7 @@ export default function MultiRelationAlgebra({
                   <span
                     style={{
                       color: 'var(--mm-text-muted)',
-                      fontSize: 12,
+                      fontSize: 'calc(12 * var(--mm-px))',
                       fontWeight: 900,
                     }}
                   >
@@ -2676,15 +2636,15 @@ export default function MultiRelationAlgebra({
                     color: 'var(--mm-text-strong)',
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>
+                  <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
                       value={expressionToLatex(relationState.variable)}
                       format="latex"
                       inline
                     />
                   </span>
-                  <span style={{ color: 'var(--mm-primary-text)', fontSize: 22, fontWeight: 900 }}>=</span>
-                  <span style={{ fontSize: 24 }}>
+                  <span style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>=</span>
+                  <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
                       value={relationExpressionToLatex(expression)}
                       format="latex"
@@ -2701,7 +2661,7 @@ export default function MultiRelationAlgebra({
               marginTop: 9,
               textAlign: 'center',
               color: 'var(--mm-success)',
-              fontSize: 11.5,
+              fontSize: 'calc(11.5 * var(--mm-px))',
               lineHeight: 1.4,
             }}
           >
@@ -2710,9 +2670,11 @@ export default function MultiRelationAlgebra({
         </div>
       )}
 
+      {/* The student's own finished relation, restated. In green it reads as a
+          verdict, so where verdicts are withheld it is stated neutrally. */}
       {!pendingRelationFlip && summary.solved && summary.kind === 'values' && !requireCandidateVerification && (
-        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
-          Solution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
+        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: showImmediateFeedback ? 'var(--mm-success-bg)' : 'var(--mm-surface-sunken)', color: showImmediateFeedback ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontWeight: 800 }}>
+          {showImmediateFeedback ? '' : 'Your '}{showImmediateFeedback ? 'S' : 's'}olution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
         </div>
       )}
 
@@ -2731,7 +2693,7 @@ export default function MultiRelationAlgebra({
           <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: 6 }}>
             Check each candidate in the original equation
           </div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, marginBottom: 12 }}>
             Solving the two branches can create a candidate that does not satisfy the original absolute-value equation.
             Substitute each value back and decide whether it is a valid solution or extraneous.
           </div>
@@ -2754,7 +2716,7 @@ export default function MultiRelationAlgebra({
                     background: 'var(--mm-surface)',
                   }}
                 >
-                  <div style={{ fontSize: 21, fontWeight: 800 }}>
+                  <div style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 800 }}>
                     <MathDisplay
                       value={`${expressionToLatex(relationState.variable)} = ${relationExpressionToLatex(expression)}`}
                       format="latex"
@@ -2854,7 +2816,7 @@ export default function MultiRelationAlgebra({
           />
           {representationStage.recordedNotice ? (
             // The same line for a right and a wrong graph.
-            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 13, fontWeight: 700 }}>
+            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
               {requiresIntervalNotation
                 ? 'Your graph and interval notation are recorded. They are graded when you submit — if you change either, press Check again.'
                 : 'Your graph is recorded. It is graded when you submit — if you change it, press Check again.'}

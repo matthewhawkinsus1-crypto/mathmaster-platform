@@ -58,10 +58,13 @@ const buildRepresentations = (question) => {
   switch (question.type) {
     case 'algebra': {
       const answer = question.generatedAnswer ?? question.answer;
+      // The solution of an equation in x, and its decimal value when that
+      // says something new. Never a point on y = x: that is not what "solve
+      // 2x + 1 = 7" asked (release-candidate QA m9).
+      const decimal = Number.isFinite(Number(answer)) ? Number(answer).toFixed(2).replace(/\.?0+$/, '') : '';
       return unique([
         `x = ${answer}`,
-        Number.isFinite(Number(answer)) ? `Ordered pair on y = x: (${answer}, ${answer})` : '',
-        Number.isFinite(Number(answer)) ? `Decimal form: ${Number(answer).toFixed(2).replace(/\.00$/, '')}` : '',
+        decimal && decimal !== String(answer).trim() ? `Decimal form: ${decimal}` : '',
       ]).slice(0, 3);
     }
     case 'numberLine':
@@ -360,7 +363,12 @@ const buildGraphAnalysisSummary = (question) => {
   });
 };
 
-export default function SolutionReview({ question, incorrectParts = [] }) {
+/*
+ * WHAT THE LEGACY REVIEW CAN SHOW FOR A QUESTION — computed once, so the
+ * review panel (SolutionReviewPanel.jsx) knows whether there is anything
+ * below before it says so.
+ */
+export const legacySolutionReviewContent = (question) => {
   if (!question) return null;
   const workflowSolution = buildWorkflowSolution(question);
   const representations = workflowSolution ? [] : buildRepresentations(question);
@@ -387,11 +395,36 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
   const graph = workflowSolution?.graph || legacyGraph;
   const analysisSummary = workflowSolution ? [] : buildGraphAnalysisSummary(question);
   const completeAnswerDetails = workflowSolution ? [] : buildCompleteAnswerDetails(question);
+  // A graph counts as a solution only when it shows one: a solved function,
+  // a workflow's graph, or a system / ordered pair with its answer marked.
+  // The problem's own lines with nothing marked are not a solution (QA round
+  // 2: "Compare your work with the solution." over no solution).
+  const pairShown = ['system', 'orderedPair'].includes(question.type)
+    && (Array.isArray(question.solution) || Array.isArray(question.answer));
+  const graphShowsSolution = Boolean(workflowSolution?.graph || graphSpec || (legacyGraph && (question.type === 'graphing' || pairShown)));
+  const hasContent = Boolean(
+    workflowSolution?.entries?.length || question.equationLatex || representations.length
+      || completeAnswerDetails.length || graphShowsSolution || analysisSummary.length,
+  );
+  return { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails, hasContent };
+};
+
+/*
+ * The legacy worked solution. `embedded` drops its own frame and heading:
+ * SolutionReviewPanel puts it under one heading with the authored review. The
+ * intro line promises another problem only when one can be requested
+ * (`allowReplacement`).
+ */
+export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false, hideAnswerDetails = false }) {
+  const content = legacySolutionReviewContent(question);
+  // Nothing to show: no frame, no "Compare your work with the solution."
+  if (!content || !content.hasContent) return null;
+  const { workflowSolution, representations, graph, analysisSummary, completeAnswerDetails } = content;
 
   return (
     <section
       aria-label="Solution review"
-      style={{
+      style={embedded ? { textAlign: 'left' } : {
         margin: '18px auto 0',
         maxWidth: '860px',
         padding: '20px',
@@ -401,10 +434,14 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
         textAlign: 'left',
       }}
     >
-      <h3 style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)' }}>Solution review</h3>
-      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
-        This problem version is closed. Review the solution before requesting another problem at the same difficulty.
-      </p>
+      {!embedded && <h3 style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)' }}>Solution review</h3>}
+      {!embedded && (
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+          {allowReplacement
+            ? 'Review the solution, then you can request a new question at the same difficulty.'
+            : 'Compare your work with the solution.'}
+        </p>
+      )}
       {workflowSolution?.entries?.length > 0 && (
         <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
           {workflowSolution.entries.map((entry) => {
@@ -419,11 +456,11 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.title}</strong>
-                  {needsReview && <span style={{ color: 'var(--mm-warning-text)', fontSize: '12px', fontWeight: 900 }}>REVIEW THIS STEP</span>}
+                  {needsReview && <span style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>REVIEW THIS STEP</span>}
                 </div>
-                {entry.prompt && <p style={{ margin: '5px 0 8px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>{entry.prompt}</p>}
+                {entry.prompt && <p style={{ margin: '5px 0 8px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{entry.prompt}</p>}
                 {entry.math !== undefined && entry.math !== null && String(entry.math).trim() !== '' && (
-                  <div style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: '20px' }}>
+                  <div style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontSize: 'calc(20 * var(--mm-px))' }}>
                     <MathDisplay value={String(entry.math)} format={String(entry.math).includes('\\') ? 'latex' : 'ascii-math'} />
                   </div>
                 )}
@@ -434,7 +471,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
                     <tbody>{entry.table.rows.map((row, rowIndex) => <tr key={`${entry.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '7px 9px', textAlign: 'center', border: '1px solid var(--mm-tint-border)' }}>{String(cell)}</td>)}</tr>)}</tbody>
                   </table>
                 )}
-                {entry.note && <p style={{ margin: '8px 0 0', color: 'var(--mm-primary-text)', fontSize: '12px', lineHeight: 1.45 }}>{entry.note}</p>}
+                {entry.note && <p style={{ margin: '8px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>{entry.note}</p>}
                 {entry.showsGraph && graph && <div style={{ marginTop: '10px' }}><GraphDisplay graph={graph} title="Correct graph" /></div>}
               </section>
             );
@@ -442,7 +479,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
         </div>
       )}
       {question.equationLatex && (
-        <div style={{ padding: '12px', borderRadius: '9px', background: 'var(--mm-surface)', marginBottom: '12px', fontSize: '23px', color: 'var(--mm-primary-text)', textAlign: 'center' }}>
+        <div style={{ padding: '12px', borderRadius: '9px', background: 'var(--mm-surface)', marginBottom: '12px', fontSize: 'calc(23 * var(--mm-px))', color: 'var(--mm-primary-text)', textAlign: 'center' }}>
           <MathDisplay value={question.equationLatex} format="latex" />
         </div>
       )}
@@ -452,7 +489,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
             const prose = isProseRepresentation(representation);
             return (
               <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>
-                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : `Representation ${index + 1}`}:</strong>
+                <strong style={{ color: 'var(--mm-text-muted)', marginRight: '8px' }}>{prose ? 'Solution note' : representations.length === 1 ? 'Answer' : `Form ${index + 1}`}:</strong>
                 {prose
                   ? <span style={{ color: 'var(--mm-text-strong)' }}>{representation}</span>
                   : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}
@@ -461,7 +498,9 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
           })}
         </div>
       )}
-      {completeAnswerDetails.length > 0 && (
+      {/* `hideAnswerDetails`: the panel already lists each part, with what
+          the student wrote beside it (SolutionReviewPanel, HELP-11). */}
+      {!hideAnswerDetails && completeAnswerDetails.length > 0 && (
         <div style={{ display: 'grid', gap: '7px', marginBottom: '14px' }}>
           {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>{item}</div>)}
         </div>

@@ -13,7 +13,7 @@
  *   - Period 1 has a lesson ready to export that was never exported;
  *   - Period 5 has a student whose account key is not a numeric SIS id.
  */
-import { addRecoveryHoldScenario } from './recoveryFixture.js';
+import { addRecoveryHoldScenario, addTargetedRecoveryScenario } from './recoveryFixture.js';
 import { projectGradeTransferUnits } from '../../../src/platform/gradeTransfer/gradeTransferProjection.js';
 import { createExportSnapshot, transferSnapshotId } from '../../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevisionInput } from '../../../functions/shared/supportProfileModel.mjs';
@@ -188,6 +188,27 @@ export const IDENTITY_EDGE_IDS = IDENTITY_EDGE_STUDENTS.map((entry) => entry.id)
 // The name studentNameJourneys.mjs adds for 910091 through Sign-in Access.
 export const IDENTITY_NAME_TO_ADD = Object.freeze({ firstName: 'Ellery', lastName: 'Mockingworth' });
 
+/*
+ * A DISTRICT ID TYPED WRONG AT ACCOUNT CREATION (districtIdJourneys.mjs) —
+ * opt-in, `&district=wrong`, invented. The production case: the account was
+ * created under the number the student typed, 111111 — valid-looking, so
+ * nothing ever flagged it, and createStudentAccount stored it as her
+ * "verified" district ID. Her real district ID is 222222. She is in Algebra I
+ * Period 1 with graded work, a PIN, a linked Google account and a teacher's
+ * Google Classroom match, and last week's lesson was already exported — and
+ * confirmed uploaded to TEAMS — under 111111.
+ */
+export const DISTRICT_ID_CORRECTION = Object.freeze({
+  accountId: '111111',
+  districtId: '222222',
+  firstName: 'Marisol',
+  lastName: 'Testerling',
+  email: 'marisol.testerling@students.example',
+  googleUserId: 'g-118800220011',
+  classId: 'c-alg1-p1',
+  courseId: 'course-alg1-p1',
+});
+
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
@@ -198,6 +219,10 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // Warm-Up is still inside its default ten-minute window.
   const p3StartMin = Number(params?.get?.('p3StartMin'));
   const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 40) * 60_000;
+  // `?p3EndMin=<n>`: Period 3 ends in n minutes (default 50). With 3, the
+  // class's DOL (10 minutes, closing 5 before the bell) closed 2 minutes ago.
+  const p3EndMin = Number(params?.get?.('p3EndMin'));
+  const p3EndMs = now + (Number.isFinite(p3EndMin) && p3EndMin > 0 ? p3EndMin : 50) * 60_000;
   const todayKey = dateKey(now);
   const yesterday = previousSchoolDay(now);
   const fixture = {};
@@ -206,7 +231,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const clampStart = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(0, 5, 0, 0)).getTime());
   const clampEnd = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(23, 55, 0, 0)).getTime());
   const todayPeriods = {
-    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(now + 50 * 60_000)) },
+    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(p3EndMs)) },
   };
   if (sameDay(now - 4 * 3600_000, now)) todayPeriods['Period 1'] = { enabled: true, start: hhmm(now - 4 * 3600_000), end: hhmm(now - 3 * 3600_000) };
   if (sameDay(now + 3 * 3600_000, now)) todayPeriods['Period 5'] = { enabled: true, start: hhmm(now + 2 * 3600_000), end: hhmm(now + 3 * 3600_000) };
@@ -311,6 +336,42 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     'a-p1-ready': TRACKERS[['strong', 'solid', 'struggling', 'strong', 'partial', 'solid'][index]],
   }));
   addStudents(byId['c-alg1-p5'], 5, () => ({}));
+  // `&district=wrong` (districtIdJourneys.mjs): the student whose account was
+  // made under a mistyped district number. Pushed after every serial student,
+  // and only on request, so no other journey's school changes.
+  const districtCase = params?.get?.('district') === 'wrong' ? DISTRICT_ID_CORRECTION : null;
+  if (districtCase) {
+    students.push({
+      id: districtCase.accountId,
+      firstName: districtCase.firstName,
+      lastName: districtCase.lastName,
+      displayName: `${districtCase.firstName} ${districtCase.lastName}`,
+      sisStudentId: districtCase.accountId,
+      sisStudentIdVerifiedAt: Timestamp.fromMillis(now - 40 * DAY),
+      sisStudentIdVerifiedBy: 'root.admin@harness.example',
+      classId: districtCase.classId,
+      classPeriod: byId[districtCase.classId].period,
+      assignedTeacherEmail: TEACHER_EMAIL,
+      status: 'active',
+      profile: { inclusionStatus: true, accommodations: ['text-to-speech'], modifications: [], translationLanguage: null },
+      gradesByAssignment: { 'a-lastweek': TRACKERS.strong, 'a-p1-ready': TRACKERS.solid },
+      assignmentActivity: { 'a-lastweek': { totalTimeSeconds: 1500, onTimeSeconds: 1500, lateSeconds: 0 } },
+      googleUserId: districtCase.googleUserId,
+      googleName: `${districtCase.firstName} ${districtCase.lastName}`,
+      googleEmail: districtCase.email,
+      classroomCourseIds: [districtCase.courseId],
+      linkedEmail: districtCase.email,
+    });
+    fixture[`studentCredentials/${districtCase.accountId}`] = { studentIdKey: districtCase.accountId, algorithm: 'scrypt', salt: 'harness-salt', hash: 'harness-pin-hash', version: 1, resetRequired: false };
+    fixture[`studentAliases/${districtCase.accountId}`] = { key: districtCase.accountId, studentId: districtCase.accountId };
+    fixture[`studentDirectory/${districtCase.email}`] = { email: districtCase.email, studentId: districtCase.accountId, uid: 'google-uid-marisol' };
+    fixture[`classroomRosterLinks/${districtCase.courseId}__${districtCase.accountId}`] = {
+      rosterLinkId: `${districtCase.courseId}__${districtCase.accountId}`, teacherUid: 'harness-teacher-uid', classId: districtCase.classId,
+      courseId: districtCase.courseId, studentId: districtCase.accountId, googleUserId: districtCase.googleUserId,
+      name: `${districtCase.firstName} ${districtCase.lastName}`, email: districtCase.email,
+    };
+  }
+
   // Identity edge cases (studentNameJourneys.mjs), pushed AFTER every serial
   // student so no existing id or p3[] index moves. All invented.
   IDENTITY_EDGE_STUDENTS.forEach(({ id, names }) => {
@@ -326,6 +387,12 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
       assignmentActivity: {},
     });
   });
+  // `?d7=1` (dolExtraTimeJourneys.mjs): the first Algebra II Period 3
+  // student has the teacher's "extra time" box (decision D7: 1.5× on the DOL).
+  if (params?.get?.('d7') === '1') {
+    const extended = students.find((student) => student.id === DOL_EXTRA_TIME.extended);
+    extended.profile = { inclusionStatus: false, accommodations: ['extra-time'], modifications: [], translationLanguage: null };
+  }
   students.forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
 
   // ---------------------------------------------------------------- live presence
@@ -372,6 +439,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const unitOf = (classId, assignmentId) => projected.find((unit) => unit.classId === classId && unit.assignmentId === assignmentId);
   snapshotFor(unitOf('c-alg2-p3', 'a-lastweek'), now - 2 * DAY); // "Monday" — exported, never marked uploaded
   snapshotFor(unitOf('c-alg2-p3', 'a-mp1'), now - 27 * DAY, now - 27 * DAY + 3600_000); // exported and uploaded
+  // `&district=wrong`: Period 1's copy of last week's lesson went to TEAMS —
+  // exported and confirmed uploaded — under the mistyped 111111.
+  if (districtCase) snapshotFor(unitOf(districtCase.classId, 'a-lastweek'), now - 3 * DAY, now - 3 * DAY + 3600_000);
 
   // "Tuesday": one student finished a missed Classwork question after the export.
   const changed = fixture[`grades/${p3[2].id}`];
@@ -385,9 +455,71 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // Opt-in (`&recovery=p0`): Recoveries MathMaster could not fully grade
   // (recoveryHoldJourneys.mjs), built by the real shared server code.
   if (params?.get?.('recovery') === 'p0') addRecoveryHoldScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&recovery=targeted`): Practice targeted at a stored misconception.
+  if (params?.get?.('recovery') === 'targeted') addTargetedRecoveryScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&prereq=1`): a lesson and a quiz that open early once their
+  // prerequisite is met (prerequisiteEarlyJourneys.mjs).
+  if (params?.get?.('prereq') === '1') addPrerequisiteEarlyScenario({ fixture, now, lesson, sectionsFor });
   const controls = params?.get?.('controls');
   if (controls === 'mirror' || controls === 'retired') addPrivateControlsScenario({ fixture, now, mode: controls, classRecord: byId['c-alg2-p3'] });
   return fixture;
+};
+
+/*
+ * A PREREQUISITE MET EARLY (prerequisiteEarlyJourneys.mjs) — synthetic.
+ *
+ * `?prereq=1`: Algebra II Period 3 has Lesson 4 scheduled three days
+ * out, and a quiz the same day, both with yesterday's Lesson 2 as their
+ * prerequisite. The prerequisite is met when Lesson 2's Classwork grade is 100
+ * (prerequisiteAccess):
+ *
+ *   910004  met (Classwork 100): Lesson 4's Classwork and Practice open now
+ *   910005  not met (Classwork 50): everything still opens later
+ *
+ * The grades are the `classworkGradesByAssignment` map the finalizer and
+ * ingestion write on the student's own grade document.
+ */
+export const PREREQUISITE_EARLY = Object.freeze({
+  met: '910004',
+  unmet: '910005',
+  prerequisiteId: 'a-yesterday',
+  lessonId: 'a-prereq-lesson',
+  lessonTitle: 'Systems of Equations — Lesson 4: Applications',
+  quizId: 'a-prereq-quiz',
+  quizTitle: 'Systems of Equations — Quiz 1',
+});
+const addPrerequisiteEarlyScenario = ({ fixture, now, lesson, sectionsFor }) => {
+  const releaseMs = now + 3 * DAY;
+  const scheduled = lesson({
+    id: PREREQUISITE_EARLY.lessonId, title: PREREQUISITE_EARLY.lessonTitle, classIds: ['c-alg2-p3'],
+    releaseMs, dueMs: releaseMs + DAY, lateMs: releaseMs + 5 * DAY, instructionMs: releaseMs, folder: 'Algebra II',
+  });
+  const { id: lessonId, ...lessonData } = scheduled;
+  fixture[`assignments/${lessonId}`] = { ...lessonData, sections: sectionsFor(lessonId), prerequisiteAssignmentId: PREREQUISITE_EARLY.prerequisiteId };
+  const { id: quizId, ...quizBase } = lesson({
+    id: PREREQUISITE_EARLY.quizId, title: PREREQUISITE_EARLY.quizTitle, classIds: ['c-alg2-p3'],
+    releaseMs, dueMs: releaseMs + DAY, lateMs: releaseMs + 2 * DAY, instructionMs: null, folder: 'Algebra II',
+  });
+  fixture[`assignments/${quizId}`] = {
+    ...quizBase,
+    assignmentType: 'quiz',
+    prerequisiteAssignmentId: PREREQUISITE_EARLY.prerequisiteId,
+    warmup: { enabled: false },
+    dol: { enabled: false },
+    sections: [{ id: `${quizId}-quiz`, role: 'quiz', title: 'Quiz', questions: [
+      { questionId: `${quizId}-q1`, activityRole: 'quiz', type: 'literal', prompt: 'Solve 3y = 15 for y.', solveFor: 'y', acceptedAnswers: ['5'], standards: ONE_VARIABLE },
+      { questionId: `${quizId}-q2`, activityRole: 'quiz', type: 'literal', prompt: 'Solve 4y = 8 for y.', solveFor: 'y', acceptedAnswers: ['2'], standards: ONE_VARIABLE },
+    ] }],
+  };
+  const grade = (studentId, score) => {
+    const current = fixture[`grades/${studentId}`];
+    fixture[`grades/${studentId}`] = {
+      ...current,
+      classworkGradesByAssignment: { ...current?.classworkGradesByAssignment, [PREREQUISITE_EARLY.prerequisiteId]: { score, completionPercent: score } },
+    };
+  };
+  grade(PREREQUISITE_EARLY.met, 100);
+  grade(PREREQUISITE_EARLY.unmet, 50);
 };
 
 /*
@@ -410,6 +542,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
  * The private records are built with the server's own record builder, and
  * each has its staff-only history entry.
  */
+/** `?d7=1`: who has extra time on the DOL, and a classmate who does not (both Algebra II Period 3). */
+export const DOL_EXTRA_TIME = Object.freeze({ extended: '910001', classmate: '910002' });
+
 export const PRIVATE_CONTROLS = Object.freeze({ extended: '910001', granted: '910003', excused: '910006', plain: '910004' });
 const addPrivateControlsScenario = ({ fixture, now, mode, classRecord }) => {
   const at = new Date(now - DAY).toISOString();
@@ -440,6 +575,27 @@ const addPrivateControlsScenario = ({ fixture, now, mode, classRecord }) => {
       at,
     };
   });
+  /*
+   * The extension only means something if there is work left: a student who
+   * finished every question of last week's lesson has a Finished lesson
+   * (product decision 4 — finished at any accuracy), and Home files it with
+   * finished work, however long their window runs. So 910001 left the last
+   * Practice question of that lesson unanswered — the work their extension
+   * is for.
+   */
+  const extendedGrades = fixture[`grades/${PRIVATE_CONTROLS.extended}`];
+  const lastWeekRecord = extendedGrades?.gradesByAssignment?.['a-lastweek'];
+  // Its last Practice question: Practice stays open through the late window
+  // (a closed Warm-Up/DOL would just be closed, and closed is finished too).
+  const lastWeekQuestions = (fixture['assignments/a-lastweek']?.sections || []).flatMap((section) => section.questions || []);
+  const lastPractice = lastWeekQuestions.map((question, index) => (question.activityRole === 'practice' ? index : -1)).filter((index) => index >= 0).at(-1);
+  if (lastWeekRecord && lastPractice !== undefined) {
+    const { [lastPractice]: _unanswered, ...answered } = lastWeekRecord;
+    fixture[`grades/${PRIVATE_CONTROLS.extended}`] = {
+      ...extendedGrades,
+      gradesByAssignment: { ...extendedGrades.gradesByAssignment, 'a-lastweek': answered },
+    };
+  }
   fixture[`platformFlags/${OVERRIDE_STORAGE_FLAG}`] = { sharedRetired: mode === 'retired' };
   fixture[`${PLATFORM_MIGRATIONS_COLLECTION}/${OVERRIDE_MIGRATION_ID}`] = {};
   if (mode === 'retired') return;

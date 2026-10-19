@@ -167,7 +167,11 @@ export const resolveExamCalculatorPolicy = ({ examType, questionSpec = {}, stude
     // `questionSpecific` (the default) defers to each item; anything else is
     // no calculator. Never the SAT graphing calculator by accident.
     const sessionMode = String(questionSpec.sessionCalculatorMode || '').trim();
-    const itemMode = String(questionSpec.examCalculatorMode || questionSpec.calculatorMode || '').trim();
+    // An item's own calculator requirement travels as `calculatorPolicy` on
+    // every issued question (buildSanitizedQuestion). Under the default
+    // `questionSpecific` it is what decides: an item written to need a
+    // scientific calculator gets one, an item marked `none` gets none.
+    const itemMode = String(questionSpec.examCalculatorMode || questionSpec.calculatorMode || questionSpec.calculatorPolicy || '').trim();
     const requested = concreteModes.has(sessionMode) ? sessionMode : itemMode;
     const mode = concreteModes.has(requested) ? requested : CALCULATOR_MODES.NONE;
     if (mode === CALCULATOR_MODES.NONE) {

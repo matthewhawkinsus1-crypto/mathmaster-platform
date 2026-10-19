@@ -22,7 +22,7 @@ export default function ChallengeRewardsEarned({ roomId, grants = [], transactio
   if (!hasAny && offer && offer.length === 0) return null;
   return (
     <section aria-labelledby="challenge-rewards-heading" aria-live="polite" className={`rw-card rw-card--pass${hasAny ? ' rw-celebrate' : ''}`} style={{ marginTop: 16 }}>
-      <h2 id="challenge-rewards-heading" style={{ fontSize: 18 }}>Rewards earned</h2>
+      <h2 id="challenge-rewards-heading" style={{ fontSize: 'calc(18 * var(--mm-px))' }}>Rewards earned</h2>
       {!hasAny ? (
         <>
           {offer && <p style={{ marginTop: 6 }} data-rw-offer="1">This game&rsquo;s rewards: {offer.join(' · ')}.</p>}

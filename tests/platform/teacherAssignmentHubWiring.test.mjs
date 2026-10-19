@@ -12,21 +12,29 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
+// Every screen below is the teacher's screen, its own module since G2. App
+// keeps the handlers and hands each to it by name.
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
 const hub = executableSource(read('src/components/teacher/AssignmentHub.jsx'));
 
 test('App renders the hub, imported, with the shared audited handlers', () => {
-  assert.match(app, /import AssignmentHub from '\.\/components\/teacher\/AssignmentHub\.jsx';/);
-  const mount = executableSource(region(app, '<AssignmentHub', '/>', 'AssignmentHub mount'));
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'AssignmentHub', 'src/components/teacher/AssignmentHub.jsx'));
+  const mount = executableSource(region(teacherWorkspace, '<AssignmentHub', '/>', 'AssignmentHub mount'));
   for (const [prop, handler] of [
     ['onToggleWarmup', 'handleToggleWarmupForClass'],
     ['onToggleSectionAccess', 'handleToggleSectionAccessForClass'],
     ['onUnlockDOL', 'handleUnlockDOLForClass'],
     ['onGrantDOLAttempt', 'handleGrantDOLAttemptForClass'],
     ['onDolControl', 'handleDolControlForClass'],
-  ]) assert.match(mount, new RegExp(`${prop}: ${handler}`), `${prop} goes through ${handler}`);
+  ]) {
+    assert.match(mount, new RegExp(`${prop}: ${handler}`), `${prop} goes through ${handler}`);
+    assert.match(app, new RegExp(`\\n {8}${handler}=\\{${handler}\\}\\n`), `App hands ${handler} over`);
+  }
   assert.match(mount, /onOpenExport=\{\(scope\) => openGradeExport\(scope\)\}/);
   assert.match(mount, /onOpenGrades=\{\(classId, assignmentId\) => openGradebookFor\(classId, assignmentId\)\}/);
   assert.match(mount, /onOpenLive=\{\(classContext, assignmentId\) => openLiveFor\(classContext, assignmentId\)\}/);
@@ -34,10 +42,10 @@ test('App renders the hub, imported, with the shared audited handlers', () => {
 
 test('every screen an assignment appears on can open its hub', () => {
   // Assignment cards: the title and the ⋮ menu.
-  assert.match(app, /onClick=\{\(\) => openAssignmentHub\(assignment\.id\)\}>\{assignment\.title\}<\/button>/);
-  assert.match(app, /\{ key: 'details', label: 'Open assignment details', onClick: \(\) => openAssignmentHub\(assignment\.id\) \}/);
+  assert.match(teacherWorkspace, /onClick=\{\(\) => openAssignmentHub\(assignment\.id\)\}>\{assignment\.title\}<\/button>/);
+  assert.match(teacherWorkspace, /\{ key: 'details', label: 'Open assignment details', onClick: \(\) => openAssignmentHub\(assignment\.id\) \}/);
   // Find palette: an assignment result opens the hub for its class.
-  assert.match(app, /openAssignmentHub\(result\.payload\.assignmentId, result\.payload\.classId \|\| null\)/);
+  assert.match(teacherWorkspace, /openAssignmentHub\(result\.payload\.assignmentId, result\.payload\.classId \|\| null\)/);
   // Home, the class page, the student page, the gradebook bar and Grade Export.
   for (const [screen, wiring] of [
     ['TeacherHome', /onOpenAssignment=\{openAssignmentHub\}/],
@@ -45,7 +53,7 @@ test('every screen an assignment appears on can open its hub', () => {
     ['GradebookAssignmentBar', /onOpenAssignment=\{\(assignmentId\) => openAssignmentHub\(assignmentId, gradebookFilter\.classId \|\| null\)\}/],
     ['GradeTransferCenter', /onOpenAssignment=\{\(assignmentId, classId\) => openAssignmentHub\(assignmentId, classId\)\}/],
   ]) {
-    const mount = region(app, `<${screen}`, '/>', `${screen} mount`);
+    const mount = region(teacherWorkspace, `<${screen}`, '/>', `${screen} mount`);
     assert.match(mount, wiring, `${screen} opens the hub`);
   }
 });
@@ -79,12 +87,21 @@ test('a closed lesson leads with its grades; opening it again today is folded, n
 
 test('a student opened from the hub stacks on top of it, and Escape closes one layer at a time', () => {
   // Same z-index, so DOM order decides: the student drawer must come after.
-  assert.ok(app.indexOf('<StudentProfileDrawer') > app.indexOf('<AssignmentHub'), 'student drawer renders after the hub');
-  const onKey = region(hub, 'const onKey = (event) => {', 'window.addEventListener', 'hub Escape handler');
-  // A confirmation handles Escape on `document` first and marks it handled…
-  assert.match(onKey, /event\.defaultPrevented\) return;/);
-  // …and a student drawer above the hub closes before the hub does.
-  assert.match(onKey, /modals\[modals\.length - 1\] !== panelRef\.current\) return;/);
+  assert.ok(teacherWorkspace.indexOf('<StudentProfileDrawer') > teacherWorkspace.indexOf('<AssignmentHub'), 'student drawer renders after the hub');
+  // The hub is the shared modal Dialog: Escape reaches it only when nothing
+  // above handled the key and it is the topmost Dialog (a student drawer, also
+  // a Dialog, closes first)…
+  const dialog = read('src/ui/Dialog.jsx');
+  // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
+  assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
+  assert.match(dialog, /if \(handledInside \|\| !onTop\(\)\) return;/);
+  const shell = region(hub, '<Dialog as="aside"', '\n', 'hub dialog');
+  assert.match(shell, /ref=\{panelRef\}/);
+  assert.match(shell, /onClose=\{closeIfTopLayer\}/);
+  // …and a confirmation that is not a Dialog ("Close the DOL now?") is above it
+  // by DOM order, so the hub stays open while the confirmation closes.
+  const guard = region(hub, 'const closeIfTopLayer = () => {', '\n  };', 'hub top-layer guard');
+  assert.match(guard, /if \(modals\.length && modals\[modals\.length - 1\] !== panelRef\.current\) return;\n\s*onCloseRef\.current\?\.\(\);/);
 });
 
 test('student -> assignment -> work, from the Students page and from the student drawer alike', () => {
@@ -99,7 +116,7 @@ test('student -> assignment -> work, from the Students page and from the student
     assert.match(source, /import StudentAssignmentsList from '\.\/StudentAssignmentsList\.jsx';/, `${name} imports the shared list`);
     assert.match(executableSource(source), /<StudentAssignmentsList[\s\S]*?onOpenStudentWork=\{onOpenStudentWork\}/, `${name} renders it with the work route`);
   }
-  const mount = executableSource(region(app, '<StudentProfileDrawer', '/>', 'StudentProfileDrawer mount'));
+  const mount = executableSource(region(teacherWorkspace, '<StudentProfileDrawer', '/>', 'StudentProfileDrawer mount'));
   assert.match(mount, /studentRecord=\{profileDrawerStudent\}/);
   assert.match(mount, /onOpenStudentWork=\{\(classId, assignmentId, studentId\) => \{ setProfileDrawerStudentId\(null\); openGradebookFor\(classId, assignmentId, studentId\); \}\}/);
 });

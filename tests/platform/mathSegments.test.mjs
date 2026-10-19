@@ -64,6 +64,22 @@ test('plain grouped scalar fractions lose only their redundant grouping before s
   ]);
 });
 
+// Oct 2026 matrices walkthrough: the Matrix Lab's row x column line
+// "6(3/2) + −1(1/6)" reached the student as 63/2 + −11/6 — without the
+// brackets, the number in front ran into the numerator.
+test('a bracketed fraction a number touches keeps its brackets', () => {
+  assert.equal(removeRedundantPlainFractionParens('6(3/2)'), '6(3/2)');
+  assert.equal(removeRedundantPlainFractionParens('(3/2)6'), '(3/2)6');
+  assert.equal(removeRedundantPlainFractionParens('2.5(1/2)'), '2.5(1/2)');
+  assert.deepEqual(splitProseFractionRuns('Evaluate 4(1/2).').map((run) => run.text).join(''), 'Evaluate 4(\\frac{1}{2}).');
+  const expansion = splitProseFractionRuns('6(3/2) + −1(1/6)');
+  assert.ok(!expansion.some((run) => /\\frac\{63\}|\\frac\{11\}/.test(run.text)), JSON.stringify(expansion));
+  assert.deepEqual(expansion.filter((run) => run.isFraction).map((run) => run.text), ['\\frac{3}{2}', '\\frac{1}{6}']);
+  // Two bracketed fractions side by side multiply; stripping both made 2/33/2.
+  const product = splitProseFractionRuns('Row 1 of R times column 1 of S: (2/3)(3/2) + 1(1/6).');
+  assert.deepEqual(product.filter((run) => run.isFraction).map((run) => run.text), ['\\frac{2}{3}', '\\frac{3}{2}', '\\frac{1}{6}']);
+});
+
 test('the full stop after a prose fraction ends the sentence, not the denominator', () => {
   assert.deepEqual(splitProseFractionRuns('Simplify 2/6.'), [
     { text: 'Simplify ', isFraction: false },

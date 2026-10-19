@@ -30,6 +30,9 @@
  * a deterministic award identity — source + source id + student + rule — so
  * issuing the same award twice lands on the same document. See
  * functions/shared/liveChallengeClassPoints.mjs for the issuing transaction.
+ * Growth rules (functions/shared/growthRewardRules.mjs) issue badges the same
+ * way, from a student's own released tests, corrections, weekly Path goals and
+ * mastery, delivered by functions/lib/growthRewards.js.
  *
  * Pure: no Firebase and no node:crypto, so a student wallet can import these
  * definitions and status rules directly.
@@ -136,7 +139,65 @@ export const REWARD_SOURCE = Object.freeze({
   LIVE_CHALLENGE: 'liveChallenge',
   TEACHER: 'teacher',
   RESTORED: 'restored',
+  // A growth rule (functions/shared/growthRewardRules.mjs): a better retest,
+  // finished corrections, a run of weekly Path goals, skills mastered.
+  GROWTH: 'growth',
 });
+
+/*
+ * BADGES A STUDENT CAN SEE BY NAME.
+ *
+ * A badge grant stores a free-text `badgeCode` (a teacher's or a Live
+ * Challenge rule's), and grants issued before this catalog existed keep
+ * whatever code they were given. The catalog is display copy only — a label,
+ * an icon and one plain sentence — for the codes the platform itself issues,
+ * so the wallet can say "Comeback on the retest" instead of "Badge". Nothing
+ * reads it to decide whether a badge is valid; `badgeDisplay` falls back to
+ * the grant's own label for any code it does not know.
+ */
+export const BADGE_CATALOG = Object.freeze({
+  'growth-retest': Object.freeze({
+    badgeCode: 'growth-retest',
+    label: 'Comeback on the retest',
+    icon: '📈',
+    studentDescription: 'You came back and did better on a retest.',
+  }),
+  'growth-corrections': Object.freeze({
+    badgeCode: 'growth-corrections',
+    label: 'Fixed my mistakes',
+    icon: '🛠️',
+    studentDescription: 'You finished every correction on a test.',
+  }),
+  'growth-path-streak': Object.freeze({
+    badgeCode: 'growth-path-streak',
+    label: 'Three weeks on track',
+    icon: '🔥',
+    studentDescription: 'You met your My Math Path goal on time three weeks in a row.',
+  }),
+  'mastery-5': Object.freeze({
+    badgeCode: 'mastery-5',
+    label: '5 skills mastered',
+    icon: '🌟',
+    studentDescription: 'Five skills reached Mastered.',
+  }),
+  'mastery-10': Object.freeze({
+    badgeCode: 'mastery-10',
+    label: '10 skills mastered',
+    icon: '🏆',
+    studentDescription: 'Ten skills reached Mastered.',
+  }),
+});
+
+/** The label and icon to show for a badge grant. Unknown codes keep the grant's own label. */
+export const badgeDisplay = (grant = {}) => {
+  const entry = BADGE_CATALOG[String(grant?.badgeCode || '')] || null;
+  if (entry) return { label: entry.label, icon: entry.icon, description: entry.studentDescription };
+  return {
+    label: cleanText(grant?.label, 80) || REWARD_DEFINITIONS.badge.label,
+    icon: REWARD_DEFINITIONS.badge.icon,
+    description: REWARD_DEFINITIONS.badge.studentDescription,
+  };
+};
 
 export const getRewardDefinition = (rewardCode) => REWARD_DEFINITIONS[String(rewardCode || '')] || null;
 

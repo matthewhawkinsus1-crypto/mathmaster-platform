@@ -1,7 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+// Stylesheets that must link before App.css, in 805b69e2's order
+// (app/shell/leadingStyles.js says why and how).
+import './app/shell/leadingStyles.js';
 import './App.css';
 import {
-  addDoc,
   collection,
   deleteDoc,
   deleteField,
@@ -27,15 +29,21 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
+import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
+import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
-import SupportEvidenceReportView from './components/teacher/SupportEvidenceReportView.jsx';
+import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './platform/student/studentWords.js';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
+import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -65,25 +73,28 @@ import {
   publishClassroomMaterial,
   repairClassroomAssignmentPublications,
   storeLessonNotesPdf,
-  updateAssignmentClassroomPublications,
 } from './classroomApi';
 
-
-
-import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
+// Whether a question can come back as a different question is the one piece
+// of the generator App needs while it renders. The generator itself, with the
+// math engine (mathjs) under it, loads when a student prints a worksheet: a
+// static import put mathjs in every student's first load before Home.
+import { canGenerateDistinctVariants as isPersonalizedBlueprint } from '../functions/shared/questionVariability.mjs';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
-import { stripAssignmentInstanceState } from '../functions/shared/assignmentPrivacy.mjs';
 import {
   fetchAssignmentsById,
   fetchStudentAssignments,
+  individuallyAssignedTestCycleIds,
+  markIndividuallyAssigned,
   mergeStudentAssignments,
   priorWorkAssignmentIds,
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile } from './platform/assignments/studentAssignmentControls.js';
+import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
   EMPTY_TEACHER_CONTROLS,
@@ -99,9 +110,6 @@ import {
 } from './platform/generation/generationSeatReconciler.js';
 import { mergePracticeTrackers } from './platform/student/practiceTrackerMerge.js';
 import {
-  emptyQuestionRecord,
-  getQuestionCardState,
-  getQuestionCredit,
   normalizeQuestionRecord,
   recordQuestionAttempt,
   recordQuestionStep,
@@ -110,22 +118,14 @@ import {
   resolveQuestionReplacementAllowed,
   resolveTeacherGrantedExtraAttempts,
 } from './attemptPolicy';
-import {
-  parseAssignmentBlueprintText,
-  validateAssignmentQuestions,
-  assertFirestoreSafeAssignmentPayload,
-} from './assignmentBlueprint';
 
-
-import { markIncompleteAssignmentDraftPublished } from './platform/preflight/incompleteAssignmentDraftStore.js';
-import { hydrateAssignmentCcmr } from './services/assignmentCcmrService.js';
-import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
-import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
 import {
   buildQuestionDraftKey,
   clearResumeAction,
   questionDraftSavedAt,
   readResumeAction,
+  reconcileFieldRecordDrafts,
+  reconcileToolWorkspaceDrafts,
   removeAssignmentDrafts,
   restoreQuestionDrafts,
   saveResumeAction,
@@ -142,23 +142,29 @@ import {
   getClassPackUpState,
   getDOLState,
   getWarmupState,
-  getSectionAccessState,
+  // The plain function, under another name: App binds `getSectionAccessState`
+  // to the signed-in student's own grades below (sectionAccessForStudent).
+  getSectionAccessState as getSectionAccessStateForAnyone,
   getSectionVariantMode,
   localDateKey,
   normalizeSchedule,
   prerequisiteAccess,
   recordAssignmentActivity,
-  resolveDOLQuestionIndex,
-  resolveDOLQuestionIndices,
+  sectionAccessForStudent,
   getCurrentContentQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
   studentDueDateLines,
+  studentExtraTimeDolOpen,
   studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
-import { describeWorkloadSummary } from '../functions/shared/reducedWorkload.mjs';
+import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
+import { useAskMyTeacher } from './platform/supports/useAskMyTeacher.js';
+import { questionFor } from './platform/supports/askTeacher.js';
+import TeacherAnswers from './components/student/TeacherAnswers.jsx';
+import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -179,27 +185,24 @@ import {
   sameStudentProfile,
 } from './studentSupport';
 
-
-import AssignmentCardMenu from './AssignmentCardMenu';
-
-
-
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
-import ClassContextBar from './components/teacher/ClassContextBar.jsx';
-import WeeklyPathGradePanel from './components/teacher/WeeklyPathGradePanel.jsx';
-import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
-import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
-import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
-import AssignmentHub from './components/teacher/AssignmentHub.jsx';
-import GradebookAssignmentBar, { GradebookClassChooser } from './components/teacher/GradebookAssignmentBar.jsx';
-import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
-import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
-import StudentNameLink from './components/common/StudentNameLink.jsx';
-import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
-import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
+import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
+import Dialog from './ui/Dialog.jsx';
+import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
+import { subscribeToReadingActivity } from './components/common/readingActivity.js';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
-
+import SectionTimeLeft from './components/student/SectionTimeLeft.jsx';
+import {
+  outcomeWithheld,
+  QUESTION_STATUS,
+  SECTION_ACCESS,
+  describeNavigatorQuestion,
+  describeNavigatorSectionProgress,
+  describeSectionAccess,
+  sectionLandingEntry,
+} from './platform/student/assignmentNavigator.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
@@ -208,8 +211,10 @@ import {
   createDurableAction,
   drainDurableActions,
   enqueueDurableAction,
+  isGradeBearingAction,
   listDurableActions,
   overlayDurableActionsOnGrades,
+  resendRetiredReviewWork,
 } from './platform/performance/durableActionOutbox.js';
 import {
   PROGRESS_KINDS,
@@ -231,13 +236,12 @@ import {
   SUBMISSION_DISPOSITION,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
 import { resolveStudentAssignmentEntry } from './platform/student/assignmentEntry.js';
-import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
   getEffectiveActivityPolicy,
   resolveQuestionActivityRole,
 } from './platform/policies/activityPolicies';
-import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
+import { matchesSmartView } from './assignmentSmartViews';
 import {
   advanceLiveTeachingSession,
   updateWalkthroughTimer,
@@ -248,74 +252,114 @@ import {
 } from './platform/teacher/liveTeachingSession.js';
 import { validatePersistedWalkthroughSession, walkthroughEligibility } from './platform/assignments/assignmentAvailability.js';
 import { describeClassworkPace } from './platform/teacher/classworkModel.js';
-import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
-import {
-  assertPublishable, buildDestinationGroups, destinationAssignmentKey,
-  isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
-} from './assignmentDestinations';
+import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
-import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { isDesktopStickyLayout, revealBelowSticky } from './platform/layout/stickyReveal.js';
 import {
-  canonicalV5PersistencePatch,
   getStoredAssignmentQuestions,
   prepareAssignmentForRuntime,
-  getStoredAssignmentTypeProjection,
-  getStoredAssignmentVariantMode,
   getStoredSectionVariantModes,
-  storedAssignmentToV5,
-  testCycleContractFields,
 } from './platform/contract/storedAssignmentV5.js';
-import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
-import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
 import {
-  contentVersionLabel,
   contentVersionOf,
-  latestCurrentLibraryRelease,
 } from './platform/assignments/assignmentContentVersion.js';
 import {
   projectCurrentAssignmentContent,
   resolveCurrentContentStorageIndex,
 } from './platform/assignments/currentContentProjection.js';
 import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
-import {
-  questionFingerprint,
-  repairAssignmentTrackerForCurrentGrader,
-  repairAssignmentTrackerForGranularWorkflowCredit,
-  repairAssignmentTrackerForLiveCorrections,
-} from './platform/assignment/liveQuestionCorrection.js';
-import { GRAPH_VIEWPORT_REPAIR_KIND } from '../functions/shared/liveResponseRepairPolicy.mjs';
-import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
-import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
-import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 
-
-
-
-
-
-
-
-
-
-import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
+import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
+import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
+import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
+import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
-import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
-import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
+import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
+import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
-import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
-import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
+import { buildStudentDashboardModel, resolveNextAction, resolveUpNext } from './studentDashboardModel.js';
+import { resolveAssignmentHandoff, resolveSkippedQuestion } from './platform/student/assignmentHandoff.js';
+import { questionIsTerminal, timedSectionWorkableNow } from './platform/student/studentWorkState.js';
+import WhatChangedList from './components/student/WhatChangedList.jsx';
 import {
+  buildWhatChanged, countUnseenWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
+} from './platform/student/whatChangedModel.js';
+import { describeLogoutRisk } from './platform/student/logoutGuard.js';
+import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts } from './platform/student/saveStatusModel.js';
+import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
+import { loadMyReviewWork } from './services/reviewMyWorkService.js';
+import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
+import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
+import { whenDateTimeText } from './platform/student/studentWhen.js';
+import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
+import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
+import { classroomAnnouncement, classroomAnnouncementState } from './platform/student/classroomAnnouncements.js';
+import { packUpWorkLine } from './platform/student/packUpLine.js';
+import {
+  readRouteOwner,
   readStudentRouteState,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
-import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
+import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/browserUrl.js';
+import { parseAppPath } from './app/routes/appUrl.js';
+import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
+import { useUrlArrival } from './app/routes/useUrlArrival.js';
+import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
+import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
+import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
+import {
+  DISPLAYED_CHECKPOINT_OUTCOMES,
+  activityTitleForRole,
+  assignmentFeedbackWasReleased,
+  assignmentHasHeldTeacherFeedback,
+  assignmentUsesTeacherReleasePolicy,
+  calculateDOLSectionScore,
+  captureTimedSectionAccess,
+  createEmptyAssignmentTracker,
+  createPracticeAssignmentTracker,
+  warmupCaptureWasActive,
+} from './app/student/assignmentRuntimeHelpers.js';
+import {
+  CLASS_SCOPED_TABS,
+  NO_RECOVERY_OPPORTUNITIES,
+  RECOVERY_ANNOUNCEMENT_MODES,
+  RECOVERY_DISCOVERY_ALL,
+  TEACHER_CROSS_CLASS_TABS,
+  TEACHER_FULL_STUDENT_DATA_TABS,
+  TEACHER_PARENT_CONTACT_STREAM_TABS,
+  TEACHER_SESSION_SUMMARY_TABS,
+  TEACHER_SUPPORT_STREAM_TABS,
+} from './app/screenScopes.js';
+// Every screen loaded on demand (one chunk each), and the teacher-only
+// panels, each with its own Suspense boundary (lazyScreens.js).
+import {
+  LiveChallengeStudent,
+  MyMathPathApp,
+  QuestionEngine,
+  ReviewMyWork,
+  SectionRecoveryRunner,
+  StudentSecureExamDashboard,
+  TeacherQuestionReviewPanel,
+  TeacherWorkspace,
+  TestCycleCard,
+  WarmupChallengeGate,
+} from './app/lazyScreens.js';
+import {
+  TEACHER_HISTORY_DOCUMENT_ID,
+  planTeacherHistoryWrite,
+  readTeacherHistoryEntry,
+  teacherRouteKey,
+  teacherRouteSignature,
+  writeTeacherRouteState,
+} from './platform/teacher/teacherBrowserHistory.js';
+import { questionAssessmentFramework } from './platform/student/questionAssessmentFramework.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
 import {
   STUDENT_SELF_NEUTRAL_LABEL,
@@ -340,21 +384,24 @@ import StudentDashboardView from './components/student/StudentDashboardView.jsx'
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
-import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from './services/testCycleService.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
-import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/assessment/testCycleContractEdit.js';
-import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
-import StudentDolRecoveryRow from './components/teacher/StudentDolRecoveryRow.jsx';
-import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
+import {
+  buildStudentRecoveryDiscovery,
+  groupRecoveryOpportunitiesByAssignment,
+  markRecoveryNotified,
+  markRecoverySeen,
+  recoveryNotice,
+  recoveryWasNotified,
+} from './platform/recovery/studentRecoveryDiscovery.js';
+import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities.jsx';
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
-import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
   subscribeToClassPointAnnouncements,
@@ -373,57 +420,39 @@ import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
 import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
+import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
 import {
+  assignmentIsExcusedForStudent,
   buildStudentGradeCenter,
   findGradeCenterEntry,
 } from './platform/student/studentGradeCenterModel.js';
 import {
   GRADING_PERIOD_SETTINGS_DOC,
   gradingPeriodAssignmentPatch,
-  currentGradingPeriodStamp,
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot, fetchMyWeeklyPathCompletions,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
-import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
-import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, deriveCompletionsFromEvidence, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
-import SignInAccess from './SignInAccess.jsx';
-import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
-import PreproductionReset from './components/admin/PreproductionReset.jsx';
-import AssignmentAiHealth from './components/admin/AssignmentAiHealth.jsx';
-import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
 } from './platform/resources/pdfLoaders.js';
-import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
-import { downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
+import { PRINT_OUTPUT_MODES } from './platform/resources/printOutputModes.js';
+import { buildAssignmentWorksheetModel, buildTeacherAssignmentWorksheetModel, downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
-import {
-  buildSafeLibraryContentRepair,
-  inspectLibraryContentRepair,
-  prepareStoredAssignmentForReuse,
-} from './platform/assignments/libraryAssignmentReuse.js';
-import { applyCcmrHydrationToCanonicalAssignment } from './platform/assignments/canonicalCcmrHydration.js';
-import {
-  assignmentNeedsStudentForWorksheet,
-  buildTeacherAssignmentWorksheetModel,
-  eligibleStudentsForTeacherWorksheet,
-} from './platform/resources/teacherAssignmentWorksheetExport.js';
-import {
-  classroomPostingMode,
-  mappedCourseIdsForAssignment,
-  shouldAutoPublishClassroomPackage,
-} from './platform/classroom/automaticClassroomPublishing.js';
+// The teacher-only logic App runs (needs attention, the Action Center,
+// Assignment Review's publishing intent, worksheets, Classroom publishing)
+// loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
+import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './app/teacher/teacherKitLoader.js';
+import { automaticClassroomTopicName } from './platform/classroom/classroomTopicNaming.js';
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
-import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
@@ -439,16 +468,11 @@ import {
 import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
-import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
-import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
-import TeacherActionCenter from './components/teacher/TeacherActionCenter.jsx';
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that
 // made every attendance correction review impossible to resolve.
-import { buildAttendanceCorrectionReviewEvent, buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js';
+import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
-import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
-import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
@@ -462,12 +486,10 @@ import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceH
 import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 import {
   defaultCourseProfiles,
-  inspectHonorsRigor,
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
-import { certifyHonorsExtensionQuestion } from './platform/rigor/honorsExtensionRecipes.js';
-import { withAppendedQuestionSections } from './platform/rigor/honorsExtensionSwap.js';
-import LoginScreen from './LoginScreen.jsx';
+import SessionGate from './app/shell/SessionGate.jsx';
+import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -475,6 +497,7 @@ import {
   WARMUP_CHALLENGE_ROUTE,
   resolveWarmupChallenge,
   shouldShowChallengeHandoffBanner,
+  shouldShowChallengeLobbyInvite,
   shouldShowWarmupWaitingPanel,
 } from './platform/liveChallenge/warmupChallengeLink.js';
 // The administrator identity comes from the same module the callables enforce,
@@ -485,212 +508,6 @@ import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 // not per-render or per-teacher state (see the identical constant in
 // LiveClassMonitor.jsx, which needs the same calendar for the same reason).
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
-
-const ClassroomManagerV2 = lazy(() => import('./ClassroomManagerV2.jsx'));
-const AssignmentQuestionEditor = lazy(() => import('./AssignmentQuestionEditor.jsx'));
-const QuestionEngine = lazy(() => import('./QuestionEngine.jsx'));
-const AssignmentIntake = lazy(() => import('./AssignmentIntake.jsx'));
-const TeacherQuestionReviewPanel = lazy(() => import('./components/teacher/TeacherQuestionReviewPanel.jsx'));
-const TeacherSidebar = lazy(() => import('./TeacherSidebar.jsx'));
-const GradeTransferCenter = lazy(() => import('./components/teacher/GradeTransferCenter.jsx'));
-const AssignmentLibrary = lazy(() => import('./AssignmentLibrary.jsx'));
-const TeacherAssignmentPdfDialog = lazy(() => import('./components/teacher/TeacherAssignmentPdfDialog.jsx'));
-const AssignmentContentUpgradeModal = lazy(() => import('./components/teacher/AssignmentContentUpgradeModal.jsx'));
-const ClassesWorkspace = lazy(() => import('./ClassesWorkspace.jsx'));
-const TeacherHome = lazy(() => import('./TeacherHome.jsx'));
-const TexasStandardsDashboard = lazy(() => import('./TexasStandardsDashboard.jsx'));
-const MathToolsLab = lazy(() => import('./dev/MathToolsLab.jsx'));
-const LessonPreflightModal = lazy(() => import('./components/teacher/LessonPreflightModal.jsx'));
-const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'));
-const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
-const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
-const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
-// Student Case Review / Academic Evidence Deep Dive: its code loads only when a
-// teacher opens it from the student drawer (docs/STUDENT_CASE_REVIEW_DESIGN.md).
-const StudentCaseReviewView = lazy(() => import('./components/teacher/caseReview/StudentCaseReviewView.jsx'));
-const DemoExperience = lazy(() => import('./components/demo/DemoExperience.jsx'));
-const StudentsRoster = lazy(() => import('./components/teacher/StudentsRoster.jsx'));
-const ClassCourseSettings = lazy(() => import('./components/teacher/ClassCourseSettings.jsx'));
-const ClassScheduleSettings = lazy(() => import('./components/teacher/ClassScheduleSettings.jsx'));
-const PathSimulator = lazy(() => import('./components/teacher/PathSimulator.jsx'));
-const PacingControls = lazy(() => import('./components/teacher/PacingControls.jsx'));
-const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPeriodSettings.jsx'));
-const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
-const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
-const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
-// Only a student opening a Test Cycle needs this, and it brings the secure
-// exam player, the calculator and all of MathLive with it — about 1 MB that a
-// static import put in front of every sign-in.
-const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
-const TestCyclePreview = lazy(() => import('./components/teacher/TestCyclePreview.jsx'));
-// The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
-// a student who opens a Recovery fetches it then, not every student at sign-in.
-const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
-
-
-
-/*
- * Which teacher tabs a class actually scopes, and what it scopes there.
- *
- * This table is the honest boundary of the class-first architecture. A tab in
- * it inherits the workspace's class rather than asking again; a tab absent from
- * it genuinely operates outside class scope, and showing a class selector above
- * it would imply a filter that does not exist.
- *
- * `allowAllClasses: false` marks the views that cannot answer anything without
- * a specific class — a weekly goal or a live room is a fact about one class, not
- * an average across five.
- */
-const CLASS_SCOPED_TABS = Object.freeze({
-  home: { scopeLabel: 'Showing what needs attention' },
-  classesWorkspace: { scopeLabel: 'Showing the class' },
-  students: { scopeLabel: 'Showing the roster' },
-  grades: { scopeLabel: 'Showing grades' },
-  weeklyPath: { scopeLabel: 'Showing weekly goals', allowAllClasses: false },
-  pacing: { scopeLabel: 'Showing pacing', allowAllClasses: false },
-  standards: { scopeLabel: 'Showing mastery' },
-  analytics: { scopeLabel: 'Showing analytics' },
-  assignments: { scopeLabel: 'Showing assignments' },
-});
-
-const createQuestionId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const normalizeAssignmentQuestions = (questions = []) => questions.map((question) => ({
-  ...question,
-  questionId: question.questionId || createQuestionId(),
-  teacherExcluded: question.teacherExcluded === true,
-}));
-
-const assignmentFeedbackWasReleased = (assignment) => assignment?.feedbackReleased === true || Boolean(assignment?.feedbackReleasedAt);
-
-const assignmentUsesTeacherReleasePolicy = (assignment) => (
-  getStoredAssignmentQuestions(assignment).some((question) => {
-    const role = resolveQuestionActivityRole({ question, assignment });
-    return getEffectiveActivityPolicy(role).feedback === 'teacherRelease';
-  })
-);
-
-const assignmentHasHeldTeacherFeedback = (assignment) => (
-  assignmentUsesTeacherReleasePolicy(assignment) && !assignmentFeedbackWasReleased(assignment)
-);
-
-const createEmptyAssignmentTracker = (questions = []) => {
-  const initialTracker = {};
-  questions.forEach((_, index) => {
-    initialTracker[index] = emptyQuestionRecord();
-  });
-  return initialTracker;
-};
-
-const createPracticeAssignmentTracker = (questions = [], frozenTracker = {}) => {
-  const initialTracker = {};
-  questions.forEach((_, index) => {
-    const frozenRecord = normalizeQuestionRecord(frozenTracker[index]);
-    initialTracker[index] = {
-      ...emptyQuestionRecord(),
-      variantIndex: frozenRecord.variantIndex,
-    };
-  });
-  return initialTracker;
-};
-
-const formatDueDate = (assignmentOrValue) => {
-  if (assignmentOrValue && typeof assignmentOrValue === 'object') {
-    return formatDateTime(assignmentOrValue.dueAt || assignmentOrValue.dueDate);
-  }
-  return formatDateTime(assignmentOrValue);
-};
-
-const formatLateDueDate = (assignment) =>
-  formatDateTime(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
-
-const formatTimeStamp = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
-};
-
-const toDateTimeLocalInputValue = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
-  const pad = (number) => String(number).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const activityTitleForRole = (role) => ({
-  warmup: 'Warm-Up',
-  classwork: 'Classwork',
-  dol: 'DOL',
-  practice: 'Practice',
-  quiz: 'Quiz',
-  test: 'Unit Test',
-}[role] || 'Activity');
-
-const captureTimedSectionAccess = ({
-  activityRole,
-  assignment,
-  schedule,
-  classId,
-  classPeriod,
-  capturedAt,
-}) => {
-  if (activityRole !== 'warmup') return null;
-  const state = getWarmupState({
-    assignment,
-    schedule,
-    classId,
-    classPeriod,
-    nowValue: capturedAt,
-  });
-  return {
-    role: 'warmup',
-    status: state.status,
-    teacherTimerScheduled: state.teacherTimerScheduled === true,
-    endsAt: state.endsAt instanceof Date ? state.endsAt.toISOString() : null,
-    instructionDateKey: state.instructionDateKey || null,
-  };
-};
-
-const warmupCaptureWasActive = (capture, capturedAt) => {
-  if (capture?.role !== 'warmup' || capture?.status !== 'active') return false;
-  const endsAt = capture?.endsAt ? new Date(capture.endsAt).getTime() : Number.NaN;
-  return !Number.isFinite(endsAt) || capturedAt <= endsAt;
-};
-
-const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], assignment = null) => {
-  const indices = Array.isArray(questionIndices) ? questionIndices : [];
-  if (!indices.length) return 0;
-  const questions = getStoredAssignmentQuestions(assignment || {});
-  let possibleWeight = 0;
-  let earnedWeight = 0;
-  indices.forEach((index) => {
-    const weight = normalizeQuestionWeight(questions[index] || {});
-    possibleWeight += weight;
-    earnedWeight += getQuestionCredit(assignmentTracker?.[index]) * weight;
-  });
-  return possibleWeight > 0 ? Math.round((earnedWeight / possibleWeight) * 100) : 0;
-};
-
-// Statuses that mean something to a student who has come back after the close.
-// Every other lifecycle status is internal bookkeeping.
-const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
-
-const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
-  'students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer',
-  'standards', 'analytics', 'exams',
-]);
-const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
-const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
-// Tabs that work across every class a teacher teaches by design (Grade
-// Export's units, the Action Center's queue, Parent Contacts' roster): their
-// students' private controls are read for all of those classes, in the one
-// controls listener (platform/teacher/teacherClassControls.js).
-const TEACHER_CROSS_CLASS_TABS = new Set(['gradeTransfer', 'actionCenter', 'parentContacts']);
-const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace', 'parentContacts']);
 
 function App() {
   const auth = useAuth();
@@ -772,6 +589,11 @@ function App() {
     return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); unsubscribeInventory(); };
   }, [user?.role, user?.id, user?.classId]);
 
+  // Growth, effort and mastery rewards (Retest improvement, Corrections,
+  // weekly Path goal, mastery milestones) are re-derived by the server from
+  // the student's own records, once per session (functions/lib/growthRewards.js).
+  useGrowthRewardSync(user?.id, { uid: user?.uid, enabled: user?.role === 'student' && Boolean(user?.classId) });
+
   // A new reward gets one toast and a "New" mark (useRewardCelebrations).
   const celebratingStudentId = user?.role === 'student' ? user.id : null;
   const { newIds: newRewardIds, clearNew: clearNewRewards } = useRewardCelebrations({
@@ -832,6 +654,32 @@ function App() {
   // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
   const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
+  // A Classroom link that could not be read: said once a student is signed
+  // in (NAV-11), instead of only in the console.
+  const [classroomLaunchInvalid, setClassroomLaunchInvalid] = useState(false);
+  // The address the page was opened at — a reload, a bookmark, a shared link
+  // or a deep link waiting through sign-in (app/routes/urlArrival.js). Held
+  // until an account has loaded, then opened through the same functions a
+  // click calls; until then the history writers leave the address alone.
+  const [urlArrival, setUrlArrival] = useState(() => (
+    typeof window === 'undefined'
+      ? null
+      : readUrlArrival({ pathname: window.location.pathname, search: window.location.search })
+  ));
+  // My Math Path's tab or session from an arrival, handed to MyMathPathApp
+  // when it mounts; cleared once the student leaves My Math Path.
+  const [mathPathArrival, setMathPathArrival] = useState(null);
+  // An account was signed in on this page. If it goes — Log Out, an expired
+  // Classroom lease, another tab — the address it left is not the next
+  // person's deep link.
+  const signedInOnThisPageRef = useRef(false);
+  useEffect(() => {
+    if (auth.status === 'ready') signedInOnThisPageRef.current = true;
+    if (auth.status === 'signedOut' && signedInOnThisPageRef.current) {
+      setUrlArrival(null);
+      resetAddressToHome();
+    }
+  }, [auth.status]);
   // The student Assignment Result route: which assignment is on screen and,
   // when the student arrived through a split Google Classroom post, which
   // section that post covered. Launch context only — the grade itself always
@@ -845,6 +693,7 @@ function App() {
       launch = parseClassroomLaunchSearch(window.location.search);
     } catch (error) {
       console.error('Rejected invalid Classroom launch link:', error);
+      setClassroomLaunchInvalid(true);
       return;
     }
     if (!launch) return;
@@ -909,6 +758,29 @@ function App() {
   // Keep only the small badge count after Action Center releases its heavy
   // projections. This preserves the sidebar cue without retaining student history.
   const [teacherActionOpenCountCache, setTeacherActionOpenCountCache] = useState(0);
+  // The teacher kit (app/teacher/teacherKit.js) loads once a teacher is signed
+  // in; the teacher's screen waits for it (the teacher branch of the render).
+  // A teacher who leaves before it arrives is never handed it, and a failed
+  // load reaches AppErrorBoundary, like a failed TeacherWorkspace chunk.
+  const [teacherKit, setTeacherKit] = useState(loadedTeacherKit);
+  const [teacherKitError, setTeacherKitError] = useState(null);
+  useEffect(() => {
+    if (user?.role !== 'teacher' || teacherKit) return undefined;
+    let stopped = false;
+    prefetchTeacherWorkspace();
+    loadTeacherKit()
+      .then((kit) => { if (!stopped) setTeacherKit(kit); })
+      .catch((error) => {
+        console.error('The teacher workspace could not load:', error);
+        if (!stopped) setTeacherKitError(error);
+      });
+    return () => { stopped = true; };
+  }, [user?.role, teacherKit]);
+  // Only the teacher's screen calls these, and it renders only with the kit.
+  const requireTeacherKit = () => {
+    if (!teacherKit) throw new Error('The teacher workspace has not finished loading. Try again in a moment.');
+    return teacherKit;
+  };
   const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
   const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
@@ -918,6 +790,9 @@ function App() {
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [studentPathIntervention, setStudentPathInterventionState] = useState(null);
+  // The server mastery profile: the one mastery source the Path map, Recommended
+  // and the wheel all read (platform/mastery/unifiedMastery.js).
+  const [studentServerMasteryProfiles, setStudentServerMasteryProfiles] = useState(null);
   const [pathInterventionBusyStudentId, setPathInterventionBusyStudentId] = useState(null);
   const [pacingBusy, setPacingBusy] = useState(false);
   // Weekly Path goal settings, per class. Stored beside pacing and read the
@@ -979,6 +854,8 @@ function App() {
   // The skill a student picked from Recommended for You, consumed once by
   // My Math Path and cleared when they come back.
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
+  // Which My Math Path tab a "Practise this skill" link from a test review opens.
+  const [pathLaunchTab, setPathLaunchTab] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
@@ -987,6 +864,12 @@ function App() {
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // Unfinished work this device could not save, or the backup could not take
+  // (draftSaveHealth.js). Bumped on every change; the line below reads it.
+  const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
+  useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
+  // A shared Chromebook: the next student never inherits this one's notice.
+  useEffect(() => () => { clearDraftSaveProblems(); }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
@@ -1018,8 +901,12 @@ function App() {
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
+  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(true);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
+  // The phone's status chip (pass 3, NAV-5) and why a locked section tab
+  // cannot open (RUN-8): both belong to one assignment, and close with it.
+  const [assignmentStatusOpenFor, setAssignmentStatusOpenFor] = useState(null);
+  const [sectionLockNote, setSectionLockNote] = useState(null);
   const assignmentQuestionStageRef = useRef(null);
   // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
   // another question, or another assignment, opens as any question opens.
@@ -1028,37 +915,66 @@ function App() {
     setDraftRestoreFocus(null);
   }, [currentQuestionIndex, activeAssignmentId]);
 
-  // Once the student reaches the workspace, the full progress dashboard has
-  // done its job. Keep its section/question/previous/next essentials in one
-  // row and let the existing “Show progress” control restore the full view.
-  // Short landscape phones start in this presentation even before scrolling.
+  // THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE (pass 3, RUN-7).
+  // One row — back, where you are, Previous/Next — leaves the work the
+  // screen; "Show progress" opens the section tabs and question numbers, and
+  // "Focus view" folds them again. Every open path resets it to compact. (It
+  // used to start full and compact only once the window scrolled, which a
+  // phone's never does: 179px of navigator stayed above every phone question.)
+  //
+  // Folding or opening it keeps the work where it was on screen: the page is
+  // scrolled by however far the toggle moved the work, so "Focus view" no
+  // longer sends a graph further down the page.
+  const navigationToggleAnchorRef = useRef(null);
+  const assignmentWorkElement = () => assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
+    || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace')
+    || assignmentQuestionStageRef.current;
+  const toggleAssignmentNavigation = () => {
+    const work = assignmentWorkElement();
+    navigationToggleAnchorRef.current = work ? { element: work, top: work.getBoundingClientRect().top } : null;
+    if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
+    setAssignmentNavigationCollapsed((current) => !current);
+  };
+  // TOASTS NEVER COVER THE ACTION BAR. Toasts lift above the action bar by its
+  // height, which clears it only while the bar is stuck to the bottom of the
+  // screen. With the compact navigator a short question no longer fills the
+  // page, and the bar sits higher, in the flow. So the assignment screen
+  // publishes how far the bar's top is from the bottom of the screen
+  // (--mm-action-bar-clearance), and App.css lifts toasts by that.
   useEffect(() => {
-    if (activeView !== 'assignment' || !activeAssignmentId) return undefined;
+    if (activeView !== 'assignment' && activeView !== 'teacherPreview') return undefined;
+    const root = document.documentElement;
     let frame = 0;
-    const updateAssignmentNavigationChrome = () => {
+    const publish = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const work = assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
-          || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace');
-        if (shouldCompactAssignmentNavigation({
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-          workTop: work?.getBoundingClientRect?.().top ?? Infinity,
-        })) {
-          setAssignmentNavigationCollapsed(true);
-          setAssignmentOverviewExpanded(false);
-        }
+        const bar = [...document.querySelectorAll('.mathmaster-desktop-action-bar, .portrait-action-bar, .landscape-action-bar')]
+          .find((element) => element.getBoundingClientRect().height > 0);
+        const clearance = bar ? Math.max(0, Math.round(window.innerHeight - bar.getBoundingClientRect().top)) : 0;
+        root.style.setProperty('--mm-action-bar-clearance', `${clearance}px`);
       });
     };
-    updateAssignmentNavigationChrome();
-    window.addEventListener('scroll', updateAssignmentNavigationChrome, { passive: true });
-    window.addEventListener('resize', updateAssignmentNavigationChrome);
+    publish();
+    window.addEventListener('scroll', publish, { passive: true, capture: true });
+    window.addEventListener('resize', publish);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publish) : null;
+    observer?.observe(document.body);
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', updateAssignmentNavigationChrome);
-      window.removeEventListener('resize', updateAssignmentNavigationChrome);
+      window.removeEventListener('scroll', publish, { capture: true });
+      window.removeEventListener('resize', publish);
+      observer?.disconnect();
+      root.style.removeProperty('--mm-action-bar-clearance');
     };
-  }, [activeView, activeAssignmentId]);
+  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+
+  useLayoutEffect(() => {
+    const anchor = navigationToggleAnchorRef.current;
+    navigationToggleAnchorRef.current = null;
+    if (!anchor?.element?.isConnected) return;
+    const moved = anchor.element.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(moved) >= 1) window.scrollBy({ top: moved, left: 0, behavior: 'instant' });
+  }, [assignmentNavigationCollapsed]);
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -1068,6 +984,21 @@ function App() {
   const [assignmentActivity, setAssignmentActivity] = useState({});
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
+  /*
+   * A LESSON WHOSE PREREQUISITE IS MET OPENS CLASSWORK AND PRACTICE EARLY
+   * (job I, item 4). Every getSectionAccessState call below — Home's cards,
+   * entry, the worksheet PDF, the workspace's locks and the capture proofs a
+   * submission carries to the server — goes through this binding, so a
+   * signed-in student's own Classwork grades decide "prerequisite met"
+   * everywhere at once. A teacher (and View as Student) gets the plain
+   * function: sectionAccessForStudent(null) is getSectionAccessState itself.
+   * DOL, Warm-Up, quizzes and tests are never manual sections, so they never
+   * open early through it.
+   */
+  const getSectionAccessState = useMemo(
+    () => sectionAccessForStudent(user?.role === 'student' ? classworkGradesByAssignment : null),
+    [user?.role, classworkGradesByAssignment],
+  );
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [classroomSyncStatusByAssignment, setClassroomSyncStatusByAssignment] = useState({});
   /*
@@ -1121,9 +1052,14 @@ function App() {
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
+  // Where a student joined the Live Challenge from, to go back to (NAV-25).
+  const [liveChallengeReturn, setLiveChallengeReturn] = useState(null);
   // Which Test Cycle the student has open. One id, because a student is in one
   // assessment at a time and the card asks the server for everything else.
   const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
+  // Where the Test Cycle card was opened from, so its Back names and opens
+  // that screen (NAV-9). Always a normalizeOrigin value.
+  const [activeTestCycleOrigin, setActiveTestCycleOrigin] = useState(NAV_LEVEL.ASSIGNMENTS);
   // What, on the student's live grade document, means "ask the server about
   // this Test Cycle again": its projection (stage, release, retest) and its
   // Review answers. A string, so an unrelated grade change does not refetch.
@@ -1186,6 +1122,19 @@ function App() {
   // therefore leave MathMaster altogether.
   const studentBrowserHistoryReadyRef = useRef(false);
   const studentBrowserRouteRef = useRef(null);
+  // The address last written for the student's screen, to put back with it.
+  const studentBrowserUrlRef = useRef(null);
+  // The account signed in now, for the history handlers: an entry another
+  // account wrote is never restored (platform/student/browserHistory.js).
+  const historyAccountRef = useRef(null);
+  historyAccountRef.current = user?.uid || null;
+  // The teacher's counterpart (teacherBrowserRoute, near Live Teaching below).
+  const teacherBrowserHistoryReadyRef = useRef(false);
+  const teacherHistoryStepBackAtRef = useRef(0);
+  const teacherHistoryRestoreRef = useRef(null);
+  // Which assignment the in-memory preview tracker belongs to, so Back into a
+  // preview resumes it only when the work on screen is that assignment's.
+  const previewTrackerAssignmentIdRef = useRef(null);
   const studentBrowserRoute = useMemo(() => {
     if (user?.role !== 'student') return null;
     if (activeView === 'assignment') {
@@ -1208,26 +1157,47 @@ function App() {
     return {
       surface: 'dashboard',
       dashboardMode: studentDashboardMode || 'assignments',
+      // The test on screen and where it was opened from (NAV-9).
+      ...(studentDashboardMode === 'testCycle'
+        ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
+        : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
       studentBrowserHistoryReadyRef.current = false;
       return;
     }
+    // The address the page opened at has not been opened yet: writing this
+    // screen now would replace it with Home before sign-in finishes.
+    if (urlArrival) return;
 
     const current = readStudentRouteState(window.history.state);
     const currentKey = current ? studentRouteKey(current) : null;
     const targetKey = studentRouteKey(studentBrowserRoute);
+    // The screen's address: ids and the question's number in its section,
+    // nothing about the work (app/routes/appUrl.js).
+    const url = studentUrlFor(studentBrowserRoute, {
+      question: studentBrowserRoute.surface === 'assignment'
+        ? questionAddressFor(
+          studentQuestionEntriesFor(assignments.find((assignment) => assignment.id === studentBrowserRoute.assignmentId)),
+          studentBrowserRoute.questionIndex,
+        )
+        : null,
+      testCycleAssignmentId: studentBrowserRoute.dashboardMode === 'testCycle' ? activeTestCycleAssignmentId : null,
+    });
 
-    // Mark the document entry the student arrived on as MathMaster Home. From
+    // Mark the document entry the student arrived on as this screen. From
     // this point onward internal navigation pushes same-document entries.
     if (!studentBrowserHistoryReadyRef.current) {
       studentBrowserHistoryReadyRef.current = true;
-      if (currentKey !== targetKey) {
-        writeStudentRouteState(studentBrowserRoute, { replace: true });
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const ownEntry = readRouteOwner(window.history.state) === user?.uid;
+      if (currentKey !== targetKey || (url && url !== currentUrl) || !ownEntry) {
+        writeStudentRouteState(studentBrowserRoute, { replace: true, url, owner: user?.uid, fresh: !ownEntry });
       }
+      studentBrowserUrlRef.current = url;
       return;
     }
 
@@ -1235,9 +1205,12 @@ function App() {
     // moved to the matching history entry. Seeing the same key here prevents
     // that restoration from immediately pushing a duplicate entry.
     if (currentKey !== targetKey) {
-      writeStudentRouteState(studentBrowserRoute);
+      writeStudentRouteState(studentBrowserRoute, { url, owner: user?.uid });
     }
-  }, [studentBrowserRoute]);
+    studentBrowserUrlRef.current = url;
+    // Only the route decides when to write; the rest is read for its address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentBrowserRoute, urlArrival]);
   useEffect(() => { studentBrowserRouteRef.current = studentBrowserRoute; }, [studentBrowserRoute]);
 
   useEffect(() => {
@@ -1253,14 +1226,42 @@ function App() {
        * exam's own exit after it is submitted, is the way out.
        */
       if (isSecureExamActive()) {
-        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current);
+        if (studentBrowserRouteRef.current) writeStudentRouteState(studentBrowserRouteRef.current, { url: studentBrowserUrlRef.current, owner: historyAccountRef.current });
         toastInfo('Your test is still open', 'Use Submit test when you are finished. Your answers are saved as you type.');
         return;
       }
       const route = readStudentRouteState(event.state);
       if (!route) return;
+      // An entry another account wrote (the previous student on this
+      // Chromebook): never restored. This screen's entry takes its place.
+      if (readRouteOwner(event.state) !== historyAccountRef.current) {
+        if (studentBrowserRouteRef.current) {
+          writeStudentRouteState(studentBrowserRouteRef.current, {
+            replace: true, url: studentBrowserUrlRef.current, owner: historyAccountRef.current, fresh: true,
+          });
+        }
+        return;
+      }
 
       if (route.surface === 'assignment') {
+        // Back/Forward onto a lesson the teacher has since paused or archived
+        // lands on its result page, like every other way in (NAV-4).
+        const closedNow = teacherClosedState(assignmentsRef.current.find((item) => item.id === route.assignmentId));
+        if (closedNow) {
+          setPathLaunchTeks(null);
+          setActiveAssignmentId(route.assignmentId);
+          setActiveClassroomSectionKey(null);
+          setAssignmentResultRoute({
+            assignmentId: route.assignmentId,
+            sectionKey: 'whole',
+            sectionLabel: null,
+            questionIndex: 0,
+            origin: NAV_LEVEL.ASSIGNMENTS,
+            notice: describeOpenNotice({ kind: closedNow }),
+          });
+          setActiveView('assignmentResult');
+          return;
+        }
         setStudentDashboardMode('assignments');
         setPathLaunchTeks(null);
         setActiveAssignmentId(route.assignmentId || null);
@@ -1294,6 +1295,22 @@ function App() {
       setAssignmentResultRoute(null);
       setActiveClassroomSectionKey(null);
       setActiveAssignmentId(null);
+      // Back onto a Test Cycle restores that test and its Back (NAV-9). An
+      // entry written before it carried the test falls back to the address
+      // (/test-cycle/<id>); with neither, Assignments rather than a blank card.
+      if (route.dashboardMode === 'testCycle') {
+        const fromAddress = parseAppPath(window.location.pathname)?.extras?.testCycleAssignmentId || null;
+        const testCycleId = route.testCycleAssignmentId || fromAddress;
+        if (!testCycleId) {
+          setActiveTestCycleAssignmentId(null);
+          setStudentDashboardMode('assignmentsCenter');
+          return;
+        }
+        setActiveTestCycleAssignmentId(testCycleId);
+        setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, route.origin));
+      } else {
+        setActiveTestCycleAssignmentId(null);
+      }
       setStudentDashboardMode(route.dashboardMode || 'assignments');
       if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
     };
@@ -1301,7 +1318,6 @@ function App() {
     window.addEventListener('popstate', restoreFromBrowserHistory);
     return () => window.removeEventListener('popstate', restoreFromBrowserHistory);
   }, [user?.role]);
-
 
   // A Live Challenge invitation is one tiny per-student pointer. Listening at
   // the App level means the student can be alerted while sitting on the
@@ -1357,6 +1373,24 @@ function App() {
   const recoveryAssignmentId = user?.role === 'student' && activeView === 'assignmentResult'
     ? assignmentResultRoute?.assignmentId || null
     : null;
+  // Recovery for every open assignment, so Home's "Today" rule and Grades'
+  // "Ways to raise your grade" see the Recoveries the result page would offer
+  // (platform/student/recoveryStates.js). Refreshed once a minute at most.
+  const studentRecoveryMinute = Math.floor(now / 60000);
+  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id
+    ? buildRecoverySummariesByAssignment({
+      assignments,
+      trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      // The grade document's own `profile` field, as the server reads it (D7).
+      studentProfile: user.timingProfile || null,
+      nowValue: studentRecoveryMinute * 60000,
+    })
+    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -1369,13 +1403,96 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
-      studentProfile: user.profile || null,
+      studentProfile: user.timingProfile || null,
     });
-  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.profile, classSchedule]);
+  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
   }, [recoveryAssignmentId]);
+
+  /*
+   * EVERY OPEN RECOVERY, WHERE A STUDENT WILL SEE IT.
+   *
+   * The summary above exists only while View Results is open, and that was the
+   * only place a Recovery could be found. Home, the Assignments Center and the
+   * assignment's own header read this list instead. It is built per assignment
+   * by the same summary — the original read after teacher overrides and BEFORE
+   * any Recovery — so no surface offers what the panel would not. `now` is a
+   * dependency because a Recovery opens when a Warm-Up or DOL window closes,
+   * and the precise student clock wakes at exactly that second.
+   *
+   * Built only for what is on screen: every assignment on the dashboard
+   * screens, and inside an assignment only that one — the tracker changes with
+   * every step a student saves there, and a summary costs a few milliseconds
+   * per assignment on a Chromebook.
+   */
+  const recoveryDiscoveryScope = user?.role !== 'student' || !user?.id
+    ? null
+    : activeView === 'dashboard'
+      ? RECOVERY_DISCOVERY_ALL
+      : (activeView === 'assignment' && activeAssignmentId) || null;
+  const studentRecoveryDiscovery = useMemo(() => {
+    if (!recoveryDiscoveryScope) return NO_RECOVERY_OPPORTUNITIES;
+    return buildStudentRecoveryDiscovery({
+      assignments: recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL
+        ? assignments
+        : assignments.filter((assignment) => assignment.id === recoveryDiscoveryScope),
+      trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      studentProfile: user.timingProfile || null,
+      nowValue: now,
+    });
+  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  const studentRecoveryByAssignment = useMemo(
+    () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
+    [studentRecoveryDiscovery],
+  );
+
+  // Looking at a Recovery's panel (or its runner, which sits on the same
+  // route) is seeing it: its NEW mark goes, and it is never announced after.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user?.id || !recoveryAssignmentId) return;
+    studentRecoverySummary.forEach((entry) => markRecoverySeen(user.id, {
+      assignmentId: recoveryAssignmentId,
+      section: entry.section,
+      state: entry.state,
+      plan: entry.plan,
+    }));
+  }, [studentRecoverySummary, recoveryAssignmentId, user?.role, user?.id]);
+
+  /*
+   * A RECOVERY THAT OPENS IS ANNOUNCED — ONCE.
+   *
+   * Like a Test Cycle result, a Recovery opening is news a student should not
+   * have to go looking for. Unlike one, it is a standing offer with an end
+   * date, so it is announced at the first visit that finds it as well as the
+   * moment it opens while the student is signed in (the Warm-Up or DOL window
+   * closing): one quiet toast per Recovery and phase — available, then
+   * unlocked — per device, while the Home card keeps it in view until the end
+   * date. Only where a student chooses what to do next, never over a
+   * question, a Live Challenge or a secure exam.
+   */
+  const recoveryAnnouncedRef = useRef(new Set());
+  useEffect(() => {
+    if (user?.role !== 'student' || !user?.id) return;
+    if (activeView !== 'dashboard' || !RECOVERY_ANNOUNCEMENT_MODES.has(studentDashboardMode)) return;
+    if (isSecureExamActive()) return;
+    const fresh = studentRecoveryDiscovery.filter((opportunity) => opportunity.notify
+      && !recoveryAnnouncedRef.current.has(opportunity.noticeKey)
+      && !recoveryWasNotified(user.id, opportunity));
+    if (!fresh.length) return;
+    fresh.forEach((opportunity) => {
+      recoveryAnnouncedRef.current.add(opportunity.noticeKey);
+      markRecoveryNotified(user.id, opportunity);
+    });
+    const notice = recoveryNotice(fresh);
+    if (notice) (notice.tone === 'success' ? toastSuccess : toastInfo)(notice.title, notice.message);
+  }, [studentRecoveryDiscovery, activeView, studentDashboardMode, user?.role, user?.id, toastInfo, toastSuccess]);
 
   // Active students per class, for Pre-Flight's "enough distinct questions
   // for this class" check. Counts only: no identities leave this memo.
@@ -1614,8 +1731,7 @@ function App() {
         options: pathOptions,
         courseId,
         profile: teacherLearningProfiles[student.id] || null,
-        sessions: config.sessions || (honors ? 5 : 4),
-        honors,
+        ...weeklyPlanClassInputs({ config, honors }),
         now,
       });
       const proposedGoal = buildWeeklyGoal({
@@ -1735,6 +1851,9 @@ function App() {
       } else {
         startAssignment(target.assignmentId, target.questionIndex, {
           sectionKey: target.isSectionLaunch ? target.sectionKey : null,
+          // The section the post named: if it is not open yet, the student
+          // is told why they landed elsewhere (NAV-22).
+          launchedSectionKey: target.sectionKey || null,
         });
       }
     } catch (error) {
@@ -1803,6 +1922,23 @@ function App() {
   // tearing down the presence document (and therefore without creating an
   // archive-trigger invocation on every answer/question change).
   const livePresencePayloadRef = useRef(null);
+  // "Ask my teacher" (platform/supports/helpRequest.js): rides in the
+  // presence payload; publishPresenceNowRef sends it without waiting a beat.
+  // useAskMyTeacher (student pass 3, D6): in class the hand (kept across a
+  // reload, lowered on leaving the assignment) and the teacher's "Seen" /
+  // "On my way"; out of class a question left for the teacher instead.
+  const askingStudentId = user?.role === 'student' ? user.id : null;
+  const askMyTeacher = useAskMyTeacher({
+    studentId: askingStudentId,
+    classId: user?.classId || null,
+    classPeriod: user?.classPeriod || null,
+    teacherEmail: askingStudentId ? user.assignedTeacherEmail || null : null,
+    schedule: classSchedule,
+    nowValue: now,
+    assignmentId: activeAssignmentId,
+  });
+  const { helpRequest, setHelpRequest } = askMyTeacher;
+  const publishPresenceNowRef = useRef(null);
   const spotlightPublisherRef = useRef(null);
   const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
   const [studentSpotlightMessage, setStudentSpotlightMessage] = useState('');
@@ -1900,31 +2036,103 @@ function App() {
    * each lesson's `studentOverrides` by teacherAssignmentView, never into the
    * `dol`, `warmup` or `sectionAccess` that teacher actions write back.
    */
+  // App now mounts after an account is signed in (app/shell/AppShell.jsx), so
+  // the student is known at mount. The listener still opens on the account's
+  // arrival, one commit after mount, exactly as when App mounted before
+  // sign-in: one subscription, never one per mount pass.
+  const [accountListenersReady, setAccountListenersReady] = useState(false);
+  useEffect(() => { setAccountListenersReady(true); }, []);
   const studentAssignmentControls = useStudentAssignmentControls({
     db,
     // The SESSION's student, so the listener opens beside sign-in hydration
     // rather than after it; owner-checked on every projection.
-    studentId: auth.status === 'ready' && auth.session?.role === 'student' ? auth.session.studentId : null,
+    studentId: accountListenersReady && auth.status === 'ready' && auth.session?.role === 'student' ? auth.session.studentId : null,
   });
   const studentClassAssignmentsRef = useRef([]);
   const studentPriorWorkAssignmentsRef = useRef([]);
   // Whose lessons these are, for the projection: set from the session before
   // the first lesson reaches state, and cleared with the lessons themselves.
-  const studentViewerRef = useRef({ studentId: null, profile: null });
+  // `timingProfile` is the grade document's own `profile` field, exactly as the
+  // server's deadline readers take it (gradeData.profile || null): the
+  // student's DOL window (D7) is computed from it, never from the normalized
+  // copy's fallback to the whole grade document.
+  const studentViewerRef = useRef({ studentId: null, profile: null, timingProfile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
+  /*
+   * "WHAT CHANGED" (decision 6): a read-only list built from records the
+   * student already reads — released results, grade changes with their fixed
+   * reason, excused/reopened/extended work, new work, retests
+   * (platform/student/whatChangedModel.js). The device's last-seen time is
+   * read once per visit so "New" does not vanish while it is being read.
+   */
+  const [whatChangedSeenAt, setWhatChangedSeenAt] = useState(0);
+  useEffect(() => {
+    if (user?.role === 'student' && user?.id) setWhatChangedSeenAt(readWhatChangedSeenAt(user.id));
+  }, [user?.role, user?.id]);
+  const whatChangedMinute = Math.floor(now / 60000);
+  const whatChangedItems = useMemo(() => {
+    if (user?.role !== 'student' || !user?.id) return [];
+    const input = {
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || null,
+      assignments,
+      testCycleGrades,
+      teacherGradeOverridesByAssignment,
+      // The student's own records, before overrides are projected onto them:
+      // a per-question change is listed only while it still applies.
+      trackerByAssignment: tracker,
+      controlsByAssignmentId: studentAssignmentControls?.byAssignmentId || {},
+      nowValue: whatChangedMinute * 60000,
+      seenAt: whatChangedSeenAt,
+    };
+    const firstSeenByKey = rememberWhatChangedFirstSeen(user.id, untimedWhatChangedKeys(buildWhatChanged(input)), input.nowValue);
+    return buildWhatChanged({ ...input, firstSeenByKey });
+  }, [user?.role, user?.id, user?.classId, user?.classPeriod, assignments, testCycleGrades, teacherGradeOverridesByAssignment, tracker, studentAssignmentControls, whatChangedMinute, whatChangedSeenAt]);
   // What was last projected into state, so re-running an effect with nothing
   // new projects nothing again (every projection makes new lesson objects).
   const lastPublishedRef = useRef(null);
+
+  /*
+   * A CLASSROOM LINK THAT CANNOT OPEN SAYS SO (student pass 3, NAV-11).
+   *
+   * The launch waited for its assignment to arrive, forever: a link posted to
+   * the wrong period, or for removed work, left the student on Home in
+   * silence, and a malformed link only reached the console. Once this
+   * student's lessons have settled — the same test an address waits for — a
+   * launch whose assignment is not among them is cleared with the same
+   * message an address gets. No timer: on slow Wi-Fi a wrong "not available"
+   * for a real link would be worse than waiting.
+   */
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    if (classroomLaunchInvalid) {
+      setClassroomLaunchInvalid(false);
+      toastInfo('That Google Classroom link could not be opened', 'It may be incomplete or out of date. You are on your Home screen.');
+      return;
+    }
+    if (!pendingClassroomLaunch) return;
+    if (assignments.some((assignment) => assignment.id === pendingClassroomLaunch.assignmentId)) return;
+    const settled = [STUDENT_CONTROLS_STATUS.READY, STUDENT_CONTROLS_STATUS.UNAVAILABLE].includes(studentAssignmentControls.status)
+      && lastPublishedRef.current?.[4] === studentAssignmentControls;
+    if (!settled) return;
+    toastInfo(ARRIVAL_MESSAGES.studentStale.title, ARRIVAL_MESSAGES.studentStale.body);
+    setPendingClassroomLaunch(null);
+    // toastInfo is stable for the session (ToastProvider).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, pendingClassroomLaunch, classroomLaunchInvalid, assignments, studentAssignmentControls]);
   const publishStudentAssignments = () => {
-    const { studentId, profile } = studentViewerRef.current;
-    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];
+    const { studentId, profile, timingProfile } = studentViewerRef.current;
+    // The controls stay at index 4: URL arrival reads lastPublishedRef.current[4].
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current, timingProfile];
     if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
     lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
       assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
       studentId,
       profile,
+      timingProfile,
       controls: studentControlsRef.current,
     }));
   };
@@ -1988,7 +2196,7 @@ function App() {
   const clearSignedInAssignments = () => {
     studentClassAssignmentsRef.current = [];
     studentPriorWorkAssignmentsRef.current = [];
-    studentViewerRef.current = { studentId: null, profile: null };
+    studentViewerRef.current = { studentId: null, profile: null, timingProfile: null };
     teacherSharedAssignmentsRef.current = [];
     lastPublishedRef.current = null;
     setAssignments([]);
@@ -1998,14 +2206,14 @@ function App() {
   // the lessons already held: no listener is re-opened for it.
   useEffect(() => {
     if (user?.role === 'student' && user.id) {
-      studentViewerRef.current = { studentId: user.id, profile: user.profile || null };
+      studentViewerRef.current = { studentId: user.id, profile: user.profile || null, timingProfile: user.timingProfile || null };
       publishStudentAssignments();
     } else if (user?.role === 'teacher') {
       publishTeacherAssignments();
     }
     // The publishers read refs; these are what change their answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);
+  }, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
@@ -2053,7 +2261,11 @@ function App() {
 
   // Work a student did under an earlier class: read once per change in the
   // SET of assignments they have work on (not on every answer), by id.
-  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker) : '';
+  // A Test the student was added to on their own is one of them too, from the
+  // moment the server says so and before they have done anything on it.
+  const studentIndividualTestIds = user?.role === 'student' ? individuallyAssignedTestCycleIds(testCycleGrades) : [];
+  const studentIndividualTestKey = studentIndividualTestIds.join('|');
+  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker, studentIndividualTestIds) : '';
   useEffect(() => {
     if (user?.role !== 'student' || !studentWorkedAssignmentKey) return undefined;
     let cancelled = false;
@@ -2069,7 +2281,10 @@ function App() {
     fetchAssignmentsById(db, missing, { studentId: user.id })
       .then((fetched) => {
         if (cancelled || !fetched.length) return;
-        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, fetched);
+        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(
+          studentPriorWorkAssignmentsRef.current,
+          markIndividuallyAssigned(fetched, studentIndividualTestKey ? studentIndividualTestKey.split('|') : []),
+        );
         publishStudentAssignments();
       })
       .catch((error) => console.warn('Could not load earlier-class assignments:', error));
@@ -2130,8 +2345,9 @@ function App() {
 
     Promise.all([
       fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
-      fetchStudentEvidenceEvents(user.id),
-    ]).then(([goal, evidenceEvents]) => {
+      // Server-counted completions: the rule the teacher table and Classroom use.
+      fetchMyWeeklyPathCompletions({ weekKey: currentWeekKey }),
+    ]).then(([goal, weeklyFacts]) => {
       if (!active) return;
       if (!goal) {
         const required = Number(settings.sessions) || 0;
@@ -2145,12 +2361,7 @@ function App() {
         return;
       }
 
-      const completions = deriveCompletionsFromEvidence({
-        evidenceEvents,
-        weekKey: goal.weekKey,
-        weekStartsOn: goal?.settings?.weekStartsOn || settings.weekStartsOn || 1,
-        now,
-      });
+      const completions = weeklyFacts?.completions || [];
       setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
     }).catch((error) => {
       if (!active) return;
@@ -2163,6 +2374,18 @@ function App() {
     user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig,
     studentDashboardMode, Math.floor(now / 3_600_000),
   ]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentServerMasteryProfiles(null);
+      return undefined;
+    }
+    return subscribeStudentServerMasteryProfiles({
+      studentId: user.id,
+      onChange: setStudentServerMasteryProfiles,
+      onError: (error) => console.error('Server mastery profile failed to load:', error),
+    });
+  }, [user?.role, user?.id]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -2210,7 +2433,8 @@ function App() {
     courseId: studentCourseId,
     pacing: studentStoredPacing,
     teacherOverrides: studentOverrides,
-  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides]);
+    serverMasteryProfiles: studentServerMasteryProfiles,
+  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles]);
 
   // Downstream presentation may want to say whether timing is automatic or
   // teacher-set. The engine has already resolved that distinction for us.
@@ -2396,6 +2620,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
+    const { classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -2413,6 +2638,9 @@ function App() {
     }
 
     const classroom = assignment.classroomPackage || {};
+    // One name for both posts, so the resources and the assignment land in the
+    // same topic — renamed "Week of …" when the teacher chose week topics.
+    const topicName = automaticClassroomTopicName(assignment);
     const notesPdf = assignment.lessonResources?.notesPdf || null;
     const resourceLinks = Array.isArray(classroom.additionalLinks)
       ? classroom.additionalLinks
@@ -2462,7 +2690,7 @@ function App() {
         materialKey: `assignment:${assignment.id}:resources`,
         title: classroom?.resourcesPost?.title || `${assignment.title} — Notes & Resources`,
         description: classroom?.resourcesPost?.description || `Reference materials for ${assignment.title}.`,
-        topicName: classroom?.topic?.name || '',
+        topicName,
         materials: dedupedLinks,
       });
       const failedMaterials = (materialResult?.results || []).filter((item) => item.status === 'failed');
@@ -2477,7 +2705,7 @@ function App() {
       classroomTitle: classroom?.assignmentPost?.title || assignment.title,
       maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
       gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
-      topicName: classroom?.topic?.name || '',
+      topicName,
       instructions: classroom?.assignmentPost?.instructions
         || `Complete “${assignment.title}” in MathMaster.`,
       materials: (
@@ -2576,6 +2804,7 @@ function App() {
   };
 
   const repairGradesByAssignmentWithCurrentGrader = ({
+    repairAssignmentTrackerForCurrentGrader,
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
@@ -2608,9 +2837,13 @@ function App() {
   // run it only after the full academic corpus was intentionally loaded for
   // Grades; ordinary teacher navigation never pays this CPU/memory cost.
   const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    // The grader repair is teacher-only and grades with the full math engine,
+    // so it loads here, when the Grades tab first needs it, and not with Home.
+    const { repairAssignmentTrackerForCurrentGrader } = await import('./platform/assignment/liveQuestionCorrection.js');
     const correctedAt = new Date().toISOString();
     const repairs = (Array.isArray(students) ? students : []).map((student) => {
       const result = repairGradesByAssignmentWithCurrentGrader({
+        repairAssignmentTrackerForCurrentGrader,
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
@@ -2644,7 +2877,7 @@ function App() {
 
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
-    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()), timingProfile: studentDoc.data()?.profile || null }))
     .sort(compareStudentsByName);
 
   const studentGradeSourceForViewer = (viewer) => (
@@ -2652,7 +2885,6 @@ function App() {
       ? collection(db, 'grades')
       : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))
   );
-
 
   // normalizeTeacherRosterSummary (src/platform/teacher/teacherRosterSummary.js)
   // resolves each compact row's name rather than copying an allow-list of name
@@ -2671,11 +2903,13 @@ function App() {
     return summaries;
   };
 
-  // SignInAccess calls this after the server saves a corrected student name.
-  // Refetching the compact roster rebuilds the identity index once, which is
-  // what makes Home, Live and every id-keyed history record show the new name.
+  // SignInAccess calls this after the server saves a corrected student name
+  // or district ID. Refetching the compact roster rebuilds the identity index
+  // once, which is what makes Home, Live and every id-keyed history record
+  // show the new name — and every summary-roster screen the new district ID.
+  // (Grade Export reads live grades documents, so it follows on its own.)
   const refreshTeacherRosterAfterNameChange = () => fetchTeacherRosterSummaries()
-    .catch((error) => console.error('Could not refresh the roster after a student name change:', error));
+    .catch((error) => console.error('Could not refresh the roster after a student identity change:', error));
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;
@@ -3036,6 +3270,33 @@ function App() {
     return result;
   };
 
+  // WHAT THE SAVE LINE IS ABOUT: a draft, or an answer the student sent
+  // (RUN-11, saveStatusModel.js). Derived during render so "Answer recorded"
+  // appears with the drain that recorded it, then committed.
+  const [studentSaveSubjectState, setStudentSaveSubject] = useState(initialSaveSubject);
+  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount });
+  useEffect(() => {
+    if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
+  }, [studentSaveSubject, studentSaveSubjectState]);
+  const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
+  // Unfinished work on this assignment that is not being saved (Batch 3,
+  // draftSaveHealth.js), re-read whenever its health changes. While it
+  // stands, the line does not also say "Draft saved" (saveLineIsAboutDrafts).
+  const studentDraftSaveProblem = draftSaveHealthVersion >= 0
+    ? describeDraftSaveProblems(draftSaveProblemsFor({ studentId: user?.id, assignmentId: activeAssignmentId }))
+    : null;
+  const studentSaveLineShown = studentPersistenceStatus !== 'idle'
+    && !(studentDraftSaveProblem && saveLineIsAboutDrafts({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount }));
+  // What the save line says aloud: only when the student must act.
+  const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
+    ? 'This change was not accepted because the assignment is no longer available.'
+    : ['offline', 'needs-review'].includes(studentPersistenceStatus) ? studentSaveLine || '' : '';
+  const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
+  // The line is about this student's work in this assignment: it starts over
+  // when either changes.
+  useEffect(() => {
+    setStudentSaveSubject(initialSaveSubject());
+  }, [activeAssignmentId, user?.id]);
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -3179,6 +3440,8 @@ function App() {
           classId: studentData.classId || null,
           gradesByAssignment: studentData.gradesByAssignment || {},
           extraIds: savedResumeTarget?.assignmentId ? [savedResumeTarget.assignmentId] : [],
+          // A secure Test this student was added to on their own.
+          individualAssignmentIds: individuallyAssignedTestCycleIds(studentData.testCycleGrades),
         });
         if (cancelled) return;
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
@@ -3186,11 +3449,12 @@ function App() {
           .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
         studentPriorWorkAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
-        studentViewerRef.current = { studentId, profile: studentProfile };
+        studentViewerRef.current = { studentId, profile: studentProfile, timingProfile: studentData.profile || null };
         const projectedAssignments = projectStudentAssignments({
           assignments: fetchedAssignments,
           studentId,
           profile: studentProfile,
+          timingProfile: studentData.profile || null,
           controls: studentControlsRef.current,
         });
         setAssignments(projectedAssignments);
@@ -3236,6 +3500,8 @@ function App() {
             course: courseContext.courseId,
             courseLevel: courseContext.courseLevel,
           },
+          // The grade document's own `profile` field, as the server reads it (D7).
+          timingProfile: studentData.profile || null,
         });
         // THE STUDENT SEES THE CANONICAL RECORD, AND NEVER REWRITES IT.
         //
@@ -3284,6 +3550,7 @@ function App() {
                 assignments: fetchedAssignments.filter((entry) => entry.id === serverResume.assignmentId),
                 studentId,
                 profile: studentProfile,
+                timingProfile: studentData.profile || null,
                 controls: studentControlsRef.current,
               });
               if (!assignment) return;
@@ -3321,6 +3588,8 @@ function App() {
   const handleLogout = async () => {
     await stopStudentSpotlight?.();
     setUser(null);
+    // The Today/Up-next cache holds this student's lessons and controls.
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
     // At once, not when the auth listener catches up: the lessons carried
     // this account's own controls (a shared Chromebook's next student must
     // never be handed them, even for a frame).
@@ -3347,6 +3616,9 @@ function App() {
     classroomSyncNoticeRef.current = {};
     setGradebookFilter({ classId: '', classPeriod: '', assignmentId: null, student: null });
     setStudentDashboardMode('assignments');
+    // The next person on this Chromebook starts at their own Home, not at
+    // the address this account left in the bar.
+    resetAddressToHome();
     await auth.signOut();
   };
 
@@ -3738,6 +4010,10 @@ function App() {
       studentId: user.id,
       assignmentId: activeAssignmentId,
       classId: user.classId || null,
+      // The question's last submission, as the restore reads it: sent with
+      // answer-by-answer drafts so the server merge keeps a submitted attempt's
+      // draft out of the next attempt (workspaceDraftSchema.mjs `canonicalAt`).
+      canonicalSavedAt: (questionIndex) => canonicalResponseSavedAt(normalizeQuestionRecord(trackerRef.current?.[activeAssignmentId]?.[questionIndex])),
       // A save that gets through while the server's copy has never been read
       // means the connection came back without the page hearing of it (no
       // `online` event). Read it then, so this device shows work done on
@@ -3762,15 +4038,29 @@ function App() {
           serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+          // A deadline auto-submit is dated by when its work was captured,
+          // so the backup of that very work is not refused as older than
+          // its own submission (canonicalResponseTime.js).
+          const canonicalSavedAt = (entry) => canonicalResponseSavedAt(normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]));
           const restorable = selectRestorableDraftEntries({
             entries,
             localSavedAt: (key) => questionDraftSavedAt(key),
-            canonicalSavedAt: (entry) => {
-              const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
-              return Date.parse(record.lastAttemptAt || '') || 0;
-            },
+            canonicalSavedAt,
           });
-          if (restoreQuestionDrafts(restorable)) {
+          // A tool workspace this device started from nothing — the student
+          // touched it before this read landed — is settled against the
+          // server's copy first: merged, so a newer copy is not then swapped
+          // in over the student's edits, nor their partial copy kept over the
+          // server's whole one (reconcileToolWorkspaceDrafts). Multi-answer,
+          // Step Algebra and composed-step drafts this device holds are
+          // settled answer by answer (reconcileFieldRecordDrafts) and are not
+          // then restored whole. Neither settle reads an entry older than the
+          // question's last submitted attempt: its fields are an older
+          // attempt's (PR #458 review).
+          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const fieldRecords = reconcileFieldRecordDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
+          const restored = restoreQuestionDrafts(restorable.filter((entry) => !fieldRecords.keys.has(entry.key)));
+          if (restored || settled || fieldRecords.settled) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),
@@ -3846,6 +4136,15 @@ function App() {
   }, [practiceTracker, activeAssignmentId]);
 
   const assignmentOpenSpanRef = useRef(null);
+  // Up Next at the end of an assignment, cached per assignment/tracker/minute
+  // so a finished section does not rebuild the whole dashboard every render.
+  const studentUpNextCacheRef = useRef({ inputs: null, dashboard: null });
+  // A shared Chromebook: the cache holds the student's lessons and their own
+  // controls, so it is dropped the moment the signed-in student changes or
+  // signs out — nothing of one student survives into the next session.
+  useEffect(() => {
+    studentUpNextCacheRef.current = { inputs: null, dashboard: null };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -3855,10 +4154,18 @@ function App() {
     let cancelled = false;
 
     const recoverAndReconcileQueuedStudentWork = async () => {
+      // Test Cycle Review answers the server refused as "secure" before it
+      // ingested Review go back in the queue, so they are shown and delivered
+      // below with everything else. Once per page; never blocks the rest.
+      await resendRetiredReviewWork({ studentId: user.id })
+        .catch((error) => console.error('Could not restore refused Review work:', error));
+      if (cancelled) return;
       const actions = await listDurableActions({ studentId: user.id });
       if (cancelled) return;
       setStudentOutboxDepth(actions.length);
       if (actions.length) {
+        // After a reload, an answer still in the queue is still an answer.
+        if (actions.some(isGradeBearingAction)) markAnswerSent();
         setStudentPersistenceStatus('queued');
         // A reload must restore the same visible score state immediately even
         // before Wi-Fi returns. The server remains canonical; this is only the
@@ -4001,7 +4308,6 @@ function App() {
     }, 30000);
     return () => window.clearInterval(interval);
   }, [isStudentAssignment, activeAssignmentId, isPracticeMode, assignmentActivity, tracker, classworkGradesByAssignment]);
-
 
   useEffect(() => {
     if (user?.role !== 'student' || !activeAssignmentId || activeView !== 'assignment') return undefined;
@@ -4150,6 +4456,7 @@ function App() {
         startedAt: liveStartedAtRef.current.at,
         pageVisible: document.visibilityState === 'visible',
       }),
+      ...helpRequestFields(helpRequest, { assignmentId: activeAssignmentId }),
     };
 
     // The heartbeat lifecycle below owns Firestore writes. Keeping question
@@ -4159,8 +4466,15 @@ function App() {
   }, [
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
-    studentClassPoints.redemptionsByAssignment,
+    studentClassPoints.redemptionsByAssignment, helpRequest,
   ]);
+
+  // A help request belongs to the assignment it was made in (useAskMyTeacher
+  // restores it after a reload and lowers it on leaving the assignment)…
+  // …and comes down when the question it was raised on closes.
+  useEffect(() => {
+    setHelpRequest((current) => helpRequestAfterClose(current, activeWorkingTracker, { askingAllowed: !activeLifecycle?.isPracticeOnly }));
+  }, [activeWorkingTracker, activeLifecycle?.isPracticeOnly]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) return undefined;
@@ -4213,11 +4527,15 @@ function App() {
       if (cancelled) return;
       publishLatest();
       interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
+      // Only once the stale document is gone: an early write would be
+      // deleted (and archived) by the cleanup above.
+      publishPresenceNowRef.current = publishLatest;
     };
 
     startPresence();
     return () => {
       cancelled = true;
+      if (publishPresenceNowRef.current === publishLatest) publishPresenceNowRef.current = null;
       if (interval) window.clearInterval(interval);
       clearLiveStatus();
     };
@@ -4228,6 +4546,9 @@ function App() {
     activeAssignmentId,
     activeAssignmentData?.id,
   ]);
+
+  // Raised or cleared: the teacher sees it now, not on the next 20 s beat.
+  useEffect(() => { publishPresenceNowRef.current?.(); }, [helpRequest]);
 
   // Spotlight consent is its own short-lived channel. Merely opening an
   // assignment or publishing presence never creates a frame.
@@ -4351,6 +4672,9 @@ function App() {
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
+  // The store is loaded on demand: imported here, it rode in every student's
+  // first load (scripts/check-first-load-budget.mjs). A teacher who leaves the
+  // tab before it arrives never subscribes.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
     if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
@@ -4358,7 +4682,16 @@ function App() {
       return undefined;
     }
     if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+    let stopped = false;
+    let release = null;
+    import('./platform/teacher/parentContactStore.js')
+      .then(({ subscribeParentContacts }) => {
+        if (stopped) return;
+        const unsubscribe = subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
+        release = () => unsubscribe();
+      })
+      .catch((error) => console.error('Parent contact history failed:', error));
+    return () => { stopped = true; release?.(); };
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => {
@@ -4382,14 +4715,14 @@ function App() {
   }, [teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
 
   const teacherActionItems = useMemo(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return buildTeacherActionItems({
+    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return teacherKit.buildTeacherActionItems({
       students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
       returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
       retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
     });
-  }, [teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const currentTeacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  }, [teacherKit, teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
+  const currentTeacherActionOpenCount = teacherKit ? teacherKit.openTeacherActionCount(teacherActionItems) : 0;
   const teacherActionOpenCount = teacherTab === 'actionCenter'
     ? currentTeacherActionOpenCount
     : teacherActionOpenCountCache;
@@ -4752,8 +5085,12 @@ function App() {
   // The server writes one compact receipt only after Google Classroom accepts
   // a grade patch. Listening to that receipt gives students confirmation from
   // the authoritative passback result rather than assuming a network request
-  // worked. We deliberately do NOT replace the local assignment tracker from
-  // this snapshot; student answers remain controlled by the normal save path.
+  // worked. The local assignment tracker is NOT replaced from this snapshot:
+  // the student's own answers move it through the normal save path, and a
+  // snapshot from before an ingestion lands must never roll them back. A
+  // record the server holds AHEAD of this session is the exception, adopted
+  // below (canonicalTrackerReconciliation.js): an attempt this device never
+  // made — the Warm-Up or DOL deadline's auto-submit, or another Chromebook's.
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
       setClassroomSyncStatusByAssignment({});
@@ -4771,6 +5108,22 @@ function App() {
       doc(db, 'grades', user.id),
       (snapshot) => {
         if (!snapshot.exists()) return;
+        // An attempt the server recorded without this device — the deadline
+        // finalizer's auto-submit above all — reaches the open question now,
+        // not at the next sign-in: a closed question shows as closed, and the
+        // next checkpoint carries the attempt count the server really has.
+        const serverGrades = snapshot.data()?.gradesByAssignment || {};
+        setTracker((current) => {
+          const { grades, adopted } = adoptCanonicalAdvances(current, serverGrades);
+          // Attempts the server made are not this session's attempts.
+          adopted.forEach(({ assignmentId, questionIndex, totalAttempts }) => {
+            const baseline = liveSessionAttemptBaselineRef.current;
+            if (baseline.assignmentId === assignmentId) {
+              baseline.totalAttemptsByIndex = { ...baseline.totalAttemptsByIndex, [questionIndex]: totalAttempts };
+            }
+          });
+          return grades;
+        });
         const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
         setClassroomSyncStatusByAssignment(next);
         // A teacher releasing a secure Test or Retest changes this map, and the
@@ -4788,6 +5141,10 @@ function App() {
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
         setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // The DOL window's source (D7): the grade document's own `profile`
+        // field, updated on its own so nothing else about the user changes.
+        const liveTimingProfile = snapshot.data()?.profile || null;
+        setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -4835,10 +5192,8 @@ function App() {
             return;
           }
 
-          toastSuccess(
-            'Progress checkpoint saved to Google Classroom',
-            `${title}: your current ${gradeText} was saved as a teacher draft in Classroom. Your live grade is visible here in MathMaster and is not final—keep working to raise it.`,
-          );
+          // A draft the teacher has not released is invisible to the student
+          // in Classroom; announcing it only added sync jargon. No toast.
         });
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
@@ -4861,19 +5216,28 @@ function App() {
       if (dolRecords.some((record) => record.totalAttempts > 0 || ['correct', 'expired'].includes(record.status))) return;
       const key = `${assignment.id}:${user.classPeriod}:${dolState.instructionDateKey || localDateKey(now)}`;
       activeKeys.add(key);
+      // Not while the student is on that DOL's questions: it would tell them
+      // to open what they have open (release-candidate QA m13).
+      if (!shouldShowDolOpenReminder({
+        assignmentId: assignment.id,
+        dolQuestionIndices: dolState.questionIndices || [dolState.questionIndex],
+        activeView,
+        activeAssignmentId,
+        currentQuestionIndex,
+      })) return;
       const lastReminderAt = Number(dolOpenAnnouncedRef.current[key] || 0);
       if (lastReminderAt && now - lastReminderAt < 120000) return;
       const firstReminder = lastReminderAt === 0;
       dolOpenAnnouncedRef.current[key] = now;
       toastWarning(
-        firstReminder ? 'DOL is open — start now' : 'DOL reminder — start now',
-        `${assignment.title}: open the DOL now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
+        firstReminder ? `${EXIT_TICKET_SPELLED_OUT} is open — start now` : `${EXIT_TICKET_SPELLED_OUT} reminder — start now`,
+        `${assignment.title}: open the ${exitTicketInSentence} now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
       );
     });
     Object.keys(dolOpenAnnouncedRef.current).forEach((key) => {
       if (!activeKeys.has(key) && now - Number(dolOpenAnnouncedRef.current[key] || 0) > 15 * 60000) delete dolOpenAnnouncedRef.current[key];
     });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId, currentQuestionIndex]);
 
   // A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT WHO ALREADY TRIED.
   // The reminder above stops once a student has attempted the DOL, which is
@@ -4937,6 +5301,10 @@ function App() {
 
       const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
       activeKeys.add(key);
+      // Inside this assignment the Warm-Up's time is already on screen (the
+      // banner, the section pill, the phone's status chip): a toast over the
+      // Submit bar only repeated it (pass 3, RUN-14).
+      if (activeView === 'assignment' && activeAssignmentId === assignment.id) return;
       const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
       if (lastReminderAt && now - lastReminderAt < 120000) return;
 
@@ -4954,8 +5322,7 @@ function App() {
         && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
       ) delete warmupOpenAnnouncedRef.current[key];
     });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
-
+  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -5096,6 +5463,8 @@ function App() {
     window.addEventListener('pointerdown', resetActivity, passive);
     window.addEventListener('touchstart', resetActivity, passive);
     window.addEventListener('wheel', resetActivity, passive);
+    // A screen-reader student reading the page (./components/common/readingActivity.js).
+    const stopReadingActivity = subscribeToReadingActivity(window, resetActivity);
 
     const interval = window.setInterval(() => {
       if (document.hidden) return;
@@ -5119,9 +5488,91 @@ function App() {
       window.removeEventListener('pointerdown', resetActivity, passive);
       window.removeEventListener('touchstart', resetActivity, passive);
       window.removeEventListener('wheel', resetActivity, passive);
+      stopReadingActivity();
       window.clearInterval(interval);
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
+
+  // THE LIKELY NEXT CHUNK. From Home a student almost always opens an
+  // assignment, and the question runtime (QuestionEngine, with MathLive) is
+  // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
+  // Home, so the first assignment does not wait on it. Nothing here joins the
+  // first paint (scripts/check-first-load-budget.mjs measures that).
+  const questionEnginePrefetchedRef = useRef(false);
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'dashboard' || questionEnginePrefetchedRef.current) return undefined;
+    const prefetch = () => {
+      questionEnginePrefetchedRef.current = true;
+      import('./QuestionEngine.jsx').catch(() => { /* the real open retries */ });
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(prefetch, { timeout: 5000 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(prefetch, 2000);
+    return () => window.clearTimeout(timer);
+  }, [user?.role, activeView]);
+
+  // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
+  const documentTitle = pageTitleFor({
+    signedIn: Boolean(user),
+    role: user?.role || null,
+    view: activeView,
+    studentMode: studentDashboardMode,
+    teacherTab,
+    assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
+  });
+  useDocumentTitle(documentTitle);
+
+  /*
+   * NAV-3: a student screen change moves focus to the new screen's heading
+   * and says its name once (app/shell/screenChange.js). Not on the first
+   * screen after sign-in; inside an assignment it only speaks.
+   */
+  const currentStudentScreenKey = studentScreenKey({
+    role: user?.role || null,
+    view: activeView,
+    mode: studentDashboardMode,
+    resultAssignmentId: assignmentResultRoute?.assignmentId || null,
+    testCycleAssignmentId: activeTestCycleAssignmentId,
+    assignmentId: activeAssignmentId,
+  });
+  const [studentScreenAnnouncement, setStudentScreenAnnouncement] = useState('');
+  const lastStudentScreenKeyRef = useRef(null);
+  // The change still being settled. A lazy screen can suspend the App and
+  // re-run this effect with the same key; the change is finished then, not
+  // dropped.
+  const pendingStudentScreenRef = useRef(null);
+  const documentTitleRef = useRef(documentTitle);
+  documentTitleRef.current = documentTitle;
+  useEffect(() => {
+    const previous = lastStudentScreenKeyRef.current;
+    lastStudentScreenKeyRef.current = currentStudentScreenKey;
+    if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
+    if (previous && previous !== currentStudentScreenKey) {
+      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      // Cleared first, so the same name said twice in a row is still spoken.
+      setStudentScreenAnnouncement('');
+    }
+    const pending = pendingStudentScreenRef.current;
+    if (!pending || pending.key !== currentStudentScreenKey) return undefined;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    let cancelled = false;
+    let timer = null;
+    const settle = () => {
+      if (cancelled) return;
+      // A lazy screen draws its heading a moment later: look for up to 2 s.
+      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
+      if (!focused && Date.now() - pending.startedAt < 2000) {
+        timer = window.setTimeout(settle, 100);
+        return;
+      }
+      if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
+      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
+    };
+    timer = window.setTimeout(settle, 50);
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  }, [currentStudentScreenKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -5211,8 +5662,16 @@ function App() {
     if (!assignment) return;
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
-    if (!getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
-      toastInfo('DOL not open yet', 'The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears.');
+    const dolLifecycle = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+    if (!dolLifecycle.isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
+      // What is true for THIS state (waiting with a real time, another class
+      // day, not scheduled): the navigator's own sentence for the exit ticket,
+      // never one fixed "opens in the last minutes of class".
+      const dolAccess = describeSectionAccess({ role: 'dol', label: `the ${exitTicketInSentence}`, timedDol: true, lifecycle: dolLifecycle, dolState, nowValue: Date.now() });
+      toastInfo(
+        dolAccess.short ? `${EXIT_TICKET_SPELLED_OUT} · ${dolAccess.short}` : `${EXIT_TICKET_SPELLED_OUT} is not open`,
+        dolAccess.reason || `The ${exitTicketInSentence} is not open right now.`,
+      );
       return;
     }
 
@@ -5287,6 +5746,16 @@ function App() {
       return;
     }
 
+    let generateQuestion;
+    try {
+      // The generator loads with the worksheet (see the import note at the top).
+      ({ generateQuestion } = await import('./problemGenerator'));
+    } catch (error) {
+      console.error(error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
+      return;
+    }
+
     const classId = user.classId || null;
     const classPeriod = user.classPeriod;
     const dolState = getDOLState({ assignment: assignmentData, schedule: classSchedule, classId, classPeriod, nowValue: now });
@@ -5355,19 +5824,20 @@ function App() {
       });
     }
 
-    const model = buildAssignmentWorksheetModel({
-      assignment: assignmentData,
-      // A blank name line on the printout rather than a placeholder for a
-      // student with no name on file.
-      student: { displayName: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }), classPeriod: user.classPeriod },
-      entries: printableEntries,
-    });
-    if (!model.sections.some((section) => section.questions.length)) {
-      toastInfo('Nothing to export yet', 'No currently unlocked questions are available for the printable worksheet.');
-      return;
-    }
-
     try {
+      // The worksheet builder loads with the PDF (pdfLoaders.js), so a load
+      // failure lands in this catch like a failed render.
+      const model = await buildAssignmentWorksheetModel({
+        assignment: assignmentData,
+        // A blank name line on the printout rather than a placeholder for a
+        // student with no name on file.
+        student: { displayName: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }), classPeriod: user.classPeriod },
+        entries: printableEntries,
+      });
+      if (!model.sections.some((section) => section.questions.length)) {
+        toastInfo('Nothing to export yet', 'No currently unlocked questions are available for the printable worksheet.');
+        return;
+      }
       const result = await downloadAssignmentWorksheetPdf({ model });
       toastSuccess('PDF ready', `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported. Locked sections and answer data were not included.`);
     } catch (error) {
@@ -5377,7 +5847,7 @@ function App() {
   };
 
   const teacherWorksheetStudentsFor = (assignment) => (
-    eligibleStudentsForTeacherWorksheet(assignment, allStudents)
+    requireTeacherKit().eligibleStudentsForTeacherWorksheet(assignment, allStudents)
       .slice()
       .sort(compareStudentsByName)
   );
@@ -5399,7 +5869,7 @@ function App() {
               || selectedStudent.profile?.adaptiveInstruction,
           }
         : null;
-      const model = buildTeacherAssignmentWorksheetModel({
+      const model = await buildTeacherAssignmentWorksheetModel({
         assignment,
         student: selectedStudent,
         learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,
@@ -5430,7 +5900,7 @@ function App() {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
-    const requiresStudent = assignmentNeedsStudentForWorksheet(assignment);
+    const requiresStudent = requireTeacherKit().assignmentNeedsStudentForWorksheet(assignment);
     const students = teacherWorksheetStudentsFor(assignment);
     if (requiresStudent && !students.length) {
       toastInfo(
@@ -5464,6 +5934,8 @@ function App() {
     const cycleStage = String(options.cycleStage || '').trim();
     if (isTestCycleAssignment(assignmentData) && !cycleStage) {
       setActiveTestCycleAssignmentId(assignmentId);
+      // Where its Back goes (NAV-9): the screen that opened it.
+      setActiveTestCycleOrigin(normalizeOrigin(NAV_LEVEL.TEST_CYCLE, options.origin));
       return openStudentDashboardMode('testCycle');
     }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
@@ -5472,17 +5944,50 @@ function App() {
       toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
     }
+    /*
+     * A START THAT CANNOT HAPPEN LANDS ON THE RESULT PAGE (NAV-4, NAV-10).
+     *
+     * Paused or archived by the teacher, an earlier lesson to finish first,
+     * not open yet, excused: the assignment's result page says so in its
+     * "what opens when" panel, where the student can read it for as long as
+     * they need — not in a toast that is gone in five seconds. Every path in
+     * comes through here: Home, Assignments, Grades, Ways to raise, a
+     * Classroom link, an address.
+     */
+    const resultOrigin = normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin);
+    const landOnResult = (notice) => openStudentAssignmentResult(assignmentId, { origin: resultOrigin, notice });
+    const closedByTeacher = user?.role === 'student' ? teacherClosedState(assignmentData) : null;
+    if (closedByTeacher) {
+      landOnResult(describeOpenNotice({ kind: closedByTeacher }));
+      return;
+    }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
     if (user?.role === 'student' && !access.open) {
-      const prerequisiteTitle = assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || 'the prerequisite notes/classwork assignment';
-      toastInfo('Finish the prerequisite first', `Complete ${prerequisiteTitle} first. This practice assignment also opens automatically at its scheduled release time.`);
+      landOnResult(describeOpenNotice({
+        kind: OPEN_NOTICE.PREREQUISITE,
+        prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
+        opensAtText: whenDateTimeText(assignmentData.releaseAt),
+      }));
       return;
     }
     const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
       studentId: user?.role === 'student' ? user.id : undefined,
     });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
-      toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      if (user?.role === 'student') {
+        landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.NOT_OPEN_YET, opensAtText: whenDateTimeText(assignmentData.releaseAt) }));
+      } else {
+        toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      }
+      return;
+    }
+    // EXCUSED WORK IS NOT OPENED AS GRADED WORK. Home and Assignments leave
+    // it out; a typed address, a bookmark or a Classroom link lands on its
+    // result page instead. Voluntary practice and the result page's own
+    // Review/Practice buttons (returnToResult) are unchanged.
+    if (user?.role === 'student' && !cycleStage && !lifecycle.isPracticeOnly && !options?.returnToResult
+      && resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true) {
+      landOnResult(describeOpenNotice({ kind: OPEN_NOTICE.EXCUSED }));
       return;
     }
 
@@ -5529,7 +6034,7 @@ function App() {
       .map((entry) => entry.storageIndex)
       .filter((index) => !studentRequired || studentRequired.has(index));
     if (!includedQuestionIndices.length) {
-      toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
+      toastWarning('Nothing to show yet', 'This assignment has no questions for you right now.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
@@ -5552,11 +6057,14 @@ function App() {
       const entryNow = Date.now();
       const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
       const roleIsActionable = (role) => {
+        // The same predicate as Home's Today rule (studentWorkState.js): a
+        // Warm-Up/DOL with its class window switched off is open like
+        // Classwork; otherwise only an active window is.
         if (role === 'warmup') {
-          return getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'dol') {
-          return getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+          return timedSectionWorkableNow(getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }));
         }
         if (role === 'classwork' || role === 'practice') {
           return getSectionAccessState({
@@ -5569,21 +6077,80 @@ function App() {
         }
         return true;
       };
+      // A question's own address keeps that question only while its section
+      // is open now; otherwise it resolves exactly as Continue does (the first
+      // unfinished question open now), never onto finished work elsewhere.
+      const requestedRole = stageEntries.find((entry) => entry.storageIndex === safeQuestionIndex)?.logicalRole || null;
+      const keepRequested = Boolean(options?.returnToResult)
+        || Boolean(options?.keepRequestedQuestion && roleIsActionable(requestedRole));
       const actionableIndex = resolveStudentAssignmentEntry({
         entries: stageEntries,
         includedQuestionIndices,
         requestedQuestionIndex: safeQuestionIndex,
         roleIsActionable,
         restrictToRole: scopedSectionKey,
+        // Start/Continue lands on the first unfinished question open now;
+        // Review My Work (returnToResult) keeps the question it asked for, and
+        // so does a question's own address (a reload, a link): the student
+        // returns to the question they were on, if its section is open now.
+        // Finished means what Home means: correct, or out of tries (a
+        // teacher-granted extra DOL try reopens an expired DOL question).
+        isFinished: keepRequested
+          ? null
+          : (index) => questionIsTerminal({
+            record: tracker?.[assignmentId]?.[index],
+            role: stageEntries.find((entry) => entry.storageIndex === index)?.logicalRole || null,
+            question: assignmentQuestions[index],
+            assignment: assignmentData,
+            classId: user.classId || null,
+            studentId: user.id,
+          }),
       });
+      if (actionableIndex === null && options?.returnToResult) {
+        // Asked from the result page: going "back" to the same page would do
+        // nothing visible, so say why instead.
+        toastInfo('Nothing to open right now', 'None of this assignment is open to you at the moment. The result page shows what opens when.');
+        return;
+      }
+      if (actionableIndex === null && user?.role === 'student' && !scopedSectionKey) {
+        // No dead end: with nothing open this minute, show the assignment's
+        // result page — its sections, what opens when, and what to do next.
+        openStudentAssignmentResult(assignmentId, { origin: resultOrigin });
+        return;
+      }
       if (actionableIndex === null) {
         toastInfo(
           scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
           scopedSectionKey
-            ? 'This section is currently locked or outside its class window.'
-            : 'There is no student-actionable section in this assignment right now.',
+            ? 'This section is not open now. It may open later in class, or it has closed.'
+            : 'Nothing in this assignment is open for you to work on right now.',
         );
         return;
+      }
+      if (options?.keepRequestedQuestion && actionableIndex !== safeQuestionIndex) {
+        // A question's address names a question whose section is not open now.
+        // Said once the workspace is on screen, not over Home (review S2).
+        showWhenWorkspaceOpens({ title: 'That question is not open right now', body: 'It opened where you can work now.' });
+      }
+      // A Classroom post for a section that is not open yet opens where the
+      // student can work now; say why, in the navigator's words (NAV-22).
+      const launchedRole = String(options?.launchedSectionKey || '').trim().toLowerCase();
+      if (DETOUR_SECTION_LABEL[launchedRole] && !roleIsActionable(launchedRole)) {
+        const detour = describeSectionDetour({
+          requestedRole: launchedRole,
+          landingRole: stageEntries.find((entry) => entry.storageIndex === actionableIndex)?.logicalRole || null,
+          access: describeSectionAccess({
+            role: launchedRole,
+            label: DETOUR_SECTION_LABEL[launchedRole],
+            timedDol: launchedRole === 'dol',
+            lifecycle,
+            warmupState: getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
+            dolState: getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }),
+            manualState: getSectionAccessState({ assignment: assignmentData, activityRole: launchedRole, ...studentContext, studentId: user.id, nowValue: entryNow }),
+            nowValue: entryNow,
+          }),
+        });
+        if (detour) showWhenWorkspaceOpens(detour);
       }
       safeQuestionIndex = actionableIndex;
     }
@@ -5595,7 +6162,7 @@ function App() {
     if (!options?.returnToResult) setAssignmentResultRoute(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
@@ -5629,6 +6196,9 @@ function App() {
     }
 
     setActiveView('assignment');
+    // The workspace is opening (a caller that has something to say once it is
+    // on screen waits for this: the arrival notice, below).
+    return true;
   };
 
   /*
@@ -5647,9 +6217,21 @@ function App() {
     setActiveClassroomSectionKey(null);
     setActiveAssignmentId(null);
     if (mode !== 'mathPath') setPathLaunchTeks(null);
+    setPathLaunchTab(null);
     if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
     setStudentDashboardMode(mode);
     setActiveView('dashboard');
+  };
+
+  // "Practise this skill" on a released test review or the Test Cycle card:
+  // a course standard opens Path practice on it; a practice test's exam
+  // domain opens the CCMR tab (practiceSkillLaunch).
+  const practiseSkillFromResults = (destination) => {
+    const launch = practiceSkillLaunch(destination);
+    if (!launch) return;
+    openStudentDashboardMode('mathPath');
+    setPathLaunchTeks(launch.teksCode);
+    setPathLaunchTab(launch.tab);
   };
 
   const openStudentGradeCenter = () => openStudentDashboardMode('grades');
@@ -5671,6 +6253,14 @@ function App() {
     return openStudentDashboardMode('assignments');
   };
 
+  // A navigation level a Back control returns to (NAV-9).
+  const openStudentOriginLevel = (level) => {
+    if (level === NAV_LEVEL.HOME) return openStudentDashboardMode('assignments');
+    if (level === NAV_LEVEL.GRADES) return openStudentGradeCenter();
+    if (level === NAV_LEVEL.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
+    return openStudentAssignmentsCenter();
+  };
+
   const openStudentAssignmentResult = (assignmentId, options = {}) => {
     const id = String(assignmentId || '').trim();
     if (!id) return;
@@ -5680,15 +6270,83 @@ function App() {
       sectionKey,
       sectionLabel: options.sectionLabel || null,
       questionIndex: Number(options.questionIndex) || 0,
-      // Which list sent the student here, so the visible Back control returns
-      // to that list rather than guessing. Browser Back already does the right
-      // thing; this is what keeps the on-screen control agreeing with it.
-      origin: options.origin === 'grades' ? 'grades' : 'assignments',
+      // Which screen sent the student here (Home, Assignments or Grades), so
+      // the visible Back control names and returns to it rather than guessing.
+      // Browser Back already does the right thing; this keeps the on-screen
+      // control agreeing with it (NAV-9).
+      origin: normalizeOrigin(NAV_LEVEL.ASSIGNMENT_RESULT, options.origin),
+      // Why a start landed here instead of opening (studentOpenGate.js), for
+      // the page's "what opens when" panel. Null for an ordinary visit.
+      notice: options.notice || null,
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
     setActiveView('assignmentResult');
   };
+
+  /*
+   * JOINING AND LEAVING THE LIVE CHALLENGE (NAV-25). Joining keeps the place
+   * the student is on — the question they were working, a result page, a
+   * screen — and the game's exit returns there instead of to Home.
+   */
+  const joinLiveChallenge = () => {
+    setLiveChallengeReturn(liveChallengeReturnPlace({
+      activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute,
+    }));
+    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
+    openStudentDashboardMode('liveChallenge');
+  };
+  const leaveLiveChallenge = () => {
+    const place = liveChallengeReturn;
+    setLiveChallengeReturn(null);
+    if (place?.kind === 'assignment' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
+      // The question they were on, if its section is still open; otherwise
+      // where they can work now (and a start that cannot open says why).
+      startAssignment(place.assignmentId, place.questionIndex, { keepRequestedQuestion: true });
+      return;
+    }
+    if (place?.kind === 'result' && assignments.some((assignment) => assignment.id === place.assignmentId)) {
+      openStudentAssignmentResult(place.assignmentId, { sectionKey: place.sectionKey, origin: place.origin });
+      return;
+    }
+    openStudentDashboardMode(place?.kind === 'screen' ? place.mode : 'assignments');
+  };
+
+  /*
+   * A QUESTION'S ADDRESS (app/routes/questionAddress.js).
+   *
+   * The student's questions in the order and numbering the workspace uses:
+   * less the items a reduced-item-count accommodation omits (never in
+   * voluntary practice), exactly as renderAssignmentWorkspace builds
+   * `projectedEntries`. The address bar, Home's Resume and the workspace
+   * header therefore name the same "Classwork Question 2".
+   */
+  const studentQuestionEntriesFor = (assignmentData) => {
+    if (!assignmentData) return [];
+    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
+      studentId: user?.role === 'student' ? user.id : undefined,
+    });
+    const required = user?.role === 'student' && !lifecycle.isPracticeOnly
+      ? studentRequiredFor(assignmentData, { hasPracticePass: hasPracticePassFor(assignmentData.id) })
+      : null;
+    return studentQuestionEntries(assignmentData, { omittedIndices: required?.omitted || [] });
+  };
+
+  /*
+   * OPENING THE ADDRESS THE PAGE ARRIVED AT.
+   *
+   * Once the account has loaded, the address is turned into a plan
+   * (app/routes/urlArrival.js) and the plan into the call a click makes:
+   * startAssignment, openStudentAssignmentResult, openStudentDashboardMode,
+   * the Test Cycle card, startTeacherPreview. So a typed or reloaded URL meets
+   * every gate a click meets — class membership, release and prerequisite,
+   * section windows, the Test Cycle card's server check, the secure-exam
+   * dashboard — and the server's authority is unchanged.
+   */
+  // A session or tab from an arrival applies to the My Math Path it opened.
+  useEffect(() => {
+    if (mathPathArrival && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setMathPathArrival(null);
+  }, [mathPathArrival, studentDashboardMode, activeView]);
 
   // Starting a Recovery is the server's decision: it re-checks eligibility,
   // builds the fresh questions and pins them before anything is shown.
@@ -5714,6 +6372,24 @@ function App() {
     }
   };
 
+  // One door into a Recovery from anywhere a student finds it — Home, the
+  // Assignments Center, or the assignment's own header. It lands on the
+  // assignment's Results route, where the panel and the runner already live,
+  // and opens the practice, the server-built second try, or the one in
+  // progress. Leaving an open assignment saves its activity first, as Back does.
+  const openStudentRecovery = (opportunity) => {
+    const assignmentId = opportunity?.assignmentId;
+    const section = opportunity?.section;
+    if (!assignmentId || !section) return;
+    if (activeView === 'assignment' && activeAssignmentId) flushAssignmentActivity(activeAssignmentId).catch(() => {});
+    openStudentAssignmentResult(assignmentId, { origin: 'assignments' });
+    if (opportunity.action === 'start') {
+      startStudentRecovery(assignmentId, section);
+      return;
+    }
+    setRecoverySession({ assignmentId, section, mode: opportunity.action === 'continue' ? 'assessment' : 'practice' });
+  };
+
   const startTeacherPreview = (assignmentId, { lessonRuntime = false } = {}) => {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
@@ -5736,10 +6412,11 @@ function App() {
     setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
+    previewTrackerAssignmentIdRef.current = assignmentId;
     setActiveView('teacherPreview');
   };
 
@@ -5824,7 +6501,7 @@ function App() {
         setLiveTeachingSession(resumed);
         setActiveAssignmentId(assignmentId);
         setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
-        setAssignmentNavigationCollapsed(false);
+        setAssignmentNavigationCollapsed(true);
         setAssignmentOverviewExpanded(false);
         setActiveView('teacherPreview');
         return;
@@ -5845,10 +6522,221 @@ function App() {
     if (!assignmentData) return;
     setActiveAssignmentId(liveTeachingSession.assignmentId);
     setCurrentQuestionIndex(liveTeachingSession.storageQuestionIndex);
-    setAssignmentNavigationCollapsed(false);
+    setAssignmentNavigationCollapsed(true);
     setAssignmentOverviewExpanded(false);
     setActiveView('teacherPreview');
   };
+
+  /*
+   * BROWSER BACK AND FORWARD FOR THE TEACHER.
+   *
+   * The teacher workspace is state-driven, like the student side, so without
+   * History API entries the browser treats every teacher screen as one page and
+   * a single Back press leaves MathMaster — the classic way to lose the room
+   * mid-lesson. Each screen (a sidebar tab, an Administration tab, the "View as
+   * Student" / Live Teaching preview) and each panel opened over a screen (an
+   * assignment's hub, a student's drawer, case review, support report, the Test
+   * Cycle preview) gets its own entry. The rules live in
+   * platform/teacher/teacherBrowserHistory.js.
+   *
+   * The arrival entry is marked as where the teacher started. Back from there
+   * still leaves the site — that is the browser's, not MathMaster's, to take.
+   */
+  const teacherBrowserRoute = useMemo(() => {
+    if (user?.role !== 'teacher') return null;
+    if (activeView === 'teacherPreview') {
+      return { surface: 'preview', assignmentId: activeAssignmentId || '', questionIndex: currentQuestionIndex };
+    }
+    const administrationVisible = teacherWorkspaceMode === 'administration'
+      && (user.isRootAdmin === true || isRootAdminEmail(user.email));
+    if (administrationVisible) return { surface: 'administration', adminTab };
+    return {
+      surface: 'workspace',
+      tab: teacherTab,
+      panels: {
+        hubAssignmentId: assignmentHubTarget?.assignmentId,
+        hubClassId: assignmentHubTarget?.classId,
+        studentId: profileDrawerStudentId,
+        caseReviewStudentId,
+        supportReportStudentId,
+        testCyclePreviewAssignmentId: testCyclePreviewAssignment?.id,
+      },
+    };
+  }, [
+    user?.role, user?.isRootAdmin, user?.email, activeView, activeAssignmentId, currentQuestionIndex,
+    teacherWorkspaceMode, adminTab, teacherTab, assignmentHubTarget, profileDrawerStudentId,
+    caseReviewStudentId, supportReportStudentId, testCyclePreviewAssignment?.id,
+  ]);
+
+  useEffect(() => {
+    if (!teacherBrowserRoute) {
+      teacherBrowserHistoryReadyRef.current = false;
+      return;
+    }
+    // The address the page opened at has not been opened yet (urlArrival).
+    if (urlArrival) return;
+    // The screen's address: the tab and an open assignment monitor only —
+    // never a student's drawer, case review or report (app/routes/appUrl.js).
+    const url = teacherUrlFor(teacherBrowserRoute);
+    // The entry the teacher arrived on (sign-in, a reload, a bookmark) becomes
+    // this screen. Later screens are pushed after it.
+    if (!teacherBrowserHistoryReadyRef.current) {
+      teacherBrowserHistoryReadyRef.current = true;
+      writeTeacherRouteState(teacherBrowserRoute, {
+        replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url, owner: user?.uid,
+        fresh: readRouteOwner(window.history.state) !== user?.uid,
+      });
+      return;
+    }
+
+    // A step back is in flight: the browser is about to land on the entry this
+    // screen already matches, and its popstate clears the mark.
+    if (Date.now() - teacherHistoryStepBackAtRef.current < 1000) return;
+
+    const plan = planTeacherHistoryWrite({
+      entry: readTeacherHistoryEntry(window.history.state),
+      target: teacherBrowserRoute,
+      documentId: TEACHER_HISTORY_DOCUMENT_ID,
+    });
+    if (plan.action === 'back') {
+      teacherHistoryStepBackAtRef.current = Date.now();
+      window.history.back();
+      return;
+    }
+    if (plan.action === 'replace' || plan.action === 'push') {
+      writeTeacherRouteState(teacherBrowserRoute, {
+        replace: plan.action === 'replace',
+        fromKey: plan.fromKey,
+        documentId: plan.documentId,
+        url,
+        owner: user?.uid,
+      });
+    }
+  }, [teacherBrowserRoute, urlArrival]);
+
+  // A dialog that can hold work or a decision. Back never acts underneath one:
+  // the page it would reveal is not the page the dialog belongs to, and an
+  // editor's unsaved changes are not something Back should be able to discard.
+  // These render only over the teacher workspace, so only there do they block.
+  const teacherDialogOpen = teacherBrowserRoute?.surface === 'workspace' && Boolean(
+    questionEditorAssignment || contentUpgradeRequest || assignmentPreflight || deleteDialog
+    || classroomSyncProposal || teacherWorksheetDialog || exportJsonAssignment
+    || teacherScratchpadDialog || responseInspectorTarget,
+  );
+
+  // Re-assigned every render so the listener below always restores with the
+  // newest assignments and Live Teaching session, without re-subscribing.
+  teacherHistoryRestoreRef.current = (event) => {
+    const ownStepBack = Date.now() - teacherHistoryStepBackAtRef.current < 1000;
+    teacherHistoryStepBackAtRef.current = 0;
+    const entry = readTeacherHistoryEntry(event.state);
+    if (!entry) return;
+    const route = entry.route;
+    // An entry another account wrote (platform/student/browserHistory.js):
+    // never restored; this screen's entry takes its place.
+    if (readRouteOwner(event.state) !== user?.uid) {
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, {
+          replace: true, documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid, fresh: true,
+        });
+      }
+      return;
+    }
+
+    // The popstate from closing a panel: the screen already shows this entry
+    // (that is why App stepped back to it). Nothing to restore — and a dialog
+    // opened by the same click (the hub's "Edit questions") must not read it
+    // as the teacher pressing Back.
+    if (ownStepBack) {
+      if (teacherBrowserRoute && teacherRouteSignature(route) !== teacherRouteSignature(teacherBrowserRoute)) {
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
+      }
+      return;
+    }
+
+    if (teacherDialogOpen) {
+      // The browser has already moved; put this screen's entry back and stay.
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, { fromKey: teacherRouteKey(route), documentId: TEACHER_HISTORY_DOCUMENT_ID, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
+      }
+      toastInfo('Close the open window first', 'Save or close what is open, then use Back. Nothing was changed.');
+      return;
+    }
+
+    setQuickSearchOpen(false);
+
+    if (route.surface === 'preview') {
+      const assignmentData = assignments.find((assignment) => String(assignment.id) === route.assignmentId);
+      const isLiveLesson = liveTeachingSession?.active && String(liveTeachingSession.assignmentId) === route.assignmentId;
+      if (assignmentData && isLiveLesson) {
+        resumeLiveTeaching();
+        return;
+      }
+      if (assignmentData && previewTrackerAssignmentIdRef.current === route.assignmentId) {
+        // The preview's in-memory work is still this assignment's: step back
+        // into it where the teacher left it.
+        setActiveAssignmentId(assignmentData.id);
+        setCurrentQuestionIndex(route.questionIndex);
+        setActiveView('teacherPreview');
+        return;
+      }
+      if (assignmentData && getStoredAssignmentQuestions(assignmentData).length) {
+        // Preview is in-memory and always starts blank; another preview has
+        // run since, so this one starts again from the top.
+        startTeacherPreview(assignmentData.id, { lessonRuntime: true });
+        return;
+      }
+      // The assignment is gone. Stay on the current screen and make this entry
+      // say so, rather than leave Back pointing at a preview that cannot open.
+      if (teacherBrowserRoute) {
+        writeTeacherRouteState(teacherBrowserRoute, { replace: true, fromKey: entry.fromKey, documentId: entry.documentId, url: teacherUrlFor(teacherBrowserRoute), owner: user?.uid });
+      }
+      return;
+    }
+
+    // Leaving the preview by Back is the same as its own exit button: the
+    // Live Teaching session stays running, with Resume on Live Classroom.
+    if (activeView === 'teacherPreview') setActiveAssignmentId(null);
+    setActiveView('dashboard');
+
+    if (route.surface === 'administration') {
+      setTeacherWorkspaceMode('administration');
+      setAdminTab(route.adminTab);
+      return;
+    }
+
+    setTeacherWorkspaceMode('teacher');
+    if (route.tab !== teacherTab) {
+      setTeacherTab(route.tab);
+      // The same one-shot hand-offs the sidebar clears on a tab change. The
+      // Gradebook's class and assignment are left alone: Back into Grades
+      // should show the assignment the teacher was reading.
+      setHomeNavigationPeriod(null);
+      setLiveFocus(null);
+    }
+    const { panels } = route;
+    setAssignmentHubTarget((current) => {
+      if (!panels.hubAssignmentId) return null;
+      return current?.assignmentId === panels.hubAssignmentId
+        ? current
+        : { assignmentId: panels.hubAssignmentId, classId: panels.hubClassId || null };
+    });
+    setProfileDrawerStudentId(panels.studentId || null);
+    setCaseReviewStudentId(panels.caseReviewStudentId || null);
+    setSupportReportStudentId(panels.supportReportStudentId || null);
+    setTestCyclePreviewAssignment((current) => {
+      if (!panels.testCyclePreviewAssignmentId) return null;
+      if (current?.id === panels.testCyclePreviewAssignmentId) return current;
+      return assignments.find((assignment) => String(assignment.id) === panels.testCyclePreviewAssignmentId) || null;
+    });
+  };
+
+  useEffect(() => {
+    if (user?.role !== 'teacher') return undefined;
+    const restoreTeacherFromBrowserHistory = (event) => teacherHistoryRestoreRef.current?.(event);
+    window.addEventListener('popstate', restoreTeacherFromBrowserHistory);
+    return () => window.removeEventListener('popstate', restoreTeacherFromBrowserHistory);
+  }, [user?.role]);
 
   const endLiveTeaching = () => {
     if (liveTeachingSession?.sessionId) {
@@ -6112,7 +7000,9 @@ function App() {
   const familyDeliveriesRef = useRef(new Map());
   const handleFamilyDelivery = useCallback((delivery, renderedQuestion) => {
     if (!delivery?.slot || user?.role !== 'student' || !user?.id || isTeacherPreview) return;
-    writeLocalDeliveryPin({ studentId: user.id, delivery });
+    // A device pin the question dropped (`familyPinNotice`) is replaced by
+    // what was shown instead, so the next render cannot swap it again.
+    writeLocalDeliveryPin({ studentId: user.id, delivery, devicePinDropped: Boolean(renderedQuestion?.familyPinNotice) });
     familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
 
@@ -6174,7 +7064,8 @@ function App() {
       // This student's own final cutoff (attendance extension, individualized
       // extra time), so the finalize hint is not earlier than the server's.
       studentId: user.id,
-      studentProfile: user.profile || null,
+      // The grade document's own `profile` field, as the finalizer reads it (D7).
+      studentProfile: user.timingProfile || null,
     });
     try {
       setStudentPersistenceStatus('capturing');
@@ -6428,13 +7319,22 @@ function App() {
           evidenceEvent,
         },
       }));
+      // An answer is on its way only once it is in the device queue: a
+      // no-credit practice submit or one that could not be stored is not
+      // (RUN-11, saveStatusModel.js).
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded anywhere, so nothing was submitted: no verdict,
+      // no try used, the question stays open with Submit (RUN-3). A `null`
+      // here used to read as "show the device's own verdict" — "Correct!",
+      // locked, and no Submit to press again. It is said once, by the
+      // question's own alert (SUBMISSION_NOT_QUEUED.message), where Submit is:
+      // no toast repeats it.
       console.error('Could not durably queue this response:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Response not queued', 'Your answer is still on screen. Keep this tab open and press Submit again.');
-      return null;
+      return SUBMISSION_NOT_QUEUED;
     }
 
     setTracker(updatedTracker);
@@ -6579,6 +7479,7 @@ function App() {
           hasDolGrade: false,
         },
       }));
+      markAnswerSent();
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
@@ -6691,92 +7592,6 @@ function App() {
 
   const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
 
-  // Reads the one supported Assignment V5 object and reports what is wrong in
-  // terms an AI can act on, rather than throwing a single opaque message.
-  const readAssignmentJson = (rawText) => {
-    const errors = [];
-    const warnings = [];
-    let parsed = null;
-    try {
-      parsed = parseAssignmentBlueprintText(rawText);
-    } catch (error) {
-      // A compile throw is not the same as unreadable input, and treating it as
-      // one is what made salvage unreachable for the case it exists for. The
-      // commonest V5 failure is a single question the compiler refuses — "V5
-      // question 3 does not contain enough mathematical intent" — thrown from
-      // the middle of the compile. The document itself is still a perfectly
-      // legible V5 with nineteen good questions in it, but discarding it here
-      // left the salvage check with no assignment to look at and no schema
-      // version to recognise, so the teacher was told to take the whole
-      // assignment back to the AI over one question.
-      //
-      // The raw text is re-read as plain JSON instead. This is deliberately not
-      // a second compiler: it recovers the authored document so it can be saved
-      // and repaired, and every question in it still has to pass Preflight
-      // before anything can be published.
-      let recoveredV5 = null;
-      try {
-        const document = JSON.parse(rawText);
-        if (document && typeof document === 'object' && Number(document.schemaVersion) === 5) {
-          recoveredV5 = document;
-        }
-      } catch {
-        recoveredV5 = null;
-      }
-
-      if (!recoveredV5) {
-        return { ok: false, errors: [error.message], warnings, sourceSchemaVersion: null, compilerDefect: false };
-      }
-
-      return {
-        ok: false,
-        errors: [error.message],
-        warnings,
-        parsed: { assignmentV5: recoveredV5, questions: [] },
-        sourceSchemaVersion: 5,
-        compilerDefect: V5_COMPILER_PLUMBING_ERROR.test(String(error.message)),
-      };
-    }
-
-    try {
-      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode });
-    } catch (error) {
-      errors.push(error.message);
-    }
-
-    parsed.questions.forEach((question, index) => {
-      const result = validateAlignments(question, { label: `Question ${index + 1}` });
-      errors.push(...result.errors);
-      warnings.push(...result.warnings);
-    });
-
-    // One TEKS copied onto every question is the commonest authoring mistake an
-    // AI makes, and it silently corrupts mastery evidence rather than failing.
-    warnings.push(...auditAlignmentSpecificity(parsed.questions).warnings);
-
-    // A recognized type is not enough: the renderer has to be able to show it.
-    const semantic = validateQuestionsSemantics(parsed.questions);
-    errors.push(...semantic.errors);
-    warnings.push(...semantic.warnings);
-
-    if (errors.length) {
-      const sourceSchemaVersion = parsed.sourceSchemaVersion || null;
-      const compilerDefect = Number(sourceSchemaVersion) === 5
-        && errors.every((message) => V5_COMPILER_PLUMBING_ERROR.test(String(message)));
-      return { ok: false, errors, warnings, parsed, sourceSchemaVersion, compilerDefect };
-    }
-
-    return {
-      ok: true,
-      errors,
-      warnings,
-      parsed,
-      sourceSchemaVersion: parsed.sourceSchemaVersion || null,
-      compilerDefect: false,
-    };
-  };
-
-
   // The teacher sets classes, dates, folder and publishing here — the JSON never
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, reviewOptions = {}) => {
@@ -6789,7 +7604,7 @@ function App() {
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
       ));
-      const publishingIntent = normalizeLessonPublishingIntentV5({
+      const publishingIntent = requireTeacherKit().normalizeLessonPublishingIntentV5({
         classroom: assignmentV5.classroomIntegration,
         lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
       }, assignmentV5.assignment, []);
@@ -6873,974 +7688,6 @@ function App() {
     return messages;
   };
 
-  // Single entry point for pasted, uploaded and dropped JSON.
-  const handleAssignmentJsonReady = async ({ text, sourceName, incompleteDraftId = null }) => {
-    let sourceText = text;
-    let ccmrAudit = null;
-
-    // Every authoring route gets the same CCMR treatment. Built-in AI is
-    // already bank-backed, while ChatGPT/Claude/Gemini JSON is hydrated here
-    // before local V5 compilation and Preflight. If the network is temporarily
-    // unavailable, import still works; Preflight will visibly flag any direct
-    // exam-style item that lacks audited-bank provenance.
-    try {
-      const raw = JSON.parse(String(text || ''));
-      const isCanonicalSelfExport = raw?.portableContract?.kind === 'mathmasterCanonicalAssignmentV5'
-        && Number(raw?.portableContract?.version) === 1;
-      if (
-        raw
-        && !Array.isArray(raw)
-        && Number(raw.schemaVersion) === 5
-        && Array.isArray(raw.sections)
-        && !isCanonicalSelfExport
-      ) {
-        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false });
-        sourceText = JSON.stringify(hydrated.assignment);
-        ccmrAudit = hydrated.audit;
-      }
-    } catch (error) {
-      console.warn('CCMR assignment hydration was skipped', error);
-    }
-
-    const result = readAssignmentJson(sourceText);
-    const bankWarnings = [...ccmrAuditWarnings(ccmrAudit)];
-    const warnings = [...(result.warnings || []), ...bankWarnings];
-    if (!result.ok) {
-      if (!canSalvageV5IntakeResult(result)) return { ...result, warnings };
-
-      // Publication validity and previewability are different boundaries.
-      // A parseable V5 with question-level blockers still opens Preflight.
-      const preflightModel = buildAssignmentV5PreflightModel(result.parsed.assignmentV5);
-      const salvageResult = {
-        ...result,
-        ok: false,
-        errors: [...new Set([...(result.errors || []), ...(preflightModel.errors || [])])],
-        warnings: [...new Set([...warnings, ...(preflightModel.warnings || [])])],
-        parsed: {
-          ...result.parsed,
-          assignmentV5: preflightModel.assignmentV5,
-          questions: preflightModel.questions,
-        },
-      };
-      const previewOpenResult = openAssignmentPreflight(
-        { ...salvageResult.parsed, authoringWarnings: salvageResult.warnings },
-        sourceName,
-        {},
-        { incompleteDraftId },
-      );
-      if (previewOpenResult !== true) {
-        return {
-          ...salvageResult,
-          errors: [...salvageResult.errors, previewOpenResult?.error || 'Could not build Assignment Review from this assignment.'],
-          previewOpened: false,
-        };
-      }
-      return { ...salvageResult, previewOpened: true, ccmrAudit };
-    }
-    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName, {}, { incompleteDraftId });
-    if (opened !== true) {
-      return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
-    }
-    return { ok: true, warnings, repairs: result.parsed.repairs || [], ccmrAudit };
-  };
-
-
-  const handleCreateAssignment = async (teacherReview, reviewedAssignmentV5) => {
-    const sourceIncompleteDraftId = assignmentPreflight?.incompleteDraftId || null;
-    try {
-      if (!teacherReview || typeof teacherReview !== 'object') {
-        throw new Error('Publishing requires the completed Assignment Review settings.');
-      }
-      const reviewedCandidate = reviewedAssignmentV5 && Number(reviewedAssignmentV5.schemaVersion) === 5
-        ? reviewedAssignmentV5
-        : null;
-      if (!reviewedCandidate) {
-        throw new Error('Publishing requires the MathMaster assignment that was reviewed before creation.');
-      }
-
-      // Creation must never be the first place a teacher learns that the
-      // reviewed assignment is invalid. Re-run the same native V5 Preflight
-      // model used by Assignment Review and publish only its validated,
-      // persistence-safe object. This is a final race/defense check, not a
-      // separate validation system.
-      const finalPreflight = buildAssignmentV5PreflightModel(reviewedCandidate);
-      if (!finalPreflight.isValid) {
-        throw new Error(`This assignment is no longer ready to create:\n${finalPreflight.errors.join('\n')}`);
-      }
-      const reviewedV5 = finalPreflight.assignmentV5;
-
-      // Final publishing consumes the exact reviewed canonical object. The
-      // original pasted/uploaded JSON is intentionally not reparsed here.
-      const reviewedQuestions = flattenV5Sections(reviewedV5);
-      const title = String(reviewedV5.assignment?.title || '').trim();
-      const dueValue = teacherReview.dueAt || '';
-      const lateDueValue = teacherReview.lateDueAt || '';
-      const releaseValue = teacherReview.releaseAt || '';
-      const variantMode = getStoredAssignmentVariantMode(reviewedV5);
-      const assignedClassIds = [...new Set((teacherReview.assignedClassIds || []).filter(Boolean))];
-      const selectedClassRecords = assignedClassIds.length
-        ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
-        : [];
-      const assignedClassPeriods = [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))];
-      const creationMode = resolveCreationMode({ assignedClassIds });
-      if (!title) {
-        throw new Error('Assignment title is missing. Add a title in Assignment Review before publishing.');
-      }
-
-      const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
-        mode: creationMode,
-        dueValue,
-        lateDueValue,
-        releaseValue,
-      });
-
-      const parsedQuestions = normalizeAssignmentQuestions(
-        validateAssignmentQuestions(reviewedQuestions, { variantMode }),
-      );
-      const authoredRoles = parsedQuestions.map((question) => resolveQuestionActivityRole({
-        question,
-        assignment: reviewedV5,
-      }));
-      const hasWarmupSection = authoredRoles.includes('warmup');
-      const hasDOLSection = authoredRoles.includes('dol');
-      const assignmentType = getStoredAssignmentTypeProjection(reviewedV5);
-
-      const warmupEnabled = hasWarmupSection && teacherReview.warmupEnabled !== false;
-      const requestedWarmupLeadMinutes = Number(teacherReview.warmupMinutesBeforeStart);
-      const warmupMinutesBeforeStart = Math.max(
-        0,
-        Number.isFinite(requestedWarmupLeadMinutes) ? requestedWarmupLeadMinutes : 7,
-      );
-      const warmupInstructionDate = String(
-        teacherReview.warmupInstructionDate
-        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
-        || localDateKey(Date.now()),
-      ).trim() || null;
-      const warmupInstructionDatesByClassPeriod = teacherReview.warmupInstructionDatesByClassPeriod || {};
-
-      let dolQuestionIndex = Number.isInteger(Number(teacherReview.dolQuestionIndex))
-        ? Number(teacherReview.dolQuestionIndex)
-        : null;
-      if (Number.isInteger(dolQuestionIndex)) {
-        dolQuestionIndex = Math.max(0, Math.min(parsedQuestions.length - 1, dolQuestionIndex));
-      } else {
-        const authoredDOLIndex = authoredRoles.findIndex((role) => role === 'dol');
-        dolQuestionIndex = authoredDOLIndex >= 0 ? authoredDOLIndex : null;
-      }
-      const dolEnabled = Boolean(
-        teacherReview.dolEnabled === true
-        && hasDOLSection
-        && Number.isInteger(dolQuestionIndex),
-      );
-      const dolMinutesBeforeEnd = Math.max(1, Number(teacherReview.dolMinutesBeforeEnd) || 10);
-      const dolCloseMinutesBeforeEnd = Math.max(0, Number(teacherReview.dolCloseMinutesBeforeEnd ?? 5));
-      const dolInstructionDate = String(
-        teacherReview.dolInstructionDate
-        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
-        || localDateKey(Date.now()),
-      ).trim() || null;
-
-      const folder = normalizeFolderPath(reviewedV5.assignment?.folder) || null;
-      const completionRule = assignmentType === 'notesClasswork'
-        ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
-        : null;
-      const sourceAssignmentKey = String(reviewedV5.assignment?.assignmentKey || '').trim() || null;
-
-      if (sourceAssignmentKey && assignments.some((assignment) => (
-        assignment.assignmentKey === sourceAssignmentKey
-        || String(assignment.assignmentKey || '').startsWith(`${sourceAssignmentKey}:`)
-      ))) {
-        throw new Error(`An assignment with assignmentKey "${sourceAssignmentKey}" already exists. Clear or change assignment.assignmentKey if you intend to create a separate copy.`);
-      }
-
-      const publishingIntent = normalizeLessonPublishingIntentV5({
-        classroom: reviewedV5.classroomIntegration,
-        lessonResources: { notesPdf: reviewedV5.outputProfiles?.lessonNotesPdf },
-      }, {
-        ...(reviewedV5.assignment || {}),
-        title,
-        folder,
-      }, []);
-
-      const assignmentPayloadBase = {
-        schemaVersion: 5,
-        title,
-        courseId: reviewedV5.assignment?.courseId || null,
-        dueAt,
-        lateDueAt,
-        dueDate,
-        sectionAccess: {
-          classwork: { defaultState: teacherReview.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
-          practice: { defaultState: teacherReview.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
-        },
-        guidedNotesBySection: {
-          classwork: teacherReview.guidedNotesBySection?.classwork || 'automatic',
-          practice: teacherReview.guidedNotesBySection?.practice || 'off',
-        },
-        releaseAt,
-        prerequisiteAssignmentId: null,
-        completionRule,
-        warmup: {
-          enabled: warmupEnabled,
-          minutesBeforeStart: warmupMinutesBeforeStart,
-          closeMinutesAfterStart: 10,
-          instructionDate: warmupInstructionDate,
-          instructionDatesByClassPeriod: warmupInstructionDatesByClassPeriod,
-          closedByClassId: {},
-          closedByClassPeriod: {},
-        },
-        dol: {
-          enabled: dolEnabled,
-          minutesBeforeEnd: dolMinutesBeforeEnd,
-          closeMinutesBeforeEnd: dolCloseMinutesBeforeEnd,
-          instructionDate: dolInstructionDate,
-          instructionDatesByClassPeriod: teacherReview.dolInstructionDatesByClassPeriod || {},
-          questionIndex: dolQuestionIndex,
-          earlyUnlocksByClassId: {},
-          earlyUnlocks: {},
-        },
-        folder,
-        publicationSettings: {
-          strategy: teacherReview.publicationStrategy || 'hybrid',
-          includeWarmupInClassroom: teacherReview.includeWarmupInClassroom === true,
-          homeworkDueAt: teacherReview.homeworkDueAt ? new Date(teacherReview.homeworkDueAt).toISOString() : null,
-        },
-        classroomPackage: publishingIntent.classroomPackage,
-        lessonResources: publishingIntent.lessonResources,
-        instructionalPurpose: reviewedV5.assignment?.instructionalPurpose || 'lesson',
-        gradingPurpose: reviewedV5.assignment?.gradingPurpose ?? null,
-        variantPolicy: reviewedV5.variantPolicy || {},
-        differentiationPolicy: reviewedV5.differentiationPolicy || null,
-        supportPolicy: reviewedV5.supportPolicy || null,
-        toolPolicy: reviewedV5.toolPolicy || null,
-        deliveryPolicy: reviewedV5.deliveryPolicy || null,
-        gradingPolicy: reviewedV5.gradingPolicy || null,
-        evidencePolicy: reviewedV5.evidencePolicy || null,
-        outputProfiles: reviewedV5.outputProfiles || null,
-        classroomIntegration: reviewedV5.classroomIntegration || null,
-        provenance: reviewedV5.provenance || null,
-        preflight: reviewedV5.preflight || { required: true },
-        // A Test Cycle's policy, secure blueprint and secure reference are not
-        // sections, and this payload used to drop all three — so a Test Cycle
-        // authored here was saved as a Review with no secure Test behind it.
-        ...testCycleContractFields(reviewedV5),
-        ...(assignmentPreflight?.sourceContentLineage ? {
-          contentLineage: assignmentPreflight?.sourceContentLineage,
-        } : {}),
-        createdAt: new Date(),
-      };
-
-      if (folder && !assignmentFolderPaths.includes(folder)) {
-        await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
-      }
-
-      const bundleLabs = reviewedV5
-        ? (reviewedV5.sections || []).flatMap((section) => (
-            (section?.questions || [])
-              .filter((question) => question?.type === 'modelingLab' && question?.labDefinition)
-              .map((question) => ({
-                activityId: section.id || null,
-                role: section.role || 'classwork',
-                labDefinition: question.labDefinition,
-              }))
-          ))
-        : [];
-      const privateLabsById = new Map(bundleLabs.map((activity) => {
-        const definition = normalizeLabDefinition(activity.labDefinition, { includeEvaluation: true });
-        return [definition.labId, { definition, activity }];
-      }));
-
-      // Extracted so assigning a library item later runs the same split rather
-      // than a second copy of it. A library save returns [] here, which is the
-      // correct answer: nobody has been given it, so there is nothing to split.
-      const destinationGroups = buildDestinationGroups({ assignedClassIds, classes });
-      const hasHonorsDestination = destinationGroups.some((entry) => entry.courseLevel === 'honors');
-      let honorsParsedQuestions = parsedQuestions;
-      // The server is the source of truth for whether this authored Practice
-      // section is large enough to carry the ~15% audited CCMR target.
-      // Default to strict if an audit is ever unavailable.
-      let honorsCcmrTargetRequired = true;
-      // #359: when the target was required but nothing was sourced, name WHY
-      // — same-TEKS items exist but none fit this question's construct,
-      // versus no same-TEKS item existing at all — instead of a single generic
-      // "could not find" message either way.
-      let honorsCcmrGapMessage = '';
-
-      // CCMR is destination-aware. Standard destinations keep the authored
-      // Practice. When an Honors destination is actually selected, MathMaster
-      // asks the server to source the audited V2.1 target on the same TEKS,
-      // then compiles that Honors-only V5 variant through the normal pipeline.
-      if (hasHonorsDestination) {
-        const hydratedHonors = await hydrateAssignmentCcmr(reviewedV5, { ensurePracticeTarget: true });
-        const honorsCanonical = applyCcmrHydrationToCanonicalAssignment({
-          baseAssignmentV5: reviewedV5,
-          hydratedAssignment: hydratedHonors.assignment,
-        });
-        honorsParsedQuestions = normalizeAssignmentQuestions(
-          validateAssignmentQuestions(honorsCanonical.questions, { variantMode }),
-        );
-        if (hydratedHonors?.audit && Object.prototype.hasOwnProperty.call(hydratedHonors.audit, 'targetCount')) {
-          honorsCcmrTargetRequired = Number(hydratedHonors.audit.targetCount || 0) > 0;
-        }
-        const honorsMisses = Array.isArray(hydratedHonors?.audit?.misses) ? hydratedHonors.audit.misses : [];
-        const honorsSemanticGap = honorsMisses.some((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
-          || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
-        honorsCcmrGapMessage = honorsSemanticGap
-          ? 'The audited CCMR bank has items on this lesson’s TEKS, but none that match the question’s construct (for example, system dimension, or linear vs. linear–quadratic). MathMaster kept the authored Practice question rather than substitute an unrelated item.'
-          : 'MathMaster could not find any audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS.';
-      }
-
-      const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, {
-        allowNarrowCheckpoint: true,
-        ccmrTargetRequired: honorsCcmrTargetRequired,
-      });
-      const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
-
-      const writeAssignmentVariant = async ({ destination, questions }) => {
-        const assignmentRef = doc(collection(db, 'assignments'));
-        const labSuffix = `${destination.course}-${destination.courseLevel}-${assignmentRef.id.slice(0, 8)}`;
-        const privateLabWrites = [];
-        const variantQuestions = questions.map((question) => {
-          if (question?.type !== 'modelingLab' || !question.labDefinition?.labId) return question;
-          const originalLabId = question.labDefinition.labId;
-          const privateSource = privateLabsById.get(originalLabId);
-          if (!privateSource) {
-            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private assignment definition.`);
-            return question;
-          }
-          const nextLabId = `${originalLabId}-${labSuffix}`;
-          if (privateSource) privateLabWrites.push({ nextLabId, ...privateSource });
-          return { ...question, labDefinition: { ...question.labDefinition, labId: nextLabId } };
-        });
-        const payload = {
-          ...assignmentPayloadBase,
-          // Filed in the marking period that is current when it is assigned,
-          // so moving to the next period does not drag it into "current".
-          ...((destination.classIds || []).length ? currentGradingPeriodStamp(gradingPeriodSettings) : {}),
-          assignedClassPeriods: destination.periods,
-          assignedClassIds: destination.classIds || [],
-          sections: rebuildV5SectionsFromQuestions(reviewedV5, variantQuestions),
-          courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
-          rigorVariant: destination.courseLevel,
-          rigorVariantGroupId: splitVariantGroupId,
-          assignmentKey: destinationAssignmentKey({
-            assignmentKey: sourceAssignmentKey,
-            destination,
-            destinationCount: destinationGroups.length,
-          }),
-          honorsContractVersion: destination.courseLevel === 'honors' ? 1 : null,
-          honorsContractScope: destination.courseLevel === 'honors' ? sourceHonorsReport.scope : null,
-        };
-        assertFirestoreSafeAssignmentPayload(payload);
-        if (privateLabWrites.length) {
-          const batch = writeBatch(db);
-          batch.set(assignmentRef, payload);
-          privateLabWrites.forEach(({ nextLabId, definition, activity }) => batch.set(doc(db, 'modelingLabDefinitions', nextLabId), {
-            ...definition,
-            labId: nextLabId,
-            assignmentId: assignmentRef.id,
-            activityId: activity.activityId || null,
-            activityRole: activity.role || 'classwork',
-            updatedAt: new Date(),
-          }));
-          await batch.commit();
-        } else {
-          await setDoc(assignmentRef, payload);
-        }
-        return { id: assignmentRef.id, ...payload };
-      };
-
-      const destinationVariants = destinationGroups.map((destination) => {
-        let destinationQuestions = parsedQuestions;
-        if (destination.courseLevel === 'honors') {
-          destinationQuestions = honorsParsedQuestions;
-          let enrichmentQuestion = null;
-          if (!sourceHonorsReport.isHonorsReady) {
-            if (sourceHonorsReport.ccmrTargetRequired && !sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error(`${honorsCcmrGapMessage || 'MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination.'} Review the Practice TEKS or reduce the independent Practice section below the CCMR target threshold.`);
-            }
-            if (!teacherReview?.honorsEnrichmentQuestion) {
-              throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
-            }
-            // The extension the teacher reviewed in Pre-Flight extends THIS
-            // assignment's mathematics, so every Honors destination gets that
-            // same one, whatever course a destination class profile names. It
-            // was rebuilt per destination course once, which is how an Algebra I
-            // lesson was given an "Algebra II" extension. Certified again here:
-            // publish never stores an extension Pre-Flight would refuse.
-            enrichmentQuestion = teacherReview.honorsEnrichmentQuestion;
-            const certification = certifyHonorsExtensionQuestion(enrichmentQuestion);
-            if (!certification.ok) {
-              throw new Error(`The Honors extension cannot be published because it does not pass MathMaster's checks. Return to Pre-Flight and add it again:\n${certification.errors.join('\n')}`);
-            }
-          }
-          destinationQuestions = normalizeAssignmentQuestions([
-            ...honorsParsedQuestions,
-            ...(enrichmentQuestion ? [enrichmentQuestion] : []),
-          ]);
-          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, {
-            allowNarrowCheckpoint: true,
-            ccmrTargetRequired: honorsCcmrTargetRequired,
-          });
-          if (!finalHonorsReport.isHonorsReady) throw new Error(`Honors preflight is still missing: ${finalHonorsReport.missing.join(', ')}.`);
-          validateAssignmentQuestions(destinationQuestions, { variantMode, allowFixed: variantMode === 'shared' });
-        }
-        return { destination, questions: destinationQuestions };
-      });
-
-      const createdAssignments = [];
-      if (creationMode === 'library') {
-        // ONE canonical document, deliberately without a course/rigor variant.
-        // Choosing a destination now would be guessing: the teacher has not said
-        // which classes get it, and materialising a Standard variant today would
-        // be wrong the moment they assign it to an Honors class. The split runs
-        // when the assignment is actually assigned, through the same helper.
-        createdAssignments.push(await writeAssignmentVariant({
-          destination: { course: null, courseLevel: null, periods: [] },
-          questions: parsedQuestions,
-        }));
-      } else {
-        for (const variant of destinationVariants) {
-          // Sequential writes keep the destination variants and their private lab
-          // definitions easy to audit. A normal assignment creates one group.
-          // eslint-disable-next-line no-await-in-loop
-          createdAssignments.push(await writeAssignmentVariant(variant));
-        }
-      }
-
-      // "Publish" in Preflight now means publish the whole authored package:
-      // MathMaster assignment + mapped Google Classroom post + optional notes
-      // material. Classroom is downstream, so a failure is surfaced but never
-      // deletes the MathMaster assignment that was just created.
-      if (creationMode !== 'library') {
-        for (const createdAssignment of createdAssignments) {
-          if (!shouldAutoPublishClassroomPackage(createdAssignment)) continue;
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const classroomResult = await autoPublishAssignmentPackageToClassroom(createdAssignment);
-            if (classroomResult.status === 'needs-mapping') {
-              toastWarning(
-                'MathMaster assignment published; Classroom needs a mapping',
-                `${createdAssignment.title} was assigned in MathMaster, but no saved Google Classroom mapping matches ${createdAssignment.assignedClassPeriods.join(', ')}. Map that class once in Google Classroom Manager and publish/retry there.`,
-              );
-            } else if (classroomResult.status === 'failed' || classroomResult.status === 'partial') {
-              toastWarning(
-                'MathMaster assignment published; Classroom needs attention',
-                `${createdAssignment.title} is live in MathMaster. Google Classroom published ${classroomResult.published || 0} destination(s) and failed ${classroomResult.failed || 0}. Open Google Classroom Manager for details/retry.`,
-              );
-            } else if (classroomResult.status === 'published') {
-              toastSuccess(
-                'Google Classroom published',
-                `${createdAssignment.title} was posted automatically to ${classroomResult.published} mapped Classroom destination${classroomResult.published === 1 ? '' : 's'}.`,
-              );
-            }
-          } catch (classroomError) {
-            console.error('Automatic Google Classroom publication failed:', classroomError);
-            toastWarning(
-              'MathMaster assignment published; Classroom did not post',
-              `${createdAssignment.title} is live in MathMaster, but Google Classroom returned: ${classroomError.message}`,
-            );
-          }
-        }
-      }
-
-      // The intake is stateless now — closing preflight and clearing the held
-      // JSON is the whole reset.
-      setAssignmentPreflight(null);
-      await fetchAssignments();
-      // Creation consumes the already-reviewed canonical V5 object. There is
-      // no local `parsed` result in this function; referencing one here used
-      // to throw after Firestore had successfully saved the assignment, making
-      // a successful library save look like a failure.
-      // The draft existed to hold this assignment while it was unpublishable.
-      // It is published now, so the draft's job is done. This runs after the
-      // Firestore write and deliberately does not fail the publication: the
-      // assignment is live either way, and a leftover draft is a tidiness
-      // problem, not a reason to tell the teacher publishing failed.
-      if (sourceIncompleteDraftId) {
-        try {
-          await markIncompleteAssignmentDraftPublished(sourceIncompleteDraftId);
-        } catch (draftCleanupError) {
-          console.error('Published the assignment but could not close its incomplete draft:', draftCleanupError);
-          toastWarning(
-            'Published, but the incomplete draft is still listed',
-            `“${title}” is saved. Its Incomplete Assignments entry could not be removed automatically — delete it there so the repaired copy is the only one.`,
-          );
-        }
-      }
-
-      const repairMessage = '';
-      const sourceMessage = 'Created with MathMaster Assignment Creator after teacher review.';
-      toastSuccess(
-        creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
-        creationMode === 'library'
-          ? `${sourceMessage} Not assigned to any class yet, so it has no due date. Assign it when you are ready.${folder ? `\nFolder: ${folder}` : ''}${repairMessage}`
-          : `${sourceMessage} Assigned to ${assignedClassPeriods.length} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`,
-      );
-
-    } catch (error) {
-      toastError('Could not create assignment', error.message);
-    }
-  };
-
-  const updateExistingAssignmentFromReview = async ({ draft, assignmentV5 }) => {
-    const assignmentId = assignmentPreflight?.existingAssignmentId;
-    const existing = assignments.find((item) => item.id === assignmentId);
-    if (!assignmentId || !existing) throw new Error('The assignment being edited could not be found.');
-
-    const model = buildAssignmentV5PreflightModel(assignmentV5);
-    if (!model.isValid) {
-      throw new Error(`This setup cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
-    }
-
-    const assignedClassIds = [...new Set((draft.assignedClassIds || []).filter(Boolean))];
-    const selectedClassRecords = assignedClassIds.length
-      ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
-      : [];
-    const assignedClassPeriods = [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))];
-
-    if (isLibraryAssignment(existing) && assignedClassIds.length) {
-      throw new Error(
-        'This is a reusable library template. Use Dates & Classes to assign it; MathMaster will open Assignment Review and create the correct destination copy while keeping the template unchanged.',
-      );
-    }
-
-    const targetGroups = buildDestinationGroups({ assignedClassIds, classes });
-    const currentCourse = existing.courseId || existing.courseProfile?.course || null;
-    const currentLevel = existing.rigorVariant || existing.courseProfile?.courseLevel || null;
-    const changesDestination = targetGroups.length > 1
-      || (targetGroups.length === 1 && currentCourse && targetGroups[0].course !== currentCourse)
-      || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
-    if (changesDestination) {
-      throw new Error(
-        'This assignment is already a destination-specific Standard/Honors version. Duplicate it to the library, then assign the library copy through Assignment Review to create a different rigor destination.',
-      );
-    }
-
-    const originalV5 = storedAssignmentToV5(existing);
-    const hasStudentData = allStudents.some(
-      (student) => student.gradesByAssignment?.[existing.id] !== undefined,
-    );
-    if (hasStudentData) {
-      const originalQuestionState = flattenV5Sections(originalV5);
-      const reviewedQuestionState = flattenV5Sections(model.assignmentV5);
-      const questionContentChanged = JSON.stringify(originalQuestionState) !== JSON.stringify(reviewedQuestionState);
-      const historicalFields = [
-        'variantPolicy',
-        'differentiationPolicy',
-        'supportPolicy',
-        'toolPolicy',
-        'deliveryPolicy',
-        'gradingPolicy',
-        'evidencePolicy',
-      ];
-      const changed = historicalFields.filter((field) => (
-        JSON.stringify(originalV5[field] || null) !== JSON.stringify(model.assignmentV5[field] || null)
-      ));
-      const audienceChanged = JSON.stringify([...(existing.assignedClassIds || [])].sort())
-        !== JSON.stringify([...assignedClassIds].sort());
-      if (changed.length || audienceChanged || questionContentChanged) {
-        throw new Error(
-          `Student records already exist. To preserve historical evidence, this setup editor cannot change ${[
-            ...changed,
-            ...(audienceChanged ? ['class audience'] : []),
-            ...(questionContentChanged ? ['question content'] : []),
-          ].join(', ')}. Duplicate the assignment for a new delivery policy or question rewrite instead.`,
-        );
-      }
-    }
-
-    const mode = resolveCreationMode({ assignedClassIds });
-    const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
-      mode,
-      dueValue: draft.dueAt || '',
-      lateDueValue: draft.lateDueAt || '',
-      releaseValue: draft.releaseAt || '',
-    });
-
-    // The Test Cycle contract is server-owned after creation (firestore.rules
-    // pins it). Work out what this edit does to it BEFORE saving anything, so a
-    // save that would strip it is refused rather than half-applied.
-    const contractEdit = planTestCycleContractEdit({ stored: existing, reviewed: model.assignmentV5 });
-    if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.REFUSE) throw new Error(contractEdit.message);
-
-    const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-    // Firestore stores sections[] only. Derive the temporary flat runtime view
-    // from the validated V5 object instead of reading a removed persistence field.
-    const persistedQuestions = flattenV5Sections(model.assignmentV5);
-    const authoredRoles = persistedQuestions.map((question) => resolveQuestionActivityRole({
-      question,
-      assignment: model.assignmentV5,
-    }));
-    const hasWarmup = authoredRoles.includes('warmup');
-    const dolIndexFromRole = authoredRoles.findIndex((role) => role === 'dol');
-    const hasDOL = dolIndexFromRole >= 0;
-    const dolQuestionIndex = hasDOL
-      ? Math.max(0, Math.min(
-          persistedQuestions.length - 1,
-          Number.isInteger(Number(draft.dolQuestionIndex))
-            ? Number(draft.dolQuestionIndex)
-            : dolIndexFromRole,
-        ))
-      : null;
-
-    const publishingIntent = normalizeLessonPublishingIntentV5({
-      classroom: model.assignmentV5.classroomIntegration,
-      lessonResources: { notesPdf: model.assignmentV5.outputProfiles?.lessonNotesPdf },
-    }, model.assignmentV5.assignment, []);
-
-    const patch = {
-      ...persistence,
-      title: model.assignmentV5.assignment.title,
-      folder: normalizeFolderPath(model.assignmentV5.assignment.folder) || null,
-      dueAt,
-      dueDate,
-      lateDueAt,
-      releaseAt,
-      assignedClassIds,
-      assignedClassPeriods,
-      sectionAccess: {
-        ...(existing.sectionAccess || {}),
-        classwork: {
-          ...(existing.sectionAccess?.classwork || {}),
-          defaultState: draft.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open',
-        },
-        practice: {
-          ...(existing.sectionAccess?.practice || {}),
-          defaultState: draft.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open',
-        },
-      },
-      guidedNotesBySection: {
-        classwork: draft.guidedNotesBySection?.classwork || 'automatic',
-        practice: draft.guidedNotesBySection?.practice || 'off',
-      },
-      warmup: {
-        ...(existing.warmup || {}),
-        enabled: hasWarmup && draft.warmupEnabled !== false,
-        minutesBeforeStart: Math.max(0, Number(draft.warmupMinutesBeforeStart) || 7),
-        instructionDate: draft.warmupInstructionDate || existing.warmup?.instructionDate || null,
-        instructionDatesByClassPeriod: draft.warmupInstructionDatesByClassPeriod || existing.warmup?.instructionDatesByClassPeriod || {},
-      },
-      dol: {
-        ...(existing.dol || {}),
-        enabled: hasDOL && draft.dolEnabled === true,
-        minutesBeforeEnd: Math.max(1, Number(draft.dolMinutesBeforeEnd) || 10),
-        closeMinutesBeforeEnd: Math.max(0, Number(draft.dolCloseMinutesBeforeEnd ?? existing.dol?.closeMinutesBeforeEnd ?? 5)),
-        instructionDate: draft.dolInstructionDate || existing.dol?.instructionDate || null,
-        instructionDatesByClassPeriod: draft.dolInstructionDatesByClassPeriod || existing.dol?.instructionDatesByClassPeriod || {},
-        questionIndex: dolQuestionIndex,
-      },
-      publicationSettings: {
-        ...(existing.publicationSettings || {}),
-        strategy: draft.publicationStrategy || existing.publicationSettings?.strategy || 'hybrid',
-        includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
-        homeworkDueAt: draft.homeworkDueAt ? new Date(draft.homeworkDueAt).toISOString() : null,
-      },
-      classroomPackage: publishingIntent.classroomPackage,
-      lessonResources: publishingIntent.lessonResources,
-      updatedAt: new Date().toISOString(),
-    };
-
-    assertFirestoreSafeAssignmentPayload({ ...existing, ...patch });
-    // `dol` as the fields this edit changed, not the whole map from this tab's
-    // copy (which would carry students' grants with it).
-    const { dol: editedDol, ...patchWithoutDol } = patch;
-    await updateDoc(doc(db, 'assignments', existing.id), {
-      ...patchWithoutDol,
-      ...classDolFieldPatch(existing.dol, editedDol, { deleteValue: deleteField() }),
-    });
-    // Then the contract, through the server, which checks the teacher of record
-    // and refuses a change that would contradict released results or open
-    // secure sessions. Its refusal is reported, not swallowed: the rest of the
-    // setup is saved, and the teacher is told exactly what was not.
-    if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.ATTACH) {
-      await attachTestCycleContract({ assignmentId: existing.id, ...contractEdit.contract });
-    } else if (contractEdit.kind === TEST_CYCLE_CONTRACT_EDIT.POLICY) {
-      await updateTestCyclePolicy({ assignmentId: existing.id, policy: contractEdit.policyChanges });
-    }
-
-    if (!isLibraryAssignment(existing) && shouldAutoPublishClassroomPackage({ ...existing, ...patch })) {
-      try {
-        await updateAssignmentClassroomPublications({ assignmentId: existing.id });
-      } catch (classroomError) {
-        console.warn('Classroom sync after assignment setup edit failed:', classroomError);
-        toastWarning(
-          'Assignment setup saved; Classroom needs attention',
-          'MathMaster saved the changes, but Google Classroom could not confirm the updated due date. Open Google Classroom Manager to review it.',
-        );
-      }
-    }
-
-    setAssignmentPreflight(null);
-    await fetchAssignments();
-    toastSuccess('Assignment setup updated', `“${patch.title}” passed MathMaster’s assignment checks and the reviewed settings were saved.`);
-  };
-
-  const confirmAssignmentPreflight = async ({ draft, assignmentV5 }) => {
-    setAssignmentPreflightBusy(true);
-    try {
-      // References to server-only secure manifests cannot be certified by the
-      // browser's pure V5 validator. Only Test Cycle candidates pay for this
-      // authoritative call, and no assignment is saved/assigned before it
-      // passes.
-      if (isTestCycleAssignment(assignmentV5)) {
-        const authoritative = await preflightTestCycleCandidate({ assignment: assignmentV5 });
-        if (authoritative.preflight?.blocked) {
-          throw new Error(`This Test Cycle cannot be published:\n${(authoritative.preflight.errors || []).join('\n')}`);
-        }
-      }
-      if (assignmentPreflight?.mode === 'update') {
-        await updateExistingAssignmentFromReview({ draft, assignmentV5 });
-      } else {
-        await handleCreateAssignment(draft, assignmentV5);
-      }
-    } finally {
-      setAssignmentPreflightBusy(false);
-    }
-  };
-
-  const openQuestionEditor = (assignment) => {
-    setQuestionEditorAssignment(assignment);
-  };
-
-  const saveQuestionEditor = async ({ title, questions, liveRepairs = [], appendedSections = [] }) => {
-    if (!questionEditorAssignment?.id) return;
-    const normalizedQuestions = normalizeAssignmentQuestions(questions);
-    const included = normalizedQuestions.filter(questionIsIncluded);
-    if (!included.length) throw new Error('At least one included question is required.');
-
-    // The FINAL candidate is what is judged: a swap's replacement goes in its
-    // own appended section (so no stored index moves), and Pre-Flight judges
-    // every question that stays active while setting aside the ones the
-    // teacher excluded or retired (assignmentV5PreflightModel).
-    const candidateV5 = storedAssignmentToV5(withAppendedQuestionSections(questionEditorAssignment, appendedSections), {
-      titleOverride: title,
-      questions: normalizedQuestions,
-    });
-    const model = buildAssignmentV5PreflightModel(candidateV5);
-    if (!model.isValid) {
-      throw new Error(`These question edits cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
-    }
-    const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-    const persistedQuestions = flattenV5Sections(model.assignmentV5);
-    const originalEditorQuestions = getStoredAssignmentQuestions(questionEditorAssignment);
-    const weightChanges = persistedQuestions.flatMap((question, index) => {
-      const before = originalEditorQuestions[index];
-      if (!before || String(before.questionId || '') !== String(question.questionId || '')) return [];
-      const beforeWeight = normalizeQuestionWeight(before);
-      const afterWeight = normalizeQuestionWeight(question);
-      return Math.abs(beforeWeight - afterWeight) > 1e-9
-        ? [{ questionId: question.questionId, questionIndex: index, beforeWeight, afterWeight }]
-        : [];
-    });
-    const dolIndex = resolveDOLQuestionIndex({
-      ...questionEditorAssignment,
-      questions: persistedQuestions,
-    });
-    const correctedAt = new Date().toISOString();
-    const assignmentPatch = {
-      ...persistence,
-      'dol.questionIndex': dolIndex >= 0 ? dolIndex : null,
-      updatedAt: correctedAt,
-    };
-
-    const needsLiveGradeTransaction = !isLibraryAssignment(questionEditorAssignment)
-      && ((Array.isArray(liveRepairs) && liveRepairs.length > 0) || weightChanges.length > 0);
-    // A viewport repair reframes the picture; it never rewrites a response
-    // control, so it earns no correction credit and no returned attempt.
-    const presentationOnlyLiveRepair = Array.isArray(liveRepairs)
-      && liveRepairs.length > 0
-      && liveRepairs.every((repair) => repair?.repairKind === GRAPH_VIEWPORT_REPAIR_KIND);
-    // Nothing in a student's grade document can be affected by where a graph is
-    // framed, so a presentation-only repair never opens one. It reads and
-    // writes no student record at all: not to migrate a tracker, not to write
-    // back an identical one, and not to log that it happened. The repair is
-    // recorded once, on the assignment.
-    const needsStudentGradeMigration = weightChanges.length > 0
-      || (Array.isArray(liveRepairs) && liveRepairs.length > 0 && !presentationOnlyLiveRepair);
-
-    if (needsLiveGradeTransaction) {
-      const assignmentId = questionEditorAssignment.id;
-      const assignmentRef = doc(db, 'assignments', assignmentId);
-      const audienceStudents = allStudents.filter((student) => assignmentIsForStudent(
-        questionEditorAssignment,
-        {
-          classId: student.classId || null,
-          classPeriod: student.classPeriod,
-        },
-      ));
-
-      if (needsStudentGradeMigration && audienceStudents.length > 450) {
-        throw new Error(
-          'This assignment has too many student records for a browser-side live correction. Use the server migration path so every student is updated atomically.',
-        );
-      }
-
-      await runTransaction(db, async (transaction) => {
-        const liveAssignmentSnapshot = await transaction.get(assignmentRef);
-        if (!liveAssignmentSnapshot.exists()) {
-          throw new Error('This assignment no longer exists. Nothing was changed.');
-        }
-
-        const liveAssignment = {
-          id: liveAssignmentSnapshot.id,
-          ...liveAssignmentSnapshot.data(),
-        };
-        if (
-          questionEditorAssignment.updatedAt
-          && liveAssignment.updatedAt
-          && String(questionEditorAssignment.updatedAt) !== String(liveAssignment.updatedAt)
-        ) {
-          throw new Error(
-            'This assignment changed after you opened the editor. Close and reopen it before applying the live repair so newer student-facing content is not overwritten.',
-          );
-        }
-
-        const liveQuestions = getStoredAssignmentQuestions(liveAssignment);
-        liveRepairs.forEach((repair) => {
-          const index = Number(repair?.questionIndex);
-          const liveQuestion = liveQuestions[index];
-          const repairedQuestion = persistedQuestions[index];
-          if (!Number.isInteger(index) || index < 0 || !liveQuestion || !repairedQuestion) {
-            throw new Error('MathMaster could not match a live repair to its original question index.');
-          }
-          if (
-            String(liveQuestion.questionId || '') !== String(repair.questionId || '')
-            || String(repairedQuestion.questionId || '') !== String(repair.questionId || '')
-          ) {
-            throw new Error(
-              'A question ID or position changed while the assignment was live. The repair was cancelled to protect student progress.',
-            );
-          }
-          if (
-            repair.beforeFingerprint
-            && questionFingerprint(liveQuestion) !== repair.beforeFingerprint
-          ) {
-            throw new Error(
-              'The live question changed after this repair was prepared. Reopen the editor and prepare the correction again.',
-            );
-          }
-        });
-
-        weightChanges.forEach((change) => {
-          const liveQuestion = liveQuestions[change.questionIndex];
-          const weightedQuestion = persistedQuestions[change.questionIndex];
-          if (
-            !liveQuestion
-            || !weightedQuestion
-            || String(liveQuestion.questionId || '') !== String(change.questionId || '')
-            || String(weightedQuestion.questionId || '') !== String(change.questionId || '')
-          ) {
-            throw new Error('A weighted question moved or changed identity. Reopen the editor before changing live grade weights.');
-          }
-          if (Math.abs(normalizeQuestionWeight(liveQuestion) - change.beforeWeight) > 1e-9) {
-            throw new Error('A question weight changed after you opened the editor. Reopen it before recalculating live grades.');
-          }
-        });
-
-        const gradeEntries = needsStudentGradeMigration
-          ? await Promise.all(audienceStudents.map(async (student) => {
-            const studentRef = doc(db, 'grades', student.id);
-            const snapshot = await transaction.get(studentRef);
-            return { student, studentRef, snapshot };
-          }))
-          : [];
-
-        gradeEntries.forEach(({ studentRef, snapshot }) => {
-          if (!snapshot.exists()) return;
-          const studentData = snapshot.data() || {};
-          const gradesByAssignment = studentData.gradesByAssignment || {};
-          const assignmentTracker = gradesByAssignment[assignmentId];
-          if (assignmentTracker === undefined) return;
-
-          const studentPatch = {};
-          let nextTracker = assignmentTracker;
-          if (Array.isArray(liveRepairs) && liveRepairs.length > 0) {
-            nextTracker = repairAssignmentTrackerForLiveCorrections({
-              assignmentTracker: nextTracker,
-              questions: persistedQuestions,
-              repairs: liveRepairs,
-              correctedAt,
-            });
-          }
-          if (weightChanges.length > 0) {
-            nextTracker = repairAssignmentTrackerForGranularWorkflowCredit({
-              assignmentTracker: nextTracker,
-              questions: persistedQuestions,
-              questionIndices: weightChanges.map((change) => change.questionIndex),
-              correctedAt,
-            });
-          }
-          if (nextTracker !== assignmentTracker || (Array.isArray(liveRepairs) && liveRepairs.length > 0)) {
-            studentPatch.gradesByAssignment = {
-              ...gradesByAssignment,
-              [assignmentId]: nextTracker,
-            };
-          }
-          if (weightChanges.length > 0) {
-            studentPatch.classroomReleaseSignals = {
-              ...(studentData.classroomReleaseSignals || {}),
-              [assignmentId]: {
-                reason: 'manual-retry',
-                requestedAt: correctedAt,
-                source: 'question-weight-change',
-              },
-            };
-          }
-          if (Object.keys(studentPatch).length > 0) transaction.update(studentRef, studentPatch);
-        });
-
-        // The live repair audit trail lives with the assignment, not with any
-        // student record, so a display-only correction is recorded without
-        // touching attempts, responses, grades or progress.
-        const priorLiveRepairHistory = Array.isArray(liveAssignment.liveRepairHistory)
-          ? liveAssignment.liveRepairHistory
-          : [];
-        const liveRepairAudit = (Array.isArray(liveRepairs) ? liveRepairs : []).map((repair) => ({
-          kind: repair?.repairKind || 'response-entry-repair',
-          questionId: repair?.questionId || null,
-          questionIndex: Number(repair?.questionIndex),
-          affectedFieldIds: Array.isArray(repair?.affectedFieldIds) ? repair.affectedFieldIds : [],
-          changedViewportKeys: Array.isArray(repair?.changedViewportKeys) ? repair.changedViewportKeys : [],
-          correctedAt,
-        }));
-
-        if (liveRepairAudit.length) {
-          assignmentPatch.liveRepairHistory = [...priorLiveRepairHistory, ...liveRepairAudit].slice(-50);
-        }
-
-        transaction.update(assignmentRef, assignmentPatch);
-      });
-
-      if (weightChanges.length > 0 && Array.isArray(liveRepairs) && liveRepairs.length > 0) {
-        toastSuccess(
-          'Live repairs and grade weights saved',
-          'Student responses and attempt history were preserved. MathMaster recalculated weighted grades and queued Google Classroom to reconcile the updated score.',
-        );
-      } else if (weightChanges.length > 0) {
-        toastSuccess(
-          'Grade weights saved',
-          'Existing responses and attempts were not changed. MathMaster recalculated the assignment using the new question weights and queued Google Classroom to reconcile the updated score.',
-        );
-      } else if (presentationOnlyLiveRepair) {
-        toastSuccess(
-          'Graph viewport corrected',
-          'The graph is now framed so students can see the whole picture. This is a display-only change: attempts, responses, grades and progress were left exactly as they were.',
-        );
-      } else {
-        toastSuccess(
-          'Safe live repair saved',
-          'The corrected response controls are live. Existing student attempts were preserved, affected rejected responses were protected from score loss, and exhausted students received a repair retry only when they still had another incorrect part.',
-        );
-      }
-    } else {
-      await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), assignmentPatch);
-    }
-
-    setQuestionEditorAssignment(null);
-    await fetchAssignments();
-  };
-
   // Students in the class the teacher is working in.
   //
   // Membership follows `classId`. A student whose record predates the class
@@ -7906,7 +7753,7 @@ function App() {
   const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
 
   const needsAttentionQueue = useMemo(() => {
-    if (!['home', 'classesWorkspace'].includes(teacherTab)) return [];
+    if (!teacherKit || !['home', 'classesWorkspace'].includes(teacherTab)) return [];
     const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
     const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
@@ -7931,7 +7778,7 @@ function App() {
     const day = new Date(queueDayStart).getDay();
     const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 6));
 
-    return buildNeedsAttentionQueue({
+    return teacherKit.buildNeedsAttentionQueue({
       students: scoped.map((student) => ({ ...student, displayName: formatStudentName(student) })),
       profilesByStudentId: teacherLearningProfiles,
       weeklyByStudentId,
@@ -7945,7 +7792,7 @@ function App() {
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab, teacherKit,
   ]);
 
   const profileDrawerRosterStudent = useMemo(
@@ -8083,10 +7930,14 @@ function App() {
       options,
       courseId: context.courseId,
       profile: profileDrawerLearningProfile,
-      sessions: context.courseLevel === 'honors' ? 5 : 4,
-      honors: context.courseLevel === 'honors',
+      ...weeklyPlanClassInputs({
+        config: storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+          classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
+        }) || {},
+        honors: context.courseLevel === 'honors',
+      }),
     });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile]);
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile, weeklyGoalsByClass]);
 
   // A view that cannot answer anything across five classes gets one chosen for
   // it rather than being left on an option its own bar does not offer. Weekly
@@ -8155,10 +8006,21 @@ function App() {
 
   const handleReleaseAssignmentFeedback = async (assignment) => {
     if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
+    // One release opens worked solutions in EVERY class this is assigned to:
+    // name everyone who has not finished, by class, before it goes
+    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3).
+    // Every assigned class's extensions, not only the classes on screen.
+    const privateRecords = await readReleaseControls({
+      db, assignment, email: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+    });
+    const release = describeFeedbackRelease({
+      title: assignment.title,
+      ...releaseHoldReport({ assignment, privateRecords, students: allStudents, classes, nowValue: Date.now() }),
+    });
     const proceedWithRelease = await confirmAction({
-      title: `Release feedback for “${assignment.title}”?`,
-      message: 'Students will immediately see Quiz/Test correctness, solution review, and recorded grades. This cannot make already-viewed feedback private again.',
-      confirmLabel: 'Release Feedback',
+      title: release.title,
+      message: release.message,
+      confirmLabel: release.confirmLabel,
     });
     if (!proceedWithRelease) return;
     setFeedbackReleaseBusyId(assignment.id);
@@ -8705,7 +8567,8 @@ function App() {
   const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
     if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
-    const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
+    // The teacher's own control: the plain rule, never a student's grades.
+    const state = getSectionAccessStateForAnyone({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
       return;
@@ -8808,8 +8671,10 @@ function App() {
   // the history the evidence report depends on.
   const handleSupportProfileSaved = (studentId, projection) => {
     const nextProfile = normalizeStudentProfile(projection);
-    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+    // `timingProfile` is the stored projection itself (the D7 DOL window).
+    const timingProfile = projection && typeof projection === 'object' ? projection : null;
+    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
+    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile, timingProfile } : entry));
   };
 
   const handleSaveClassSchedule = async () => {
@@ -8882,72 +8747,6 @@ function App() {
   const handleMoveAssignmentToFolder = async (assignmentId, folderPath) => {
     await updateDoc(doc(db, 'assignments', assignmentId), { folder: folderPath ? normalizeFolderPath(folderPath) : null });
     await fetchAssignments();
-  };
-
-  const handleDuplicateAssignment = async (assignment) => {
-    try {
-      const duplicateQuestions = getStoredAssignmentQuestions(assignment).map((question) => ({
-        ...question,
-        questionId: createQuestionId(),
-      }));
-      const candidateV5 = storedAssignmentToV5(assignment, {
-        titleOverride: `${assignment.title} (Copy)`,
-        questions: duplicateQuestions,
-        resetAssignmentKey: true,
-      });
-      const model = buildAssignmentV5PreflightModel(candidateV5);
-      if (!model.isValid) {
-        throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
-      }
-      const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-      // A copy carries the content, never the source's instance state:
-      // students' overrides (which the create rule refuses anyway, so any
-      // assignment with an extension could not be duplicated) and each
-      // class's DOL/Warm-Up runtime state (shared/assignmentPrivacy.mjs).
-      const {
-        id: _id,
-        archived: _archived,
-        archivedAt: _archivedAt,
-        archivedBy: _archivedBy,
-        // A copy is a new assessment: it starts published (to whichever class
-        // it is later assigned) and carries none of the source's audit history.
-        unpublished: _unpublished,
-        unpublishedAt: _unpublishedAt,
-        unpublishedBy: _unpublishedBy,
-        lifecycleHistory: _lifecycleHistory,
-        assessmentPolicyHistory: _assessmentPolicyHistory,
-        contentLineage: _contentLineage,
-        contentUpgrade: _contentUpgrade,
-        ...rest
-      } = stripAssignmentInstanceState(assignment);
-      await addDoc(collection(db, 'assignments'), {
-        ...rest,
-        ...persistence,
-        assignmentKey: null,
-        assignedClassIds: [],
-        assignedClassPeriods: [],
-        dueAt: null,
-        dueDate: null,
-        lateDueAt: null,
-        lateDueDate: null,
-        releaseAt: null,
-        courseProfile: { course: model.assignmentV5.assignment.courseId, courseLevel: null },
-        rigorVariant: null,
-        rigorVariantGroupId: null,
-        honorsContractVersion: null,
-        honorsContractScope: null,
-        feedbackReleased: false,
-        feedbackReleasedAt: null,
-        createdAt: new Date(),
-      });
-      await fetchAssignments();
-      toastSuccess(
-        `Duplicated “${assignment.title}”`,
-        'The copy passed MathMaster’s assignment checks and was saved as an unassigned library item with no student records.',
-      );
-    } catch (error) {
-      toastError('Could not duplicate assignment', error.message);
-    }
   };
 
   /*
@@ -9150,98 +8949,6 @@ function App() {
     );
   };
 
-  const openStoredAssignmentForPreflight = (assignment, draftOverrides = {}) => {
-    // A stored assignment is ALREADY canonical V5. Sending it back through the
-    // authoring compiler used to reinterpret internal renderer contracts as new
-    // AI intent. A composed function workflow could therefore collapse into the
-    // legacy y=x free-plot tool while being moved from the Library to a class.
-    // Reuse validates the stored canonical object directly and never recompiles
-    // its questions.
-    const prepared = prepareStoredAssignmentForReuse(assignment, { resetAssignmentKey: true });
-    const opened = openAssignmentPreflight(
-      {
-        assignmentV5: prepared.assignmentV5,
-        questions: prepared.questions,
-        authoringWarnings: prepared.warnings,
-      },
-      `Library · ${assignment.title}`,
-      draftOverrides,
-      { sourceContentLineage: assignment.contentLineage || null },
-    );
-    if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
-    return prepared.assignmentV5;
-  };
-
-  const beginEditAssignmentSetup = (assignment) => {
-    try {
-      const prepared = prepareStoredAssignmentForReuse(assignment, { resetAssignmentKey: false });
-      const canonicalV5 = prepared.assignmentV5;
-      const currentDraft = {
-        title: assignment.title || canonicalV5.assignment.title || '',
-        folder: assignment.folder || canonicalV5.assignment.folder || '',
-        dueAt: toDateTimeLocalInputValue(assignment.dueAt || assignment.dueDate || ''),
-        lateDueAt: toDateTimeLocalInputValue(assignment.lateDueAt || assignment.lateDueDate || ''),
-        releaseAt: toDateTimeLocalInputValue(assignment.releaseAt || ''),
-        sectionVariantModes: getStoredSectionVariantModes(canonicalV5),
-        sectionAccessDefaults: {
-          classwork: assignment.sectionAccess?.classwork?.defaultState === 'closed' ? 'closed' : 'open',
-          practice: assignment.sectionAccess?.practice?.defaultState === 'closed' ? 'closed' : 'open',
-        },
-        guidedNotesBySection: {
-          classwork: assignment.guidedNotesBySection?.classwork || 'automatic',
-          practice: assignment.guidedNotesBySection?.practice || 'off',
-        },
-        assignedClassIds: [...(assignment.assignedClassIds || [])],
-        assignedClassPeriods: [...(assignment.assignedClassPeriods || [])],
-        warmupEnabled: assignment.warmup?.enabled !== false,
-        warmupMinutesBeforeStart: assignment.warmup?.minutesBeforeStart ?? 7,
-        warmupInstructionDate: assignment.warmup?.instructionDate || '',
-        warmupInstructionDatesByClassPeriod: assignment.warmup?.instructionDatesByClassPeriod || {},
-        dolEnabled: assignment.dol?.enabled === true,
-        dolMinutesBeforeEnd: assignment.dol?.minutesBeforeEnd ?? 10,
-        dolCloseMinutesBeforeEnd: assignment.dol?.closeMinutesBeforeEnd ?? 5,
-        dolInstructionDate: assignment.dol?.instructionDate || '',
-        dolInstructionDatesByClassPeriod: assignment.dol?.instructionDatesByClassPeriod || {},
-        dolQuestionIndex: Number.isInteger(assignment.dol?.questionIndex) ? assignment.dol.questionIndex : null,
-        publicationStrategy: assignment.publicationSettings?.strategy || 'hybrid',
-        includeWarmupInClassroom: assignment.publicationSettings?.includeWarmupInClassroom === true,
-        homeworkDueAt: toDateTimeLocalInputValue(assignment.publicationSettings?.homeworkDueAt || ''),
-        instructionalPurpose: canonicalV5.assignment.instructionalPurpose || 'lesson',
-        gradingPurpose: canonicalV5.assignment.gradingPurpose || null,
-        variantPolicy: canonicalV5.variantPolicy,
-        differentiationPolicy: canonicalV5.differentiationPolicy,
-        supportPolicy: canonicalV5.supportPolicy,
-        toolPolicy: canonicalV5.toolPolicy,
-        deliveryPolicy: canonicalV5.deliveryPolicy,
-        gradingPolicy: canonicalV5.gradingPolicy,
-        evidencePolicy: canonicalV5.evidencePolicy,
-        outputProfiles: canonicalV5.outputProfiles,
-        classroomIntegration: canonicalV5.classroomIntegration,
-        provenance: canonicalV5.provenance,
-        preflight: canonicalV5.preflight,
-      };
-        const opened = openAssignmentPreflight(
-        {
-          assignmentV5: canonicalV5,
-          questions: prepared.questions,
-          authoringWarnings: prepared.warnings,
-        },
-        `Existing · ${assignment.title}`,
-        currentDraft,
-        {
-          mode: 'update',
-          existingAssignmentId: assignment.id,
-          allowQuestionRepair: !allStudents.some(
-            (student) => student.gradesByAssignment?.[assignment.id] !== undefined,
-          ),
-        },
-      );
-      if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review.');
-    } catch (error) {
-      toastError('Could not review assignment setup', error.message);
-    }
-  };
-
   // Switching an assignment's Warm-Up into a Live Challenge. Written with dotted
   // field paths so the rest of the warmup object — the window, the instruction
   // dates, the per-class closures — is untouched.
@@ -9279,244 +8986,6 @@ function App() {
       assignedClassPeriods: existingPeriods,
       assignedClassIds: existingIds,
     });
-  };
-
-  const beginAssignLibraryAssignment = (assignment) => {
-    // Give Library rows a real Assign action. The existing Dates & Classes
-    // editor owns destination/date selection; saving a library item from there
-    // opens canonical Preflight and then uses the normal Classroom publisher.
-    setLibraryNavigation(null);
-    setAssignmentSearch('');
-    beginEditAssignmentDates(assignment);
-    setTeacherTab('assignments');
-    toastInfo(
-      'Choose the class and dates',
-      'This Library lesson will stay reusable. After you choose a class, Assignment Review will preserve the exact questions and publish the saved Google Classroom post, notes, resources, and grade-passback settings.',
-    );
-  };
-
-  const handleRepairAssignmentFromLibrary = async (assignment) => {
-    const inspection = inspectLibraryContentRepair(assignment, assignments);
-    if (!inspection.source || !inspection.questionIds.length) {
-      toastError(
-        'No safe repair source found',
-        'MathMaster could not find one unambiguous saved assignment with the same question identity and the richer workflow. No student work was changed.',
-      );
-      return;
-    }
-
-    const proceed = await confirmAction({
-      title: `Repair ${inspection.questionIds.length} corrupted question${inspection.questionIds.length === 1 ? '' : 's'}?`,
-      message: 'MathMaster will restore only the collapsed workflow question content from the matching intact assignment source. The live assignment ID, question IDs/order, dates, classes, and every other question stay unchanged. Because the corrupted question was not valid work, students receive fresh attempts on that repaired question only; they do not restart the assignment.',
-      confirmLabel: 'Repair assignment',
-    });
-    if (!proceed) return;
-
-    try {
-      const repair = buildSafeLibraryContentRepair(assignment, inspection.source);
-      const currentQuestions = getStoredAssignmentQuestions(assignment);
-      const repairedIndices = repair.repairedQuestionIds
-        .map((questionId) => currentQuestions.findIndex((question) => question?.questionId === questionId))
-        .filter((index) => index >= 0);
-      const studentsWithThisAssignment = allStudents.filter((student) => (
-        student?.id && student.gradesByAssignment?.[assignment.id]
-      ));
-
-      // The assignment itself and the repaired-question attempt reset are one
-      // Firestore batch. Students keep every other answer/score. Only work on a
-      // question that MathMaster rendered incorrectly is cleared, because
-      // carrying an "expired" attempt record into the restored workflow would
-      // leave the repaired question impossible to answer.
-      if (studentsWithThisAssignment.length > 450) {
-        throw new Error('This assignment has too many active student grade records for one safe atomic repair. Contact the platform administrator before repairing it.');
-      }
-      const repairedAt = new Date().toISOString();
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'assignments', assignment.id), {
-        sections: repair.sections,
-        contentRepair: {
-          kind: 'libraryCanonicalWorkflowRestore',
-          sourceAssignmentId: inspection.source.id,
-          repairedQuestionIds: repair.repairedQuestionIds,
-          repairedQuestionIndices: repairedIndices,
-          repairedAt,
-          studentQuestionAttemptsReset: true,
-        },
-      });
-      studentsWithThisAssignment.forEach((student) => {
-        const gradePatch = {};
-        repairedIndices.forEach((questionIndex) => {
-          gradePatch[`gradesByAssignment.${assignment.id}.${questionIndex}`] = emptyQuestionRecord();
-        });
-        // Classwork completion is a derived summary. The student's other
-        // question records remain untouched, and the summary will be earned
-        // again from the repaired content rather than retaining a score based
-        // on the broken renderer.
-        gradePatch[`classworkGradesByAssignment.${assignment.id}`] = deleteField();
-        batch.update(doc(db, 'grades', student.id), gradePatch);
-      });
-      await batch.commit();
-
-      await fetchAssignments();
-      toastSuccess(
-        'Assignment repaired without restarting students',
-        `Restored ${repair.repairedQuestionIds.length} corrupted question${repair.repairedQuestionIds.length === 1 ? '' : 's'} in place. Students keep all other work and receive fresh attempts only on the repaired question${repair.repairedQuestionIds.length === 1 ? '' : 's'}.`,
-      );
-    } catch (error) {
-      console.error(error);
-      toastError('Could not repair assignment', error.message);
-    }
-  };
-
-  const handleSaveAssignmentDates = async (assignmentId) => {
-    const dueAt = new Date(editingAssignmentDates.dueAt);
-    const hasLateDue = Boolean(String(editingAssignmentDates.lateDueAt || '').trim());
-    const lateDueAt = hasLateDue ? new Date(editingAssignmentDates.lateDueAt) : null;
-    if (
-      Number.isNaN(dueAt.getTime())
-      || (lateDueAt && (Number.isNaN(lateDueAt.getTime()) || lateDueAt <= dueAt))
-    ) {
-      toastError('Check the dates', 'Set a valid due date. If you use a final late due date, it must be later than the regular due date.');
-      return;
-    }
-
-    const assignment = assignments.find((item) => item.id === assignmentId);
-    if (!assignment) {
-      toastError('Assignment not found', 'Refresh the assignment list and try again.');
-      return;
-    }
-
-    const editedClassIds = Array.isArray(editingAssignmentDates.assignedClassIds)
-      ? editingAssignmentDates.assignedClassIds
-      : [];
-    const editedClassRecords = editedClassIds.length
-      ? classes.filter((entry) => editedClassIds.includes(entry.classId) && entry?.status !== 'archived')
-      : [];
-    const editedPeriods = [...new Set(editedClassRecords.map((entry) => entry.period).filter(Boolean))];
-
-    // A library item is a reusable source, not a half-published assignment.
-    // Selecting classes launches the same Preflight/new-destination path used by
-    // fresh V5 authoring. The library template remains untouched and reusable.
-    if (isLibraryAssignment(assignment) && editedClassIds.length) {
-      try {
-        openStoredAssignmentForPreflight(assignment, {
-          title: assignment.title,
-          folder: assignment.folder || '',
-          dueAt: editingAssignmentDates.dueAt,
-          lateDueAt: editingAssignmentDates.lateDueAt || '',
-          assignedClassIds: editedClassIds,
-          assignedClassPeriods: editedPeriods,
-          dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
-        });
-        setEditingAssignmentId(null);
-        toastInfo(
-          'Review before assigning',
-          'The library template is staying unchanged. Preflight will create the correct destination version(s) for the classes you selected.',
-        );
-      } catch (error) {
-        toastError('Could not open assignment Preflight', error.message);
-      }
-      return;
-    }
-
-    // Adding another class is a NEW delivery of the same authored assignment.
-    // Keep the existing class record (and therefore its due date, student
-    // evidence, and Classroom post) unchanged. The edited dates belong to the
-    // newly-added class(es), which are prepared from this assignment's reviewed
-    // V5 source. This is what makes "Period 3 due Tuesday, Period 5 due
-    // Wednesday" possible without one save silently moving both deadlines.
-    const originalClassIds = Array.isArray(assignment.assignedClassIds)
-      ? assignment.assignedClassIds.filter(Boolean)
-      : [];
-    const addedClassIds = editedClassIds.filter((classId) => !originalClassIds.includes(classId));
-    const keptEveryOriginalClass = originalClassIds.every((classId) => editedClassIds.includes(classId));
-    if (addedClassIds.length && keptEveryOriginalClass) {
-      try {
-        const addedRecords = classes.filter((entry) => addedClassIds.includes(entry.classId) && entry?.status !== 'archived');
-        const addedPeriods = [...new Set(addedRecords.map((entry) => entry.period).filter(Boolean))];
-        openStoredAssignmentForPreflight(assignment, {
-          title: assignment.title,
-          folder: assignment.folder || '',
-          dueAt: editingAssignmentDates.dueAt,
-          lateDueAt: editingAssignmentDates.lateDueAt || '',
-          assignedClassIds: addedClassIds,
-          assignedClassPeriods: addedPeriods,
-          dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
-        });
-        setEditingAssignmentId(null);
-        toastInfo(
-          'Review the added class delivery',
-          'The current class assignment and its dates stay unchanged. MathMaster reused the assignment for only the new class(es), so their due date and Standard/Honors depth can be managed independently.',
-        );
-      } catch (error) {
-        toastError('Could not prepare the added class', error.message);
-      }
-      return;
-    }
-
-    // Existing assigned variants may move among classes with the same
-    // course/rigor destination, but cannot silently change Standard/Honors
-    // identity or fan out into mixed rigor without going through a fresh split.
-    const targetGroups = buildDestinationGroups({ assignedClassIds: editedClassIds, classes });
-    const currentCourse = assignment.courseId || assignment.courseProfile?.course || null;
-    const currentLevel = assignment.rigorVariant || assignment.courseProfile?.courseLevel || null;
-    const changesDestination = targetGroups.length > 1
-      || (targetGroups.length === 1 && currentCourse && targetGroups[0].course !== currentCourse)
-      || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
-    if (changesDestination) {
-      toastError(
-        'Use a destination copy',
-        'This edit would move or mix a destination-specific Standard/Honors delivery. Add another class without removing the current class, or use the reusable Library source so MathMaster can preserve the correct rigor version.',
-      );
-      return;
-    }
-
-    const hasDOL = Boolean(assignment?.dol?.enabled || getStoredAssignmentQuestions(assignment).some((question) => (
-      resolveQuestionActivityRole({ question, assignment }) === 'dol'
-    )));
-    const patch = {
-      dueAt: dueAt.toISOString(),
-      dueDate: dueAt.toISOString(),
-      lateDueAt: lateDueAt ? lateDueAt.toISOString() : null,
-      assignedClassIds: editedClassIds,
-      assignedClassPeriods: editedPeriods,
-    };
-    if (hasDOL) {
-      patch.dol = {
-        ...(assignment?.dol || {}),
-        enabled: assignment?.dol?.enabled ?? true,
-        instructionDate: editingAssignmentDates.dolInstructionDate || localDateKey(Date.now()),
-      };
-    }
-    // `dol` as the fields this edit changed (enabled, its day), never the
-    // whole map from this tab's copy, which would carry students' grants.
-    const { dol: editedDol, ...patchWithoutDol } = patch;
-    await updateDoc(doc(db, 'assignments', assignmentId), {
-      ...patchWithoutDol,
-      ...(editedDol ? classDolFieldPatch(assignment?.dol, editedDol, { deleteValue: deleteField() }) : {}),
-    });
-
-    const nextAssignment = {
-      ...assignment,
-      ...patch,
-      dol: patch.dol || assignment?.dol,
-    };
-
-    if (shouldAutoPublishClassroomPackage(nextAssignment)) {
-      try {
-        // Publishing is idempotent for courses that already have a MathMaster
-        // post and creates the missing post for any class just added in Dates &
-        // Classes. Only after that do we patch every existing post's due date.
-        // Previously we only ran the update call, which cannot create a
-        // Classroom post and made "add another class" appear not to work.
-        await autoPublishAssignmentPackageToClassroom(nextAssignment);
-        await updateAssignmentClassroomPublications({ assignmentId });
-      } catch (classroomError) {
-        console.warn('Classroom publish/sync after assignment edit failed:', classroomError);
-      }
-    }
-
-    setEditingAssignmentId(null);
   };
 
   // The Student Support Evidence Report replaced the pop-up "IEP Support
@@ -9603,10 +9072,31 @@ function App() {
     }
   };
 
-  const renderStudentPackUpBanner = () => {
+  /*
+   * THE PACK-UP LINE (student pass 3, NAV-24): the last five minutes of the
+   * period. It used to be a fixed 125–160px banner over the top of every
+   * screen, which covered the assignment's sticky navigator (section tabs,
+   * Previous/Next) for a student finishing their work. It is now a slim row of
+   * the identity bar (StudentIdentityBar `notice`): it pins with it, and its
+   * height moves every sticky surface under it down instead of covering it.
+   * It says "your work is saved" only when nothing is owed: it reads the same
+   * save status as Home's line (unsent work, a rejected answer, drafts that are
+   * not being saved each say so instead; packUpLine.js). A secure exam and a student on DOL extra time (D7) are not
+   * interrupted by it.
+   */
+  // The student's save status, as Home's status line shows it (Batch 3: drafts
+  // that are not being saved count). The pack-up line reads the same one, so
+  // the two never disagree (NAV-24 review B2).
+  const studentSaveStatusNow = () => describeSaveStatus({
+    persistenceStatus: studentPersistenceStatus,
+    outboxDepth: studentOutboxDepth,
+    pendingGradeCount: studentPendingGradeCount,
+    online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+    draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
+  });
+
+  const renderStudentPackUpNotice = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Drawn above everything, including a secure exam's lock overlay; a
-    // student mid-Test is not interrupted by it.
     if (secureExamActive) return null;
     const packUp = getClassPackUpState({
       schedule: classSchedule,
@@ -9615,39 +9105,69 @@ function App() {
       minutesBeforeEnd: 5,
     });
     if (packUp.status !== 'active') return null;
+    if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
+    // "Saved" only when nothing is owed (packUpLine.js).
+    const workLine = packUpWorkLine(studentSaveStatusNow());
 
     return (
-      <aside
-        role="alert"
-        aria-live="assertive"
+      <div
+        data-pack-up-notice={workLine.kind}
         style={{
-          position: 'fixed',
-          top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
-          left: 0,
-          right: 0,
-          zIndex: 20000,
-          background: '#fbbc04',
-          color: 'var(--mm-text-strong)',
-          borderBottom: '5px solid #d93025',
-          boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
-          padding: '18px 24px',
-          textAlign: 'center',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'center', columnGap: 10, rowGap: 2,
+          // The theme's warning pair, readable in both themes (the old banner put
+          // --mm-text-strong on a fixed yellow: light on yellow in dark mode).
+          background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', borderBottom: '3px solid #f9ab00',
+          padding: '5px clamp(10px, 3vw, 22px)', textAlign: 'center', lineHeight: 1.3,
+          fontFamily: '"Segoe UI", sans-serif', fontSize: 'calc(14 * var(--mm-px))',
         }}
       >
-        <div style={{ fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 1000, lineHeight: 1.05 }}>
-          ⏰ PACK UP & RETURN TECHNOLOGY
-        </div>
-        <div style={{ marginTop: 8, fontSize: 'clamp(16px, 2.2vw, 24px)', fontWeight: 900 }}>
-          Save your work, sign out, and return your device now. The bell is in{' '}
-          <DOLCountdown endsAt={packUp.endsAt} />.
-        </div>
-      </aside>
+        <strong role="alert" style={{ fontWeight: 900 }}>
+          {workLine.sentence}
+        </strong>
+        <span style={{ fontWeight: 700 }}>
+          Pack up and return your device. The bell is in <DOLCountdown endsAt={packUp.endsAt} />.
+        </span>
+      </div>
     );
   };
 
-  const renderStudentWarmupBanner = () => {
+  /*
+   * THE LIVE CHALLENGE LOBBY, WHEREVER THE STUDENT IS (student pass 3, P3).
+   *
+   * The invite showed only on Home: a student on Grades, Assignments, My
+   * Rewards, My Math Path or a result page saw nothing until the game was
+   * running. One line, the same action as Home's card. Never in a secure
+   * exam, a Test Cycle or the game itself (those screens do not render it).
+   */
+  const renderStudentLiveChallengeInvite = () => {
+    if (user?.role !== 'student' || secureExamActive) return null;
+    if (!liveChallengeInvite || !['invited', 'joined', 'running'].includes(liveChallengeInvite.status)) return null;
+    const running = liveChallengeInvite.status === 'running';
+    return (
+      <section
+        aria-label="Live Challenge"
+        data-live-challenge-invite
+        style={{ maxWidth: 920, margin: '12px auto 0', padding: '10px 14px', boxSizing: 'border-box', borderRadius: 12, background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', textAlign: 'left' }}
+      >
+        <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}>
+          <span aria-hidden="true">⚡ </span>
+          {running ? 'The Live Challenge is running now.' : 'Your teacher opened the Live Challenge lobby.'}
+        </span>
+        {/* openStudentDashboardMode, not the bare mode: from the result page the
+            view must change too, and a pending Path launch must not survive. */}
+        <button type="button" onClick={joinLiveChallenge} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
+          {running ? 'Join Challenge Now' : 'Enter Challenge Lobby'}
+        </button>
+      </section>
+    );
+  };
+
+  // The most urgent open Warm-Up this student has not finished, across their
+  // lessons: the banner shows it, and on a phone (no banner) the assignment's
+  // status chip offers it when it belongs to another lesson.
+  const studentActiveWarmup = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Its "Go to Warm-Up" button would take a student out of a secure exam.
+    // Its "Go to Warm-Up" would take a student out of a secure exam.
     if (secureExamActive) return null;
     const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
     const active = assignments
@@ -9660,6 +9180,10 @@ function App() {
           nowValue: now,
         });
         if (state.status !== 'active') return null;
+        // Never recommend work the student cannot do for credit: excused
+        // for them, or not open to them (not released yet / closed).
+        if (assignmentIsExcusedForStudent(assignment, user.id)) return null;
+        if (!getAssignmentLifecycle(assignment, now, { studentId: user.id }).isOpen) return null;
         const questions = getStoredAssignmentQuestions(assignment);
         const bannerOmitted = new Set(studentRequiredFor(assignment).omitted);
         const questionIndices = questions.reduce((indices, question, index) => {
@@ -9680,9 +9204,13 @@ function App() {
       })
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
+    return active[0] || null;
+  };
 
-    if (!active.length) return null;
-    const { assignment, state, questionIndices } = active[0];
+  const renderStudentWarmupBanner = () => {
+    const activeWarmup = studentActiveWarmup();
+    if (!activeWarmup) return null;
+    const { assignment, state, questionIndices } = activeWarmup;
     const support = getStudentSupportPresentation(user.profile);
     const alreadyInThisWarmup = activeView === 'assignment'
       && activeAssignmentId === assignment.id
@@ -9692,6 +9220,10 @@ function App() {
       <aside
         role="alert"
         aria-live="polite"
+        // On a phone the assignment screen hides this banner: its countdown
+        // rides in the section pill there, and a Warm-Up elsewhere in the
+        // lesson is a line in the status chip (pass 3, RUN-14).
+        className="mathmaster-warmup-banner"
         style={{
           position: 'sticky',
           top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
@@ -9712,7 +9244,7 @@ function App() {
         <strong>🔥 WARM-UP ACTIVE</strong>
         <span>{assignment.title}</span>
         {!support.hideCountdowns && (
-          <strong style={{ fontSize: 20 }}>
+          <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>
             <DOLCountdown endsAt={state.endsAt} /> remaining
           </strong>
         )}
@@ -9740,16 +9272,16 @@ function App() {
     );
   };
 
-
   const renderIdleOverlay = () => {
     if (!isIdle) return null;
     return (
-      <div
+      <Dialog
         role="alertdialog"
-        aria-modal="true"
+        onClose={() => { lastActivityRef.current = Date.now(); setIsIdle(false); }}
         aria-labelledby="mathmaster-idle-title"
         aria-describedby="mathmaster-idle-detail"
         className="mathmaster-idle-overlay"
+        data-idle-prompt=""
         style={{
           position: 'fixed',
           inset: 0,
@@ -9774,7 +9306,7 @@ function App() {
           }}
         >
           <h2 id="mathmaster-idle-title" style={{ color: 'var(--mm-danger)', marginTop: 0 }}>Are you still working?</h2>
-          <p id="mathmaster-idle-detail" style={{ color: 'var(--mm-text-muted)', fontSize: '16px', marginBottom: '30px' }}>
+          <p id="mathmaster-idle-detail" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(16 * var(--mm-px))', marginBottom: '30px' }}>
             Your timer has been paused due to inactivity. Your work stays where you left it.
           </p>
           <button
@@ -9789,7 +9321,7 @@ function App() {
             style={{
               padding: '12px 24px',
               minHeight: '44px',
-              fontSize: '16px',
+              fontSize: 'calc(16 * var(--mm-px))',
               background: '#1a73e8',
               color: '#fff',
               border: 'none',
@@ -9801,7 +9333,7 @@ function App() {
             Yes, I&apos;m Back!
           </button>
         </div>
-      </div>
+      </Dialog>
     );
   };
 
@@ -9833,9 +9365,9 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeDeleteDialog}
+          closeOnEscape={!isDeleting}
           aria-labelledby="delete-assignment-title"
           style={{
             width: '100%',
@@ -9852,7 +9384,7 @@ function App() {
               style={{
                 color: 'var(--mm-danger)',
                 fontWeight: 'bold',
-                fontSize: '13px',
+                fontSize: 'calc(13 * var(--mm-px))',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 marginBottom: '8px',
@@ -9932,7 +9464,7 @@ function App() {
                     border: titleMatches
                       ? '2px solid #188038'
                       : '2px solid var(--mm-border)',
-                    fontSize: '16px',
+                    fontSize: 'calc(16 * var(--mm-px))',
                     outline: 'none',
                   }}
                 />
@@ -10072,7 +9604,7 @@ function App() {
               </button>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10114,9 +9646,8 @@ function App() {
           padding: '20px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={closeExportJsonDialog}
           aria-labelledby="export-json-title"
           style={{
             width: '100%',
@@ -10132,7 +9663,7 @@ function App() {
             <h2 id="export-json-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
               Export Current Content V{contentVersionOf(exportJsonAssignment)} &middot; {exportJsonAssignment.title}
             </h2>
-            <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
+            <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
               This is a portable MathMaster assignment. You can copy it into another MathMaster authoring workflow and bring it back through Assignment Creator. Student/class dates and publication records stay out of the portable assignment.
             </p>
           </div>
@@ -10141,7 +9672,7 @@ function App() {
               readOnly
               value={exportedText}
               onFocus={(event) => event.target.select()}
-              style={{ width: '100%', height: '360px', padding: '12px', borderRadius: '8px', border: '1px solid var(--mm-border)', fontFamily: 'monospace', fontSize: '12px', boxSizing: 'border-box', resize: 'vertical' }}
+              style={{ width: '100%', height: '360px', padding: '12px', borderRadius: '8px', border: '1px solid var(--mm-border)', fontFamily: 'monospace', fontSize: 'calc(12 * var(--mm-px))', boxSizing: 'border-box', resize: 'vertical' }}
             />
           </div>
           <div style={{ padding: '18px 28px', borderTop: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -10160,7 +9691,7 @@ function App() {
               {exportJsonCopied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10186,9 +9717,8 @@ function App() {
           padding: '24px',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
+        <Dialog
+          onClose={() => setTeacherScratchpadDialog(null)}
           aria-labelledby="student-work-title"
           style={{
             width: 'min(1080px, 96vw)',
@@ -10213,7 +9743,7 @@ function App() {
               <h2 id="student-work-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
                 Student Scratchpad
               </h2>
-              <div style={{ color: 'var(--mm-text-muted)', marginTop: '5px', fontSize: '14px' }}>
+              <div style={{ color: 'var(--mm-text-muted)', marginTop: '5px', fontSize: 'calc(14 * var(--mm-px))' }}>
                 {formatStudentName(allStudents.find((student) => student.id === teacherScratchpadDialog.studentId), { lastFirst: false })} · Question{' '}
                 {teacherScratchpadDialog.questionIndex + 1}
               </div>
@@ -10247,7 +9777,7 @@ function App() {
                 ).map((page, index, all) => (
                   <figure key={index} style={{ margin: 0 }}>
                     {all.length > 1 && (
-                      <figcaption style={{ marginBottom: '6px', textAlign: 'left', fontSize: '12px', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
+                      <figcaption style={{ marginBottom: '6px', textAlign: 'left', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
                         Page {index + 1} of {all.length}
                       </figcaption>
                     )}
@@ -10281,7 +9811,7 @@ function App() {
               </div>
             )}
           </div>
-        </div>
+        </Dialog>
       </div>
     );
   };
@@ -10383,6 +9913,11 @@ function App() {
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
     const currentCheckpointOutcome = preview ? null : checkpointOutcomes[currentQuestionIndex] || null;
+    // The DOL's lock message, open notice and close receipt: a teacher's
+    // "Close now" never reads as the timer, and "when time ends" only while it is open.
+    const currentDolCopy = currentIsDOL && !preview
+      ? describeDolClose({ status: dolState.status, teacherClosed: dolState.teacherClosed, outcome: currentCheckpointOutcome, extendedTime: dolState.extendedTime, endsAt: dolState.endsAt })
+      : null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
       question: currentQuestionBlueprint,
@@ -10426,7 +9961,7 @@ function App() {
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
-      ? `Requesting another DOL question will erase this DOL attempt. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} remaining to submit the replacement.`
+      ? `A new ${exitTicketInSentence} question replaces this one and erases your answer to it. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} left to submit the new one.`
       : '';
 
     if (!includedQuestionIndices.length) {
@@ -10434,18 +9969,20 @@ function App() {
         <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
           <h2>No questions are currently included</h2>
           <p>The teacher has excluded every question from this assignment.</p>
-          <button onClick={() => { setActiveView('dashboard'); setActiveAssignmentId(null); }}>Return to Dashboard</button>
+          <button onClick={() => { setActiveView('dashboard'); setActiveAssignmentId(null); }}>Back to Home</button>
         </div>
       );
     }
 
     const lifecycleBadge = lifecycle.isPracticeOnly
-      ? { label: 'Practice only', background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+      ? { label: CLOSED_WORK.label, background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
       : lifecycle.isLate
         ? { label: 'Late — still open', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
         : lifecycle.isScheduled
           ? { label: 'Scheduled', background: 'var(--mm-surface-control-strong)', color: 'var(--mm-text)' }
-          : { label: 'On-time access', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' };
+          // On time is the ordinary case: no badge (pass 3, RUN-16 — "ON-TIME
+          // ACCESS" named a program state, not anything the student does).
+          : { label: '', background: 'transparent', color: 'var(--mm-text)' };
 
     // Bundle/V5 activities are flattened for runtime compatibility, but every
     // question keeps its activityRole. Rebuild the visible sections here so a
@@ -10455,7 +9992,7 @@ function App() {
       warmup: { label: 'Warm-Up', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', border: '#f9ab00' },
       classwork: { label: 'Classwork', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: '#1a73e8' },
       practice: { label: 'Practice', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', border: '#34a853' },
-      dol: { label: 'DOL / Exit Ticket', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '#9334e6' },
+      dol: { label: EXIT_TICKET_SPELLED_OUT, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '#9334e6' },
       checkpoint: { label: 'Checkpoint', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
       quiz: { label: 'Quiz', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
       test: { label: 'Test', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '#d93025' },
@@ -10479,7 +10016,6 @@ function App() {
       return { index, visiblePosition, sectionPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
-    const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
     const visibleByStorageIndex = new Map(visibleQuestionEntries.map((entry) => [entry.index, entry]));
     const navigationSections = currentContent.logicalSections.map((logicalSection) => ({
       role: logicalSection.role,
@@ -10487,7 +10023,10 @@ function App() {
     })).filter((section) => section.entries.length).map((section) => ({
       ...section,
       complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
-      allCorrect: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsCorrect(entry.index)),
+      // `progress` and `allCorrect` (the tab's "✓ Complete") are filled in
+      // below from the navigator's question states, held-feedback mask included.
+      progress: null,
+      allCorrect: false,
     }));
     const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
@@ -10506,38 +10045,117 @@ function App() {
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
     const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
     const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
-    const currentSectionGrade = currentSectionGrades[activeQuestionRole] || null;
-    const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
-    const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
-    const entryIsAvailable = (entry) => {
-      if (preview || lifecycle.isPracticeOnly) return true;
-      if (entry?.role === 'warmup' && warmupState.enabled && !warmupCanBeViewed) return false;
-      if (entry?.isTimedDOLQuestion && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) return false;
-      const manualState = getSectionAccessState({
-        assignment,
-        activityRole: entry?.role,
-        classId: user?.classId || null,
-        classPeriod: user?.classPeriod,
+    /*
+     * WHAT EACH SECTION AND QUESTION IS DOING NOW, SAID ONE WAY (pass 3,
+     * RUN-5 / RUN-8 / RUN-9; platform/student/assignmentNavigator.js).
+     *
+     * A section can be open, read-only (closed, its work still there to look
+     * over: a Warm-Up closed for the period, an ended DOL, Classwork the
+     * teacher closed) or locked (not open yet) — and a locked one says when or
+     * why. A question is correct, needs another try, closed, submitted (held
+     * feedback: never right or wrong) or not started. The tabs, the number
+     * strip, the dropdown and the Overview all read these.
+     */
+    const sectionHasWork = (role) => projectedEntries.some((entry) => entry.logicalRole === role
+      && normalizeQuestionRecord(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
+    const sectionAccessCache = new Map();
+    const sectionAccessFor = (entry) => {
+      const cacheKey = `${entry?.role}|${entry?.isTimedDOLQuestion ? 'timed' : ''}`;
+      if (sectionAccessCache.has(cacheKey)) return sectionAccessCache.get(cacheKey);
+      const access = describeSectionAccess({
+        role: entry?.role,
+        // Read mid-sentence ("Time is up for the exit ticket."); the model
+        // capitalises a sentence that starts with it. The section tab above
+        // has already spelled it out (D9: once per screen).
+        label: entry?.role === 'dol' ? `the ${exitTicketInSentence}` : `the ${activitySectionMeta[entry?.role]?.label || entry?.role || 'section'}`,
+        timedDol: Boolean(entry?.isTimedDOLQuestion),
+        unrestricted: preview || lifecycle.isPracticeOnly,
+        lifecycle,
+        warmupState,
+        dolState,
+        manualState: getSectionAccessState({
+          assignment,
+          activityRole: entry?.role,
+          classId: user?.classId || null,
+          classPeriod: user?.classPeriod,
+          nowValue: now,
+          studentId: user?.role === 'student' ? user.id : undefined,
+        }),
+        hasWork: sectionHasWork(entry?.role),
         nowValue: now,
-        studentId: user?.role === 'student' ? user.id : undefined,
       });
-      if (manualState.enabled && !manualState.isOpen) return false;
-      return true;
+      sectionAccessCache.set(cacheKey, access);
+      return access;
+    };
+    // Viewable: a closed section stays reachable read-only.
+    const entryIsAvailable = (entry) => sectionAccessFor(entry).viewable;
+    const entryMaximumAttempts = (entry) => {
+      const policy = getEffectiveActivityPolicy(entry.role);
+      return resolveQuestionMaximumAttempts({
+        question: questions[entry.index],
+        maximumAttempts: policy.attempts,
+        activityPolicy: policy,
+        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+          assignment,
+          activityRole: entry.role,
+          classId: user?.classId || null,
+          studentId: user?.role === 'student' ? user.id : null,
+        }),
+      });
+    };
+    // The policy the question itself runs under (post-deadline practice runs
+    // every question as Practice).
+    const entryRuntimePolicy = (entry) => getEffectiveActivityPolicy(!preview && lifecycle.isPracticeOnly ? 'practice' : entry.role);
+    // The held-feedback mask: wherever the question withholds its outcome — a
+    // quiz or test until the teacher's release, a DOL until it is finished
+    // (a teacher's extra try leaves it open) — the navigator says nothing of
+    // right or wrong either (outcomeWithheld, the engine's own rule).
+    const entryFeedbackHeld = (entry) => !preview && outcomeWithheld({
+      feedbackMode: entryRuntimePolicy(entry).feedback,
+      released: lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment),
+      record: workingTracker?.[entry.index],
+    });
+    const navigatorQuestionFor = (entry) => {
+      const access = sectionAccessFor(entry);
+      const policy = entryRuntimePolicy(entry);
+      return describeNavigatorQuestion({
+        record: workingTracker?.[entry.index],
+        maximumAttempts: entryMaximumAttempts(entry),
+        feedbackHeld: entryFeedbackHeld(entry),
+        sectionClosed: access.state === SECTION_ACCESS.READ_ONLY,
+        available: access.viewable,
+        lockedLabel: access.short,
+        // Out of tries, the question offers "Request New Question" when its
+        // policy allows a replacement (as the question decides it).
+        replacementAvailable: resolveQuestionReplacementAllowed({
+          question: questions[entry.index],
+          activityPolicy: policy,
+          canGenerateFresh: isPersonalizedBlueprint(questions[entry.index]),
+        }),
+      });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
-      ? 'DOL'
+      ? EXIT_TICKET_SPELLED_OUT
       : (activitySectionMeta[section?.role]?.label || section?.role || 'Section');
-    const sectionNavigationTarget = (section) => {
-      const availableEntries = (section?.entries || []).filter((entry) => entryIsAvailable(entry));
-      if (!availableEntries.length) return null;
-      // A section shortcut resumes at the earliest question that is not yet
-      // correct. This intentionally includes an exhausted variant so the
-      // student can request a replacement rather than silently skipping it.
-      const needsWork = availableEntries.find((entry) => normalizeQuestionRecord(workingTracker?.[entry.index]).status !== 'correct');
-      if (needsWork) return needsWork;
-      const currentEntry = availableEntries.find((entry) => entry.index === currentQuestionIndex);
-      return currentEntry || availableEntries[0];
-    };
+    // A section tab lands on the first question the student can still work,
+    // never on one out of tries while a workable one is left; with nothing
+    // workable, a closed section opens for review.
+    const sectionNavigationTarget = (section) => sectionLandingEntry({
+      entries: (section?.entries || []).map((entry) => ({
+        ...entry,
+        viewable: entryIsAvailable(entry),
+        workable: entryIsWorkableNow(entry),
+        status: navigatorQuestionFor(entry).status,
+      })),
+      currentIndex: currentQuestionIndex,
+    });
+    navigationSections.forEach((section) => {
+      section.progress = describeNavigatorSectionProgress({
+        questions: section.entries.map((entry) => navigatorQuestionFor(entry)),
+        feedbackHeld: section.entries.some((entry) => entryFeedbackHeld(entry)),
+      });
+      section.allCorrect = section.progress.allCorrect;
+    });
     const findNeighbor = (direction) => {
       for (let position = currentVisibleEntryPosition + direction; position >= 0 && position < visibleQuestionEntries.length; position += direction) {
         if (entryIsAvailable(visibleQuestionEntries[position])) return visibleQuestionEntries[position];
@@ -10546,8 +10164,14 @@ function App() {
     };
     const previousQuestionEntry = findNeighbor(-1);
     const nextQuestionEntry = findNeighbor(1);
-    const nextQuestionSectionMeta = nextQuestionEntry ? (activitySectionMeta[nextQuestionEntry.role] || { label: nextQuestionEntry.role }) : null;
-    const nextQuestionDestinationLabel = nextQuestionEntry ? `Question ${nextQuestionEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === nextQuestionEntry.role)?.entries.length || 1}` : '';
+    // The question's own "Next" goes to the next question the student can
+    // still answer; a closed section kept viewable for review (RUN-8) is
+    // reached by the arrows and tabs, not walked into after an answer.
+    const engineNextEntry = visibleQuestionEntries
+      .slice(currentVisibleEntryPosition + 1)
+      .find((entry) => entryIsWorkableNow(entry)) || nextQuestionEntry;
+    const nextQuestionSectionMeta = engineNextEntry ? (activitySectionMeta[engineNextEntry.role] || { label: engineNextEntry.role }) : null;
+    const nextQuestionDestinationLabel = engineNextEntry ? `Question ${engineNextEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === engineNextEntry.role)?.entries.length || 1}` : '';
     const currentNavigationSectionIndex = navigationSections.findIndex((section) => section.role === currentNavigationSection?.role);
     const laterNavigationSections = currentNavigationSectionIndex >= 0
       ? navigationSections.slice(currentNavigationSectionIndex + 1)
@@ -10555,12 +10179,59 @@ function App() {
     // When a student finishes an entire section, point the celebration CTA at
     // the next AVAILABLE unfinished section. A locked DOL is intentionally
     // skipped rather than becoming a dead-end button.
-    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => !section.complete && sectionNavigationTarget(section));
+    // "Can be viewed" is not "can be worked now": a Warm-Up closed for the
+    // period or an ended DOL stays viewable for review, but the continue
+    // button must only ever lead to an unfinished question open right now.
+    function entryIsWorkableNow(entry) {
+      if (!sectionAccessFor(entry).workable) return false;
+      if (preview || lifecycle.isPracticeOnly) return true;
+      if (entry?.role === 'warmup' && warmupState.enabled) return warmupState.status === 'active';
+      if (entry?.isTimedDOLQuestion && dolState.enabled) return dolState.status === 'active';
+      return true;
+    }
+    const sectionWorkTarget = (section) => (section?.entries || [])
+      .find((entry) => entryIsWorkableNow(entry) && !sectionQuestionIsComplete(entry.index)) || null;
+    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => sectionWorkTarget(section));
+    // Only a section with work left: "Continue to Practice" with Practice
+    // already complete was a dead loop. With none left, hand off to Up next
+    // (what Home would recommend) or to this assignment's results.
     const nextAvailableSection = nextAvailableIncompleteSection
-      || laterNavigationSections.find((section) => sectionNavigationTarget(section));
-    const nextAvailableSectionTarget = nextAvailableSection ? sectionNavigationTarget(nextAvailableSection) : null;
+      // An EARLIER section still open with work left beats leaving the assignment.
+      || navigationSections.find((section) => section.role !== currentNavigationSection?.role && sectionWorkTarget(section))
+      || null;
+    const nextAvailableSectionTarget = nextAvailableSection ? sectionWorkTarget(nextAvailableSection) : null;
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
+      : null;
+    // Decision 4: a section is done at ANY accuracy — out of tries counts —
+    // so the hand-off follows terminal completion; `allCorrect` stays for the
+    // tab's correctness styling only.
+    const assignmentHandoff = currentNavigationSection?.complete
+      ? resolveAssignmentHandoff({
+        nextIncompleteSection: nextAvailableSectionTarget ? nextAvailableSection : null,
+        nextIncompleteSectionLabel: nextAvailableSectionMeta?.label || '',
+        student: !preview && user?.role === 'student',
+      })
+      : null;
+    // Finishing lands on this assignment's results; its Up next card is the
+    // second action there (RUN-12, assignmentHandoff.js).
+    const continueAfterSection = !assignmentHandoff
+      ? null
+      : assignmentHandoff.kind === 'section'
+        ? () => changeQuestion(nextAvailableSectionTarget.index)
+        : () => openStudentAssignmentResult(activeAssignmentId, { origin: 'assignments' });
+    // Nothing workable ahead and the section not done: the way back to the
+    // question that was skipped (RUN-12).
+    const skippedQuestion = !nextQuestionEntry && !currentNavigationSection?.complete
+      ? resolveSkippedQuestion({
+        entries: visibleQuestionEntries,
+        currentIndex: currentQuestionIndex,
+        currentRole: currentNavigationSection?.role,
+        isWorkable: entryIsWorkableNow,
+        isComplete: sectionQuestionIsComplete,
+        attemptCountOf: (index) => normalizeQuestionRecord(workingTracker?.[index]).attemptCount,
+        sectionLabelOf: (role) => (role === 'dol' ? EXIT_TICKET : activitySectionMeta[role]?.label || ''),
+      })
       : null;
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
@@ -10572,7 +10243,113 @@ function App() {
         ? 'Back to Assignments'
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
-          : 'Back to Dashboard';
+          : studentDashboardMode === 'testCycle'
+            ? 'Back to the Test Cycle'
+            : 'Back to Home';
+    /*
+     * ONE STATUS CHIP ON A PHONE (pass 3, NAV-5). A phone hides the header and
+     * every banner above the work, so a late deadline, "no credit" and a live
+     * challenge used to vanish there. The chip in the navigator names the most
+     * urgent one; pressing it opens the full lines. (Wider screens keep the
+     * banners and hide the chip.)
+     */
+    const dolSectionIndices = dolState.questionIndices || [dolState.questionIndex];
+    const assignmentStatusLines = preview ? [] : [
+      shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+        key: 'liveChallenge',
+        tone: 'live',
+        chip: '⚡ Join the challenge',
+        title: 'Live Challenge has started',
+        text: `${liveChallengeInvite?.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.`,
+      },
+      // The lobby is open, the game not started (NAV-25): offered here too.
+      !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && {
+        key: 'liveChallenge',
+        tone: 'live',
+        chip: '⚡ Challenge lobby open',
+        title: 'Your teacher opened the Live Challenge lobby',
+        text: 'Your assignment work is saved when you switch, and you come back to this question after the game.',
+      },
+      !lifecycle.isPracticeOnly && dolState.status === 'active' && !dolSectionIndices.includes(currentQuestionIndex)
+        && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
+        key: 'dol',
+        tone: 'dol',
+        chip: `${EXIT_TICKET_SPELLED_OUT} open`,
+        title: `The ${exitTicketInSentence} is open`,
+        text: `Finish all ${dolSectionIndices.length} question${dolSectionIndices.length === 1 ? '' : 's'} before time runs out.`,
+        action: { label: `Go to the ${exitTicketInSentence}`, onClick: () => { setAssignmentStatusOpenFor(null); changeQuestion(dolSectionIndices[0]); } },
+      },
+      // Timed windows mean nothing in post-deadline practice.
+      !lifecycle.isPracticeOnly && warmupState.status === 'active' && activeQuestionRole !== 'warmup'
+        && visibleQuestionEntries.some((entry) => entry.role === 'warmup' && !['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[entry.index]).status)) && {
+        key: 'warmup',
+        tone: 'warmup',
+        chip: 'Warm-Up open',
+        title: 'The Warm-Up is open',
+        text: `It closes at ${warmupState.endsAt ? new Date(warmupState.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the end of its window'}.`,
+        action: { label: 'Go to the Warm-Up', onClick: () => { setAssignmentStatusOpenFor(null); const first = visibleQuestionEntries.find((entry) => entry.role === 'warmup'); if (first) changeQuestion(first.index); } },
+      },
+      lifecycle.isLate && {
+        key: 'late',
+        tone: 'late',
+        chip: `Late · closes ${studentDueDateLines(assignment, lifecycle).finalText}`,
+        title: 'Late, still open',
+        text: `The due date passed. You have ${formatRemainingTime(lifecycle.millisecondsRemaining)} before this assignment closes on ${studentDueDateLines(assignment, lifecycle).finalText}.`,
+      },
+      lifecycle.isPracticeOnly && {
+        key: 'practice',
+        tone: 'practice',
+        chip: CLOSED_WORK.label,
+        title: CLOSED_WORK.bannerTitle,
+        text: CLOSED_WORK.bannerText,
+      },
+    ].filter(Boolean);
+    // Another lesson's open Warm-Up: the banner that offers it is hidden on a phone.
+    const otherWarmup = preview ? null : studentActiveWarmup();
+    if (otherWarmup && otherWarmup.assignment.id !== activeAssignmentId) {
+      assignmentStatusLines.push({
+        key: 'otherWarmup',
+        tone: 'warmup',
+        chip: 'Warm-Up open',
+        title: `The Warm-Up is open in ${otherWarmup.assignment.title}`,
+        text: `It closes at ${otherWarmup.state.endsAt ? new Date(otherWarmup.state.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the end of its window'}.`,
+        action: {
+          label: 'Go to that Warm-Up',
+          onClick: () => {
+            setAssignmentStatusOpenFor(null);
+            setStudentDashboardMode('assignments');
+            startAssignment(otherWarmup.assignment.id, otherWarmup.questionIndices[0]);
+          },
+        },
+      });
+    }
+    // THE GRADE LINES, MOVED FROM THE NAVIGATOR (pass 3, RUN-7): Overview on a
+    // wide screen, the chip's panel on a phone. "Grade so far", never "if
+    // submitted now": there is no assignment-level submit (RUN-16).
+    const gradeSoFarLine = preview
+      ? `Preview progress · ${progress.correct}/${progress.total} correct`
+      : assignmentFeedbackHeld
+        ? 'Your score shows after your teacher releases it'
+        : lifecycle.isPracticeOnly
+          ? `Your grade: ${recordedGrade}% · set when the assignment closed`
+          : `Grade so far: ${recordedGrade}%`;
+    const gradeDetailLine = !preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
+      ? `${gradeSplit.attempted} of ${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on what you have answered`
+      : '';
+    // A student always has the chip on a phone: a status, or "More".
+    const assignmentChipShown = !preview && user?.role === 'student';
+    const assignmentStatusOpen = assignmentStatusOpenFor === activeAssignmentId && assignmentChipShown;
+    // The live challenge line's action leaves the assignment, as its banner does.
+    assignmentStatusLines.forEach((line) => {
+      if (line.key === 'liveChallenge') {
+        line.action = { label: liveChallengeInvite?.status === 'running' ? 'Join Live Challenge' : 'Enter Challenge Lobby', onClick: () => { setAssignmentStatusOpenFor(null); joinLiveChallenge(); } };
+      }
+    });
+    // A locked tab's reason, while that section is still locked.
+    const lockNoteSection = sectionLockNote?.assignmentId === activeAssignmentId
+      ? navigationSections.find((section) => section.role === sectionLockNote.role)
+      : null;
+    const visibleSectionLockNote = lockNoteSection && !sectionNavigationTarget(lockNoteSection) ? sectionLockNote.text : '';
     const isLiveTeachingThisAssignment = preview
       && liveTeachingSession?.active
       && String(liveTeachingSession.assignmentId) === String(assignment.id);
@@ -10604,7 +10381,22 @@ function App() {
           <WarmupChallengeGate
             decision={warmupChallengeDecision}
             invite={liveChallengeInvite}
-            studentProfile={{ studentId: user?.studentId, name: user?.name }}
+            // The whole support profile, so the game gives the same Read aloud
+            // a standalone game does (extended time travels on the invite).
+            studentProfile={{ ...(user?.profile || {}), studentId: user?.id, name: user?.name }}
+            // The same rewards card a standalone game shows when it ends —
+            // without its "Open My Rewards" link: mid-Warm-Up the one way on
+            // is Back to Warm-Up, which records the game and keeps the
+            // assignment's own exit and flush.
+            renderMatchRewards={(roomId, match = {}) => (
+              <ChallengeRewardsEarned
+                roomId={roomId}
+                offered={match.offered}
+                grants={studentClassPoints.grants}
+                transactions={studentClassPoints.transactions}
+                onOpenRewards={null}
+              />
+            )}
             onExitToAssignment={() => setWarmupChallengePlayedRoomIds((previous) => (
               previous.includes(warmupChallengeDecision.roomId)
                 ? previous
@@ -10647,7 +10439,6 @@ function App() {
             onAssignmentRefresh={fetchAssignments}
           />
         )}
-        {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
         {!preview && shouldShowWarmupWaitingPanel({ decision: warmupChallengeDecision, invite: liveChallengeInvite }) && (
           <WarmupChallengeGate decision={warmupChallengeDecision} />
@@ -10658,7 +10449,7 @@ function App() {
             <section
               role="status"
               aria-label="Live Teaching"
-              style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: '13px' }}
+              style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}
             >
               <span>🔴 LIVE TEACHING · Teacher exemplar — {describeClassworkPace({ assignment, classworkQuestionPosition: liveTeachingSession?.classworkQuestionPosition ?? null })}. No student data is affected.</span>
               {questions[currentQuestionIndex]?.instructionalPhase && (
@@ -10670,7 +10461,7 @@ function App() {
               {Number(liveTeachingSession?.timer?.durationSeconds || 0) > Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0) && (
                 <strong
                   aria-label="Live timer has been extended beyond the authored plan"
-                  style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 11 }}
+                  style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}
                 >
                   EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}
                 </strong>
@@ -10684,14 +10475,14 @@ function App() {
                 <button
                   type="button"
                   onClick={() => teachAssignmentLive(assignment.id, { forceRestart: true })}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                 >
                   Restart Fresh
                 </button>
                 <button
                   type="button"
                   onClick={() => { leaveAssignment(); endLiveTeaching(); }}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-success-text)', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-success-text)', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                 >
                   End Teaching
                 </button>
@@ -10700,63 +10491,89 @@ function App() {
           )}
           {!preview && shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
-              <div><strong style={{ display: 'block', fontSize: '20px' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
-              <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
+              <div><strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
+              <button type="button" onClick={joinLiveChallenge} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
+            </section>
+          )}
+          {!preview && !lobbyInviteHeldHere && shouldShowChallengeLobbyInvite({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
+            // The lobby invite, wherever the student is (NAV-25); the game's
+            // exit brings them back to this question.
+            <section className="mathmaster-assignment-banner" aria-label="Live Challenge" data-live-challenge-invite style={{ marginBottom: '16px', padding: '12px 18px', borderRadius: '13px', background: 'var(--mm-primary-soft)', border: '2px solid #1a73e8', color: 'var(--mm-primary-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', textAlign: 'left' }}>
+              <span style={{ fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}><span aria-hidden="true">⚡ </span>Your teacher opened the Live Challenge lobby. Your work is saved, and you come back to this question after the game.</span>
+              <button type="button" onClick={joinLiveChallenge} style={{ minHeight: 44, padding: '10px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>Enter Challenge Lobby</button>
             </section>
           )}
           {lifecycle.isLate && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: '20px' }}>Late submission window</strong>
+              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>Late submission window</strong>
               <span>The regular deadline passed. You have <strong>{formatRemainingTime(lifecycle.millisecondsRemaining)}</strong> before this assignment closes permanently on {studentDueDateLines(assignment, lifecycle).finalText}.</span>
             </section>
           )}
 
           {lifecycle.isPracticeOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: 'var(--mm-surface-control)', border: '2px solid #5f6368', color: 'var(--mm-text)', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
-              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Your practice is saved, so you can pick it up again on another Chromebook, and your teacher can see it when they review your work.</span>
+              <strong style={{ display: 'block', fontSize: 'calc(20 * var(--mm-px))' }}>{CLOSED_WORK.bannerTitle}</strong>
+              <span>{CLOSED_WORK.bannerText}</span>
             </section>
           )}
 
           {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
-                <strong style={{ display: 'block', fontSize: '22px' }}>DOL is available now</strong>
-                <span>The entire DOL section is open. Complete all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
-                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: '18px' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
+                <strong style={{ display: 'block', fontSize: 'calc(22 * var(--mm-px))' }}>The {exitTicketInSentence} is open now</strong>
+                <span>Answer all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
+                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
               </div>
-              <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start DOL Section</button>
+              <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start the {exitTicketInSentence}</button>
             </section>
           )}
 
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
-                <button
-                  onClick={leaveAssignment}
-                  style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
-                >
-                  &larr; {preview ? 'Back to Instructor Dashboard' : studentAssignmentBackLabel}
-                </button>
+                {/* One way back per screen (NAV-20): a student's is the
+                    sticky navigator's "←", named for where it goes, which
+                    stays on screen as the work scrolls. The teacher preview
+                    keeps its labelled exit here. */}
+                {preview && (
+                  <button
+                    onClick={leaveAssignment}
+                    style={{ background: 'none', border: 'none', color: 'var(--mm-primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                  >
+                    &larr; Back to Instructor Dashboard
+                  </button>
+                )}
                 {preview && !isLiveTeachingThisAssignment && (
                   <button
                     type="button"
                     onClick={() => startTeacherPreview(assignment.id)}
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))' }}
                   >
                     ↻ Restart Preview Fresh
                   </button>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '23px' }}>{assignment.title}</h1>
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
-                {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
-                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
+                <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: 'calc(23 * var(--mm-px))' }}>{assignment.title}</h1>
+                {lifecycleBadge.label && <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>}
+                {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
+                {/* Which version a section hands out is the teacher's setting,
+                    not something a student acts on (pass 3, RUN-16). */}
+                {preview && <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>}
               </div>
-              <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
-                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
+                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLine}{dates.finalLine ? <><br />{dates.finalLine}</> : null}</>; })()}
               </div>
+              {/* A student who opens the assignment from a Google Classroom link
+                  never passes Home or View Results; the assignment itself says
+                  its Warm-Up or DOL has a second try open. */}
+              {!preview && user?.role === 'student' && (
+                <RecoveryInlineNotice
+                  opportunities={studentRecoveryByAssignment[assignment.id]}
+                  studentId={user.id}
+                  onOpen={openStudentRecovery}
+                />
+              )}
               {!preview && user?.role === 'student' && (
                 <StudentSupportTools
                   profile={user.profile}
@@ -10767,30 +10584,29 @@ function App() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
               <div style={{ textAlign: 'right', minWidth: 190 }}>
-                <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>
+                <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>
                   {preview
                     ? 'Preview progress'
                     : lifecycle.isPracticeOnly
-                      ? 'Frozen recorded grade'
-                      : lifecycle.isLate
-                        ? 'Current late grade · if stopped now'
-                        : 'Current grade · if stopped now'}
+                      ? CLOSED_WORK.gradeLabel
+                      : 'Grade so far'}
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
+                <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
                   {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
                 </div>
-                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
-                  <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
-                    {classroomReceiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'} {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : classroomReceiptStudentVisible ? 'RELEASED UPDATE' : 'PROGRESS'}
-                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
-                    {!classroomReceiptStudentVisible ? <><br />Your live grade is shown here; this Classroom checkpoint is not released to students yet.</> : null}
+                {/* Only a grade the student can actually see in Classroom, in
+                    plain words — never a teacher draft or sync stage. */}
+                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && classroomReceiptStudentVisible && (
+                  <div style={{ marginTop: 5, fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35, color: classroomReceiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
+                    Google Classroom shows {classroomReceiptGrade}%{classroomReceiptFinal ? ' (final)' : ' (not final yet)'}
+                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Classroom will catch up with your newer grade.</> : null}
                   </div>
                 )}
               </div>
               {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '100 — prerequisite met' : 'In progress'}</div>
+                  <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
+                  <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'var(--mm-success)' : 'var(--mm-warning-text)' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? 'Done — 100%' : 'In progress'}</div>
                 </div>
               )}
             </div>
@@ -10798,43 +10614,51 @@ function App() {
 
           <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
-              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel} title={preview ? 'Back to instructor dashboard' : studentAssignmentBackLabel}>←</button>
               {!assignmentNavigationCollapsed ? (
-                <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                <div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
                     const meta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
-                    const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
                     const targetEntry = sectionNavigationTarget(section);
                     const sectionAvailable = Boolean(targetEntry);
+                    const access = sectionAccessFor(section.entries[0]);
+                    const readOnly = sectionAvailable && access.state === SECTION_ACCESS.READ_ONLY;
                     const active = currentNavigationSection?.role === section.role;
+                    const reasonId = `mathmaster-section-reason-${section.role}`;
+                    // A locked tab stays focusable (aria-disabled, not
+                    // disabled) so a keyboard or screen-reader student reaches
+                    // its reason; pressing it shows the reason on screen.
                     return (
-                      <button
-                        type="button"
-                        role="listitem"
-                        key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                        className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
-                        style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
-                        onClick={() => targetEntry && changeQuestion(targetEntry.index)}
-                        disabled={!sectionAvailable}
-                        aria-current={active ? 'page' : undefined}
-                        title={sectionAvailable
-                          ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
-                          : `${compactSectionLabel(section)} is not available yet.`}
-                      >
-                        {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
-                        <span className="mathmaster-section-tab-copy">
-                          <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
-                          <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
-                        </span>
-                      </button>
+                      <Fragment key={`section-tab-${section.role}-${section.entries[0]?.index}`}>
+                        <button
+                          type="button"
+                          className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}${readOnly ? ' is-read-only' : ''}`}
+                          style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                          onClick={() => (targetEntry
+                            ? changeQuestion(targetEntry.index)
+                            : setSectionLockNote({ assignmentId: activeAssignmentId, role: section.role, text: access.reason }))}
+                          aria-disabled={sectionAvailable ? undefined : 'true'}
+                          aria-current={active ? 'page' : undefined}
+                          aria-describedby={access.reason ? reasonId : undefined}
+                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.done} of ${section.progress.total} done.`}
+                        >
+                          {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                          <span className="mathmaster-section-tab-copy">
+                            <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                            <small>{sectionAvailable && !readOnly ? section.progress.label : `${sectionAvailable ? '' : '🔒 '}${access.short}`}</small>
+                          </span>
+                        </button>
+                        {access.reason && <span id={reasonId} style={SR_ONLY_STYLE}>{access.reason}</span>}
+                      </Fragment>
                     );
                   })}
                 </div>
               ) : (
                 <>
                   <div className="mathmaster-collapsed-current-location" role="status">
-                    <strong>{currentSectionMeta.label}</strong>
-                    <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
+                    <span className="mathmaster-location-long">Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                    <span className="mathmaster-location-short" aria-hidden="true">Q{currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
                   </div>
                   <div className="mathmaster-unified-question-controls mathmaster-focus-inline-controls">
                     <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
@@ -10843,34 +10667,51 @@ function App() {
                       value={currentQuestionIndex}
                       onChange={(event) => changeQuestion(Number(event.target.value))}
                     >
-                      {visibleQuestionEntries.map((entry) => {
-                        const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                        return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                      })}
+                      {visibleQuestionEntries.map((entry) => (
+                        <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                      ))}
                     </select>
                     <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
                   </div>
                 </>
               )}
-              {!assignmentNavigationCollapsed && (
+              {/* The Warm-Up's time, beside the section, in both navigator
+                  states (pass 3, RUN-14): on a phone the banner that carried
+                  it covered the task card, and its 2:00 / 0:30 warnings must
+                  not depend on whether "Show progress" is open. */}
+              {!preview && currentIsWarmup && warmupState.status === 'active' && (
+                <SectionTimeLeft compact label="Warm-Up" endsAt={warmupState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+              )}
+              {/* The phone's chip (wider screens keep the header and banners):
+                  the most urgent status, or "More" — where a phone student
+                  finds "Grade so far" and Support tools. */}
+              {assignmentChipShown && (
                 <button
                   type="button"
-                  className="mathmaster-overview-button"
-                  onClick={() => setAssignmentOverviewExpanded((current) => !current)}
-                  aria-expanded={assignmentOverviewExpanded}
+                  className={`mathmaster-assignment-status-chip is-${assignmentStatusLines[0]?.tone || 'more'}`}
+                  aria-expanded={assignmentStatusOpen}
+                  aria-controls={assignmentStatusOpen ? 'mathmaster-assignment-status-panel' : undefined}
+                  onClick={() => setAssignmentStatusOpenFor(assignmentStatusOpen ? null : activeAssignmentId)}
                 >
-                  <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                  {assignmentStatusLines.length
+                    ? `${assignmentStatusLines[0].chip}${assignmentStatusLines.length > 1 ? ` +${assignmentStatusLines.length - 1}` : ''}`
+                    : <>More <span aria-hidden="true">{assignmentStatusOpen ? '▴' : '▾'}</span></>}
                 </button>
               )}
               <button
                 type="button"
+                className="mathmaster-overview-button"
+                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                aria-expanded={assignmentOverviewExpanded}
+              >
+                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+              </button>
+              <button
+                type="button"
                 className="mathmaster-focus-view-button"
-                onClick={() => {
-                  setAssignmentNavigationCollapsed((current) => !current);
-                  if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
-                }}
+                onClick={toggleAssignmentNavigation}
                 aria-expanded={!assignmentNavigationCollapsed}
-                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide extra navigation to make more room for the problem'}
+                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide section progress to make more room for the problem'}
               >
                 {assignmentNavigationCollapsed ? 'Show progress' : 'Focus view'}
               </button>
@@ -10879,55 +10720,34 @@ function App() {
             {!assignmentNavigationCollapsed && (
             <div className="mathmaster-assignment-unified-bottom">
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
+                {/* Where the student is and what is left. The grade lines
+                    live in Overview (pass 3, RUN-7): four lines of grade text
+                    here pushed the work down on every question. */}
                 <div className="mathmaster-current-section-summary">
-                  <strong>{currentSectionMeta.label}</strong>
+                  <strong>{compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })}</strong>
                   <span>
                     {currentNavigationSection?.complete
-                      ? '✓ Section complete'
-                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
+                      ? '✓ Section done'
+                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} done · ${currentSectionRemainingCount} left`}
                   </span>
-                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
-                  <small style={{ marginTop: 2, fontWeight: 900, color: currentSectionMeta.color }}>
-                    {preview
-                      ? `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`
-                      : assignmentFeedbackHeld
-                        ? `${currentSectionMeta.label} section score available after teacher release`
-                        : lifecycle.isPracticeOnly
-                          ? `${currentSectionMeta.label} section score ${currentSectionOfficialGrade?.score ?? 0}% · official grade frozen · practice score ${currentSectionGrade?.score ?? 0}%`
-                          : `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`}
-                  </small>
-                  <small style={{ marginTop: 2, fontWeight: 850, color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>
-                    {preview
-                      ? `Preview progress · ${progress.correct}/${progress.total} correct`
-                      : assignmentFeedbackHeld
-                        ? 'Score available after teacher release'
-                        : lifecycle.isPracticeOnly
-                          ? `Recorded grade ${recordedGrade}% · frozen`
-                          : `Current grade ${recordedGrade}% if submitted now`}
-                    {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
-                      ? ` · ${gradeSplit.attempted}/${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on attempted work`
-                      : ''}
-                  </small>
+                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</small>
                 </div>
-                <div className="mathmaster-question-number-strip" aria-label={`${currentSectionMeta.label} questions`}>
+                <div className="mathmaster-question-number-strip" role="group" aria-label={`${compactSectionLabel(currentNavigationSection || { role: activeQuestionRole })} questions`}>
                   {(currentNavigationSection?.entries || []).map((entry) => {
-                    const record = normalizeQuestionRecord(workingTracker?.[entry.index]);
-                    const correct = record.status === 'correct';
-                    const attempted = record.totalAttempts > 0 && !correct;
+                    const shown = navigatorQuestionFor(entry);
                     const current = entry.index === currentQuestionIndex;
-                    const available = entryIsAvailable(entry);
-                    const status = correct ? 'correct' : attempted ? 'needs another try' : 'not attempted';
+                    const available = shown.status !== QUESTION_STATUS.LOCKED;
                     return (
                       <button
                         type="button"
                         key={`section-question-${entry.index}`}
-                        className={`mathmaster-question-number${current ? ' is-current' : ''}${correct ? ' is-correct' : ''}${attempted ? ' is-attempted' : ''}${available ? '' : ' is-locked'}`}
+                        className={`mathmaster-question-number is-${shown.status}${current ? ' is-current' : ''}${available ? '' : ' is-locked'}`}
                         style={{ '--section-color': currentSectionMeta.color, '--section-border': currentSectionMeta.border, '--section-bg': currentSectionMeta.background }}
                         onClick={() => available && changeQuestion(entry.index)}
                         disabled={!available}
                         aria-current={current ? 'step' : undefined}
-                        aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${available ? status : 'locked'}${current ? ', current question' : ''}`}
-                        title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1} · ${available ? status : 'locked'}`}
+                        aria-label={`${compactSectionLabel(entry)} question ${entry.sectionPosition + 1}: ${shown.spoken}${current ? ', current question' : ''}`}
+                        title={`${compactSectionLabel(entry)} Question ${entry.sectionPosition + 1} · ${shown.label}`}
                       >
                         {entry.sectionPosition + 1}
                       </button>
@@ -10943,81 +10763,120 @@ function App() {
                   value={currentQuestionIndex}
                   onChange={(event) => changeQuestion(Number(event.target.value))}
                 >
-                  {visibleQuestionEntries.map((entry) => {
-                    const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                    return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-                  })}
+                  {visibleQuestionEntries.map((entry) => (
+                    <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)} data-locked={entryIsAvailable(entry) ? undefined : 'true'}>{compactSectionLabel(entry)} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ` · ${sectionAccessFor(entry).short}`}</option>
+                  ))}
                 </select>
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
               </div>
             </div>
             )}
-            {!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (
-              <StudentSupportTools
-                className="mathmaster-narrow-support-tools"
-                profile={user.profile}
-                onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
-              />
+            {visibleSectionLockNote && (
+              <p className="mathmaster-section-lock-note" role="status">
+                <span>{visibleSectionLockNote}</span>
+                <button type="button" onClick={() => setSectionLockNote(null)} aria-label="Close this note">×</button>
+              </p>
             )}
+            {assignmentStatusOpen && (
+              <div id="mathmaster-assignment-status-panel" className="mathmaster-assignment-status-panel">
+                {assignmentStatusLines.map((line) => (
+                  <div key={line.key} className={`mathmaster-assignment-status-line is-${line.tone}`}>
+                    <strong>{line.title}</strong>
+                    <span>{line.text}</span>
+                    {line.action && <button type="button" onClick={line.action.onClick}>{line.action.label}</button>}
+                  </div>
+                ))}
+                <div className="mathmaster-assignment-status-line is-grade">
+                  <strong>{gradeSoFarLine}</strong>
+                  {gradeDetailLine && <span>{gradeDetailLine}</span>}
+                </div>
+                {/* The header's Support tools (a teacher's materials, a
+                    formula sheet): the header is hidden where this panel
+                    shows, so the same panel rides here. */}
+                {!preview && user?.role === 'student' && (
+                  <StudentSupportTools
+                    className="mathmaster-narrow-support-tools"
+                    profile={user.profile}
+                    onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                  />
+                )}
+              </div>
+            )}
+            {/* The DOL's time, seconds in its last minute, with warnings at
+                2:00 and 0:30 (pass 3, RUN-10). Its end is the lifecycle
+                state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
-              <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
+              <div className="mathmaster-unified-nav-alert">
+                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+              </div>
             )}
           </nav>
 
           {assignmentOverviewExpanded && (
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
+            {/* THE GRADE LINES, MOVED HERE FROM THE NAVIGATOR (pass 3, RUN-7).
+                "Grade so far", never "if submitted now": there is no
+                assignment-level submit (RUN-16). */}
+            <section aria-label="Your grade" className="mathmaster-overview-grade" style={{ padding: '11px 13px', borderRadius: '12px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', display: 'grid', gap: 3, textAlign: 'left' }}>
+              <strong style={{ fontSize: 'calc(15 * var(--mm-px))', color: assignmentFeedbackHeld ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>
+                {gradeSoFarLine}
+              </strong>
+              {gradeDetailLine && <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{gradeDetailLine}</span>}
+            </section>
             {navigationSections.map((section) => {
               const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)' };
+              const sectionName = compactSectionLabel(section);
+              const sectionGrade = currentSectionGrades[section.role] || null;
+              const sectionOfficialGrade = currentSectionOfficialGrades[section.role] || null;
+              const sectionHeld = section.entries.some((entry) => entryFeedbackHeld(entry));
+              const sectionScoreLine = preview
+                ? `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`
+                : sectionHeld
+                  ? 'Score shows after your teacher releases it'
+                  : lifecycle.isPracticeOnly
+                    ? `Section score ${sectionOfficialGrade?.score ?? 0}% (set) · practice ${sectionGrade?.score ?? 0}%`
+                    : `Section score ${sectionGrade?.score ?? 0}% · ${sectionGrade?.attempted ?? 0}/${sectionGrade?.total ?? 0} answered`;
+              const sectionAccess = sectionAccessFor(section.entries[0]);
               return (
-                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.complete ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.complete ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
+                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionName} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.allCorrect ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.allCorrect ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
-                    {section.complete ? (
-                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: '12px', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
+                    <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionName}</strong>
+                    {section.allCorrect ? (
+                      <span aria-label={`${sectionName} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionName.toUpperCase()} COMPLETE</span>
                     ) : (
-                      <span style={{ fontSize: '12px', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
+                    <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{sectionScoreLine}</span>
+                    {sectionAccess.reason && <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{sectionAccess.reason}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: '10px' }}>
-                    {section.entries.map(({ index, sectionPosition, role: cardRole, isTimedDOLQuestion }) => {
+                    {section.entries.map((entry) => {
+                      const { index, sectionPosition } = entry;
                       const record = normalizeQuestionRecord(workingTracker?.[index]);
                       const cardAssessment = questionAssessmentFramework(questions[index] || {});
                       const cardAssessmentLabel = cardAssessment.examStyle && cardAssessment.framework
                         ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`
                         : '';
-                      const cardPolicy = getEffectiveActivityPolicy(cardRole);
-                      const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-                      const cardMaximumAttempts = resolveQuestionMaximumAttempts({
-                        question: questions[index],
-                        maximumAttempts: cardPolicy.attempts,
-                        activityPolicy: cardPolicy,
-                        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
-                          assignment,
-                          activityRole: cardRole,
-                          classId: user?.classId || null,
-                          studentId: user?.role === 'student' ? user.id : null,
-                        }),
-                      });
-                      const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
-                      const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
-                        ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', label: 'Submitted · feedback held' }
-                        : storedCardState;
-                      const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
-                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
-                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now, studentId: !preview && user?.role === 'student' ? user.id : undefined });
-                      const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
-                      const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
-                      const lockedLabel = warmupUnavailable
-                        ? (warmupState.status === 'waiting' ? `Opens ${warmupState.minutesBeforeStart} min before class` : 'Warm-Up is not open today')
-                        : manualSectionUnavailable
-                          ? (manualSectionState.status === 'scheduled' ? 'Opens with assignment' : 'Waiting for teacher to open')
-                          : 'Locked until DOL window';
+                      const shown = navigatorQuestionFor(entry);
+                      const sectionUnavailable = shown.status === QUESTION_STATUS.LOCKED;
+                      // Colour follows the same state as the words: green only
+                      // for a verdict the student may see.
+                      const cardState = shown.status === QUESTION_STATUS.CORRECT
+                        ? { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }
+                        : shown.status === QUESTION_STATUS.SUBMITTED
+                          ? { background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }
+                          : shown.status === QUESTION_STATUS.CLOSED
+                            ? { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+                            : shown.status === QUESTION_STATUS.TRY_AGAIN
+                              ? { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }
+                              : { background: 'var(--mm-surface)', color: 'var(--mm-text-strong)' };
                       return (
                         <button
                           type="button"
                           key={index}
                           onClick={() => !sectionUnavailable && changeQuestion(index)}
                           disabled={sectionUnavailable}
+                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}`}
                           style={{
                             padding: '14px',
                             cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
@@ -11032,11 +10891,11 @@ function App() {
                             opacity: sectionUnavailable ? 0.7 : 1,
                           }}
                         >
-                          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
-                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: '10px', fontWeight: 900 }}>{sectionMeta.label}</div>
-                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: '10px', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
-                          <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
-                          {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
+                          <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
+                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionName}</div>
+                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
+                          <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{shown.label}</div>
+                          {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} {record.totalAttempts === 1 ? 'try' : 'tries'} used</div>}
                         </button>
                       );
                     })}
@@ -11046,10 +10905,18 @@ function App() {
             })}
           </div>
           )}
+          <QuestionAnnouncer
+            announceKey={`${activeAssignmentId}-${currentQuestionIndex}`}
+            position={`${currentSectionMeta.label}, question ${currentSectionQuestionNumber} of ${currentSectionQuestionCount}`}
+            containerRef={assignmentQuestionStageRef}
+          />
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
               && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
+            {/* "Ask my teacher" answers, on any question of this assignment —
+                one closed since it was asked keeps its answer here. */}
+            {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
@@ -11071,7 +10938,7 @@ function App() {
               guidedNotesMode={currentGuidedNotesMode}
               assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
               assignmentLockedMessage={!preview && currentIsDOL && dolState.status === 'ended'
-                ? 'The DOL timer has ended. Your saved response is available for review, but no new submission is allowed.'
+                ? currentDolCopy.lockMessage
                 : !preview && currentIsWarmup && warmupState.status === 'closed'
                   ? 'Your teacher closed the Warm-Up for this class. Your saved work is available for review, but no new submission is allowed.'
                   : !preview && currentIsWarmup && warmupState.status === 'ended'
@@ -11096,23 +10963,51 @@ function App() {
                 studentId: user?.role === 'student' ? user.id : null,
               })}
               activityRole={runtimeActivityRole}
+              // "Practise one like this" after the last miss: Classwork and
+              // Practice sections only, by the section's own role (a DOL in
+              // post-due practice runs as 'practice' but is still a DOL).
+              practiceLikeThisAllowed={['classwork', 'practice'].includes(activeQuestionRole)}
               activityPolicy={runtimeQuestionActivityPolicy}
+              // The assignment's calculator setting (e.g. "graphing"), above the
+              // question's own: calculatorPolicy.js resolveCalculatorPolicy.
+              assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
               feedbackReleased={currentFeedbackReleased}
+              assessmentReviewReleased={assignmentFeedbackWasReleased(assignment)}
               replacementWarning={replacementWarning}
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
-              onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
+              onNextQuestion={engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
-              sectionComplete={Boolean(currentNavigationSection?.allCorrect)}
+              sectionComplete={Boolean(currentNavigationSection?.complete)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
-              onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
-              continueSectionLabel={nextAvailableSectionMeta?.label || ''}
+              onContinueSection={assignmentHandoff ? continueAfterSection : null}
+              continueSectionLabel={assignmentHandoff?.label || ''}
+              onGoBackToQuestion={skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null}
+              goBackLabel={skippedQuestion?.label || ''}
               onSupportEvidence={preview || lifecycle.isPracticeOnly
                 ? null
                 : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
+              onAskTeacher={preview || lifecycle.isPracticeOnly || user?.role !== 'student'
+                ? null
+                : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
+              helpRequested={helpRequest?.assignmentId === activeAssignmentId && helpRequest?.questionIndex === currentQuestionIndex}
+              askTeacherContext={{
+                mode: askMyTeacher.mode,
+                acknowledgement: askMyTeacher.acknowledgement,
+                question: questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }),
+                onSendQuestion: askMyTeacher.canLeaveQuestion
+                  ? ({ existing, text }) => askMyTeacher.sendQuestion({
+                    existing,
+                    text,
+                    questionIndex: currentQuestionIndex,
+                    questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
+                    assignmentTitle: assignment?.title || '',
+                  })
+                  : null,
+              }}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
@@ -11122,43 +11017,70 @@ function App() {
                 is now reachable only from a drain that left nothing owed, and
                 every other state names where the work actually is and whether
                 anything is still to come. */}
-            {!preview && studentPersistenceStatus !== 'idle' && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-                {studentPersistenceStatus === 'capturing'
-                  ? 'Saving…'
-                  : studentPersistenceStatus === 'queued' || studentPersistenceStatus === 'syncing'
-                    ? `Syncing · ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} saved on this device. You may keep working.`
-                    : studentPersistenceStatus === 'offline'
-                      ? `Waiting for connection · ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} saved on this device.`
-                      : studentPersistenceStatus === 'needs-review'
-                        ? `Needs review · ${studentPendingGradeCount || studentOutboxDepth} saved item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} has not been recorded yet. You may keep working.`
-                      : studentPersistenceStatus === 'submitted'
-                        ? 'Recorded by MathMaster.'
-                        : studentPersistenceStatus === 'durable'
-                          ? 'Recorded by MathMaster.'
+            {/* ANNOUNCED ONLY WHEN THE WORK NEEDS THE STUDENT: offline, not
+                recorded, refused. A routine save is not a second announcement
+                of the result the question just gave. The region is always
+                mounted and only its words change — a live region that appears
+                with its text is often not read at all. "Not stored" is said
+                by the question and a toast already. */}
+            {!preview && (
+              <span role="status" aria-live="polite" data-save-line-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {studentSaveLineAnnouncement}
+              </span>
+            )}
+            {!preview && studentSaveLineShown && (
+              <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                {/* A draft is "Draft saved"; only an answer the student sent
+                    is ever "Answer recorded", and only once the server has it
+                    (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
+                {studentSaveLine
+                  ? studentSaveLine
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
-                            : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+                            // The device queue could not be written: the last
+                            // change is on screen only (saveStatusModel.js).
+                            // Never "saved" — nothing was (RUN-3).
+                            : studentPersistenceStatus === 'volatile'
+                              ? 'Not saved · this device could not store your last change. Keep this tab open and try it again.'
+                              : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+              </p>
+            )}
+            {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
+                Storage full, a record the backup refuses, or a backup at its
+                caps: the student is told where the work is and what to do,
+                in one plain sentence, until it is saved again. */}
+            {!preview && studentDraftSaveProblem && (
+              <p role="alert" data-draft-save-problem={studentDraftSaveProblem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
+                {studentDraftSaveProblem.text}
               </p>
             )}
             {!preview && studentReportingError && (
-              <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 11 }}>
+              <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
               </p>
             )}
-            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && (!currentCheckpointOutcome || currentSectionOpenNow) && (
-              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>Your latest completed response will be submitted automatically when time ends.</p>
+            {/* "When time ends" is a promise only an open window can keep. */}
+            {!preview && runtimeActivityRole === 'dol' && currentDolCopy?.openNotice && (
+              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
+            )}
+            {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
+              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
             )}
             {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                 Never "submitted" for a response that was not complete — the
-                status comes from the server's own finalization receipt. */}
+                status comes from the server's own finalization receipt, and
+                only once there is one: receipts are read when the assignment
+                opens, and a question never worked on gets none, so a
+                "checking" line could stand forever. A DOL that ended today
+                says who closed it (describeDolClose); on another day, and for
+                a Warm-Up, the receipt reads as before. */}
             {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-                {currentCheckpointOutcome === 'auto-submitted'
+              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
                   ? 'Time ended. Your latest completed response was submitted automatically.'
                   : currentCheckpointOutcome === 'explicitly-submitted'
                     ? 'Time ended. Your submitted work has been saved.'
-                    : 'Time ended. No completed response was available to submit.'}
+                    : 'Time ended. No completed response was available to submit.')}
               </p>
             )}
           </main>
@@ -11167,31 +11089,204 @@ function App() {
     );
   };
 
+  // The read-only "What changed" list, on Home (compact) and Grades.
+  const renderWhatChangedPanel = (compact) => (
+    <WhatChangedList
+      items={whatChangedItems}
+      compact={compact}
+      onOpenAssignment={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: compact ? NAV_LEVEL.HOME : NAV_LEVEL.GRADES })}
+      onMarkSeen={() => { if (user?.id) markWhatChangedSeen(user.id, Date.now()); }}
+    />
+  );
+
   // This is the authenticated-student shell boundary. Keeping identity here,
   // outside every destination, makes it survive Focus View, compact/mobile
   // assignment controls, Live Challenge, and screens that omit global nav.
-  const renderStudentIdentityShell = (content, { preview = false } = {}) => (
+  //
+  // `main`: the screen has no main landmark of its own, so the shell wraps it
+  // in one (NAV-15) — Home, Assignments, Grades, Rewards, Live Challenge,
+  // Test Cycle and Recovery. Screens that draw their own <main> (the result
+  // page, My Math Path, Tests & Exams, the assignment) keep the empty anchor.
+  const renderStudentIdentityShell = (content, { preview = false, main = false } = {}) => {
+    const studentShellLogoutRisk = preview ? null : describeLogoutRisk({
+      outboxDepth: studentOutboxDepth,
+      pendingGradeCount: studentPendingGradeCount,
+      needsReviewCount: studentNeedsReviewCount,
+      persistenceStatus: studentPersistenceStatus,
+    });
+    return (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
+      <SkipToContent />
+      {/* NAV-3: the new screen's name, said once after a screen change. */}
+      {!preview && (
+        <div role="status" aria-live="polite" aria-atomic="true" data-screen-announcement className="mm-visually-hidden">
+          {studentScreenAnnouncement}
+        </div>
+      )}
+      {/* NAV-23: the Live Challenge invite or a Spotlight request, said once. */}
+      {!preview && (
+        <div role="status" aria-live="polite" aria-atomic="true" data-classroom-announcement className="mm-visually-hidden">
+          {classroomAnnouncementText}
+        </div>
+      )}
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
         classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
+        // Unsent work still queued: Log Out asks first (logoutGuard.js).
+        logoutRisk={studentShellLogoutRisk}
+        // The pack-up line rides in the pinned stack (NAV-24).
+        notice={preview ? null : renderStudentPackUpNotice()}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
-        <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
-          <strong style={{ display: 'block', fontSize: 18 }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
-          <div style={{ marginTop: 5, fontSize: 13 }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
+        // Not a dialog (NAV-23): it takes no focus and blocks nothing; it is a
+        // labelled region, and its arrival is said in the live region above.
+        <section aria-label="Student Spotlight request" data-spotlight-request style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>
+          <strong style={{ display: 'block', fontSize: 'calc(18 * var(--mm-px))' }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
+          <div style={{ marginTop: 5, fontSize: 'calc(13 * var(--mm-px))' }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Not Now</button></div>
         </section>
       )}
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.ACCEPTED && (
         <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid var(--mm-border-soft)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
-      {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 12 }}>{studentSpotlightMessage}</div>}
-      {content}
+      {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{studentSpotlightMessage}</div>}
+      {main ? (
+        // The screen's main landmark; the skip link enters it at its h1.
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} data-student-screen-main>
+          {content}
+        </main>
+      ) : (
+        <>
+          {/* Where the skip link lands: focus here, the next Tab enters the screen. */}
+          <div id={MAIN_CONTENT_ID} tabIndex={-1} />
+          {content}
+        </>
+      )}
     </div>
-  );
+    );
+  };
+
+  // A student screen with no main landmark of its own (NAV-15).
+  const renderStudentScreen = (content) => renderStudentIdentityShell(content, { main: true });
+
+  // The address the page opened at, opened once the account has loaded
+  // (app/routes/useUrlArrival.js). Called after every action it hands on is
+  // declared, and before the session guard returns, as a hook must be.
+  /*
+   * A NOTICE ABOUT THE WORKSPACE, SHOWN WITH THE WORKSPACE (wave-3 gate).
+   *
+   * Following a link to a question that has moved ("…so it opened where you
+   * can work now") raised its notice as the assignment started opening, so it
+   * sat over Home and then "Loading your MathMaster workspace…" for seconds
+   * before the work it describes was there. It now waits for the workspace:
+   * this effect is part of the commit that puts the assignment on screen —
+   * while the workspace's code is still loading the App is suspended and the
+   * effect does not run.
+   */
+  /*
+   * THE LIVE CHALLENGE INVITE AND A SPOTLIGHT REQUEST ARE SAID (NAV-23): one
+   * polite sentence in the shell's live region when either newly appears,
+   * cleared after a few seconds so a screen change does not repeat it.
+   */
+  /*
+   * NOT ON AN EXIT TICKET, QUIZ OR TEST (NAV-25 review B1, R1). Inside an
+   * assignment the lobby invite (banner, phone chip, announcement) is offered
+   * only where no question of the section the student is on withholds its outcome —
+   * the navigator's own rule (outcomeWithheld): never on a DOL, quiz or test
+   * before it is released or finished; Classwork and Practice keep it. Home and
+   * the other screens are unchanged.
+   */
+  const studentWorkspaceHoldsOutcome = () => {
+    if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return false;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment) return false;
+    if (getAssignmentLifecycle(assignment, now, { studentId: user.id }).isPracticeOnly) return false;
+    const { entries } = projectCurrentAssignmentContent(assignment);
+    const role = entries.find((entry) => entry.storageIndex === currentQuestionIndex)?.logicalRole || null;
+    // The whole section, not the question on screen (review R1).
+    return sectionHoldsLobbyInvite({
+      entries,
+      role,
+      feedbackMode: role ? getEffectiveActivityPolicy(role).feedback : 'immediate',
+      released: assignmentFeedbackWasReleased(assignment),
+      recordOf: (storageIndex) => tracker?.[activeAssignmentId]?.[storageIndex],
+    });
+  };
+  const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome();
+
+  const [classroomAnnouncementText, setClassroomAnnouncementText] = useState('');
+  const classroomAnnouncementRef = useRef(null);
+  const currentClassroomState = classroomAnnouncementState({
+    invite: user?.role === 'student' && !lobbyInviteHeldHere ? liveChallengeInvite : null,
+    spotlightRequested: user?.role === 'student' && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED,
+    secureExamActive,
+  });
+  const classroomAnnouncementTimerRef = useRef(null);
+  useEffect(() => {
+    const next = { challenge: currentClassroomState.challenge, spotlight: currentClassroomState.spotlight };
+    const text = classroomAnnouncement(classroomAnnouncementRef.current, next);
+    classroomAnnouncementRef.current = next;
+    if (!text) return;
+    setClassroomAnnouncementText(text);
+    clearTimeout(classroomAnnouncementTimerRef.current);
+    classroomAnnouncementTimerRef.current = setTimeout(() => setClassroomAnnouncementText(''), 8000);
+  }, [currentClassroomState.challenge, currentClassroomState.spotlight]);
+  useEffect(() => () => clearTimeout(classroomAnnouncementTimerRef.current), []);
+
+  // A list: an arrival can bring two (the question moved, and the start's own
+  // "not open right now" or a Classroom detour, review S2).
+  const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);
+  const shownArrivalNoticesRef = useRef(new WeakSet());
+  const showWhenWorkspaceOpens = useCallback((notice) => {
+    if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
+  }, []);
+  useEffect(() => {
+    if (!workspaceArrivalNotices.length || activeView !== 'assignment') return;
+    // Once each, even where the effect runs twice for the same notices
+    // (StrictMode, a suspended tree shown again).
+    workspaceArrivalNotices.forEach((notice) => {
+      if (shownArrivalNoticesRef.current.has(notice)) return;
+      shownArrivalNoticesRef.current.add(notice);
+      toastInfo(notice.title, notice.body);
+    });
+    setWorkspaceArrivalNotices([]);
+  }, [workspaceArrivalNotices, activeView, toastInfo]);
+
+  useUrlArrival({
+    urlArrival,
+    setUrlArrival,
+    user,
+    // A student's lessons carry their own controls (an extension, an
+    // excusal, a reopen): the address opens once the lessons on screen were
+    // projected with the controls the listener answered, not before.
+    ready: user?.role !== 'student' || (
+      [STUDENT_CONTROLS_STATUS.READY, STUDENT_CONTROLS_STATUS.UNAVAILABLE].includes(studentAssignmentControls.status)
+      && lastPublishedRef.current?.[4] === studentAssignmentControls
+    ),
+    assignments,
+    toastInfo,
+    student: {
+      isTestCycle: isTestCycleAssignment,
+      questionEntriesFor: studentQuestionEntriesFor,
+      startAssignment,
+      showWhenWorkspaceOpens,
+      openStudentAssignmentResult,
+      openStudentDashboardMode,
+      setActiveTestCycleAssignmentId,
+      setMathPathArrival,
+      setPathLaunchTeks,
+    },
+    teacher: {
+      canAdminister: user?.isRootAdmin === true || isRootAdminEmail(user?.email),
+      startTeacherPreview,
+      setTeacherWorkspaceMode,
+      setAdminTab,
+      setTeacherTab,
+      setAssignmentHubTarget,
+    },
+  });
 
   // The screen belongs to the account signed in NOW. When auth has moved on —
   // signed out in another tab, the next student signing in on a shared
@@ -11199,19 +11294,15 @@ function App() {
   // of the previous account's screens renders while its state is torn down.
   const userIsSignedInAccount = Boolean(user && auth.status === 'ready' && auth.session?.uid && auth.session.uid === user.uid);
   if (!userIsSignedInAccount) {
-    if (auth.status === 'signedOut' || auth.status === 'linking') return <LoginScreen launchAssignment={launchAssignment} />;
-    if (sessionHydrationError) {
-      return (
-        <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', background: 'var(--mm-surface-sunken)' }}>
-          <section style={{ width: 'min(560px, 100%)', padding: '24px', borderRadius: '12px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', textAlign: 'center' }}>
-            <h1 style={{ marginTop: 0, color: 'var(--mm-error-text)' }}>MathMaster could not load your account</h1>
-            <p style={{ color: 'var(--mm-text-muted)' }}>{sessionHydrationError}</p>
-            <button type="button" onClick={() => auth.signOut()} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#174ea6', color: '#fff', fontWeight: 900 }}>Return to sign in</button>
-          </section>
-        </main>
-      );
-    }
-    return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--mm-primary-text)', background: 'var(--mm-surface-sunken)' }}>{sessionHydrating ? 'Loading your MathMaster workspace…' : 'Finishing sign in…'}</div>;
+    return (
+      <SessionGate
+        authStatus={auth.status}
+        hydrationError={sessionHydrationError}
+        hydrating={sessionHydrating}
+        launchAssignment={launchAssignment}
+        onSignOut={() => { resetAddressToHome(); auth.signOut(); }}
+      />
+    );
   }
 
   if (isTeacherPreview) {
@@ -11219,1279 +11310,243 @@ function App() {
   }
 
   if (user.role === 'teacher') {
-    // This only controls discoverability. Privileged operations remain
-    // callable-only and re-check the immutable root identity + claims on the
-    // server. The email fallback prevents a stale token from hiding Admin Mode
-    // from the one account that needs to fix/deploy it.
-    const rootAdminUiEligible = user.isRootAdmin === true
-      || isRootAdminEmail(user.email);
-    const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
-    const gradebookRigor = rigorComparability({
-      evidenceByStudentId: classEvidenceByStudentId,
-      assignmentId: selectedAssignment?.id || null,
-    });
-    const selectedGradebookClass = classes.find((entry) => entry.classId === gradebookFilter.classId) || null;
-    const selectedGradebookPeriod = selectedGradebookClass?.period || gradebookFilter.classPeriod || '';
-    const selectedClassStudents = allStudents.filter((student) => (
-      gradebookFilter.classId
-        ? student.classId === gradebookFilter.classId || (!student.classId && selectedGradebookPeriod && student.classPeriod === selectedGradebookPeriod)
-        : (student.classPeriod || 'Unassigned') === selectedGradebookPeriod
-    )).sort(compareStudentsByName);
-    const assignmentsForSelectedClass = assignments.filter((assignment) => !selectedGradebookPeriod || assignmentIsForStudent(assignment, { classId: gradebookFilter.classId || null, classPeriod: selectedGradebookPeriod }));
-    // The class summary above the gradebook table, from the same canonical
-    // grade projection the table rows use. It is also the table filter.
-    const gradebookProgress = teacherTab === 'grades' && selectedAssignment
-      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student), hasPracticePass: gradebookHasPracticePass })
-      : null;
-    const gradebookFilterIds = gradebookProgress && gradebookProgressFilter !== 'all'
-      ? new Set(({ complete: gradebookProgress.complete, inProgress: gradebookProgress.inProgress, notStarted: gradebookProgress.notStarted, below: gradebookProgress.belowThreshold }[gradebookProgressFilter] || []).map((row) => row.id))
-      : null;
-    const gradebookVisibleStudents = gradebookFilterIds ? selectedClassStudents.filter((student) => gradebookFilterIds.has(student.id)) : selectedClassStudents;
-
-    // The Assignments tab list, after the Library folder/smart-view filter and
-    // the free-text search. Computed once so the header count, the
-    // select-all-visible checkbox and the rendered cards can never disagree.
-    const visibleAssignments = assignments.filter((assignment) => (
-      // The Assignments tab is class-scoped whenever the class bar names a
-      // specific class. Library-only/unassigned work must not leak into a class
-      // view simply because its title or folder matches the search.
-      (!activeClass.classId || assignmentIsForStudent(assignment, {
-        classId: activeClass.classId,
-        classPeriod: activeClass.classPeriod,
-      }))
-      && assignmentFolderMatches(assignment, libraryNavigation?.folder)
-      && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule, classes })
-      && titleOrFolderMatches(assignment, assignmentSearch)
-    ));
-    // A search or a Library filter narrows the list: it is shown flat, so a
-    // match is never folded inside a closed marking-period group.
-    const assignmentListIsFiltered = Boolean(assignmentSearch.trim() || libraryNavigation?.folder || libraryNavigation?.smartView);
-    const visibleAssignmentIds = visibleAssignments.map((assignment) => assignment.id);
-    const allVisibleSelected = visibleAssignmentIds.length > 0
-      && visibleAssignmentIds.every((id) => selectedAssignmentIds.has(id));
-
-
-    if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
-      return (
-        <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-control)', minHeight: '100vh', padding: '20px' }}>
-          <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
-            <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid var(--mm-border-soft)', background: '#202124', color: '#fff' }}>
-              <div><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 25, color: 'inherit' }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 13 }}>{user.email}</p></div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
-            </header>
-            <div role="tablist" aria-label="Administration sections" style={{ display: 'flex', gap: 8, padding: '14px 28px 0', flexWrap: 'wrap' }}>
-              {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={adminTab === id}
-                  onClick={() => setAdminTab(id)}
-                  style={{ minHeight: 40, padding: '8px 16px', borderRadius: '9px 9px 0 0', cursor: 'pointer', border: '1px solid var(--mm-border)', borderBottom: 0, background: adminTab === id ? 'var(--mm-surface)' : 'var(--mm-surface-control)', color: adminTab === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 900, fontSize: 14 }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <main style={{ padding: 28 }}>
-              {adminTab === 'classes' && <ClassesAdmin />}
-              {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
-              {adminTab === 'coverage' && <PathCoverageAudit />}
-              {adminTab === 'ai' && <AssignmentAiHealth />}
-              {adminTab === 'reset' && (
-                <PreproductionReset
-                  onResetComplete={async () => {
-                    setAssignments([]);
-                    setAllStudents([]);
-                    setPresenceById({});
-                    setStudentSupportEvents([]);
-                    setStudentSessionSummaries([]);
-                    setAssignmentActivity({});
-                    setDolGradesByAssignment({});
-                    setClassworkGradesByAssignment({});
-                    setSupportUsageByAssignment({});
-                    setWeeklyPathCompletionsByStudent({});
-                    setWeeklyPathGoalSnapshotsByStudent({});
-                    setClassEvidenceByStudentId({});
-                    await Promise.all([
-                      fetchAssignments(),
-                      fetchTeacherRosterSummaries(),
-                    ]);
-                  }}
-                />
-              )}
-            </main>
-          </div>
-        </div>
-      );
+    // Until the teacher kit is here, the same "Loading your MathMaster
+    // workspace…" AppShell shows while this screen's chunk loads: nothing the
+    // screen shows is ever computed without the kit.
+    if (teacherKitError) throw teacherKitError;
+    if (!teacherKit) {
+      return <SessionGate authStatus="loading" hydrationError={null} hydrating launchAssignment={null} onSignOut={() => { resetAddressToHome(); auth.signOut(); }} />;
     }
-
+    // The teacher's screen, verbatim, in its own chunk (app/teacher/TeacherWorkspace.jsx):
+    // every input it reads is passed by name. Like the other teacher screens
+    // it suspends to AppShell's boundary while its chunk first loads.
     return (
-      <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
-        {renderDeleteAssignmentDialog()}
-        {testCyclePreviewAssignment && (
-          <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
-            <TestCyclePreview
-              assignment={testCyclePreviewAssignment}
-              onClose={() => setTestCyclePreviewAssignment(null)}
-              // Review is ordinary content: play it in the existing in-memory
-              // teacher preview, which writes nothing either.
-              onPreviewReview={(assignment) => {
-                setTestCyclePreviewAssignment(null);
-                startTeacherPreview(assignment.id, { lessonRuntime: true });
-              }}
-            />
-          </Suspense>
-        )}
-        {renderExportJsonDialog()}
-        {renderTeacherScratchpadDialog()}
-        {teacherWorksheetDialog && (() => {
-          const assignment = assignments.find((item) => item.id === teacherWorksheetDialog.assignmentId) || null;
-          if (!assignment) return null;
-          const students = teacherWorksheetStudentsFor(assignment);
-          return (
-            <TeacherAssignmentPdfDialog
-              key={assignment.id}
-              assignment={assignment}
-              students={students}
-              requiresStudent={teacherWorksheetDialog.requiresStudent === true}
-              busy={teacherWorksheetBusy}
-              onCancel={() => { if (!teacherWorksheetBusy) setTeacherWorksheetDialog(null); }}
-              onExport={(student, outputMode) => exportTeacherAssignmentWorksheetPdf(assignment, student, outputMode)}
-            />
-          );
-        })()}
-        {assignmentPreflight && (
-          <LessonPreflightModal
-            key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
-            assignmentV5={assignmentPreflight.assignmentV5}
-            initialDraft={assignmentPreflight.initialDraft}
-            classPeriods={CLASS_PERIODS}
-            classes={classes}
-            courseProfiles={courseProfiles}
-            sourceLabel={assignmentPreflight.sourceLabel}
-            sourceQuestions={assignmentPreflight.questions}
-            authoringWarnings={assignmentPreflight.authoringWarnings}
-            onClose={() => setAssignmentPreflight(null)}
-            onConfirmPublish={confirmAssignmentPreflight}
-            busy={assignmentPreflightBusy}
-            reviewMode={assignmentPreflight.mode || 'create'}
-            allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
-            rosterSizesByClassId={preflightRosterSizesByClassId}
-          />
-        )}
-        {contentUpgradeRequest && (
-          <AssignmentContentUpgradeModal
-            assignment={contentUpgradeRequest.assignment}
-            targetAssignment={contentUpgradeRequest.targetAssignment}
-            onClose={() => setContentUpgradeRequest(null)}
-            onUpgraded={async (result) => {
-              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchTeacherRosterSummaries()]);
-              const refreshFailed = refreshResults.some((entry) => entry.status === 'rejected');
-              toastSuccess(
-                result?.alreadyUpgraded
-                  ? `Content V${result.contentVersion} already saved`
-                  : `Upgraded to Content V${result.contentVersion}`,
-                refreshFailed
-                  ? 'The assignment save succeeded. One dashboard panel did not refresh yet; press Done, then refresh the page.'
-                  : 'Student work and Google Classroom links were preserved.',
-              );
-            }}
-          />
-        )}
-        {questionEditorAssignment && (
-          <AssignmentQuestionEditor
-            assignment={questionEditorAssignment}
-            hasLiveProtection={
-              !isLibraryAssignment(questionEditorAssignment)
-              || allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined)
-            }
-            fullAuditAuthorized={rootAdminUiEligible || user.assignmentRepairer === true}
-            studentActivityStatus={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined) ? 'present' : 'unavailable'}
-            onSave={saveQuestionEditor}
-            onClose={() => setQuestionEditorAssignment(null)}
-          />
-        )}
-        {/*
-          ONE drawer for the whole teacher workspace. Every student name on
-          every screen opens this same component with the same profile, so the
-          answer a teacher gets never depends on which name they clicked.
-        */}
-        <TeacherQuickSearch
-          open={quickSearchOpen}
-          // Raw roster records: teacherSearch formats names itself (structured,
-          // Google and legacy names) and searches ids. Copying a formatted name
-          // into displayName here rebuilt every record on every render and made
-          // a nameless student match a search for "unavailable".
-          students={allStudents}
-          classes={classes}
-          assignments={assignments}
-          standards={searchableStandards}
-          onClose={() => setQuickSearchOpen(false)}
-          onSelect={(result) => {
-            if (result.kind === 'student') { setProfileDrawerStudentId(result.payload.studentId); return; }
-            if (result.kind === 'class') {
-              setActiveClass({ classId: result.payload.classId, classPeriod: result.payload.classPeriod });
-              setTeacherTab('classesWorkspace');
-              return;
-            }
-            if (result.kind === 'assignment') {
-              // An assignment result opens the assignment itself — its grades,
-              // live room, controls and export are all one click from there.
-              // (It used to jump to Grades without switching class, landing on
-              // an empty "Select assignment" whenever the class differed.)
-              openAssignmentHub(result.payload.assignmentId, result.payload.classId || null);
-              return;
-            }
-            if (result.kind === 'standard') setTeacherTab('standards');
-          }}
-        />
-
-        <ClassroomSyncReview
-          proposal={classroomSyncProposal}
-          students={allStudents}
-          onClose={() => setClassroomSyncProposal(null)}
-        />
-
-        <AssignmentHub
-          open={Boolean(assignmentHubTarget)}
-          onClassChange={reportHubClass}
-          assignment={assignmentHubTarget ? assignments.find((entry) => entry.id === assignmentHubTarget.assignmentId) || null : null}
-          initialClassId={assignmentHubTarget?.classId || null}
-          classes={classes}
-          students={allStudents}
-          presenceById={presenceById}
-          classSchedule={classSchedule}
-          nowValue={now}
-          gradingPeriodSettings={gradingPeriodSettings}
-          hasGradeRecords={teacherStudentDataMode === 'full'}
-          onLoadClassGrades={loadClassGradeRecords}
-          handlers={{
-            onToggleWarmup: handleToggleWarmupForClass,
-            onToggleSectionAccess: handleToggleSectionAccessForClass,
-            onUnlockDOL: handleUnlockDOLForClass,
-            onGrantDOLAttempt: handleGrantDOLAttemptForClass,
-            onDolControl: handleDolControlForClass,
-          }}
-          busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
-          onClose={() => setAssignmentHubTarget(null)}
-          onOpenGrades={(classId, assignmentId) => openGradebookFor(classId, assignmentId)}
-          onOpenStudentWork={(classId, assignmentId, studentId) => openGradebookFor(classId, assignmentId, studentId)}
-          onOpenLive={(classContext, assignmentId) => openLiveFor(classContext, assignmentId)}
-          onOpenExport={(scope) => openGradeExport(scope)}
-          onOpenStudent={(studentId) => { setProfileDrawerStudentId(studentId); }}
-          onOpenClass={(classContext) => { setAssignmentHubTarget(null); handleGoToClassFromHome(classContext); }}
-          onPreview={(assignment) => { setAssignmentHubTarget(null); startTeacherPreview(assignment.id); }}
-          onOpenTestCycleResults={(assignment) => { setAssignmentHubTarget(null); setFocusedTestCycleAssignmentId(assignment.id); setTeacherTab('exams'); }}
-          onPrint={(assignment) => { setAssignmentHubTarget(null); beginTeacherWorksheetExport(assignment); }}
-          onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
-          onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
-          onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
-          teacherEmail={user?.email || ''}
-        />
-
-        {/* After the hub, so a student opened from an assignment's hub stacks
-            ON TOP of it (closing the student returns to the assignment). */}
-        <StudentProfileDrawer
-          open={Boolean(profileDrawerStudent)}
-          studentId={profileDrawerStudent?.id || null}
-          studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
-          profile={profileDrawerLearningProfile}
-          plan={profileDrawerPlan}
-          classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
-          courseContext={profileDrawerStudent
-            ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
-            : null}
-          supportEvents={profileDrawerStudent ? profileDrawerSupportEvents : []}
-          sessionSummaries={profileDrawerStudent ? profileDrawerSessionSummaries : []}
-          onClose={() => setProfileDrawerStudentId(null)}
-          onOpenFullRecord={(studentId) => {
-            setProfileDrawerStudentId(null);
-            setTeacherTab('students');
-            setPathLaunchTeks(null);
-            setGradebookFilter((current) => ({ ...current, student: studentId }));
-          }}
-          onOpenGradebook={(studentId) => {
-            const student = allStudents.find((entry) => entry.id === studentId) || null;
-            setProfileDrawerStudentId(null);
-            if (student) handleViewClassGradebook(student.classId || student.classPeriod || '', student);
-          }}
-          studentRecord={profileDrawerStudent}
-          assignments={profileDrawerStudent
-            ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: profileDrawerStudent.classId || null, classPeriod: profileDrawerStudent.classPeriod || null }))
-            : []}
-          gradingPeriodSettings={gradingPeriodSettings}
-          onOpenAssignment={(assignmentId, classId) => { setProfileDrawerStudentId(null); openAssignmentHub(assignmentId, classId); }}
-          onOpenStudentWork={(classId, assignmentId, studentId) => { setProfileDrawerStudentId(null); openGradebookFor(classId, assignmentId, studentId); }}
-          teacherEmail={user?.role === 'teacher' ? user.email || '' : ''}
-          studentSupportProfile={profileDrawerStudent?.profile || null}
-          onSupportProfileSaved={handleSupportProfileSaved}
-          onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
-          onOpenCaseReview={user?.role === 'teacher' ? (studentId) => setCaseReviewStudentId(studentId) : null}
-        />
-
-        {/* Above the drawer it was opened from (closing it returns to the
-            student) and below the Support Evidence Report, which it can open. */}
-        {(() => {
-          const caseStudent = caseReviewStudentId
-            ? allStudents.find((entry) => entry.id === caseReviewStudentId) || null
-            : null;
-          if (!caseStudent) return null;
-          return (
-            <Suspense fallback={null}>
-              <StudentCaseReviewView
-                open
-                student={caseStudent}
-                studentName={formatStudentName(caseStudent)}
-                classRecord={classesById[caseStudent.classId] || null}
-                assignments={assignments}
-                gradingPeriodSettings={gradingPeriodSettings}
-                teacherEmail={user?.email || ''}
-                teacherUid={user?.uid || ''}
-                onClose={() => setCaseReviewStudentId(null)}
-                onInspectResponse={(target) => setResponseInspectorTarget(target)}
-                onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
-              />
-            </Suspense>
-          );
-        })()}
-
-        {(() => {
-          const reportStudent = supportReportStudentId
-            ? allStudents.find((entry) => entry.id === supportReportStudentId) || null
-            : null;
-          return (
-            <SupportEvidenceReportView
-              open={Boolean(reportStudent)}
-              student={reportStudent}
-              studentName={reportStudent ? formatStudentName(reportStudent) : ''}
-              classRecord={reportStudent ? classesById[reportStudent.classId] || null : null}
-              assignments={assignments}
-              gradingPeriodSettings={gradingPeriodSettings}
-              teacherEmail={user?.email || ''}
-              onClose={() => setSupportReportStudentId(null)}
-            />
-          );
-        })()}
-
-        <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: 'var(--mm-surface)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
-          <TeacherSidebar
-            activeTab={teacherTab}
-            actionCount={teacherActionOpenCount}
-            onSelectTab={(tab) => {
-              setTeacherTab(tab);
-              // The Gradebook inherits the workspace class rather than starting
-              // blank. Clearing it here was the last place a tab change threw
-              // away the teacher's context and made them choose again.
-              setGradebookFilter({
-                classId: activeClass.classId || '',
-                classPeriod: activeClass.classPeriod || '',
-                assignmentId: null,
-                student: null,
-              });
-              // `homeNavigationPeriod` is a one-shot hand-off from Teacher Home
-              // and is right to clear. `activeClass` is deliberately NOT cleared:
-              // it is the class the teacher is working in, and it has to survive
-              // the walk to another tab and back.
-              setHomeNavigationPeriod(null);
-              setLiveFocus(null);
-              setGradebookProgressFilter('all');
-              // Grade Export follows the class the teacher is working in, like
-              // every other class-first screen; "All classes" is one click away.
-              if (tab === 'gradeTransfer') {
-                setGradeExportScope(activeClass.classId ? { classIds: [activeClass.classId], assignmentId: null, nonce: Date.now() } : null);
-              }
-              // Full academic records are loaded by the tab-scoped subscription
-              // only on screens that actually need them.
-            }}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Wraps on a phone: the title and the Find / workspace / Log Out actions
-              used to share one row and the actions ran past the card's edge. */}
-          <header style={{ padding: 'clamp(18px, 4vw, 28px) clamp(16px, 4vw, 30px)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--mm-border-soft)', gap: '14px 20px' }}>
-            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-              <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '25px' }}>Instructor Dashboard</h1>
-              <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {/*
-                The shortcut is the point, but a shortcut nobody knows about is
-                a feature that does not exist. The button carries its own key
-                hint so the palette is discoverable without a tour.
-              */}
-              <button
-                type="button"
-                onClick={() => setQuickSearchOpen(true)}
-                title="Find a student, class, assignment or TEKS code"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 13px', background: 'var(--mm-surface)', color: 'var(--mm-text)', border: '1px solid var(--mm-border)', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}
-              >
-                <span aria-hidden="true">🔍</span>
-                <span>Find…</span>
-                <kbd style={{ padding: '1px 5px', border: '1px solid var(--mm-border)', borderRadius: 4, background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 11, fontFamily: 'inherit' }}>⌘K</kbd>
-              </button>
-              {rootAdminUiEligible && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: 'var(--mm-surface-control)', border: '1px solid var(--mm-border)' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: 'var(--mm-text)', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
-              <button onClick={handleLogout} style={{ padding: '8px 16px', background: 'var(--mm-surface)', color: 'var(--mm-danger)', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
-            </div>
-          </header>
-
-          <div className="mm-dashboard-content" style={{ padding: '30px' }}>
-            {/*
-              CLASS FIRST, THEN FEATURE.
-              The bar states one piece of application state that every
-              class-scoped view below reads. It is shown only on the tabs where
-              a class actually scopes what is on screen — putting it above the
-              Math Tools Lab or Student Access would imply a scoping that does
-              not exist there, which is worse than not showing it at all.
-            */}
-            {CLASS_SCOPED_TABS[teacherTab] && (
-              <div style={{ marginBottom: 20 }}>
-                <ClassContextBar
-                  classes={classes}
-                  students={allStudents}
-                  activeClassId={activeClass.classId}
-                  onSelectClass={setActiveClass}
-                  scopeLabel={CLASS_SCOPED_TABS[teacherTab].scopeLabel}
-                  allowAllClasses={CLASS_SCOPED_TABS[teacherTab].allowAllClasses !== false}
-                />
-              </div>
-            )}
-
-            {teacherTab === 'demo' && <DemoExperience />}
-
-            {teacherTab === 'liveChallenge' && (
-              <Suspense fallback={<div style={{ padding: 28 }}>Loading Live Challenge…</div>}>
-                <LiveChallengeTeacher
-                  allStudents={allStudents}
-                  classes={classes}
-                  courseProfiles={courseProfiles}
-                  signedInEmail={user.email}
-                  assignments={assignments}
-                  onLinkWarmupChallenge={handleLinkWarmupChallenge}
-                />
-              </Suspense>
-            )}
-
-            {teacherTab === 'weeklyPath' && (
-              <WeeklyPathControls
-                classes={classes}
-                selectedClassId={activeClass.classId || classes[0]?.classId || null}
-                goalsByClass={weeklyGoalsByClass}
-                // The roster's own profiles, reused rather than rebuilt: the
-                // badge in this table and the badge on the Students screen have
-                // to be the same badge from the same evidence, or a teacher is
-                // being shown two opinions about one child.
-                studentsInClass={teacherWeeklyRoster}
-                goalsByStudentId={teacherWeeklyGoalsByStudent}
-                completionsByStudentId={weeklyPathCompletionsByStudent}
-                learningProfilesByStudentId={teacherLearningProfiles}
-                progressLoading={weeklyPathProgressLoading}
-                progressTruncated={weeklyPathTruncated}
-                onChange={handleSaveWeeklyGoal}
-                onOpenStudent={setProfileDrawerStudentId}
-                saving={weeklyGoalBusy}
-                now={now}
-              />
-            )}
-
-            {teacherTab === 'pacing' && (
-              <PacingControls
-                classes={classes}
-                assignments={assignments}
-                courseProfiles={courseProfiles}
-                pacingByClass={pacingByClass}
-                overrides={skillOverrides}
-                onSavePacing={handleSavePacing}
-                onSaveOverrides={handleSaveOverrides}
-                busy={pacingBusy}
-                activeClassId={activeClass.classId}
-              />
-            )}
-
-            {teacherTab === 'simulator' && (
-              <PathSimulator
-                assignments={assignments}
-                teacherId={user?.id || 'teacher'}
-                onCopyText={(text) => {
-                  // Clipboard access can be blocked; a window the teacher can
-                  // select from beats silently losing the package.
-                  const preview = window.open('', '_blank');
-                  if (preview) { preview.document.write(`<pre>${text.replace(/</g, '&lt;')}</pre>`); preview.document.close(); }
-                }}
-              />
-            )}
-
-            {teacherTab === 'library' && (
-              <AssignmentLibrary
-                assignments={assignments}
-                folderPaths={assignmentFolderPaths}
-                onCreateFolder={handleCreateFolder}
-                onRenameFolder={handleRenameFolder}
-                onDeleteFolder={handleDeleteFolder}
-                onMoveAssignment={handleMoveAssignmentToFolder}
-                onAssignAssignment={beginAssignLibraryAssignment}
-                onNavigateToAssignments={(navigation) => { setLibraryNavigation(navigation); setTeacherTab('assignments'); }}
-                nowValue={now}
-                classSchedule={classSchedule}
-                classes={classes}
-              />
-            )}
-            {teacherTab === 'assignments' && (
-              <div>
-                {/*
-                  The builder is a destination, not a header. It used to fill
-                  the first ~1,700px of this screen, pushing the teacher's own
-                  assignments out of sight. It stays mounted while folded, so a
-                  half-written plan survives opening and closing it.
-                */}
-                <details className="tw-disclosure" open={assignments.length === 0} style={{ marginBottom: 8 }}>
-                  <summary><span style={{ fontSize: 18 }}>Create and Assign</span> <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>build a new lesson with MathMaster, or paste/upload one</span></summary>
-                  <div className="tw-disclosure__body">
-                    <AssignmentIntake
-                      onJsonReady={handleAssignmentJsonReady}
-                      toastSuccess={toastSuccess}
-                      toastError={toastError}
-                      toastInfo={toastInfo}
-                    />
-                  </div>
-                </details>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '30px', marginBottom: '14px' }}>
-                  <h2 style={{ margin: 0 }}>
-                    Assignments
-                    <span style={{ marginLeft: '10px', fontSize: '14px', fontWeight: 600, color: 'var(--mm-ink-muted)' }}>
-                      {visibleAssignments.length} {assignmentListIsFiltered ? 'shown' : 'total'}
-                    </span>
-                  </h2>
-                  <SearchField
-                    value={assignmentSearch}
-                    onChange={setAssignmentSearch}
-                    placeholder="Search assignments by title or folder…"
-                    label="Search assignments"
-                    style={{ flex: '1 1 280px', maxWidth: '420px' }}
-                  />
-                </div>
-
-                {selectedAssignmentIds.size > 0 && (
-                  <div className="mm-bulkbar">
-                    <span className="mm-bulkbar__count">{selectedAssignmentIds.size} selected</span>
-                    <span className="mm-bulkbar__spacer" />
-                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={() => handleBulkArchive(true)}>Archive</button>
-                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={() => handleBulkArchive(false)}>Unarchive</button>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700 }}>
-                      <span className="mm-sr-only">Move selected assignments to folder</span>
-                      <select
-                        value=""
-                        disabled={bulkBusy}
-                        onChange={(event) => { handleBulkMoveToFolder(event.target.value); event.target.value = ''; }}
-                        style={{ minHeight: '34px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.14)', color: '#fff', fontWeight: 700 }}
-                      >
-                        <option value="" disabled style={{ color: 'var(--mm-text-strong)' }}>Move to folder…</option>
-                        <option value="" style={{ color: 'var(--mm-text-strong)' }}>Uncategorized</option>
-                        {assignmentFolderPaths.map((path) => <option key={path} value={path} style={{ color: 'var(--mm-text-strong)' }}>{path}</option>)}
-                      </select>
-                    </label>
-                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={clearAssignmentSelection}>Clear</button>
-                  </div>
-                )}
-
-                {visibleAssignments.length > 0 && (
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--mm-ink-muted)', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={() => setSelectedAssignmentIds((current) => {
-                        const next = new Set(current);
-                        if (allVisibleSelected) visibleAssignmentIds.forEach((id) => next.delete(id));
-                        else visibleAssignmentIds.forEach((id) => next.add(id));
-                        return next;
-                      })}
-                    />
-                    Select all {visibleAssignmentIds.length}{assignmentListIsFiltered ? ' shown' : ' (including folded groups)'}
-                  </label>
-                )}
-
-                {libraryNavigation && (libraryNavigation.folder || libraryNavigation.smartView) && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', marginBottom: '14px', background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)', borderRadius: '8px', color: 'var(--mm-primary-text)', fontWeight: 'bold', fontSize: '13px' }}>
-                    <span>Filtered from Library{libraryNavigation.folder ? ` · ${libraryNavigation.folder}` : ''}{libraryNavigation.smartView ? ` · ${SMART_VIEWS.find((view) => view.id === libraryNavigation.smartView)?.label || libraryNavigation.smartView}` : ''}</span>
-                    <button type="button" onClick={() => setLibraryNavigation(null)} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer' }}>Clear filter</button>
-                  </div>
-                )}
-                {visibleAssignments.length === 0 && (
-                  <EmptyState
-                    icon={assignmentSearch ? '🔍' : '📄'}
-                    title={assignmentSearch ? `No assignments match “${assignmentSearch}”` : 'No assignments here yet'}
-                    message={assignmentSearch
-                      ? 'Try a shorter search, or clear the search to see everything in this view.'
-                      : 'Publish one with the form above, or pick a different folder or Smart View in the Library.'}
-                    action={assignmentSearch
-                      ? <button type="button" className="mm-btn mm-btn--secondary" onClick={() => setAssignmentSearch('')}>Clear search</button>
-                      : null}
-                  />
-                )}
-                {(() => {
-                const renderAssignmentCard = (assignment) => {
-                  const lifecycle = getAssignmentLifecycle(assignment, now);
-                  const affectedStudents = teacherStudentDataMode === 'full'
-                    ? allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length
-                    : null;
-                  const isSelected = selectedAssignmentIds.has(assignment.id);
-                  const canonicalQuestions = getStoredAssignmentQuestions(assignment);
-                  const includedQuestionIndices = getCurrentContentQuestionIndices(assignment);
-                  const hasDOL = Boolean(assignment?.dol?.enabled || canonicalQuestions.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
-                  const assignmentType = getStoredAssignmentTypeProjection(assignment);
-                  const assignmentVariantMode = getStoredAssignmentVariantMode(assignment);
-                  const hasSectionVersions = Object.keys(getStoredSectionVariantModes(assignment)).length > 0;
-                  const libraryRepair = inspectLibraryContentRepair(assignment, assignments);
-                  const contentUpgradeTarget = isLibraryAssignment(assignment)
-                    ? null
-                    : latestCurrentLibraryRelease(assignments, assignment);
-                  const hasContentUpgrade = Boolean(
-                    contentUpgradeTarget
-                    && contentVersionOf(contentUpgradeTarget) > contentVersionOf(assignment)
-                  );
-                  return (
-                    <article key={assignment.id} data-assignment-card={assignment.id} style={{ scrollMarginTop: '16px', background: 'var(--mm-surface-sunken)', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : 'var(--mm-border)'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleAssignmentSelected(assignment.id)}
-                          aria-label={`Select ${assignment.title}`}
-                          style={{ flex: '0 0 auto', width: '18px', height: '18px', cursor: 'pointer' }}
-                        />
-                        <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* The title opens the assignment's world: its classes,
-                                live room, controls, grades and export. */}
-                            <button type="button" className="tw-link" style={{ fontSize: '18px' }} onClick={() => openAssignmentHub(assignment.id)}>{assignment.title}</button>
-                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{contentVersionLabel(assignment)}</span>
-                            {hasContentUpgrade && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>V{contentVersionOf(contentUpgradeTarget)} AVAILABLE</span>}
-                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? 'var(--mm-surface-control)' : lifecycle.isLate ? 'var(--mm-warning-soft)' : 'var(--mm-success-bg)', color: lifecycle.isPracticeOnly ? 'var(--mm-text)' : lifecycle.isLate ? 'var(--mm-warning-text)' : 'var(--mm-success-text)' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
-                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : assignmentType.toUpperCase()}</span>
-                            {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>SECTION VERSIONS</span> : assignmentVariantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>SHARED VERSION</span>}
-                            {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>ARCHIVED</span>}
-                            {assignment.unpublished && !assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>PAUSED · HIDDEN FROM STUDENTS</span>}
-                            {isTestCycleAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>TEST CYCLE</span>}
-                            {/* A library item has no audience and no due date. Saying so
-                                plainly is the whole point of allowing it to exist. */}
-                            {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NOT ASSIGNED</span>}
-                          </div>
-                          <div style={{ marginTop: '7px', color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassIds || []).map((classId) => classesById[classId]?.name || classesById[classId]?.period).filter(Boolean).join(', ') || (assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents === null
-                            ? 'progress, grades and live activity in its details'
-                            : `${affectedStudents} student record${affectedStudents === 1 ? '' : 's'}`}</div>
-                        </div>
-                        <AssignmentCardMenu
-                          ariaLabel={`More actions for ${assignment.title}`}
-                          items={[
-                            { key: 'details', label: 'Open assignment details', onClick: () => openAssignmentHub(assignment.id) },
-                            ...(!isLibraryAssignment(assignment) && (assignment.assignedClassIds || []).length ? [
-                              { key: 'grades', label: 'Grades', onClick: () => openGradebookFor((assignment.assignedClassIds || []).includes(activeClass.classId) ? activeClass.classId : assignment.assignedClassIds[0], assignment.id) },
-                              { key: 'export-grades', label: 'Export grades', onClick: () => openGradeExport({ classIds: (assignment.assignedClassIds || []).includes(activeClass.classId) ? [activeClass.classId] : [], assignmentId: assignment.id }) },
-                            ] : []),
-                            ...(isTestCycleAssignment(assignment) ? [{
-                              key: 'test-cycle-results',
-                              label: 'Test results, release & retests',
-                              onClick: () => { setFocusedTestCycleAssignmentId(assignment.id); setTeacherTab('exams'); },
-                            }] : []),
-                            { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
-                            { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
-                            { key: 'edit-setup', label: 'Review / Edit Setup', onClick: () => beginEditAssignmentSetup(assignment) },
-                            { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
-                            { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
-                            { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
-                            ...(hasContentUpgrade ? [{
-                              key: 'upgrade-content-version',
-                              label: `Upgrade to Content V${contentVersionOf(contentUpgradeTarget)}`,
-                              onClick: () => setContentUpgradeRequest({ assignment, targetAssignment: contentUpgradeTarget }),
-                            }] : []),
-                            ...(!isLibraryAssignment(assignment) ? [{
-                              key: 'repair-classroom-post',
-                              label: 'Repair / Repost Classroom',
-                              onClick: () => handleRepairClassroomAssignmentPost(assignment),
-                            }, {
-                              key: 'force-classroom-post',
-                              label: 'Force New Classroom Post…',
-                              onClick: () => {
-                                setClassroomManagerAssignmentId(assignment.id);
-                                setTeacherTab('classroom');
-                              },
-                            }] : []),
-                            ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
-                              key: 'repair-library-content',
-                              label: `Repair Corrupted Question${libraryRepair.questionIds.length === 1 ? '' : 's'} from Original`,
-                              onClick: () => handleRepairAssignmentFromLibrary(assignment),
-                            }] : []),
-                            { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
-                            { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
-                            ...(!isLibraryAssignment(assignment) && !assignment.archived ? [{
-                              key: 'pause',
-                              label: assignment.unpublished ? 'Resume for students' : 'Pause (hide from students)',
-                              onClick: () => handleTogglePauseAssignment(assignment),
-                            }] : []),
-                            { key: 'archive', label: assignment.archived ? 'Unarchive' : 'Archive', onClick: () => handleToggleArchiveAssignment(assignment) },
-                            { key: 'delete', label: 'Delete', tone: 'danger', onClick: () => openDeleteDialog(assignment) },
-                          ]}
-                        />
-                      </div>
-                      {movingFolderAssignmentId === assignment.id && (
-                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--mm-border)', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end' }}>
-                          <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Folder
-                            <select value={movingFolderValue} onChange={(event) => setMovingFolderValue(event.target.value)} style={{ display: 'block', marginTop: '5px', padding: '9px', border: '1px solid var(--mm-border)', borderRadius: '7px', minWidth: '220px' }}>
-                              <option value="">Uncategorized</option>
-                              {assignmentFolderPaths.map((path) => <option key={path} value={path}>{path}</option>)}
-                            </select>
-                          </label>
-                          <button onClick={async () => { await handleMoveAssignmentToFolder(assignment.id, movingFolderValue); setMovingFolderAssignmentId(null); }} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Folder</button>
-                          <button onClick={() => setMovingFolderAssignmentId(null)} style={{ padding: '10px 15px', background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
-                        </div>
-                      )}
-                      {editingAssignmentId === assignment.id && (
-                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--mm-border)', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'end' }}>
-                          <label style={{ fontWeight: 'bold' }}>Regular due <input type="datetime-local" value={editingAssignmentDates.dueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
-                          <label style={{ fontWeight: 'bold' }}>Final late due <input type="datetime-local" value={editingAssignmentDates.lateDueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, lateDueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
-                          {hasDOL && <label style={{ fontWeight: 'bold' }}>DOL instructional date <input type="date" value={editingAssignmentDates.dolInstructionDate || ''} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dolInstructionDate: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>}
-                          <div style={{ flex: '1 1 100%', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {classes.filter((entry) => entry?.status !== 'archived' && entry?.classId).map((classRecord) => {
-                              const selected = editingAssignmentDates.assignedClassIds?.includes(classRecord.classId);
-                              return (
-                                <label key={classRecord.classId || classRecord.period} style={{ padding: '5px 8px', borderRadius: '999px', background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', fontWeight: 'bold', fontSize: '12px' }}>
-                                  <input type="checkbox" checked={Boolean(selected)} onChange={() => setEditingAssignmentDates((current) => {
-                                    const ids = current.assignedClassIds?.includes(classRecord.classId)
-                                      ? current.assignedClassIds.filter((item) => item !== classRecord.classId)
-                                      : [...(current.assignedClassIds || []), classRecord.classId];
-                                    const periods = [...new Set(classes.filter((entry) => ids.includes(entry.classId)).map((entry) => entry.period).filter(Boolean))];
-                                    return { ...current, assignedClassIds: ids, assignedClassPeriods: periods };
-                                  })} /> {classRecord.name || classRecord.period}{classRecord.name && classRecord.name !== classRecord.period ? ` · ${classRecord.period}` : ''}
-                                </label>
-                              );
-                            })}
-                          </div>
-                          <button onClick={() => handleSaveAssignmentDates(assignment.id)} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Dates</button>
-                          <button onClick={() => setEditingAssignmentId(null)} style={{ padding: '10px 15px', background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
-                        </div>
-                      )}
-                    </article>
-                  );
-                };
-                /*
-                  CURRENT WORK FIRST (platform/teacher/assignmentListGroups.js).
-                  This list used to be every assignment ever made, oldest due
-                  date first. Now: what is open, then what is scheduled; closed
-                  work folds by marking period and library copies fold last.
-                  Nothing is hidden — a search or Library filter shows one flat,
-                  current-first list so a match is never folded away.
-                */
-                const listGroups = groupAssignmentList({
-                  assignments: visibleAssignments,
-                  nowValue: now,
-                  gradingPeriodSettings,
-                  flat: assignmentListIsFiltered,
-                });
-                return listGroups.map((group) => {
-                  const holdsOpenEditor = group.assignments.some((assignment) => assignment.id === editingAssignmentId || assignment.id === movingFolderAssignmentId);
-                  if (!group.folded) {
-                    return (
-                      <section key={group.id} aria-label={group.label} data-assignment-group={group.id} style={{ marginBottom: '8px' }}>
-                        {listGroups.length > 1 && (
-                          <h3 style={{ margin: '4px 0 10px', fontSize: '15px', textAlign: 'left' }}>
-                            {group.label} <span className="tw-pill">{group.assignments.length}</span>
-                            {group.hint && <span className="tw-small tw-muted" style={{ fontWeight: 600, marginLeft: 8 }}>{group.hint}</span>}
-                          </h3>
-                        )}
-                        {group.assignments.map(renderAssignmentCard)}
-                      </section>
-                    );
-                  }
-                  const open = holdsOpenEditor || (assignmentGroupOpen[group.id] ?? false);
-                  return (
-                    <details
-                      key={group.id}
-                      className="tw-disclosure"
-                      data-assignment-group={group.id}
-                      open={open}
-                      onToggle={(event) => {
-                        const next = event.currentTarget.open;
-                        if (next !== open) setAssignmentGroupOpen((current) => ({ ...current, [group.id]: next }));
-                      }}
-                      style={{ marginBottom: '10px' }}
-                    >
-                      <summary>{group.label} <span className="tw-pill">{group.assignments.length}</span>{group.hint && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{group.hint}</span>}</summary>
-                      <div className="tw-disclosure__body">{open && group.assignments.map(renderAssignmentCard)}</div>
-                    </details>
-                  );
-                });
-                })()}
-              </div>
-            )}
-
-            {teacherTab === 'students' && (
-              <StudentsRoster
-                // The roster inherits the workspace class instead of carrying
-                // its own filter. "All classes" is still available from the bar
-                // above, so nothing a teacher could see before is unreachable.
-                students={activeClass.classId ? studentsInActiveClass : allStudents}
-                classes={classes}
-                classPeriods={CLASS_PERIODS}
-                courseProfiles={courseProfiles}
-                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
-                assignments={assignments}
-                pacingByClass={pacingByClass}
-                skillOverrides={skillOverrides}
-                onChangeClassPeriod={handleChangeClassPeriod}
-                teacherEmail={user?.email || ''}
-                onSupportProfileSaved={handleSupportProfileSaved}
-                onGenerateIEPReport={openIEPReport}
-                isRootAdmin={rootAdminUiEligible}
-                onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
-                onOpenProfileDrawer={setProfileDrawerStudentId}
-                onOpenAssignment={openAssignmentHub}
-                onOpenStudentWork={(classId, assignmentId, studentId) => openGradebookFor(classId, assignmentId, studentId)}
-                gradingPeriodSettings={gradingPeriodSettings}
-              />
-            )}
-
-            {teacherTab === 'home' && (
-              <TeacherHome
-                onLiveClassChange={reportLiveClass}
-                allStudents={allStudents}
-                studentIdentityIndex={teacherStudentIdentityIndex}
-                assignments={assignments}
-                classSchedule={classSchedule}
-                nowValue={now}
-                presenceById={presenceById}
-                onSelectPeriod={handleGoToClassFromHome}
-                needsAttention={needsAttentionQueue}
-                needsAttentionCompletionCoverage={Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId}
-                needsAttentionAcademicCoverage={teacherStudentDataMode === 'full'}
-                learningProfilesByStudentId={teacherLearningProfiles}
-                activeClassId={activeClass.classId}
-                classes={classes}
-                teacherUid={auth.session?.uid || user.uid || ''}
-                teacherEmail={user.email || ''}
-                teacherLabel={user.displayName || user.name || user.email || 'Your teacher'}
-                isRootAdmin={user.isRootAdmin === true}
-                studentSupportEvents={studentSupportEvents}
-                studentSessionSummaries={studentSessionSummaries}
-                onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
-                onRecommendPersonalPath={handlePersonalPathRecommendation}
-                pathInterventionBusyStudentId={pathInterventionBusyStudentId}
-                onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
-                onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
-                onUnlockDOL={handleUnlockDOLForClass}
-                dolUnlockBusyKey={dolUnlockBusyKey}
-                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
-                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
-                onToggleWarmup={handleToggleWarmupForClass}
-                warmupControlBusyKey={warmupControlBusyKey}
-                onToggleSectionAccess={handleToggleSectionAccessForClass}
-                sectionAccessBusyKey={sectionAccessBusyKey}
-                // Opening a name is a question, not a navigation. It used to
-                // throw the teacher into the Gradebook, losing whatever they
-                // were doing on Home.
-                onOpenStudent={setProfileDrawerStudentId}
-                gradingPeriodSettings={gradingPeriodSettings}
-                liveTeachingSession={liveTeachingSession}
-                onTeachAssignment={teachAssignmentLive}
-                onResumeTeaching={resumeLiveTeaching}
-                onEndLiveTeaching={endLiveTeaching}
-                onDolControl={handleDolControlForClass}
-                dolControlBusyKey={dolControlBusyKey}
-                onOpenAssignment={openAssignmentHub}
-                onSelectClass={(classContext) => { setLiveFocus(null); setActiveClass(classContext); }}
-                liveFocus={liveFocus}
-              />
-            )}
-
-            {teacherTab === 'attendanceHistory' && (
-              <AttendanceHistoryPanel
-                onClassChange={reportAttendanceClass}
-                db={db}
-                classes={classes}
-                allStudents={allStudents}
-                assignments={assignments}
-                classSchedule={classSchedule}
-                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
-                teacherEmail={user.email || ''}
-                nowValue={now}
-                onRecordCorrection={handleRecordStudentSupportEvent}
-                recentSupportEvents={studentSupportEvents}
-                reviewBusyKey={attendanceReviewBusyKey}
-                onKeepExtension={handleKeepAttendanceExtension}
-                onApplyShorterExtension={handleApplyShorterAttendanceExtension}
-                initialClassId={activeClass.classId}
-              />
-            )}
-
-            {teacherTab === 'actionCenter' && (
-              <TeacherActionCenter
-                projectedItems={teacherActionItems}
-                students={allStudents}
-                classes={classes}
-                assignments={assignments}
-                supportEvents={studentSupportEvents}
-                parentContacts={parentContacts}
-                gradeTransferUnits={actionGradeScope.units}
-                retestRecoveryActions={retestRecoveryActions}
-                classSchedule={classSchedule}
-                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
-                nowValue={now}
-                onResolveReturnCheckIn={(candidate) => candidate && handleRecordStudentSupportEvent(buildReturnCheckInEvent({ candidate, actorEmail: user.email }))}
-                onOpenWorkflow={(item) => {
-                  if (item.sourceType === 'studentSupportEvent') setParentContactSourceAction(item);
-                  // A grade-export row opens Grade Export on exactly that class
-                  // and assignment rather than the full list of every export.
-                  if (item.sourceType === 'gradeTransfer') {
-                    openGradeExport({ classIds: item.classId ? [item.classId] : [], assignmentId: item.assignmentId || null });
-                    return;
-                  }
-                  setTeacherTab(item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
-                }}
-              />
-            )}
-
-            {teacherTab === 'parentContacts' && (
-              <ParentContactCenter
-                students={allStudents}
-                classes={classes}
-                assignments={assignments}
-                contacts={parentContacts}
-                supportEvents={studentSupportEvents}
-                sessionSummaries={studentSessionSummaries}
-                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
-                classSchedule={classSchedule}
-                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
-                nowValue={now}
-                sourceAction={parentContactSourceAction}
-                onRecordContact={async (contact) => {
-                  const recorded = await recordParentContact({ db, teacherEmail: user.email, contact });
-                  if (contact.sourceEventId) {
-                    await handleRecordStudentSupportEvent({
-                      kind: SUPPORT_EVENT_KIND.RESOLVED, stage: SUPPORT_EVENT_STAGE.RESOLVED,
-                      studentId: contact.studentId, studentName: contact.studentName,
-                      classId: contact.classId, classPeriod: contact.classPeriod,
-                      sourceEventId: contact.sourceEventId, resolvesEventId: contact.sourceEventId,
-                      summary: 'Parent follow-up completed by recorded parent contact.',
-                    });
-                    setParentContactSourceAction(null);
-                  }
-                  return recorded;
-                }}
-                onCompleteFollowUp={(contact) => recordParentContactResolution({ db, teacherEmail: user.email, contact })}
-                onExportContacts={() => fetchAllParentContactsForExport({ db, teacherEmail: user.email })}
-              />
-            )}
-
-            {teacherTab === 'classesWorkspace' && (
-              <ClassesWorkspace
-                classes={classes}
-                allStudents={allStudents}
-                assignments={assignments}
-                classSchedule={classSchedule}
-                nowValue={now}
-                presenceById={presenceById}
-                onViewGradebook={handleViewClassGradebook}
-                onUnlockDOL={handleUnlockDOLForClass}
-                dolUnlockBusyKey={dolUnlockBusyKey}
-                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
-                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
-                onToggleWarmup={handleToggleWarmupForClass}
-                warmupControlBusyKey={warmupControlBusyKey}
-                onToggleSectionAccess={handleToggleSectionAccessForClass}
-                sectionAccessBusyKey={sectionAccessBusyKey}
-                onDolControl={handleDolControlForClass}
-                dolControlBusyKey={dolControlBusyKey}
-                onOpenAssignment={openAssignmentHub}
-                onOpenLive={(classContext) => openLiveFor(classContext, null)}
-                onOpenExport={(classId) => openGradeExport({ classIds: [classId] })}
-                gradingPeriodSettings={gradingPeriodSettings}
-                initialPeriod={homeNavigationPeriod}
-                initialClassId={activeClass.classId}
-                onSelectClass={setActiveClass}
-                learningProfilesByStudentId={teacherLearningProfiles}
-                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
-                needsAttentionCount={needsAttentionQueue.length}
-                onOpenStudent={setProfileDrawerStudentId}
-                evidenceByStudentId={classEvidenceByStudentId}
-                onLoadDeliveredRigor={handleLoadDeliveredRigor}
-                rigorLoading={classEvidenceLoading}
-                academicDataLoaded={teacherStudentDataMode === 'full'}
-              />
-            )}
-
-            {teacherTab === 'classes' && (
-              <div>
-                <h2 style={{ marginTop: 0 }}>Class & Bell Schedule Settings</h2>
-                <ClassCourseSettings classPeriods={CLASS_PERIODS} courseProfiles={courseProfiles} assignments={assignments} onChange={handleUpdateCourseProfile} onSave={handleSaveCourseProfiles} saving={courseProfilesSaving} />
-                <ClassScheduleSettings
-                  classPeriods={CLASS_PERIODS}
-                  schedule={classSchedule}
-                  onChange={setClassSchedule}
-                  onSave={handleSaveClassSchedule}
-                  nowValue={now}
-                />
-              </div>
-            )}
-
-            {teacherTab === 'grades' && (
-              <div>
-                <h2 style={{ marginTop: 0 }}>Gradebook and Evidence</h2>
-
-                {classes.length > 0 && !gradebookFilter.classId && !gradebookFilter.student && (
-                  <GradebookClassChooser classes={classes} schedule={classSchedule} nowValue={now} onChoose={setActiveClass} />
-                )}
-
-                {/*
-                  THE ASSIGNMENT FIRST. The grades used to sit behind a "Select
-                  assignment" dropdown below the marking-period settings and the
-                  weekly Path panel. The bar picks the most relevant current
-                  assignment, and its summary is also the table's filter.
-                */}
-                <GradebookAssignmentBar
-                  assignments={assignmentsForSelectedClass}
-                  selectedAssignmentId={gradebookFilter.assignmentId}
-                  onSelectAssignment={(assignmentId) => {
-                    setGradebookProgressFilter('all');
-                    setGradebookFilter((current) => ({ ...current, assignmentId: assignmentId || null, student: null }));
-                  }}
-                  gradingPeriodSettings={gradingPeriodSettings}
-                  nowValue={now}
-                  disabled={!selectedGradebookPeriod}
-                  autoSelect={!gradebookFilter.student}
-                  progress={gradebookProgress}
-                  progressFilter={gradebookProgressFilter}
-                  onProgressFilter={setGradebookProgressFilter}
-                  classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
-                  onOpenAssignment={(assignmentId) => openAssignmentHub(assignmentId, gradebookFilter.classId || null)}
-                  onOpenLive={(assignmentId) => openLiveFor({ classId: gradebookFilter.classId || null, classPeriod: selectedGradebookPeriod || null }, assignmentId)}
-                  onOpenExport={(assignmentId) => openGradeExport({ classIds: gradebookFilter.classId ? [gradebookFilter.classId] : [], assignmentId })}
-                />
-                {(!classes.length || gradebookFilter.student) && (
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                  {/*
-                    The class dropdown that stood here is gone; the class bar
-                    above the page owns that choice now. The legacy period
-                    picker survives only for a school with no class records at
-                    all, which has no classes for the bar to offer.
-                  */}
-                  {!classes.length && (
-                    <select
-                      value={gradebookFilter.classPeriod}
-                      onChange={(event) => setGradebookFilter({
-                        classId: '', classPeriod: event.target.value, assignmentId: null, student: null,
-                      })}
-                      style={{ padding: '9px', minWidth: '220px' }}
-                    >
-                      <option value="">Select class period</option>
-                      {CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}
-                    </select>
-                  )}
-                  {gradebookFilter.student && <button onClick={() => setGradebookFilter((current) => ({ ...current, student: null }))} style={{ padding: '9px 14px' }}>Back to class list</button>}
-                </div>
-                )}
-
-                {selectedAssignment && assignmentUsesTeacherReleasePolicy(selectedAssignment) && (
-                  <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px', padding: '15px 17px', borderRadius: '9px', background: assignmentFeedbackWasReleased(selectedAssignment) ? 'var(--mm-success-bg)' : 'var(--mm-primary-subtle)', border: `1px solid ${assignmentFeedbackWasReleased(selectedAssignment) ? 'var(--mm-success-border)' : 'var(--mm-primary-border)'}`, textAlign: 'left' }}>
-                    <div>
-                      <strong style={{ color: assignmentFeedbackWasReleased(selectedAssignment) ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>{assignmentFeedbackWasReleased(selectedAssignment) ? 'Assessment feedback released' : 'Assessment feedback is held'}</strong>
-                      <div style={{ marginTop: '4px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>{assignmentFeedbackWasReleased(selectedAssignment) ? `Students can now see correctness and grades.${selectedAssignment.feedbackReleasedAt ? ` Released ${formatTimeStamp(selectedAssignment.feedbackReleasedAt)}.` : ''}` : 'You can review scores here; students see only a neutral submitted state until you release feedback.'}</div>
-                    </div>
-                    {!assignmentFeedbackWasReleased(selectedAssignment) && (
-                      <button type="button" disabled={feedbackReleaseBusyId === selectedAssignment.id} onClick={() => handleReleaseAssignmentFeedback(selectedAssignment)} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: feedbackReleaseBusyId === selectedAssignment.id ? '#dadce0' : '#174ea6', color: '#fff', fontWeight: 900, cursor: feedbackReleaseBusyId === selectedAssignment.id ? 'wait' : 'pointer' }}>
-                        {feedbackReleaseBusyId === selectedAssignment.id ? 'Releasing…' : 'Release Feedback to Students'}
-                      </button>
-                    )}
-                  </section>
-                )}
-
-                {/*
-                  "The teacher should never have to guess whether two students'
-                  scores came from identical rigor." On an adaptive assignment
-                  two students can both score 80% having answered genuinely
-                  different questions. That is the point of adaptation, and it
-                  makes the two scores incomparable in a way nothing on this
-                  screen previously admitted. Read from delivered evidence, not
-                  from the assignment's declared mode.
-                */}
-                {selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ marginBottom: 16, padding: '11px 14px', borderRadius: 9, border: '1px solid var(--mm-border)', background: gradebookRigor.state === COMPARABILITY.VARIED ? 'var(--mm-accent-subtle)' : 'var(--mm-surface-sunken)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: gradebookRigor.state === COMPARABILITY.VARIED ? 'var(--mm-accent-soft)' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: gradebookRigor.state === COMPARABILITY.VARIED ? 'var(--mm-accent-text)' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
-                      {gradebookRigor.state === COMPARABILITY.VARIED ? 'RIGOR VARIED' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? 'SAME RIGOR' : 'RIGOR UNKNOWN'}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 220, color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>{gradebookRigor.note}</span>
-                    {gradebookRigor.state === COMPARABILITY.UNKNOWN && (
-                      <button
-                        type="button"
-                        onClick={() => handleLoadDeliveredRigor(selectedClassStudents.map((student) => student.id))}
-                        disabled={classEvidenceLoading}
-                        style={{ padding: '7px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5, cursor: classEvidenceLoading ? 'wait' : 'pointer' }}
-                      >
-                        {classEvidenceLoading ? 'Reading delivery history…' : 'Check delivered rigor'}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const testCycleRow = isTestCycleAssignment(selectedAssignment); /* A Test Cycle's grade is its RECORDED grade (released Test, capped retest), not its Review tracker. */ const score = testCycleRow ? canonicalPresentedAssignmentGrade({ student, assignment: selectedAssignment }) : assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const heldSections = heldRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}{heldSections.has(section) ? <span data-held-recovery-section={section} title="A Practice-based Recovery is held for you: MathMaster could not grade one or more of its questions. The original shows until you resolve it in Details; Classroom and Grade Transfer wait." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>Held</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? 'var(--mm-accent-text)' : score >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
-                    {/*
-                      COMPLETION AND PERFORMANCE, VISUALLY APART.
-                      The grade above is unchanged. These two lines are what a
-                      teacher previously reconstructed by clicking into each
-                      student one at a time: how much was attempted, and how they
-                      did on what they attempted. A grey completion chip is
-                      deliberately NOT red — a student who missed a week has not
-                      failed mathematics.
-                    */}
-                    {gradeSplit.shape !== 'complete' && (
-                      <div style={{ marginTop: 5, display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span style={{ padding: '2px 7px', borderRadius: 999, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', fontSize: 10.5, fontWeight: 900 }}>
-                          {gradeSplit.attempted}/{gradeSplit.total} ANSWERED
-                        </span>
-                        {gradeSplit.creditOnAttempted !== null && (
-                          <span style={{ padding: '2px 7px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 10.5, fontWeight: 900 }}>
-                            {gradeSplit.creditOnAttempted}% ON THOSE
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: 'var(--mm-text-muted)', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice?.excused ? <span title="The student used a Practice Pass: Practice is excused — not scored and not required." style={{ color: 'var(--mm-accent-text)' }}>Excused (Pass)</span> : sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
-                )}
-
-                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const drillRequired = studentRequiredQuestions({ assignment: selectedAssignment, profile: student.profile || null, tracker: student.gradesByAssignment?.[selectedAssignment.id] || null }); const drillOmitted = new Set(drillRequired.omitted); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment, { supportProfile: student.profile || null }) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && <StudentDolRecoveryRow db={db} assignment={selectedAssignment} student={student} classId={student.classId || activeClass?.classId || null} viewer={{ email: user.email, isRootAdmin: user.isRootAdmin === true }} busy={dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`} onGrant={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} />}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '14px' }}>{drillRequired.workload?.status === 'applied' && <div data-reduced-workload-summary style={{ gridColumn: '1 / -1', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 12.5, fontWeight: 700 }}>Fewer items, same rigor: {describeWorkloadSummary(drillRequired.workload)}</div>}{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; if (drillOmitted.has(index)) return <article key={index} data-not-required-question={index} style={{ padding: '16px', borderRadius: '9px', background: 'var(--mm-surface)', border: '1px dashed var(--mm-border)', textAlign: 'left', color: 'var(--mm-text-muted)' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '15px', fontWeight: 800 }}>Not required for this student</div><div style={{ fontSize: '12px' }}>Fewer items, same rigor — not counted in the score.</div></article>; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? 'var(--mm-success-bg)' : record.status === 'expired' && credit < 50 ? 'var(--mm-error-bg)' : credit >= 50 ? 'var(--mm-warning-soft)' : 'var(--mm-surface-control)', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid var(--mm-border-strong)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
-
-                {/*
-                  Settings and the separate weekly Path grade stay one click
-                  away instead of standing between the teacher and the grades.
-                */}
-                {activeClass.classId && (
-                  <details className="tw-disclosure" style={{ marginTop: 22 }}>
-                    <summary>Weekly learning path grade <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>a separate grade for this week&apos;s Path practice</span></summary>
-                    <div className="tw-disclosure__body">
-                      <WeeklyPathGradePanel
-                        students={teacherWeeklyRoster}
-                        goalsByStudentId={teacherWeeklyGoalsByStudent}
-                        completionsByStudentId={weeklyPathCompletionsByStudent}
-                        learningProfilesByStudentId={teacherLearningProfiles}
-                        weekKey={weeklyPathWeekKey}
-                        classId={activeClass.classId}
-                        classroomLinked={Boolean(classesById[activeClass.classId]?.classroomCourseId)}
-                        progressTruncated={weeklyPathTruncated}
-                        weekComplete={weeklyPathWeekComplete}
-                        onOpenStudent={setProfileDrawerStudentId}
-                        onReviewClassroomSync={(proposal) => setClassroomSyncProposal(proposal)}
-                        now={now}
-                        progressState={weeklyPathProgressLoadedFor === activeClass.classId ? 'loaded' : weeklyPathProgressLoading ? 'loading' : 'unavailable'}
-                      />
-                    </div>
-                  </details>
-                )}
-                <details className="tw-disclosure" style={{ marginTop: 12 }}>
-                  <summary>Marking periods <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>add, close, and file assignments into marking periods</span></summary>
-                  <div className="tw-disclosure__body">
-                    <MarkingPeriodSettings
-                      settings={gradingPeriodSettings}
-                      assignments={assignmentsForSelectedClass}
-                      classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
-                      busy={gradingPeriodBusy || bulkBusy}
-                      onCreatePeriod={handleCreateGradingPeriod}
-                      onSetCurrentPeriod={handleSetCurrentGradingPeriod}
-                      onSetPeriodArchived={handleSetGradingPeriodArchived}
-                      onMoveSelectedAssignments={handleMoveSelectedAssignmentsToGradingPeriod}
-                    />
-                  </div>
-                </details>
-              </div>
-            )}
-
-            {teacherTab === 'gradeTransfer' && (
-              <GradeTransferCenter
-                onClassScopeChange={reportExportClasses}
-                classes={classes}
-                assignments={assignments}
-                students={allStudents}
-                teacherUid={auth.session?.uid || user.uid || ''}
-                teacherEmail={user.email || ''}
-                isRootAdmin={user.isRootAdmin === true}
-                gradingPeriodSettings={gradingPeriodSettings}
-                initialScope={gradeExportScope}
-                onOpenGrades={(classId, assignmentId) => openGradebookFor(classId, assignmentId)}
-                onOpenAssignment={(assignmentId, classId) => openAssignmentHub(assignmentId, classId)}
-              />
-            )}
-
-
-            {responseInspectorTarget && (
-              <StudentResponseInspector
-                {...responseInspectorTarget}
-                studentIdentityIndex={teacherStudentIdentityIndex}
-                onClose={() => setResponseInspectorTarget(null)}
-                onChanged={undefined}
-              />
-            )}
-            {teacherTab === 'standards' && (
-              <TexasStandardsDashboard
-                // Scoped by the class bar. A mastery picture averaged across
-                // five different classes is not a picture of anything a teacher
-                // can act on.
-                allStudents={activeClass.classId ? studentsInActiveClass : allStudents}
-                assignments={assignments}
-                classes={classes}
-                learningProfilesByStudentId={teacherLearningProfiles}
-                courseLevelByStudentId={courseLevelByStudentId}
-                onOpenStudent={setProfileDrawerStudentId}
-                className={classesById[activeClass.classId]?.name || 'this class'}
-              />
-            )}
-
-            {teacherTab === 'analytics' && (
-              <TeacherAnalyticsDashboard
-                students={teacherAnalyticsStudents}
-                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
-                learningProfilesByStudentId={teacherLearningProfiles}
-                onOpenStudent={setProfileDrawerStudentId}
-              />
-            )}
-
-            {teacherTab === 'exams' && (
-              <TeacherSecureExamDashboard
-                students={allStudents}
-                classId={activeClass.classId || null}
-                // The teacher's own Test Cycles, administered beside the
-                // simulations they already run on this same secure runtime.
-                testCycleAssignments={assignments.filter(isTestCycleAssignment)}
-                focusedTestCycleAssignmentId={focusedTestCycleAssignmentId}
-                onPreviewTestCycle={(assignment) => setTestCyclePreviewAssignment(assignment)}
-              />
-            )}
-
-            {teacherTab === 'mathTools' && (
-              <div>
-                <h2 style={{ marginTop: 0 }}>Math Tools Lab</h2>
-                <p style={{ color: 'var(--mm-ink-muted)', marginTop: '-4px' }}>
-                  A preview bench for the interactive tools. These run standalone — nothing here is graded,
-                  saved to a student record, or published to Google Classroom, so it is safe to experiment.
-                </p>
-                <MathToolsLab />
-              </div>
-            )}
-
-            {teacherTab === 'classroom' && (
-              <ClassroomManagerV2
-                assignments={assignments}
-                classes={classes}
-                students={allStudents}
-                teacherEmail={user.email}
-                initialAssignmentId={classroomManagerAssignmentId}
-              />
-            )}
-
-            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
-          </div>
-          </div>
-        </div>
-      </div>
+      <TeacherWorkspace
+        SCHOOL_NON_INSTRUCTIONAL_KEYS={SCHOOL_NON_INSTRUCTIONAL_KEYS}
+        V5_COMPILER_PLUMBING_ERROR={V5_COMPILER_PLUMBING_ERROR}
+        actionGradeScope={actionGradeScope}
+        activeClass={activeClass}
+        adminTab={adminTab}
+        allStudents={allStudents}
+        assignmentFolderPaths={assignmentFolderPaths}
+        assignmentGroupOpen={assignmentGroupOpen}
+        assignmentHubTarget={assignmentHubTarget}
+        assignmentPreflight={assignmentPreflight}
+        assignmentPreflightBusy={assignmentPreflightBusy}
+        assignmentSearch={assignmentSearch}
+        assignments={assignments}
+        attendanceReviewBusyKey={attendanceReviewBusyKey}
+        auth={auth}
+        autoPublishAssignmentPackageToClassroom={autoPublishAssignmentPackageToClassroom}
+        beginEditAssignmentDates={beginEditAssignmentDates}
+        beginTeacherWorksheetExport={beginTeacherWorksheetExport}
+        bulkBusy={bulkBusy}
+        calculateGrade={calculateGrade}
+        caseReviewStudentId={caseReviewStudentId}
+        ccmrAuditWarnings={ccmrAuditWarnings}
+        classEvidenceByStudentId={classEvidenceByStudentId}
+        classEvidenceLoading={classEvidenceLoading}
+        classSchedule={classSchedule}
+        classes={classes}
+        classesById={classesById}
+        classroomManagerAssignmentId={classroomManagerAssignmentId}
+        classroomSyncProposal={classroomSyncProposal}
+        clearAssignmentSelection={clearAssignmentSelection}
+        confirmAction={confirmAction}
+        contentUpgradeRequest={contentUpgradeRequest}
+        courseLevelByStudentId={courseLevelByStudentId}
+        courseProfiles={courseProfiles}
+        courseProfilesSaving={courseProfilesSaving}
+        dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
+        dolControlBusyKey={dolControlBusyKey}
+        dolUnlockBusyKey={dolUnlockBusyKey}
+        editingAssignmentDates={editingAssignmentDates}
+        editingAssignmentId={editingAssignmentId}
+        endLiveTeaching={endLiveTeaching}
+        exportTeacherAssignmentWorksheetPdf={exportTeacherAssignmentWorksheetPdf}
+        feedbackReleaseBusyId={feedbackReleaseBusyId}
+        fetchAssignments={fetchAssignments}
+        fetchTeacherRosterSummaries={fetchTeacherRosterSummaries}
+        focusedTestCycleAssignmentId={focusedTestCycleAssignmentId}
+        formatTime={formatTime}
+        gradeExportScope={gradeExportScope}
+        gradebookFilter={gradebookFilter}
+        gradebookHasPracticePass={gradebookHasPracticePass}
+        gradebookProgressFilter={gradebookProgressFilter}
+        gradingPeriodBusy={gradingPeriodBusy}
+        gradingPeriodSettings={gradingPeriodSettings}
+        handleApplyShorterAttendanceExtension={handleApplyShorterAttendanceExtension}
+        handleBulkArchive={handleBulkArchive}
+        handleBulkMoveToFolder={handleBulkMoveToFolder}
+        handleChangeClassPeriod={handleChangeClassPeriod}
+        handleCreateFolder={handleCreateFolder}
+        handleCreateGradingPeriod={handleCreateGradingPeriod}
+        handleDeleteFolder={handleDeleteFolder}
+        handleDolControlForClass={handleDolControlForClass}
+        handleGoToClassFromHome={handleGoToClassFromHome}
+        handleGrantDOLAttemptForClass={handleGrantDOLAttemptForClass}
+        handleGrantDOLAttemptForStudents={handleGrantDOLAttemptForStudents}
+        handleKeepAttendanceExtension={handleKeepAttendanceExtension}
+        handleLinkWarmupChallenge={handleLinkWarmupChallenge}
+        handleLoadDeliveredRigor={handleLoadDeliveredRigor}
+        handleLogout={handleLogout}
+        handleMoveAssignmentToFolder={handleMoveAssignmentToFolder}
+        handleMoveSelectedAssignmentsToGradingPeriod={handleMoveSelectedAssignmentsToGradingPeriod}
+        handlePersonalPathRecommendation={handlePersonalPathRecommendation}
+        handleRecordStudentSupportEvent={handleRecordStudentSupportEvent}
+        handleReleaseAssignmentFeedback={handleReleaseAssignmentFeedback}
+        handleRenameFolder={handleRenameFolder}
+        handleRepairClassroomAssignmentPost={handleRepairClassroomAssignmentPost}
+        handleSaveClassSchedule={handleSaveClassSchedule}
+        handleSaveCourseProfiles={handleSaveCourseProfiles}
+        handleSaveOverrides={handleSaveOverrides}
+        handleSavePacing={handleSavePacing}
+        handleSaveWeeklyGoal={handleSaveWeeklyGoal}
+        handleSetCurrentGradingPeriod={handleSetCurrentGradingPeriod}
+        handleSetGradingPeriodArchived={handleSetGradingPeriodArchived}
+        handleSupportProfileSaved={handleSupportProfileSaved}
+        handleToggleArchiveAssignment={handleToggleArchiveAssignment}
+        handleTogglePauseAssignment={handleTogglePauseAssignment}
+        handleToggleSectionAccessForClass={handleToggleSectionAccessForClass}
+        handleToggleWarmupForClass={handleToggleWarmupForClass}
+        handleUnlockDOLForClass={handleUnlockDOLForClass}
+        handleUpdateCourseProfile={handleUpdateCourseProfile}
+        handleViewClassGradebook={handleViewClassGradebook}
+        homeNavigationPeriod={homeNavigationPeriod}
+        libraryNavigation={libraryNavigation}
+        liveFocus={liveFocus}
+        liveTeachingSession={liveTeachingSession}
+        loadClassGradeRecords={loadClassGradeRecords}
+        movingFolderAssignmentId={movingFolderAssignmentId}
+        movingFolderValue={movingFolderValue}
+        needsAttentionQueue={needsAttentionQueue}
+        now={now}
+        openAssignmentHub={openAssignmentHub}
+        openAssignmentPreflight={openAssignmentPreflight}
+        openDeleteDialog={openDeleteDialog}
+        openGradeExport={openGradeExport}
+        openGradebookFor={openGradebookFor}
+        openIEPReport={openIEPReport}
+        openLiveFor={openLiveFor}
+        openTeacherScratchpad={openTeacherScratchpad}
+        pacingBusy={pacingBusy}
+        pacingByClass={pacingByClass}
+        parentContactSourceAction={parentContactSourceAction}
+        parentContacts={parentContacts}
+        pathInterventionBusyStudentId={pathInterventionBusyStudentId}
+        preflightRosterSizesByClassId={preflightRosterSizesByClassId}
+        presenceById={presenceById}
+        profileDrawerLearningProfile={profileDrawerLearningProfile}
+        profileDrawerPlan={profileDrawerPlan}
+        profileDrawerSessionSummaries={profileDrawerSessionSummaries}
+        profileDrawerStudent={profileDrawerStudent}
+        profileDrawerSupportEvents={profileDrawerSupportEvents}
+        questionEditorAssignment={questionEditorAssignment}
+        quickSearchOpen={quickSearchOpen}
+        refreshTeacherRosterAfterNameChange={refreshTeacherRosterAfterNameChange}
+        renderDeleteAssignmentDialog={renderDeleteAssignmentDialog}
+        renderExportJsonDialog={renderExportJsonDialog}
+        renderTeacherScratchpadDialog={renderTeacherScratchpadDialog}
+        reportAttendanceClass={reportAttendanceClass}
+        reportExportClasses={reportExportClasses}
+        reportHubClass={reportHubClass}
+        reportLiveClass={reportLiveClass}
+        responseInspectorTarget={responseInspectorTarget}
+        resumeLiveTeaching={resumeLiveTeaching}
+        retestRecoveryActions={retestRecoveryActions}
+        saveAssignmentFolderPaths={saveAssignmentFolderPaths}
+        searchableStandards={searchableStandards}
+        sectionAccessBusyKey={sectionAccessBusyKey}
+        selectedAssignmentIds={selectedAssignmentIds}
+        setActiveClass={setActiveClass}
+        setAdminTab={setAdminTab}
+        setAllStudents={setAllStudents}
+        setAssignmentActivity={setAssignmentActivity}
+        setAssignmentGroupOpen={setAssignmentGroupOpen}
+        setAssignmentHubTarget={setAssignmentHubTarget}
+        setAssignmentPreflight={setAssignmentPreflight}
+        setAssignmentPreflightBusy={setAssignmentPreflightBusy}
+        setAssignmentSearch={setAssignmentSearch}
+        setAssignments={setAssignments}
+        setCaseReviewStudentId={setCaseReviewStudentId}
+        setClassEvidenceByStudentId={setClassEvidenceByStudentId}
+        setClassSchedule={setClassSchedule}
+        setClassroomManagerAssignmentId={setClassroomManagerAssignmentId}
+        setClassroomSyncProposal={setClassroomSyncProposal}
+        setClassworkGradesByAssignment={setClassworkGradesByAssignment}
+        setContentUpgradeRequest={setContentUpgradeRequest}
+        setDolGradesByAssignment={setDolGradesByAssignment}
+        setEditingAssignmentDates={setEditingAssignmentDates}
+        setEditingAssignmentId={setEditingAssignmentId}
+        setExportJsonAssignment={setExportJsonAssignment}
+        setExportJsonCopied={setExportJsonCopied}
+        setFocusedTestCycleAssignmentId={setFocusedTestCycleAssignmentId}
+        setGradeExportScope={setGradeExportScope}
+        setGradebookFilter={setGradebookFilter}
+        setGradebookProgressFilter={setGradebookProgressFilter}
+        setHomeNavigationPeriod={setHomeNavigationPeriod}
+        setLibraryNavigation={setLibraryNavigation}
+        setLiveFocus={setLiveFocus}
+        setMovingFolderAssignmentId={setMovingFolderAssignmentId}
+        setMovingFolderValue={setMovingFolderValue}
+        setParentContactSourceAction={setParentContactSourceAction}
+        setPathLaunchTeks={setPathLaunchTeks}
+        setPresenceById={setPresenceById}
+        setProfileDrawerStudentId={setProfileDrawerStudentId}
+        setQuestionEditorAssignment={setQuestionEditorAssignment}
+        setQuickSearchOpen={setQuickSearchOpen}
+        setResponseInspectorTarget={setResponseInspectorTarget}
+        setSelectedAssignmentIds={setSelectedAssignmentIds}
+        setSidebarCollapsed={setSidebarCollapsed}
+        setStudentSessionSummaries={setStudentSessionSummaries}
+        setStudentSupportEvents={setStudentSupportEvents}
+        setSupportReportStudentId={setSupportReportStudentId}
+        setSupportUsageByAssignment={setSupportUsageByAssignment}
+        setTeacherTab={setTeacherTab}
+        setTeacherWorksheetDialog={setTeacherWorksheetDialog}
+        setTeacherWorkspaceMode={setTeacherWorkspaceMode}
+        setTestCyclePreviewAssignment={setTestCyclePreviewAssignment}
+        setWeeklyPathCompletionsByStudent={setWeeklyPathCompletionsByStudent}
+        setWeeklyPathGoalSnapshotsByStudent={setWeeklyPathGoalSnapshotsByStudent}
+        sidebarCollapsed={sidebarCollapsed}
+        skillOverrides={skillOverrides}
+        startTeacherPreview={startTeacherPreview}
+        studentSessionSummaries={studentSessionSummaries}
+        studentSupportEvents={studentSupportEvents}
+        studentsInActiveClass={studentsInActiveClass}
+        supportReportStudentId={supportReportStudentId}
+        teachAssignmentLive={teachAssignmentLive}
+        teacherActionItems={teacherActionItems}
+        teacherActionOpenCount={teacherActionOpenCount}
+        teacherAnalyticsStudents={teacherAnalyticsStudents}
+        teacherLearningProfiles={teacherLearningProfiles}
+        teacherMasteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+        teacherStudentDataMode={teacherStudentDataMode}
+        teacherStudentIdentityIndex={teacherStudentIdentityIndex}
+        teacherTab={teacherTab}
+        teacherWeeklyGoalsByStudent={teacherWeeklyGoalsByStudent}
+        teacherWeeklyRoster={teacherWeeklyRoster}
+        teacherWorksheetBusy={teacherWorksheetBusy}
+        teacherWorksheetDialog={teacherWorksheetDialog}
+        teacherWorksheetStudentsFor={teacherWorksheetStudentsFor}
+        teacherWorkspaceMode={teacherWorkspaceMode}
+        testCyclePreviewAssignment={testCyclePreviewAssignment}
+        toastError={toastError}
+        toastInfo={toastInfo}
+        toastSuccess={toastSuccess}
+        toastWarning={toastWarning}
+        toggleAssignmentSelected={toggleAssignmentSelected}
+        user={user}
+        warmupControlBusyKey={warmupControlBusyKey}
+        weeklyGoalBusy={weeklyGoalBusy}
+        weeklyGoalsByClass={weeklyGoalsByClass}
+        weeklyPathCompletionsByStudent={weeklyPathCompletionsByStudent}
+        weeklyPathProgressLoadedFor={weeklyPathProgressLoadedFor}
+        weeklyPathProgressLoading={weeklyPathProgressLoading}
+        weeklyPathTruncated={weeklyPathTruncated}
+        weeklyPathWeekComplete={weeklyPathWeekComplete}
+        weeklyPathWeekKey={weeklyPathWeekKey}
+      />
     );
   }
 
@@ -12507,8 +11562,12 @@ function App() {
    * Built in render flow rather than a useMemo because several of its providers
    * are component-scope helpers declared further down this file.
    */
-  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
-    ? buildStudentDashboardModel({
+  // A hoisted declaration (not a const) so the assignment workspace, defined
+  // above, can ask for Up Next when a student finishes a section; it is only
+  // called from render paths that run after everything it reads is set up.
+  // eslint-disable-next-line no-inner-declarations
+  function buildStudentDashboardNow() {
+    return buildStudentDashboardModel({
       assignments,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
@@ -12523,8 +11582,14 @@ function App() {
       // Describes each Test Cycle by its server-written stage on Home and in
       // the Assignments Center; the card still asks the server what is open.
       testCycleGrades,
+      // The one "Today" rule needs who the student is (their excusal) and
+      // which closed sections have a Recovery they can take now.
+      studentId: user.id,
+      recoveryStateByAssignment: recoveryStatesFromSummaries(studentRecoverySummariesByAssignment),
       providers: {
         assignmentIsForStudent,
+        // The teacher's per-class Classwork/Practice lock, for this student.
+        getSectionAccessState,
         // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In
         // Progress / Practice Only) sees this signed-in student's extension,
         // without changing the generic module's signature — the Path
@@ -12542,14 +11607,54 @@ function App() {
         // Same wrap as getAssignmentLifecycle above, and for the same reason.
         matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
       },
-    })
+    });
+  }
+  // The workspace's Up Next, the result page and Grades read the same model.
+  // Cached on the identity of everything it reads (and the minute), so a
+  // screen that re-renders on every keystroke does not rebuild it each time.
+  // eslint-disable-next-line no-inner-declarations
+  function studentUpNextDashboard() {
+    const inputs = [
+      Math.floor(now / 60000), user, assignments, gradeDisplayTracker, assignmentActivity,
+      classworkGradesByAssignment, classSchedule, resumeAction, studentClassPoints.redemptionsByAssignment,
+      testCycleGrades, studentRecoverySummariesByAssignment,
+    ];
+    const cache = studentUpNextCacheRef.current;
+    if (cache.dashboard && cache.inputs?.length === inputs.length && inputs.every((input, index) => input === cache.inputs[index])) {
+      return cache.dashboard;
+    }
+    const dashboard = buildStudentDashboardNow();
+    studentUpNextCacheRef.current = { inputs, dashboard };
+    return dashboard;
+  }
+  // The one "Today" map Grades rows and "Ways to raise" both read.
+  // eslint-disable-next-line no-inner-declarations
+  function studentTodayByAssignment() {
+    return Object.fromEntries((studentUpNextDashboard()?.allEntries || []).map((entry) => [entry.assignment.id, entry]));
+  }
+  // "Ways to raise your grade" (platform/student/waysToRaiseModel.js): missing
+  // work, late windows, Test Cycle corrections/retests, Recoveries and Practice
+  // Passes — filtered by the Today rule so it never promises a Start the
+  // student cannot take. Grades lists them; Home shows their count.
+  // eslint-disable-next-line no-inner-declarations
+  function studentWaysToRaiseNow() {
+    return studentGradeCenter ? buildWaysToRaise({
+      gradeCenter: studentGradeCenter,
+      recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
+      // Only offered to a student who holds a Practice Pass to use.
+      practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
+      todayByAssignment: studentTodayByAssignment(),
+      nowValue: now,
+    }) : [];
+  }
+  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
+    ? buildStudentDashboardNow()
     : null;
 
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
@@ -12558,7 +11663,8 @@ function App() {
             key={liveChallengeInvite?.roomId || 'no-live-challenge'}
             invite={liveChallengeInvite}
             studentProfile={user.profile}
-            onExit={() => setStudentDashboardMode('assignments')}
+            onExit={leaveLiveChallenge}
+            exitLabel={liveChallengeExitLabel(liveChallengeReturn)}
             // What the finished match put in the wallet, shown apart from
             // placement and game points.
             renderMatchRewards={(roomId, match = {}) => (
@@ -12578,29 +11684,34 @@ function App() {
     if (studentDashboardMode === 'mathPath') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <MyMathPathApp
           studentId={user.id}
           studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
+          // A reload of a My Math Path tab or session (app/routes/urlArrival.js),
+          // else the tab a launch asked for (pathLaunchTab, job B).
+          initialTab={mathPathArrival?.tab || pathLaunchTab || 'path'}
+          initialSessionConfig={mathPathArrival?.sessionConfig || null}
           pathOptions={studentPathOptions}
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
+          serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
-          onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
+          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setStudentDashboardMode('assignments'); }}
           />
         </>,
       );
     }
     if (studentDashboardMode === 'assignmentsCenter') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
             dashboard={studentDashboard}
             gradeCenter={studentGradeCenter}
@@ -12608,18 +11719,22 @@ function App() {
             supportPresentation={getStudentSupportPresentation(user.profile)}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
-            onContinue={(assignmentId) => startAssignment(assignmentId)}
+            // Lands on the row's next unfinished open question.
+            onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
+            recoveryByAssignment={studentRecoveryByAssignment}
+            studentId={user.id}
+            onOpenRecovery={openStudentRecovery}
           />
         </>,
       );
     }
     if (studentDashboardMode === 'rewards') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentRewardsCenter
             student={{ ...studentRecord, ...user }}
             wallet={studentRewardWallet}
@@ -12639,33 +11754,65 @@ function App() {
       );
     }
     if (studentDashboardMode === 'grades') {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
-            onBackToHome={() => openStudentDashboardMode('assignments')}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
-            onPractice={(assignmentId) => startAssignment(assignmentId)}
+            onPractice={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.GRADES })}
+            onStart={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.GRADES })}
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            // The Today rule per row: no Start on work that cannot be done
+            // now, Open Recovery, and Start lands on the next question.
+            todayByAssignment={studentTodayByAssignment()}
+            waysToRaise={studentWaysToRaiseNow()}
+            onWayAction={(way) => {
+              if (way.action === 'none') return undefined; // waiting: nothing to open
+              if (way.action === 'openResult') return openStudentAssignmentResult(way.assignmentId, { origin: 'grades' });
+              if (way.action === 'openRewards') return openStudentDashboardMode('rewards');
+              if (way.action === 'start') return startAssignment(way.assignmentId, way.questionIndex ?? 0, { origin: NAV_LEVEL.GRADES });
+              // 'openTestCycle' (startAssignment opens the cycle card)
+              return startAssignment(way.assignmentId, 0, { origin: NAV_LEVEL.GRADES });
+            }}
+            whatChangedPanel={renderWhatChangedPanel(false)}
           />
         </>,
       );
     }
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
-      return renderStudentIdentityShell(
+      const activeTestCycleAssignment = assignments.find((assignment) => assignment.id === activeTestCycleAssignmentId) || null;
+      // THIS student's dates, not the class's: an attendance extension or an
+      // individualized extra-time deadline (injected in memory by
+      // projectStudentAssignments) moves them, and getAssignmentLifecycle
+      // resolves them with resolveStudentDeadlines, the precedence the
+      // server's assignmentFinalCloseAt uses.
+      const activeTestCycleDates = activeTestCycleAssignment
+        ? getAssignmentLifecycle(activeTestCycleAssignment, Date.now(), { studentId: user.id })
+        : null;
+      return renderStudentScreen(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
-          <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* The shell's <main> holds this screen (NAV-15). */}
+          <div style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
             <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
               <TestCycleCard
                 assignmentId={activeTestCycleAssignmentId}
                 studentId={user.id}
                 studentProfile={user.profile}
+                // The student's own due and final late dates, so a card opened
+                // after the regular due date says the work is still open and
+                // until when — for an extended student, until their date.
+                dueAt={activeTestCycleDates?.dueAt || null}
+                lateDueAt={activeTestCycleDates?.lateDueAt || null}
+                // Corrections and the Retest close at the class's date unless
+                // the server's home window says otherwise.
+                classLateDueAt={activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the
@@ -12674,24 +11821,37 @@ function App() {
                 // Review is ordinary MathMaster instruction, so it opens the
                 // ordinary runtime — restricted to the review questions.
                 onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
-                onExit={openStudentAssignmentsCenter}
+                onPracticeSkill={practiseSkillFromResults}
+                // Back names and opens the screen the card was opened from (NAV-9).
+                exitLabel={`← ${resolveBack(NAV_LEVEL.TEST_CYCLE, { origin: activeTestCycleOrigin })?.navLabel || 'Assignments'}`}
+                onExit={() => openStudentOriginLevel(activeTestCycleOrigin)}
               />
             </Suspense>
-          </main>
+          </div>
         </>,
       );
     }
     if (studentDashboardMode === 'secureExams') {
       return renderStudentIdentityShell(
         <>
-          {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
+          {/* Tests & Exams teaches the same navigation as every other
+              student destination (it had none of its own). */}
+          <div style={{ maxWidth: 920, margin: '0 auto', padding: '16px 14px 0', boxSizing: 'border-box' }}>
+            <StudentGlobalNav current={STUDENT_DESTINATION.SECURE_EXAMS} onNavigate={navigateStudent} />
+          </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
-          onExit={() => setStudentDashboardMode('assignments')}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
-          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
+          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
+          onPracticeSkill={practiseSkillFromResults}
+          // The student's Test Cycles with THEIR dates, so a Test whose session
+          // is not open yet is listed with when it is (PR-20).
+          testCycles={assignments.filter(isTestCycleAssignment).map((assignment) => {
+            const own = getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id });
+            return { assignment, dueAt: own.dueAt, lateDueAt: own.lateDueAt };
+          })}
           />
         </>,
       );
@@ -12709,16 +11869,23 @@ function App() {
       dashboard,
       weeklyProgress: studentWeeklyPathProgress,
     });
-    return renderStudentIdentityShell(
+    return renderStudentScreen(
       <>
-        {renderStudentPackUpBanner()}
-        {renderStudentWarmupBanner()}
+        {/* No Warm-Up banner on Home: the next-action card (or its compact
+            Warm-Up card) is the one place the Warm-Up is offered here. */}
         <StudentDashboardView
         dashboard={dashboard}
-        student={{ ...studentRecord, ...user, inclusionStatus: user.profile?.inclusionStatus }}
+        // Never the student's support status: Home is read over shoulders.
+        student={{ ...studentRecord, ...user }}
+        // From Home, Back on the result page says "← Home" and goes there (NAV-9).
+        onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: NAV_LEVEL.HOME })}
+        saveStatus={studentSaveStatusNow()}
+        whatChangedPanel={renderWhatChangedPanel(true)}
+        whatChangedUnseenCount={countUnseenWhatChanged(whatChangedItems)}
+        waysToRaise={{ count: countWaysToRaise(studentWaysToRaiseNow()) }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
-        onStartAssignment={startAssignment}
+        onStartAssignment={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex ?? 0, { origin: NAV_LEVEL.HOME })}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onNavigate={navigateStudent}
@@ -12726,12 +11893,14 @@ function App() {
         // rather than left for them to work out from six equal panels.
         nextAction={studentNextAction}
         liveChallengeInvite={liveChallengeInvite}
-        onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
+        onOpenLiveChallenge={joinLiveChallenge}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
         rewardWallet={studentRewardWallet}
         hasNewRewards={newRewardIds.size > 0}
         onOpenRewards={() => openStudentDashboardMode('rewards')}
+        recoveryOpportunities={studentRecoveryDiscovery}
+        onOpenRecovery={openStudentRecovery}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,
@@ -12757,15 +11926,46 @@ function App() {
    */
   if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {
     const resultEntry = findGradeCenterEntry(studentGradeCenter, assignmentResultRoute.assignmentId);
+    // The Today rule for this assignment and what comes after it: the result
+    // page is where "nothing open now" lands, so it says what opens when and
+    // hands off to Up next.
+    const resultDashboard = studentUpNextDashboard();
+    const resultTodayEntry = resultDashboard?.allEntries.find((entry) => entry.assignment.id === assignmentResultRoute.assignmentId) || null;
+    const resultUpNext = resolveUpNext({ dashboard: resultDashboard, assignmentId: assignmentResultRoute.assignmentId });
+    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
+    // Decision 3: once the work is closed for this student and feedback is
+    // released, their own answers beside the worked solutions. The callable
+    // re-checks every gate; this only decides whether to show the panel.
+    const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
+      && !resultEntry.isTestCycle
+      && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
+      ? (
+        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
+          <ReviewMyWork
+            assignment={recoveryAssignment}
+            load={loadMyReviewWork}
+            studentProfile={user.profile}
+            teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
+          />
+        </Suspense>
+      )
+      : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
-    const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
+    // The skill this assignment teaches, for "Practice this skill" (NAV-8).
+    // A split Classroom post's section, a Test Cycle and an assignment with no
+    // Path skill have none.
+    const resultPathLaunch = resolveAssignmentPathLaunch({
+      assignment: recoveryAssignment,
+      questionIndex: assignmentResultRoute.questionIndex,
+      sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+    });
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
-      return renderStudentIdentityShell(
+      return renderStudentScreen(
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
             mode={recoverySession.mode}
@@ -12782,22 +11982,49 @@ function App() {
     }
     return renderStudentIdentityShell(
       <>
-        {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
+          {renderStudentLiveChallengeInvite()}
         <StudentAssignmentResult
           entry={resultEntry}
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
           onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
+          /*
+           * NAV-8: two things, two buttons. "Try these questions again — no
+           * credit" reopens THIS assignment (as the same words do on Home,
+           * Assignments and Grades); "Practice this skill" opens My Math Path
+           * on the TEKS it teaches (assignmentPathLaunch.js), and is offered
+           * only when there is one.
+           */
           onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
             // A split Classroom post practises its own section; a whole-assignment
             // post practises the whole assignment. Keep the result route so the
             // visible Back control returns here after practice.
             sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
             returnToResult: true,
+            origin: assignmentResultRoute.origin,
           })}
+          onPracticeSkill={resultPathLaunch ? () => {
+            setPathLaunchTeks(resultPathLaunch.teksCode);
+            openStudentDashboardMode('mathPath');
+          } : null}
+          notice={assignmentResultRoute.notice || null}
+          changes={whatChangedItems.filter((item) => item.assignmentId === assignmentResultRoute.assignmentId)}
           onViewAllGrades={openStudentGradeCenter}
           onViewAllAssignments={openStudentAssignmentsCenter}
+          // The printable worksheet lives with the results (NAV-20 review N3).
+          onExportPdf={exportAssignmentWorksheetPdf}
+          // Decision 3: once the work is closed for this student and feedback
+          // is released, their own answers beside the worked solutions. The
+          // callable re-checks every gate; this only decides whether to show it.
+          reviewPanel={resultReviewPanel}
+          todayEntry={resultTodayEntry}
+          upNext={resultUpNext}
+          // New work, not a return trip: no returnToResult.
+          onContinue={(assignmentId, questionIndex) => startAssignment(assignmentId, questionIndex)}
+          onUpNext={(next) => (next.opensResult
+            ? openStudentAssignmentResult(next.assignment.id, { origin: assignmentResultRoute.origin || 'assignments' })
+            : startAssignment(next.assignment.id, next.questionIndex ?? 0))}
           origin={assignmentResultRoute.origin || 'assignments'}
           onBackToHome={() => openStudentDashboardMode('assignments')}
           recoveryPanel={studentRecoverySummary.length ? (

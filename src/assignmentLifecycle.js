@@ -18,13 +18,17 @@ import {
 } from '../functions/shared/classSchedule.mjs';
 import {
   MANUALLY_CONTROLLABLE_SECTION_ROLES as SHARED_MANUAL_SECTION_ROLES,
+  dolExtendedTimeMultiplier,
   resolveDolInstructionDateKey,
   resolveDolWindow,
+  studentTimingProfileOf,
+  studentTimingStudentIdOf,
   resolveWarmupClose,
   resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
 import { resolveStudentDeadlines, resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
+import { DUE_WORDS } from './platform/student/studentWords.js';
 import { evaluateClassworkCompletionRule } from '../functions/shared/assignmentProjections.mjs';
 import { WORKLOAD_STATUS, resolveStudentWorkload } from '../functions/shared/reducedWorkload.mjs';
 
@@ -217,6 +221,14 @@ export const formatDateTime = (value) => {
 };
 
 /**
+ * "Due: Oct 18, 2026, 1:53 PM", or "No due date" — never "Due Not set"
+ * (NAV-18). The same form as a card's `dueLine`.
+ */
+export const studentDueText = (value) => (
+  parseLocalDateTime(value, true) ? `${DUE_WORDS.due}: ${formatDateTime(value)}` : DUE_WORDS.noDue
+);
+
+/**
  * The dates a STUDENT is shown: the ones the platform actually applies to them.
  *
  * `lifecycle` is getAssignmentLifecycle(assignment, now, { studentId }) on the
@@ -232,11 +244,30 @@ export const studentDueDateLines = (assignment, lifecycle) => {
   const final = lifecycle?.lateDueAt || classFinal;
   const individualizedDue = Boolean(due && classDue && due.getTime() > classDue.getTime());
   const individualizedFinal = Boolean(final && classFinal && final.getTime() > classFinal.getTime());
+  // NAV-18: "Regular due" / "Final late due" were the teacher's two settings
+  // read aloud, and a missing date printed "Due Not set". The labels are
+  // the student word list's, and a date that is not set is left out of the
+  // line rather than printed as a value.
+  const dueLabel = individualizedDue ? DUE_WORDS.yourDue : DUE_WORDS.due;
+  const finalLabel = individualizedFinal ? DUE_WORDS.yourLastDay : DUE_WORDS.lastDay;
+  const dueText = formatDateTime(due);
+  const finalText = formatDateTime(final);
+  // The last day is worth a line only when it is a different, later moment.
+  // With no due date the last day IS when it is due (the lifecycle is on time
+  // until then, and closes at it): one line, "Due: <last day>".
+  const showFinal = Boolean(due && final && final.getTime() > due.getTime());
+  const dueLine = due
+    ? `${dueLabel}: ${dueText}`
+    : final ? `${individualizedFinal ? DUE_WORDS.yourDue : DUE_WORDS.due}: ${finalText}` : DUE_WORDS.noDue;
   return {
-    dueLabel: individualizedDue ? 'Your due date' : 'Regular due',
-    dueText: formatDateTime(due),
-    finalLabel: individualizedFinal ? 'Your last day to turn in' : 'Final late due',
-    finalText: formatDateTime(final),
+    dueLabel,
+    dueText,
+    finalLabel,
+    finalText,
+    // Whole lines, ready to print: "Due: Oct 18, 1:53 PM" / "No due date",
+    // and "Late work accepted until: Oct 22, 9:53 AM" or '' when there is none.
+    dueLine,
+    finalLine: showFinal ? `${finalLabel}: ${finalText}` : '',
     individualizedDue,
     individualizedFinal,
   };
@@ -283,7 +314,16 @@ const normalizeClassContext = (value) => {
 
 // Assignment audience is class-ID only. Bell periods are schedule metadata,
 // not identities: two real classes may share the same period label.
+//
+// One exception, on a STUDENT'S OWN DEVICE only: a secure Test the student was
+// added to individually. Their class is not assigned it, so their device reads
+// it by id and marks its own copy (`assignedToStudentIndividually`, set by
+// platform/assignments/studentAssignmentScope.js from the server-written proof
+// on their grade document). No stored assignment carries the mark, so a
+// teacher's screens — which read stored assignments — still ask only about the
+// class. It decides what is shown; the server decides what is allowed.
 export const assignmentIsForStudent = (assignment, classContext) => {
+  if (assignment?.assignedToStudentIndividually === true) return true;
   const { classId } = normalizeClassContext(classContext);
   const assignedClassIds = Array.isArray(assignment?.assignedClassIds)
     ? assignment.assignedClassIds.map((value) => String(value || '').trim()).filter(Boolean)
@@ -326,8 +366,21 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
+//
+// A PREREQUISITE MET EARLY OPENS A SCHEDULED ASSIGNMENT (prerequisiteAccess):
+// "opens when the prerequisite is met, or at the release date, whichever comes
+// first". Every assignment-level gate (entry, the PDF, availability, the Today
+// rule) already lets `prerequisiteMet` through `isScheduled`; this one did not,
+// so the lesson read "opens later" and entry found no section to land on. When
+// the caller passes the student's `classworkGradesByAssignment` and the
+// prerequisite is met, the section is decided by the teacher's lock exactly as
+// on an open assignment — a section authored to start locked stays locked.
+// Without the grades (teacher views, previews) nothing changes. The lifecycle
+// itself is untouched: still `scheduled`, never `creditEligible` early, and
+// due/late/close are still the dates — so grading and closing cannot move.
 export const getSectionAccessState = ({
   assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null, privateOverride = undefined,
+  classworkGradesByAssignment = undefined,
 }) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
@@ -339,10 +392,13 @@ export const getSectionAccessState = ({
   if (lifecycle.isPracticeOnly) {
     return { role, enabled: true, status: 'open', isOpen: true, defaultState: 'open', override: null, lifecycle, practiceOnly: true };
   }
-  if (lifecycle.isScheduled) {
+  const openedByPrerequisite = lifecycle.isScheduled
+    && Boolean(classworkGradesByAssignment)
+    && prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue }).reason === 'prerequisiteMet';
+  if (lifecycle.isScheduled && !openedByPrerequisite) {
     return { role, enabled: true, status: 'scheduled', isOpen: false, defaultState: 'open', override: null, lifecycle };
   }
-  if (!lifecycle.isOpen) {
+  if (!lifecycle.isOpen && !openedByPrerequisite) {
     return { role, enabled: true, status: 'closedAssignment', isOpen: false, defaultState: 'open', override: null, lifecycle };
   }
 
@@ -352,8 +408,24 @@ export const getSectionAccessState = ({
   const override = scopedOverride({ byClassId: config?.overridesByClassId, classId });
   const overrideState = String(override?.state || '').toLowerCase();
   const status = SECTION_ACCESS_STATES.has(overrideState) ? overrideState : defaultState;
-  return { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
+  const state = { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
+  // Named only when it applied, so every other answer keeps its exact shape.
+  return openedByPrerequisite ? { ...state, openedByPrerequisite: true } : state;
 };
+
+/**
+ * getSectionAccessState for ONE signed-in student: every call made through it
+ * passes that student's own Classwork grades, so a lesson whose prerequisite
+ * they met opens early wherever the app asks (Home, entry, the workspace's
+ * locks and capture proofs) without threading the grades through each call.
+ * A caller that passes its own grades keeps them. With no grades (a teacher,
+ * a preview) it is getSectionAccessState itself.
+ */
+export const sectionAccessForStudent = (classworkGradesByAssignment) => (
+  classworkGradesByAssignment && typeof classworkGradesByAssignment === 'object'
+    ? (args = {}) => getSectionAccessState({ classworkGradesByAssignment, ...args })
+    : getSectionAccessState
+);
 
 export const normalizeSchedule = normalizeSharedSchedule;
 
@@ -585,7 +657,15 @@ export const resolveDOLQuestionIndices = (assignment) => {
 
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
-export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
+// `studentProfile` is the student's pinned grades/{id}.profile. Left out, it
+// is the one the student's own projection injected (studentTimingProfileOf);
+// a teacher's copy carries none, so teacher controls see the class window.
+// With an extended-time accommodation the window is the STUDENT'S (decision
+// D7, sectionDeadline.mjs dolExtendedTimeMultiplier): `endsAt`,
+// `millisecondsRemaining` and `status` are theirs, and the added fields say so —
+// `classEndsAt` (the class's close), `extendedTime`, `extendedTimeMs`,
+// `extendedTimeMultiplier`. Without one every field is exactly as before.
+export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now(), studentProfile = undefined }) => {
   const hasAuthoredDOL = projectCurrentAssignmentContent(assignment).entries.some((entry) => (
     entry.logicalRole === ACTIVITY_ROLES.DOL
   ));
@@ -623,11 +703,15 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   // earlier without shortening it.
   // Shared with the Cloud Functions finalizer so the DOL cutoff the timer shows
   // is the one the deadline actually enforces.
+  const profile = studentProfile === undefined ? studentTimingProfileOf(assignment) : studentProfile;
   const sharedDol = resolveDolWindow({
     assignment,
     window: { startMs: window.start.getTime(), endMs: window.end.getTime() },
     classId,
     todayKey,
+    timeMultiplier: dolExtendedTimeMultiplier(profile, { nowValue: now.getTime() }),
+    // Never past this student's own final cutoff (the server's cap, too).
+    capAtMs: getAssignmentDate(assignment, 'late', studentTimingStudentIdOf(assignment))?.getTime() ?? null,
   });
   const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery, teacherClosed, teacherClosedAtMs } = sharedDol;
   const regularEndsAt = new Date(sharedDol.regularEndsAtMs);
@@ -670,6 +754,10 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     canRecover,
     durationMinutes,
     closeMinutesBeforeEnd,
+    classEndsAt: new Date(sharedDol.classEndsAtMs),
+    extendedTime: sharedDol.extendedTime === true,
+    extendedTimeMs: sharedDol.extendedTimeMs,
+    extendedTimeMultiplier: sharedDol.extendedTimeMultiplier,
     millisecondsRemaining: status === 'active'
       ? Math.max(0, endsAt.getTime() - now.getTime())
       : status === 'waiting'
@@ -677,6 +765,21 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
         : 0,
   };
 };
+
+/**
+ * Is one of this student's exit tickets still open on THEIR extra time
+ * (decision D7) — open for them after the class's closed, or about to be?
+ * The class pack-up banner ("sign out and return your device now") stands
+ * aside for them while it is, as it does for a student mid-Test. `assignments`
+ * are the student's own projected copies (their profile rides along).
+ */
+export const studentExtraTimeDolOpen = ({ assignments = [], schedule, classId = null, classPeriod = null, nowValue = Date.now() } = {}) => (
+  (assignments || []).some((assignment) => {
+    if (!assignmentIsForStudent(assignment, { classId, classPeriod })) return false;
+    const state = getDOLState({ assignment, schedule, classId, classPeriod, nowValue });
+    return state.status === 'active' && state.extendedTime === true;
+  })
+);
 
 export const normalizeAssignmentActivity = (activity) => ({
   totalTimeSeconds: Math.max(0, Number(activity?.totalTimeSeconds) || 0),

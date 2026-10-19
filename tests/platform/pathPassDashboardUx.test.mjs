@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 import {
   describeCoursePathPass,
@@ -36,12 +37,12 @@ test('dashboard receives the same server-owned Path pass progress as the full Pa
 test('skills wheel keeps pass completion visible independently of mastery status', () => {
   assert.match(wheel, /normalizeCoursePathPassProgress/);
   assert.match(wheel, /passProgress:/);
-  assert.match(wheel, /Path Pass \$\{Math\.min\(passCount, 3\)\} complete/);
+  assert.match(wheel, /Level \$\{Math\.min\(passCount, 3\)\} round done/);
   // A pass outlines its segment in the pass color; otherwise the gap is cut in
   // the card's own surface color (a token, so it is not a white seam in dark mode).
   assert.match(wheel, /stroke: passCount \? passColor : 'var\(--mm-surface\)'/);
-  assert.match(dashboard, /completed Path pass/);
-  assert.match(dashboard, /Mastery-challenge pass/);
+  assert.match(dashboard, /practice round done/);
+  assert.match(dashboard, /Level 3 \(stretch\) round done/);
 });
 
 test('skill modal exposes clickable TEKS and CCMR context before practice starts', () => {
@@ -58,13 +59,13 @@ test('skill modal uses the canonical Path pass presentation instead of a generic
   assert.match(modal, /\{pass\.buttonLabel\} · 5 questions/);
 
   const first = describeCoursePathPass({ passesCompleted: 1 });
-  assert.equal(first.completedLabel, '✓ Path Pass 1 complete');
+  assert.equal(first.completedLabel, '✓ Level 1 round done');
   assert.equal(first.nextLabel, 'Next: Level 2 · Deeper practice');
   assert.equal(first.buttonLabel, 'Start Level 2');
 
   const second = describeCoursePathPass({ passesCompleted: 2 });
-  assert.equal(second.completedLabel, '✓ Path Pass 2 complete');
-  assert.equal(second.nextLabel, 'Next: Level 3 · Mastery challenge');
+  assert.equal(second.completedLabel, '✓ Level 2 round done');
+  assert.equal(second.nextLabel, 'Next: Level 3 · Stretch practice');
   assert.equal(second.buttonLabel, 'Start Level 3');
 
   const normalized = normalizeCoursePathPassProgress({ passesCompleted: 8 });
@@ -79,7 +80,7 @@ test('active course sessions translate rigor into student-facing Path levels', (
   assert.match(player, /coursePassLevel >= 3 \? 'var\(--mm-accent-soft\)'/);
 
   // Internal adaptive metadata remains teacher/engine information. Students see
-  // Foundation / Deeper practice / Mastery challenge instead.
+  // Foundation / Deeper practice / Stretch practice instead.
   assert.doesNotMatch(player, />DOK \{/);
   assert.doesNotMatch(player, />Band \{/);
 });
@@ -97,8 +98,9 @@ test('weekly CCMR slots name the actual assessment framework while course Challe
   assert.match(weeklyPanel, /FRAMEWORK_LABELS/);
   assert.match(weeklyPanel, /weeklyPurposeLabel/);
   assert.match(weeklyPanel, /\$\{frameworkLabel\} transfer/);
-  assert.match(weeklyPanel, /weeklyPurposeLabel\(session\)/);
-  assert.match(weeklyPanel, /weeklyPurposeLabel\(next\)/);
+  // Every session card — the "Do this next" one included, since the next
+  // session is marked on its own card — names its purpose.
+  assert.match(region(weeklyPanel, 'function SessionCard(', '\n}\n', 'session card'), /\{weeklyPurposeLabel\(session\)\}/);
   assert.match(weeklyPanel, /PURPOSE\.EXTENSION/);
 });
 

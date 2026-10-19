@@ -15,6 +15,8 @@ test('App consumes canonical section grade and Classroom launch helpers', () => 
 });
 
 test('teacher gradebook exposes Overall, Warm-Up, Classwork, Practice, and DOL academic scores', () => {
+  // The gradebook is the teacher's screen, its own module since G2.
+  const source = fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   for (const label of ['Overall', 'Warm-Up', 'Classwork', 'Practice', 'DOL']) {
     assert.match(source, new RegExp(`>${label}<`));
   }
@@ -63,10 +65,13 @@ test('Classroom split launch preserves exact section and closed links stop on fr
     new URL('../../src/components/student/StudentAssignmentResult.jsx', import.meta.url),
     'utf8',
   );
+  // The no-credit retry names the Classroom section it is scoped to ("Try these
+  // DOL questions again — no credit", NAV-8); closed work is never labelled
+  // "Practice", which in student copy means only the lesson's Practice section.
   assertCapability(
     result,
-    [/Practice \{sectionLabel\}/, /Practice this section/, /`Practice \$\{sectionLabel\}`/],
-    'The Assignment Result screen must offer practice scoped to the Classroom section it was opened from.',
+    [/resultTryAgainLabel\(sectionLabel\)/, /tryAgainLabel\(sectionLabel\)/, /`Try \$\{sectionLabel\} again/],
+    'The Assignment Result screen must offer a retry scoped to the Classroom section it was opened from.',
   );
   const appResult = region(
     source,

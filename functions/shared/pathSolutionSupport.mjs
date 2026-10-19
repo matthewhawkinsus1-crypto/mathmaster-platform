@@ -76,6 +76,39 @@ export const hasSolutionSupport = (question = {}) => {
   return Boolean(support.solutionReview?.reasoning?.length);
 };
 
+// One spelling of a value inside a hint. Numeric answers need numeric
+// boundaries; text answers need token boundaries or a literal match.
+const revealsValue = (haystack, value) => {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const numeric = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(value);
+
+  // Numeric answers need numeric boundaries: "5" must not match "15",
+  // and "12" must not match the beginning of "12.5".
+  if (numeric) {
+    return new RegExp(`(^|[^\\d.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
+  }
+
+  // Short text answers need full token boundaries. The old rule made
+  // "no" match the beginning of "not" and one-letter answer ids match
+  // ordinary prose.
+  if (value.length < 3) {
+    return new RegExp(`(^|[^\\w])${escaped}($|[^\\w])`).test(haystack);
+  }
+
+  // Longer visible answers are specific enough to search literally.
+  return haystack.includes(value);
+};
+
+// A sign written "- 5", "−5" or "− 5" (U+2212) is the number -5. Closing it
+// up is read IN ADDITION to the text as written, so the guard only ever
+// drops more hints. A minus after an operand (a number, a bracket, a lone
+// variable letter) is subtraction: "-5x - 2" quotes the problem and does
+// not name -2, while "x = - 2" and "it is − 2" do.
+const closeSigns = (value) => value.replace(
+  /(?<![\d.)\]]\s*)(?<!(?:^|[^a-z])[a-z]\s*)[-\u2212]\s*(?=[\d.]|\\frac)/g,
+  '-',
+);
+
 /**
  * Would this hint hand over the answer?
  *
@@ -86,29 +119,11 @@ export const hasSolutionSupport = (question = {}) => {
 export const hintRevealsAnswer = (hint, expectedValues = []) => {
   const haystack = text(hint).toLowerCase();
   if (!haystack) return false;
+  const closedHaystack = closeSigns(haystack);
   return list(expectedValues)
     .map((value) => text(value).toLowerCase())
     .filter(Boolean)
-    .some((value) => {
-      const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const numeric = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(value);
-
-      // Numeric answers need numeric boundaries: "5" must not match "15",
-      // and "12" must not match the beginning of "12.5".
-      if (numeric) {
-        return new RegExp(`(^|[^\\d.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
-      }
-
-      // Short text answers need full token boundaries. The old rule made
-      // "no" match the beginning of "not" and one-letter answer ids match
-      // ordinary prose.
-      if (value.length < 3) {
-        return new RegExp(`(^|[^\\w])${escaped}($|[^\\w])`).test(haystack);
-      }
-
-      // Longer visible answers are specific enough to search literally.
-      return haystack.includes(value);
-    });
+    .some((value) => revealsValue(haystack, value) || revealsValue(closedHaystack, closeSigns(value)));
 };
 
 const responseValues = (responsePayload = {}) => {
@@ -150,6 +165,10 @@ export const buildAttemptSupportPayload = ({
   isCorrect = false,
   questionFinalized = false,
   responsePayload = null,
+  // A display-only diagnosis of this miss ({ message }), from a classifier
+  // that read the server-held item (Corrections: correctionMissDiagnosis.mjs).
+  // Fixed student text; never the answer. Callers that pass none are unchanged.
+  diagnosis = null,
 } = {}) => {
   const bundle = support && typeof support === 'object' ? support : buildPrivateSupport({});
   const attemptsRemaining = Math.max(0, Number(attemptsAllowed || 0) - Number(attemptNumber || 0));
@@ -165,21 +184,29 @@ export const buildAttemptSupportPayload = ({
     };
   }
 
+  const diagnosed = text(diagnosis?.message);
+
   if (questionFinalized) {
+    // The review follows, so naming the error costs nothing; it says what to
+    // look for in the review.
+    const closing = 'That is the last attempt for this question. Read the review below — the next question uses the same idea.';
     return {
       feedback: {
         tone: 'closed',
-        message: 'That is the last attempt for this question. Read the review below — the next question uses the same idea.',
+        message: diagnosed ? `${diagnosed} ${closing}` : closing,
       },
       support: null,
       solutionReview: bundle.solutionReview,
     };
   }
 
-  // Still open. Specific first, generic only if the bank has nothing specific.
+  // Still open. Specific first, generic only if the bank has nothing specific:
+  // the item's own message for this answer, then the diagnosis, then the
+  // item's per-attempt feedback (the order missFeedback uses on assignments).
   const specific = matchMisconception(bundle, responsePayload);
   const authored = bundle.attemptFeedback[Math.min(Math.max(0, Number(attemptNumber) - 1), bundle.attemptFeedback.length - 1)];
   const message = specific
+    || diagnosed
     || authored
     || GENERIC_MISS[Math.min(Math.max(0, Number(attemptNumber) - 1), GENERIC_MISS.length - 1)];
 

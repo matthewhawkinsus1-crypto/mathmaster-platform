@@ -8,6 +8,7 @@ import {
 } from '../../src/assignmentDestinations.js';
 import { collectReviewBlockers, describePreflightAction } from '../../src/components/teacher/preflightSteps.js';
 import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const CLASSES = [
   { classId: 'c-1', name: 'Algebra I — 1st', period: '1st', course: 'algebra1', courseLevel: 'standard', status: 'active' },
@@ -181,9 +182,11 @@ test('a null draft does not throw', () => {
 
 test('Library UI exposes a direct Assign to class action instead of forcing export/import copies', () => {
   const source = assignmentLibrarySource();
-  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  // The Library is mounted by the teacher's screen (its own module since G2).
+  const app = fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8');
   assert.match(source, /onAssignAssignment/);
   assert.match(source, />\s*Assign to class\s*</);
   assert.match(app, /onAssignAssignment=\{beginAssignLibraryAssignment\}/);
-  assert.match(app, /publish the saved Google Classroom post, notes, resources, and grade-passback settings/);
+  // The handler itself stays in App.
+  assert.match(appAndTeacherWorkspaceSource(), /publish the saved Google Classroom post, notes, resources, and grade-passback settings/);
 });

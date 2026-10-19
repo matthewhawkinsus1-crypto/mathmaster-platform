@@ -64,7 +64,7 @@ const ARTIFACTS = process.env.ARTIFACTS_DIR || path.join(ROOT, 'tests/browser/ar
 const PLAYWRIGHT_MODULE = process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
 const { chromium } = await import(PLAYWRIGHT_MODULE);
-const { sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
+const { TOOL_WORKSPACE_FRESH_FIELD, sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
 const { deriveLinearMultipleRepresentations, resolveRequiredCards } = await import(path.join(ROOT, 'functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs'));
 
 const LAPTOP = { width: 1366, height: 768 };
@@ -204,8 +204,11 @@ const overflow = (page) => page.evaluate(() => {
 // phone's portrait bar.
 const platformUndo = (page) => page.locator('.mathmaster-universal-undo:visible').first();
 // The work as a student built it, without the record's layout and Check
-// fingerprints — what an Undo is allowed to change.
-const mathOf = ({ expandedCards: _layout, checkedCards: _checks, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+// fingerprints — what an Undo is allowed to change — and without the fresh
+// marker: the fields edited on a device that has not yet seen the server's
+// copy (usePersistentToolState.js), which this harness never syncs. It is
+// bookkeeping, not work, and grows with every first edit of a field.
+const mathOf = ({ expandedCards: _layout, checkedCards: _checks, [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
 /**
  * Record what screen readers would be told: every node or text added to any
  * live region on the page (aria-live, role=status/alert), including regions
@@ -312,10 +315,11 @@ journeys.warmups = async (browser) => {
       }
     }
     await shot(page, `${id}-sorted`);
-    await page.getByRole('button', { name: 'Check groups' }).click();
+    // The sort's final action says Submit and its cost under QuestionEngine (D9).
+    await page.getByRole('button', { name: /^Submit — / }).first().click();
     await settle(page, 800);
     const body = await page.locator('.mathmaster-tool-shell').first().innerText();
-    check(/correct|every card|all .* match|great/i.test(body) && !/not yet|try again/i.test(body.split('Check groups')[1] || ''), `${id}: sorting every card by its line was not accepted`);
+    check(/correct|every card|all .* match|great/i.test(body) && !/not yet|try again/i.test(body.split(/Submit — [^\n]*/)[1] || ''), `${id}: sorting every card by its line was not accepted`);
     await shot(page, `${id}-checked`);
   }
   await page.context().close();
@@ -508,13 +512,15 @@ journeys['cw1-free-order'] = async (browser) => {
     await page.getByRole('button', { name: label }).first().click();
     await settle(page, 150);
   }
-  const withoutLayout = ({ expandedCards: _layout, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+  // The work without the layout — and without the fresh marker, which a first
+  // collapse extends with `expandedCards` (see mathOf): bookkeeping, not work.
+  const withoutLayout = ({ expandedCards: _layout, [TOOL_WORKSPACE_FRESH_FIELD]: _fresh, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
   check(withoutLayout(await work(page, id)) === withoutLayout(beforeCollapse), 'collapsing and reopening every card changes no work');
   check(await hasCorrectBadge(page, 'graphPointSlope'), 'verdicts survive collapse/expand');
 
   // 10. SUBMIT.
   step = 'submit';
-  await page.getByRole('button', { name: 'Submit board' }).click();
+  await page.getByRole('button', { name: /^Submit — / }).click();
   await settle(page, 1500);
   const submitted = await grades(page);
   check(submitted.length === 1 && submitted[0].isCorrect === true, `one correct submission recorded (${JSON.stringify(submitted.map((g) => g.isCorrect))})`);
@@ -785,7 +791,7 @@ journeys.dol = async (browser) => {
   check(await page.locator('button[data-card-check="true"]').count() === 0 && !(await hasCorrectBadge(page, 'slope')), 'Undo on a DOL brings back no Check and no verdict');
   await typeMath(page, mathField(page, 'slope'), '-3');
   // An incomplete board asks first.
-  await page.getByRole('button', { name: 'Submit board' }).click();
+  await page.getByRole('button', { name: /^Submit — / }).click();
   await settle(page);
   const warning = await page.locator('[data-lmr-submit] [role="alert"]').innerText().catch(() => '');
   check(/still empty/.test(warning), `an incomplete DOL asks before submitting ("${warning.slice(0, 90)}")`);
@@ -805,7 +811,7 @@ journeys.dol = async (browser) => {
   await settle(page);
   check(/9 of 9/.test(await page.locator('[aria-label="Your progress"]').innerText()), 'every DOL part counted as filled in');
   check(!(await page.locator('.mathmaster-tool-shell').first().innerText()).includes('✓ Correct'), 'still no verdicts anywhere in the DOL');
-  await page.getByRole('button', { name: 'Submit board' }).click();
+  await page.getByRole('button', { name: /^Submit — / }).click();
   await settle(page, 1500);
   const submitted = await grades(page);
   check(submitted.length === 1 && submitted[0].isCorrect === true, `the DOL records one correct submission (${JSON.stringify(submitted.map((g) => g.isCorrect))})`);
@@ -886,7 +892,7 @@ journeys.complete = async (browser) => {
     const strip = await page.locator('[aria-label="Your progress"]').innerText();
     const [, done, total] = strip.match(/(\d+) of (\d+)/) || [];
     check(done && done === total, `${id}: every part checked correct before submitting ("${strip.replace(/\n/g, ' ')}")`);
-    await page.getByRole('button', { name: 'Submit board' }).click();
+    await page.getByRole('button', { name: /^Submit — / }).click();
     await settle(page, 1500);
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
@@ -898,7 +904,9 @@ journeys.complete = async (browser) => {
     // which sees inert content, and check that it cannot be used: disabled, or
     // inside the inert lock. Still looked up without waiting, and if it is
     // truly gone, say what the page shows instead.
-    const submitBoard = page.locator('button', { hasText: 'Submit board' }).first();
+    // The board's own button: once the question is closed its label drops the
+    // try cost ("Submit board"), since a closed question spends none.
+    const submitBoard = page.locator('[data-lmr-submit] button', { hasText: /^Submit\b/ }).first();
     const submitShown = await submitBoard.count();
     const submitState = submitShown
       ? await submitBoard.evaluate((element) => ({ disabled: element.matches(':disabled'), inert: Boolean(element.closest('[inert]')) }))
@@ -1035,7 +1043,7 @@ journeys.family = async (browser) => {
     const [, done, total] = strip.match(/(\d+) of (\d+)/) || [];
     check(done && done === total, `${id}: every part ${dol ? 'filled in' : 'checked correct'} before submitting ("${strip.replace(/\n/g, ' ')}")`);
     if (dol) check(await page.locator('button[data-card-check="true"]').count() === 0, 'the generated DOL has no Check buttons');
-    await page.getByRole('button', { name: 'Submit board' }).click();
+    await page.getByRole('button', { name: /^Submit — / }).click();
     await settle(page, 1500);
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
@@ -1224,7 +1232,7 @@ journeys.undo = async (browser) => {
   // A SUBMISSION, THEN UNDO. The attempt is spent and stays spent: Undo takes
   // back a step of the work, never the attempt or what it said.
   const attempts = (await grades(page)).filter((grade) => grade.questionId === id).length;
-  await page.getByRole('button', { name: 'Submit board' }).click();
+  await page.getByRole('button', { name: /^Submit — / }).click();
   await settle(page, 300);
   await page.getByRole('button', { name: 'Submit anyway' }).click();
   await settle(page, 1500);

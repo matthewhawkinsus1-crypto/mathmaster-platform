@@ -98,6 +98,18 @@ test('the reset also clears Class Points runtime state, without putting classes 
   assert.equal(deleted.has('classes'), false);
 });
 
+test('the reset clears class reward lists, requests and growth-reward baselines, and the panel names them', () => {
+  const deleted = new Set(admin.PREPRODUCTION_RESET_COLLECTIONS);
+  for (const [name, label] of [
+    ['classRewardCatalogs', 'Class reward lists'],
+    ['classRewardRequests', 'Class reward requests'],
+    ['growthRewardState', 'Growth reward baselines'],
+  ]) {
+    assert.equal(deleted.has(name), true, `${name} should be cleared by the pre-production reset`);
+    assert.match(panel, new RegExp(`${name}: '${label}'`), `${name} has a readable label in the reset panel`);
+  }
+});
+
 
 
 test('production lock is root-admin only, one-way in the app, and reset refuses destructive execution after locking', () => {
@@ -193,6 +205,8 @@ test('teacher admin client exposes preview and reset only through the audited ca
 });
 
 test('root Administration exposes a dedicated pre-production reset tab and refreshes stale in-memory test data', () => {
+  // Administration is the teacher's screen, its own module since G2.
+  const app = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
   assert.match(app, /PreproductionReset/);
   assert.match(app, /\['reset', 'Pre-production reset'\]/);
   assert.match(app, /adminTab === 'reset'/);
@@ -205,6 +219,7 @@ test('root Administration exposes a dedicated pre-production reset tab and refre
   // student's complete grade history into the teacher shell.
   assert.match(app, /fetchTeacherRosterSummaries\(\)/);
   assert.doesNotMatch(app, /const fetchStudents\s*=\s*async/);
+  assert.doesNotMatch(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'), /const fetchStudents\s*=\s*async/);
 });
 
 test('reset panel requires exact phrases, disables bulk reset after locking, and explains Google Classroom limitation', () => {

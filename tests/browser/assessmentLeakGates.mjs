@@ -32,8 +32,16 @@
 //   intercepts         "Check x-intercept" / "Check y-intercept" and their step credit
 //   relation           the relation solver's graph-your-solution number line
 //   constraint-builder the Constraint-Based Function Builder's live checklist
-//   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
+//   composed-algebra   a composed question's algebra step: its strategic hint is a platform ladder rung in practice, absent on a DOL or test
 //   three-plane-reveal the three-plane model's author-allowed "Reveal" button
+//   feedback-ladder    the classroom feedback ladder (Hint control, miss message,
+//                      hint offer, worked solution, similar problem, back-up step)
+//                      on a plain key, a Question Family instance and a registry
+//                      tool: none of its text anywhere in the document on a DOL
+//                      or test, before or after Submit; and the partial-credit
+//                      breakdown ("still to fix: …") only where feedback is open
+//   graph-reading      a given graph whose intercepts are the answer: no feature
+//                      value in its description and no data table, in any role
 //
 // (The modeling lab's result after submission comes from a Cloud Function, so
 // it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
@@ -45,6 +53,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
+import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
+import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -68,14 +79,14 @@ const check = (ok, label, detail = '') => {
 const run = Date.now();
 let pageCount = 0;
 const pages = [];
-const open = async (role, q, extra = '') => {
+const open = async (role, q, extra = '', runId = null) => {
   pageCount += 1;
   const page = await context.newPage();
   pages.push(page);
   // A control that never appears is a finding, not a 30-second wait.
   page.setDefaultTimeout(8000);
   page.on('pageerror', (error) => check(false, `${role} ${q}: page error`, error.message));
-  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}${extra}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${runId || `${run}-${pageCount}`}${extra}`, { waitUntil: 'networkidle' });
   await page.locator('[data-leak-fixture]').waitFor();
   await settle(page, 900);
   return page;
@@ -83,6 +94,10 @@ const open = async (role, q, extra = '') => {
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
 const lastGrade = async (page) => (await page.evaluate(() => window.__mmGraded)).at(-1) || null;
 const stepGrades = (page) => page.evaluate(() => window.__mmStepGrades);
+// The tool's final action spends a try, so it says Submit and its cost
+// (student pass 3, D9): "Submit — your only try" on a DOL or test, "Submit —
+// uses 1 of 3 tries" in practice. It was the tool's "Check my work".
+const SUBMIT = /^Submit — /;
 const button = (page, name) => page.getByRole('button', { name, exact: true }).first();
 const hasButton = async (page, name) => (await page.getByRole('button', { name, exact: true }).count()) > 0;
 const partsOf = (grade) => Object.fromEntries((grade?.parts || []).map((part) => [part.id, part.isCorrect]));
@@ -137,7 +152,7 @@ const statePlanes = async (page, answers) => {
 };
 const openModelCaption = async (page) => {
   await button(page, 'Connect my result to 3D').click();
-  await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+  await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
   await settle(page, 400);
   return page.locator('.mathmaster-threeplane-viewport').innerText();
 };
@@ -156,9 +171,9 @@ const systems3x3 = async () => {
     check(/Your contradiction means/.test(await openModelCaption(page)), 'practice systems-3x3: the earned model still reads the student\'s contradiction back');
     await statePlanes(page, WRONG_PLANES);
     text = await bodyText(page);
-    check(/compare the coefficient ratio/.test(text) && !(await hasButton(page, 'Check my work')), 'practice systems-3x3: wrong plane relationships still get their nudge and hold Submit');
+    check(/compare the coefficient ratio/.test(text) && !(await hasButton(page, SUBMIT)), 'practice systems-3x3: wrong plane relationships still get their nudge and hold Submit');
     await statePlanes(page, RIGHT_PLANES);
-    await button(page, 'Check my work').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true, 'practice systems-3x3: the right interpretation is submitted correct', brief(grade));
@@ -179,9 +194,9 @@ const systems3x3 = async () => {
       text = await bodyText(page);
       check(!SYSTEMS_VERDICT.test(text), `${role} systems-3x3: "Check the plane relationships" says nothing about wrong relationships`, firstMatch(text, SYSTEMS_VERDICT));
       check(/Your plane relationships: .*They are graded when you submit\./.test(text), `${role} systems-3x3: the stated relationships are recorded`);
-      check(await hasButton(page, 'Check my work'), `${role} systems-3x3: the student can submit`);
+      check(await hasButton(page, SUBMIT), `${role} systems-3x3: the student can submit`);
       if (role !== 'dol') return;
-      await button(page, 'Check my work').click();
+      await button(page, SUBMIT).click();
       await settle(page, 800);
       const grade = await lastGrade(page);
       const parts = partsOf(grade);
@@ -200,7 +215,7 @@ const systems3x3 = async () => {
     const text = await bodyText(page);
     check(!SYSTEMS_VERDICT.test(text) && /It is graded when you submit\./.test(text), 'dol systems-3x3: a right reading gets the same recorded line, no verdict');
     await statePlanes(page, RIGHT_PLANES);
-    await button(page, 'Check my work').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'dol systems-3x3: the right interpretation is graded right', brief(grade));
@@ -251,9 +266,9 @@ const systems2x2 = async () => {
       const text = await bodyText(page);
       check(!SPECIAL_VERDICT.test(text), `${role} systems-2x2: the three answers are not judged before Submit`, firstMatch(text, SPECIAL_VERDICT));
       check(/Your interpretation is recorded\. It is graded when you submit\./.test(text), `${role} systems-2x2: they are recorded`);
-      check(await hasButton(page, 'Check my work'), `${role} systems-2x2: the student can submit`);
+      check(await hasButton(page, SUBMIT), `${role} systems-2x2: the student can submit`);
       if (role !== 'dol') return;
-      await button(page, 'Check my work').click();
+      await button(page, SUBMIT).click();
       await settle(page, 800);
       const grade = await lastGrade(page);
       check(grade?.isCorrect === false, 'dol systems-2x2: the wrong interpretation is graded wrong', brief(grade));
@@ -265,7 +280,7 @@ const systems2x2 = async () => {
     await interpret(page, RIGHT_SPECIAL);
     const text = await bodyText(page);
     check(!SPECIAL_VERDICT.test(text) && /Your interpretation is recorded\./.test(text), 'dol systems-2x2: a right interpretation gets the same recorded line');
-    await button(page, 'Check my work').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true, 'dol systems-2x2: the right interpretation is graded right', brief(grade));
@@ -399,7 +414,7 @@ const inequalityBuild = async () => {
       check(!BUILD_VERDICT.test(after) && await page.locator('[data-phase="classify"]').getAttribute('data-state') === 'done' && /●\s*Classify the region/.test(after),
         `${role} inequality-build: the region check records the answer only`, firstMatch(after, BUILD_VERDICT));
       if (role !== 'dol') return;
-      await button(page, 'Check my work').click();
+      await button(page, SUBMIT).click();
       await settle(page, 800);
       const grade = await lastGrade(page);
       check(grade?.isCorrect === false && grade.partialCreditPercent > 0 && grade.partialCreditPercent < 100,
@@ -427,7 +442,7 @@ const inequalityBuild = async () => {
     await button(page, 'Find overlap / Combine regions').click();
     await settle(page, 300);
     await classifyRegion(page);
-    await button(page, 'Check my work').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'dol inequality-build: right work is graded right without a single verdict', brief(grade));
@@ -564,7 +579,8 @@ const intercepts = async () => {
 
 const NUMBER_LINE_VERDICT = /Not yet|\bCorrect\b|The graph is not right yet|Stuck\? Show a hint/;
 const graphRay = async (page, endpoint) => {
-  await page.locator('button:visible', { hasText: endpoint === 'open' ? 'Open' : 'Closed' }).first().click();
+  // Not "⤢ Open Work View", which also has "Open" in it.
+  await page.locator('button:visible', { hasText: endpoint === 'open' ? 'Open' : 'Closed' }).filter({ hasNotText: 'Work View' }).first().click();
   await page.getByLabel('Exact endpoint value').fill('4');
   await page.locator('button:visible', { hasText: 'Place endpoint' }).first().click();
   await settle(page, 250);
@@ -578,7 +594,11 @@ const RELATION = '&ineq=x%20%3E%204';
 const relation = async () => {
   await scenario('practice relation', async () => {
     const page = await open('practice', 'relation', RELATION);
-    check(await hasButton(page, 'Stuck? Show a hint'), 'practice relation: the number line still offers its hint');
+    // One ladder per question (student pass 3, HELP-10): the number line's
+    // rungs are in the platform's Hint panel, offered before the first try,
+    // not a second tap-through ladder of its own.
+    check(!(await hasButton(page, 'Stuck? Show a hint')), 'practice relation: the number line shows no ladder of its own');
+    check(await page.locator('[data-first-hint-offer]').getByRole('button', { name: 'Show a hint' }).count() === 1, 'practice relation: its hint is offered through the platform ladder');
     await graphRay(page, 'closed');
     check(/Not yet/.test(await bodyText(page)), 'practice relation: a wrong graph is still called out');
     check(await page.getByRole('button', { name: /^Submit/ }).count() === 0, 'practice relation: and Submit still waits for a right graph');
@@ -655,7 +675,7 @@ const constraintBuilder = async () => {
       const rows = await checklist(page);
       check(rows.length === 3 && rows.every((row) => row.startsWith('•')), `${role} constraint-builder: no constraint ticks while the model is built`, rows.join(' | '));
       if (role !== 'dol') return;
-      await button(page, 'Submit this model').click();
+      await button(page, SUBMIT).click();
       await settle(page, 800);
       const grade = await lastGrade(page);
       check(grade?.isCorrect === false && partsOf(grade)['y-intercept'] === false && grade.partialCreditPercent === 67, 'dol constraint-builder: the model is graded at submission, part by part', brief(grade));
@@ -667,7 +687,7 @@ const constraintBuilder = async () => {
     await setParameter(page, 'y-intercept b', 2);
     const rows = await checklist(page);
     check(rows.length === 3 && rows.every((row) => row.startsWith('•')), 'dol constraint-builder: a right model looks the same', rows.join(' | '));
-    await button(page, 'Submit this model').click();
+    await button(page, SUBMIT).click();
     await settle(page, 800);
     const grade = await lastGrade(page);
     check(grade?.isCorrect === true, 'dol constraint-builder: the right model is graded right', brief(grade));
@@ -681,9 +701,20 @@ const composedAlgebra = async () => {
     await scenario(`${role} composed-algebra`, async () => {
       const page = await open(role, 'composed-algebra');
       await page.locator('[data-math-state]').first().waitFor();
-      const offered = /Need a strategic hint\?/.test(await bodyText(page));
-      if (role === 'practice') check(offered, 'practice composed-algebra: the algebra step still offers its strategic hint');
-      else check(!offered, `${role} composed-algebra: the algebra step offers no hint`);
+      // ONE LADDER (student pass 3, TOOL-5): in practice the step's strategic
+      // hint is a rung of the platform's ladder, not a disclosure of its own.
+      const disclosure = /Need a strategic hint\?/.test(await bodyText(page));
+      check(!disclosure, `${role} composed-algebra: no "Need a strategic hint?" beside the platform's Hint`);
+      if (role === 'practice') {
+        await page.locator('button:visible', { hasText: '💡 Hint' }).first().click();
+        const rung = await page.waitForFunction(() => /\btool\b/.test(document.querySelector('[data-hint-panel]')?.dataset.hintSources || ''), null, { timeout: 8000 }).then(() => true, () => false);
+        check(rung, 'practice composed-algebra: the algebra step\'s strategic hint is a rung of the platform ladder');
+      } else {
+        check(!(await page.locator('[data-hint-panel] li[data-hint-source]').count()) && !(await page.getByRole('button', { name: /^Show a hint$/ }).count()), `${role} composed-algebra: the algebra step offers no hint`);
+        // The method itself, in any element (review S2): not only its summary.
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        check(!/Look for a move that cancels a term/.test(html), `${role} composed-algebra: the strategic move is nowhere in the document`);
+      }
     });
   }
 };
@@ -692,11 +723,196 @@ const threePlaneReveal = async () => {
   for (const role of ['practice', 'dol', 'test']) {
     await scenario(`${role} three-plane-reveal`, async () => {
       const page = await open(role, 'three-plane-reveal');
-      await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+      await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
       const offered = await page.getByRole('button', { name: /^Reveal / }).count() > 0;
       if (role === 'practice') check(offered, 'practice three-plane-reveal: the author-allowed reveal is still offered');
       else check(!offered, `${role} three-plane-reveal: no reveal before Submit`);
     });
+  }
+};
+
+/* ------------------------------------------------------- feedback ladder */
+
+// Every text the classroom feedback ladder can produce (Student push, Job A):
+// authored supports (marked LEAKCHECK in the fixtures), every misconception
+// and generic miss message, and the ladder's own words. On a DOL or test none
+// may be anywhere in the document — visible text, aria-labels, live regions
+// or hidden nodes — while the item can still be answered, nor after a
+// submission whose outcome is held.
+const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
+  // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
+  // rung, and the sentence beside every hint offer.
+  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking',
+  // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
+  // every fallback (none may reach a DOL or test).
+  'These hints are general', ...Object.values(FALLBACK_HINTS).flat()];
+const ladderLeaks = async (page) => {
+  const html = await page.evaluate(() => document.documentElement.outerHTML);
+  const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];
+  return [...LADDER_WORDS, ...messages].filter((text) => html.includes(text.replace(/&/g, '&amp;')));
+};
+const typeAnswer = async (page, value) => {
+  await setMathField(page, page.locator('.mathmaster-question-tool-workspace math-field').first(), value);
+};
+const submitAnswer = async (page) => {
+  await page.locator('button.mathmaster-bar-submit').first().click();
+  await settle(page, 700);
+};
+const feedbackLadder = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    await scenario(`${role} feedback-ladder`, async () => {
+      const page = await open(role, 'feedback-ladder');
+      const hintControl = await page.locator('[data-hint-control]').count();
+      if (role === 'practice') check(hintControl === 1, 'practice feedback-ladder: the Hint control is offered');
+      else check(hintControl === 0, `${role} feedback-ladder: no Hint control`);
+      if (role !== 'practice') check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document before Submit`, (await ladderLeaks(page)).join(' | '));
+      if (role === 'practice') {
+        await page.locator('[data-hint-control]').click();
+        await page.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+        await settle(page, 200);
+      }
+      await typeAnswer(page, '-\\frac{3}{4}');
+      await submitAnswer(page);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false, `${role} feedback-ladder: a wrong answer is graded wrong`, brief(grade));
+      // Every hint revealed is recorded with the attempt (recordHintUse).
+      if (role === 'practice') check(grade?.supportUsage?.hintUsed === true && grade?.supportUsage?.isMathematicallyIndependent === false, 'practice feedback-ladder: the hint revealed is recorded with the attempt', JSON.stringify(grade?.supportUsage));
+      const miss = page.locator('[data-miss-feedback]');
+      if (role === 'practice') {
+        check(await miss.count() === 1 && /LEAKCHECK-MISCONCEPTION/.test(await miss.textContent()), 'practice feedback-ladder: the authored wrong-answer message is shown');
+      } else {
+        check(await miss.count() === 0, `${role} feedback-ladder: no miss message after Submit`);
+        check((await ladderLeaks(page)).length === 0, `${role} feedback-ladder: nothing from the ladder in the document after Submit`, (await ladderLeaks(page)).join(' | '));
+      }
+    });
+  }
+  // PR #462 review B2 / M6c: help had on a question is recorded with the
+  // attempts that follow it — across a remount (the same draft key), and a
+  // miss message on screen makes the next attempt feedback-assisted.
+  await scenario('practice feedback-ladder support use', async () => {
+    const runId = `${run}-support-use`;
+    const first = await open('practice', 'feedback-ladder', '', runId);
+    await first.locator('[data-hint-control]').click();
+    await first.locator('.mathmaster-hint-panel button', { hasText: 'Show a hint' }).click();
+    await settle(first, 300);
+    await first.close();
+    const page = await open('practice', 'feedback-ladder', '', runId);
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    const remounted = (await lastGrade(page))?.supportUsage || {};
+    check(remounted.hintUsed === true && remounted.isMathematicallyIndependent === false, 'practice feedback-ladder: a hint revealed before leaving is recorded after coming back', JSON.stringify(remounted));
+    check(remounted.feedbackAssisted === false, 'practice feedback-ladder: the first attempt saw no miss message', JSON.stringify(remounted));
+    await typeAnswer(page, '5');
+    await submitAnswer(page);
+    const next = (await lastGrade(page))?.supportUsage || {};
+    check(next.feedbackAssisted === true && next.isMathematicallyIndependent === false, 'practice feedback-ladder: the attempt after a miss message is feedback-assisted', JSON.stringify(next));
+  });
+  // PR #462 review m8: a role nobody recognises (which the policy table would
+  // read as classwork) fails closed — no Hint control, no miss message.
+  await scenario('unknown-role feedback-ladder', async () => {
+    const page = await open('homework', 'feedback-ladder');
+    check(await page.locator('[data-hint-control]').count() === 0, 'unknown-role feedback-ladder: no Hint control');
+    await typeAnswer(page, '-\\frac{3}{4}');
+    await submitAnswer(page);
+    check((await lastGrade(page))?.isCorrect === false, 'unknown-role feedback-ladder: still graded');
+    check(await page.locator('[data-miss-feedback]').count() === 0, 'unknown-role feedback-ladder: no miss message');
+  });
+  // PR #462 review M4: a question locked without closing (DOL timer, a
+  // section the teacher closed, the Warm-Up window) loses its Ask and Cancel
+  // controls, so it lowers its own raised hand.
+  for (const locked of ['1', '0']) {
+    await scenario(`practice feedback-ladder raised hand (locked=${locked})`, async () => {
+      const page = await open('practice', 'feedback-ladder', `&ask=1&hand=1&locked=${locked}`);
+      const calls = await page.evaluate(() => window.__mmHelp);
+      if (locked === '1') check(calls.includes(false), 'practice feedback-ladder: a locked question lowers its raised hand', JSON.stringify(calls));
+      else check(calls.length === 0, 'practice feedback-ladder: an open question leaves the hand raised', JSON.stringify(calls));
+    });
+  }
+  // PR #462 review: the partial-credit breakdown names the parts still wrong,
+  // which steers the remaining attempts. Released feedback on a DOL, quiz or
+  // test item that can still be answered keeps the percentage only.
+  for (const role of ['practice', 'dol', 'quiz', 'test']) {
+    await scenario(`${role} feedback-partial (released)`, async () => {
+      const page = await open(role, 'feedback-partial', '&record=partial&released=1');
+      const strip = page.locator('.mathmaster-question-attempt-strip');
+      const stripText = await strip.textContent();
+      check(/50% partial credit so far/.test(stripText), `${role} feedback-partial: the percentage is shown`, stripText);
+      const breakdown = await strip.locator('.mathmaster-attempt-detail-breakdown').count();
+      if (role === 'practice') {
+        check(breakdown === 1 && /still to fix: LEAKCHECK-PART y-intercept/.test(stripText), 'practice feedback-partial: the breakdown names the part to fix', stripText);
+      } else {
+        check(breakdown === 0 && !/still to fix|parts right|LEAKCHECK-PART/.test(stripText), `${role} feedback-partial: no breakdown while the item can be answered`, stripText);
+      }
+    });
+  }
+  // PR #462 review B1: a DOL shows right/wrong per item as soon as the item
+  // closes, and "Grant one more DOL attempt" reopens that same item. The
+  // worked solution waits for the teacher's assignment-level release.
+  for (const role of ['dol', 'quiz', 'test']) {
+    for (const review of ['0', '1']) {
+      await scenario(`${role} feedback-ladder closed (review=${review})`, async () => {
+        const page = await open(role, 'feedback-ladder', `&record=expired&released=1&review=${review}`);
+        const worked = await page.locator('[aria-label="Worked solution"]').count();
+        const html = await page.evaluate(() => document.documentElement.outerHTML);
+        if (review === '0') {
+          check(worked === 0 && !html.includes('LEAKCHECK-REVIEW'), `${role} feedback-ladder: a closed item with right/wrong released shows no worked solution`, `${worked} panels`);
+        } else {
+          check(worked === 1 && html.includes('LEAKCHECK-REVIEW: change in y is 3.'), `${role} feedback-ladder: after the assignment's release the worked solution shows`, `${worked} panels`);
+        }
+      });
+    }
+  }
+  for (const which of ['feedback-family', 'feedback-tool']) {
+    for (const role of ['dol', 'test']) {
+      await scenario(`${role} ${which}`, async () => {
+        const page = await open(role, which);
+        check(await page.locator('[data-hint-control]').count() === 0, `${role} ${which}: no Hint control`);
+        check((await ladderLeaks(page)).length === 0, `${role} ${which}: nothing from the ladder in the document`, (await ladderLeaks(page)).join(' | '));
+        if (which === 'feedback-family') {
+          const prompt = await page.locator('.mathmaster-question-engine').first().textContent();
+          const match = prompt.match(/(−|-)?\s*(\d+)x\s*([+−-])\s*(\d+)\s*=\s*(−|-)?\s*(\d+)/);
+          check(Boolean(match), `${role} ${which}: the instance renders`, prompt.slice(0, 120));
+          if (match) {
+            const a = Number(match[2]) * (match[1] ? -1 : 1);
+            const b = Number(match[4]) * (match[3] === '+' ? 1 : -1);
+            const c = Number(match[6]) * (match[5] ? -1 : 1);
+            // The kept-sign value: in practice the classifier would name it.
+            await typeAnswer(page, String((c + b) / a));
+            await submitAnswer(page);
+            check((await lastGrade(page))?.isCorrect === false, `${role} ${which}: graded wrong`);
+            check((await ladderLeaks(page)).length === 0, `${role} ${which}: no diagnosis, hint or review after Submit`, (await ladderLeaks(page)).join(' | '));
+          }
+        }
+      });
+    }
+  }
+};
+
+/* --------------------------------------------------------- graph-reading */
+
+// PR #454 review B1/B2: a screen reader (ChromeVox is one keystroke on every
+// Chromebook) heard "crosses the y-axis at 2" and a "Show data table" listed
+// the intercept rows on items whose answer IS the intercepts. While the item
+// can be answered — in every role, not only assessments — the plane says what
+// is drawn and never where, and offers no table.
+const planeReading = (page) => page.evaluate(() => {
+  const svg = document.querySelector('svg[aria-describedby][role="img"]');
+  const description = svg ? document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '' : '';
+  return { found: Boolean(svg), description, table: [...document.querySelectorAll('button')].some((b) => /data table/i.test(b.textContent)) };
+});
+const FEATURE_TALK = /cross|touch|high point|low point|passes through|\(3, 0\)|\(0, 2\)|at 2\b|at 3\b|between/;
+const graphReading = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    for (const read of ['1', '0']) {
+      await scenario(`${role} graph-reading read=${read}`, async () => {
+        const page = await open(role, 'graph-reading', `&read=${read}`);
+        const plane = await planeReading(page);
+        check(plane.found, `${role} graph-reading (read=${read}): the given graph is described`);
+        check(/1 line/.test(plane.description), `${role} graph-reading (read=${read}): it says what is drawn`, plane.description);
+        check(!FEATURE_TALK.test(plane.description), `${role} graph-reading (read=${read}): the description names no intercept or position`, firstMatch(plane.description, FEATURE_TALK));
+        check(!plane.table, `${role} graph-reading (read=${read}): no data table while the item can be answered`);
+      });
+    }
   }
 };
 
@@ -711,6 +927,8 @@ const SURFACES = {
   'constraint-builder': constraintBuilder,
   'composed-algebra': composedAlgebra,
   'three-plane-reveal': threePlaneReveal,
+  'feedback-ladder': feedbackLadder,
+  'graph-reading': graphReading,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
 for (const name of selected) {

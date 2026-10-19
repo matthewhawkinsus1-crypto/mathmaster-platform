@@ -258,7 +258,8 @@ log(`seeded ${bank.length} questions`);
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const publicPlayers = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || null;
+// The teacher's whole copy of a closed round (the class's copy lists only the public rows).
+const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data() || null;
 const privatePlayer = async (roomId, studentId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').doc(studentId).get()).data() || {};
 const activeRoomId = async () => (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data()?.roomId || null;
 const ms = (value) => value?.toMillis?.() || 0;
@@ -1477,8 +1478,11 @@ await run('endurance', async (S) => {
       await session.detach().catch(() => {});
     }
   }
-  // Leaving the game: the student goes back to the dashboard.
-  for (const student of [s1, s2]) await student.page.getByRole('button', { name: 'Back to Dashboard' }).last().click().catch(() => {});
+  // Leaving the game: the student goes back Home. A missing button is a finding, not a silent stay in the game.
+  for (const student of [s1, s2]) {
+    const left = await student.page.getByRole('button', { name: 'Back to Home' }).last().click({ timeout: 5_000 }).then(() => true, () => false);
+    check(S, left, `${student.studentId}: the final screen offers Back to Home`);
+  }
   await wait(1_000);
   await sample('students left the final screen');
   const gamesDone = samples.filter((row) => row.label.startsWith('after game'));

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
-import { describeSlotChoice } from '../../platform/path/weeklyPathChoice.js';
+import { describeSlotChoice, weeklyGoalOffersSwap } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
-import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoal.js';
+import { describeWeeklyGradeForStudent, publishedWeeklyGoal } from '../../platform/path/weeklyPathGoal.js';
+import { RETENTION_PROBE_QUESTIONS, isRetentionPurpose } from '../../../functions/shared/pathRetentionCheck.mjs';
 
 // The student's week is a commitment the platform can count, not a vague list
 // of topics. This panel is intentionally shared by Path and Mastery Overview so
@@ -18,7 +19,7 @@ const PURPOSE_TONE = {
 };
 
 const CARD = { border: '1px solid var(--mm-border-soft)', borderRadius: 16, background: 'var(--mm-surface)', padding: 18 };
-const MUTED = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 };
 
 const weeklyPurposeLabel = (session = {}) => {
   if (session.purpose !== PURPOSE.TRANSFER) return session.purposeLabel || 'Path practice';
@@ -45,10 +46,10 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
   return (
     <div style={{ display: 'grid', gap: 5, minWidth: compact ? 150 : 210 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-        <strong style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontSize: compact ? 12.5 : 13.5 }}>
+        <strong style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontSize: compact ? 'calc(12.5 * var(--mm-px))' : 'calc(13.5 * var(--mm-px))' }}>
           {done} of {total} done
         </strong>
-        <span style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>{percent}%</span>
+        <span style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{percent}%</span>
       </div>
       <div
         role="progressbar"
@@ -107,17 +108,17 @@ export function WeeklyGradeCard({ summary, compact = false }) {
         minWidth: compact ? 150 : 190,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: good ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
+      <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: good ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
         {summary.label}
       </span>
-      <strong style={{ fontSize: compact ? 20 : 24, lineHeight: 1.1, color: good ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
+      <strong style={{ fontSize: compact ? 'calc(20 * var(--mm-px))' : 'calc(24 * var(--mm-px))', lineHeight: 1.1, color: good ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
         {summary.score}
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text-muted)' }}> / {summary.outOf}</span>
+        <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}> / {summary.outOf}</span>
       </strong>
       {summary.nextStep && (
-        <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text)', fontWeight: 600 }}>{summary.nextStep}</span>
+        <span style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', fontWeight: 600 }}>{summary.nextStep}</span>
       )}
-      <span style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--mm-text-muted)' }}>{summary.teacherNote}</span>
+      <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)' }}>{summary.teacherNote}</span>
     </div>
   );
 }
@@ -153,7 +154,7 @@ function SlotChoice({ session, onChoose, disabled }) {
         style={{
           appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
           border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface-tint)',
-          color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5, padding: '8px 11px',
+          color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))', padding: '8px 11px',
           minHeight: 44, cursor: 'pointer', width: '100%', textAlign: 'left',
         }}
       >
@@ -181,15 +182,15 @@ function SlotChoice({ session, onChoose, disabled }) {
                   }}
                 >
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>{option.studentLabel}</strong>
+                    <strong style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{option.studentLabel}</strong>
                     {option.recommended && (
-                      <span style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--mm-primary-text)', background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', borderRadius: 999, padding: '2px 7px' }}>
+                      <span style={{ fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', borderRadius: 999, padding: '2px 7px' }}>
                         RECOMMENDED
                       </span>
                     )}
-                    {active && <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-success-text)' }}>✓ chosen</span>}
+                    {active && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-success-text)' }}>✓ chosen</span>}
                   </span>
-                  <span style={{ ...MUTED, display: 'block', marginTop: 3, fontSize: 12.5 }}>{option.swapReason}</span>
+                  <span style={{ ...MUTED, display: 'block', marginTop: 3, fontSize: 'calc(12.5 * var(--mm-px))' }}>{option.swapReason}</span>
                 </button>
               </li>
             );
@@ -200,9 +201,45 @@ function SlotChoice({ session, onChoose, disabled }) {
   );
 }
 
-function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
+/**
+ * The unfinished server session for a slot, if the student opened one. A swap
+ * keeps the slot's frozen key, so this follows the slot, not the skill.
+ */
+export const inProgressForSlot = (inProgress = [], session = {}) => (
+  (Array.isArray(inProgress) ? inProgress : []).find((entry) => (
+    entry?.weeklySlotKey && entry.weeklySlotKey === session?.weeklySlotKey
+  )) || null
+);
+
+/**
+ * The start button's words: a half-done session is resumed, never restarted.
+ * A Retention slot starts a two-question check rather than a practice round,
+ * and its button says so before the student commits to it.
+ */
+export const weeklyStartLabel = (session, active, required) => {
+  if (active) {
+    const answered = Number(active.answeredQuestions) || 0;
+    const of = Number(active.requiredQuestions) || null;
+    return of ? `Resume session ${session.slot} · ${answered} of ${of} answered` : `Resume session ${session.slot}`;
+  }
+  const start = required ? `Start session ${session.slot} of ${required}` : 'Start weekly session';
+  return isRetentionPurpose(session?.purpose) ? `${start} · ${RETENTION_PROBE_QUESTIONS} questions` : start;
+};
+
+/**
+ * What a weekly launch button says while it cannot launch yet. Until the
+ * student's own sessions for the week have loaded, a card may show the
+ * recommendation for a slot whose swap is already open, so Start waits rather
+ * than guessing (MyMathPathApp gates the launch the same way).
+ */
+export const weeklyFactsBlockedLabel = (factsStatus) => (
+  factsStatus === 'loading' ? 'Checking your week…' : null
+);
+
+function SessionCard({ session, done, active = null, onStart, onChoose, disabled, total, blockedLabel = null, swapHidden = false, isNext = false, starting = false }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
   const choice = describeSlotChoice(session);
+  const highlighted = isNext && !done;
   return (
     <li style={{ listStyle: 'none' }}>
       <div style={{
@@ -210,41 +247,46 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
         padding: 15,
         display: 'grid',
         gap: 9,
-        border: done ? '2px solid var(--mm-success-border)' : CARD.border,
-        background: done ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
+        border: done ? '2px solid var(--mm-success-border)' : highlighted ? '2px solid var(--mm-tint-border)' : CARD.border,
+        background: done ? 'var(--mm-success-subtle)' : highlighted ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
       }}>
+        {highlighted && (
+          <div style={{ fontSize: 'calc(10.5 * var(--mm-px))', fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
+            Do this next
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
-              fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
+              fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.02em',
               background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`,
             }}>
               {weeklyPurposeLabel(session)}
             </span>
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, fontWeight: 800 }}>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 800 }}>
               Weekly session {session.slot} of {total}
             </span>
           </div>
           {done && (
-            <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 950 }}>
+            <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950 }}>
               Completed ✓
             </span>
           )}
         </div>
 
-        <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>
+        <div style={{ fontSize: 'calc(15.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>
           {session.studentLabel || session.teksCode}
         </div>
 
-        <div style={{ fontSize: 11.5, fontWeight: 800, color: choice.chose ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
+        <div style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 800, color: choice.chose ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
           {choice.chose ? `You chose this instead of ${choice.recommendedLabel}` : 'Recommended for you'}
         </div>
 
         <div style={MUTED}>{session.studentExplanation}</div>
 
         {done ? (
-          <div style={{ color: 'var(--mm-success-text)', fontSize: 12.5, fontWeight: 800 }}>
+          <div style={{ color: 'var(--mm-success-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
             This session counted toward your weekly target.
           </div>
         ) : (
@@ -256,15 +298,18 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               marginTop: 2, padding: '11px 16px', borderRadius: 11, border: 0,
               background: disabled ? '#c7ccd4' : '#174ea6', color: '#fff',
-              fontSize: 14.5, fontWeight: 900, cursor: disabled ? 'default' : 'pointer',
+              fontSize: 'calc(14.5 * var(--mm-px))', fontWeight: 900, cursor: disabled ? 'default' : 'pointer',
               minHeight: 44, width: '100%',
             }}
           >
-            Start weekly session
+            {starting ? 'Starting…' : (blockedLabel || weeklyStartLabel(session, active, total))}
           </button>
         )}
 
-        {!done && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
+        {/* An opened session is bound to its skill on the server, so the swap
+            control only appears before the first answer — and only once the
+            student's sessions have loaded, which is when "opened" is known. */}
+        {!done && !active && !swapHidden && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
       </div>
     </li>
   );
@@ -279,15 +324,26 @@ export default function WeeklyPathGoalPanel({
   // into showing a student one score and their family another.
   completions = null,
   completedSlots = [],
+  // Weekly sessions the student opened and has not finished. They never count
+  // as done; they turn "Start" into "Resume".
+  inProgress = [],
+  // Whether `completions` and `inProgress` are settled for this week:
+  // 'loading', 'ready' or 'failed'. Weekly Start, Resume and the swap options
+  // wait for 'ready'. Callers that hand over settled facts can leave it.
+  factsStatus = 'ready',
+  onRetryFacts = null,
   onStartSession = null,
   onChooseAlternative = null,
   busy = false,
   compact = false,
 }) {
+  // Which card's Start the student pressed, so "Starting…" shows on THAT
+  // card (sessions can be done in any order), not on the "Do this next" one.
+  const [startingSlot, setStartingSlot] = useState(null);
   if (!goal || !goal.sessions?.length) {
     return (
       <section style={CARD}>
-        <h2 style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>Your weekly target</h2>
+        <h2 style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Your weekly target</h2>
         <p style={{ ...MUTED, marginTop: 8 }}>
           MathMaster is putting this week&apos;s Path together. Check back in a moment — and if it
           stays like this, tell your teacher, because that is not supposed to happen.
@@ -302,10 +358,21 @@ export default function WeeklyPathGoalPanel({
   const remaining = Math.max(0, required - completed);
   const complete = remaining === 0;
   const next = goal.sessions.find((session) => !done.has(session.slot));
+  // No weekly launch until the student's sessions for the week are known —
+  // and no swap control either: whether a slot can still be swapped depends
+  // on whether it is already open.
+  const launchBlocked = factsStatus !== 'ready';
+  const blockedLabel = weeklyFactsBlockedLabel(factsStatus);
+  // Swapping is promised only where a card actually offers it. A week frozen
+  // before swaps existed has no options, and saying "swap it on any card"
+  // there points at a control that is not on the screen.
+  const swapOffered = !launchBlocked && weeklyGoalOffersSwap({ goal, completedSlots, inProgress });
   // Null when the caller has no completions to hand, which simply means no
   // grade card rather than a wrong one.
   const gradeSummary = Array.isArray(completions)
-    ? describeWeeklyGradeForStudent({ goal, completions })
+    // Graded as the Classroom publisher grades it (publishedWeeklyGoal): the
+    // frozen goal, not the teacher's live settings merged over it.
+    ? describeWeeklyGradeForStudent({ goal: publishedWeeklyGoal(goal), completions })
     : null;
 
   if (compact) {
@@ -317,14 +384,20 @@ export default function WeeklyPathGoalPanel({
         display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap',
       }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
             {complete ? 'Weekly target complete' : 'Your weekly target'}
           </div>
-          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: 'var(--mm-text-strong)' }}>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
             {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
           </strong>
           <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
-            {complete ? 'Anything else you practise this week is extra.' : 'Do them in any order, and you can swap a skill on any card.'}
+            {/* This compact summary has no session cards, so it says where
+                the swap control is rather than pointing at one. */}
+            {complete
+              ? 'Anything else you practise this week is extra.'
+              : swapOffered
+                ? 'Do them in any order. On your Path, some sessions let you swap in a different skill.'
+                : 'Do them in any order.'}
           </span>
         </div>
         <div style={{ display: 'grid', gap: 9, justifyItems: 'stretch' }}>
@@ -347,16 +420,17 @@ export default function WeeklyPathGoalPanel({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.08em', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
+            <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.08em', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
               {complete ? '🎉 Goal hit' : 'This week'}
             </div>
-            <h2 style={{ margin: '3px 0 0', fontSize: complete ? 24 : 19, color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
+            <h2 style={{ margin: '3px 0 0', fontSize: complete ? 'calc(24 * var(--mm-px))' : 'calc(19 * var(--mm-px))', color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
               {complete ? 'Weekly target complete!' : 'Your Weekly Math Path'}
             </h2>
             {!complete && (
-              <p style={{ ...MUTED, margin: '5px 0 0', fontSize: 13 }}>
-                MathMaster picked these for you and says why. Do them in any order — and if a
-                different skill would help you more, swap it on any card below.
+              <p style={{ ...MUTED, margin: '5px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>
+                {swapOffered
+                  ? 'MathMaster picked these for you and says why. Do them in any order — and if a different skill would help you more, swap it on a card that offers other options.'
+                  : 'MathMaster picked these for you and says why. Do them in any order.'}
               </p>
             )}
           </div>
@@ -366,70 +440,71 @@ export default function WeeklyPathGoalPanel({
           </div>
         </div>
 
-        <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? 'var(--mm-success-text)' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
+        <div style={{ ...MUTED, fontSize: complete ? 'calc(15 * var(--mm-px))' : 'calc(14 * var(--mm-px))', color: complete ? 'var(--mm-success-text)' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
           {complete
             ? `You completed all ${required} of ${required} Path sessions this week. Anything else you do now is extra practice.`
             : `${completed} of ${required} weekly sessions done — ${remaining} to go. Practising anything else on your Path is always open; these are the ones that count toward the week.`}
         </div>
         {progress?.daysLeft != null && remaining > 0 && progress.daysLeft >= 0 && (
-          <div style={{ ...MUTED, fontSize: 12.5 }}>
+          <div style={{ ...MUTED, fontSize: 'calc(12.5 * var(--mm-px))' }}>
             {progress.daysLeft === 0 ? 'Due today.' : `${progress.daysLeft} day${progress.daysLeft === 1 ? '' : 's'} left.`}
           </div>
         )}
         {progress?.overdue && (
-          <div style={{ ...MUTED, fontSize: 12.5, color: 'var(--mm-warning-text)' }}>
+          <div style={{ ...MUTED, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>
             This week&apos;s goal is past its due date. You can still finish it — the practice still counts toward what you know.
           </div>
         )}
       </header>
 
-      {next && (
-        <div style={{ ...CARD, background: 'var(--mm-surface-tint)', borderColor: 'var(--mm-tint-border)' }}>
-          <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
-            Do this next · weekly session {next.slot} of {required}
-          </div>
-          <div style={{ marginTop: 7 }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
-              fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
-              background: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).bg,
-              color: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).fg,
-              border: `1px solid ${(PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).border}`,
-            }}>
-              {weeklyPurposeLabel(next)}
-            </span>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--mm-text-strong)', marginTop: 5 }}>
-            {next.studentLabel || next.teksCode}
-          </div>
-          <div style={{ ...MUTED, marginTop: 4 }}>{next.studentExplanation}</div>
-          <button
-            type="button"
-            onClick={() => onStartSession?.(next)}
-            disabled={busy}
-            style={{
-              appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-              marginTop: 12, padding: '12px 18px', borderRadius: 11, border: 0,
-              background: busy ? '#c7ccd4' : '#174ea6', color: '#fff',
-              fontSize: 15, fontWeight: 900, cursor: busy ? 'default' : 'pointer',
-              minHeight: 46, width: '100%',
-            }}
-          >
-            {busy ? 'Starting…' : `Start session ${next.slot} of ${required}`}
-          </button>
+      {factsStatus === 'failed' && (
+        <div role="alert" style={{
+          ...CARD,
+          padding: 14,
+          display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+          border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)',
+        }}>
+          <span style={{ fontSize: 'calc(13.5 * var(--mm-px))', fontWeight: 700, lineHeight: 1.5, flex: '1 1 240px' }}>
+            MathMaster couldn&apos;t check which weekly sessions you&apos;ve already started, so Start is paused.
+          </span>
+          {onRetryFacts && (
+            <button
+              type="button"
+              onClick={() => onRetryFacts()}
+              style={{
+                appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                minHeight: 44, padding: '10px 16px', borderRadius: 10,
+                border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-surface)',
+                color: 'var(--mm-warning-text)', fontWeight: 900, cursor: 'pointer',
+              }}
+            >
+              Try again
+            </button>
+          )}
         </div>
       )}
 
+      {/* ONE START PER SESSION. A separate "Do this next" card used to repeat
+          the next session's label, explanation and Start button above the
+          list, so a screen reader heard "Start session 1 of 4" twice in a row
+          for one action. The next session is marked in place instead: its
+          own card says "Do this next" and holds its only Start, beside its
+          swap control. */}
       <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 11 }}>
         {goal.sessions.map((session) => (
           <SessionCard
             key={session.slot}
             session={session}
             done={done.has(session.slot)}
-            onStart={onStartSession}
+            active={done.has(session.slot) ? null : inProgressForSlot(inProgress, session)}
+            onStart={onStartSession ? (started) => { setStartingSlot(started?.slot ?? null); onStartSession(started); } : null}
             onChoose={onChooseAlternative}
-            disabled={busy}
+            disabled={busy || launchBlocked}
+            blockedLabel={blockedLabel}
+            swapHidden={launchBlocked}
             total={required}
+            isNext={session.slot === next?.slot}
+            starting={busy && session.slot === startingSlot}
           />
         ))}
       </ul>

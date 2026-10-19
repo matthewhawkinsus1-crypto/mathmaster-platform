@@ -9,6 +9,7 @@ import {
 } from '../config/executionMode.js';
 import { generateRuntimeUUID } from '../utils/idUtils.js';
 import { toCanonicalKey } from '../utils/teksUtils.js';
+import { buildPathSessionRecap } from '../../functions/shared/pathSessionRecap.mjs';
 
 // The live My Math Path runtime.
 //
@@ -65,6 +66,7 @@ const pathOperationLabel = Object.freeze({
   issueNextQuestion: 'prepare the next secure question',
   submitPathResponse: 'check this response',
   getMyMathPathSkillProgress: 'load your completed Path passes',
+  getMyPathSessionRecap: 'load the review of this session',
 });
 
 const normalizePathCallableError = (caught, operation) => {
@@ -131,10 +133,14 @@ const mockQuestionFor = (session) => {
   };
 };
 
-export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
+export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null, chosenSkillId = null }) => {
   assertRuntimeAvailable();
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
+  // "Swap a skill": which alternative the student put in this weekly slot. It
+  // names the choice and authorizes nothing — the server accepts the target
+  // only if it is the slot's own TEKS or one of its frozen alternatives.
+  const weeklyChosenSkillId = weeklySlotKey && chosenSkillId ? String(chosenSkillId) : null;
   if (usingMockRuntime()) {
     const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
     if (existing) return { success: true, session: clone(existing) };
@@ -147,6 +153,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
+      chosenSkillId: weeklyChosenSkillId,
       isDevelopmentSandbox: true,
       requiredQuestions: Math.max(2, Math.min(10, Number(requiredQuestions) || 5)),
       target: { alignmentKey: canonicalKey },
@@ -166,6 +173,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     weekKey: weekKey || null,
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,
+    chosenSkillId: weeklyChosenSkillId,
   });
 };
 
@@ -175,6 +183,20 @@ export const fetchMyMathPathSkillProgress = async () => {
     return { success: true, byTeksCode: {}, skillsWithCompletedPasses: 0, totalCompletedPasses: 0 };
   }
   return invokePathCallable('getMyMathPathSkillProgress', {});
+};
+
+/**
+ * The finished session's recap: the questions missed or partly credited, each
+ * with the student's answer, the correct answer and the worked solution. The
+ * server refuses it for a session that is not completed, and so does the
+ * sandbox (which records no entries).
+ */
+export const fetchPathSessionRecap = async ({ sessionId }) => {
+  assertRuntimeAvailable();
+  if (usingMockRuntime()) {
+    return buildPathSessionRecap({ session: mockSessions.get(sessionId) || null, entries: [] });
+  }
+  return invokePathCallable('getMyPathSessionRecap', { sessionId });
 };
 
 export const fetchNextSanitizedQuestion = async ({ sessionId }) => {

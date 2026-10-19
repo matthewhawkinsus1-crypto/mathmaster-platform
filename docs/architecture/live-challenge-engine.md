@@ -40,6 +40,8 @@ durable match result.
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
 | `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
+| `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush and Graph the Line) | yes |
+| `lineGraph*.mjs` | Graph the Line — three modes (Classic, Sprint, Rush), offered to every teacher since its class-scale certification: exact lines, how equations are written and read, the generator, auto-check grading and hints, the attempt pipeline (see `graph-the-line.md`) | yes |
 | `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
 `functions/index.js` loads the pure modules once through `liveChallengeEngine()`.
@@ -293,7 +295,11 @@ milestone never overwrites a receipt already there. Progress reports
 A **forfeit** receipt (`forfeit: true`) gives a question up: it completes the
 question, not correctly, keeping any targets already found. Each attempt on a
 multi-target question records its `targetCount`, so a per-player round's
-question specs are rebuilt from the log alone. Round score totals are kept in
+question specs are rebuilt from the log alone. An attempt may also record
+`roundQuestionCount` — the round's own length when a room chooses it (a
+Graph the Line Sprint of 5–20, in a mode that declares only the longest) —
+and the round's specs are then that long, so a student who has worked
+through it is finished. Round score totals are kept in
 **exact score units** (`SCORE_UNIT`, the least common multiple of 1–20 target
 counts), so equal work compares equal whatever order fractions were added in.
 A round holds at most `MAX_QUESTIONS_PER_ROUND` (150) questions. A
@@ -372,10 +378,24 @@ Written once, in the transaction that closes the round:
 - `liveChallengePrivate/{roomId}/rounds/{round}` — named standings with each
   player's round metrics, rank, round points and the match points the strategy
   awarded.
-- `liveChallengeRooms/{roomId}/rounds/{round}` — the **anonymous** copy
-  (`publicRoundSummary`: player key, alias, rank, points — no student id; for
-  a question-set round also `completed` and `accuracyPercent`), read by the
-  room's audience. It also carries `standingsAfterRound`
+- `liveChallengeRooms/{roomId}/hostRounds/{round}` — the **anonymous** whole
+  table (`publicRoundSummary`: player key, alias, rank, points — no student
+  id; for a question-set round also `completed` and `accuracyPercent`), read
+  by the room's teacher only (the console and the projector it drives).
+- `liveChallengeRooms/{roomId}/rounds/{round}` — the **class's** copy
+  (`classRoundSummary`, `visibility: 'class'`), read by the room's audience:
+  only the rows the public rule shows everyone
+  (`liveChallengePrivacy.classStandingsRows`) of the round's table — ranked
+  for display (`roundTableRows`) — and of the standings after it, with how
+  many played and where each list's last group starts (`tableLastRank`,
+  `standingsLastRank`). Nobody else's place.
+- `liveChallengeRooms/{roomId}/playerSummaries/{studentId}` — each joined
+  student's **own** entry for the round (`liveChallengePlayerSummary.mjs`):
+  their place on the table, what they did, and their standing in the match
+  after it; at the finish, their final place. Read by that student and the
+  room's teacher.
+
+The whole copy also carries `standingsAfterRound`
   (`matchStandingsAfterRound`): the match standings ranked from the totals the
   same transaction wrote — the final result's own ranking — so a results
   screen reads the round and the standings it left from one document, and
@@ -564,7 +584,8 @@ late join and Play Again. The rules below are the engine-facing ones.
   step with its player's (possibly shared) rank.
 - **Standings reach a student as one snapshot** (§12a), never as the class's
   rows: a screen listens to the room, the standings snapshot, its own public
-  row and its invite — four listeners whatever the class size.
+  row, its own summary (its own place) and its invite — five listeners
+  whatever the class size.
 - **The host console paces live standings** (`useStandingsPublisher`): it
   already ranks every row, and when its board changes it asks
   `publishLiveChallengeStandings` for a fresh snapshot, at most once a second.
@@ -583,9 +604,11 @@ late join and Play Again. The rules below are the engine-facing ones.
 | Path | Holds | Client access |
 | --- | --- | --- |
 | `liveChallengeRooms/{roomId}` | status, round identity and state, clock, current question, mode/strategy ids, speed setting, `rewardSummary` (what placements earn; no student) | room audience reads |
-| `…/players/{playerKey}` | alias, seat (`slot`), scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room audience reads (a student's screen listens to its own row only; own-row-only rules are a later deploy) |
-| `…/standings/current` | the class's standings snapshot (§12a): top rows, every seat's rank and score, the moment it is from — no student id | room audience reads; no client writes |
-| `…/rounds/{round}` | anonymous round result, with `standingsAfterRound` | room audience reads |
+| `…/players/{playerKey}` | alias, seat (`slot`), scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room's teacher reads every row; a student reads only the row their invite names (a score is a place once you can read everyone's) |
+| `…/standings/current` | the class's standings snapshot (§12a): the public rule's rows, how many play, where the last group starts, the moment it is from — no student id, nobody else's place | room audience reads; no client writes |
+| `…/rounds/{round}` | the class's copy of a closed round (`classRoundSummary`): the public rule's rows of its table and of `standingsAfterRound` | room audience reads |
+| `…/hostRounds/{round}` | the whole anonymous round result, with `standingsAfterRound` | room's teacher reads |
+| `…/playerSummaries/{studentId}` | the student's own place: per closed round (`rounds.{n}`), and `final` | that student gets; room's teacher gets and lists; no client writes |
 | `…/diagnostics/{playerKey}` | device health: connection quality, recent `sessions` (per-tab ids → last heard), `reconnectedAt` | room owner reads |
 | `liveChallengePrivate/{roomId}` (+ `players`, `rounds`) | question ids, roster, receipts, reward policy, scoring config | none |
 | `liveChallengeInvites/{studentId}` | which room a student is in | own student |
@@ -596,11 +619,18 @@ late join and Play Again. The rules below are the engine-facing ones.
 | `classPointTransactions`, `classPointAccounts` | the Class Points ledger | student own; authorized teachers |
 | `rewardGrants/{grantId}` | item rewards | student own; authorized teachers; no client writes |
 
-Permanent student deletion (`permanentlyDeleteStudent`) removes the student's
-grants and award-job references and scrubs their rows from match results and
-reports (by the `studentIds` key both carry). Reports written before that key
-existed are not reachable by query — a known gap. The pre-production reset
-clears every collection above.
+Permanent student deletion (`permanentlyDeleteStudent`) first takes the
+student out of the match their invite names, still running or not: their
+private roster row, anonymous public row, device diagnostics and own summary,
+and the invite itself, in one transaction that reads the invite and roster row it deletes. Without the roster row the match never
+writes them again: no summary, no place in the final result or report, no
+reward. It then removes their grants and award-job references, deletes their
+own summary in every match they played (found through the match results that
+list them), and scrubs their rows from match results and reports (by the
+`studentIds` key both carry). Known gaps: reports written before that key
+existed are not reachable by query, and a room retired without finishing keeps
+its private round results until the pre-production reset, which clears every
+collection above.
 
 ### 12a. The standings snapshot
 
@@ -610,10 +640,22 @@ delivered to every screen — N × N per round, 4,096 at 64 students, each one
 re-ranking the class on a Chromebook. Now one small document,
 `liveChallengeRooms/{roomId}/standings/current`
 (`functions/shared/liveChallengeStandingsProjection.mjs`), carries what a
-student's screen shows: the top five rows, and every joined player's rank and
-score as two compact lists indexed by seat (`slot`, fixed at room creation; a
-room from before seats is seated by player key, `slotKeys`). It is replaced
-whole, never patched, so a screen that missed one loses nothing.
+student's screen shows of the class: the rows the public rule shows everyone
+(`classStandingsRows`: at most five, never a row tied with the last, never
+exactly one player unshown — so two players project none and three only
+first place), how many play (`count`) and where the last group starts
+(`lastRank`, which the screen hands back to `publicStandingsRows` with its own
+row). It is replaced whole, never patched, so a screen that missed one loses
+nothing.
+
+Every student in the room can read it, so it carries **nobody else's place**
+(schema 2; schema 1 also listed every seat's rank and score, which let any
+student read the whole class's ranking). A student's own place comes from
+their own summary (`playerSummaries/{studentId}`), written in the commit that
+closes a round or finishes the match; there is no own live place, because a
+student never sees a rank under the question. `ensureLiveChallengeFinalStandings`
+rewrites a schema-1 final snapshot, and writes the own final places of a room
+finished before summaries existed.
 
 | Kind | Written by | From |
 | --- | --- | --- |
@@ -727,3 +769,23 @@ support. Rules: the room's audience reads it; no client writes it.
   explicitly.
 - Reports written before `studentIds` existed are not reachable by permanent
   student deletion.
+
+---
+
+## 16. Teaching and including (student push E, 2026-10)
+
+| Piece | Module | Rule |
+| --- | --- | --- |
+| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. |
+| Extended time | `liveChallengeAccommodations.mjs` | `joinLiveChallenge` reads the student's support profile; the multiplier (≤ 2) is private (player record, own invite); the room carries only `maxTimeMultiplier`. Submissions are judged against the student's own deadline, stretched from the round's full length (`activeRoundSeconds`) so a closing threshold never takes it away; a round past the class deadline is not ready to close while an unfinished student is inside theirs (`extendedPendingCount`, readiness `extended_time`). Synchronized question rounds only. |
+| Difficulty targeting | `liveChallengeDifficulty.mjs` | No DOK 3 under 90 s, no DOK 4 in a timed round; Pace Race takes anything. A pool it empties is refused at create with the reason. |
+| Public top few | `liveChallengePrivacy.mjs` | `room.standingsDisplay` (`topFew` default, `full` opt-in). |
+| Recognitions | `liveChallengeRecognitions.mjs` | Most improved, steadiest, best comeback, first to answer, team effort — from the match result, written to `room.recognitions` (aliases and player keys only) in the finishing transaction; rewarded under reserved rule ids `recognition.*` (3 Class Points + badge; team effort 2). Policy flag `recognitions: false` turns them off. |
+| Personal bests | `liveChallengePersonalBests.mjs` | Most correct, best accuracy, longest streak, fastest correct, against the student's earlier finished matches in the class; private; rule `personalBest` pays 3 Class Points once per match. |
+| Recap | `functions/lib/liveChallengeRecap.js` | `getLiveChallengeMatchRecap`: a student's own rounds with worked solutions, personal bests and recognitions, from the match result. |
+
+Every match still credits at most `MAX_CLASS_POINTS_PER_MATCH` (20) Class Points
+to one student; recognition and personal-best points beyond it are dropped in a
+fixed order (badges are kept). Existing rule ids and award identities are
+unchanged.
+

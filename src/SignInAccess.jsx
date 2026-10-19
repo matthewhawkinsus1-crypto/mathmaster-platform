@@ -9,6 +9,13 @@ import {
   studentNameParts,
   studentSearchText,
 } from './platform/studentName';
+import {
+  DISTRICT_ID_STATUS,
+  describeStudentDistrictId,
+  districtIdSavedMessage,
+} from './platform/teacher/studentDistrictIdModel.js';
+import DistrictIdEditor from './components/teacher/DistrictIdEditor.jsx';
+import Dialog from './ui/Dialog.jsx';
 
 const card = {
   border: '1px solid var(--mm-border)',
@@ -46,7 +53,7 @@ const inputStyle = {
   padding: '0 12px',
   border: '1px solid var(--mm-border)',
   borderRadius: '8px',
-  fontSize: '15px',
+  fontSize: 'calc(15 * var(--mm-px))',
   minWidth: 0,
 };
 
@@ -56,7 +63,7 @@ const pill = (background, color) => ({
   borderRadius: '999px',
   background,
   color,
-  fontSize: '11px',
+  fontSize: 'calc(11 * var(--mm-px))',
   fontWeight: 900,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
@@ -89,6 +96,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   // The one row whose name is being added or corrected: { studentId, firstName, lastName, error }.
   const [nameEditor, setNameEditor] = useState(null);
+  // The one row whose district ID is being added or corrected: { studentId, error }.
+  const [districtEditor, setDistrictEditor] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -159,6 +168,11 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
   const needingSetup = access.students.filter((student) => !student.hasPasscode).length;
   const namelessCount = useMemo(() => access.students.filter(isNameMissing).length, [access.students]);
+  // Students whose grades cannot be exported: no usable district ID on file.
+  const noDistrictIdCount = useMemo(
+    () => access.students.filter((student) => !describeStudentDistrictId(student).exportable).length,
+    [access.students],
+  );
   const isRootAdmin = access.authority?.isRootAdmin === true;
   const adminMode = mode === 'admin';
   const activeClasses = useMemo(
@@ -223,13 +237,48 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
     }
   };
 
+  /**
+   * Add or correct a student's district ID through the server
+   * (setStudentSisId) — the only number grade exports use. The MathMaster
+   * account ID, the student's work and how they sign in do not change. Then
+   * reload this screen's roster and tell the app, exactly as a name change
+   * does, so every screen holding this student shows the new district ID.
+   */
+  const saveStudentDistrictId = async (student, districtId) => {
+    const { studentId } = student;
+    setPendingAction(`district:${studentId}`);
+    setError(null);
+    setStatus(null);
+    setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: '' } : current));
+    try {
+      const saved = await teacherAdmin.setStudentSisId({ studentId, sisStudentId: districtId });
+      setDistrictEditor(null);
+      setStatus(districtIdSavedMessage({
+        studentName: formatStudentLabel(student, { includeId: true }),
+        previousDistrictId: saved.previousSisStudentId,
+        districtId: saved.sisStudentId || districtId,
+      }));
+      await refresh();
+      onStudentIdentityChanged?.();
+    } catch (caught) {
+      setDistrictEditor((current) => (current?.studentId === studentId ? { ...current, error: describeAuthError(caught) } : current));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ marginTop: 0 }}>{adminMode ? 'Administration' : 'Student Access'}</h2>
       <p style={{ color: 'var(--mm-text-muted)', maxWidth: '80ch', lineHeight: 1.6 }}>
         {adminMode
           ? 'Root administration is server-authorized. Manage teacher access, student accounts, permanent erasure, and the administrative audit trail here.'
-          : 'Students sign in with a school Google account, or with their student ID and a PIN they choose once using the class code below.'}
+          : 'Students sign in with a school Google account, or with their MathMaster ID and a PIN they choose once using the class code below.'}
+      </p>
+      <p style={{ color: 'var(--mm-text-muted)', maxWidth: '80ch', lineHeight: 1.6, marginTop: 0 }}>
+        Each student has a <strong>MathMaster ID</strong> — they sign in with it, and all of their work stays attached to it — and a{' '}
+        <strong>district ID</strong>, the only number grade exports to TEAMS use. They are usually the same. If a district ID is wrong,
+        use <em>Edit district ID</em> on the student&apos;s row: it changes only the number grade exports use.
       </p>
 
       {adminMode && !loading && !isRootAdmin && <div role="alert" style={{ ...card, background: 'var(--mm-warning-soft)', borderColor: '#f9ab00', color: 'var(--mm-warning-text)' }}><strong>Administration is visible, but server authorization is not active yet.</strong> The signed-in session does not currently carry the root-admin claim. Deploy the matching Functions build, then sign out and back in so the token refreshes. No privileged action is enabled until the server confirms root authority.</div>}
@@ -247,7 +296,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
       {adminMode && isRootAdmin && <section style={{ ...card, borderColor: 'var(--mm-primary-border)', background: 'var(--mm-surface-tint)' }}>
         <h3 style={{ margin: '0 0 6px' }}>Create student account</h3>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.55 }}>Use the student&apos;s official district/SIS student ID (digits only), then enter the first and last name and place the student in a class. Students can no longer create a new roster identity by typing an email or made-up ID during first sign-in.</p>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.55 }}>Use the student&apos;s official district/SIS student ID (digits only), then enter the first and last name and place the student in a class. Students can no longer create a new roster identity by typing an email or made-up ID during first sign-in. The number becomes both the student&apos;s MathMaster ID (which never changes) and their district ID; if it later turns out to be wrong, correct the district ID on the student&apos;s row.</p>
         <form onSubmit={(event) => {
           event.preventDefault();
           if (!/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId) return;
@@ -257,18 +306,18 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
             (result) => `${formatStudentLabel(result, { includeId: true })} was created and is ready for sign-in setup.`,
           ).then((result) => { if (result) setNewStudent({ studentId: '', firstName: '', lastName: '', classId: '' }); });
         }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))', gap: 10, alignItems: 'end' }}>
-          <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>District/SIS Student ID<input required inputMode="numeric" pattern="[0-9]{1,20}" maxLength={20} value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value.replace(/\D/g, '').slice(0, 20) }))} placeholder="1500123" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>First name<input required value={newStudent.firstName} onChange={(event) => setNewStudent((current) => ({ ...current, firstName: event.target.value }))} placeholder="Matthew" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>Last name<input required value={newStudent.lastName} onChange={(event) => setNewStudent((current) => ({ ...current, lastName: event.target.value }))} placeholder="Hawkins" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)' }}>Class<select required value={newStudent.classId} onChange={(event) => setNewStudent((current) => ({ ...current, classId: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="">Choose a class…</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
+          <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>District/SIS Student ID<input required inputMode="numeric" pattern="[0-9]{1,20}" maxLength={20} value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value.replace(/\D/g, '').slice(0, 20) }))} placeholder="1500123" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>First name<input required value={newStudent.firstName} onChange={(event) => setNewStudent((current) => ({ ...current, firstName: event.target.value }))} placeholder="Matthew" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>Last name<input required value={newStudent.lastName} onChange={(event) => setNewStudent((current) => ({ ...current, lastName: event.target.value }))} placeholder="Hawkins" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)' }}>Class<select required value={newStudent.classId} onChange={(event) => setNewStudent((current) => ({ ...current, classId: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="">Choose a class…</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
           <button type="submit" disabled={pendingAction === 'student:create' || !/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId} style={{ ...primaryButton, opacity: pendingAction === 'student:create' || !/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId ? 0.55 : 1 }}>{pendingAction === 'student:create' ? 'Creating…' : 'Create Student Account'}</button>
         </form>
-        {!activeClasses.length && <p style={{ margin: '12px 0 0', color: 'var(--mm-warning-text)', fontSize: 13, fontWeight: 700 }}>Create an active class under Classes &amp; rosters before adding a student.</p>}
+        {!activeClasses.length && <p style={{ margin: '12px 0 0', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>Create an active class under Classes &amp; rosters before adding a student.</p>}
       </section>}
 
       {!adminMode && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Class join codes</h3>
-        <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: '14px', lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.55 }}>
           Show the class&apos;s code on the board on day one. A student needs it once — to set their PIN or to connect a
           Google account. Codes belong to the real class, not just its bell period, so two classes that meet in the same period remain separate. Rotating a code never signs anyone out.
         </p>
@@ -279,14 +328,14 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
             const busy = pendingAction === `code:${classRecord.classId}`;
             return (
               <div key={classRecord.classId} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: '10px', padding: '13px 15px', background: 'var(--mm-surface-sunken)' }}>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {classRecord.name || classRecord.classId}{classRecord.period ? ` · ${classRecord.period}` : ''}
                 </div>
                 <div
                   style={{
                     margin: '7px 0 11px',
                     fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
-                    fontSize: '25px',
+                    fontSize: 'calc(25 * var(--mm-px))',
                     fontWeight: 900,
                     letterSpacing: '0.12em',
                     color: code ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)',
@@ -321,16 +370,23 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: '14px' }}>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
           {loading
             ? 'Loading roster…'
             : `${access.students.length} student${access.students.length === 1 ? '' : 's'} on the roster · ${needingSetup} still to set a PIN`}
         </p>
 
         {!loading && namelessCount > 0 && (
-          <p role="note" style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: '13px', lineHeight: 1.5 }}>
+          <p role="note" style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
             <strong>{namelessCount} student{namelessCount === 1 ? ' has' : 's have'} no name on file.</strong>{' '}
             Add {namelessCount === 1 ? 'their name' : 'their names'} so every screen can identify {namelessCount === 1 ? 'them' : 'each one'}. Until then they show as &ldquo;Name unavailable&rdquo; with their ID.
+          </p>
+        )}
+
+        {!loading && noDistrictIdCount > 0 && (
+          <p data-district-id-diagnostic style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
+            <strong>{noDistrictIdCount} student{noDistrictIdCount === 1 ? ' has' : 's have'} no usable district ID on file.</strong>{' '}
+            Their grades cannot be exported to TEAMS until one is added with <em>Add district ID</em> or <em>Edit district ID</em>.
           </p>
         )}
 
@@ -356,6 +412,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
             const editingName = nameEditor?.studentId === student.studentId;
             const savingName = pendingAction === `name:${student.studentId}`;
             const studentLabel = formatStudentLabel(student, { includeId: true });
+            const district = describeStudentDistrictId(student);
+            const editingDistrict = districtEditor?.studentId === student.studentId;
             const assignmentDraft = assignmentDrafts[student.studentId] || {
               classId: student.classId || '',
             };
@@ -374,16 +432,27 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: '16px', ...(nameMissing ? { color: 'var(--mm-warning-text)', fontStyle: 'italic' } : {}) }}>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}> · ID {student.studentId}</span>
-                  <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '3px', wordBreak: 'break-word' }}>
+                  <strong style={{ fontSize: 'calc(16 * var(--mm-px))', ...(nameMissing ? { color: 'var(--mm-warning-text)', fontStyle: 'italic' } : {}) }}>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}> · MathMaster ID {student.studentId}</span>
+                  <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '3px', wordBreak: 'break-word' }}>
                     {student.classPeriod}
                     {student.assignedTeacherEmail && <> · Teacher: {student.assignedTeacherEmail}</>}
                     {student.linkedEmail && <> · {student.linkedEmail}</>}
                   </div>
+                  {/* The district ID is printed only when it is not the
+                      MathMaster ID, so a difference stands out and the same
+                      number never appears twice on one row. */}
+                  <div
+                    data-district-id-status={district.status}
+                    style={{ fontSize: 'calc(13 * var(--mm-px))', marginTop: '3px', color: district.tone === 'warning' ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)' }}
+                  >
+                    {district.status === DISTRICT_ID_STATUS.SAME && <>District ID: same as the MathMaster ID</>}
+                    {district.status === DISTRICT_ID_STATUS.DIFFERS && <><strong style={{ color: 'var(--mm-text)' }}>District ID {district.districtId}</strong> · {district.note}</>}
+                    {(district.status === DISTRICT_ID_STATUS.MISSING || district.status === DISTRICT_ID_STATUS.INVALID) && <>{district.note}</>}
+                  </div>
                 </div>
 
                 {adminMode && isRootAdmin && <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'end', flex: '1 1 390px' }}>
-                  <label style={{ fontSize: 10, fontWeight: 900, color: 'var(--mm-text-muted)', flex: '1 1 250px' }}>CLASS<select value={assignmentDraft.classId} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { classId: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 12 }}><option value="">No class</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
+                  <label style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', flex: '1 1 250px' }}>CLASS<select value={assignmentDraft.classId} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { classId: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 'calc(12 * var(--mm-px))' }}><option value="">No class</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
                   <button type="button" disabled={assigning} onClick={() => runAction(`assign:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: assignmentDraft.classId }), () => { const target = activeClasses.find((entry) => entry.classId === assignmentDraft.classId); return `${studentLabel} was ${target ? `moved to ${target.name}` : 'removed from their class'}.`; })} style={{ ...quietButton, minHeight: 36, color: 'var(--mm-primary-text)', opacity: assigning ? 0.6 : 1 }}>{assigning ? 'Saving…' : 'Save class'}</button>
                 </div>}
 
@@ -405,6 +474,16 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                     onClick={() => (editingName ? setNameEditor(null) : openNameEditor(student))}
                   >
                     {nameMissing ? 'Add name' : 'Edit name'}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{ ...quietButton, ...(district.exportable ? {} : { borderColor: '#f9ab00', color: 'var(--mm-warning-text)' }) }}
+                    aria-expanded={editingDistrict}
+                    aria-label={`${district.actionLabel} for ${studentLabel}`}
+                    onClick={() => setDistrictEditor(editingDistrict ? null : { studentId: student.studentId, error: '' })}
+                  >
+                    {district.actionLabel}
                   </button>
 
                   <button
@@ -451,12 +530,23 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                     aria-label={`${nameMissing ? 'Add name' : 'Edit name'} for ${studentLabel}`}
                     style={{ flex: '1 1 100%', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', paddingTop: 4 }}
                   >
-                    <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)', flex: '1 1 170px' }}>First name<input required autoFocus value={nameEditor.firstName} onChange={(event) => setNameEditor((current) => ({ ...current, firstName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
-                    <label style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text)', flex: '1 1 170px' }}>Last name<input required value={nameEditor.lastName} onChange={(event) => setNameEditor((current) => ({ ...current, lastName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
+                    <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)', flex: '1 1 170px' }}>First name<input required autoFocus value={nameEditor.firstName} onChange={(event) => setNameEditor((current) => ({ ...current, firstName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
+                    <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text)', flex: '1 1 170px' }}>Last name<input required value={nameEditor.lastName} onChange={(event) => setNameEditor((current) => ({ ...current, lastName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
                     <button type="submit" disabled={savingName} style={{ ...primaryButton, minHeight: 36, opacity: savingName ? 0.6 : 1 }}>{savingName ? 'Saving…' : 'Save name'}</button>
                     <button type="button" disabled={savingName} onClick={() => setNameEditor(null)} style={{ ...quietButton, minHeight: 36 }}>Cancel</button>
-                    {nameEditor.error && <p role="alert" style={{ flex: '1 1 100%', margin: 0, color: 'var(--mm-error-text)', fontSize: 13 }}>{nameEditor.error}</p>}
+                    {nameEditor.error && <p role="alert" style={{ flex: '1 1 100%', margin: 0, color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))' }}>{nameEditor.error}</p>}
                   </form>
+                )}
+
+                {editingDistrict && (
+                  <DistrictIdEditor
+                    student={student}
+                    studentLabel={studentLabel}
+                    saving={pendingAction === `district:${student.studentId}`}
+                    error={districtEditor.error}
+                    onSave={(districtId) => saveStudentDistrictId(student, districtId)}
+                    onCancel={() => setDistrictEditor(null)}
+                  />
                 )}
               </div>
             );
@@ -466,7 +556,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
       {adminMode && isRootAdmin && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Teacher accounts</h3>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: '14px', lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.55 }}>
           Anyone listed here gets the instructor dashboard when they sign in with that Google account — the full
           roster, every grade and every student&apos;s work. Add colleagues deliberately.
         </p>
@@ -519,8 +609,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
                   borderRadius: '10px',
                 }}
               >
-                <div style={{ minWidth: 0, wordBreak: 'break-word' }}><div><strong>{teacher.email}</strong>{teacher.accessLevel === 'rootAdmin' && <span style={{ ...pill('#202124', '#fff'), marginLeft: 9 }}>Root admin</span>}{isSelf && <span style={{ ...pill('var(--mm-primary-soft)', 'var(--mm-primary-text)'), marginLeft: '9px' }}>You</span>}{!teacher.active && <span style={{ ...pill('var(--mm-surface-control)', 'var(--mm-text)'), marginLeft: '9px' }}>Revoked</span>}</div><div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12 }}>{teacher.hasSignedIn ? `Last sign-in: ${teacher.lastSignInAt ? new Date(teacher.lastSignInAt).toLocaleString() : 'recorded account'}` : 'Has not signed in yet'}</div></div>
-                {teacher.accessLevel !== 'rootAdmin' && <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12, fontWeight: 800 }}>
+                <div style={{ minWidth: 0, wordBreak: 'break-word' }}><div><strong>{teacher.email}</strong>{teacher.accessLevel === 'rootAdmin' && <span style={{ ...pill('#202124', '#fff'), marginLeft: 9 }}>Root admin</span>}{isSelf && <span style={{ ...pill('var(--mm-primary-soft)', 'var(--mm-primary-text)'), marginLeft: '9px' }}>You</span>}{!teacher.active && <span style={{ ...pill('var(--mm-surface-control)', 'var(--mm-text)'), marginLeft: '9px' }}>Revoked</span>}</div><div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{teacher.hasSignedIn ? `Last sign-in: ${teacher.lastSignInAt ? new Date(teacher.lastSignInAt).toLocaleString() : 'recorded account'}` : 'Has not signed in yet'}</div></div>
+                {teacher.accessLevel !== 'rootAdmin' && <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
                   <input type="checkbox" checked={teacher.assignmentRepairer === true} disabled={busy || !teacher.active || isSelf} onChange={(event) => runAction(`teacher:${teacher.email}`, () => teacherAdmin.setAssignmentRepairerAccess(teacher.email, event.target.checked), `${teacher.email}'s Assignment Repairer capability was updated. Sign-in tokens will refresh on the next session.`)} />
                   Assignment Repairer · Can run Full Assignment Audit
                 </label>}
@@ -546,7 +636,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
         </div>
 
         {access.bootstrapTeachers.length > 0 && (
-          <p style={{ margin: '16px 0 0', color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55 }}>
+          <p style={{ margin: '16px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
             Always authorized from deployment configuration (<code>INITIAL_TEACHER_EMAILS</code>):{' '}
             <strong>{access.bootstrapTeachers.join(', ')}</strong>. Remove them there once real teacher accounts exist.
           </p>
@@ -555,18 +645,18 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher', onStuden
 
       {adminMode && isRootAdmin && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Administrative audit log</h3>
-        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 14 }}>Recent privileged account-management actions. Student erasure receipts do not retain deleted instructional data.</p>
-        {auditEvents.length === 0 ? <p style={{ color: 'var(--mm-text-muted)' }}>No administrative actions recorded yet.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ textAlign: 'left', padding: 9 }}>When</th><th style={{ textAlign: 'left' }}>Actor</th><th style={{ textAlign: 'left' }}>Action</th><th style={{ textAlign: 'left' }}>Target / receipt</th></tr></thead><tbody>{auditEvents.map((event) => <tr key={event.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: 9 }}>{event.createdAt ? new Date(event.createdAt).toLocaleString() : '—'}</td><td>{event.actorEmail || '—'}</td><td>{String(event.action || '').replaceAll('_', ' ')}</td><td>{event.target || '—'}</td></tr>)}</tbody></table></div>}
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>Recent privileged account-management actions. Student erasure receipts do not retain deleted instructional data.</p>
+        {auditEvents.length === 0 ? <p style={{ color: 'var(--mm-text-muted)' }}>No administrative actions recorded yet.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ textAlign: 'left', padding: 9 }}>When</th><th style={{ textAlign: 'left' }}>Actor</th><th style={{ textAlign: 'left' }}>Action</th><th style={{ textAlign: 'left' }}>Target / receipt</th></tr></thead><tbody>{auditEvents.map((event) => <tr key={event.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: 9 }}>{event.createdAt ? new Date(event.createdAt).toLocaleString() : '—'}</td><td>{event.actorEmail || '—'}</td><td>{String(event.action || '').replaceAll('_', ' ')}</td><td>{event.target || '—'}</td></tr>)}</tbody></table></div>}
       </section>}
 
       {deleteTarget && adminMode && isRootAdmin && (
         <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.72)' }}>
-          <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
+          <Dialog as="section" aria-label="Permanent student deletion" onClose={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} closeOnEscape={pendingAction !== `delete:${deleteTarget.studentId}`} style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
             <h3 style={{ marginTop: 0, color: 'var(--mm-error-text)' }}>Permanently delete {formatStudentLabel(deleteTarget, { includeId: true })}?</h3>
             <p style={{ lineHeight: 1.55 }}>This erases the student&apos;s sign-in identity and MathMaster grades, submissions, mastery/retention state, My Math Path history, labs, secure-exam data, supports, and Classroom linkage records. <strong>This cannot be undone.</strong></p>
             <label style={{ display: 'block', fontWeight: 800 }}>Type <code>DELETE {deleteTarget.studentId}</code> to confirm<input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} style={{ ...inputStyle, width: '100%', marginTop: 7, boxSizing: 'border-box' }} /></label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}><button type="button" onClick={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} style={quietButton}>Cancel</button><button type="button" disabled={deleteConfirmation !== `DELETE ${deleteTarget.studentId}` || pendingAction === `delete:${deleteTarget.studentId}`} onClick={confirmPermanentDeletion} style={{ ...primaryButton, background: deleteConfirmation === `DELETE ${deleteTarget.studentId}` ? '#b3261e' : '#dadce0' }}>{pendingAction === `delete:${deleteTarget.studentId}` ? 'Deleting…' : 'Permanently Delete Student'}</button></div>
-          </section>
+          </Dialog>
         </div>
       )}
     </div>

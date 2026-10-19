@@ -56,6 +56,8 @@ const supportTelemetryFromUsage = (supportUsage = {}) => {
     ['contextScaffoldUsed', 'contextScaffold', false],
     ['remediationUsed', 'remediation', true],
     ['workedExampleUsed', 'workedExample', true],
+    ['feedbackAssisted', 'missFeedback', true],
+    ['backUpStepUsed', 'backUpStep', false],
     ['calculatorUsed', 'calculator', false],
   ];
   usedFlags.forEach(([key, supportType, reducesMathematicalIndependence]) => {
@@ -188,6 +190,10 @@ export const buildAttemptEvidenceEvent = ({
       contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
       remediationUsed: Boolean(supportUsage.remediationUsed),
       workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      // PR #462 review B3 / M6c: the back-up step (any source) and a miss
+      // message shown before the attempt reach the evidence too.
+      backUpStepUsed: Boolean(supportUsage.backUpStepUsed),
+      feedbackAssisted: Boolean(supportUsage.feedbackAssisted),
       calculatorUsed: Boolean(supportUsage.calculatorUsed),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false,
     },

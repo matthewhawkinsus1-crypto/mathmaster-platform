@@ -1,9 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import TestCycleCard from '../student/TestCycleCard.jsx';
 import ExamPrepHeader from '../assessment/ExamPrepHeader.jsx';
 import SecureExamQuestionPlayer from '../assessment/SecureExamQuestionPlayer.jsx';
+import RichQuestionRuntime from '../question/RichQuestionRuntime.jsx';
 import { buildTestCyclePreviewCard, previewScenariosFor } from '../../platform/teacher/testCyclePreviewModel.js';
 import { gradeTestCyclePreviewItem, previewTestCycleSecureItems } from '../../services/testCycleService.js';
+import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/assessment/questionRuntimePolicy.js';
+import { removeQuestionDraftFamily } from '../../questionDraftStorage.js';
+import { forgetToolDraftFamily } from '../../tools/shared/usePersistentToolState.js';
 
 /*
  * PREVIEW A TEST CYCLE EXACTLY AS A STUDENT SEES IT — AND CHANGE NOTHING.
@@ -20,11 +25,20 @@ import { gradeTestCyclePreviewItem, previewTestCycleSecureItems } from '../../se
  *   2. Sit the secure Test: real items, freshly issued from the real blueprint
  *      and approved families for a synthetic preview student, sanitized by the
  *      same function a student's Test uses, in the student's own question
- *      player, with the calculator the blueprint (or a previewed accommodation)
- *      gives — and graded by the real secure grader when the teacher checks an
- *      answer. "Another version" draws again, to see randomization at work.
+ *      player — the shared Rich Question Runtime, so a graphing item is the
+ *      Graphing tool under the Secure Test policy exactly as a student meets it
+ *      (too small, clipped, missing directions or impossible to submit shows
+ *      up HERE, not on Question 7) — with the calculator the blueprint (or a
+ *      previewed accommodation) gives, and graded by the real secure grader
+ *      when the teacher records an answer. "Another version" draws again, to
+ *      see randomization at work.
  *
  *   3. At phone, tablet and Chromebook widths.
+ *
+ * And before the Test Cycle is saved: the review screen passes `candidate`
+ * (testCycleCandidateContract), so a teacher sees all of this while deciding
+ * whether to publish — including while preflight still blocks it, when the
+ * slots it can fill are shown and the ones it cannot are named.
  *
  * NOTHING IS WRITTEN. The preview callables create no session, attempt, record
  * or grade (the server says `writes: "none"` and the adversarial suite proves
@@ -41,7 +55,7 @@ const DEVICES = Object.freeze([
 ]);
 
 const chip = (active) => ({
-  minHeight: 36, padding: '6px 11px', borderRadius: 999, fontSize: 12.5, fontWeight: 800, cursor: 'pointer',
+  minHeight: 36, padding: '6px 11px', borderRadius: 999, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, cursor: 'pointer',
   border: active ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border-strong)',
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
@@ -51,7 +65,25 @@ const quietButton = {
   background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer',
 };
 
-const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
+// Preview constructions live on the teacher's own device under one family,
+// cleared on every new draw and when the preview closes: preview keeps no
+// state anywhere, the device included.
+const previewDraftSession = (assignmentId) => `preview-${assignmentId}`;
+// An unsaved candidate has no id yet; its drafts live under this one.
+const UNSAVED_PREVIEW_KEY = 'unsaved-review';
+const clearPreviewDrafts = (assignmentId) => {
+  const family = `${SECURE_ITEM_DRAFT_PREFIX}:preview:${encodeURIComponent(previewDraftSession(assignmentId))}`;
+  removeQuestionDraftFamily(family);
+  // The tools' parsed cache too: the same draft keys come back on the next
+  // preview (draw 1, item 1), and a cached record would show the teacher's
+  // earlier construction already placed on a fresh Retest item.
+  forgetToolDraftFamily(family);
+};
+
+const DEVICE_WORDS = Object.freeze({ chromebook: 'Chromebook', ipad: 'iPad', phone: 'phone' });
+
+const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation, onBack }) => {
+  const previewKey = assignment.id || UNSAVED_PREVIEW_KEY;
   const [draw, setDraw] = useState(1);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -59,46 +91,90 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
   const [checking, setChecking] = useState(false);
   const [results, setResults] = useState({});
   const [showSlot, setShowSlot] = useState(false);
+  // Corrections preview: the student's verdict and tries, kept per item here
+  // and nowhere else.
+  const correctionsStage = stage === 'corrections';
+  const [correctionFeedback, setCorrectionFeedback] = useState({});
 
   const load = useCallback(async (nextDraw) => {
     setError('');
     setData(null);
     try {
-      const response = await previewTestCycleSecureItems({ assignmentId: assignment.id, draw: nextDraw });
+      clearPreviewDrafts(previewKey);
+      // The stage decides the capability policy the server stamps on each
+      // item (Secure Test or Secure Retest) — the one a student would get.
+      const response = candidate
+        ? await previewTestCycleSecureItems({ candidate, draw: nextDraw, stage })
+        : await previewTestCycleSecureItems({ assignmentId: assignment.id, draw: nextDraw, stage });
       setData(response);
       setIndex(0);
       setResults({});
+      setCorrectionFeedback({});
     } catch (loadError) {
       setError(loadError.message || 'The secure Test could not be previewed.');
     }
-  }, [assignment.id]);
+  }, [assignment.id, candidate, previewKey, stage]);
 
   useEffect(() => { load(draw); }, [load, draw]);
+  useEffect(() => () => clearPreviewDrafts(previewKey), [previewKey]);
 
   const items = data?.items || [];
   const item = items[index] || null;
   const result = item ? results[item.ordinal] : null;
   const profile = accommodation ? { accommodations: ['calculator-scientific'] } : null;
 
+  // The teacher records an answer exactly as a student would; the verdict
+  // comes back from the real grader and is shown to the TEACHER only, beside
+  // the item — the student-facing runtime itself shows no verdict, as on a
+  // real Test. Returns null so the runtime behaves as it does for a student.
   const check = async (responsePayload) => {
-    if (!item?.previewItemId) return;
+    if (!item?.previewItemId) return null;
     setChecking(true);
     try {
-      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload });
-      setResults((current) => ({ ...current, [item.ordinal]: graded.isCorrect ? 'correct' : 'incorrect' }));
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
+      setResults((current) => ({
+        ...current,
+        [item.ordinal]: graded.incomplete ? `incomplete:${graded.detail || 'The work is not complete yet.'}` : graded.isCorrect ? 'correct' : 'incorrect',
+      }));
     } catch (checkError) {
       setResults((current) => ({ ...current, [item.ordinal]: `error:${checkError.message}` }));
     } finally {
       setChecking(false);
     }
+    return null;
   };
+
+  // In Corrections a student sees the verdict at once and has three tries.
+  // The preview grader answers; the tries are counted here.
+  const correctionAttempt = async (responsePayload) => {
+    if (!item?.previewItemId) return null;
+    setChecking(true);
+    try {
+      const graded = await gradeTestCyclePreviewItem({ previewItemId: item.previewItemId, responsePayload, candidate });
+      if (graded.incomplete) return { blocked: true, message: graded.detail || 'Finish your work in the tool, then check it.' };
+      const previous = correctionFeedback[item.ordinal] || { attemptsUsed: 0 };
+      const attemptsUsed = previous.attemptsUsed + 1;
+      const next = {
+        isCorrect: graded.isCorrect === true,
+        attemptsUsed,
+        message: graded.isCorrect ? 'Correct.' : attemptsUsed >= 3 ? 'That was the last try on this one.' : `Not yet — ${3 - attemptsUsed} ${3 - attemptsUsed === 1 ? 'try' : 'tries'} left.`,
+      };
+      setCorrectionFeedback((current) => ({ ...current, [item.ordinal]: next }));
+      return { isCorrect: next.isCorrect, status: next.isCorrect ? 'correct' : 'attempted', attemptCount: attemptsUsed, message: next.message };
+    } catch (checkError) {
+      return { blocked: true, message: checkError.message || 'Could not check.' };
+    } finally {
+      setChecking(false);
+    }
+  };
+  const itemCorrection = item ? correctionFeedback[item.ordinal] || null : null;
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" onClick={onBack} style={quietButton}>← Back to the card</button>
         <button type="button" onClick={() => setDraw((value) => value + 1)} style={quietButton}>Show another version</button>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>
           <input type="checkbox" checked={showSlot} onChange={(event) => setShowSlot(event.target.checked)} />
           Show blueprint details (teacher only)
         </label>
@@ -109,48 +185,78 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
         <div style={{ border: '1px solid var(--mm-border)', borderRadius: 12, overflow: 'hidden', background: 'var(--mm-surface-sunken)' }}>
           <ExamPrepHeader
             examType="courseTest"
-            title={`${data.title}${stage === 'retest' ? ' — Retest' : ''} (preview)`}
+            title={`${data.title}${stage === 'retest' ? ' — Retest' : correctionsStage ? ' — Corrections' : ''} (preview)`}
             questionOrdinal={index + 1}
             totalQuestions={data.totalQuestions}
             expiresAt={null}
             onTimeExpired={() => {}}
           />
-          <p style={{ margin: '10px 16px 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '10px 16px 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             {data.delivery?.timed ? `Students see a ${data.delivery.timeLimitMinutes}-minute timer, enforced by the server. It is not running in preview.` : 'This Test is not timed; students see no clock.'}
             {stage === 'retest' ? ' A real retest targets each student\'s weak skills from their own Test; these are Test items from the same blueprint.' : ''}
+            {correctionsStage ? ' In Corrections the same tools open with hints, an immediate verdict and three tries. A real correction is a parallel item for a skill the student missed; these are items from the same blueprint.' : ''}
           </p>
+          {data.unfilledSlots > 0 && (
+            <p role="alert" style={{ margin: '10px 16px 0', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-error-text)' }}>
+              {data.unfilledSlots} of this Test's question{data.unfilledSlots === 1 ? '' : 's'} cannot be previewed or issued yet
+              {(data.unfilledTargetIds || []).length ? ` (${data.unfilledTargetIds.join(', ')})` : ''}: the secure question bank has
+              no approved family for {data.unfilledSlots === 1 ? 'it' : 'them'}. The preflight names the family to import.
+            </p>
+          )}
           {showSlot && item?.slot && (
-            <p style={{ margin: '8px 16px 0', fontSize: 12.5, color: 'var(--mm-text)', background: 'var(--mm-surface)', padding: '8px 10px', borderRadius: 8, border: '1px dashed var(--mm-border-strong)' }}>
+            <p style={{ margin: '8px 16px 0', fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', background: 'var(--mm-surface)', padding: '8px 10px', borderRadius: 8, border: '1px dashed var(--mm-border-strong)' }}>
               Teacher only — {item.slot.alignmentKey || 'standard'} · DOK {item.slot.dok} · difficulty {item.slot.difficultyBand} · {item.slot.representation}{item.slot.anchor ? ' · anchor' : ''} · family {item.slot.familyId}
+              {' · '}tool: {item.slot.toolLabel || 'Response fields'}
+              {item.slot.devices ? ` (${Object.entries(DEVICE_WORDS).map(([id, word]) => `${word} ${item.slot.devices[id] ? '✓' : '—'}`).join(', ')})` : ''}
             </p>
           )}
           {item?.error && <p role="alert" style={{ margin: 16, color: 'var(--mm-error-text)' }}>Slot {item.ordinal}: {item.error}</p>}
-          {item?.questionInstance && (
+          {item?.questionInstance && correctionsStage && (
+            <RichQuestionRuntime
+              key={`${draw}-${item.ordinal}-corrections`}
+              question={item.questionInstance}
+              mode="corrections"
+              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}-corrections` })}
+              busy={checking}
+              closed={Boolean(itemCorrection && (itemCorrection.isCorrect || itemCorrection.attemptsUsed >= 3))}
+              closedMessage="This practice question is closed. A student would get a fresh parallel question."
+              feedback={itemCorrection}
+              attempt={{ used: itemCorrection?.attemptsUsed || 0, allowed: 3 }}
+              executionScope="teacherPreview"
+              onSubmit={correctionAttempt}
+            />
+          )}
+          {item?.questionInstance && !correctionsStage && (
             <SecureExamQuestionPlayer
               key={`${draw}-${item.ordinal}-${accommodation ? 'acc' : 'base'}`}
               examType="courseTest"
               sessionCalculatorMode={data.delivery?.calculatorMode || null}
               question={item.questionInstance}
+              draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}` })}
               studentSupportProfile={profile}
               accommodationConfirmed
               busy={checking}
+              executionScope="teacherPreview"
               onSubmit={(responsePayload) => check(responsePayload)}
               onDraftChange={() => {}}
             />
           )}
-          {result && (
+          {result && !correctionsStage && (
             <p role="status" style={{ margin: '-40px auto 24px', maxWidth: 820, padding: '0 18px', boxSizing: 'border-box', fontWeight: 800, color: result === 'correct' ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
-              {result === 'correct' ? 'The secure grader accepts this answer.' : result === 'incorrect' ? 'The secure grader marks this answer incorrect.' : `Could not check: ${result.slice(6)}`}
+              {result === 'correct' ? 'The secure grader accepts this answer.'
+                : result === 'incorrect' ? 'The secure grader marks this answer incorrect.'
+                  : result.startsWith('incomplete:') ? `A student would be asked to finish first: ${result.slice(11)}`
+                    : `Could not check: ${result.slice(6)}`}
               {' '}Students are not told this until you release results.
             </p>
           )}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '0 16px 20px', flexWrap: 'wrap' }}>
             <button type="button" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))} style={quietButton}>Previous item</button>
-            <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--mm-text-muted)' }}>Item {index + 1} of {items.length}</span>
+            <span style={{ alignSelf: 'center', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Item {index + 1} of {items.length}</span>
             <button type="button" disabled={index >= items.length - 1} onClick={() => setIndex((value) => Math.min(items.length - 1, value + 1))} style={quietButton}>Next item</button>
           </div>
-          <p style={{ margin: '0 16px 16px', fontSize: 12, color: 'var(--mm-text-muted)' }}>
-            Preview navigation only: students answer one item at a time and cannot go back.
+          <p style={{ margin: '0 16px 16px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+            Students can skip, flag and go back to any question they have opened until they submit; each answer is graded once, when they submit.
           </p>
         </div>
       )}
@@ -158,12 +264,13 @@ const SecureItemsPreview = ({ assignment, stage, accommodation, onBack }) => {
   );
 };
 
-export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }) => {
+export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null, candidate = null }) => {
   const [scenario, setScenario] = useState('review');
   const [device, setDevice] = useState('chromebook');
   const [view, setView] = useState('card');
   const [accommodation, setAccommodation] = useState(false);
   const previewCard = useMemo(() => buildTestCyclePreviewCard({ assignment, scenario }), [assignment, scenario]);
+  const title = assignment.title || assignment.assignment?.title || 'Test Cycle';
   const width = DEVICES.find((entry) => entry.id === device)?.px || 1366;
 
   useEffect(() => {
@@ -182,9 +289,9 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Student preview of ${assignment.title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
+    <Dialog onClose={onClose} aria-label={`Student preview of ${title}`} style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'var(--mm-page-bg)', color: 'var(--mm-text)', overflow: 'auto' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', borderBottom: '1px solid var(--mm-warning-border)', padding: '10px 16px', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <strong>Student preview · {assignment.title} — nothing here is saved. No attempt, grade or student record is created.</strong>
+        <strong>Student preview · {title}{candidate ? ' (not saved yet)' : ''} — nothing here is saved. No attempt, grade or student record is created.</strong>
         <button type="button" onClick={onClose} style={quietButton}>Close preview</button>
       </div>
       <div style={{ padding: 16, display: 'grid', gap: 12, maxWidth: 1400, margin: '0 auto' }}>
@@ -194,11 +301,11 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
           ))}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 800 }}>Width:</span>
+          <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800 }}>Width:</span>
           {DEVICES.map((entry) => (
             <button key={entry.id} type="button" aria-pressed={device === entry.id} onClick={() => setDevice(entry.id)} style={chip(device === entry.id)}>{entry.label} · {entry.px}px</button>
           ))}
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, marginLeft: 8 }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, marginLeft: 8 }}>
             <input type="checkbox" checked={accommodation} onChange={(event) => setAccommodation(event.target.checked)} />
             Preview with a calculator accommodation
           </label>
@@ -207,14 +314,14 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
           <div data-preview-device={device} style={{ width, maxWidth: device === 'chromebook' ? '100%' : width, margin: '0 auto', border: '2px solid var(--mm-border-strong)', borderRadius: 18, padding: 12, boxSizing: 'border-box', background: 'var(--mm-surface-control)' }}>
             {view === 'card' && (
               <TestCycleCard
-                assignmentId={assignment.id}
+                assignmentId={assignment.id || UNSAVED_PREVIEW_KEY}
                 previewCard={previewCard}
                 onPreviewEnter={onPreviewEnter}
                 onExit={onClose}
               />
             )}
             {(view === 'test' || view === 'retest') && (
-              <SecureItemsPreview assignment={assignment} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
+              <SecureItemsPreview assignment={assignment} candidate={candidate} stage={view} accommodation={accommodation} onBack={() => setView('card')} />
             )}
             {view === 'corrections' && (
               <section style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 18, display: 'grid', gap: 10 }}>
@@ -227,16 +334,24 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
                 {(previewCard.corrections?.targets || []).map((target) => (
                   <div key={target.correctionId} style={{ padding: 10, borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
                     <strong>{target.label}</strong> — {target.correctResponses} of {target.requiredCorrectResponses} correct
-                    <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>{target.diagnosisDetail}</div>
+                    <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{target.diagnosisDetail}</div>
                   </div>
                 ))}
-                <button type="button" onClick={() => setView('card')} style={{ ...quietButton, justifySelf: 'start' }}>← Back to the card</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => setView('card')} style={quietButton}>← Back to the card</button>
+                  {/* The same tools, under the Corrections policy, so a teacher
+                      sees exactly what a correcting student works in. */}
+                  <button type="button" onClick={() => setView('correctionItems')} style={quietButton}>Try correction items as a student</button>
+                </div>
               </section>
+            )}
+            {view === 'correctionItems' && (
+              <SecureItemsPreview assignment={assignment} candidate={candidate} stage="corrections" accommodation={accommodation} onBack={() => setView('corrections')} />
             )}
           </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };
 

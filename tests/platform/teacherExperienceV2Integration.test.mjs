@@ -36,8 +36,10 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   const functions = read('functions/index.js');
 
   assert.match(app, /fetchTeacherWeeklyPathCompletions/);
-  assert.match(app, /goalsByStudentId=\{teacherWeeklyGoalsByStudent\}/);
-  assert.match(app, /completionsByStudentId=\{weeklyPathCompletionsByStudent\}/);
+  // The Weekly Path panel is mounted by the teacher's screen, its own module since G2.
+  const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  assert.match(teacherWorkspace, /goalsByStudentId=\{teacherWeeklyGoalsByStudent\}/);
+  assert.match(teacherWorkspace, /completionsByStudentId=\{weeklyPathCompletionsByStudent\}/);
   assert.match(app, /setInterval\(\(\) => loadProgress\(\), 60_000\)/);
   assert.match(store, /httpsCallable\(functions, 'getTeacherWeeklyPathCompletions'\)/);
   assert.match(functions, /exports\.getTeacherWeeklyPathCompletions = onCall/);
@@ -48,7 +50,8 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
 });
 
 test('teacher class workspace and gradebook prefer authoritative classId boundaries', () => {
-  const app = read('src/App.jsx');
+  // The gradebook is the teacher's screen, its own module since G2.
+  const app = read('src/app/teacher/TeacherWorkspace.jsx');
   const classesWorkspace = read('src/ClassesWorkspace.jsx');
   assert.match(app, /gradebookFilter[^\n]*classId/);
   assert.match(app, /student\.classId === gradebookFilter\.classId/);
@@ -66,7 +69,8 @@ test('teacher class workspace and gradebook prefer authoritative classId boundar
 });
 
 test('teacher gradebook displays the centralized Student Learning Profile badge', () => {
-  const app = read('src/App.jsx');
-  assert.match(app, /import StudentPerformanceBadge/);
+  // The gradebook is the teacher's screen, its own module since G2.
+  const app = read('src/app/teacher/TeacherWorkspace.jsx');
+  assert.match(app, /import StudentPerformanceBadge from '\.\.\/\.\.\/components\/common\/StudentPerformanceBadge\.jsx';/);
   assert.match(app, /profile=\{teacherLearningProfiles\[student\.id\]\}/);
 });

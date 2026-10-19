@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "WCAG 2.1 AA violations (axe-core) per screen|viewport|rule — failing node counts. Ratchet: counts may only go down. Regenerate with `npm run certify:accessibility -- --write-baseline` after a deliberate reduction.",
+  "counts": {},
+  "targets": {}
+}

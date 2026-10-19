@@ -168,7 +168,7 @@ for (let index = 0; index < total; index += 1) {
   await groupButton(index % 2).click();
   await card.click();
 }
-await page.locator('button', { hasText: /Check groups/i }).click();
+await page.locator('button', { hasText: /^Submit — / }).first().click();
 // Grading is asynchronous, and slow on a throttled CPU: wait for the record.
 await page.waitForFunction(() => Object.keys(window.__wu.tracker()).length > 0, null, { timeout: 20000 }).catch(() => {});
 await page.waitForTimeout(500);

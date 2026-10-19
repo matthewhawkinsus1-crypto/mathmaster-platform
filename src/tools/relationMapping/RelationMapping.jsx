@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -18,11 +18,29 @@ import relationMappingGrader, {
   uniqueSorted,
 } from '../../../functions/shared/serverGrading/tools/relationMapping.mjs';
 import { givenRelationInstruction } from './relationMappingCopy.js';
+import { arrowText, domainNodeName, mappingStatus, orderedArrows, rangeNodeName } from './arrowDescriptions.js';
 import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
+import { useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
+import {
+  RELATION_PLOT_PAD,
+  RELATION_PLOT_SIZE,
+  initialRelationCrosshair,
+  moveRelationCrosshair,
+  relationCrosshairMessage,
+  relationPlotBounds,
+  relationPlotKeyboardHelp,
+  relationPlotPointAtViewBox,
+  relationPlotStep,
+  relationPointIsPlotted,
+  relationToggleMessage,
+  toggleRelationPlottedPoint,
+} from './relationPlotKeyboard.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
-const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
+const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 'calc(16 * var(--mm-px))', minHeight: 44, boxSizing: 'border-box' };
 
 const WIDTH = 420;
 const ROW = 46;
@@ -30,8 +48,8 @@ const PAD_Y = 34;
 const LEFT_X = 118;
 const RIGHT_X = WIDTH - 118;
 
-const PLOT_SIZE = 430;
-const PLOT_PAD = 34;
+const PLOT_SIZE = RELATION_PLOT_SIZE;
+const PLOT_PAD = RELATION_PLOT_PAD;
 
 function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 }) {
   const { xMin, xMax, yMin, yMax } = bounds;
@@ -42,8 +60,14 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   const xTicks = Array.from({ length: Math.max(0, Math.floor(xMax) - Math.ceil(xMin) + 1) }, (_, i) => Math.ceil(xMin) + i);
   const yTicks = Array.from({ length: Math.max(0, Math.floor(yMax) - Math.ceil(yMin) + 1) }, (_, i) => Math.ceil(yMin) + i);
   const [hoverPoint, setHoverPoint] = useState(null);
-  const step = Number.isFinite(Number(snapStep)) && Number(snapStep) > 0 ? Number(snapStep) : 1;
-  const snap = (value) => Number((Math.round(value / step) * step).toFixed(8));
+  // KEYBOARD CROSSHAIR (KEYBOARD_SWEEP.md T1). null = not showing. The arrow
+  // keys move it over the same grid points a tap can reach, and Enter/Space
+  // calls the very onTogglePoint a click calls (relationPlotKeyboard.js).
+  const [keyboardCursor, setKeyboardCursor] = useState(null);
+  const [keyboardMessage, setKeyboardMessage] = useState('');
+  const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
+  const helpId = `mm-relation-plot-help-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const step = relationPlotStep(snapStep);
 
   const pointFromEvent = (event) => {
     // Where the tap is in the DRAWING, not in the box. A phone held sideways
@@ -58,12 +82,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
       viewBoxHeight: PLOT_SIZE,
     });
     if (!point) return null;
-    const rawX = xMin + ((point.x - PLOT_PAD) / width) * (xMax - xMin);
-    const rawY = yMax - ((point.y - PLOT_PAD) / height) * (yMax - yMin);
-    const x = snap(rawX);
-    const y = snap(rawY);
-    if (x < xMin || x > xMax || y < yMin || y > yMax) return null;
-    return [x, y];
+    return relationPlotPointAtViewBox({ x: point.x, y: point.y }, bounds, step);
   };
 
   const handleClick = (event) => {
@@ -75,6 +94,40 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
     setHoverPoint(pointFromEvent(event));
   };
 
+  const handleKeyDown = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const moved = moveRelationCrosshair(keyboardCursor, event.key, { bounds, snapStep: step, shift: event.shiftKey });
+    if (moved) {
+      event.preventDefault();
+      setKeyboardCursor(moved);
+      setKeyboardMessage(relationCrosshairMessage(moved, points));
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const target = keyboardCursor || initialRelationCrosshair(bounds, step);
+      const wasPlotted = relationPointIsPlotted(points, target[0], target[1]);
+      setKeyboardCursor(target);
+      onTogglePoint?.(target[0], target[1]);
+      setKeyboardMessage(relationToggleMessage(target, wasPlotted));
+      return;
+    }
+    if (event.key === 'Escape' && keyboardCursor) {
+      // Leave crosshair mode, and keep this Escape from also closing Work
+      // View around the plot. With no crosshair showing, Escape passes on.
+      event.preventDefault();
+      event.stopPropagation();
+      setKeyboardCursor(null);
+      setKeyboardMessage('Crosshair hidden. Press an arrow key to show it again.');
+    }
+  };
+
+  // The pointer's preview wins while the mouse is over the grid.
+  const guidePoint = hoverPoint || keyboardCursor;
+  const liveText = hoverPoint
+    ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.`
+    : keyboardMessage || 'Move the pointer over the grid, or focus it and use the arrow keys, to see the exact coordinate before you plot.';
+
   return (
     <div>
       <svg
@@ -82,8 +135,17 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         onClick={handleClick}
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverPoint(null)}
+        onKeyDown={handleKeyDown}
+        onFocus={(event) => {
+          let keyboard = false;
+          try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
+          if (keyboard) setKeyboardHelpVisible(true);
+        }}
+        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardCursor(null); }}
+        tabIndex={0}
         role="application"
         aria-label="Coordinate plane for plotting the relation"
+        aria-describedby={helpId}
         style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
       >
         {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
@@ -93,13 +155,13 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
         {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
 
-        {hoverPoint ? (
-          <g pointerEvents="none">
-            <line x1={xToPx(hoverPoint[0])} x2={xToPx(hoverPoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(hoverPoint[1])} y2={yToPx(hoverPoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <circle cx={xToPx(hoverPoint[0])} cy={yToPx(hoverPoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
-            <rect x={Math.min(PLOT_SIZE - 112, xToPx(hoverPoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(hoverPoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
-            <text x={Math.min(PLOT_SIZE - 64, xToPx(hoverPoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(hoverPoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({hoverPoint[0]}, {hoverPoint[1]})</text>
+        {guidePoint ? (
+          <g pointerEvents="none" data-relation-crosshair={keyboardCursor && !hoverPoint ? 'keyboard' : 'pointer'}>
+            <line x1={xToPx(guidePoint[0])} x2={xToPx(guidePoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(guidePoint[1])} y2={yToPx(guidePoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <circle cx={xToPx(guidePoint[0])} cy={yToPx(guidePoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
+            <rect x={Math.min(PLOT_SIZE - 112, xToPx(guidePoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(guidePoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
+            <text x={Math.min(PLOT_SIZE - 64, xToPx(guidePoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(guidePoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({guidePoint[0]}, {guidePoint[1]})</text>
           </g>
         ) : null}
 
@@ -107,8 +169,20 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
         <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
       </svg>
-      <p aria-live="polite" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
-        {hoverPoint ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.` : 'Move the pointer over the grid to see the exact coordinate before you click.'}
+      <p aria-live="polite" data-relation-plot-status="true" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+        {liveText}
+      </p>
+      {/* The keyboard instruction: the plot's accessible description always,
+          and on screen while the plot has KEYBOARD focus (a pointer user never
+          sees it). aria-describedby reads it even while aria-hidden, so
+          browse mode does not hear it a second time. */}
+      <p
+        id={helpId}
+        aria-hidden="true"
+        data-relation-plot-help="true"
+        style={keyboardHelpVisible ? { margin: '4px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' } : SR_ONLY_STYLE}
+      >
+        {relationPlotKeyboardHelp(step)}
       </p>
     </div>
   );
@@ -125,6 +199,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   const [arrows, setArrows] = usePersistentToolState('arrows', []);
   const [selectedDomain, setSelectedDomain] = useState(null);
+  // What the last arrow press did, said in the status line (TOOL-10).
+  const [lastArrowChange, setLastArrowChange] = useState(null);
   const [domainAnswer, setDomainAnswer] = usePersistentToolState('domainAnswer', '');
   const [rangeAnswer, setRangeAnswer] = usePersistentToolState('rangeAnswer', '');
   const [functionAnswer, setFunctionAnswer] = usePersistentToolState('functionAnswer', '');
@@ -136,6 +212,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setArrows(state.arrows); setDomainAnswer(state.domainAnswer); setRangeAnswer(state.rangeAnswer);
     setFunctionAnswer(state.functionAnswer); setFieldAnswers(state.fieldAnswers);
     setPlottedPoints(state.plottedPoints); setPlotX(state.plotX); setPlotY(state.plotY);
+    setLastArrowChange(null);
   }, []);
   const undoHistory = useMathUndoHistory({
     label: 'Undo the latest mapping edit',
@@ -144,33 +221,51 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     resetKey: questionUndoResetKey(questionData),
   });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
+  const submitActionLabel = useSubmitLabel('Check');
 
-  const plotBounds = useMemo(() => {
-    const xs = pairs.map(([x]) => x);
-    const ys = pairs.map(([, y]) => y);
-    const rawMinX = Math.floor(Math.min(...xs) - 1);
-    const rawMaxX = Math.ceil(Math.max(...xs) + 1);
-    const rawMinY = Math.floor(Math.min(...ys) - 1);
-    const rawMaxY = Math.ceil(Math.max(...ys) + 1);
-    return {
-      xMin: Math.min(-5, rawMinX),
-      xMax: Math.max(5, rawMaxX),
-      yMin: Math.min(-5, rawMinY),
-      yMax: Math.max(5, rawMaxY),
-    };
-  }, [pairs]);
+  const plotBounds = useMemo(() => relationPlotBounds(pairs), [pairs]);
 
   const height = Math.max(domainValues.length, rangeValues.length) * ROW + PAD_Y * 2;
   const yFor = (index, count) => PAD_Y + index * ROW + (Math.max(domainValues.length, rangeValues.length) - count) * ROW / 2;
 
   const toggleArrow = (x, y) => {
     clearFeedback();
+    const exists = arrows.some((arrow) => arrow[0] === x && arrow[1] === y);
+    setLastArrowChange({ kind: exists ? 'removed' : 'added', x, y });
     setArrows((current) => {
       const existing = current.findIndex((arrow) => arrow[0] === x && arrow[1] === y);
       if (existing >= 0) return current.filter((_, index) => index !== existing);
       return [...current, [x, y]];
     });
   };
+
+  // Removing an arrow removes the button that was pressed: focus goes to the
+  // arrow now in its place (or the one before), and after the last one to the
+  // diagram's first value, where the next arrow starts — never to the top of
+  // the page (A11Y-2).
+  const arrowListRef = useRef(null);
+  const diagramRef = useRef(null);
+  const [arrowFocusIndex, setArrowFocusIndex] = useState(null);
+  useEffect(() => {
+    if (arrowFocusIndex == null) return;
+    const buttons = arrowListRef.current?.querySelectorAll('button') || [];
+    const target = buttons[Math.min(arrowFocusIndex, buttons.length - 1)] || diagramRef.current?.querySelector('[data-domain-node]');
+    target?.focus?.();
+    setArrowFocusIndex(null);
+  }, [arrowFocusIndex, arrows]);
+  // The next arrow's Remove slides under focus, so a double-press or a held
+  // Enter would take two arrows: a second removal within 400 ms is ignored.
+  const lastRemovalRef = useRef(0);
+  const removeArrowAt = (x, y, index) => {
+    const now = Date.now();
+    if (now - lastRemovalRef.current < 400) return;
+    lastRemovalRef.current = now;
+    toggleArrow(x, y);
+    setArrowFocusIndex(index);
+  };
+  const clearArrowsAvailability = useFocusSafeDisabled(arrows.length > 0);
+  const listedArrows = orderedArrows(arrows, domainValues, rangeValues);
 
   const handleRangeClick = (y) => {
     if (selectedDomain == null) return;
@@ -183,12 +278,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     const ny = Number(y);
     if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
     clearFeedback();
-    setPlottedPoints((current) => {
-      const exists = current.some(([px, py]) => Math.abs(px - nx) < 1e-9 && Math.abs(py - ny) < 1e-9);
-      return exists
-        ? current.filter(([px, py]) => Math.abs(px - nx) >= 1e-9 || Math.abs(py - ny) >= 1e-9)
-        : [...current, [nx, ny]];
-    });
+    // One reducer for a click, a keyboard Enter/Space and a "Remove" button.
+    setPlottedPoints((current) => toggleRelationPlottedPoint(current, nx, ny));
   };
 
   const addTypedPoint = () => {
@@ -243,7 +334,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     const checks = Object.fromEntries((feedback.metadata?.parts || []).map((part) => [part.id, part.isCorrect]));
     if (checks.plot === false && !plottedPoints.length) return 'No points plotted yet. Plot each ordered pair on the coordinate plane.';
     if (checks.plot === false) return 'The coordinate plot does not match the relation yet. Check each ordered pair (x, y).';
-    if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Click a value on the left, then the value on the right it maps to.';
+    if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Choose a value on the left, then the value on the right it maps to.';
     if (checks.mapping === false) return 'The arrows do not match the relation. Work through the ordered pairs one at a time — each pair is one arrow.';
     if (checks.domain === false) return 'The domain is not right. It is the set of every x-value that appears, listed once each.';
     if (checks.range === false) return 'The range is not right. It is the set of every y-value that appears, listed once each.';
@@ -272,9 +363,10 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={questionData.prompt || `Build the mapping diagram for {${pairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}}.`}
+        stepsAreControls
         steps={[
-          ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you click.'] : []),
-          ...(ask.includes('mapping') ? ['Click a value in the left column, then click the value on the right it maps to.', 'Click an arrow again to remove it.'] : []),
+          ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you plot.'] : []),
+          ...(ask.includes('mapping') ? ['Choose a value in the left column, then the value on the right it maps to (click or tap, or Tab to a value and press Enter).', 'To remove an arrow, choose its two values again or press its button under the diagram.'] : []),
           'Then answer the questions about the relation.',
         ]}
       />
@@ -300,24 +392,24 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             onTogglePoint={togglePlottedPoint}
             snapStep={questionData.plotSnapStep || 1}
           />
-          <p style={{ margin: '10px 0 8px', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <p style={{ margin: '10px 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
           </p>
           {allowTypedPlot ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
-              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
               <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
             </div>
           ) : null}
           {plottedPoints.length ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
               {plottedPoints.map(([x, y]) => (
-                <button key={`${x}|${y}`} type="button" onClick={() => togglePlottedPoint(x, y)} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }} aria-label={`Remove plotted point ${x}, ${y}`}>
+                <button key={`${x}|${y}`} type="button" onClick={() => togglePlottedPoint(x, y)} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }} aria-label={`Remove plotted point ${x}, ${y}`}>
                   ({x}, {y}) ×
                 </button>
               ))}
-              <button type="button" onClick={() => { clearFeedback(); setPlottedPoints([]); }} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }}>Clear plot</button>
+              <button type="button" onClick={() => { clearFeedback(); setPlottedPoints([]); }} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }}>Clear plot</button>
             </div>
           ) : null}
         </Panel>
@@ -330,16 +422,16 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         tableData: { label: 'Domain and range data' },
         instruction: { text: questionData.prompt || '' },
         task: { text: questionData.prompt || questionData.task || '' },
-        primaryActions: [{ id: 'check-mapping', label: 'Check', onAction: check }],
+        primaryActions: [{ id: 'check-mapping', label: submitActionLabel, onAction: check }],
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
-            <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
-            <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
+          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
+            <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
+            <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} fill="#f4f8ff" stroke="#9bb8e8" strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} fill="#f7f4ff" stroke="#b9a3e8" strokeWidth="2" />
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary-border)' }} strokeWidth="2" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent-border)' }} strokeWidth="2" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);
@@ -350,13 +442,13 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                   key={index}
                   x1={LEFT_X + 40} y1={yFor(from, domainValues.length)}
                   x2={RIGHT_X - 40} y2={yFor(to, rangeValues.length)}
-                  stroke="#1a73e8" strokeWidth="2.5" markerEnd="url(#arrowhead)"
+                  style={{ stroke: 'var(--mm-primary)' }} strokeWidth="2.5" markerEnd="url(#arrowhead)"
                 />
               );
             })}
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                <path d="M0,0 L8,4 L0,8 z" fill="#1a73e8" />
+                <path d="M0,0 L8,4 L0,8 z" style={{ fill: 'var(--mm-primary)' }} />
               </marker>
             </defs>
 
@@ -367,14 +459,14 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                 role="button"
                 tabIndex={0}
                 aria-pressed={selectedDomain === value}
-                aria-label={`Domain value ${value}`}
+                aria-label={domainNodeName(value, listedArrows, { selected: selectedDomain === value })}
                 onClick={() => { clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); }}
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); } }}
                 style={{ cursor: 'pointer' }}
               >
-                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" fill={selectedDomain === value ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="2" />
+                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
                 {/* The label must not swallow the click aimed at its circle. */}
-                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill={selectedDomain === value ? '#fff' : '#174ea6'}>{value}</text>
+                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }}>{value}</text>
               </g>
             ))}
 
@@ -384,43 +476,59 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                 data-range-node={value}
                 role="button"
                 tabIndex={0}
-                aria-label={`Range value ${value}`}
+                aria-label={rangeNodeName(value, listedArrows)}
                 onClick={() => handleRangeClick(value)}
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleRangeClick(value); } }}
                 style={{ cursor: selectedDomain == null ? 'default' : 'pointer' }}
               >
-                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" fill="#fff" stroke="#8a3ffc" strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
-                <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill="#6f2da8">{value}</text>
+                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
+                <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: 'var(--mm-accent-text)' }}>{value}</text>
               </g>
             ))}
           </svg>
 
-          <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
-            {selectedDomain != null
-              ? `${selectedDomain} selected — now click the value it maps to.`
-              : `${arrows.length} arrow${arrows.length === 1 ? '' : 's'} drawn.`}
+          <p aria-live="polite" data-mapping-status="" style={{ marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+            {mappingStatus({ selectedDomain, arrows, lastChange: lastArrowChange })}
           </p>
+          {/* Every arrow in words, each with its own Remove: the diagram can be
+              reviewed and corrected without seeing it (TOOL-10). */}
+          {arrows.length ? (
+            <ul ref={arrowListRef} aria-label="Arrows you drew" data-mapping-arrows="" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {listedArrows.map(([x, y], index) => (
+                <li key={`${x}|${y}`}>
+                  <button
+                    type="button"
+                    onClick={() => removeArrowAt(x, y, index)}
+                    aria-label={`Remove the arrow ${x} to ${y}`}
+                    style={{ ...secondaryButton, padding: '7px 10px', minHeight: 44 }}
+                  >
+                    {arrowText([x, y])} <span aria-hidden="true">×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button type="button" onClick={() => { clearFeedback(); setArrows([]); setSelectedDomain(null); }} disabled={!arrows.length} style={{ ...secondaryButton, opacity: arrows.length ? 1 : 0.5 }}>Clear arrows</button>
+            <button type="button" {...clearArrowsAvailability} onClick={() => { if (!arrows.length) return; clearFeedback(); setArrows([]); setSelectedDomain(null); setLastArrowChange({ kind: 'cleared' }); }} style={{ ...secondaryButton, opacity: arrows.length ? 1 : 0.5 }}>Clear arrows</button>
           </div>
         </Panel>
 
         <Panel title="Describe the relation">
           {ask.includes('domain') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Domain (list the values, separated by commas)
               <input value={domainAnswer} onChange={(event) => { setDomainAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -4, -2, 1, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('range') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Range (list the values, separated by commas)
               <input value={rangeAnswer} onChange={(event) => { setRangeAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -3, -1, 2, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('isFunction') && (
             <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-              <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+              <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                 Is this relation a function?
               </legend>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -455,7 +563,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             const current = String(fieldAnswers[field.id] ?? '');
             return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-                <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+                <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                   {field.label || field.id}
                 </legend>
                 {options.length ? (
@@ -495,12 +603,11 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             );
           })}
 
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>{submitActionLabel}</button>
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message()}</p>
+              <ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>
           ) : null}
 

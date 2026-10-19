@@ -1,0 +1,1869 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — Slopes of Perpendicular Lines and Horizontal & Vertical Lines",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 2/Topic 2/Lesson 3",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "shared",
+      "dol": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Getting Started: Coordinate Rotation and Reciprocals",
+      "recommendedMinutes": 12,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3-wu-1",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Coordinate Rotation. Segment AB has endpoints A(0, 0) and B(8, 5). Rotate AB about the origin and give the image of B for each rotation. (A stays at the origin.)",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "points": [
+              {
+                "x": 0,
+                "y": 0,
+                "label": "A"
+              },
+              {
+                "x": 8,
+                "y": 5,
+                "label": "B"
+              }
+            ],
+            "segments": [
+              {
+                "from": [
+                  0,
+                  0
+                ],
+                "to": [
+                  8,
+                  5
+                ]
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "b90",
+              "label": "B′ after a 90° counterclockwise rotation",
+              "answer": "(-5, 8)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "b180",
+              "label": "B″ after a 180° rotation",
+              "answer": "(-8, -5)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "b270",
+              "label": "B‴ after a 270° counterclockwise rotation",
+              "answer": "(5, -8)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "A 90° counterclockwise rotation about the origin sends (x, y) to (−y, x).",
+            "A 180° rotation sends (x, y) to (−x, −y).",
+            "A 270° counterclockwise rotation sends (x, y) to (y, −x)."
+          ]
+        },
+        {
+          "questionId": "l3-wu-2",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Determine the slope of each segment from the rotation, then describe the pattern.",
+          "responses": [
+            {
+              "id": "ab",
+              "label": "Slope of AB",
+              "answer": "5/8"
+            },
+            {
+              "id": "ab90",
+              "label": "Slope of A′B′ (90°)",
+              "answer": "-8/5"
+            },
+            {
+              "id": "ab180",
+              "label": "Slope of A″B″ (180°)",
+              "answer": "5/8"
+            },
+            {
+              "id": "ab270",
+              "label": "Slope of A‴B‴ (270°)",
+              "answer": "-8/5"
+            },
+            {
+              "id": "pattern90",
+              "label": "Compared with the slope of AB, the slope after a 90° or 270° rotation is …",
+              "type": "choice",
+              "options": [
+                "the negative reciprocal",
+                "the same",
+                "the opposite only",
+                "the reciprocal only"
+              ],
+              "answer": "the negative reciprocal"
+            },
+            {
+              "id": "pattern180",
+              "label": "After a 180° rotation, the slope is …",
+              "type": "choice",
+              "options": [
+                "the same",
+                "the negative reciprocal",
+                "the opposite only",
+                "undefined"
+              ],
+              "answer": "the same"
+            }
+          ],
+          "hints": [
+            "Slope = (change in y) ÷ (change in x). Every segment starts at the origin.",
+            "B′ = (−5, 8), so the slope of A′B′ is 8 ÷ (−5).",
+            "Compare 5/8 and −8/5: flip the fraction AND change the sign."
+          ]
+        },
+        {
+          "questionId": "l3-wu-3",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Prepare: determine the reciprocal of each value. Then use it to find a negative reciprocal.",
+          "responses": [
+            {
+              "id": "r1",
+              "label": "Reciprocal of 3",
+              "answer": "1/3"
+            },
+            {
+              "id": "r2",
+              "label": "Reciprocal of −10",
+              "answer": "-1/10"
+            },
+            {
+              "id": "r3",
+              "label": "Reciprocal of 1/5",
+              "answer": "5"
+            },
+            {
+              "id": "r4",
+              "label": "Reciprocal of −5/4",
+              "answer": "-4/5"
+            },
+            {
+              "id": "nr",
+              "label": "Negative reciprocal of 2/3",
+              "answer": "-3/2"
+            }
+          ],
+          "hints": [
+            "The reciprocal of a/b is b/a. A number times its reciprocal is 1.",
+            "The reciprocal keeps the sign: the reciprocal of −10 is −1/10.",
+            "Negative reciprocal: flip the fraction, then change the sign."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Slopes of Perpendicular Lines; Horizontal and Vertical Lines",
+      "recommendedMinutes": 30,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3-cw-1",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 3.1 — Line B and its image B′ after a 90° rotation about their intersection point (0, 5) are shown. Line B is y = (1/3)x + 5.",
+          "graph": {
+            "xMin": -9,
+            "xMax": 9,
+            "yMin": -9,
+            "yMax": 9,
+            "functions": [
+              {
+                "type": "line",
+                "m": 0.3333333333333333,
+                "b": 5
+              },
+              {
+                "type": "line",
+                "m": -3,
+                "b": 5
+              }
+            ],
+            "points": [
+              {
+                "x": 0,
+                "y": 5,
+                "label": "(0, 5)"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "mB",
+              "label": "Slope of line B",
+              "answer": "1/3"
+            },
+            {
+              "id": "mB2",
+              "label": "Slope of line B′ (read it from the graph)",
+              "answer": "-3"
+            },
+            {
+              "id": "product",
+              "label": "Product of the two slopes",
+              "answer": "-1"
+            },
+            {
+              "id": "eqB2",
+              "label": "Equation of line B′ in slope-intercept form",
+              "answer": "y=-3x+5",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "perpendicular",
+              "label": "Are lines B and B′ perpendicular?",
+              "type": "choice",
+              "options": [
+                "Yes — they meet at a right angle.",
+                "No — they only cross once.",
+                "No — their slopes are not equal."
+              ],
+              "answer": "Yes — they meet at a right angle."
+            }
+          ],
+          "hints": [
+            "From (0, 5), line B′ goes down 3 for every 1 to the right.",
+            "Multiply the two slopes.",
+            "Line B′ crosses the y-axis at the same point as line B."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Perpendicular",
+                "instruction": "Perpendicular lines meet at a right angle. Rotating a line 90° about a point on it produces a perpendicular line through that point."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3-cw-2",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Line C and its 90° rotation C′ intersect at (6, 5). Line C passes through (−2, 9); line C′ passes through (0, −7).",
+          "graph": {
+            "xMin": -9,
+            "xMax": 12,
+            "yMin": -9,
+            "yMax": 12,
+            "functions": [
+              {
+                "type": "line",
+                "m": -0.5,
+                "b": 8
+              },
+              {
+                "type": "line",
+                "m": 2,
+                "b": -7
+              }
+            ],
+            "points": [
+              {
+                "x": 6,
+                "y": 5,
+                "label": "(6, 5)"
+              },
+              {
+                "x": -2,
+                "y": 9,
+                "label": "(−2, 9)"
+              },
+              {
+                "x": 0,
+                "y": -7,
+                "label": "(0, −7)"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "mC",
+              "label": "Slope of line C",
+              "answer": "-1/2"
+            },
+            {
+              "id": "mC2",
+              "label": "Slope of line C′",
+              "answer": "2"
+            },
+            {
+              "id": "product",
+              "label": "Product of the slopes",
+              "answer": "-1"
+            },
+            {
+              "id": "eqC",
+              "label": "Equation of line C",
+              "answer": "y=-1/2x+8",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "eqC2",
+              "label": "Equation of line C′",
+              "answer": "y=2x-7",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "Use two points on each line: slope = (y₂ − y₁) ÷ (x₂ − x₁).",
+            "Line C: from (−2, 9) to (6, 5). Line C′: from (0, −7) to (6, 5).",
+            "Then use y = mx + b and one point to find b."
+          ]
+        },
+        {
+          "questionId": "l3-cw-3",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Worked example, then you prove it. Line p passes through O(0, 0) and R(a, b), so its slope is m₁ = b/a. Rotate R 90° CLOCKWISE about O to get point D on line q.",
+          "responses": [
+            {
+              "id": "D",
+              "label": "The coordinates of D are …",
+              "type": "choice",
+              "options": [
+                "(b, −a)",
+                "(−b, a)",
+                "(−a, −b)",
+                "(a, −b)"
+              ],
+              "answer": "(b, −a)"
+            },
+            {
+              "id": "m2",
+              "label": "The slope of line q is m₂ = …",
+              "type": "choice",
+              "options": [
+                "−a/b",
+                "a/b",
+                "b/a",
+                "−b/a"
+              ],
+              "answer": "−a/b"
+            },
+            {
+              "id": "product",
+              "label": "So m₁ · m₂ = ?",
+              "answer": "-1"
+            },
+            {
+              "id": "theorem",
+              "label": "This proves that the slopes of perpendicular lines are …",
+              "type": "choice",
+              "options": [
+                "negative reciprocals",
+                "equal",
+                "opposites",
+                "reciprocals"
+              ],
+              "answer": "negative reciprocals"
+            }
+          ],
+          "hints": [
+            "A 90° clockwise rotation sends (x, y) to (y, −x).",
+            "Slope from O(0, 0) to D(b, −a) is (−a − 0)/(b − 0).",
+            "Multiply b/a by −a/b."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Theorem",
+                "instruction": "If two lines are perpendicular, their slopes are negative reciprocals: m₁ = −1/m₂, so m₁·m₂ = −1 (neither line vertical)."
+              },
+              {
+                "title": "Counterclockwise version",
+                "instruction": "Rotating R(a, b) 90° counterclockwise gives D(−b, a), so m₂ = a/(−b) and m₁ = b/a = −1/m₂."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3-cw-4",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Line j and line k are perpendicular. Given each slope of line j, determine the slope of line k.",
+          "responses": [
+            {
+              "id": "k1",
+              "label": "Slope of j is 2/3",
+              "answer": "-3/2"
+            },
+            {
+              "id": "k2",
+              "label": "Slope of j is −4/5",
+              "answer": "5/4"
+            },
+            {
+              "id": "k3",
+              "label": "Slope of j is −3",
+              "answer": "1/3"
+            },
+            {
+              "id": "k4",
+              "label": "Slope of j is 1",
+              "answer": "-1"
+            },
+            {
+              "id": "k5",
+              "label": "Slope of j is −1/6",
+              "answer": "6"
+            },
+            {
+              "id": "k6",
+              "label": "Slope of j is 5",
+              "answer": "-1/5"
+            }
+          ],
+          "hints": [
+            "Flip the fraction, then change the sign.",
+            "A whole number n is n/1, so its negative reciprocal is −1/n.",
+            "Check: the two slopes should multiply to −1."
+          ]
+        },
+        {
+          "questionId": "l3-cw-5",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2E",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each pair of slopes: do the lines they describe make perpendicular lines, parallel lines, or neither?",
+          "figures": [
+            {
+              "id": "s1",
+              "text": "m₁ = 2 and m₂ = −1/2",
+              "category": "perp"
+            },
+            {
+              "id": "s2",
+              "text": "m₁ = 3/4 and m₂ = −4/3",
+              "category": "perp"
+            },
+            {
+              "id": "s3",
+              "text": "m₁ = −5 and m₂ = 1/5",
+              "category": "perp"
+            },
+            {
+              "id": "s4",
+              "text": "m₁ = 2/3 and m₂ = 2/3",
+              "category": "par"
+            },
+            {
+              "id": "s5",
+              "text": "m₁ = −1/4 and m₂ = −0.25",
+              "category": "par"
+            },
+            {
+              "id": "s6",
+              "text": "m₁ = 2 and m₂ = 1/2",
+              "category": "neither"
+            },
+            {
+              "id": "s7",
+              "text": "m₁ = −3/4 and m₂ = 3/4",
+              "category": "neither"
+            },
+            {
+              "id": "s8",
+              "text": "m₁ = 0 and m₂ is undefined",
+              "category": "perp"
+            }
+          ],
+          "categories": [
+            {
+              "id": "perp",
+              "label": "Perpendicular"
+            },
+            {
+              "id": "par",
+              "label": "Parallel"
+            },
+            {
+              "id": "neither",
+              "label": "Neither"
+            }
+          ],
+          "hints": [
+            "Parallel lines have equal slopes.",
+            "Perpendicular slopes multiply to −1 — or one line is horizontal (slope 0) and the other vertical.",
+            "2 and 1/2 are reciprocals but not NEGATIVE reciprocals."
+          ]
+        },
+        {
+          "questionId": "l3-cw-6",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph"
+          ],
+          "previewChoicesOnGraph": true,
+          "graph": {
+            "xMin": -2,
+            "xMax": 16,
+            "yMin": -2,
+            "yMax": 16,
+            "points": [
+              {
+                "x": 4,
+                "y": 4,
+                "label": "G"
+              },
+              {
+                "x": 14,
+                "y": 4,
+                "label": "H"
+              },
+              {
+                "x": 4,
+                "y": 12,
+                "label": "K"
+              }
+            ]
+          },
+          "choices": [
+            {
+              "id": "a",
+              "label": "y = 4"
+            },
+            {
+              "id": "b",
+              "label": "x = 4"
+            },
+            {
+              "id": "c",
+              "label": "y = 14"
+            },
+            {
+              "id": "d",
+              "label": "x = 14"
+            }
+          ],
+          "answer": "a",
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Activity 3.2 — Line q passes through G(4, 4) and H(14, 4). Which equation describes line q? Select a choice to see it drawn."
+        },
+        {
+          "questionId": "l3-cw-7",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph"
+          ],
+          "previewChoicesOnGraph": true,
+          "graph": {
+            "xMin": -2,
+            "xMax": 16,
+            "yMin": -2,
+            "yMax": 16,
+            "points": [
+              {
+                "x": 4,
+                "y": 4,
+                "label": "G"
+              },
+              {
+                "x": 14,
+                "y": 4,
+                "label": "H"
+              },
+              {
+                "x": 4,
+                "y": 12,
+                "label": "K"
+              }
+            ]
+          },
+          "choices": [
+            {
+              "id": "a",
+              "label": "x = 4"
+            },
+            {
+              "id": "b",
+              "label": "y = 4"
+            },
+            {
+              "id": "c",
+              "label": "x = 12"
+            },
+            {
+              "id": "d",
+              "label": "y = 12"
+            }
+          ],
+          "answer": "a",
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Line p passes through G(4, 4) and K(4, 12). Which equation describes line p? Select a choice to see it drawn."
+        },
+        {
+          "questionId": "l3-cw-8",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "orientation": "horizontal",
+          "value": -2,
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Graph the horizontal line y = −2."
+        },
+        {
+          "questionId": "l3-cw-9",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "orientation": "vertical",
+          "value": 3,
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Graph the vertical line x = 3."
+        },
+        {
+          "questionId": "l3-cw-10",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use the horizontal and vertical lines you have drawn to reason about their slopes.",
+          "responses": [
+            {
+              "id": "dyH",
+              "label": "On any horizontal line, when x increases by 1, y changes by …",
+              "answer": "0"
+            },
+            {
+              "id": "slopeH",
+              "label": "The slope of every horizontal line is …",
+              "type": "choice",
+              "options": [
+                "0",
+                "undefined",
+                "1",
+                "−1"
+              ],
+              "answer": "0"
+            },
+            {
+              "id": "dxV",
+              "label": "On any vertical line, when y increases by 1, x changes by …",
+              "answer": "0"
+            },
+            {
+              "id": "slopeV",
+              "label": "The slope of every vertical line is …",
+              "type": "choice",
+              "options": [
+                "undefined",
+                "0",
+                "1",
+                "−1"
+              ],
+              "answer": "undefined"
+            },
+            {
+              "id": "allV",
+              "label": "All vertical lines are parallel.",
+              "type": "choice",
+              "options": [
+                "Always true",
+                "Sometimes true",
+                "Never true"
+              ],
+              "answer": "Always true"
+            },
+            {
+              "id": "allH",
+              "label": "All horizontal lines are parallel.",
+              "type": "choice",
+              "options": [
+                "Always true",
+                "Sometimes true",
+                "Never true"
+              ],
+              "answer": "Always true"
+            },
+            {
+              "id": "VH",
+              "label": "Any vertical line and any horizontal line are …",
+              "type": "choice",
+              "options": [
+                "perpendicular",
+                "parallel",
+                "the same line",
+                "neither parallel nor perpendicular"
+              ],
+              "answer": "perpendicular"
+            }
+          ],
+          "hints": [
+            "Pick two points on y = −2, like (0, −2) and (1, −2).",
+            "Pick two points on x = 3, like (3, 0) and (3, 1). What is the run?",
+            "Two different vertical lines never meet."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rise over run",
+                "instruction": "Slope = rise ÷ run. A horizontal line has a rise of 0, so its slope is 0 ÷ run = 0. A vertical line has a run of 0, and division by 0 is undefined."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "l3-cw-11",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Write each equation.",
+          "responses": [
+            {
+              "id": "h",
+              "label": "A horizontal line through (2, −1)",
+              "answer": "y=-1",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "v",
+              "label": "A vertical line through (2, −1)",
+              "answer": "x=2",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "perpX5",
+              "label": "The line perpendicular to x = 5 through (1, 0)",
+              "answer": "y=0",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "perpYm2",
+              "label": "The line perpendicular to y = −2 through (5, 6)",
+              "answer": "x=5",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "A horizontal line keeps the same y-value: y = (that y-value).",
+            "A vertical line keeps the same x-value: x = (that x-value).",
+            "x = 5 is vertical, so a line perpendicular to it is horizontal."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Writing Equations of Perpendicular Lines",
+      "recommendedMinutes": 36,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "l3-pr-1",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 3.3 — Write the equation of the line perpendicular to y = 2x + 1 that passes through the point (6, 2).",
+          "responses": [
+            {
+              "id": "m",
+              "label": "Slope of the perpendicular line",
+              "answer": "-1/2"
+            },
+            {
+              "id": "b",
+              "label": "Its y-intercept, b",
+              "answer": "5"
+            },
+            {
+              "id": "eq",
+              "label": "Equation in slope-intercept form",
+              "answer": "y=-1/2x+5",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "The perpendicular slope is the negative reciprocal of 2.",
+            "Use point-slope form: y − 2 = m(x − 6), then solve for y.",
+            "Or substitute (6, 2) into y = mx + b and solve for b."
+          ]
+        },
+        {
+          "questionId": "l3-pr-2",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write the equation of the line perpendicular to y = −(3/4)x that passes through the point (3, −8).",
+          "responses": [
+            {
+              "id": "m",
+              "label": "Slope of the perpendicular line",
+              "answer": "4/3"
+            },
+            {
+              "id": "b",
+              "label": "Its y-intercept, b",
+              "answer": "-12"
+            },
+            {
+              "id": "eq",
+              "label": "Equation in slope-intercept form",
+              "answer": "y=4/3x-12",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "The negative reciprocal of −3/4 is 4/3.",
+            "−8 = (4/3)(3) + b.",
+            "Solve for b."
+          ]
+        },
+        {
+          "questionId": "l3-pr-3",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Write the equation of the line that passes through (6, 2) and is perpendicular to the line through (−5, 3) and (−1, −9).",
+          "responses": [
+            {
+              "id": "given",
+              "label": "Slope of the line through the two points",
+              "answer": "-3"
+            },
+            {
+              "id": "m",
+              "label": "Slope of the perpendicular line",
+              "answer": "1/3"
+            },
+            {
+              "id": "eq",
+              "label": "Equation in slope-intercept form",
+              "answer": "y=1/3x",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "Find the slope through (−5, 3) and (−1, −9) first.",
+            "Take its negative reciprocal.",
+            "Use (6, 2) to find b."
+          ]
+        },
+        {
+          "questionId": "l3-pr-4",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Write the equation of the line that passes through (−2, 7) and is perpendicular to the line through (−6, 1) and (0, 4).",
+          "responses": [
+            {
+              "id": "given",
+              "label": "Slope of the line through the two points",
+              "answer": "1/2"
+            },
+            {
+              "id": "m",
+              "label": "Slope of the perpendicular line",
+              "answer": "-2"
+            },
+            {
+              "id": "eq",
+              "label": "Equation in slope-intercept form",
+              "answer": "y=-2x+3",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "Slope through (−6, 1) and (0, 4) is 3/6.",
+            "The negative reciprocal of 1/2 is −2.",
+            "7 = −2(−2) + b."
+          ]
+        },
+        {
+          "questionId": "l3-pr-5",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Two perpendicular lines intersect at (5, 9). One of them also passes through (−4, 4). Write the equation of the OTHER line.",
+          "responses": [
+            {
+              "id": "given",
+              "label": "Slope of the line through (5, 9) and (−4, 4)",
+              "answer": "5/9"
+            },
+            {
+              "id": "m",
+              "label": "Slope of the other line",
+              "answer": "-9/5"
+            },
+            {
+              "id": "eq",
+              "label": "Equation of the other line in slope-intercept form",
+              "answer": "y=-9/5x+18",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "Both lines pass through the intersection point (5, 9).",
+            "The other line's slope is the negative reciprocal of 5/9.",
+            "9 = (−9/5)(5) + b."
+          ]
+        },
+        {
+          "questionId": "l3-pr-6",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "point": [
+            -2,
+            4
+          ],
+          "slope": -0.5,
+          "graphBounds": {
+            "xMin": -7,
+            "xMax": 7,
+            "yMin": -7,
+            "yMax": 7
+          },
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Line k is perpendicular to y = 2x − 3, so its slope is −1/2. Line k passes through (−2, 4). Graph line k.",
+          "hints": [
+            "Plot (−2, 4) yourself first.",
+            "A slope of −1/2 means down 1 for every 2 to the right."
+          ]
+        },
+        {
+          "questionId": "l3-pr-7",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "readGraph"
+          ],
+          "previewChoicesOnGraph": true,
+          "graph": {
+            "xMin": -7,
+            "xMax": 7,
+            "yMin": -7,
+            "yMax": 7,
+            "functions": [
+              {
+                "type": "line",
+                "m": -0.5,
+                "b": 4
+              }
+            ],
+            "points": [
+              {
+                "x": 1,
+                "y": -1,
+                "label": "(1, −1)"
+              }
+            ]
+          },
+          "choices": [
+            {
+              "id": "a",
+              "label": "y = 2x − 3"
+            },
+            {
+              "id": "b",
+              "label": "y = −2x + 1"
+            },
+            {
+              "id": "c",
+              "label": "y = 0.5x − 1.5"
+            },
+            {
+              "id": "d",
+              "label": "y = −0.5x − 0.5"
+            }
+          ],
+          "answer": "a",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The graph shows y = −(1/2)x + 4 and the point (1, −1). Which line is perpendicular to y = −(1/2)x + 4 AND passes through (1, −1)? Select a choice to see it drawn, then decide."
+        },
+        {
+          "questionId": "l3-pr-8",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A line passes through the point (−4, 3).",
+          "responses": [
+            {
+              "id": "perpY",
+              "label": "The line through (−4, 3) that is perpendicular to the y-axis",
+              "answer": "y=3",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "parY",
+              "label": "The line through (−4, 3) that is parallel to the y-axis",
+              "answer": "x=-4",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "slopePerpY",
+              "label": "The slope of the line perpendicular to the y-axis is …",
+              "type": "choice",
+              "options": [
+                "0",
+                "undefined",
+                "3",
+                "−4"
+              ],
+              "answer": "0"
+            },
+            {
+              "id": "slopeParY",
+              "label": "The slope of the line parallel to the y-axis is …",
+              "type": "choice",
+              "options": [
+                "undefined",
+                "0",
+                "3",
+                "−4"
+              ],
+              "answer": "undefined"
+            }
+          ],
+          "hints": [
+            "The y-axis is vertical.",
+            "A line perpendicular to a vertical line is horizontal: y = constant.",
+            "A line parallel to the y-axis is vertical: x = constant."
+          ]
+        },
+        {
+          "questionId": "l3-pr-9",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The reference line is y = 2x + 1. Sort each line: is it parallel to the reference line, perpendicular to it, or neither?",
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 6
+          },
+          "figures": [
+            {
+              "id": "f1",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": -4
+              },
+              "category": "par"
+            },
+            {
+              "id": "f2",
+              "function": {
+                "family": "linear",
+                "m": -0.5,
+                "b": 3
+              },
+              "category": "perp"
+            },
+            {
+              "id": "f3",
+              "function": {
+                "family": "linear",
+                "m": 0.5,
+                "b": 1
+              },
+              "category": "neither"
+            },
+            {
+              "id": "f4",
+              "math": "2y = −x + 8",
+              "category": "perp"
+            },
+            {
+              "id": "f5",
+              "math": "x − 2y = 6",
+              "category": "neither"
+            },
+            {
+              "id": "f6",
+              "math": "y − 1 = 2(x + 3)",
+              "category": "par"
+            },
+            {
+              "id": "f7",
+              "math": "y = −2x + 1",
+              "category": "neither"
+            }
+          ],
+          "categories": [
+            {
+              "id": "par",
+              "label": "Parallel to y = 2x + 1"
+            },
+            {
+              "id": "perp",
+              "label": "Perpendicular to y = 2x + 1"
+            },
+            {
+              "id": "neither",
+              "label": "Neither"
+            }
+          ],
+          "hints": [
+            "Find each slope. For a graph, count rise over run between two grid points.",
+            "Rewrite 2y = −x + 8 and x − 2y = 6 in slope-intercept form first.",
+            "Parallel: slope 2. Perpendicular: slope −1/2."
+          ]
+        },
+        {
+          "questionId": "l3-pr-10",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Things Aren't Always What They Seem! Linh sketched lines a and d on graph paper whose x-axis counts by 2s but whose y-axis counts by 1s, and on her sketch they look like they cross at a right angle. Line a passes through (0, 2) and (4, 4). Line d passes through (0, 2) and (4, 0). Linh says the lines are perpendicular. Jackson says they are not. The graph below redraws both lines with the SAME scale on both axes.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -5,
+            "yMax": 5,
+            "functions": [
+              {
+                "type": "line",
+                "m": 0.5,
+                "b": 2
+              },
+              {
+                "type": "line",
+                "m": -0.5,
+                "b": 2
+              }
+            ],
+            "points": [
+              {
+                "x": 0,
+                "y": 2
+              },
+              {
+                "x": 4,
+                "y": 4
+              },
+              {
+                "x": 4,
+                "y": 0
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "ma",
+              "label": "Slope of line a",
+              "answer": "1/2"
+            },
+            {
+              "id": "md",
+              "label": "Slope of line d",
+              "answer": "-1/2"
+            },
+            {
+              "id": "product",
+              "label": "Product of the slopes",
+              "answer": "-1/4"
+            },
+            {
+              "id": "who",
+              "label": "Who is correct?",
+              "type": "choice",
+              "options": [
+                "Jackson — the product of the slopes is not −1.",
+                "Linh — the lines looked like they met at a right angle on her sketch.",
+                "Both — the lines are perpendicular on Linh's graph paper only."
+              ],
+              "answer": "Jackson — the product of the slopes is not −1."
+            }
+          ],
+          "hints": [
+            "Compute each slope from the two given points — don't trust the picture.",
+            "Perpendicular slopes multiply to −1.",
+            "Different scales on the two axes change how steep a line looks."
+          ]
+        },
+        {
+          "questionId": "l3-pr-11",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Quadrilateral ABCD has vertices A(1, 1), B(5, 3), C(4, 5), and D(0, 3). Use slopes to decide whether ABCD is a rectangle.",
+          "graph": {
+            "xMin": -2,
+            "xMax": 8,
+            "yMin": -2,
+            "yMax": 8,
+            "points": [
+              {
+                "x": 1,
+                "y": 1,
+                "label": "A"
+              },
+              {
+                "x": 5,
+                "y": 3,
+                "label": "B"
+              },
+              {
+                "x": 4,
+                "y": 5,
+                "label": "C"
+              },
+              {
+                "x": 0,
+                "y": 3,
+                "label": "D"
+              }
+            ],
+            "segments": [
+              {
+                "from": [
+                  1,
+                  1
+                ],
+                "to": [
+                  5,
+                  3
+                ]
+              },
+              {
+                "from": [
+                  5,
+                  3
+                ],
+                "to": [
+                  4,
+                  5
+                ]
+              },
+              {
+                "from": [
+                  4,
+                  5
+                ],
+                "to": [
+                  0,
+                  3
+                ]
+              },
+              {
+                "from": [
+                  0,
+                  3
+                ],
+                "to": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "AB",
+              "label": "Slope of AB",
+              "answer": "1/2"
+            },
+            {
+              "id": "BC",
+              "label": "Slope of BC",
+              "answer": "-2"
+            },
+            {
+              "id": "CD",
+              "label": "Slope of CD",
+              "answer": "1/2"
+            },
+            {
+              "id": "DA",
+              "label": "Slope of DA",
+              "answer": "-2"
+            },
+            {
+              "id": "rect",
+              "label": "Is ABCD a rectangle?",
+              "type": "choice",
+              "options": [
+                "Yes — opposite sides are parallel and adjacent sides are perpendicular.",
+                "No — the opposite sides are not parallel.",
+                "No — the adjacent sides are not perpendicular."
+              ],
+              "answer": "Yes — opposite sides are parallel and adjacent sides are perpendicular."
+            }
+          ],
+          "hints": [
+            "Compute all four slopes.",
+            "Opposite sides: AB with CD, BC with DA.",
+            "Adjacent sides AB and BC: does (1/2)(−2) equal −1?"
+          ]
+        },
+        {
+          "questionId": "l3-pr-12",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Priya says the line perpendicular to y = 4x − 1 has a slope of −4.",
+          "responses": [
+            {
+              "id": "correct",
+              "label": "Is Priya correct?",
+              "type": "choice",
+              "options": [
+                "No — she took the opposite but forgot the reciprocal.",
+                "No — she took the reciprocal but forgot the opposite.",
+                "Yes — −4 is the negative reciprocal of 4."
+              ],
+              "answer": "No — she took the opposite but forgot the reciprocal."
+            },
+            {
+              "id": "m",
+              "label": "The correct perpendicular slope",
+              "answer": "-1/4"
+            },
+            {
+              "id": "eq",
+              "label": "The perpendicular line through the origin, in slope-intercept form",
+              "answer": "y=-1/4x",
+              "inputProfile": "equation"
+            }
+          ],
+          "hints": [
+            "Check Priya's slope: does 4 · (−4) equal −1?",
+            "Flip 4/1 and change the sign."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Perpendicular, Horizontal, and Vertical Lines",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "l3-dol-1",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write the equation of the line perpendicular to y = −2x + 7 that passes through (4, 1).",
+          "responses": [
+            {
+              "id": "m",
+              "label": "Slope of the perpendicular line",
+              "answer": "1/2"
+            },
+            {
+              "id": "eq",
+              "label": "Equation in slope-intercept form",
+              "answer": "y=1/2x-1",
+              "inputProfile": "equation"
+            }
+          ]
+        },
+        {
+          "questionId": "l3-dol-2",
+          "standard": "A.2G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Use the point (3, −2).",
+          "responses": [
+            {
+              "id": "h",
+              "label": "The horizontal line through (3, −2)",
+              "answer": "y=-2",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "v",
+              "label": "The vertical line through (3, −2)",
+              "answer": "x=3",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "slopeV",
+              "label": "The slope of the vertical line is …",
+              "type": "choice",
+              "options": [
+                "undefined",
+                "0",
+                "3",
+                "−2"
+              ],
+              "answer": "undefined"
+            }
+          ]
+        },
+        {
+          "questionId": "l3-dol-3",
+          "standard": "A.2F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A line passes through (−4, 1) and (2, 4). Write the equation of the line perpendicular to it that passes through (2, 4).",
+          "responses": [
+            {
+              "id": "given",
+              "label": "Slope of the line through (−4, 1) and (2, 4)",
+              "answer": "1/2"
+            },
+            {
+              "id": "eq",
+              "label": "Equation of the perpendicular line in slope-intercept form",
+              "answer": "y=-2x+8",
+              "inputProfile": "equation"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

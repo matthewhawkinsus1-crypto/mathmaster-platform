@@ -184,14 +184,22 @@ const compareExpectedRound = (current, expected) => {
   return 'current';
 };
 
-const readiness = ({ room, nowMs, joinedCount, completedCount }) => {
+const readiness = ({ room, nowMs, joinedCount, completedCount, extendedPendingCount = 0 }) => {
   const timer = timerFromRoom(room);
   if (joinedCount == null) {
     // No participant count supplied: only an expired deadline can prove readiness.
     const expired = !timer.pausedAtMs && Boolean(timer.endsAtMs) && Number(nowMs) >= timer.endsAtMs;
     return { ready: expired, reason: expired ? 'expired' : 'in_progress' };
   }
-  return roundReadyToClose({ timer, nowMs, participantCount: joinedCount, completedCount });
+  const ready = roundReadyToClose({ timer, nowMs, participantCount: joinedCount, completedCount });
+  // EXTENDED TIME (liveChallengeAccommodations.mjs): the class's deadline has
+  // passed, but a student with extended time is still inside their own and
+  // has not answered. The round waits for them — only everyone finishing, or
+  // the host's forced close, ends it sooner.
+  if (ready.ready && ready.reason === 'expired' && Number(extendedPendingCount) > 0) {
+    return { ready: false, reason: 'extended_time' };
+  }
+  return ready;
 };
 
 /**
@@ -203,6 +211,7 @@ const readiness = ({ room, nowMs, joinedCount, completedCount }) => {
  * @param {object} [input.expected]  { roundIndex, roundVersion, roundToken } the caller acted on
  * @param {number} [input.joinedCount]     players in the match (for start/close readiness)
  * @param {number} [input.completedCount]  players who finished the current round
+ * @param {number} [input.extendedPendingCount]  unfinished players still inside their extended time
  * @param {number} [input.nowMs]           server time
  * @param {boolean} [input.force]          host override of close readiness
  */
@@ -212,6 +221,7 @@ export const planLifecycleCommand = ({
   expected = null,
   joinedCount = null,
   completedCount = null,
+  extendedPendingCount = 0,
   nowMs = Date.now(),
   force = false,
 } = {}) => {
@@ -248,7 +258,7 @@ export const planLifecycleCommand = ({
           : apply({ closeCurrentRound: false, roundIndex: current.roundIndex, nextRoundIndex: current.roundIndex + 1 });
       }
       if (!force) {
-        const ready = readiness({ room, nowMs, joinedCount, completedCount });
+        const ready = readiness({ room, nowMs, joinedCount, completedCount, extendedPendingCount });
         if (!ready.ready) {
           return reject(LIFECYCLE_REJECTION.ROUND_IN_PROGRESS, 'This round is still in progress.', { readiness: ready.reason });
         }

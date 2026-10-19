@@ -235,11 +235,29 @@ function choiceRuntimeNamespace(question = {}, sourceKey = 'question', choices =
   ].join('|');
 }
 
-function choiceRuntimeId(question, sourceKey, choices, choice, index) {
+// An id this boundary already issued. My Math Path stores an issued item
+// SANITIZED (its options carry runtime ids, and its private grading names
+// them) and sanitizes the stored item again for every response to the
+// browser. Hashing a runtime id a second time handed the browser options that
+// matched nothing in the answer key, so every option — the right one included
+// — was graded wrong.
+//
+// So when the SERVER re-sends an item it issued and stored, it says so
+// (`buildSanitizedQuestion(stored, { issued: true })`) and the runtime ids
+// pass through unchanged: sanitizing an issued item is idempotent. The
+// decision comes from the caller, never from the id's shape. A raw bank option
+// that merely looks like `choice_<28 hex>` is still replaced, so an author id
+// can never reach the browser as-is (public/private id equality is the leak
+// the semantic-fidelity audit checks for).
+const RUNTIME_CHOICE_ID = /^choice_[0-9a-f]{28}$/;
+
+function choiceRuntimeId(question, sourceKey, choices, choice, index, { keepIssued = false } = {}) {
+  const authored = authoredChoiceId(choice, index);
+  if (keepIssued && RUNTIME_CHOICE_ID.test(authored)) return authored;
   return opaqueId(
     'choice',
     choiceRuntimeNamespace(question, sourceKey, choices),
-    authoredChoiceId(choice, index),
+    authored,
     String(index),
   );
 }
@@ -255,14 +273,14 @@ function choiceIdMap(question, sourceKey, choices) {
   return map;
 }
 
-function normalizeChoices(choices, question = {}, sourceKey = 'question') {
+function normalizeChoices(choices, question = {}, sourceKey = 'question', { keepIssued = false } = {}) {
   return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => ({
-    id: choiceRuntimeId(question, sourceKey, choices, choice, index),
+    id: choiceRuntimeId(question, sourceKey, choices, choice, index, { keepIssued }),
     label: authoredChoiceLabel(choice),
   })).filter((choice) => choice.label !== '');
 }
 
-function normalizeResponseFields(fields = [], question = {}) {
+function normalizeResponseFields(fields = [], question = {}, { keepIssued = false } = {}) {
   const safeSymbols = (value) => (Array.isArray(value) ? value : [])
     .map((symbol) => String(symbol || '').trim())
     .filter(Boolean)
@@ -288,7 +306,7 @@ function normalizeResponseFields(fields = [], question = {}) {
       // notation"). Presentation only.
       responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
       placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`) } : {}),
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`, { keepIssued }) } : {}),
     };
   });
 }
@@ -427,7 +445,9 @@ function sanitizeContext(context) {
 // `toolPayload` comes from buildPublicToolPayload, which the caller awaits.
 // Passing it in rather than fetching it here keeps this function synchronous
 // for the many call sites that do not need a tool.
-function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0, toolPayload = null } = {}) {
+// `issued`: true only when the caller is re-sending an item it already issued
+// and stored (its options already carry runtime ids). See choiceRuntimeId.
+function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0, toolPayload = null, issued = false } = {}) {
   return {
     // The authentic tool, by allowlist, or nothing at all. A question whose
     // tool has no contract is not issued — it is never downgraded into the
@@ -493,9 +513,9 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         : [],
     } : null,
     prompt: String(question.prompt || ''),
-    choices: normalizeChoices(question.choices, question, 'question'),
+    choices: normalizeChoices(question.choices, question, 'question', { keepIssued: issued }),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
-    responseFields: normalizeResponseFields(question.responseFields, question),
+    responseFields: normalizeResponseFields(question.responseFields, question, { keepIssued: issued }),
     // What the student has to look at to answer. Never anything they have to
     // work out.
     stimulus: sanitizeStimulus(question.stimulus),
@@ -524,6 +544,22 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
       returnTargetBand: question.adaptiveRigor.returnTargetBand,
     } : null,
   };
+}
+
+// A Digital SAT item's number box follows the SAT's own decimal rules
+// (answerEquivalence sameDigitalSatStudentProducedResponse). Decided from
+// the item at issue time and stored with its private grading.
+function digitalSatNumberField(question, field) {
+  const framework = String(question?.assessmentContext?.framework || '').trim();
+  const profile = String(field?.inputProfile || '').trim().toLowerCase();
+  return framework === 'digitalSAT' && (profile === 'number' || profile === 'numeric');
+}
+
+const FIELD_FORMAT_KEYS = ['inputProfile', 'answerFormat', 'notation', 'toolProfile'];
+function fieldFormatOf(field) {
+  return Object.fromEntries(FIELD_FORMAT_KEYS
+    .filter((key) => typeof field?.[key] === 'string' && field[key].trim())
+    .map((key) => [key, field[key].trim()]));
 }
 
 function privateGradingDefinition(question) {
@@ -559,6 +595,12 @@ function privateGradingDefinition(question) {
         ? String(field.equivalence)
         : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
           .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
+      ...(digitalSatNumberField(question, field) ? { numberRules: 'digitalSAT' } : {}),
+      // What kind of answer the field takes, so the grader can tell a list
+      // or a pair (where `1,250` is two values) from one number
+      // (answerEquivalence fieldAcceptsThousandsSeparators). Stored on new
+      // issues only; a stored item keeps what it was issued with.
+      ...fieldFormatOf(field),
     };
   });
   return { ...explicit, fields };
@@ -634,6 +676,11 @@ async function valuesEquivalent(actual, field) {
       return left === right;
     }
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    // Job P: a Digital SAT student-produced response also takes the decimal
+    // the SAT itself accepts (truncated or rounded to fill the space).
+    if (field.numberRules === 'digitalSAT' && equivalence.sameDigitalSatStudentProducedResponse(actual, expected)) {
+      return true;
+    }
     if (field.equivalence === 'interval') {
       return equivalence.sameIntervalNotation(actual, expected, tolerance);
     }
@@ -655,7 +702,11 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'nonnegativeRadicalExpression') {
       return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
     }
-    return equivalence.sameValue(actual, expected, tolerance);
+    // A list or pair field never reads `1,250` as one number (its kind is
+    // stored with the private grading, fieldFormatOf).
+    return equivalence.sameValue(actual, expected, tolerance, {
+      thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(field),
+    });
   });
 }
 
@@ -699,6 +750,31 @@ async function gradeResponse(grading, responsePayload = {}) {
   return { isCorrect: fieldResults.every((field) => field.isCorrect),
     score: fieldResults.reduce((sum, field) => sum + field.credit * field.weight, 0) / possible,
     fieldResults: fieldResults.map(({ id, isCorrect }) => ({ id, isCorrect })) };
+}
+
+/**
+ * What helped THIS Path attempt, and what is released from now on.
+ *
+ * `priorSupport` is the item's `supportReleased`: the hint and review that
+ * earlier responses on this item released. Only those were on screen before
+ * the student submitted this answer, so only they mark it as supported. What
+ * this response releases (`attemptSupport`: a hint after the second miss, the
+ * review once the item closes) is shown AFTER the answer. It is carried
+ * forward to the next attempt but never marks this one. Counting it here
+ * recorded every Path answer as "worked example used", including correct
+ * first tries, because the review always arrives when an item closes
+ * (QA R2-M2).
+ */
+function pathAttemptSupport({ priorSupport = {}, attemptSupport = {} } = {}) {
+  const hintBefore = Boolean(priorSupport?.hintReleased);
+  const reviewBefore = Boolean(priorSupport?.reviewReleased);
+  return {
+    used: { hintUsed: hintBefore, workedExampleUsed: reviewBefore, scaffoldUsed: hintBefore },
+    released: {
+      hintReleased: hintBefore || Boolean(attemptSupport?.support?.hint),
+      reviewReleased: reviewBefore || Boolean(attemptSupport?.solutionReview),
+    },
+  };
 }
 
 function mathematicalIndependence(supportUsage = {}) {
@@ -818,9 +894,11 @@ module.exports = {
   gradeResponse,
   hasGradeableDefinition,
   mathematicalIndependence,
+  pathAttemptSupport,
   nextRetentionDue,
   opaqueId,
   privateGradingDefinition,
   runtimeId,
+  sanitizeContext,
   supportTelemetry,
 };

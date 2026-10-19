@@ -33,6 +33,9 @@ export const LEVEL = Object.freeze({
   // from the Grade Center, which is why its Back is the one place in this model
   // that cannot be answered by the tree alone — see resolveBack.
   ASSIGNMENT_RESULT: 'assignmentResult',
+  // A Test Cycle's card. Opened from Home, Assignments, Grades or Tests &
+  // Exams, so like a result its Back follows where the student came from.
+  TEST_CYCLE: 'testCycle',
 
   // Grades branch
   GRADES: 'grades',
@@ -70,6 +73,7 @@ const PARENT = Object.freeze({
   // Assignments is the DEFAULT parent of a result, not the only one. A student
   // who reached it from Grades gets Grades back — see resolveBack's origin.
   [LEVEL.ASSIGNMENT_RESULT]: LEVEL.ASSIGNMENTS,
+  [LEVEL.TEST_CYCLE]: LEVEL.ASSIGNMENTS,
   [LEVEL.GRADES]: LEVEL.HOME,
   [LEVEL.REWARDS]: LEVEL.HOME,
 
@@ -101,6 +105,7 @@ export const LEVEL_LABEL = Object.freeze({
   [LEVEL.GRADES]: 'My grades',
   [LEVEL.REWARDS]: 'My rewards',
   [LEVEL.ASSIGNMENT_RESULT]: 'this result',
+  [LEVEL.TEST_CYCLE]: 'this test',
   [LEVEL.ASSIGNMENT]: 'this assignment',
   [LEVEL.ASSIGNMENT_QUESTION]: 'this question',
   [LEVEL.MATH_PATH]: 'My Math Path',
@@ -171,6 +176,31 @@ export const STUDENT_DESTINATION_LABEL = Object.freeze({
   [STUDENT_DESTINATION.SECURE_EXAMS]: 'Tests & Exams',
 });
 
+/*
+ * ON A PHONE, THREE PLACES AND "MORE" (student pass 3, NAV-13).
+ *
+ * Six signposts wrapped to three rows — about 150px — above every screen at
+ * 390px. The three a student opens most stay in the row; the rest fold
+ * behind one "More" button. The place the student is on is never folded
+ * away: if it is one of the "More" places it stays in the row too, so the row
+ * still answers "where am I?". Laptops and Chromebooks keep the full row.
+ */
+export const STUDENT_PHONE_PRIMARY = Object.freeze([
+  STUDENT_DESTINATION.HOME,
+  STUDENT_DESTINATION.ASSIGNMENTS,
+  STUDENT_DESTINATION.GRADES,
+]);
+
+export const phoneNavGroups = (current = null) => {
+  const more = STUDENT_DESTINATION_ORDER.filter((destination) => !STUDENT_PHONE_PRIMARY.includes(destination));
+  return {
+    primary: [...STUDENT_PHONE_PRIMARY],
+    // Folded behind "More" on a phone, the current place excepted.
+    folded: more.filter((destination) => destination !== current),
+    currentIsFolded: more.includes(current),
+  };
+};
+
 export const parentOf = (level) => PARENT[level] ?? null;
 
 /**
@@ -205,9 +235,22 @@ export const breadcrumb = (level) => {
  * the students who reach it. An origin that is not a real parent candidate is
  * ignored rather than trusted, so a stale history entry cannot invent a level.
  */
+// Home joined in student pass 3 (NAV-9): "See results" on Home said
+// "← Assignments" and went there, while browser Back went Home.
 const ORIGIN_CANDIDATES = Object.freeze({
-  [LEVEL.ASSIGNMENT_RESULT]: [LEVEL.ASSIGNMENTS, LEVEL.GRADES],
+  [LEVEL.ASSIGNMENT_RESULT]: [LEVEL.ASSIGNMENTS, LEVEL.GRADES, LEVEL.HOME],
+  [LEVEL.TEST_CYCLE]: [LEVEL.HOME, LEVEL.ASSIGNMENTS, LEVEL.GRADES, LEVEL.SECURE_EXAMS],
 });
+
+/**
+ * Where a screen with more than one parent was opened from, made safe: an
+ * origin the level does not accept becomes its default parent. App stores the
+ * result of this, never a raw value, so a stale entry cannot invent a level.
+ */
+export const normalizeOrigin = (level, origin) => {
+  const allowed = ORIGIN_CANDIDATES[level] || [];
+  return allowed.includes(origin) ? origin : parentOf(level);
+};
 
 export const resolveBack = (level, { origin = null } = {}) => {
   const allowed = ORIGIN_CANDIDATES[level] || [];
@@ -219,6 +262,10 @@ export const resolveBack = (level, { origin = null } = {}) => {
     // goes before they press it.
     label: `Back to ${LEVEL_LABEL[parent]}`,
     shortLabel: LEVEL_LABEL[parent],
+    // The signpost form for a compact Back control — "← Assignments",
+    // "← Grades" — matching the global nav's name for the same place, so the
+    // Back button and the nav never call one destination two things.
+    navLabel: STUDENT_DESTINATION_LABEL[parent] || LEVEL_LABEL[parent],
   };
 };
 

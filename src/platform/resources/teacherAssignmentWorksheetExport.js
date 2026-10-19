@@ -1,9 +1,6 @@
 import { generateQuestion } from '../../problemGenerator.js';
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
-import {
-  assignmentIsForStudent,
-  getSectionVariantMode,
-} from '../../assignmentLifecycle.js';
+import { getSectionVariantMode } from '../../assignmentLifecycle.js';
 import {
   getStoredAssignmentQuestions,
   prepareAssignmentForRuntime,
@@ -15,6 +12,10 @@ import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentW
 import { buildStudentFamilyContext } from '../generation/familyDelivery.js';
 import { formatStudentLabel } from '../studentName.js';
 import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
+
+import { assignmentNeedsStudentForWorksheet, eligibleStudentsForTeacherWorksheet } from './teacherWorksheetEligibility.js';
+
+export { assignmentNeedsStudentForWorksheet, eligibleStudentsForTeacherWorksheet };
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -32,27 +33,6 @@ const activityTitleForRole = (role) => ({
 const displayNameFor = (student) => {
   if (!student) return '';
   return formatStudentLabel(student, { lastFirst: false });
-};
-
-const assignmentHasAudience = (assignment = {}) => (
-  (Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.length > 0)
-  || (Array.isArray(assignment.assignedClassPeriods) && assignment.assignedClassPeriods.length > 0)
-);
-
-export const assignmentNeedsStudentForWorksheet = (assignment = {}) => {
-  const runtimeAssignment = prepareAssignmentForRuntime(assignment, { source: 'teacherWorksheetAudience' }).assignment;
-  return projectCurrentAssignmentContent(runtimeAssignment).entries.some((entry) => (
-    getSectionVariantMode(runtimeAssignment, entry.logicalRole) !== 'shared'
-  ));
-};
-
-export const eligibleStudentsForTeacherWorksheet = (assignment = {}, students = []) => {
-  const roster = Array.isArray(students) ? students.filter(Boolean) : [];
-  if (!assignmentHasAudience(assignment)) return roster;
-  return roster.filter((student) => assignmentIsForStudent(assignment, {
-    classId: student?.classId || null,
-    classPeriod: student?.classPeriod || null,
-  }));
 };
 
 export const buildTeacherAssignmentWorksheetModel = ({

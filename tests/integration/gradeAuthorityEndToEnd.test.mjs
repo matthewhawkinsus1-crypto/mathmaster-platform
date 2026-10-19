@@ -369,6 +369,15 @@ test('11. a teacher-of-record override goes through the audited callable and rea
 
   const overridden = await readGradeDoc(studentId);
   assert.equal(overridden.teacherGradeOverridesByAssignment[ASSIGNMENT_ID].__assignment.score, 0);
+  // The student reads this document: the teacher's note, identity and the
+  // participant role live on the teacher-only incident instead.
+  const zero = overridden.teacherGradeOverridesByAssignment[ASSIGNMENT_ID].__assignment;
+  assert.deepEqual(['note', 'actor', 'participantRole'].filter((field) => field in zero), []);
+  assert.equal(zero.reasonCode, 'academicDishonesty');
+  const incident = (await db.collection('studentSupportEvents').doc(result.incidentId).get()).data();
+  assert.equal(incident.note, 'Confirmed in class.');
+  assert.ok(incident.actor?.uid, 'the incident names who acted');
+  assert.equal(incident.evidence.participantRole, 'individual');
   const audits = await db.collection('grades').doc(studentId).collection('gradeOverrideAudits').get();
   assert.equal(audits.size, 1, 'the override is audited');
 

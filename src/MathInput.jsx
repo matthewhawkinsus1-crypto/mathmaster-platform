@@ -6,6 +6,9 @@ import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
+import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
+import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
+import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -202,6 +205,14 @@ const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionN
   return withExit(BASIC_KEYS);
 };
 
+const EMPTY_KEYS = Object.freeze([]);
+
+// A profile's keys with a caller's extra keys after them, and the way out
+// when any of them opens a group.
+const withExtraKeys = (keys, extraKeys) => (extraKeys.length
+  ? withExit(mergeToolKeys(keys.filter((key) => key !== EXIT_GROUP_KEY), extraKeys))
+  : keys);
+
 const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
 
 export default function MathInput({
@@ -227,6 +238,14 @@ export default function MathInput({
   // keyboard types everything these fields take. On a phone the tools ARE the
   // keypad (the native keyboard is suppressed), so they are never hidden there.
   hideToolsToggle = false,
+  // Keys a caller adds to the keypad itself, uncaptioned (a secure test item:
+  // secureAnswerEntry.js). Unlike `requiredSymbols`, nothing here appears in
+  // the "Needed for this answer" row, which on a test would hint at the answer.
+  extraKeys = EMPTY_KEYS,
+  // Never name a symbol the field needs (a secure test item): a symbol no key
+  // types still keeps the phone's own keyboard, but "Additional symbol
+  // needed: …" would tell a student about the answer.
+  hideNeededSymbols = false,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -256,8 +275,11 @@ export default function MathInput({
   // "initially" means "while this field is the one being typed in" — the
   // multi-answer grader asked for it on every field that needed a fraction,
   // and each such keypad stayed open whichever box the student was in.
-  const toolsVisible = isMobile ? showTools && fieldActive : showTools;
-  const requiredKeysVisible = isMobile && fieldActive;
+  // A closed question's boxes are read-only: its keypad closes with it
+  // (student pass 3) instead of staying open over the worked solution.
+  const { terminal: questionTerminal } = useQuestionLifecycle();
+  const toolsVisible = !questionTerminal && (isMobile ? showTools && fieldActive : showTools);
+  const requiredKeysVisible = !questionTerminal && isMobile && fieldActive;
 
   const stabilizeMobileViewport = useCallback(() => {
     const root = mfRef.current?.closest?.('.mathmaster-question-container')
@@ -285,7 +307,7 @@ export default function MathInput({
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
     if (!isMobile) return mergeToolKeys(
-      getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }),
+      withExtraKeys(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), extraKeys),
       requiredTools,
     );
 
@@ -298,11 +320,11 @@ export default function MathInput({
     return buildMobileMathTools({
       toolProfile,
       entryKeys: MOBILE_ENTRY_KEYS,
-      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }),
+      profileKeys: withExtraKeys(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), extraKeys),
       requiredTools,
       backspaceKey: MOBILE_BACKSPACE_KEY,
     });
-  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools]);
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -331,6 +353,9 @@ export default function MathInput({
     if (!mathField) return undefined;
 
     mathField.mathVirtualKeyboardPolicy = 'manual';
+    // MathLive reveals the field on focus and on every edit. Pinch-zoomed onto
+    // it, a field the person can see stays put (platform/layout/pinchZoomReveal.js).
+    mathField.onScrollIntoView = revealMathFieldHost;
     // Most math responses use MathMaster's controlled mobile keypad. Function
     // rules are different: students may legitimately need arbitrary names, so
     // keep the device keyboard there. Algebra operations now have an equation-
@@ -370,7 +395,7 @@ export default function MathInput({
     const preventUnusedModes = (event) => {
       // A typed `/` builds the fraction the same characters mean as text:
       // once the denominator is a plain number, a letter, operator, relation,
-      // comma or closing bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
+      // comma or bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
       // not −2/(3x + 4) (PQ-040). Runs before MathLive inserts the key, like
       // the `=` rule below; anything it does not recognise changes nothing.
       const fractionStep = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
@@ -465,7 +490,9 @@ export default function MathInput({
       // its Pick up chip were hidden there). 'nearest' leaves a visible field
       // alone; the field's scroll-margin keeps it clear of the bar. Phones keep
       // their own viewport stabilisation.
-      if (!isMobile) mathField?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      // Pinch-zoomed onto a field that is already on the magnified screen, it
+      // is left exactly where it is.
+      if (!isMobile) revealUnlessVisibleWhileZoomed(mathField, { block: 'nearest', inline: 'nearest' });
     };
     if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now', channel: 'field' });
     const frame = window.requestAnimationFrame(focusField);
@@ -518,6 +545,11 @@ export default function MathInput({
     emit(mathField.value);
     stabilizeMobileViewport();
   }, [stabilizeMobileViewport, emit]);
+
+  // Each keypad is one Tab stop: arrows, Home and End move between its keys
+  // (rovingToolbar.js, student pass 3 PR-27).
+  const requiredKeysToolbar = useRovingToolbar(requiredTools.length);
+  const toolsToolbar = useRovingToolbar(tools.length);
 
   const borderColor = inputStatus === 'incorrect'
     ? '#d93025'
@@ -579,7 +611,7 @@ export default function MathInput({
           maxWidth: '100%',
           minWidth: 0,
           minHeight: compact ? '44px' : '54px',
-          fontSize: compact ? '20px' : '24px',
+          fontSize: compact ? 'calc(20 * var(--mm-px))' : 'calc(24 * var(--mm-px))',
           padding: compact ? '8px 10px' : '12px 14px',
           borderRadius: '8px',
           border: `2px solid ${borderColor}`,
@@ -618,7 +650,7 @@ export default function MathInput({
             background: toolsVisible ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
             color: 'var(--mm-primary-text)',
             fontWeight: 800,
-            fontSize: 15,
+            fontSize: 'calc(15 * var(--mm-px))',
             fontFamily: 'serif',
             cursor: 'pointer',
           }}
@@ -631,7 +663,9 @@ export default function MathInput({
       {requiredKeysVisible && requiredTools.length > 0 && (
         <div
           className="mathmaster-required-answer-keys"
+          role="toolbar"
           aria-label="Keys needed for this answer"
+          onKeyDown={requiredKeysToolbar.onKeyDown}
           style={{
             display: 'grid',
             width: '100%',
@@ -647,11 +681,12 @@ export default function MathInput({
             background: 'var(--mm-primary-subtle)',
           }}
         >
-          <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
-          {requiredTools.map((tool) => (
+          <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
+          {requiredTools.map((tool, index) => (
             <button
               type="button"
               key={`required-${tool.ariaLabel}`}
+              {...requiredKeysToolbar.itemProps(index)}
               aria-label={tool.ariaLabel}
               title={tool.ariaLabel}
               onPointerDown={(event) => event.preventDefault()}
@@ -664,7 +699,7 @@ export default function MathInput({
                 borderRadius: '8px',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-primary-text)',
-                fontSize: '21px',
+                fontSize: 'calc(21 * var(--mm-px))',
                 fontWeight: 900,
                 cursor: 'pointer',
               }}
@@ -675,8 +710,8 @@ export default function MathInput({
         </div>
       )}
 
-      {isMobile && unservedRequiredSymbols.length > 0 && (
-        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: '12px', fontWeight: 700 }}>
+      {isMobile && !hideNeededSymbols && unservedRequiredSymbols.length > 0 && (
+        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>
           Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
         </div>
       )}
@@ -685,7 +720,9 @@ export default function MathInput({
         <div
           id={toolsId}
           className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
+          role="toolbar"
           aria-label="Math tools"
+          onKeyDown={toolsToolbar.onKeyDown}
           style={{
             display: 'grid',
             width: '100%',
@@ -701,10 +738,11 @@ export default function MathInput({
             background: 'var(--mm-surface-tint)',
           }}
         >
-          {tools.map((tool) => (
+          {tools.map((tool, index) => (
             <button
               type="button"
               key={`${toolProfile}-${tool.ariaLabel}`}
+              {...toolsToolbar.itemProps(index)}
               aria-label={tool.ariaLabel}
               title={tool.ariaLabel}
               onPointerDown={(event) => event.preventDefault()}
@@ -719,7 +757,7 @@ export default function MathInput({
                 borderRadius: '7px',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-text-strong)',
-                fontSize: '18px',
+                fontSize: 'calc(18 * var(--mm-px))',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 ...(isMobile && tool.action === 'deleteBackward' ? {

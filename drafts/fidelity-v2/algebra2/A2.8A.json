@@ -371,13 +371,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A constant output ratio over equal input steps identifies exponential change.",
+            "headline": "Every consecutive ratio is {{r}}, so the data grow by a constant factor: exponential growth.",
             "reasoning": [
-              "Each consecutive output ratio equals {{r}}.",
-              "The same multiplicative factor repeats at every one-unit x-step.",
-              "Because {{r}}>1, this is exponential growth."
+              "Divide each output by the one before it: $\\frac{{{y1}}}{{{y0}}}={{r}}$, $\\frac{{{y2}}}{{{y1}}}={{r}}$ and $\\frac{{{y3}}}{{{y2}}}={{r}}$.",
+              "The first differences {{d1}}, {{d2}}, {{d3}} are not constant, so the data are not linear; the second differences {{dd1}}, {{dd2}} are not constant either, so they are not quadratic.",
+              "Each one-unit step in $x$ multiplies $y$ by the same factor, so $y={{y0}}({{r}})^x$. Because ${{r}}>1$, this is exponential growth."
             ],
-            "answerSummary": "Exponential growth with common ratio {{r}}."
+            "commonError": "Calling the data quadratic because the differences grow: growing differences only rule out linear. The constant ratio {{r}} is what identifies exponential.",
+            "answerSummary": "Each ratio is {{r}}; best model: Exponential (growth, $y={{y0}}({{r}})^x$)."
           },
           "generator": {
             "parameters": {
@@ -396,7 +397,12 @@
               "y0": "a",
               "y1": "a*r",
               "y2": "a*r*r",
-              "y3": "a*r*r*r"
+              "y3": "a*r*r*r",
+              "d1": "y1-y0",
+              "d2": "y2-y1",
+              "d3": "y3-y2",
+              "dd1": "y2-2*y1+y0",
+              "dd2": "y3-2*y2+y1"
             }
           }
         },
@@ -471,13 +477,14 @@
             }
           ],
           "solutionReview": {
-            "headline": "A constant output ratio below 1 identifies exponential decay.",
+            "headline": "Every consecutive ratio is $\\frac{1}{{{r}}}$, a constant factor between 0 and 1: exponential decay.",
             "reasoning": [
-              "Each consecutive output ratio equals 1/{{r}}.",
-              "The same multiplicative factor repeats at every one-unit x-step.",
-              "Because the ratio is between 0 and 1, this is exponential decay."
+              "Divide each output by the one before it: $\\frac{{{y1}}}{{{y0}}}=\\frac{1}{{{r}}}$, $\\frac{{{y2}}}{{{y1}}}=\\frac{1}{{{r}}}$ and $\\frac{{{y3}}}{{{y2}}}=\\frac{1}{{{r}}}$.",
+              "The first differences {{d1}}, {{d2}}, {{d3}} are not constant, so the data are not linear; the second differences {{dd1}}, {{dd2}} are not constant either, so they are not quadratic.",
+              "Each one-unit step in $x$ multiplies $y$ by the same factor, so $y={{y0}}\\left(\\frac{1}{{{r}}}\\right)^x$. Because $0<\\frac{1}{{{r}}}<1$, this is exponential decay."
             ],
-            "answerSummary": "Exponential decay with common ratio 1/{{r}}."
+            "commonError": "Ruling out exponential because the outputs decrease: a constant ratio below 1, here $\\frac{1}{{{r}}}$, is exponential decay.",
+            "answerSummary": "Each ratio is $\\frac{1}{{{r}}}$; best model: Exponential (decay, $y={{y0}}\\left(\\frac{1}{{{r}}}\\right)^x$)."
           },
           "generator": {
             "parameters": {
@@ -496,7 +503,12 @@
               "y0": "a*r*r*r",
               "y1": "a*r*r",
               "y2": "a*r",
-              "y3": "a"
+              "y3": "a",
+              "d1": "y1-y0",
+              "d2": "y2-y1",
+              "d3": "y3-y2",
+              "dd1": "y2-2*y1+y0",
+              "dd2": "y3-2*y2+y1"
             }
           }
         }

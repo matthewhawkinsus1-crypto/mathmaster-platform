@@ -21,17 +21,17 @@ import { formatStudentName } from '../../platform/studentName.js';
 // pin, which the engine honours by seating it before it chooses anything.
 
 const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
-const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
+const heading = { margin: '0 0 4px', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, margin: '0 0 14px' };
 const control = {
-  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid var(--mm-border)',
+  minHeight: 44, fontSize: 'calc(15 * var(--mm-px))', padding: '9px 10px', border: '1px solid var(--mm-border)',
   borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 const chipButton = (active) => ({
   minHeight: 40, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
   border: `1px solid ${active ? '#1a73e8' : 'var(--mm-tint-border)'}`,
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
   fontFamily: 'inherit', appearance: 'none',
 });
 
@@ -54,9 +54,9 @@ const CCMR_LABEL = {
 function Field({ label, hint, children }) {
   return (
     <label style={{ display: 'grid', gap: 5 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>{label}</span>
+      <span style={{ fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>{label}</span>
       {children}
-      {hint && <span style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{hint}</span>}
     </label>
   );
 }
@@ -214,7 +214,7 @@ export default function WeeklyPathControls({
         </div>
 
         <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-          <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, color: 'var(--mm-text)' }}>
+          <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
             <input
               type="checkbox"
               checked={config.interventionMode}
@@ -223,7 +223,7 @@ export default function WeeklyPathControls({
             />
             <span>
               <strong>Intervention mode</strong>
-              <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55 }}>
+              <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.55 }}>
                 {/* Normally at most half a week may be below-course work. This
                     is the deliberate, teacher-owned exception — and it is a
                     checkbox rather than something the engine decides, because
@@ -236,7 +236,7 @@ export default function WeeklyPathControls({
           </label>
         </div>
 
-        {saving && <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Saving…</div>}
+        {saving && <div style={{ marginTop: 12, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Saving…</div>}
       </section>
 
       <section style={panel}>
@@ -247,9 +247,9 @@ export default function WeeklyPathControls({
           and still need help — collapsing the two into one number hides both facts. The weekly
           grade is 80% completion and 20% quality by default; mastery remains separate.
         </p>
-        {progressLoading && <div style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-text-muted)' }}>Loading completed Path sessions…</div>}
+        {progressLoading && <div style={{ margin: '-4px 0 10px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Loading completed Path sessions…</div>}
         {progressTruncated && (
-          <div style={{ margin: '-4px 0 10px', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 700 }}>
+          <div style={{ margin: '-4px 0 10px', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>
             This week&apos;s Path activity was too large to read in full, so the completion counts and grades below may be low. Do not publish these grades until this is resolved.
           </div>
         )}
@@ -258,7 +258,7 @@ export default function WeeklyPathControls({
           <p style={note}>No students in this class yet.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13.5 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                   <th style={{ textAlign: 'left', padding: 10 }}>Student</th>
@@ -278,8 +278,18 @@ export default function WeeklyPathControls({
                         studentName={row.studentName}
                         profile={learningProfilesByStudentId[row.studentId]}
                         onOpen={onOpenStudent}
-                        style={{ fontSize: 13.5 }}
+                        style={{ fontSize: 'calc(13.5 * var(--mm-px))' }}
                       />
+                      {row.swaps?.length > 0 && (
+                        <div style={{ marginTop: 3, fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}>
+                          {row.swaps.map((swap) => swap.sentence).join(' · ')}
+                        </div>
+                      )}
+                      {row.shortWeekNote && (
+                        <div data-short-week style={{ marginTop: 3, fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-warning-text)' }}>
+                          {row.shortWeekNote}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: 10, textAlign: 'right' }}>{row.goal}</td>
                     <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>

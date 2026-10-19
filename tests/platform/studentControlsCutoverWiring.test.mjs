@@ -26,10 +26,14 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { teacherAssignmentView, legacyStudentIds, overrideAuthorizationContext, planStudentAbsorption } from '../../functions/shared/studentAssignmentOverrides.mjs';
 import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
 import { ALL_STUDENTS, CLASS_ID, TEACHER, legacyAssignment } from '../fixtures/studentAssignmentOverrideLegacyFixtures.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
 const code = executableSource(app);
+// The teacher's screen is its own module since G2: App renders it and hands
+// it every handler by name.
+const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
 const count = (source, pattern) => (source.match(pattern) || []).length;
 
 const sourceFiles = (dir) => readdirSync(dir).flatMap((entry) => {
@@ -45,7 +49,11 @@ test('17 / 18. one student controls listener and one teacher controls listener �
   assert.equal(count(code, /useStudentAssignmentControls\(/g), 1);
   assert.equal(count(code, /useTeacherClassControls\(/g), 1);
   // The student's: the SESSION's own student, and nobody when not a student.
-  assert.match(code, /useStudentAssignmentControls\(\{\s*db,\s*studentId: auth\.status === 'ready' && auth\.session\?\.role === 'student' \? auth\.session\.studentId : null,\s*\}\)/);
+  // The session's student, one commit after App mounts (App mounts after
+  // sign-in since app/shell/AppShell.jsx): one subscription, never one per
+  // mount pass (privateControlsJourneys: "the own-controls listener was opened once").
+  assert.match(code, /useStudentAssignmentControls\(\{\s*db,\s*studentId: accountListenersReady && auth\.status === 'ready' && auth\.session\?\.role === 'student' \? auth\.session\.studentId : null,\s*\}\)/);
+  assert.match(code, /const \[accountListenersReady, setAccountListenersReady\] = useState\(false\);\s*useEffect\(\(\) => \{ setAccountListenersReady\(true\); \}, \[\]\);/);
   // The teacher's: one scope key for the viewer and the classes on screen.
   assert.match(code, /const teacherClassControls = useTeacherClassControls\(\{ db, scopeKey: teacherControlsScope \}\);/);
   assert.match(region(code, 'const teacherControlsScope = useMemo(', 'const teacherClassControls', 'teacher scope'), /if \(user\?\.role !== 'teacher'\) return '';/);
@@ -88,7 +96,8 @@ test('15 / 11. sign-out and a change of account drop the lessons and the previou
   ['studentClassAssignmentsRef', 'studentPriorWorkAssignmentsRef', 'teacherSharedAssignmentsRef'].forEach((ref) => {
     assert.match(clear, new RegExp(`${ref}\\.current = \\[\\];`));
   });
-  assert.match(clear, /studentViewerRef\.current = \{ studentId: null, profile: null \};/);
+  // Every field of the viewer is cleared (D7 added the timing profile).
+  assert.match(clear, /studentViewerRef\.current = \{ studentId: null, profile: null(?:, timingProfile: null)? \};/);
   assert.match(clear, /setAssignments\(\[\]\);/);
   const logout = region(code, 'const handleLogout = async () => {', 'await auth.signOut();', 'handleLogout');
   assert.match(logout, /setUser\(null\);[\s\S]*clearSignedInAssignments\(\);/, 'before signing out, not when the auth listener catches up');
@@ -129,7 +138,7 @@ test('a resume restored from the server is projected with the controls held when
 });
 
 test('the student\'s lessons are re-projected — not re-listened — when their controls or profile change', () => {
-  const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);', 're-projection');
+  const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);', 're-projection');
   assert.match(effect, /publishStudentAssignments\(\);[\s\S]*publishTeacherAssignments\(\);/);
   assert.doesNotMatch(effect, /subscribe|onSnapshot/);
   // The lesson listener follows who is signed in and their class, not every profile revision.
@@ -145,8 +154,9 @@ test('5. the staff-only override history is read by staff screens only — never
     .map((file) => readFileSync(path.join(srcRoot, file), 'utf8')).join('\n');
   assert.doesNotMatch(studentSide, /studentOverrideHistory|assignmentOverrideArchives|platformMigrations/);
   // Shown in the gradebook's student detail, a teacher screen.
-  assert.match(app, /import StudentDolRecoveryRow from '\.\/components\/teacher\/StudentDolRecoveryRow\.jsx';/);
-  assert.match(code, /<StudentDolRecoveryRow db=\{db\} assignment=\{selectedAssignment\} student=\{student\}[^>]*viewer=\{\{ email: user\.email, isRootAdmin: user\.isRootAdmin === true \}\}/);
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'StudentDolRecoveryRow', 'src/components/teacher/StudentDolRecoveryRow.jsx'));
+  assert.match(executableSource(teacherWorkspace), /<StudentDolRecoveryRow db=\{db\} assignment=\{selectedAssignment\} student=\{student\}[^>]*viewer=\{\{ email: user\.email, isRootAdmin: user\.isRootAdmin === true \}\}/);
 });
 
 test('surfaces showing another class say so, and the app keeps their students\' controls in the one listener', () => {
@@ -160,7 +170,9 @@ test('surfaces showing another class say so, and the app keeps their students\' 
   assert.match(exportCenter, /const exportableClassKey = \(classFilter\.size \? authorizedClassIds\.filter\(\(classId\) => classFilter\.has\(classId\)\) : authorizedClassIds\)\.join\('\|'\);/);
   assert.match(exportCenter, /onClassScopeChange\(exportableClassKey \? exportableClassKey\.split\('\|'\) : \[\]\);/);
   [['<TeacherHome', 'onLiveClassChange={reportLiveClass}'], ['<AssignmentHub', 'onClassChange={reportHubClass}'], ['<AttendanceHistoryPanel', 'onClassChange={reportAttendanceClass}'], ['<GradeTransferCenter', 'onClassScopeChange={reportExportClasses}']]
-    .forEach(([element, prop]) => assert.match(region(app, element, '/>', element), new RegExp(prop.replace(/[{}]/g, '\\$&'))));
+    .forEach(([element, prop]) => assert.match(region(teacherWorkspace, element, '/>', element), new RegExp(prop.replace(/[{}]/g, '\\$&'))));
+  ['reportLiveClass', 'reportHubClass', 'reportAttendanceClass', 'reportExportClasses']
+    .forEach((name) => assert.match(app, new RegExp(`\\n {8}${name}=\\{${name}\\}\\n`), `App hands ${name} to the teacher's screen`));
   const scope = region(code, 'const teacherControlsScope = useMemo(', 'const teacherClassControls', 'teacher scope');
   assert.match(scope, /activeClassId: activeClass\.classId,/);
   assert.match(scope, /teacherTab === 'home' \? teacherSurfaceClasses\.live : null,/);
@@ -168,7 +180,9 @@ test('surfaces showing another class say so, and the app keeps their students\' 
   assert.match(scope, /teacherTab === 'attendanceHistory' \? teacherSurfaceClasses\.attendance : null,/);
   assert.match(scope, /studentClass\(caseReviewStudentId\),\s*studentClass\(supportReportStudentId\),/);
   assert.match(scope, /crossClassTab: TEACHER_CROSS_CLASS_TABS\.has\(teacherTab\),/);
-  assert.match(code, /const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  // The table lives in app/screenScopes.js since the App split; App imports it.
+  assert.match(readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8'), /export const TEACHER_CROSS_CLASS_TABS = new Set\(\['gradeTransfer', 'actionCenter', 'parentContacts'\]\);/);
+  assert.match(code, /\bTEACHER_CROSS_CLASS_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
 });
 
 test('16. a copy of a lesson carries no student\'s private state — even from the teacher\'s merged view', () => {
@@ -186,5 +200,6 @@ test('16. a copy of a lesson carries no student\'s private state — even from t
   ALL_STUDENTS.forEach((studentId) => assert.equal(text.includes(studentId), false, `${studentId} in a copy`));
   assert.equal(copy.studentOverrides, undefined);
   // The duplicate path strips the in-memory lesson before writing it.
-  assert.match(executableSource(region(app, 'const handleDuplicateAssignment', 'const handleToggleArchiveAssignment', 'handleDuplicateAssignment')), /\} = stripAssignmentInstanceState\(assignment\);/);
+  // Duplicate moved with the teacher's screen (G2).
+  assert.match(executableSource(region(teacherWorkspace, 'const handleDuplicateAssignment', '\n  };', 'handleDuplicateAssignment')), /\} = stripAssignmentInstanceState\(assignment\);/);
 });

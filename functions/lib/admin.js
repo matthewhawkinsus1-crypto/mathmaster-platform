@@ -20,12 +20,29 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "studentPathInterventionAudit",
   "liveSpotlightRequests",
   "liveSpotlightFrames",
+  // A student's class reward requests (classRewardCatalog.mjs). They carry
+  // the student's display label, and a pending one left behind could be
+  // "declined" into a re-created wallet for an erased student.
+  "classRewardRequests",
+  // "Ask my teacher": the questions a student left for their teacher and the
+  // answers (src/platform/supports/askTeacher.js). The student's own words.
+  "askTeacherQuestions",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   "studentMasteryProfiles",
+  // Weekly growth snapshots of the profile above (shared/masteryHistory.mjs).
+  "studentMasteryHistory",
   "studentRetentionSchedules",
   "studentPathInterventions",
+  // growthRewardState/{studentId} (functions/lib/growthRewards.js): created
+  // the first time a student opens the app; holds their mastery baseline.
+  "growthRewardState",
+  // The student's CCMR plan, keyed by studentId (shared/ccmrPlan.mjs).
+  "studentCcmrPlans",
+  // helpAcknowledgements/{studentId}: the teacher's latest "Seen" / "On my
+  // way" for the student's raised hand (src/platform/supports/askTeacher.js).
+  "helpAcknowledgements",
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
@@ -69,7 +86,9 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "studentPathInterventionAudit",
   "studentPathInterventions",
   "studentMasteryProfiles",
+  "studentMasteryHistory",
   "studentRetentionSchedules",
+  "studentCcmrPlans",
   // Class Points runtime state. `classPointAnnouncements` is deliberately NOT
   // here -- it is nested under the preserved `classes/{classId}` documents,
   // so the reset clears that subcollection separately (collection-group
@@ -84,6 +103,12 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   // Practice Pass pointing at history that no longer exists.
   "classPointRewardRedemptions",
   "rewardGrants",
+  // Class rewards: the teacher's catalog (keyed by classId; test classes'
+  // lists go with the test data), the students' requests, and each student's
+  // growth-reward baseline.
+  "classRewardCatalogs",
+  "classRewardRequests",
+  "growthRewardState",
   // The rest of the Live Challenge runtime: finished-match results and
   // reports (both name students), room scoring/name settings, and teacher
   // rehearsals.
@@ -91,6 +116,10 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "liveChallengeReports",
   "liveChallengeExperience",
   "liveChallengeDryRuns",
+  // "Ask my teacher": students' questions, teachers' answers, and the
+  // in-class "Seen" / "On my way" acknowledgements.
+  "askTeacherQuestions",
+  "helpAcknowledgements",
 ]);
 
 const PREPRODUCTION_PRESERVED_COLLECTIONS = Object.freeze([

@@ -6,7 +6,12 @@ const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta
 const engine = read('src/QuestionEngine.jsx');
 const app = read('src/App.jsx');
 const pathPlayer = read('src/components/student/PathSessionPlayer.jsx');
-const securePlayer = read('src/components/assessment/SecureExamQuestionPlayer.jsx');
+const securePlayerAdapter = read('src/components/assessment/SecureExamQuestionPlayer.jsx');
+// The secure player renders through the shared Rich Question Runtime: its
+// field items in FieldItem, its Rich Tool items in ToolItem (QuestionEngine).
+const secureRuntime = read('src/components/question/RichQuestionRuntime.jsx');
+const securePlayer = secureRuntime.slice(secureRuntime.indexOf('const FieldItem = ('), secureRuntime.indexOf('const ToolItem = ('));
+const secureToolItem = secureRuntime.slice(secureRuntime.indexOf('const ToolItem = ('), secureRuntime.indexOf('export default function RichQuestionRuntime'));
 const secureDashboard = read('src/components/assessment/StudentSecureExamDashboard.jsx');
 const secureReview = read('src/components/assessment/SecureExamReview.jsx');
 const functionSource = read('functions/index.js');
@@ -39,12 +44,22 @@ test('journeys 3 and 4: My Path distinguishes direct exam practice from a course
 // and fractions remain typeable. The student cannot leave the monitored shell through a dashboard
 // back button while the exam is live.
 test('journey 5: secure testing hides standards while preserving usable math and response controls', () => {
+  assert.match(securePlayerAdapter, /<RichQuestionRuntime\b/);
+  assert.ok(securePlayer.length > 200 && secureToolItem.length > 200, 'both secure renderers were found');
   assert.doesNotMatch(securePlayer, /StandardBadge/);
+  // A Rich Tool item hides the standard too: the engine is told not to show it.
+  assert.match(secureToolItem, /showStandardBadge=\{false\}/);
   assert.match(securePlayer, /<MathText as="h1"/);
   assert.match(securePlayer, /<PathQuestionStimulus stimulus=\{question\.stimulus\}/);
-  assert.match(securePlayer, /type="text"/);
-  assert.match(securePlayer, /inputMode=\{isNumericProfile/);
+  // Fractions stay typeable: a typed answer goes through the secure answer
+  // field, which is the math editor (3/4 arrives as \\frac34, which the
+  // server grader accepts — secureMathAnswerRoundTrip.test.mjs) or a TEXT box,
+  // and never an HTML number input, which refuses 3/4.
+  const answerField = read('src/components/assessment/SecureMathAnswerField.jsx');
+  assert.match(securePlayer, /<SecureMathAnswerField\b/);
+  assert.match(answerField, /data-secure-answer-editor="text"\s+data-secure-answer-profile=\{entry\.profile\}\s+type="text"/);
   assert.doesNotMatch(securePlayer, /type="number"/);
+  assert.doesNotMatch(answerField, /type="number"/);
   const activeBranch = secureDashboard.slice(secureDashboard.indexOf('if (active)'), secureDashboard.indexOf('return (', secureDashboard.indexOf('if (active)') + 15));
   assert.match(activeBranch, /onExitAfterFinished/);
   assert.doesNotMatch(activeBranch, /<button/);
@@ -52,9 +67,14 @@ test('journey 5: secure testing hides standards while preserving usable math and
 });
 
 test('journey 5 review: standards return only after teacher-released feedback', () => {
-  assert.match(secureDashboard, /Review released feedback/);
+  // The list opens the review only once results are released.
+  // …and never for an attempt a teacher's reset replaced: the card has the current one.
+  assert.match(secureDashboard, /const canReview = done && session\.feedbackReleased === true && !sessionWasReplaced\(session\);/);
+  assert.match(secureDashboard, /onClick=\{\(\) => canReview \? setReviewing\(session\) : setActive\(session\)\}/);
+  assert.match(secureDashboard, /\{canReview \? 'See your results'/);
   assert.match(secureReview, /Released feedback/);
-  assert.match(secureReview, /standards and CCMR connections are shown now/);
+  // The released-only wording is pinned in secureResultsWiring.test.mjs ("the
+  // review names standards only once released, in plain words").
   assert.match(secureReview, /<StandardBadge/);
   assert.match(functionSource, /exports\.getStudentSecureExamReview/);
   assert.match(functionSource, /session\.feedbackReleased !== true/);

@@ -24,9 +24,14 @@ const ANSWER_CASES = [
   ['12/0.5x', '\\frac{12}{0.5}x'],
   ['1/-2x', '\\frac{1}{-2}x'],
   ['y=-2/3x+4/5', 'y=-\\frac23x+\\frac45'],
+  // R-11: an opening bracket after a number denominator is a factor —
+  // point-slope with a fractional slope, not −1/(2(x − 6)).
+  ['y-2=-1/2(x-6)', 'y-2=-\\frac12\\left(x-6\\right)'],
+  ['3/4(x+8)', '\\frac34\\left(x+8\\right)'],
   // A denominator the student is building on purpose is untouched.
   ['1/x-2', '\\frac{1}{x-2}'],
   ['1/(2x)', '\\frac{1}{\\left(2x\\right)}'],
+  ['1/(x-6)', '\\frac{1}{\\left(x-6\\right)}'],
   ['1/2^3', '\\frac{1}{2^3}'],
   ['a/b+c', '\\frac{a}{b+c}'],
   // Nothing before the slash: the caret is in the numerator, never rewritten.
@@ -40,6 +45,10 @@ const CALCULATOR_CASES = [
   ['6/3+1', '3'],
   ['1/2+1/4', '0.75'],
   ['8/(2+2)', '2'],
+  // The bracket ends the typed fraction, so the screen shows (6/2)(1 + 2), and
+  // the calculator computes what it shows (groupBuiltFractions), not 6/(2·3).
+  ['6/2(1+2)', '9'],
+  ['3/4(8)', '6'],
 ];
 
 const launch = { args: ['--no-sandbox'] };

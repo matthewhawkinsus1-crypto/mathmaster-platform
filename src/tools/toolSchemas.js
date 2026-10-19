@@ -6,6 +6,7 @@ import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepA
 import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/linearTableWorkbenchMath.js';
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
+import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
@@ -14,7 +15,7 @@ const TOOL_IDS = new Set([
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
-  'linearTableWorkbench','expressionMeaning','representationBridge',
+  'linearTableWorkbench','expressionMeaning','representationBridge','matrixLab',
 ]);
 
 const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(value) >= 1;
@@ -248,7 +249,7 @@ export const validateToolQuestion = (question = {}) => {
       if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
       if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
     }
-    if (f.type === 'quadratic' && !f.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
+    if (f.type === 'quadratic' && !f.inverseBranch && !question.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
       if (!(base > 0) || base === 1) errors.push('Inverse/composition exponential or logarithmic base must be positive and not equal to 1.');
@@ -557,6 +558,7 @@ export const validateToolQuestion = (question = {}) => {
   if (toolId === 'linearTableWorkbench') errors.push(...validateLinearTableWorkbenchQuestion(question));
   if (toolId === 'expressionMeaning') errors.push(...validateExpressionMeaningQuestion(question));
   if (toolId === 'representationBridge') errors.push(...validateRepresentationBridgeQuestion(question));
+  if (toolId === 'matrixLab') errors.push(...validateMatrixLabQuestion(question));
   if (toolId === 'relationMapping') {
     if (!Array.isArray(question.pairs) || question.pairs.length < 1) errors.push('relationMapping requires at least one pair.');
     else question.pairs.forEach((pair, index) => {

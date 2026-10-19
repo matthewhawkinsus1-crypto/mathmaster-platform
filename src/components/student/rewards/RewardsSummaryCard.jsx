@@ -13,7 +13,7 @@ export default function RewardsSummaryCard({ wallet, unavailable = false, hasNew
   return (
     <section aria-labelledby="rewards-summary-heading" className={`rw-card rw-card--pass${hasNew ? ' rw-celebrate' : ''}`} style={{ marginBottom: 18, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-        <h2 id="rewards-summary-heading" style={{ fontSize: 17 }}>
+        <h2 id="rewards-summary-heading" style={{ fontSize: 'calc(17 * var(--mm-px))' }}>
           {PRACTICE_PASS.icon} My Rewards {hasNew && <span className="rw-chip rw-chip--new">New</span>}
         </h2>
         <p className="rw-text" style={{ marginTop: 4 }}>{walletSummaryLine(wallet)}</p>

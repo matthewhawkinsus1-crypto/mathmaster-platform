@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory';
-import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -16,6 +16,7 @@ import {
   buildInitialEquationState,
   describeRewriteGap,
 } from './rewriteLinearFormMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * REWRITING A LINE IS DONE IN THE SAME STEP ALGEBRA WORKSPACE AS EVERYTHING ELSE.
@@ -24,8 +25,8 @@ import {
  * "type the equivalent side" box that let (and made) the student type the
  * finished y = -(5/2)x + 3 or y = 15(x - 3) instead of doing the algebra. It
  * now hosts the mature StepByStepAlgebraCore — balanced placement, cancellation,
- * distribution, combine like terms, and the structure tools (Factor, Split
- * fraction, Cancel factors, Simplify arithmetic, Arrange terms) — with the
+ * distribution, Simplify, and the Rewrite menu (Factor, Split fraction,
+ * Cancel factors, Arrange terms) — with the
  * target form as the objective. What stays here is what this mode adds: the
  * goal chips, the Check button, and the student's described steps.
  *
@@ -147,7 +148,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   const goalChip = (done, label) => (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))',
     }}>
       {done ? '✓' : '○'} {label}
     </span>
@@ -162,17 +163,28 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
       subtitle={`Transform the equation one equivalent step at a time until it reads ${formLatexText}.`}
       badge={`Rewrite to ${formName} form`}
     >
+      {/* Each step marked (student pass 3, W6-4). The control steps name the
+          buttons and what they do, and how to finish; an exit ticket, quiz or
+          test keeps them. The plain strings are the route the item measures
+          (isolate y; when to split and cancel; how to factor out what every
+          term shares) and go there. The finishing step names the target form,
+          which the goal chips already show on every activity, and says
+          "submit": the button is a Submit (D9), never "Check equation". */}
       <TaskCard
         question={questionData}
         task={`Rewrite the given equation in ${formName} form (${formLatexText}).`}
         steps={factoredTarget ? [
+          controlStep('+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.'),
           'Get y alone on the left with balanced operations.',
           'Use Factor: choose the terms, write them as primes, choose the factors every term shares, and pull them out.',
-          'Write what is left of each term inside the parentheses. Press Check equation.',
+          'Write what is left of each term inside the parentheses.',
+          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
         ] : [
+          controlStep('+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.'),
           'Get y alone on the left with balanced operations and cancellation.',
           'If a whole numerator sits over one denominator, use Split fraction, then Cancel factors in each fraction.',
-          'Optionally Arrange terms into mx + b. Press Check equation.',
+          'Optionally Arrange terms into mx + b.',
+          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
         ]}
       />
 
@@ -199,13 +211,12 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
       </div>
 
       <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 8, width: '100%', background: complete ? '#137333' : '#1a73e8' }}>
-        Check equation
+        <SubmitText>Check equation</SubmitText>
       </button>
 
       {feedback ? (
         <div style={{ marginTop: 12 }}>
-          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-          <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+          <ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
         </div>
       ) : null}
 

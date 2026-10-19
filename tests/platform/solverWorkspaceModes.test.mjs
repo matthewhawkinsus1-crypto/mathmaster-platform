@@ -1,22 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { region } from './helpers/sourceContract.mjs';
 import { readFile } from 'node:fs/promises';
+import { existsSync as existsSyncFs } from 'node:fs';
+
+const existsSyncCss = () => existsSyncFs(new URL('../../src/components/common/SolverWorkspaceFrame.css', import.meta.url));
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('solver workspace offers normal, enlarged and focus modes without duplicating solver children', async () => {
-  const source = await read('src/components/common/SolverWorkspaceFrame.jsx');
-  assert.match(source, /useState\('normal'\)/);
-  assert.match(source, /openMode\('enlarged'/);
-  assert.match(source, /openMode\('focus'/);
-  assert.match(source, /event\.key === 'Escape'/);
-  assert.match(source, /closest\('\.mathmaster-question-engine'\)/);
-  assert.match(source, /dataset\.solverWorkspaceMode/);
-  assert.match(source, /document\.body\.style\.overflow/);
-  assert.match(source, /Return to assignment/);
-  assert.match(source, /Fit work/);
-  assert.equal((source.match(/\{children\}/g) || []).length, 1);
-  assert.doesNotMatch(source, /cloneElement|createPortal/);
+// The legacy SolverWorkspaceFrame (a fullscreen shell that set role="dialog"
+// and aria-modal on the engine by hand) was never rendered after Work View
+// replaced it, so wave 2 (job H) deleted it rather than re-plumb its modal.
+// Universal Work View (EnlargeableFigure on useModalDialog) is the one shell.
+test('the legacy solver frame is gone and nothing imports it', async () => {
+  assert.equal(existsSyncCss(), false, 'its stylesheet went with it (nothing imported it)');
+  const { existsSync, readdirSync, statSync, readFileSync } = await import('node:fs');
+  const path = await import('node:path');
+  assert.equal(existsSync(new URL('../../src/components/common/SolverWorkspaceFrame.jsx', import.meta.url)), false);
+  const root = new URL('../../src/', import.meta.url).pathname;
+  const importers = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const file = path.join(dir, name);
+      if (statSync(file).isDirectory()) { walk(file); continue; }
+      if (/\.jsx?$/.test(name) && /SolverWorkspaceFrame(?:\.jsx)?['"]/.test(readFileSync(file, 'utf8'))) importers.push(file);
+    }
+  };
+  walk(root);
+  assert.deepEqual(importers, []);
 });
 
 test('QuestionEngine owns the shared solver workspace state and resets it per question', async () => {
@@ -31,25 +42,6 @@ test('QuestionEngine owns the shared solver workspace state and resets it per qu
   assert.match(source, /!solverWorkspaceActive\s*&&\s*guidedCoach/);
 });
 
-test('the shared frame reports mode changes upward while remaining the one mounted solver shell', async () => {
-  const source = await read('src/components/common/SolverWorkspaceFrame.jsx');
-
-  assert.match(source, /onWorkspaceModeChange\s*=\s*null/);
-  assert.match(source, /onWorkspaceModeChange\?\.\(mode\)/);
-  assert.match(source, /onWorkspaceModeChange\?\.\('normal'\)/);
-  assert.equal((source.match(/\{children\}/g) || []).length, 1);
-});
-
-test('workspace Task access is temporary instead of occupying persistent top-bar space', async () => {
-  const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
-
-  assert.match(frame, /const \[taskOpen, setTaskOpen\] = useState\(false\)/);
-  assert.match(frame, /aria-controls="solver-workspace-task-panel"/);
-  assert.match(frame, /id="solver-workspace-task-panel"/);
-  assert.match(frame, /setTaskOpen\(false\)/);
-  assert.doesNotMatch(frame, /<span title=\{taskText\}>\{taskText\}<\/span>/);
-});
-
 test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {
   const question = await read('src/QuestionEngine.jsx');
   const shell = await read('src/components/common/EnlargeableFigure.jsx');
@@ -61,11 +53,17 @@ test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Su
   assert.match(question, /const guidedCoach = \(/);
   assert.match(question, /const workspaceActions = \{/);
   assert.match(question, /undo:\s*\{/);
-  assert.match(question, /onClick:\s*\(\) => undoController\?\.onUndo\?\.\(\)/);
+  // Work View's Undo is the assignment's own controller (it is unavailable
+  // while grading or paused, pass 3 review: tests/platform/workViewStage3D).
+  const workViewUndo = question.slice(question.indexOf('const workspaceActions = {'), question.indexOf('scratchpad: {', question.indexOf('const workspaceActions = {')));
+  assert.match(workViewUndo, /onClick:\s*\(\) => \{?[^}]*undoController\?\.onUndo\?\.\(\)/);
   assert.match(question, /scratchpad:\s*\{/);
   assert.match(question, /onClick:\s*openScratchpad/);
-  assert.match(question, /help:\s*guidedCoachEnabled/);
-  assert.match(question, /content:\s*guidedCoach/);
+  // Work View's Help drawer carries Guided Notes where they are on — now
+  // under the platform Hint panel, which every question type has.
+  const help = region(question, '    help: guidedCoachEnabled', '} : null,', 'the Work View help action');
+  assert.match(help, /^ {4}help: guidedCoachEnabled \|\| helpControlAvailable \? \{/);
+  assert.match(help, /content: <>\{hintPanel\}\{guidedCoachEnabled \? guidedCoach : null\}<\/>/);
   assert.match(question, /submit:\s*!locked && shouldShowSubmit/);
   assert.match(question, /onClick:\s*handleSubmit/);
   assert.match(question, /disabled:\s*submitDisabled/);
@@ -114,22 +112,9 @@ test('both algebra solvers preserve their public entry points while using Univer
   assert.doesNotMatch(relation, /<SolverWorkspaceFrame/);
 });
 
-test('focus mode expands the work surface and keeps operation controls available', async () => {
-  const css = await read('src/components/common/SolverWorkspaceFrame.css');
-  assert.match(css, /data-solver-workspace-mode="enlarged"/);
-  assert.match(css, /data-solver-workspace-mode="focus"/);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /\.algebra-balance-workspace-shell/);
-  assert.match(css, /\.algebra-operation-composer/);
-  assert.match(css, /\.multi-relation-operation-dock/);
-  assert.match(css, /\.solver-workspace-focus-panel/);
-  assert.match(css, /@media \(max-width: 780px\)/);
-});
-
 test('multi-relation workspace uses presentation-only density for branches and absolute-value split entry', async () => {
   const wrapper = await read('src/MultiRelationAlgebra.jsx');
   const core = await read('src/MultiRelationAlgebraCore.jsx');
-  const css = await read('src/components/common/SolverWorkspaceFrame.css');
 
   assert.match(wrapper, /const denseWorkspace = props\.workspaceMode !== 'normal'/);
   assert.match(wrapper, /denseWorkspace=\{denseWorkspace\}/);
@@ -140,9 +125,4 @@ test('multi-relation workspace uses presentation-only density for branches and a
   assert.match(core, /denseWorkspace && relationState\.branches\.length > 1 && operationDock/);
   assert.match(core, /!denseWorkspace && branchIndex === 1 && relationState\.branches\.length > 1 && operationDock/);
   assert.equal((core.match(/className="multi-relation-operation-dock"/g) || []).length, 1);
-
-  assert.match(css, /\.multi-relation-branches--dense\s*\{/);
-  assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
-  assert.match(css, /\.multi-relation-absolute-split-fields--dense/);
-  assert.match(css, /@media \(max-width: 780px\)[\s\S]*\.multi-relation-branches--dense[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });

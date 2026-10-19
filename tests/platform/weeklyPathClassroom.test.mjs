@@ -61,6 +61,10 @@ test('the coursework request is complete and titled for a human', () => {
   assert.ok(work.description.includes(work.marker));
 
   assert.equal(weeklyPathTitle({}), 'Math Path — weekly practice');
+  // The scheduled sync passes the raw week key as the label; students read a date.
+  assert.equal(weeklyPathTitle({ weekLabel: '2026-10-12', weekKey: '2026-10-12' }), 'Math Path — week of Oct 12');
+  assert.equal(weeklyPathTitle({ weekKey: '2027-01-04' }), 'Math Path — week of Jan 4');
+  assert.equal(weeklyPathTitle({ weekLabel: 'Sep 1' }), 'Math Path — week of Sep 1');
   assert.equal(weeklyPathCourseWork({ classId: 'c1', weekKey: 'w' }).maxPoints, 100);
 });
 

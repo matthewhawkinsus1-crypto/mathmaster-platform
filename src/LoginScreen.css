@@ -95,7 +95,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 20px;
+  font-size: calc(20 * var(--mm-px));
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -109,13 +109,13 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 20px;
+  font-size: calc(20 * var(--mm-px));
   font-weight: 900;
 }
 
 .mm-login__headline {
   margin: 0;
-  font-size: clamp(30px, 3.4vw, 46px);
+  font-size: clamp(calc(30 * var(--mm-px)), calc(3.4vw * var(--mm-text-scale, 1)), calc(46 * var(--mm-px)));
   line-height: 1.1;
   letter-spacing: -0.02em;
   font-weight: 700;
@@ -125,7 +125,7 @@
 .mm-login__subhead {
   margin: 0;
   max-width: 46ch;
-  font-size: clamp(15px, 1.3vw, 18px);
+  font-size: clamp(calc(15 * var(--mm-px)), calc(1.3vw * var(--mm-text-scale, 1)), calc(18 * var(--mm-px)));
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.86);
 }
@@ -143,7 +143,7 @@
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -157,7 +157,7 @@
   place-items: center;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 900;
 }
 
@@ -193,7 +193,7 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 18px;
-  font-size: 17px;
+  font-size: calc(17 * var(--mm-px));
   font-weight: 800;
   color: var(--mm-ink);
 }
@@ -202,7 +202,7 @@
   width: 34px;
   height: 34px;
   flex-basis: 34px;
-  font-size: 16px;
+  font-size: calc(16 * var(--mm-px));
   background: var(--mm-brand);
   color: var(--mm-brand-ink);
   border-color: transparent;
@@ -210,7 +210,7 @@
 
 .mm-login__title {
   margin: 0 0 6px;
-  font-size: 23px;
+  font-size: calc(23 * var(--mm-px));
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--mm-ink);
@@ -218,7 +218,7 @@
 
 .mm-login__hint {
   margin: 0 0 20px;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   line-height: 1.5;
   color: var(--mm-ink-soft);
 }
@@ -243,7 +243,7 @@
   background: transparent;
   color: var(--mm-ink-soft);
   font: inherit;
-  font-size: 15px;
+  font-size: calc(15 * var(--mm-px));
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -265,7 +265,7 @@
 .mm-login__label {
   display: block;
   margin-bottom: 7px;
-  font-size: 13px;
+  font-size: calc(13 * var(--mm-px));
   font-weight: 700;
   color: var(--mm-ink);
 }
@@ -285,7 +285,7 @@
   color: var(--mm-ink);
   /* 16px minimum stops iOS Safari from zooming the page on focus. */
   font: inherit;
-  font-size: 16px;
+  font-size: calc(16 * var(--mm-px));
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -310,7 +310,7 @@
 .mm-login__pin {
   letter-spacing: 0.35em;
   padding-right: 74px;
-  font-size: 18px;
+  font-size: calc(18 * var(--mm-px));
 }
 
 .mm-login__reveal {
@@ -324,7 +324,7 @@
   background: transparent;
   color: var(--mm-brand);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(13 * var(--mm-px));
   font-weight: 700;
   cursor: pointer;
 }
@@ -335,7 +335,7 @@
 
 .mm-login__help {
   margin: 7px 0 0;
-  font-size: 12.5px;
+  font-size: calc(12.5 * var(--mm-px));
   line-height: 1.45;
   color: var(--mm-ink-soft);
 }
@@ -352,7 +352,7 @@
   gap: 10px;
   border-radius: var(--mm-radius);
   font: inherit;
-  font-size: 16px;
+  font-size: calc(16 * var(--mm-px));
   font-weight: 700;
   cursor: pointer;
   transition: filter 0.15s ease, background 0.15s ease;
@@ -401,7 +401,7 @@
   background: none;
   color: var(--mm-brand);
   font: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
@@ -427,7 +427,7 @@
   border: 1px solid var(--mm-line);
   border-radius: 12px;
   background: var(--mm-surface-muted);
-  font-size: 13.5px;
+  font-size: calc(13.5 * var(--mm-px));
   line-height: 1.45;
   color: var(--mm-ink-soft);
   cursor: pointer;
@@ -445,7 +445,7 @@
 .mm-login__remember strong {
   display: block;
   color: var(--mm-ink);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
 }
 
 /* ---------- Divider ---------- */
@@ -456,7 +456,7 @@
   gap: 12px;
   margin: 18px 0;
   color: var(--mm-ink-soft);
-  font-size: 12px;
+  font-size: calc(12 * var(--mm-px));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -478,7 +478,7 @@
   margin-bottom: 18px;
   padding: 12px 14px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   line-height: 1.45;
 }
 

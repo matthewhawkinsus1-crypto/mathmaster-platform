@@ -153,8 +153,9 @@ test('the teacher controls and the server are wired to the one model', () => {
   assert.match(perStudent, /planStudentDolGrant\(\{[\s\S]*?students: chosen/);
   assert.match(perStudent, /runStudentControlsCalls\(\{ call: setStudentAssignmentControls, calls \}\)/);
   assert.doesNotMatch(perStudent, /updateDoc\(|buildDolAttemptGrant\(/);
-  // …offered beside each student in the gradebook's student detail.
-  assert.match(app, /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
+  // …offered beside each student in the gradebook's student detail (the
+  // teacher's screen, its own module since G2, given App's handler by name).
+  assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
   assert.match(region(app, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
   // Every student-side maximum includes this student's own grant.
   assert.equal((app.match(/studentId: user\?\.role === 'student' \? user\.id : null,/g) || []).length, 4);

@@ -1,45 +1,26 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
-import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
-import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
+import { evaluateCalculatorExpressionExact, groupBuiltFractions } from '../platform/policies/calculatorExpression';
+import {
+  calculatorCornerPosition, clampCalculatorPosition, nextCalculatorCorner, nudgeCalculatorPosition, settleCalculatorPosition,
+} from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
+import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, deleteKeyClearsError, keypadGraphingNote, typedKeyReplacesPlaceholder, valueWithoutPlaceholder } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
-const buttonSpec = (raw) => {
-  const value = String(raw ?? '');
-  if (value === 'C') return { label: 'C', action: 'clear' };
-  if (value === '=') return { label: '=', action: 'equals' };
-  if (value === '÷') return { label: '÷', action: 'fractionize' };
-  if (value === '×') return { label: '×', command: '\\times' };
-  if (value === '^') return { label: 'xʸ', command: '#@^{#?}' };
-  if (value === 'sin(') return { label: 'sin', command: '\\sin\\left(#0\\right)' };
-  if (value === 'cos(') return { label: 'cos', command: '\\cos\\left(#0\\right)' };
-  if (value === 'tan(') return { label: 'tan', command: '\\tan\\left(#0\\right)' };
-  if (value === 'sqrt(' || value === '√(') return { label: '√', command: '\\sqrt{#0}' };
-  if (value === 'log(') return { label: 'log', command: '\\log\\left(#0\\right)' };
-  if (value === 'ln(') return { label: 'ln', command: '\\ln\\left(#0\\right)' };
-  if (value === 'π') return { label: 'π', command: '\\pi' };
-  return { label: value === '-' ? '−' : value, command: value };
-};
-
-const calculatorButtonsForPolicy = (mode) => {
-  const specs = getCalculatorButtonsForMode(mode).map(buttonSpec);
-  const equalsIndex = specs.findIndex((button) => button.action === 'equals');
-  const fraction = { label: 'a⁄b', command: '\\frac{#0}{#?}' };
-  if (equalsIndex >= 0) specs.splice(equalsIndex, 0, fraction);
-  else specs.push(fraction);
-  return specs;
-};
+const calculatorButtonsForPolicy = (mode) => calculatorButtonsFor(getCalculatorButtonsForMode(mode));
 
 const expressionFromMathField = (mathField, fallback = '') => {
   try {
     const ascii = mathField?.getValue?.('ascii-math');
-    if (String(ascii ?? '').trim()) return String(ascii).trim();
+    // Each built fraction stays one factor (groupBuiltFractions).
+    if (String(ascii ?? '').trim()) return groupBuiltFractions(String(ascii).trim());
   } catch {
     // Fall through to the visible value if this MathLive build cannot emit ASCIIMath.
   }
@@ -55,7 +36,11 @@ export const CalculatorPanel = ({
   onOpenChange = null,
   showLauncher = true,
   launcherStyle = null,
+  // True where the keypad stands in for a graphing calculator that could not
+  // load (QuestionEngine); it says so instead of offering graphs (W6-4).
+  graphingUnavailable = false,
 }) => {
+  const graphingNote = keypadGraphingNote({ mode: policy?.mode, graphingUnavailable });
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen == null ? internalOpen : Boolean(controlledOpen);
   const setOpen = useCallback((nextValue) => {
@@ -66,15 +51,51 @@ export const CalculatorPanel = ({
   const [estimate, setEstimate] = useState('');
   const [estimateUnlocked, setEstimateUnlocked] = useState(!estimationRequired);
   const [display, setDisplay] = useState('0');
+  // The exact fraction for the result on screen (calculatorExpression.js
+  // evaluateCalculatorExpressionExact). Shown only while the display still
+  // holds that result, so any further typing hides it.
+  const [exactResult, setExactResult] = useState(null);
+  // What the calculator could not read, shown under "Error" while the display
+  // still holds it (TOOL-8) and said by the result announcement.
+  const [errorText, setErrorText] = useState('');
+  // What "=" (or Enter) produced, said once in a polite region. The count makes
+  // the same answer twice in a row a new announcement.
+  const [resultAnnouncement, setResultAnnouncement] = useState({ text: '', count: 0 });
+  const announceResult = useCallback((outcome) => {
+    setResultAnnouncement((current) => ({ text: calculatorResultAnnouncement(outcome), count: current.count + 1 }));
+  }, []);
   const [panelPosition, setPanelPosition] = useState(null);
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
   const dragRef = useRef(null);
+  const toggleRef = useRef(null);
+  // Whatever opened the panel (the launcher, or the work bar's Calculator
+  // button when the panel is controlled), so closing it by keyboard hands
+  // focus back instead of dropping it on <body>.
+  const openerRef = useRef(null);
+  const cornerRef = useRef('bottom-right');
+  const [moveAnnouncement, setMoveAnnouncement] = useState('');
+  const moveHelpId = useId();
   // True while the cursor sits in the denominator a ÷ press created.
   const divisionPendingRef = useRef(false);
   // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
   // 6/3+1 is (6/3) + 1 = 3, not 6/(3 + 1) = 1.5.
   const typedFractionRef = useRef(null);
+  // True while the field shows only the panel's own "0" (on opening, after
+  // Clear) or "Error". The keypad already replaces it; a typed key now does
+  // too, so "(2+3" after Clear is (2+3), not 0(2+3) = 0.
+  const placeholderShownRef = useRef(true);
+  // Text after the placeholder "0" or "Error" (calculatorKeys.js
+  // valueWithoutPlaceholder), dropped when it arrives (input) and again just
+  // before evaluating: MathLive reports committed text a moment late, so an
+  // Enter can be read before the input that would have repaired it.
+  const repairPlaceholder = useCallback((mathField) => {
+    if (!mathField) return;
+    const repaired = valueWithoutPlaceholder(mathField.value, { placeholderShown: placeholderShownRef.current });
+    if (repaired === null) return;
+    mathField.value = repaired;
+    mathField.executeCommand?.('moveToMathfieldEnd');
+  }, []);
 
   useEffect(() => {
     setEstimate('');
@@ -92,6 +113,9 @@ export const CalculatorPanel = ({
     const mathField = mathFieldRef.current;
     if (!mathField || !isOpen || !estimateUnlocked) return undefined;
     mathField.mathVirtualKeyboardPolicy = 'manual';
+    // Pinch-zoomed onto the calculator, typing leaves the view where it is
+    // (platform/layout/pinchZoomReveal.js).
+    mathField.onScrollIntoView = revealMathFieldHost;
     mathField.setAttribute('inputmode', 'none');
     mathField.menuItems = [];
     mathField.smartFence = true;
@@ -100,6 +124,13 @@ export const CalculatorPanel = ({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
+      // Pasted or committed text (no keydown) that landed after the
+      // placeholder "0" or "Error" (calculatorKeys.js valueWithoutPlaceholder).
+      repairPlaceholder(mathField);
+      // MathLive can report an input while the field still holds only the
+      // placeholder (committed text arrives as several inputs, the first
+      // before any character lands): that is not the student's own 0 yet.
+      if (mathField.value !== '0') placeholderShownRef.current = false;
       typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
       setDisplay(mathField.value || '0');
     };
@@ -107,6 +138,21 @@ export const CalculatorPanel = ({
       const step = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
       typedFractionRef.current = step.state;
       if (step.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    };
+    // Before MathLive inserts the key: a typed character replaces the
+    // placeholder "0" or "Error" instead of following it.
+    const replacePlaceholder = (event) => {
+      if (deleteKeyClearsError(event, mathField.value)) {
+        event.preventDefault();
+        event.stopPropagation();
+        mathField.value = '0';
+        placeholderShownRef.current = true;
+        setDisplay('0');
+        return;
+      }
+      if (!typedKeyReplacesPlaceholder(event, { value: mathField.value, placeholderShown: placeholderShownRef.current })) return;
+      mathField.value = '';
+      placeholderShownRef.current = false;
     };
     const forgetTypedFraction = () => { typedFractionRef.current = null; };
     const handleKeyDown = (event) => {
@@ -124,30 +170,44 @@ export const CalculatorPanel = ({
       event.stopPropagation();
       divisionPendingRef.current = false;
       try {
+        repairPlaceholder(mathField);
         const expression = expressionFromMathField(mathField, mathField.value || display);
-        const result = String(evaluateCalculatorExpression(expression, policy.mode));
+        const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
+        const result = evaluated.decimal;
         mathField.value = result;
         setDisplay(result);
-      } catch {
+        setExactResult(evaluated.fraction ? { decimal: result, fraction: evaluated.fraction } : null);
+        announceResult({ decimal: result, fraction: evaluated.fraction });
+      } catch (error) {
         mathField.value = 'Error';
         setDisplay('Error');
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
     // Capture, so the cursor leaves the fraction before MathLive inserts the key.
+    mathField.addEventListener('keydown', replacePlaceholder, { capture: true });
     mathField.addEventListener('keydown', leaveTypedFraction, { capture: true });
     mathField.addEventListener('keydown', handleKeyDown);
     mathField.addEventListener('pointerdown', forgetTypedFraction);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', replacePlaceholder, { capture: true });
       mathField.removeEventListener('keydown', leaveTypedFraction, { capture: true });
       mathField.removeEventListener('keydown', handleKeyDown);
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [isOpen, estimateUnlocked, policy.mode]);
+  }, [isOpen, estimateUnlocked, policy.mode, announceResult, repairPlaceholder]);
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return;
+    const active = document.activeElement;
+    openerRef.current = active && active !== document.body && !panelRef.current?.contains(active) ? active : null;
+  }, [isOpen]);
 
   useEffect(() => {
     const mathField = mathFieldRef.current;
@@ -218,6 +278,52 @@ export const CalculatorPanel = ({
     };
   }, []);
 
+  // Close from inside the panel (Escape, ✕): focus goes back to the opener,
+  // else the launcher — never to <body>.
+  const closePanel = useCallback(() => {
+    const target = [openerRef.current, toggleRef.current].find((element) => element?.isConnected && !panelRef.current?.contains(element));
+    setOpen(false);
+    target?.focus?.({ preventScroll: true });
+  }, [setOpen]);
+
+  // Escape closes the calculator while focus is in it (S7). Capture phase, so
+  // the expression field never sees it and a Work View beneath stays open:
+  // one Escape closes one layer.
+  const handlePanelKeyDownCapture = (event) => {
+    if (event.key !== 'Escape' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePanel();
+  };
+
+  const panelDimensions = () => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    return {
+      panelWidth: rect?.width ?? 0,
+      panelHeight: rect?.height ?? 0,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  };
+
+  // The drag handle's keyboard route: arrows move the panel, Enter/Space send
+  // it to the next corner (calculatorPanelGeometry.js).
+  const handleMoveKeyDown = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const next = nudgeCalculatorPosition({ x: rect.left, y: rect.top }, event, panelDimensions());
+    if (!next) return;
+    event.preventDefault();
+    setPanelPosition(next);
+  };
+  const moveToNextCorner = () => {
+    const corner = nextCalculatorCorner(cornerRef.current);
+    cornerRef.current = corner;
+    setPanelPosition(calculatorCornerPosition(corner, panelDimensions()));
+    setMoveAnnouncement(`Calculator moved to the ${corner.replace('-', ' ')} corner.`);
+  };
+
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
     setOpen((current) => !current);
@@ -231,8 +337,11 @@ export const CalculatorPanel = ({
     onEstimationComplete?.(value);
   };
 
-  const setCalculatorValue = useCallback((value) => {
+  // `placeholder`: only Clear writes the panel's own "0" (review N1); a 0
+  // that "=" computed is a result, exactly as one Enter computed.
+  const setCalculatorValue = useCallback((value, { placeholder = false } = {}) => {
     const next = String(value ?? '0');
+    placeholderShownRef.current = placeholder;
     divisionPendingRef.current = false;
     typedFractionRef.current = null;
     setDisplay(next);
@@ -295,15 +404,21 @@ export const CalculatorPanel = ({
 
   const handleCalculatorButton = useCallback((button) => {
     if (button.action === 'clear') {
-      setCalculatorValue('0');
+      setCalculatorValue('0', { placeholder: true });
       return;
     }
     if (button.action === 'equals') {
       try {
+        repairPlaceholder(mathFieldRef.current);
         const expression = expressionFromMathField(mathFieldRef.current, display);
-        setCalculatorValue(String(evaluateCalculatorExpression(expression, policy.mode)));
-      } catch {
+        const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
+        setCalculatorValue(evaluated.decimal);
+        setExactResult(evaluated.fraction ? { decimal: evaluated.decimal, fraction: evaluated.fraction } : null);
+        announceResult({ decimal: evaluated.decimal, fraction: evaluated.fraction });
+      } catch (error) {
         setCalculatorValue('Error');
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
       return;
     }
@@ -312,10 +427,13 @@ export const CalculatorPanel = ({
       return;
     }
     insertCalculatorCommand(button.command);
-  }, [display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
+  }, [announceResult, display, insertCalculatorCommand, insertStackedDivision, policy.mode, repairPlaceholder, setCalculatorValue]);
 
   const startDrag = (event) => {
-    if (event.target?.closest?.('button')) return;
+    // The ↕ Move button is still the grip it always was for a pointer: the
+    // capture below sends the press's click to the header, so only a keyboard
+    // (or assistive-tech) activation reaches the button's onClick.
+    if (event.target?.closest?.('button:not([data-calculator-move])')) return;
     const panel = panelRef.current;
     if (!panel) return;
     const rect = panel.getBoundingClientRect();
@@ -398,6 +516,7 @@ export const CalculatorPanel = ({
     <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
       {showLauncher ? (
         <button
+          ref={toggleRef}
           className="mathmaster-calculator-toggle"
           type="button"
           onClick={toggleDrawer}
@@ -423,6 +542,9 @@ export const CalculatorPanel = ({
           ref={panelRef}
           className="mathmaster-calculator-panel"
           data-work-view-floating-tool="calculator"
+          role="group"
+          aria-label="Calculator"
+          onKeyDownCapture={handlePanelKeyDownCapture}
           style={{
             position: 'fixed',
             width: 'min(320px, calc(100vw - 16px))',
@@ -446,11 +568,25 @@ export const CalculatorPanel = ({
             style={{ display: 'flex', justifyContent: 'space-between', margin: '-6px -4px 12px', padding: '6px 4px', alignItems: 'center', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             title="Drag calculator"
           >
-            <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--mm-text)' }}>↕ {getCalculatorDrawerLabel(policy.mode)} CALCULATOR</span>
-            <button type="button" aria-label="Close calculator" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
+              <button
+                type="button"
+                data-calculator-move=""
+                aria-label="Move calculator"
+                aria-describedby={moveHelpId}
+                title="Move calculator: arrow keys, or Enter for the next corner"
+                onClick={moveToNextCorner}
+                onKeyDown={handleMoveKeyDown}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44, color: 'inherit', fontSize: 'inherit' }}
+              >↕</button>
+              {getCalculatorDrawerLabel(policy.mode)} CALCULATOR
+            </span>
+            <span id={moveHelpId} hidden>Arrow keys move the calculator. Enter moves it to the next corner.</span>
+            <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{moveAnnouncement}</span>
+            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
-            <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: '13px' }}>
+            <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))' }}>
               <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}><strong>Calculator literacy:</strong> Estimate first, then unlock the calculator.</p>
               <input type="number" step="any" aria-label="Estimate" value={estimate} onChange={(event) => setEstimate(event.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }} />
               <button type="submit" style={{ width: '100%', padding: '8px', background: '#137333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Unlock Calculator</button>
@@ -463,19 +599,35 @@ export const CalculatorPanel = ({
                 aria-label="Calculator expression"
                 math-virtual-keyboard-policy="manual"
                 inputmode="none"
-                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
+                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: 'calc(24 * var(--mm-px))', marginBottom: '12px' }}
               />
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
+              {exactResult && exactResult.decimal === display ? (
+                // Shown; spoken by the result announcement below, with the decimal.
+                <p data-calculator-exact="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                  Exact: {exactResult.fraction}
+                </p>
+              ) : null}
+              {display === 'Error' && errorText ? (
+                // Shown; spoken by the result announcement below.
+                <p data-calculator-error="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-error-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                  {errorText}
+                </p>
+              ) : null}
+              <span data-calculator-result-announcement="" role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {resultAnnouncement.text ? `${resultAnnouncement.text}${resultAnnouncement.count % 2 ? '' : '\u00a0'}` : ''}
+              </span>
+              {graphingNote ? <p data-calculator-graphing-note="" style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{graphingNote}</p> : null}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button
                     key={`${button.label}-${button.action || button.command}`}
                     type="button"
                     onClick={() => handleCalculatorButton(button)}
+                    aria-label={button.ariaLabel}
                     style={{
                       padding: '10px 5px',
                       minHeight: '42px',
-                      fontSize: button.label.length > 3 ? '12px' : '15px',
+                      fontSize: button.label.length > 3 ? 'calc(12 * var(--mm-px))' : 'calc(15 * var(--mm-px))',
                       fontWeight: 'bold',
                       borderRadius: '6px',
                       border: '1px solid var(--mm-border)',

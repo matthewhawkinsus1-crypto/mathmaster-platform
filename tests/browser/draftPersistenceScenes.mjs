@@ -139,8 +139,8 @@ export const DRAFT_SCENES = [
     // refuses a record carrying the equation's solution.
     edit: [
       press('−'), press('Show math tools'), math(0, '4'), press('Pick up'),
-      activate('Place Subtract 4 on both sides on the left side'),
-      activate('Place Subtract 4 on both sides on the right side'),
+      activate('Place subtract 4 on the left side'),
+      activate('Place subtract 4 on the right side'),
     ],
   },
   {

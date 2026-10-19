@@ -88,19 +88,21 @@ test('the Tests & Exams list hands a course test to its assignment card', () => 
     'a course test must hand off to its assignment card.',
   );
   assert.match(dashboard, /isCourseTest\(session\) && !canReview \?/);
-  assert.match(app, /onOpenCourseTest=\{\(assignmentId\) => startAssignment\(assignmentId\)\}/);
+  // Through startAssignment, which opens the card (its Back then says "← Tests & Exams", NAV-9).
+  assert.match(app, /onOpenCourseTest=\{\(assignmentId\) => startAssignment\(assignmentId, 0, \{ origin: NAV_LEVEL\.SECURE_EXAMS \}\)\}/);
 });
 
-test('releasing a course test requires the teacher of record for that class', () => {
+test('releasing a course test requires the teacher of record for that class; a practice test, its creator or a teacher of the student', () => {
   const guard = region(
     functionsIndex,
-    'async function assertMayProctorCourseTest(',
+    'async function secureExamProctorScope(',
     'async function courseTestSessionIsCurrent(',
     'proctor guard',
   );
-  assert.match(guard, /if \(!secureExam\.isCourseTestSession\(session\)\) return;/);
-  assert.match(guard, /ownedClassIds\.has\(classId\)/);
-  assert.match(guard, /permission-denied/);
+  assert.match(guard, /if \(secureExam\.isCourseTestSession\(session\)\) \{/);
+  assert.match(guard, /if \(!classId \|\| !ownedClassIds\.has\(classId\)\) \{/);
+  assert.match(guard, /if \(!teachesStudent && String\(session\.createdBy \|\| ""\) !== String\(teacherUid\)\) \{/);
+  assert.equal((guard.match(/permission-denied/g) || []).length, 2);
 
   const proctor = region(
     functionsIndex,
@@ -110,14 +112,16 @@ test('releasing a course test requires the teacher of record for that class', ()
   );
   // Checked before the transaction, so an unauthorized release never runs.
   const beforeTransaction = proctor.slice(0, proctor.indexOf('db.runTransaction'));
-  assert.match(beforeTransaction, /assertMayProctorCourseTest\(db, request, proctorSession\)/);
+  assert.match(beforeTransaction, /const scope = await secureExamProctorScope\(db, request, proctorSession, teacherUid\);/);
+  // A teacher who does not teach the student gets no extended-time data back.
+  assert.match(proctor, /return \{ success: true, session: scope\.teachesStudent \? row : withoutExtendedTime\(row\) \};/);
 });
 
 test('the root administrator is not filtered, and every other teacher is', () => {
   const owned = region(
     functionsIndex,
     'async function teacherOwnedClassIds(',
-    'async function assertMayProctorCourseTest(',
+    'async function secureExamProctorScope(',
     'owned classes',
   );
   assert.match(owned, /if \(authLib\.isRootAdminEmail\(email\)\) return null;/);
@@ -164,7 +168,7 @@ test('a superseded session cannot be released over the replacement attempt', () 
   const sync = region(
     functionsIndex,
     'async function syncTestCycleSessionState(',
-    'async function issueCourseTestQuestion(',
+    'async function buildCourseTestExamItem(',
     'sync',
   );
   assert.match(sync, /String\(current\.examSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return null;/);
@@ -183,8 +187,10 @@ test('batch assignment cannot reach outside the assignment audience', () => {
   // thing as the class this cycle was assigned to.
   assert.match(assign, /if \(requestedClassId && !audienceClassIds\.includes\(requestedClassId\)\)/);
   assert.match(assign, /not assigned this Test Cycle/);
-  // Named students are checked, not trusted.
-  assert.match(assign, /studentMatchesAssignmentAudience\(\{ assignment, classId: data\?\.classId \|\| null \}\)/);
+  // Named students are checked, not trusted: by their class, or by the
+  // server-written proof on their own grade row that they were added to this
+  // Test individually (the predicate reads both from `data`).
+  assert.match(assign, /studentMatchesAssignmentAudience\(\{ assignment, classId: data\?\.classId \|\| null, gradeData: data, assignmentId \}\)/);
   // And the default audience is the assignment's own.
   assert.match(assign, /requestedClassId \? \[requestedClassId\] : audienceClassIds/);
 });

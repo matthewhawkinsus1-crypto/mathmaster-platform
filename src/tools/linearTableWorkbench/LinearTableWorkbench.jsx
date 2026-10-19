@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -16,9 +16,11 @@ import linearTableWorkbenchGrader, {
 } from '../../../functions/shared/serverGrading/tools/linearTableWorkbench.mjs';
 import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
-const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15 };
+const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
 const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
 
 const emptyState = { evidence: [], classification: '', repairRowIndex: null, repairedValue: '', m: '', b: '', equation: '' };
@@ -269,14 +271,25 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       subtitle="Select two rows to build an interval, record what you calculate, and repeat until you can prove whether the rate of change is constant."
       badge="Rate-of-change evidence"
     >
+      {/* One list, each step marked (student pass 3, W6-4). Control steps
+          name a control and what it unlocks, and stay on an exit ticket,
+          quiz or test; the plain strings are the method and go there:
+          - "Tap two rows…": the row buttons. Control.
+          - "Enter Δx, Δy and Δy/Δx…, then record it": the three boxes and
+            Record, by their on-screen labels. Control.
+          - "Work out each value yourself…": how the values are found. Method.
+          - "Record N different intervals…": the tool's lock on the questions
+            below the table. Control.
+          - the last step says what to decide or derive (linear or not, the
+            row that breaks the pattern, m and b). Method. */}
       <TaskCard
         question={questionData}
         task="Select pairs of rows, compute Δx, Δy, and the rate for each interval you record, then classify the table."
         steps={[
-          'Tap two rows to form an interval.',
-          'Compute Δx, Δy, and Δy/Δx for that interval yourself and enter them below.',
-          'Record the interval as evidence, then repeat with a different pair of rows.',
-          `Record at least ${requiredComparisons} different intervals before classifying the table.`,
+          controlStep('Tap two rows to form an interval.'),
+          controlStep('Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.'),
+          'Work out each value yourself from the two rows, then repeat with a different pair of rows.',
+          controlStep(`Record ${requiredComparisons} different intervals; the questions below the table open after that.`),
           mode === 'repairValue'
             ? 'One row breaks the pattern. Identify it and enter its corrected value, then confirm the repaired table is linear.'
             : mode === 'deriveEquation'
@@ -305,7 +318,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                   background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
                 }}
               >
-                <div style={{ fontSize: 11, color: 'var(--mm-text-muted)', fontWeight: 700 }}>Row {index + 1}</div>
+                <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 700 }}>Row {index + 1}</div>
                 <div>({formatCoord(row.x)}, {formatCoord(row.y)})</div>
               </button>
             );
@@ -317,15 +330,15 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         <Panel title={`Interval: Row ${i + 1} → Row ${j + 1}`}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Δx</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δx</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
             </label>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Δy</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δy</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
             </label>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Δy/Δx</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Δy/Δx</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
             </label>
           </div>
@@ -338,9 +351,9 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
             ) : null}
           </div>
           {editingEvidenceIndex != null ? (
-            <p style={{ color: 'var(--mm-primary-text)', fontSize: 13, marginBottom: 0 }}>You are editing recorded interval {editingEvidenceIndex + 1}. Saving replaces that interval; it does not add a duplicate.</p>
+            <p style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0 }}>You are editing recorded interval {editingEvidenceIndex + 1}. Saving replaces that interval; it does not add a duplicate.</p>
           ) : null}
-          {alreadyRecorded ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
+          {alreadyRecorded ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
         </Panel>
       ) : selectedRows.length === 1 ? (
         <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p>
@@ -364,13 +377,13 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                   <span>Δy = {entry.dy || '—'}</span>
                   <span>rate = {entry.rate || '—'}</span>
                   {needsAttention ? (
-                    <span role="status" style={{ color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 900 }}>
+                    <span role="status" style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
                       {check.duplicate ? 'Check: repeated row pair' : `Check: ${fieldsToCheck.join(', ') || 'this interval'}`}
                     </span>
                   ) : null}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
-                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 9px' }}>Remove</button>
+                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
+                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 9px' }}>Remove</button>
                   </div>
                 </li>
               );
@@ -394,7 +407,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
             </button>
           ))}
         </div>
-        {!readyToClassify ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Record {requiredComparisons - distinctPairCount} more interval(s) before classifying.</p> : null}
+        {!readyToClassify ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Record {requiredComparisons - distinctPairCount} more interval(s) before classifying.</p> : null}
       </Panel>
 
       {mode === 'repairValue' ? (
@@ -402,14 +415,14 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           <p style={{ marginTop: 0, color: 'var(--mm-text)' }}>One row breaks the pattern. Tap the offending row above, then enter its corrected y-value.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 10 }}>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Offending row</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Offending row</span>
               <select style={input} value={repairRowIndex ?? ''} onChange={(event) => { setRepairRowIndex(event.target.value === '' ? null : Number(event.target.value)); clearFeedback(); }}>
                 <option value="">Choose a row…</option>
                 {rows.map((row, index) => <option key={index} value={index}>Row {index + 1}: ({formatCoord(row.x)}, {formatCoord(row.y)})</option>)}
               </select>
             </label>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Corrected y-value</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Corrected y-value</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={repairedValue} onChange={(event) => { setRepairedValue(event.target.value); clearFeedback(); }} aria-label="Corrected y-value for the offending row" />
             </label>
           </div>
@@ -420,15 +433,15 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         <Panel title="Determine the equation">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>m</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>m</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={m} onChange={(event) => { setM(event.target.value); clearFeedback(); }} aria-label="Slope m" />
             </label>
             <label>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>b</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>b</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={b} onChange={(event) => { setB(event.target.value); clearFeedback(); }} aria-label="y-intercept b" />
             </label>
             <label style={{ gridColumn: '1 / -1' }}>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
+              <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Equation</span>
               <input style={input} value={equation} onChange={(event) => { setEquation(event.target.value); clearFeedback(); }} placeholder="y = mx + b" aria-label="Equation in y = mx + b form" />
             </label>
           </div>
@@ -436,8 +449,8 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       ) : null}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={undo} disabled={!undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</button>
-        <button type="button" onClick={redo} disabled={!redoDepth} style={{ ...button }} aria-label="Redo">↷ Redo</button>
+        <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</FocusSafeButton>
+        <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} style={{ ...button }} aria-label="Redo">↷ Redo</FocusSafeButton>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="linear-table-workbench-submit"
@@ -447,7 +460,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           disabled={!readyToClassify || !classification}
           style={{ ...button, background: '#1a73e8', color: '#fff', border: 0 }}
         >
-          Check my work
+          <SubmitText>Check my work</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>

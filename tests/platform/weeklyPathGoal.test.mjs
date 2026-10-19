@@ -78,9 +78,13 @@ test('the due date lands at the end of the due day, not the start', () => {
 test('a goal counts sessions, so a standard is never used up', () => {
   // The design failure this prevents: retire four TEKS a week and a student runs
   // out of course standards before spring.
-  const week1 = buildWeeklyGoal({ plan: planOf(session('A.5A'), session('A.3A')), now: MONDAY });
+  const week1 = buildWeeklyGoal({
+    plan: planOf(session('A.5A'), session('A.3A'), session('A.5A', PURPOSE.RETENTION), session('A.9A')),
+    now: MONDAY,
+  });
   const week2 = buildWeeklyGoal({ plan: planOf(session('A.5A'), session('A.9A')), now: MONDAY + 7 * DAY });
   assert.equal(week1.goalSessions, 4, 'the goal is a number of sessions');
+  assert.equal(new Set(week1.sessions.map((s) => s.teksCode)).size, 3, 'four sessions over three standards');
   assert.notEqual(week1.weekKey, week2.weekKey);
   assert.ok(week2.sessions.some((s) => s.teksCode === 'A.5A'),
     'A.5A may legitimately return in a later week — for retention, review or deeper work');
@@ -255,7 +259,7 @@ test('the class table reads labels off the profile rather than inventing them', 
   // This must not become a fifth.
   const goal = buildWeeklyGoal({
     plan: {
-      sessions: [session('A.5A')],
+      sessions: [session('A.5A'), session('A.3A'), session('A.9A'), session('A.2A')],
       profile: {
         instructionalBandLabel: 'On Level', performanceProjectionLabel: 'Meets', engagementLabel: 'On Track',
       },
@@ -279,7 +283,7 @@ test('a student with no baseline is shown as such, not guessed at', () => {
 });
 
 test('an overdue student is flagged for follow-up, not silently zero', () => {
-  const goal = buildWeeklyGoal({ plan: planOf(session('A.5A')), now: MONDAY });
+  const goal = buildWeeklyGoal({ plan: planOf(session('A.5A'), session('A.3A')), now: MONDAY });
   const [row] = buildTeacherWeeklyView([
     { studentId: 's3', goal, completions: completions(1) },
   ], { now: goal.dueAt + DAY });
@@ -359,15 +363,28 @@ test('evidence with no session id is not counted as a session', () => {
 
 // --- The teacher's setting actually reaches the student ------------------------------
 
-test('a plan built shorter than the goal leaves empty cards', () => {
-  // The failure this guards: MyMathPathApp builds the plan and the goal from
-  // two different session counts, and the student opens a six-session week with
-  // four cards in it.
+test('a week the planner could not fill asks only for the cards it has', () => {
+  // The planner can come back short of the teacher's count (a student with two
+  // open skills cannot be given six). The goal used to keep asking for six, so
+  // the student saw two cards and "0 of 6", could never finish, and the grade
+  // Classroom received stopped at a third. The teacher's ask stays visible.
   const plan = planOf(session('A.5A'), session('A.3A'));
   const goal = buildWeeklyGoal({ plan, config: { sessions: 6 }, now: MONDAY });
-  assert.equal(goal.goalSessions, 6);
-  assert.equal(goal.sessions.length, 2,
-    'the goal knows it asked for six; the caller must build six');
+  assert.equal(goal.sessions.length, 2);
+  assert.equal(goal.goalSessions, 2, 'the goal is the sessions this week actually has');
+  assert.equal(goal.requestedSessions, 6, 'the teacher asked for six, and that is still on record');
+  assert.equal(goal.settings.sessions, 6);
+
+  const progress = evaluateWeeklyGoalProgress({ goal, completions: completions(2), now: MONDAY + DAY });
+  assert.equal(progress.required, 2);
+  assert.equal(progress.complete, true, 'doing every card finishes the week');
+});
+
+test('a plan longer than the goal is cut to the goal, as the server freezes it', () => {
+  const plan = planOf(session('A.5A'), session('A.3A'), session('A.9A'), session('A.2A'), session('A.6A'));
+  const goal = buildWeeklyGoal({ plan, config: { sessions: 3 }, now: MONDAY });
+  assert.deepEqual(goal.sessions.map((s) => s.teksCode), ['A.5A', 'A.3A', 'A.9A']);
+  assert.equal(goal.goalSessions, 3);
 });
 
 test('a teacher lowering the goal lowers what the student is asked for', () => {
@@ -379,8 +396,11 @@ test('a teacher lowering the goal lowers what the student is asked for', () => {
 
 test('a null config is a working state, not a missing one', () => {
   // What a student in a class the teacher never configured actually gets.
-  const goal = buildWeeklyGoal({ plan: planOf(session('A.5A')), config: null, now: MONDAY });
+  const plan = planOf(session('A.5A'), session('A.3A'), session('A.9A'), session('A.2A'), session('A.6A'));
+  const goal = buildWeeklyGoal({ plan, config: null, now: MONDAY });
+  assert.equal(goal.requestedSessions, WEEKLY_GOAL.REGULAR_DEFAULT);
   assert.equal(goal.goalSessions, WEEKLY_GOAL.REGULAR_DEFAULT);
+  assert.equal(goal.sessions.length, WEEKLY_GOAL.REGULAR_DEFAULT);
   assert.equal(goal.settings.selectionMode, SELECTION_MODE.AUTOMATIC);
 });
 

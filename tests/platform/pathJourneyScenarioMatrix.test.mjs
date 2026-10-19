@@ -306,7 +306,7 @@ test('SCENARIO 8 repeated misses diagnose or repair instead of looping forever o
   assert.ok(actions.length <= 4, 'the learner must not be trapped in an unbounded same-skill miss loop');
 });
 
-test('SCENARIO 9 free-choice completion visibly progresses Foundation to Deeper practice to Mastery challenge', () => {
+test('SCENARIO 9 free-choice completion visibly progresses Foundation to Deeper practice to Stretch practice', () => {
   const level1 = describeCoursePathPass({ passesCompleted: 0 }, { mastered: false });
   const level2 = describeCoursePathPass({ passesCompleted: 1 }, { mastered: false });
   const level3 = describeCoursePathPass({ passesCompleted: 2 }, { mastered: false });
@@ -316,7 +316,8 @@ test('SCENARIO 9 free-choice completion visibly progresses Foundation to Deeper 
   assert.equal(level3.buttonLabel, 'Start Level 3');
   assert.match(level1.levelLabel, /Foundation/);
   assert.match(level2.levelLabel, /Deeper practice/);
-  assert.match(level3.levelLabel, /Mastery challenge/);
+  // Level 3 is practice depth; it must not read as a mastery claim.
+  assert.match(level3.levelLabel, /Stretch practice/);
 
   const server = readFileSync('functions/index.js', 'utf8');
   assert.match(server, /if \(coursePassLevel >= 2\)[\s\S]{0,500}preferredDifficultyBand = Math\.max\(4/);

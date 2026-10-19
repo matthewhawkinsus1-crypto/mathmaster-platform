@@ -229,11 +229,15 @@ test('two Next Round presses about the same round open one round', async () => {
   assert.equal(room.currentRound, 1, 'round 2 was not skipped');
   assert.equal(room.roundVersion, 2);
   assert.equal(results.filter((result) => result.alreadyApplied === true).length, 1);
-  // The closed round was ranked and kept, privately and anonymously.
-  const round = (await roomRef(R1).collection('rounds').doc('0').get()).data();
+  // The closed round was ranked and kept, privately and anonymously: the
+  // teacher's copy (hostRounds) has the whole table; the class's copy, of a
+  // two-player round, ranks nobody (nobody is publicly last).
+  const round = (await roomRef(R1).collection('hostRounds').doc('0').get()).data();
   assert.equal(round.roundIndex, 0);
   assert.deepEqual(round.standings.map((row) => row.rank), [1, 2]);
-  assert.ok(round.standings.every((row) => !('studentId' in row)), 'the public round result names no student');
+  assert.ok(round.standings.every((row) => !('studentId' in row)), 'the anonymous round result names no student');
+  const classCopy = (await roomRef(R1).collection('rounds').doc('0').get()).data();
+  assert.deepEqual([classCopy.standings, classCopy.participantCount], [[], 2]);
   // A stale press after the fact changes nothing.
   const stale = await call('advanceLiveChallenge', teacher({ roomId: R1, expectedRoundIndex: 0, expectedRoundVersion: 1 }));
   assert.equal(stale.alreadyApplied, true);
@@ -344,7 +348,7 @@ test('Grand Prix: round placement becomes bounded championship points', async ()
   assert.equal(afterRound1[S2].matchPoints, 0, 'no credit at all earns no placement');
   assert.equal(afterRound1[S3].matchPoints, 0);
   assert.equal(afterRound1[S1].score, 15, 'the championship total is the displayed score');
-  const round = (await roomRef(R2).collection('rounds').doc('0').get()).data();
+  const round = (await roomRef(R2).collection('hostRounds').doc('0').get()).data();
   assert.deepEqual(round.standings.map((row) => [row.rank, row.matchPointsAwarded]), [[1, 15], [2, 0], [2, 0]], 'the two wrong answers tie');
 
   await waitForRoundStart(R2);
@@ -394,7 +398,7 @@ test('closing a round ranks it once, refuses late answers, and the next round st
   const room = await roomOf(roomId);
   assert.equal(room.roundState, 'closed');
   assert.equal(room.phase, 'results');
-  const round = (await roomRef(roomId).collection('rounds').doc('0').get()).data();
+  const round = (await roomRef(roomId).collection('hostRounds').doc('0').get()).data();
   assert.deepEqual(round.standings.map((row) => [row.rank, row.participated]), [[1, true], [2, false]]);
 
   const late = await failureOf(answer(roomId, S2, { correct: true }));
@@ -411,7 +415,7 @@ test('closing a round ranks it once, refuses late answers, and the next round st
   const next = await roomOf(roomId);
   assert.equal(next.currentRound, 1);
   assert.equal(next.roundState, 'open');
-  assert.equal((await roomRef(roomId).collection('rounds').doc('0').get()).data().closedAtMs, closedAt);
+  assert.equal((await roomRef(roomId).collection('hostRounds').doc('0').get()).data().closedAtMs, closedAt);
   await call('finishLiveChallenge', teacher({ roomId }));
   assert.equal((await roomOf(roomId)).status, 'finished');
 });

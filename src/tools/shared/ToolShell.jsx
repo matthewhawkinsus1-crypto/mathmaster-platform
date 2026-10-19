@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
 import {
   countAnswerControls,
@@ -14,8 +14,13 @@ import { isMobileQuestionViewport } from '../../components/student/MobileViewpor
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
-import { useHintsAllowed, useToolRuntimeContext } from './ToolRuntimeContext';
-import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWraps } from './verdictShape.js';
+import { useHintsAllowed, useMethodWithheld, useToolHintPublisher, useToolRuntimeContext } from './ToolRuntimeContext';
+import { usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
+import { publishableHints } from './toolHintChannel.js';
+import { HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
+import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWords, verdictWraps } from './verdictShape.js';
+import { SupportedTextActions } from '../../platform/supports/SupportedText.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -102,6 +107,21 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
     registerTaskCard,
   }), [subtitle, badge, registerTaskCard]);
 
+  // A tool with no TaskCard still describes itself in Work View's Help: on a
+  // phone Work View hides this header, "About this tool" with it (TOOL-3).
+  const methodWithheld = useMethodWithheld();
+  const aboutDirections = useMemo(() => (subtitle && !methodWithheld && taskCards === 0 ? {
+    directions: {
+      content: (
+        <details className="mathmaster-tool-task-about">
+          <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)' }}>About this tool</summary>
+          <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{subtitle}</p>
+        </details>
+      ),
+    },
+  } : null), [subtitle, methodWithheld, taskCards]);
+  usePublishWorkViewCapabilities(`tool-shell-about-${useId()}`, aboutDirections);
+
   useEffect(() => {
     if (!focusAllowed) return undefined;
     return focusAuthority.request(() => {
@@ -165,9 +185,10 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           being squeezed into whatever the summary left over. */}
       <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid var(--mm-border-soft)', background: 'linear-gradient(135deg,var(--mm-surface-tint),var(--mm-primary-subtle))' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
-          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
-          {subtitle ? (
+          <h2 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
+          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 'calc(11 * var(--mm-px))' }}>{badge}</span> : null}
+          {/* Withheld on an assessment with the rest of the method (R-10, TaskCard). */}
+          {subtitle && !methodWithheld ? (
             // `display: contents` keeps the fold itself the header's flex item.
             // Merged into the TaskCard's "How to do this", it is hidden by
             // App.css everywhere except Work View.
@@ -183,9 +204,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
                 plus this fold wrapped onto three lines — 101px of naming a tool
                 the student is already looking at. */}
             {badge ? (
-              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{badge}</p>
+              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>{badge}</p>
             ) : null}
-            <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
+            <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 'calc(14 * var(--mm-px))' }}>{subtitle}</p>
             </QuietDisclosure>
             </div>
           ) : null}
@@ -193,7 +214,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       </header>
       {/* One set of plotting directions per tool, however many planes it has. */}
       <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><ToolShellContext.Provider value={shellContext}><PlotHelpScope>{children}</PlotHelpScope></ToolShellContext.Provider></div>
-      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 13 }}>{footer}</footer> : null}
+      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{footer}</footer> : null}
     </section>
   );
 }
@@ -232,7 +253,7 @@ export const ToolSplit = ({ children }) => (
 export const Panel = ({ title, children, collapsible = false, defaultOpen = true }) => {
   const body = (
     <div className="mathmaster-tool-panel" style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 14, padding: 16, background: 'var(--mm-surface)' }}>
-      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--mm-text)' }}>{title}</h3> : null}
+      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text)' }}>{title}</h3> : null}
       {children}
     </div>
   );
@@ -283,7 +304,7 @@ const outcomeStyle = (tone) => ({
   borderRadius: 10,
   background: tone === 'correct' ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)',
   color: tone === 'correct' ? 'var(--mm-success-text)' : 'var(--mm-danger)',
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
   fontWeight: 800,
   lineHeight: 1.45,
   // `nearest` would otherwise stop with the box's edge on the scroller's edge,
@@ -291,19 +312,96 @@ const outcomeStyle = (tone) => ({
   scrollMarginBottom: 12,
 });
 
+/*
+ * WHAT A MISS IN A TOOL SAYS, AND OFFERS (student pass 3, HELP-7 and A11Y-1).
+ *
+ * The box below a question offers three things with a miss that a tool's
+ * result area did not: the hint the platform has ready, Read aloud and
+ * Translate for the feedback, and, to a screen reader, the tool's own words.
+ * On Graphing a blind student heard "Not quite. You have 2 attempts remaining
+ * on this version." and never "Point P1 is on the line, but the other one is
+ * not." The tool's words (`verdict` and `coaching`, what ResultPill shows) are
+ * now said in this region with the outcome, once, as text the eye has already
+ * read above it; the hint offer and the two actions are the box's own, handed
+ * over with the outcome (QuestionEngine `toolAttemptOutcome`).
+ *
+ * A verdict area that is itself a live region already says the tool's words,
+ * so there they are not said again.
+ */
+const LIVE_REGION_SELECTOR = '[role="status"], [role="alert"], [role="log"], [aria-live]:not([aria-live="off"])';
+const HINT_OFFER_BUTTON_STYLE = {
+  marginLeft: 6, minHeight: 36, padding: '6px 12px', borderRadius: 999,
+  border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)',
+  fontWeight: 800, cursor: 'pointer',
+};
+// With the hint, the worked sibling problem (student pass 3, HELP-9): "See a
+// similar problem worked" opens the same example as the Hint panel's "Try a
+// similar one", recorded the same way. Either may be offered alone.
+// What a hint costs is the host's sentence (Recovery's in a Recovery runner),
+// said wherever a hint is offered (HELP-17); the platform's without a host.
+const OutcomeHintOffer = ({ onShowHint = null, onShowSimilar = null, hintCost = null }) => {
+  const hint = typeof onShowHint === 'function';
+  const similar = typeof onShowSimilar === 'function';
+  if (!hint && !similar) return null;
+  const cost = typeof hintCost === 'string' && hintCost.trim() ? hintCost.trim() : HINT_COST_SENTENCE;
+  return (
+    <span className="mathmaster-tool-attempt-hint" style={{ display: 'block', marginTop: hint && similar ? 2 : 8, fontWeight: 600, ...(hint && similar ? { lineHeight: 1.15 } : null) }}>
+      {/* Both offered: the two buttons say it, without the "A hint is ready"
+          lead-in, which with a wrapped second button made the box taller than
+          a phone leaves under the task card (390x844). The cost is still said,
+          at the size of the tool's own hint note, so the box still fits. */}
+      {hint && !similar ? <>A hint is ready if you want one. {cost}{' '}</> : null}
+      {hint && similar ? <><span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))' }}>{cost}</span>{' '}</> : null}
+      {hint ? <button type="button" onClick={onShowHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button> : null}
+      {similar ? <button type="button" data-similar-offer="" onClick={onShowSimilar} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+    </span>
+  );
+};
+const OutcomeTextActions = ({ outcome, text }) => (
+  <SupportedTextActions
+    text={text}
+    readAloud={outcome.readAloud || null}
+    translation={outcome.translation || null}
+    label="the feedback"
+    onEvidence={typeof outcome.onEvidence === 'function' ? outcome.onEvidence : null}
+  />
+);
+
+// What the region says and offers once an outcome is handed to it. Apart from
+// the slot that decides whether it is shown, so it can be rendered on its own
+// (tests/platform/toolAttemptOutcomeOffers.test.mjs).
+export const AttemptOutcomeWords = ({ outcome, toolWords = '', detail = '', sayToolWords = true }) => {
+  const readable = [toolWords, detail].filter(Boolean).join(' ');
+  return (
+    <>
+      {outcome.text}
+      {toolWords && sayToolWords ? <span data-attempt-outcome-tool-words="" style={SR_ONLY_STYLE}>{` ${toolWords}`}</span> : null}
+      {detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{detail}</span> : null}
+      {readable ? <OutcomeTextActions outcome={outcome} text={readable} /> : null}
+      <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} hintCost={outcome.hintCost} />
+    </>
+  );
+};
+
 // `showDetail={false}` for a tool whose verdict already lists the parts to
 // revisit (the representations board), so the "Focus on" line is not said twice.
-export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
+export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = null, coaching = null }) => {
   const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
   const [slot, setSlot] = useState(null);
   const regionRef = useRef(null);
+  const [insideLiveRegion, setInsideLiveRegion] = useState(false);
   useLayoutEffect(() => {
     if (!attemptOutcomeSlots) return undefined;
     const token = attemptOutcomeSlots.register();
     setSlot(token);
     return () => attemptOutcomeSlots.unregister(token);
   }, [attemptOutcomeSlots]);
+  useLayoutEffect(() => {
+    setInsideLiveRegion(Boolean(regionRef.current?.parentElement?.closest?.(LIVE_REGION_SELECTOR)));
+  }, []);
   const outcome = attemptOutcomeSlots && attemptOutcome && slot !== null && attemptOutcome.slot === slot ? attemptOutcome : null;
+  const toolWords = verdictWords({ verdict, coaching });
+  const detail = showDetail && outcome?.detail ? outcome.detail : '';
   // Once per attempt, and only as far as needed: Check pressed low on a phone
   // leaves the verdict at the bottom edge, where the sentence below it could
   // land under the action bar. `nearest` does nothing when it is already in
@@ -317,9 +415,12 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
   // Outside a question (the tools lab) there is no attempt to report.
   if (!attemptOutcomeSlots) return null;
   if (inline) {
+    // Inside the tool's own live region, which already says its words.
     return outcome ? (
       <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
-        {' '}{outcome.text}{showDetail && outcome.detail ? ` ${outcome.detail}` : ''}
+        {' '}{outcome.text}{detail ? ` ${detail}` : ''}
+        {detail ? <OutcomeTextActions outcome={outcome} text={detail} /> : null}
+        <OutcomeHintOffer onShowHint={outcome.onShowHint} onShowSimilar={outcome.onShowSimilar} hintCost={outcome.hintCost} />
       </span>
     ) : null;
   }
@@ -331,12 +432,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
       data-attempt-outcome={outcome ? 'shown' : 'waiting'}
       style={outcome ? outcomeStyle(outcome.tone) : OUTCOME_WAITING_STYLE}
     >
-      {outcome ? (
-        <>
-          {outcome.text}
-          {showDetail && outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
-        </>
-      ) : null}
+      {outcome ? <AttemptOutcomeWords outcome={outcome} toolWords={toolWords} detail={detail} sayToolWords={!insideLiveRegion} /> : null}
     </div>
   );
 };
@@ -344,7 +440,12 @@ export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
 // The verdict of a Check. `stageCheck` marks a pill that reports one stage or
 // step of the work rather than the attempt ("General form correct", "y
 // isolated"): it is not where an attempt's outcome belongs.
-export const ResultPill = ({ ok, children, stageCheck = false }) => {
+//
+// `message` is the tool's coaching for this verdict ("Point P1 is on the line,
+// but the other one is not."). Shown under the pill, and said with the
+// attempt's outcome (AttemptOutcome), so a screen reader hears why as well as
+// what it cost (student pass 3, A11Y-1).
+export const ResultPill = ({ ok, children, stageCheck = false, message = null }) => {
   // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
   // text is known before layout; whether a shorter one wraps depends on the
   // width it is given, so it is measured, and re-measured when that changes.
@@ -380,7 +481,9 @@ export const ResultPill = ({ ok, children, stageCheck = false }) => {
       >
         {ok ? '✓' : '•'} {children}
       </span>
-      {stageCheck ? null : <AttemptOutcome />}
+      {/* Its own row in the flex rows some tools put their verdict in. */}
+      {message ? <p className="mathmaster-result-message" style={{ flexBasis: '100%', margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p> : null}
+      {stageCheck ? null : <AttemptOutcome verdict={children} coaching={message} />}
     </>
   );
 };
@@ -393,26 +496,131 @@ export const ResultPill = ({ ok, children, stageCheck = false }) => {
 // of every single tool, so a prompt written as "Solve $-3x + 4 > 13$" — which is
 // how the whole Path bank is written — was showing a student the dollar signs
 // and the backslashes. One component, every tool, every question.
-export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null }) => {
+// WHAT A TASK CARD HOLDS BELOW THE PROMPT: the tool's description, the
+// directions, the steps and a note. Drawn in the card's fold and, because Work
+// View hides the card, in Work View's Help drawer too (student pass 3, TOOL-3).
+const TaskSupport = ({ description, badge, taskText, showsDirections, steps, note }) => (
+  <>
+    {description ? (
+      <div className="mathmaster-tool-task-about">
+        {/* The header drops the badge on a phone; it is kept here. */}
+        {badge ? (
+          <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>{badge}</p>
+        ) : null}
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 'calc(14 * var(--mm-px))' }}>{description}</p>
+      </div>
+    ) : null}
+    {showsDirections ? (
+      <div className="mathmaster-tool-task-directions" style={description ? { marginTop: 10 } : undefined}>
+        <MathText as="p" style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>{taskText}</MathText>
+      </div>
+    ) : null}
+    {steps.length ? (
+      <ol style={{ margin: showsDirections || description ? '10px 0 0' : 0, paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
+        {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
+      </ol>
+    ) : null}
+    {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{note}</MathText> : null}
+  </>
+);
+
+// THE STEPS ARE THE METHOD, AND AN ASSESSMENT WITHHOLDS THE METHOD (student
+// pass 3, R-10). Matrix Lab's exit ticket listed the rule that decides "no
+// solution" from "infinitely many" — the thing the item measures. Where the
+// activity withholds hints or verdicts (useMethodWithheld) the card is cut
+// back to the authored prompt, here and in Work View's Help:
+//   - the steps and the note go, unless the tool passes `stepsAreControls`
+//     (they only say how to work its controls: "Click the grid to plot a
+//     point"); in a mixed list the steps marked `controlStep()` stay;
+//   - the tool's directions sentence goes with them, kept only beside
+//     controls-only steps;
+//   - the tool's description always goes. Tool-written descriptions name the
+//     method more often than not ("Use the Factor Theorem…", "Derive a linear
+//     inverse by swapping x and y…", "…X = A⁻¹B"), and the authored prompt
+//     and the tool's name still say what the item is. Withholding them all
+//     fails closed: a description written tomorrow cannot leak.
+// One pure function decides, and both the card and Work View's Help draw from
+// what it returns, so the two can never show different things.
+//
+// A MIXED LIST KEEPS ITS CONTROLS (student pass 3, W6-4). Most lists mix the
+// two: "Tap two rows to form an interval" works the tool, "Compute Δy/Δx
+// yourself" is the method. A whole list withheld took the control lines with
+// it, and an exit ticket left a student not knowing the rows are tapped in
+// pairs. A step wrapped in `controlStep()` says only how to work the tool
+// (which button, which field, what unlocks what); it stays where the method
+// goes. A plain string is method — fail closed, as before. On practice the
+// list reads in its written order, controls and method together. Where only
+// the controls remain the directions sentence goes too: it is tool-written
+// and may name the route, so it stays only beside a list the tool marks
+// controls-only as a whole (`stepsAreControls`).
+export const controlStep = (text) => Object.freeze({ text: String(text), control: true });
+const isControlStep = (step) => Boolean(step && typeof step === 'object' && step.control === true);
+const stepText = (step) => (step && typeof step === 'object' ? String(step.text ?? '') : String(step));
+export const taskCardSupport = ({ task, steps = [], note = null, question = null, stepsAreControls = false, methodWithheld = false, description = null, badge = null }) => {
+  const showMethod = stepsAreControls || !methodWithheld;
+  const shownSteps = (showMethod ? steps : steps.filter(isControlStep)).map(stepText);
+  const shownNote = showMethod && note ? String(note) : null;
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
-  // The fold's remembered open/closed state stays keyed on the directions and
-  // steps alone, so a student who had opened them still finds them open.
-  const supportKey = stepsKey || contentKey([taskText, ...steps, note || ''].filter(Boolean).join('|'));
+  const showsDirections = Boolean(showMethod && taskText && (!authoredPrompt || promptDiffers));
+  const shownDescription = methodWithheld ? null : (description || null);
+  const hasSupport = Boolean(shownDescription || showsDirections || shownSteps.length || shownNote);
+  // Named for what is inside: the steps when there are steps, otherwise the
+  // directions, otherwise only the description of the tool.
+  const summary = shownSteps.length
+    ? `How to do this (${shownSteps.length} step${shownSteps.length === 1 ? '' : 's'})`
+    : showsDirections || shownNote ? 'How to do this' : 'About this tool';
+  return {
+    authoredPrompt,
+    promptDiffers,
+    taskText,
+    showsDirections,
+    description: shownDescription,
+    badge: shownDescription ? badge || null : null,
+    steps: shownSteps,
+    note: shownNote,
+    hasSupport,
+    summary,
+  };
+};
+
+// WHAT THE CARD HANDS TO WORK VIEW'S HELP (TOOL-3): the same support, folded
+// under the same summary, so the hint panel and "Ask my teacher" below it
+// stay on a phone's first screen of the drawer.
+export const TaskCardDirections = ({ support }) => (support?.hasSupport ? (
+  <details className="mathmaster-tool-task-support" data-task-card-directions="">
+    <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{support.summary}</summary>
+    <div style={{ marginTop: 6 }}>
+      <TaskSupport description={support.description} badge={support.badge} taskText={support.taskText} showsDirections={support.showsDirections} steps={support.steps} note={support.note} />
+    </div>
+  </details>
+) : null);
+
+export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null, stepsAreControls = false }) => {
+  const methodWithheld = useMethodWithheld();
   // PQ-023: the tool's one-line description opens the fold, and the shell's
   // header stops offering it separately once this card has said it took it.
   const shell = useContext(ToolShellContext);
   const registerTaskCard = shell?.registerTaskCard;
   useLayoutEffect(() => (registerTaskCard ? registerTaskCard() : undefined), [registerTaskCard]);
-  const description = shell?.description || null;
-  const showsDirections = Boolean(taskText && (!authoredPrompt || promptDiffers));
-  const hasSupport = Boolean(description || showsDirections || steps.length || note);
-  // Named for what is inside: the steps when there are steps, otherwise the
-  // directions, otherwise only the description of the tool.
-  const summary = steps.length
-    ? `How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`
-    : showsDirections || note ? 'How to do this' : 'About this tool';
+  const support = taskCardSupport({ task, steps, note, question, stepsAreControls, methodWithheld, description: shell?.description, badge: shell?.badge });
+  const { authoredPrompt, promptDiffers, taskText, showsDirections, description, badge, hasSupport, summary } = support;
+  const shownSteps = support.steps;
+  const shownNote = support.note;
+  // The fold's remembered open/closed state stays keyed on the directions and
+  // steps alone, so a student who had opened them still finds them open.
+  const supportKey = stepsKey || contentKey([taskText, ...shownSteps, shownNote || ''].filter(Boolean).join('|'));
+
+  // The same support, handed up to Work View's Help. Keyed on its text so a
+  // re-render of the tool does not publish again.
+  const supportText = JSON.stringify(support);
+  const workViewDirections = useMemo(() => {
+    const published = JSON.parse(supportText);
+    return published.hasSupport ? { directions: { content: <TaskCardDirections support={published} /> } } : null;
+  }, [supportText]);
+  usePublishWorkViewCapabilities(`task-card-${useId()}`, workViewDirections);
+  if (!authoredPrompt && !hasSupport) return null;
 
   return (
     <div className="mathmaster-tool-task-card" style={{
@@ -421,8 +629,8 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
-          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
-          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
+          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 'calc(17 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
       {hasSupport ? (
@@ -432,26 +640,7 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
           defaultOpen={false}
           style={{ margin: authoredPrompt ? '8px 0 0' : 0 }}
         >
-          {description ? (
-            <div className="mathmaster-tool-task-about">
-              {/* The header drops the badge on a phone; it is kept here. */}
-              {shell?.badge ? (
-                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{shell.badge}</p>
-              ) : null}
-              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{description}</p>
-            </div>
-          ) : null}
-          {showsDirections ? (
-            <div className="mathmaster-tool-task-directions" style={description ? { marginTop: 10 } : undefined}>
-              <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>{taskText}</MathText>
-            </div>
-          ) : null}
-          {steps.length ? (
-            <ol style={{ margin: showsDirections || description ? '10px 0 0' : 0, paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
-              {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
-            </ol>
-          ) : null}
-          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>{note}</MathText> : null}
+          <TaskSupport description={description} badge={badge} taskText={taskText} showsDirections={showsDirections} steps={shownSteps} note={shownNote} />
         </QuietDisclosure>
       ) : null}
     </div>
@@ -470,10 +659,28 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
 // a DOL. A line saying "hints are not available" on every question of an exit
 // ticket would be noise the student reads instead of the problem, and the
 // activity already states its own rules.
+//
+// ONE LADDER PER QUESTION (student pass 3, HELP-10). Inside a question whose
+// host carries the platform's hint ladder (QuestionEngine's 💡 Hint), this
+// panel shows nothing: it hands its rungs to that ladder (toolHintChannel.js),
+// where a further hint needs a further attempt and a rung that names the
+// answer is dropped. It used to be a second ladder beside it, tapped through
+// to the end with no attempt at all. Only where there is no platform ladder
+// (the tools lab, a server-graded host) does the tool show its own.
 export const HintPanel = ({ hints = [], onHintUsed }) => {
   const [revealed, setRevealed] = useState(0);
   const hintsAllowed = useHintsAllowed();
+  const publishHints = useToolHintPublisher();
+  const rungs = publishableHints(hints);
+  // The host's sentence (Recovery's in a Recovery runner), else the platform's.
+  const hintCost = useToolRuntimeContext().hintCost || HINT_COST_SENTENCE;
+  const rungsKey = JSON.stringify(rungs);
+  useEffect(() => {
+    if (!publishHints || !hintsAllowed) return undefined;
+    return publishHints(JSON.parse(rungsKey));
+  }, [publishHints, hintsAllowed, rungsKey]);
   if (!hintsAllowed || !hints.length) return null;
+  if (publishHints) return null;
   const revealNext = () => {
     setRevealed((current) => {
       const next = Math.min(hints.length, current + 1);
@@ -493,21 +700,21 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
   return (
     <div style={{ marginTop: 16, ...(used ? { border: '1px solid var(--mm-warning-border-soft)', borderRadius: 12, background: 'var(--mm-warning-subtle)', padding: '12px 15px' } : null) }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {used && <strong style={{ color: 'var(--mm-warning-text)', fontSize: 14 }}>Hints</strong>}
+        {used && <strong style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(14 * var(--mm-px))' }}>Hints</strong>}
         <button
           type="button"
           onClick={revealNext}
           disabled={revealed >= hints.length}
-          title="Using a hint is recorded for your teacher."
+          title={hintCost}
           style={{
             minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
             background: revealed >= hints.length ? 'var(--mm-surface-control)' : 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)',
-            fontWeight: 800, fontSize: 13, cursor: revealed >= hints.length ? 'default' : 'pointer',
+            fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', cursor: revealed >= hints.length ? 'default' : 'pointer',
           }}
         >
           {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
-        {!used && <span style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>}
+        {!used && <span data-hint-cost-note="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{hintCost}</span>}
       </div>
       {used ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>

@@ -10,7 +10,7 @@ import {
   resolveBack,
 } from '../../src/platform/student/navigationModel.js';
 import { normalizeStudentRoute, studentRouteKey } from '../../src/platform/student/browserHistory.js';
-import { assertCapability, region } from './helpers/sourceContract.mjs';
+import { assertCapability, executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (relative) => fs.readFileSync(new URL(relative, import.meta.url), 'utf8');
 
@@ -44,9 +44,9 @@ test('the shared student navigation offers Home, Assignments, Grades, My Rewards
   );
   // Where am I? has to be answerable without pressing anything.
   assert.match(nav, /aria-current=\{active \? 'page' : undefined\}/);
-  // Log Out is offered where it belongs and suppressed where the screen is
-  // embedded in someone else's shell.
-  assert.match(nav, /showLogout/);
+  // Log Out lives once, in the identity bar pinned above every student screen
+  // (tests/platform/studentPolish.test.mjs); the nav row does not repeat it.
+  assert.doesNotMatch(executableSource(nav), />\s*Log Out\s*</);
 });
 
 test('Home renders the shared navigation instead of its own four buttons', () => {
@@ -160,7 +160,9 @@ test('the visible Back control follows the same destination as browser Back', ()
   assert.equal(resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin: LEVEL.PATH_SESSION }).level, LEVEL.ASSIGNMENTS);
 
   assert.match(resultScreen, /resolveBack\(LEVEL\.ASSIGNMENT_RESULT, \{ origin \}\)/);
-  assert.match(resultScreen, /onBackToOrigin = cameFromGrades \? onViewAllGrades : onViewAllAssignments/);
+  // The handler is chosen by the same resolved level the label names (Home joined in NAV-9).
+  assert.match(resultScreen, /const onBackToOrigin = back\?\.level === LEVEL\.GRADES\s*\?\s*onViewAllGrades\s*:\s*back\?\.level === LEVEL\.HOME\s*\?\s*onBackToHome\s*:\s*onViewAllAssignments;/);
+  assert.equal(resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin: LEVEL.HOME }).level, LEVEL.HOME);
 
   const resultRender = region(app, '<StudentAssignmentResult', '/>', 'Assignment Result render');
   assert.match(resultRender, /origin=\{assignmentResultRoute\.origin/);

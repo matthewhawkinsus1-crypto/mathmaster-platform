@@ -76,7 +76,7 @@ test('read aloud says mathematics as mathematics, and never reads vocabulary as 
   assert.equal(speechTextFor('A line passes through (2, 3).'), 'A line passes through the point 2, 3.');
   assert.equal(speechTextFor('Find the y-intercept of f(x) = 3x - 2.'), 'Find the y-intercept of f of x equals 3x minus 2.');
   assert.equal(speechTextFor('Factor to get (x + 2)(x + 3).'), 'Factor to get the quantity x plus 2 times the quantity x plus 3.');
-  assert.equal(speechTextFor('It costs $4.50, about 25% off.'), 'It costs 4.50 dollars, about 25 percent off.');
+  assert.equal(speechTextFor('It costs $4.50, about 25% off.'), 'It costs 4 dollars and 50 cents, about 25 percent off.');
   assert.equal(mathToSpeech('y = -2/3x + 7', { language: 'es' }), 'y es igual a negativo 2 sobre 3 x más 7');
   assert.equal(speechTextFor(''), '');
 });
@@ -114,14 +114,18 @@ test('translation: authored first, then the curated pack; full, partial, none an
 });
 
 test('the curated pack: every template carries each slot exactly once, and no template contains mathematics', () => {
-  [...esPack.sentences, ...esPack.choices].forEach(([english, spanish]) => {
+  // The whole pack the provider loads: the direction sentences and the
+  // platform's support sentences (packs/esSupport.js, pass 3 HELP-3).
+  const pack = esPack.default;
+  assert.ok(pack.sentences.length > esPack.sentences.length, 'the support sentences are in the pack the provider loads');
+  [...pack.sentences, ...pack.choices].forEach(([english, spanish]) => {
     const slots = (text) => (text.match(/\{(\d+)\}/g) || []).sort();
     assert.deepEqual(slots(spanish), slots(english), english);
     assert.equal(new Set(slots(english)).size, slots(english).length, `${english}: a slot used twice`);
     assert.doesNotMatch(english.replace(/\{\d+\}/g, ''), /[0-9=<>≤≥^]/, `${english}: mathematics belongs in a slot`);
   });
-  const compiled = compileTemplates(esPack.sentences);
-  assert.equal(compiled.length, esPack.sentences.length);
+  const compiled = compileTemplates(pack.sentences);
+  assert.equal(compiled.length, pack.sentences.length);
 });
 
 test('the language pack and the glossary are loaded on demand, never in the initial bundle', async () => {

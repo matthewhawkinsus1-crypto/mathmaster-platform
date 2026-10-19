@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { buttonSpec } from '../../src/components/calculatorKeys.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const source = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
 
@@ -23,11 +25,14 @@ test('calculator panel is draggable with pointer events instead of being permane
 
 
 test('division key builds a stacked fraction instead of inserting a division glyph', () => {
-  assert.match(source, /value === '÷'.*action: 'fractionize'/);
+  // The key specs live in calculatorKeys.js (pass 3: they gained spoken names).
+  assert.equal(buttonSpec('÷').action, 'fractionize');
+  assert.equal(buttonSpec('÷').command, undefined, 'never a \\div glyph');
+  const handler = region(source, 'const handleCalculatorButton', '}, [');
+  assert.match(handler, /if \(button\.action === 'fractionize'\) \{\s*insertStackedDivision\(\);/);
   assert.match(source, /const insertStackedDivision/);
   assert.match(source, /executeCommand\?\.\('selectAll'\)/);
   assert.match(source, /mathField\.insert\('\\\\frac\{#0\}\{#\?\}'/);
-  assert.doesNotMatch(source, /value === '÷'.*command: '\\\\div'/);
 });
 
 test('calculator supports a shared external launcher rather than floating its own blue pill', () => {
@@ -43,7 +48,9 @@ test('calculator focuses its MathLive field on open and owns Enter as equals', (
   assert.match(source, /requestAnimationFrame\(\(\) => \{[\s\S]*mathField\.focus/);
   assert.match(source, /mathField\.addEventListener\('keydown', handleKeyDown\)/);
   assert.match(source, /event\.key !== 'Enter'/);
-  assert.match(source, /evaluateCalculatorExpression\(expression, policy\.mode\)/);
+  // Enter evaluates what is in the field (now with its exact fraction too).
+  const enter = source.slice(source.indexOf('const handleKeyDown = (event) => {'), source.indexOf("const preventContextMenu"));
+  assert.match(enter, /evaluateCalculatorExpressionExact\(expression, policy\.mode\)/);
   assert.match(source, /event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)/);
   assert.match(source, /data-calculator-expression="true"/);
 });

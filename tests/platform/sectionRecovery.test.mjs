@@ -16,6 +16,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { DEFAULT_RECOVERY_POLICY, RECOVERY_TYPE, normalizeRecoveryPolicy, recoveryCapFor } from '../../functions/shared/recoveryPolicy.mjs';
@@ -52,6 +53,7 @@ import {
 import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/sectionRecoveryGrades.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const require = createRequire(import.meta.url);
 const { projectRecoveredGradeInputs, recoveryChangedAssignmentIds, warmupChallengeCreditSignature } = require('../../functions/lib/sectionRecoveryGrades.js');
@@ -843,7 +845,9 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // Lazy, so MathLive (which the runner's QuestionEngine brings) stays out of
   // the first load (tests/platform/initialBundleBoundary.test.mjs). Either form
   // binds the name to the same module.
-  assert.match(app, /^(?:import SectionRecoveryRunner from |const SectionRecoveryRunner = lazy\(\(\) => import\()'\.\/components\/student\/SectionRecoveryRunner\.jsx'(?:\)\))?;$/m);
+  // Since the App split the lazy declaration lives in app/lazyScreens.js.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const SectionRecoveryRunner = lazy\(\(\) => import\('\.\.\/components\/student\/SectionRecoveryRunner\.jsx'\)\);$/m);
+  assert.match(app, /\bSectionRecoveryRunner,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
   assert.match(app, /^import \{ buildStudentRecoverySummary \} from '\.\/platform\/recovery\/studentRecoveryModel\.js';$/m);
   assert.match(app, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\/services\/sectionRecoveryService\.js';$/m);
   assert.match(resultView, /<SectionRecoveryRunner\b/);
@@ -853,7 +857,11 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // The original is compared after teacher overrides and BEFORE any Recovery.
   assert.match(summaryMemo, /projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
   assert.doesNotMatch(summaryMemo, /gradeDisplayTracker|projectSectionRecoveries/);
-  assert.match(summaryMemo, /studentProfile: user\.profile \|\| null/, 'the browser decides with the same support profile as the server');
+  // The server decides with the grade document's own `profile` field
+  // (gradeData.profile || null); the browser holds exactly that as
+  // user.timingProfile (D7), not the normalized copy, which falls back to the
+  // whole grade document.
+  assert.match(summaryMemo, /studentProfile: user\.timingProfile \|\| null/, 'the browser decides with the same support profile as the server');
   const startHandler = region(app, 'const startStudentRecovery = async', '};', 'start handler');
   assert.match(startHandler, /await startSectionRecovery\(\{ assignmentId, section \}\)/);
   assert.match(startHandler, /recoveryErrorCode\(error\)/);
@@ -878,11 +886,13 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
 });
 
 test('the gradebook detail renders the Recovery audit trail and the section marker, each imported', () => {
-  const app = componentSource('src/App.jsx');
-  assert.match(app, /^import SectionRecoveryAuditTrail from '\.\/components\/teacher\/SectionRecoveryAuditTrail\.jsx';$/m);
+  // The gradebook is the teacher's screen, its own module since G2.
+  const app = componentSource('src/app/teacher/TeacherWorkspace.jsx');
+  // (G2: a teacher-only panel may come from lazyScreens.js, loaded on demand)
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SectionRecoveryAuditTrail', 'src/components/teacher/SectionRecoveryAuditTrail.jsx'));
   // Every helper the gradebook row calls is imported where it is used: a call
   // with no import is a runtime ReferenceError no check catches (AGENTS.md).
-  const auditImport = app.match(/^import \{([^}]*)\} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
   assert.ok(auditImport, 'the gradebook imports the Recovery audit helpers');
   ['completedRecoverySections', 'warmupChallengeCounts', 'heldRecoverySections'].forEach((name) => {
     assert.match(auditImport[1], new RegExp(`\\b${name}\\b`), `${name} is imported`);
@@ -919,7 +929,11 @@ test('the Recovery runner requires the pinned question and keeps its drafts apar
   assert.match(assessmentRunner, /resolveQuestionMaximumAttempts\(\{ question: currentQuestion, activityPolicy: policy \}\)/);
   assert.match(assessmentRunner, /onStepGrade=\{handleStepGrade\}/);
   const practiceRunner = region(runner, 'function PracticeRunner(', 'function AssessmentRunner(', 'practice runner');
-  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts \}\)/);
+  // Practice: the step bookkeeping keeps the Practice policy's tries, even
+  // though every practice question is shown one answer (HELP-19,
+  // recoveryPracticeAttempts.test.mjs).
+  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts \}\)/);
+  assert.match(practiceRunner, /const stepMaximumAttempts = resolveQuestionMaximumAttempts\(\{ question, activityPolicy: PRACTICE_POLICY \}\);/);
   assert.match(practiceRunner, /forfeit: true/);
   assert.doesNotMatch(runner, /onStepGrade=\{async \(\) => null\}/, 'a step tool must never get a no-op step grader');
 });

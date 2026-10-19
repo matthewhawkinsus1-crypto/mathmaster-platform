@@ -14,7 +14,8 @@
  * construction policy's own, unchanged:
  *
  *   equivalentLine (and form-aware throughPoints / verticalHorizontal):
- *     correct when the first two points determine the target line;
+ *     correct when the first two points are both on the target line and
+ *     determine it;
  *     score = points on the line / 2, or 1/4 for one on-line point plotted
  *     twice.
  *   formAware:

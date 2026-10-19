@@ -199,6 +199,9 @@ const rowsForId = (page, scope, id) => page.evaluate(({ scope: selector, id: stu
   const squashed = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const label = `ID ${studentId}`;
   const bare = (value) => squashed(value).replace(/^[·\s|(),-]+|[·\s|(),-]+$/g, '');
+  // An element holding only the id label is a label, not the row: "ID x", or
+  // "MathMaster ID x" where a screen also shows a district ID (Student Access).
+  const labelOnly = (value) => bare(value).replace(/^MathMaster\s+/, '') === label;
   const rows = new Set();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -206,7 +209,7 @@ const rowsForId = (page, scope, id) => page.evaluate(({ scope: selector, id: stu
     let element = node.parentElement;
     if (!element || !squashed(element.textContent).includes(label)) continue;
     if (element.closest('option, select, [role="listbox"]')) continue;
-    while (element.parentElement && element !== root && bare(element.innerText) === label) element = element.parentElement;
+    while (element.parentElement && element !== root && labelOnly(element.innerText)) element = element.parentElement;
     if (element.offsetParent === null && element.getClientRects().length === 0) continue;
     rows.add(element);
   }

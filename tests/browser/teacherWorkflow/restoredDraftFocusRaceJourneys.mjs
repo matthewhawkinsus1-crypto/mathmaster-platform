@@ -260,12 +260,15 @@ const throttle = async (page, rate) => {
   await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 200 * 1024, uploadThroughput: 100 * 1024 });
 };
 // A newer server copy of the line question, as another Chromebook would leave
-// it: `slope` in box A, nothing in box B, edited `aheadMs` after now.
+// it: `slope` in box A, box B cleared, both edited `aheadMs` after now. A
+// multi-answer draft is merged answer by answer (Batch 3), so the copy says
+// when each box was edited, as this build saves it; a box the other device
+// never touched would rightly keep this device's newer entry.
 const newerServerCopy = (page, slope, aheadMs = 60000) => page.evaluate(([doc, key, value, ahead]) => {
   const stored = window.__mmHarnessStore.exportDoc(doc);
   const at = Date.now() + ahead;
   const entries = (stored?.entries || []).map((entry) => (String(entry.key).endsWith(`:${key}`)
-    ? { ...entry, valueJson: JSON.stringify({ m: value }), savedAt: at, savedAtIsEdit: true }
+    ? { ...entry, valueJson: JSON.stringify({ m: value, b: '' }), savedAt: at, savedAtIsEdit: true, fieldEditedAtJson: JSON.stringify({ m: at, b: at }) }
     : entry));
   window.__mmHarnessStore.importDoc(doc, { ...stored, entries, updatedAt: { __ts: at } });
   window.dispatchEvent(new Event('online'));
@@ -559,7 +562,7 @@ if (wanted('workview')) {
     await landServerCopy(B.page);
     await showsRestored(B.page);
     check((await gate.held(B.page)).includes('frame'), `${tag}: the restore's focus is pending`);
-    await press(B.page.getByRole('button', { name: /Enlarge question/ }).first(), B.touch);
+    await press(B.page.getByRole('button', { name: /Open Work View/ }).first(), B.touch);
     await B.page.waitForTimeout(400);
     const opened = await B.page.evaluate(() => Boolean(document.querySelector('[aria-modal="true"]')));
     check(opened, `${tag}: Work View opens`);

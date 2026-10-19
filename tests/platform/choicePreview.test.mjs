@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { PREVIEW_POINT_RADIUS, PREVIEW_STROKE, choicePreviewProblems, parseChoiceFigure, previewFigures } from '../../src/platform/workflow/choicePreview.js';
+import { PREVIEW_POINT_RADIUS, PREVIEW_STROKE, choicePreviewLabel, choicePreviewProblems, parseChoiceFigure, previewFigures, previewGivenEvaluators } from '../../src/platform/workflow/choicePreview.js';
+import { evaluateStaticGraphFunction } from '../../src/graphSpecUtils.js';
+import { evaluateModelAt } from '../../src/platform/workflow/modelExpression.js';
 import { validateWorkflow } from '../../src/platform/workflow/questionWorkflow.js';
 
 /*
@@ -117,6 +119,49 @@ test('the runner renders the preview above the options', () => {
   // different jobs: one shows what the student picked, the other shows what
   // they are picking about.
   assert.match(runner, /<StageFigure graph=\{stage\?\.graph\}/);
-  // It is the student's own selection that is drawn, not anything else.
-  assert.match(runner, /previewFigures\(value\)/);
+  // It is the student's own selection that is drawn, not anything else — by its
+  // label, since an { id, label } choice stores the id (see the tests below).
+  assert.match(runner, /const shown = choicePreviewLabel\(stage, value\)/);
+  assert.match(runner, /previewFigures\(shown\)/);
+});
+
+/*
+ * FOUND DOING ALGEBRA I M2 T2 L3 AS A STUDENT (docs/qa/algebra1-m2t2-student-walkthrough.md).
+ * A teacher-import stage stores { id, label } choices, and the step's value is
+ * the id. The preview drew previewFigures("c") — nothing — and told the student
+ * "Showing c on the graph" over an empty grid, on every preview step of the
+ * lesson, while validation (which reads labels) passed. The same step's given
+ * line, authored as structured functions, was never drawn either.
+ */
+const LINE_Q = { choices: [{ id: 'a', label: 'y = 14' }, { id: 'b', label: 'x = 14' }, { id: 'c', label: 'x = 4' }, { id: 'd', label: 'y = 4' }] };
+
+test('an { id, label } choice previews its label, not its id', () => {
+  assert.deepEqual(previewFigures('c'), { points: [], lines: [], verticalLines: [], horizontalLines: [] }, 'the id draws nothing');
+  assert.equal(choicePreviewLabel(LINE_Q, 'c'), 'x = 4');
+  assert.deepEqual(previewFigures(choicePreviewLabel(LINE_Q, 'c')).verticalLines, [4]);
+  assert.deepEqual(previewFigures(choicePreviewLabel(LINE_Q, 'd')).horizontalLines, [4]);
+  assert.equal(choicePreviewLabel({ choices: ['(-2,5)', '(2,5)'] }, '(2,5)'), '(2,5)', 'a plain string choice is its own label');
+  assert.equal(choicePreviewLabel(LINE_Q, null), '');
+  assert.equal(choicePreviewLabel(LINE_Q, ''), '');
+});
+
+test('the given graph draws under the preview, authored as a model or as structured functions', () => {
+  const evaluators = (graph) => previewGivenEvaluators({ graph, evaluateModel: evaluateModelAt, evaluateSpec: evaluateStaticGraphFunction });
+  const structured = evaluators({ functions: [{ type: 'line', m: -0.5, b: 4 }] });
+  assert.equal(structured.length, 1);
+  assert.equal(structured[0](2), 3);
+  const model = evaluators({ model: '2x - 3' });
+  assert.equal(model[0](1), -1);
+  assert.equal(evaluators({ model: '2x - 3', functions: [{ type: 'line', m: -0.5, b: 4 }] }).length, 2);
+  assert.deepEqual(evaluators({}), []);
+});
+
+test('the runner previews the selected label and draws the given graph', () => {
+  const source = readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('function ChoicePreviewGraph'), source.indexOf('\n}\n', source.indexOf('function ChoicePreviewGraph')));
+  assert.match(body, /const shown = choicePreviewLabel\(stage, value\)/);
+  assert.match(body, /previewFigures\(shown\)/);
+  assert.doesNotMatch(body, /previewFigures\(value\)/);
+  assert.match(body, /previewGivenEvaluators\(\{/);
+  assert.match(body, /Showing \$\{shown\} on the graph/);
 });

@@ -25,7 +25,14 @@ const WORDS = {
     le: 'is less than or equal to', ge: 'is greater than or equal to', ne: 'is not equal to', lt: 'is less than', gt: 'is greater than',
     eq: 'equals', pm: 'plus or minus', infinity: 'infinity', times: 'times', divided: 'divided by', plus: 'plus', minus: 'minus',
     negative: 'negative', abs: 'the absolute value of', point: 'the point', pi: 'pi', percent: 'percent', dollars: 'dollars',
-    quantity: 'the quantity',
+    dollar: 'dollar', cent: 'cent', cents: 'cents', moneyAnd: 'and', composed: 'composed with',
+    matrix: (rows, columns) => `a ${rows} by ${columns} matrix`, row: 'row', endMatrix: 'end matrix', determinant: 'the determinant of',
+    quantity: 'the quantity', by: 'by',
+    fraction: 'the fraction', endFraction: 'end fraction', endRoot: 'end root', root: (n) => `the ${n}th root of`,
+    degrees: 'degrees', repeating: 'repeating', segment: 'segment', ray: 'ray', sub: 'sub', endSub: '',
+    approx: 'is approximately equal to', cong: 'is congruent to', sim: 'is similar to', parallel: 'is parallel to',
+    perp: 'is perpendicular to', angle: 'angle', triangle: 'triangle', in: 'is in', theta: 'theta',
+    setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -33,7 +40,14 @@ const WORDS = {
     le: 'es menor o igual que', ge: 'es mayor o igual que', ne: 'no es igual a', lt: 'es menor que', gt: 'es mayor que',
     eq: 'es igual a', pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
     negative: 'negativo', abs: 'el valor absoluto de', point: 'el punto', pi: 'pi', percent: 'por ciento', dollars: 'dólares',
-    quantity: 'la cantidad',
+    dollar: 'dólar', cent: 'centavo', cents: 'centavos', moneyAnd: 'con', composed: 'compuesta con',
+    matrix: (rows, columns) => `una matriz de ${rows} por ${columns}`, row: 'fila', endMatrix: 'fin de matriz', determinant: 'el determinante de',
+    quantity: 'la cantidad', by: 'por',
+    fraction: 'la fracción', endFraction: 'fin de fracción', endRoot: 'fin de raíz', root: (n) => `la raíz ${n} de`,
+    degrees: 'grados', repeating: 'periódico', segment: 'segmento', ray: 'rayo', sub: 'sub', endSub: '',
+    approx: 'es aproximadamente igual a', cong: 'es congruente con', sim: 'es semejante a', parallel: 'es paralela a',
+    perp: 'es perpendicular a', angle: 'ángulo', triangle: 'triángulo', in: 'pertenece a', theta: 'theta',
+    setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de',
   },
 };
 
@@ -42,43 +56,239 @@ export const SPEECH_LANGUAGES = Object.freeze(Object.keys(WORDS));
 const wordsFor = (language) => WORDS[String(language || 'en').toLowerCase().split('-')[0]] || WORDS.en;
 
 // One-letter names that are functions when followed by "(": f(x), g(2), C(n).
-// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product.
-const FUNCTION_LETTERS = 'fghpqrstuvwCPAVRNTDHGF';
+// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product. j is a
+// function: Algebra I names a fourth function j(x) far more often than it
+// multiplies by a variable j (Oct 2026: "j times the quantity x equals 2x − 1").
+const FUNCTION_LETTERS = 'fghjpqrstuvwCPAVRNTDHGF';
 
-const latexToSpeech = (raw, w) => String(raw)
-  .replace(/\$\$?/g, ' ')
-  .replace(/\\\(|\\\)|\\\[|\\\]/g, ' ')
-  .replace(/\\[dt]?frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, ` $1 ${w.over} $2 `)
-  .replace(/\\sqrt\[3\]\s*\{([^{}]+)\}/g, ` ${w.cubeRoot} $1 `)
-  .replace(/\\sqrt\s*\{([^{}]+)\}/g, ` ${w.squareRoot} $1 `)
-  .replace(/\\log_\{?(\w+)\}?/g, ` ${w.logBase} $1 ${w.of} `)
-  .replace(/\\le(q)?\b/g, ' ≤ ')
-  .replace(/\\ge(q)?\b/g, ' ≥ ')
-  .replace(/\\ne(q)?\b/g, ' ≠ ')
-  .replace(/\\pm\b/g, ' ± ')
-  .replace(/\\infty/g, ' ∞ ')
-  .replace(/\\cdot|\\times/g, ' × ')
-  .replace(/\\div/g, ' ÷ ')
-  .replace(/\\pi\b/g, ' π ')
-  .replace(/\\left|\\right/g, ' ')
-  .replace(/\\%/g, '%')
-  .replace(/\\[a-zA-Z]+/g, ' ')
-  .replace(/\^\{([^{}]+)\}/g, '^($1)')
-  .replace(/[{}]/g, ' ');
+// Any other letter is a function where the text itself DEFINES it as one:
+// "c(x) = 5x + 20", "Let m(t) = …" (Q-21 / PR-29: c, d, m and n were read as
+// products — "c times the quantity x"). A definition is a letter applied to
+// one other letter and followed by "=", so x(x + 1) = 6 and the point-slope
+// "y − 2 = m(x − 6)" stay products: neither defines a function.
+const DEFINITION = /(?<![A-Za-z\\])([A-Za-z])\s*\(\s*([A-Za-z])\s*\)\s*=(?!=)/g;
+
+/** The one-letter function names a text defines ("c(x) = …"), as a string of letters. */
+export const definedFunctionNames = (raw) => {
+  const text = String(raw ?? '').replace(/\\(?:left|right)(?![A-Za-z])/g, '');
+  const names = new Set();
+  for (const match of text.matchAll(DEFINITION)) {
+    if (match[1] !== match[2]) names.add(match[1]);
+  }
+  return [...names].join('');
+};
+
+const functionLettersFor = (extra = '') => {
+  const letters = new Set(FUNCTION_LETTERS);
+  String(extra || '').split('').filter((letter) => /^[A-Za-z]$/.test(letter)).forEach((letter) => letters.add(letter));
+  return [...letters].join('');
+};
+
+/*
+ * MONEY, said the way a person says it: "$4.50" is "4 dollars and 50 cents",
+ * "$1" is "1 dollar", "$0.99" is "99 cents". An amount with more than two
+ * decimal places is not money a person would say in cents; it keeps the
+ * plain "4.505 dollars".
+ */
+const priceSpeech = (amount, w) => {
+  const [whole, decimals = ''] = String(amount).split('.');
+  if (decimals.length > 2) return `${amount} ${w.dollars}`;
+  const dollars = Number(whole.replace(/,/g, ''));
+  const cents = decimals ? Number(decimals.padEnd(2, '0')) : 0;
+  const dollarWords = `${whole} ${dollars === 1 ? w.dollar : w.dollars}`;
+  if (!cents) return dollarWords;
+  const centWords = `${cents} ${cents === 1 ? w.cent : w.cents}`;
+  return dollars === 0 ? centWords : `${dollarWords} ${w.moneyAnd} ${centWords}`;
+};
+
+/*
+ * A LaTeX matrix, read row by row the way a teacher reads one out:
+ * "a 2 by 2 matrix: row 1: 1, 2; row 2: 3, 4; end matrix". A vmatrix is a
+ * determinant. Each cell is still mathematics ("-1" is "negative 1").
+ */
+const matrixSpeech = (body, environment, w) => {
+  const rows = String(body)
+    .split(/\\\\(?:\[[^\]]*\])?/)
+    .map((row) => row.split('&').map((cell) => cell.trim()))
+    .filter((row) => row.some(Boolean));
+  if (!rows.length) return ' ';
+  const columns = Math.max(...rows.map((row) => row.length));
+  const spoken = rows.map((row, index) => `${w.row} ${index + 1}: ${row.join(', ')}`).join('; ');
+  const lead = /^[vV]matrix$/.test(environment) ? `${w.determinant} ${w.matrix(rows.length, columns)}` : w.matrix(rows.length, columns);
+  return ` ${lead}: ${spoken}; ${w.endMatrix} `;
+};
+const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^{}]*\})?([\s\S]*?)\\end\{\1\}/g;
+
+// f(x − 7) and f(x) − 7 are opposite transformations, so the words must differ:
+// an input of more than one term is "the quantity", as a bracket is everywhere
+// else ("f of the quantity x minus 7" against "f of x minus 7").
+const functionApplicationSpeech = (w) => (match, before, name, argument) => (
+  // An operator after the first character: f(−3) is one term, f(x − 3) is two.
+  // An inner application already read ("d of 2" in c(d(2))) is one term.
+  /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z] ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
+    ? `${before} ${name} ${w.of} ${w.quantity} ${argument} `
+    : `${before} ${name} ${w.of} ${argument} `
+);
+
+// The argument of a LaTeX command, braces balanced: `\frac{x^{2}+1}{3}` has
+// numerator `x^{2}+1`. Returns [argument, indexAfter] or null.
+const readGroup = (text, from) => {
+  let index = from;
+  while (text[index] === ' ') index += 1;
+  if (text[index] !== '{') {
+    // \frac12 — a single token argument.
+    const token = text.slice(index).match(/^\\[A-Za-z]+|^[A-Za-z0-9]/);
+    return token ? [token[0], index + token[0].length] : null;
+  }
+  let depth = 0;
+  for (let cursor = index; cursor < text.length; cursor += 1) {
+    if (text[cursor] === '\\') { cursor += 1; continue; }
+    if (text[cursor] === '{') depth += 1;
+    else if (text[cursor] === '}') {
+      depth -= 1;
+      if (depth === 0) return [text.slice(index + 1, cursor), cursor + 1];
+    }
+  }
+  return null;
+};
+
+// Rewrite every `\command{a}{b}` (innermost first is not needed: the callback
+// recurses into its own arguments).
+const rewriteCommand = (text, pattern, arity, speak) => {
+  let out = '';
+  let cursor = 0;
+  const finder = new RegExp(pattern, 'g');
+  let match;
+  while ((match = finder.exec(text))) {
+    if (match.index < cursor) continue;
+    const args = [];
+    let after = match.index + match[0].length;
+    for (let n = 0; n < arity; n += 1) {
+      const group = readGroup(text, after);
+      if (!group) break;
+      args.push(group[0]);
+      after = group[1];
+    }
+    if (args.length < arity) continue;
+    out += text.slice(cursor, match.index) + speak(...args, match);
+    cursor = after;
+    finder.lastIndex = after;
+  }
+  return out + text.slice(cursor);
+};
+
+// A fraction part that is more than one number or letter needs its edges said
+// aloud: "x² + 1 over 3" could be x² + (1/3).
+const isSimplePart = (part) => /^\s*-?\s*(?:\d+(?:\.\d+)?|[A-Za-z]|\\pi)\s*$/.test(part);
+
+const latexToSpeech = (raw, w) => {
+  let text = String(raw)
+    // An escaped dollar is a price, not a delimiter.
+    .replace(/\\\$/g, '\uE002')
+    .replace(/\$\$?/g, ' ')
+    .replace(MATRIX_ENVIRONMENT, (match, environment, body) => matrixSpeech(body, environment, w))
+    .replace(/\\det(?![A-Za-z])/g, ` ${w.determinant} `)
+    // (f \circ g)(x): between two names \circ is composition, not degrees.
+    .replace(/([A-Za-z])\s*\\circ(?![A-Za-z])\s*(?=[A-Za-z])/g, '$1 ∘ ')
+    .replace(/\\\(|\\\)|\\\[|\\\]/g, ' ')
+    // Sizing only: \left( is "(".
+    .replace(/\\(?:left|right|big|Big|bigg|Bigg)(?![A-Za-z])/g, '')
+    .replace(/\\[,;:! ]/g, ' ')
+    // `~` is a LaTeX non-breaking space, never a word.
+    .replace(/~/g, ' ')
+    .replace(/\\\{/g, ` ${w.setOpen} `)
+    .replace(/\\\}/g, ` ${w.setClose} `);
+  text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)(?![A-Za-z])\s*`, 1, (body) => ` ${body} `);
+  // 0.\overline{3}: a repeating decimal; \overline{AB}: segment AB.
+  text = rewriteCommand(text, String.raw`(\d\.?\d*)?\\overline(?![A-Za-z])\s*`, 1, (body, match) => (
+    match[1] ? ` ${match[1]}${body} ${w.repeating} ` : ` ${w.segment} ${body} `
+  ));
+  text = rewriteCommand(text, String.raw`\\overrightarrow(?![A-Za-z])\s*`, 1, (body) => ` ${w.ray} ${body} `);
+  for (let pass = 0; pass < 4 && /\\[dt]?frac|\\sqrt/.test(text); pass += 1) {
+    text = rewriteCommand(text, String.raw`\\[dt]?frac(?![A-Za-z])\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
+      ? ` ${top} ${w.over} ${bottom} `
+      : ` ${w.fraction} ${top} ${w.over} ${bottom} ${w.endFraction} `));
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, 1, (body) => ` ${w.cubeRoot} ${body} `);
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, 1, (body, match) => ` ${w.root(match[1])} ${body} `);
+    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*`, 1, (body) => (isSimplePart(body)
+      ? ` ${w.squareRoot} ${body} `
+      : ` ${w.squareRoot} ${body} ${w.endRoot} `));
+  }
+  // A command ends at the first non-letter, never at `\b`: there is no word
+  // boundary between a letter and a digit, so `\ge15`, `\pi2` and `\ne4`
+  // fell through to the catch-all below and their words were lost (QA M4).
+  // The lookahead also keeps a short name off a longer one (`\ln` / `\lnot`).
+  return text
+    // log base b of (x): the bracket is the argument, not a product.
+    .replace(/\\log_\{?(\w+)\}?\s*\(([^()]*)\)/g, ` ${w.logBase} $1 ${w.of} $2 `)
+    .replace(/\\log_\{?(\w+)\}?/g, ` ${w.logBase} $1 ${w.of} `)
+    .replace(/\\(sin|cos|tan|ln|log)\s*\(([^()]*)\)/g, ' $1 $2 ')
+    .replace(/\^\s*\{?\s*\\circ\s*\}?/g, ` ${w.degrees} `)
+    .replace(/\\circ(?![A-Za-z])/g, ` ${w.degrees} `)
+    .replace(/°/g, ` ${w.degrees} `)
+    .replace(/\\le(q)?(?![A-Za-z])/g, ' ≤ ')
+    .replace(/\\ge(q)?(?![A-Za-z])/g, ' ≥ ')
+    .replace(/\\ne(q)?(?![A-Za-z])/g, ' ≠ ')
+    .replace(/\\lt(?![A-Za-z])/g, ' < ')
+    .replace(/\\gt(?![A-Za-z])/g, ' > ')
+    .replace(/\\approx(?![A-Za-z])/g, ` ${w.approx} `)
+    .replace(/\\cong(?![A-Za-z])/g, ` ${w.cong} `)
+    .replace(/\\sim(?![A-Za-z])/g, ` ${w.sim} `)
+    .replace(/\\parallel(?![A-Za-z])/g, ` ${w.parallel} `)
+    .replace(/\\perp(?![A-Za-z])/g, ` ${w.perp} `)
+    .replace(/\\angle(?![A-Za-z])/g, ` ${w.angle} `)
+    .replace(/\\triangle(?![A-Za-z])/g, ` ${w.triangle} `)
+    .replace(/\\in(?![A-Za-z])/g, ` ${w.in} `)
+    .replace(/\\pm(?![A-Za-z])/g, ' ± ')
+    .replace(/\\infty(?![A-Za-z])/g, ' ∞ ')
+    .replace(/\\(?:cdot|times)(?![A-Za-z])/g, ' × ')
+    .replace(/\\div(?![A-Za-z])/g, ' ÷ ')
+    .replace(/\\pi(?![A-Za-z])/g, ' π ')
+    .replace(/\\theta(?![A-Za-z])/g, ` ${w.theta} `)
+    .replace(/\\%/g, '%')
+    .replace(/\\(sin|cos|tan|ln|log)(?![A-Za-z])/g, ' $1 ')
+    .replace(/\\[a-zA-Z]+/g, ' ')
+    // Subscripts: x_1 is "x sub 1", a_{n-1} is "a sub n minus 1".
+    .replace(/_\{([^{}]+)\}/g, ` ${w.sub} $1 ${w.endSub} `)
+    .replace(/_([A-Za-z0-9])/g, ` ${w.sub} $1 `)
+    .replace(/\^\{([^{}]+)\}/g, '^($1)')
+    .replace(/[{}]/g, ' ')
+    .replace(/\uE002/g, '$');
+};
 
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
-const plainMathToSpeech = (raw, w) => {
+const plainMathToSpeech = (raw, w, functionNames = '') => {
   let text = ` ${raw} `;
+  const letters = functionLettersFor(functionNames);
+  // The last word of every operator phrase: a bracket after one of these is a
+  // new quantity, not a product ("x equals the quantity …", never "equals
+  // times the quantity").
+  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity]
+    .map((word) => word.split(' ').pop());
   // Coordinates: a bracket group of two or three comma-separated values.
   text = text.replace(/\(\s*([^(),]+?)\s*,\s*([^(),]+?)\s*(?:,\s*([^(),]+?)\s*)?\)/g, (match, a, b, c) => (
     ` ${w.point} ${a}, ${b}${c ? `, ${c}` : ''} `
   ));
   text = text
     .replace(/\|([^|]+)\|/g, ` ${w.abs} $1 `)
-    .replace(new RegExp(`(^|[^A-Za-z])([${FUNCTION_LETTERS}])\\(([^()]+)\\)`, 'g'), `$1 $2 ${w.of} $3 `)
-    .replace(/√\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
+    // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
+    // applied — "f plus g of x", never "the quantity f plus g times x".
+    .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘])\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
+      const word = { '+': w.plus, '-': w.minus, '−': w.minus, '/': w.over, '∘': w.composed }[operator] || w.times;
+      return functionApplicationSpeech(w)(match, ` ${left} ${word}`, right, argument);
+    })
+    .replace(/∘/g, ` ${w.composed} `);
+  // f(g(2)) is applied from the inside out: each pass reads one level.
+  const application = new RegExp(`(^|[^A-Za-z])([${letters}])\\(([^()]+)\\)`, 'g');
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = text.replace(application, functionApplicationSpeech(w));
+    if (next === text) break;
+    text = next;
+  }
+  text = text
+    .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
-    .replace(/\^\(?-1\)?/g, ` ${w.inverse} `)
+    .replace(/\^\(?-1\)?|⁻¹/g, ` ${w.inverse} `)
     .replace(/\^\(?2\)?(?![0-9])|²/g, ` ${w.squared} `)
     .replace(/\^\(?3\)?(?![0-9])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
@@ -95,46 +305,80 @@ const plainMathToSpeech = (raw, w) => {
     .replace(/[×·*]/g, ` ${w.times} `)
     .replace(/÷/g, ` ${w.divided} `)
     .replace(/(\d)\s*%/g, `$1 ${w.percent}`)
-    .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, `$1 ${w.dollars}`)
+    .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (match, amount) => priceSpeech(amount, w))
     // a/b — a fraction, read "a over b". The denominator is one number, one
     // letter or one bracket, so "-2/3x" is "negative 2 over 3 x".
     .replace(/([A-Za-z0-9.)]+)\s*\/\s*(\d+(?:\.\d+)?|[A-Za-z]|\([^()]*\))/g, ` $1 ${w.over} $2 `)
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
-    .replace(/([A-Za-z0-9])\s*\(/g, '$1\uE000(')
+    .replace(/([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
     .replace(/\uE000/g, ` ${w.times} `)
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
-  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power]
-    .map((word) => word.split(' ').pop());
   text = text.replace(/(\S*)\s*[-−]\s*(?=[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();
-    const unary = !previous || /[(,[]$/.test(previous) || operatorWords.includes(previous);
+    const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
   });
   return text.replace(/[()[\]]/g, ' ');
 };
 
 /** Speech for one math segment. */
-export const mathToSpeech = (raw, { language = 'en' } = {}) => {
+export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  // A price is not a LaTeX span: "$4.50" is "4.50 dollars".
+  // A price is not a LaTeX span: "$4.50" is "4 dollars and 50 cents".
   const price = String(raw).trim().match(/^\$(\d[\d,]*(?:\.\d+)?)$/);
-  if (price) return `${price[1]} ${w.dollars}`;
-  return plainMathToSpeech(latexToSpeech(raw, w), w).replace(/\s+/g, ' ').trim();
+  if (price) return priceSpeech(price[1], w);
+  const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
+  return plainMathToSpeech(latexToSpeech(raw, w), w, names).replace(/\s+/g, ' ').trim();
 };
 
 /**
  * Text a speech engine should say for a prompt (prose untouched, every math
  * segment spoken). Empty for empty input.
  */
-export const speechTextFor = (raw, { language = 'en' } = {}) => {
-  const text = String(raw ?? '');
+/*
+ * The named forms of a line, said letter by letter (review of pass 3, R-3):
+ * an engine reads "mx" as one sound, "By" as the word "by", and leaves "y₁"
+ * to guess. Point-slope form is said in full ("y minus y sub 1 equals m times
+ * the quantity x minus x sub 1"); any other subscript digit is "sub N".
+ */
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const spokenLineForms = (text, w) => text
+  .replace(/\by\s*[-−]\s*y₁\s*=\s*m\s*\(\s*x\s*[-−]\s*x₁\s*\)/g,
+    `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
+  .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')
+  .replace(/\bAx\s*\+\s*By\s*=\s*C\b/g, 'A x + B y = C')
+  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`);
+
+export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
+  const w = wordsFor(language);
+  const text = spokenLineForms(String(raw ?? ''), w);
   if (!text.trim()) return '';
-  return segmentMathText(text)
-    .map((segment) => (segment.kind === 'math' ? ` ${mathToSpeech(segment.value, { language })} ` : segment.value))
+  // A name the text defines anywhere ("Let c(x) = …") is a function in every
+  // later sentence too ("Find c(4).").
+  const names = `${functionNames || ''}${definedFunctionNames(text)}`;
+  const segments = segmentMathText(text);
+  const dimensionsText = /dimension|matri|dimensi/i.test(text);
+  return segments
+    .map((segment, index) => {
+      // "1st": the number is split from its suffix, and "1 st" is read
+      // "one street". It stays one word.
+      if (segment.kind === 'math' && /^\d+$/.test(segment.value) && /^(?:st|nd|rd|th)\b/.test(segments[index + 1]?.value || '')) return segment.value;
+      // "3 × 2" in a sentence about a matrix's dimensions is "3 by 2".
+      if (segment.kind === 'math' && dimensionsText && /^\d+\s*[×x]\s*\d+$/.test(segment.value.trim())) {
+        return ` ${segment.value.trim().replace(/\s*[×x]\s*/, ` ${w.by} `)} `;
+      }
+      if (segment.kind === 'math') return ` ${mathToSpeech(segment.value, { language, functionNames: names })} `;
+      // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
+      // escaped price ("\\$4.50" outside a span) loses its backslash.
+      const prose = /^\$\d/.test(segments[index + 1]?.value || '') ? segment.value.replace(/\\$/, '') : segment.value;
+      // "$x$-terms" is "x terms": the hyphen joins a word to the math.
+      const joined = segments[index - 1]?.kind === 'math' ? prose.replace(/^[-‐‑](?=\p{L})/u, ' ') : prose;
+      return joined.replace(/⁻¹/g, ` ${w.inverse}`);
+    })
     .join('')
     .replace(/\s+([,.;:?!])/g, '$1')
     .replace(/\s+/g, ' ')
@@ -147,9 +391,9 @@ export const speechTextFor = (raw, { language = 'en' } = {}) => {
  * Speak a prompt. Returns false when this browser cannot speak (the caller
  * reports that as unavailable — never as used).
  */
-export const speakAloud = (raw, { language = 'en' } = {}) => {
+export const speakAloud = (raw, { language = 'en', functionNames = '' } = {}) => {
   if (typeof window === 'undefined' || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') return false;
-  const spoken = speechTextFor(raw, { language });
+  const spoken = speechTextFor(raw, { language, functionNames });
   if (!spoken) return false;
   const utterance = new window.SpeechSynthesisUtterance(spoken);
   if (language && language !== 'en') utterance.lang = language;

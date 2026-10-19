@@ -338,6 +338,11 @@ function responseFieldToIntent(field = {}, document = {}) {
     inputProfile: inputProfile || undefined,
     answer: field.expected ?? field.answer,
   };
+  // Job P: a Digital SAT number box also takes the decimal the SAT accepts
+  // (functions/shared/answerUtils.mjs reads numberRules).
+  if (clean(document?.assessmentContext?.framework) === "digitalSAT" && ["number", "numeric"].includes(inputProfile)) {
+    out.numberRules = "digitalSAT";
+  }
   if (type) out.type = type;
   Object.keys(out).forEach((key) => out[key] === undefined && delete out[key]);
   return out;

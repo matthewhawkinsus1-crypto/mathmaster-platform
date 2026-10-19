@@ -36,14 +36,20 @@ test('a tool the profile limits to quizzes and tests is not offered in classwork
     todayKey: '2026-10-06',
   });
   const tools = (activityRole) => toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole }).tools;
-  assert.ok(!tools('classwork').includes(SUPPORT_TOOL.VOCABULARY));
-  assert.ok(!tools('practice').includes(SUPPORT_TOOL.VOCABULARY));
+  const universal = (activityRole) => toolsEntitlementFromProfile(profile, { nowValue: NOW, activityRole, universalDesignRole: activityRole }).universal;
+  // Outside its scope the PLAN support is not offered. Since universal design
+  // (job F, product decision 8) every student has Vocabulary in classwork and
+  // practice anyway — as a universal tool, which is never recorded as the
+  // plan's support (supportToolsModel.js toolEvidence).
+  assert.ok(universal('classwork').includes(SUPPORT_TOOL.VOCABULARY));
+  assert.ok(universal('practice').includes(SUPPORT_TOOL.VOCABULARY));
   assert.ok(tools('quiz').includes(SUPPORT_TOOL.VOCABULARY));
+  assert.ok(!universal('quiz').includes(SUPPORT_TOOL.VOCABULARY), 'in scope it is the plan support itself');
   // Unscoped supports, and the language itself, apply everywhere.
   assert.ok(tools('classwork').includes(SUPPORT_TOOL.BREAK_IT_DOWN));
   assert.ok(tools('classwork').includes(SUPPORT_TOOL.TRANSLATE));
   // QuestionEngine asks with the item's own role.
-  assert.match(source('src/QuestionEngine.jsx'), /toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole \}\)/);
+  assert.match(source('src/QuestionEngine.jsx'), /toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole(?:, universalDesignRole: explicitActivityRole)? \}\)/);
 });
 
 // --- My Math Path: tool questions record what they showed -------------------------------------
@@ -69,7 +75,9 @@ test('on a Path tool question, what the tray showed and what was opened travel w
   const engine = region(player, '<QuestionEngine', 'onGrade=', 'Path QuestionEngine mount');
   assert.match(engine, /supportEntitlement=\{engineSupportTools\}/, 'tools from the server list, not the profile');
   assert.match(engine, /onSupportEvidence=\{onEngineSupportEvidence\}/);
-  assert.match(player, /toolsEntitlementFromPath\(\{ applicableSupports, translationLanguage: supportLanguage \}\)/);
+  // The server's list decides plan tools; wave 2 (job H) adds only the
+  // universal role, which is never evidence (universalSupportTools.test.mjs).
+  assert.match(player, /toolsEntitlementFromPath\(\{ applicableSupports, translationLanguage: supportLanguage(?:, activityRole: universalDesignRole)? \}\)/);
   assert.match(player, /foldPathDelivery\(current, record, \{ key: instanceId, applicableSupports \}\)/);
   // Both submit routes (secure payload and canonical grading) carry it.
   assert.equal((player.match(/supportsPresented: engineSupports\.presented,\s*supportsUsed: engineSupports\.used,/g) || []).length, 2);

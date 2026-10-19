@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
@@ -8,6 +9,7 @@ import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
 import StudentRewardsPanel, { useStudentRewards } from './rewards/StudentRewardsPanel.jsx';
 import { buildTeacherRewardsView } from '../../platform/rewards/teacherRewardsModel.js';
+import { DISTRICT_ID_STATUS, describeStudentDistrictId } from '../../platform/teacher/studentDistrictIdModel.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -51,7 +53,7 @@ const PANEL = {
 
 const fact = (label, value) => (
   <div key={label}>
-    <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{label}</div>
+    <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{label}</div>
     <div style={{ marginTop: 2, fontWeight: 700 }}>{value}</div>
   </div>
 );
@@ -98,19 +100,14 @@ export default function StudentProfileDrawer({
   // one pulled focus back to Close.
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
-  useEffect(() => {
-    if (!open) return undefined;
-    // Escape closes only the top layer: a service log or profile dialog opened
-    // from this drawer handles its own Escape first (and marks it handled).
-    const onKey = (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
-      if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
-      onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  // Escape (via Dialog) closes only the top layer: a service log or profile
+  // dialog opened from this drawer closes first (Dialog's stack), and a modal
+  // that is not a Dialog (a Toast confirmation) by DOM order.
+  const closeIfTopLayer = () => {
+    const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+    if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
+    onCloseRef.current?.();
+  };
   useEffect(() => {
     // Focus lands on the close control so a keyboard user is inside the drawer,
     // not still tabbing through the page behind it.
@@ -119,6 +116,8 @@ export default function StudentProfileDrawer({
 
   if (!open) return null;
 
+  // Which of the student's two numbers is which (studentDistrictIdModel.js).
+  const district = describeStudentDistrictId({ ...studentRecord, id: studentId || studentRecord?.id });
   const level = courseContext?.courseLevel || classRecord?.courseLevel || 'standard';
   const course = courseContext?.courseId || classRecord?.course || 'algebra1';
   const posture = resolveAdaptiveRigorFromProfile({ courseLevel: level, profile });
@@ -129,15 +128,20 @@ export default function StudentProfileDrawer({
       role="presentation"
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
     >
-      <aside ref={panelRef} style={PANEL} role="dialog" aria-modal="true" aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
+      <Dialog as="aside" ref={panelRef} style={PANEL} onClose={closeIfTopLayer} initialFocusRef={closeRef} aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
         <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0 }}>
-              <h2 style={{ margin: 0, fontSize: 20 }}>{studentName}</h2>
-              <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 13 }}>
+              <h2 style={{ margin: 0, fontSize: 'calc(20 * var(--mm-px))' }}>{studentName}</h2>
+              <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {classRecord?.name || courseContext?.classPeriod || 'No class'} · {courseLabel(course)} · {courseLevelLabel(level)}
-                {studentId ? ` · ID ${studentId}` : ''}
+                {studentId ? ` · MathMaster ID ${studentId}` : ''}
+                {district.status === DISTRICT_ID_STATUS.DIFFERS ? ` · District ID ${district.districtId}` : ''}
               </div>
+              {/* Read-only here: a district ID is managed in Student Access. */}
+              {district.status === DISTRICT_ID_STATUS.DIFFERS && (
+                <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{district.note}</div>
+              )}
             </div>
             <button
               type="button"
@@ -155,7 +159,7 @@ export default function StudentProfileDrawer({
           </div>
 
           {courseContext?.source === 'periodFallback' && (
-            <p style={{ margin: '12px 0 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
+            <p style={{ margin: '12px 0 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
               This student has no class record, so their course was inferred from their class period. Give them a class in Administration and this becomes authoritative.
             </p>
           )}
@@ -191,8 +195,8 @@ export default function StudentProfileDrawer({
             >
               <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-                  <h3 style={{ margin: 0, fontSize: 15, color: 'var(--mm-text-strong)' }}>Academic evidence deep dive</h3>
-                  <p style={{ margin: '3px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
+                  <h3 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Academic evidence deep dive</h3>
+                  <p style={{ margin: '3px 0 0', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
                     One case file for a marking period or date range: every question and attempt, grade contributions, skills, DOL vs instruction,
                     completion, support evidence, and facts for a parent, administrator or ARD narrative.
                   </p>
@@ -229,8 +233,8 @@ export default function StudentProfileDrawer({
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
 
           <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-border-soft)' }}>
-            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Support & intervention history</h3>
-            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 'calc(16 * var(--mm-px))' }}>Support & intervention history</h3>
+            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
               System signals, teacher confirmations, dismissals and actions remain separate in this append-only history.
             </p>
             {supportEvents.length ? (
@@ -241,26 +245,26 @@ export default function StudentProfileDrawer({
                   return (
                     <div key={event.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: 12.5 }}>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong>
-                        <span style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>{when}</span>
+                        <strong style={{ fontSize: 'calc(12.5 * var(--mm-px))' }}>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong>
+                        <span style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>{when}</span>
                       </div>
-                      <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
+                      <div style={{ marginTop: 2, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                         {SUPPORT_STAGE_LABEL[event.stage] || event.stage}{event.source ? ` · ${event.source}` : ''}
                       </div>
-                      {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.4 }}>{event.summary}</div>}
-                      {event.note && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
+                      {event.summary && <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.4 }}>{event.summary}</div>}
+                      {event.note && <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
+              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(12.5 * var(--mm-px))' }}>No stored support/intervention events for this student yet.</div>
             )}
           </section>
 
           <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-border-soft)' }}>
-            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Recent class-session summaries</h3>
-            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 'calc(16 * var(--mm-px))' }}>Recent class-session summaries</h3>
+            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))' }}>
               Objective platform counts only. These summaries are supporting context, not behavior or integrity findings unless a teacher separately confirms a concern above.
             </p>
             {sessionSummaries.length ? (
@@ -273,10 +277,10 @@ export default function StudentProfileDrawer({
                   return (
                     <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: 12.5 }}>{summary.assignmentTitle || 'Assignment session'}</strong>
-                        <span style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>{when}</span>
+                        <strong style={{ fontSize: 'calc(12.5 * var(--mm-px))' }}>{summary.assignmentTitle || 'Assignment session'}</strong>
+                        <span style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>{when}</span>
                       </div>
-                      <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
+                      <div style={{ marginTop: 3, fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
                         {activeMinutes} active min of {elapsedMinutes} elapsed · {Number(summary.answered) || 0} answered
                         {summary.accuracy != null ? ` · ${summary.accuracy}% correct` : ''}
                         {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus-loss event${Number(summary.focusLossCount) === 1 ? '' : 's'}` : ''}
@@ -286,7 +290,7 @@ export default function StudentProfileDrawer({
                 })}
               </div>
             ) : (
-              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12.5 }}>No archived class-session summaries yet.</div>
+              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(12.5 * var(--mm-px))' }}>No archived class-session summaries yet.</div>
             )}
           </section>
         </div>
@@ -314,11 +318,11 @@ export default function StudentProfileDrawer({
               Open grades
             </button>
           )}
-          <span style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
+          <span style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
             Recording support evidence never changes this student&apos;s plan.
           </span>
         </footer>
-      </aside>
+      </Dialog>
     </div>
   );
 }

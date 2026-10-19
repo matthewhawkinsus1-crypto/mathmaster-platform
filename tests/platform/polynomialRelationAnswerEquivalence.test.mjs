@@ -32,7 +32,12 @@ test('polynomial relation still rejects a different parabola', () => {
 });
 
 test('generic sameValue remains form-sensitive for unrelated equation fields', () => {
-  assert.equal(sameValue('(x-3)^2=8(y+2)', '8(y+2)=(x-3)^2'), false);
+  // Job P (item 5): the same equation with its sides swapped is right
+  // everywhere now; each side keeps its form. Solving for y is still a
+  // different form, accepted only where a field opts into relation equivalence.
+  assert.equal(sameValue('(x-3)^2=8(y+2)', '8(y+2)=(x-3)^2'), true);
+  assert.equal(sameValue('y=(x-3)^2/8-2', '(x-3)^2=8(y+2)'), false);
+  assert.equal(sameValue('(x-3)^2=8y+16', '(x-3)^2=8(y+2)'), false);
 });
 
 test('private grading routes only explicitly marked fields through polynomial relation equivalence', async () => {

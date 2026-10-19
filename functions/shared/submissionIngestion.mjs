@@ -140,6 +140,33 @@ export const withAuthoritativeActivityRole = ({ envelope, question = null } = {}
   return { ...envelope, activityRole: authoritative };
 };
 
+/*
+ * ON A TEST CYCLE, ONLY THE SECURE STAGES ARE SECURE. REVIEW IS ORDINARY WORK.
+ *
+ * Ingestion, question progress and checkpoint finalization used to refuse a
+ * whole Test Cycle assignment ("secure-assignment-excluded"). But none of a
+ * cycle's secure work is in the assignment's runtime questions: the Test and
+ * Retest are issued item by item through exam sessions, and preflight refuses
+ * a cycle that authors a secure stage as student-visible content. What IS in
+ * them is the Review: instructional, hints allowed, and the thing the Test
+ * gate reads from `gradesByAssignment`. Refusing it meant a student's Review
+ * answers were acknowledged on the device and never reached the server, so
+ * the teacher saw 0/12 after every refresh and Review could never unlock the
+ * Test. The mastery-gated Review grading below was written for exactly these
+ * submissions and could not run.
+ *
+ * So: an assignment flagged `secure` is refused whole, as before. On a Test
+ * Cycle, a question whose role in the SERVER'S copy of the assignment is
+ * `review` is ordinary work; any other question stays refused. The role is
+ * the stored question's, never the envelope's, so a device cannot claim
+ * "review" to have anything else accepted.
+ */
+export const excludedAsSecureWork = ({ testCycle = false, secure = false, question = null } = {}) => {
+  if (secure === true) return true;
+  if (testCycle !== true) return false;
+  return trimmed(question?.activityRole).toLowerCase() !== 'review';
+};
+
 /**
  * Does this envelope describe the question the server is holding?
  *
@@ -302,6 +329,18 @@ export const decideQuestionProgress = ({
   return outcome(SUBMISSION_DISPOSITION.ACCEPTED, record ? null : 'time-already-recorded', record);
 };
 
+/**
+ * Is this question finished under the server's own attempt limit? `correct`,
+ * or `expired` with no attempt left — the rule recordQuestionAttempt and
+ * recordQuestionStep apply. A teacher-granted extra attempt raises the limit,
+ * which is how it reopens an expired question.
+ */
+export const questionIsFinal = (record, maximumAttempts) => {
+  const current = normalizeQuestionRecord(record);
+  if (current.status === 'correct') return true;
+  return current.status === 'expired' && getAttemptsRemaining(current, Math.max(1, finite(maximumAttempts, 3))) <= 0;
+};
+
 /*
  * SANITIZING A BROWSER-SUPPLIED ATTEMPT RECORD.
  *
@@ -421,7 +460,7 @@ export const sanitizeClientAttemptRecord = ({
   // TERMINAL STAYS TERMINAL — the same rule recordQuestionAttempt and
   // recordQuestionStep apply to a server-graded attempt. Nothing the browser
   // claims about a finished question is recorded.
-  if (canonical.status === 'correct' || (canonical.status === 'expired' && getAttemptsRemaining(canonical, attemptLimit) <= 0)) {
+  if (questionIsFinal(canonical, attemptLimit)) {
     return canonical;
   }
 
@@ -569,6 +608,26 @@ export const buildIngestedAttempt = ({
     activityPolicy,
     teacherGrantedExtraAttempts,
   });
+  /*
+   * A FINISHED QUESTION RECORDS NOTHING MORE.
+   *
+   * Correct, or expired with no attempt left under this limit: no attempt can
+   * count, so nothing is built to be written — not the record, not the
+   * teacher's response evidence, not an attempt's evidence event, not the
+   * question's checkpoint. Such a delivery used to come back ACCEPTED with no
+   * attempt counted, yet restamp the record as its own (`lastSubmissionId`,
+   * `submissionOrigin`), replace the evidence of the response that DID count
+   * with the one that did not, overwrite the final attempt's evidence event
+   * (keyed by attempt number) and mark a deadline's auto-submitted checkpoint
+   * "explicitly submitted". A Warm-Up the deadline closed and a teacher then
+   * reopened is where one can arrive. `final` tells the caller to retire it
+   * (SUPERSEDED: a newer — the final — attempt already counts); `record` is
+   * the canonical record as it stands. A replacement is the one submission a
+   * finished question still takes: it starts a new version.
+   */
+  if (envelope.kind !== 'questionReplacement' && questionIsFinal(canonical, maximumAttempts)) {
+    return { blocked: false, final: true, reason: 'question-already-final', record: canonical, gradedBy: null };
+  }
   let regrade = family.familyBacked && !family.question
     ? { regrade: false, reason: family.reason }
     : serverCanRegradeEnvelope({ envelope, question: gradingQuestion });
@@ -616,8 +675,9 @@ export const buildIngestedAttempt = ({
    * record, its stepGrades and its partial credit are not read at all. A
    * step that does not follow from a state this variant has been in, or is
    * not what its operation produces, is recorded as an `unverified-step`
-   * that earns nothing; an attempt it spends (a rejected or inefficient
-   * move) is still spent. recordQuestionStep never completes a question.
+   * that earns nothing. No step spends an attempt (decision D1:
+   * stepActionCountsAttempt), so a step an older workspace charged for is
+   * not charged here. recordQuestionStep never completes a question.
    *
    * A step without stepWork — queued by a client built before step work
    * existed — keeps the sanitized path below, unchanged. So does a step whose
@@ -837,6 +897,8 @@ export const buildIngestedAttempt = ({
         classId: gradeDocument?.classId || null,
         at: academicAt,
         timeZone,
+        // Their extra time stretches a teacher's reopen too (decision D7).
+        studentProfile: gradeDocument?.profile || null,
       }),
     })
     : null;

@@ -1,5 +1,6 @@
 const { google } = require("googleapis");
 const { getFirestore } = require("firebase-admin/firestore");
+const { CLASSROOM_ERROR_STEPS, classroomStep } = require("./classroomPushErrors");
 const {
   readGoogleClientId,
   readGoogleClientSecret,
@@ -479,12 +480,12 @@ async function findSubmissionForStudent(
   classroom,
   { courseId, courseWorkId, googleUserId }
 ) {
-  const res = await classroom.courses.courseWork.studentSubmissions.list({
+  const res = await classroomStep(CLASSROOM_ERROR_STEPS.findSubmission, () => classroom.courses.courseWork.studentSubmissions.list({
     courseId,
     courseWorkId,
     userId: googleUserId,
     pageSize: 10,
-  });
+  }));
   const [submission] = res.data.studentSubmissions || [];
   return submission || null;
 }
@@ -498,13 +499,13 @@ async function patchGrade(
 ) {
   const requestBody = { draftGrade: grade };
   if (assignToStudent) requestBody.assignedGrade = grade;
-  const res = await classroom.courses.courseWork.studentSubmissions.patch({
+  const res = await classroomStep(CLASSROOM_ERROR_STEPS.patchGrade, () => classroom.courses.courseWork.studentSubmissions.patch({
     courseId,
     courseWorkId,
     id: submissionId,
     updateMask: assignToStudent ? "assignedGrade,draftGrade" : "draftGrade",
     requestBody,
-  });
+  }));
   return res.data;
 }
 
@@ -512,12 +513,12 @@ async function returnSubmission(
   classroom,
   { courseId, courseWorkId, submissionId }
 ) {
-  await classroom.courses.courseWork.studentSubmissions.return({
+  await classroomStep(CLASSROOM_ERROR_STEPS.returnSubmission, () => classroom.courses.courseWork.studentSubmissions.return({
     courseId,
     courseWorkId,
     id: submissionId,
     requestBody: {},
-  });
+  }));
   return { state: "RETURNED" };
 }
 

@@ -25,13 +25,21 @@
  * here, in the browser, before anything is shown or saved.
  *
  * A student is matched by SIS id or MathMaster id only. A name match is
- * offered to the teacher and applies only when they confirm that row.
+ * offered to the teacher and applies only when they confirm that row. A
+ * MathMaster id whose district ID was corrected away from it is never a match
+ * key: that number is known not to be this student's district number, and may
+ * be another child's (functions/shared/studentDistrictId.mjs).
  *
  * Nothing here interprets a score. "EX", "M" and blanks are kept as the marks
  * they are; a percentage is computed from points only when the file gives
  * both numbers.
  */
-import { authoritativeSisStudentId } from '../gradeTransfer/gradeTransferModel.js';
+import {
+  accountIdIsSupersededDistrictId,
+  districtIdMatchKeys,
+  effectiveDistrictStudentId,
+  studentAccountIdOf,
+} from '../../../functions/shared/studentDistrictId.mjs';
 import { resolveStudentIdentity, studentNameParts } from '../studentName.js';
 
 export const GRADEBOOK_LAYOUT = Object.freeze({
@@ -338,7 +346,13 @@ const categoriesFrom = (items, notes) => {
 export const extractStudentGradebook = ({ rows = [], layout, student, confirmedRowIndex = null, fileName = '' } = {}) => {
   const data = list(rows);
   const notes = [];
-  const ids = [authoritativeSisStudentId(student), clean(student?.sisStudentId), clean(student?.id)].filter(Boolean);
+  // The district ID first, then the MathMaster id — unless it is a district
+  // number this student's district ID was corrected away from.
+  const ids = districtIdMatchKeys(student);
+  const districtId = effectiveDistrictStudentId(student);
+  const accountId = studentAccountIdOf(student);
+  const supersededId = accountIdIsSupersededDistrictId(student) ? accountId : '';
+  const supersededNote = () => `A row carries ${accountId ? `MathMaster ID ${accountId}` : 'this student’s MathMaster ID'}, which is not this student’s district ID (it was corrected to district ID ${districtId}), so that row is not used. It may be from a file made before the correction, or belong to another student.`;
   const empty = { matchedBy: null, items: [], categories: [], categoryAverages: [], officialAverage: null, otherStudentRowsDiscarded: 0, nameCandidates: [], notes };
 
   if (!layout || layout.layout === GRADEBOOK_LAYOUT.UNKNOWN) return { ...empty, notes: [layout?.reason || 'The file layout was not recognised.'] };
@@ -346,6 +360,7 @@ export const extractStudentGradebook = ({ rows = [], layout, student, confirmedR
   if (layout.layout === GRADEBOOK_LAYOUT.MATHMASTER_TEAMS) {
     const match = data.findIndex((row) => ids.some((id) => sameId(row[0], id)));
     notes.push('This is a MathMaster grade export (a TEAMS upload file). It shows what MathMaster sent, not what the official gradebook holds.');
+    if (match < 0 && supersededId && data.some((row) => sameId(row[0], supersededId))) notes.push(supersededNote());
     if (match < 0) return { ...empty, otherStudentRowsDiscarded: data.length, notes };
     return {
       ...empty,
@@ -371,10 +386,12 @@ export const extractStudentGradebook = ({ rows = [], layout, student, confirmedR
     matched = dataRows.filter((entry) => (idOf(entry.row) || rowName(entry.row, columns)) === key);
     matchedBy = 'teacher-confirmed-row';
   } else if (columns.studentId !== undefined) {
-    const sis = dataRows.filter((entry) => sameId(idOf(entry.row), authoritativeSisStudentId(student) || clean(student?.sisStudentId)));
-    const local = sis.length ? sis : dataRows.filter((entry) => sameId(idOf(entry.row), clean(student?.id)));
+    const sis = districtId ? dataRows.filter((entry) => sameId(idOf(entry.row), districtId)) : [];
+    const accountKey = ids.includes(accountId) ? accountId : '';
+    const local = sis.length || !accountKey ? sis : dataRows.filter((entry) => sameId(idOf(entry.row), accountKey));
     matched = local;
     if (local.length) matchedBy = sis.length ? 'sis-id' : 'mathmaster-id';
+    if (!local.length && supersededId && dataRows.some((entry) => sameId(idOf(entry.row), supersededId))) notes.push(supersededNote());
   }
 
   const studentKeys = new Set(dataRows.map(({ row }) => idOf(row) || norm(rowName(row, columns))).filter(Boolean));

@@ -13,8 +13,10 @@ import {
   studentRouteKey,
 } from '../../src/platform/student/browserHistory.js';
 import { assertCapability, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 const app = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+const lazyScreens = fs.readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8');
 const gradeCenter = fs.readFileSync(
   new URL('../../src/components/student/StudentGradeCenter.jsx', import.meta.url),
   'utf8',
@@ -190,11 +192,18 @@ test('Grades is reachable from Home, and Home is reachable from Grades', () => {
   assert.match(openGradeCenter, /setStudentDashboardMode\(mode\)/);
   assert.match(openGradeCenter, /setActiveView\('dashboard'\)/);
 
+  // The way back to Home is the shared nav (NAV-20): Grades renders it with
+  // App's navigateStudent, Home is one of its phone-primary places, and
+  // navigateStudent opens Home for it.
   assertCapability(
     gradeCenter,
-    [/onBackToHome\?\.\(\)/],
+    [/<StudentGlobalNav\s+current=\{STUDENT_DESTINATION\.GRADES\}\s+onNavigate=\{onNavigate\}/],
     'The Grade Center must offer a route back to Home.',
   );
+  const phonePrimary = region(fs.readFileSync(new URL('../../src/platform/student/navigationModel.js', import.meta.url), 'utf8'), 'export const STUDENT_PHONE_PRIMARY = Object.freeze([', ']);', 'phone primary');
+  assert.match(phonePrimary, /STUDENT_DESTINATION\.HOME/);
+  // Home is navigateStudent's last case: every other destination returned earlier.
+  assert.match(navigate, /\n\s*return openStudentDashboardMode\('assignments'\);\s*\n\s*\};/);
 });
 
 test('the Assignment Result screen can always reach the full Grade Center', () => {
@@ -228,12 +237,17 @@ test('App imports every student grade module it calls', () => {
     ['GRADING_PERIOD_SETTINGS_DOC', 'platform/student/gradingPeriods.js'],
     ['StudentGradeCenter', 'components/student/StudentGradeCenter.jsx'],
     ['StudentAssignmentResult', 'components/student/StudentAssignmentResult.jsx'],
-    ['MarkingPeriodSettings', 'components/teacher/MarkingPeriodSettings.jsx'],
   ]) {
     const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
-    const lazyImport = new RegExp(`const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\/${escapedFrom}'\\)\\)`);
-    assert.ok(staticImport.test(app) || lazyImport.test(app), `${identifier} must be statically or lazily imported from ${from}`);
+    // Lazily: declared in app/lazyScreens.js (the App split) and imported
+    // from there by App.
+    const lazyImport = new RegExp(`export const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\.\\/${escapedFrom}'\\)\\)`);
+    const fromLazyScreens = new RegExp(`\\b${identifier},\\n[\\s\\S]*?\\} from '\\.\\/app\\/lazyScreens\\.js'`);
+    assert.ok(staticImport.test(app) || (lazyImport.test(lazyScreens) && fromLazyScreens.test(app)), `${identifier} must be statically or lazily imported from ${from}`);
     assert.match(app, new RegExp(`<${identifier}[\\s>]|${identifier}\\(|${identifier}\\)`), `${identifier} must actually be used`);
   }
+  // Marking periods are set on the teacher's screen, its own module since G2.
+  assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'MarkingPeriodSettings', 'src/components/teacher/MarkingPeriodSettings.jsx'));
+  assert.match(fs.readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'), /<MarkingPeriodSettings[\s>]/);
 });

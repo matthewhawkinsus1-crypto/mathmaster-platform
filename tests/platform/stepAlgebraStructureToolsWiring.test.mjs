@@ -24,11 +24,15 @@ test('the tools come from the shared models, not an inline second algebra engine
 });
 
 test('a tool is offered only when the committed equation has the structure it acts on', () => {
+  // The tools are the Rewrite menu's entries now (student push Q).
   const offered = region(core, 'const structureOptions = useMemo', 'const updateStructureTool', 'structure detection');
-  assert.match(offered, /detectStructureTools\(pendingMove \? null : equation/, 'nothing is offered during a balanced move');
-  const toolbar = region(core, 'STRUCTURE_TOOL_KINDS\n', 'Cancellation hints', 'structure toolbar');
-  assert.match(toolbar, /structureTool\?\.kind === kind \|\| structureOptions\[kind\]\?\.length/);
-  assert.match(toolbar, /aria-expanded=\{structureTool\?\.kind === kind\}/);
+  assert.match(offered, /rewriteMenuOptions\(pendingMove \? null : equation/, 'nothing is offered during a balanced move');
+  assert.match(offered, /rewriteMenuEntries\(structureOptions, structureTool\?\.kind \|\| null\)/);
+  const menu = read('src/platform/algebra/simplify/rewriteMenu.js');
+  assert.match(menu, /\.filter\(\(kind\) => kind === openKind \|\| \(options\?\.\[kind\] \|\| \[\]\)\.length > 0\)/);
+  const toolbar = region(core, '{rewriteEntries.length > 0 && (', 'Cancellation hints', 'Rewrite menu');
+  assert.match(toolbar, /aria-pressed=\{structureTool\?\.kind === kind\}/);
+  assert.match(toolbar, /aria-expanded=\{rewriteMenuOpen\}/);
 });
 
 test('committing a structure step records it like every other student commit', () => {
@@ -80,16 +84,14 @@ test('open tools and the step log are part of the question draft, and reset with
 
 test('only one tool is open at a time: opening any other tool closes the structure tool', () => {
   for (const [start, end] of [
-    ['const openLikeTermsTool = () =>', 'const chooseLikeTermsSide'],
-    ['const openRewriteTool = () =>', 'const persistStudentRewrite'],
+    ['const toggleSimplifyTool = () =>', 'const chooseSimplifyFromTerm'],
     ['const openDistributionTool = () =>', 'const cancelDistribution'],
     ['const selectOperation = (operation, sourceSide) =>', 'const activateTapPlacement'],
   ]) {
     assert.match(region(core, start, end, start), /setStructureTool\(null\)/, `${start} must close an open structure tool`);
   }
   const toggle = region(core, 'const toggleStructureTool = (kind) =>', 'const commitStructureToolStep', 'toggle');
-  assert.match(toggle, /closeRewriteTool\(\)/);
-  assert.match(toggle, /closeLikeTermsTool\(\)/);
+  assert.match(toggle, /setSimplifyTool\(null\)/);
   assert.match(toggle, /setDistributionState\(null\)/);
 });
 

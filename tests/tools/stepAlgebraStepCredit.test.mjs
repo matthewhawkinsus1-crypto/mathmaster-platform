@@ -24,6 +24,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   applyBalancedOperation,
@@ -33,7 +34,6 @@ import {
   parseEquationInput,
 } from '../../functions/shared/algebra/algebraAstEngine.mjs';
 import {
-  evaluateMove,
   resolveEquationAfterKeepingMove,
   resolveEquationAfterMove,
   resolveEquationAfterStudentSimplification,
@@ -60,7 +60,7 @@ import {
   validateRelationTransition,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { resolveStandardCoefficients } from '../../functions/shared/toolMath/stepAlgebra2/linearInterceptsMath.mjs';
-import { emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
+import { calculateStepPartialCredit, compactStepStateKey, emptyQuestionRecord, recordQuestionStep } from '../../functions/shared/attemptPolicy.mjs';
 import { STEP_WORK_LIMITS, normalizeStepWork } from '../../functions/shared/submissionEnvelope.mjs';
 import { checkLinearIntercept, literalWorkspaceQuestion } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import { IDENTITY, compareIdentically } from '../../functions/shared/serverGrading/stepAlgebraEquivalence.mjs';
@@ -218,10 +218,8 @@ const pendingMove = (session, { operation, operand, placementBySide = {} }) => {
 
 const balance = (session, { operation, operand, placementBySide = {}, resolution = 'normal', crossed = null, answers = {} }) => {
   const move = pendingMove(session, { operation, operand, placementBySide });
-  if (evaluateMove(move, session.supportLevel).countsAttempt) {
-    const spent = step(session, movePayload(session, { move, action: STEP_ACTIONS.INEFFICIENT_MOVE }), `inefficient ${operation} ${operand}`);
-    if (spent.result.expired) return { move, expired: true };
-  }
+  // Decision D1: attemptMove no longer reports an inefficient move before
+  // committing it; a longer route is never charged.
   const struck = crossed ?? move.requiredCancellationSides;
   const typed = Object.fromEntries(Object.entries(answers).map(([side, value]) => [side, latexToExpression(value)]));
   Object.entries(typed).forEach(([side, value]) => {
@@ -253,7 +251,7 @@ const records = (session) => session.records;
 // One definition of what a step earns
 // ===========================================================================
 
-test('the credit table: efficient 2/2, valid 1/2, inefficient attempt 1/2, rejected 0/1, rewrites and relation steps 1/1', () => {
+test('the credit table: efficient 2/2, valid 1/2, inefficient report 1/2, rejected 0/1, rewrites and relation steps 1/1', () => {
   const equation = parseEquationInput(LINEAR);
   const efficient = applyBalancedOperation({ equationState: equation, operation: 'subtract', operand: '6' });
   const longWay = applyBalancedOperation({ equationState: equation, operation: 'add', operand: '2' });
@@ -275,12 +273,12 @@ test('the credit table: efficient 2/2, valid 1/2, inefficient attempt 1/2, rejec
   const relation = parseRelationSource('x > 1', 'x');
   assert.equal(relationStepGrade({ label: 'x', before: relation, after: relation, question: {} }).expectedTotalPoints, 8, 'relations default to 8');
   assert.equal(interceptStepGrade({ standard: { A: 3, B: 4, C: 24 }, intercept: 'x', point: '(8, 0)' }).expectedTotalPoints, 2);
-  // Attempt use, by action.
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.REJECTED_MOVE), true);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE), true);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: true }), false, 'Live Challenge keeps its attempts');
-  [STEP_ACTIONS.BALANCED_MOVE, STEP_ACTIONS.REWRITE, STEP_ACTIONS.RELATION_STEP, STEP_ACTIONS.INTERCEPT_CHECK]
-    .forEach((action) => assert.equal(stepActionCountsAttempt(action), false, action));
+  // Attempt use, by action: none (decision D1 — a valid move or a slip never
+  // spends the question's tries; only submitting the solved equation does).
+  Object.values(STEP_ACTIONS).forEach((action) => {
+    assert.equal(stepActionCountsAttempt(action), false, action);
+    assert.equal(stepActionCountsAttempt(action, { attemptsDoNotExpire: true }), false, action);
+  });
 });
 
 // ===========================================================================
@@ -385,32 +383,41 @@ test('a display label longer than the step-work bound is recorded identically on
   assert.equal(rewritePayload(session, factored, { kind: 'distribution', label: 'Distribute -3 over (2x + 5)' }).stepGrade.label, 'Distribute -3 over (2x + 5)');
 });
 
-test('an inefficient move at Standard spends an attempt on both sides, then commits at 1 of 2', () => {
-  const session = equationSession(LINEAR);
-  const { move } = balance(session, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
-  assert.equal(move.productive, false);
-  assert.equal(records(session).server.attemptCount, 1);
-  assert.equal(records(session).server.stepGrades.length, 2, 'the attempt step and the commit');
-  assert.equal(records(session).server.partialCredit, 0, 'an unproductive move earns no credit');
-  // At Open (level 5) the same move costs nothing and reports once.
-  const open = equationSession(LINEAR, { supportLevel: 5 });
-  balance(open, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
-  assert.equal(records(open).server.attemptCount, 0);
-  assert.equal(records(open).server.stepGrades.length, 1);
+// Decision D1 (docs/qa/student-experience-pass-3.md, RUN-2): until then
+// Standard and Independent charged a try for a longer route.
+test('D1 — an inefficient move spends no attempt at any level, and commits at 1 of 2 on both sides', () => {
+  [1, 2, 3, 4, 5].forEach((supportLevel) => {
+    const session = equationSession(LINEAR, { supportLevel });
+    const { move } = balance(session, { operation: 'add', operand: '2', resolution: 'keep', crossed: [] });
+    assert.equal(move.productive, false);
+    assert.equal(records(session).server.attemptCount, 0, `level ${supportLevel} charged a valid move`);
+    assert.equal(records(session).server.stepGrades.length, 1, 'reported once, as the commit');
+    // The efficiency evidence stays: the step says it was not the helpful move.
+    assert.deepEqual(
+      (({ productive, earned, possible }) => ({ productive, earned, possible }))(records(session).server.stepGrades[0]),
+      { productive: false, earned: 1, possible: 2 },
+    );
+    assert.equal(records(session).server.partialCredit, 0, 'an unproductive move earns no credit');
+  });
 });
 
-test('rejected cancellations and simplifications spend attempts until the version expires — on the server too', () => {
+test('D1 — rejected cancellations and simplifications are recorded but never expire the version — on the server too', () => {
   const session = equationSession(LINEAR);
   const move = pendingMove(session, { operation: 'subtract', operand: '6' });
   // strikeSide on the right (the cancellation is on the left), then a wrong
-  // typed simplification: each is a rejected move that costs an attempt.
+  // typed simplification: each is a slip, recorded as a rejected move. Three
+  // of them used to close the question.
   step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'wrong-side strike');
   step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'wrong simplification');
   const last = step(session, movePayload(session, { move, action: STEP_ACTIONS.REJECTED_MOVE }), 'third rejection');
-  assert.equal(last.result.expired, true);
-  assert.equal(records(session).server.status, 'expired');
-  assert.equal(records(session).server.attemptCount, MAX_ATTEMPTS);
+  assert.equal(last.result.expired, false);
+  assert.equal(records(session).server.status, 'attempted');
+  assert.equal(records(session).server.attemptCount, 0);
+  assert.equal(records(session).server.stepGrades.length, 3, 'each slip is still on the record');
   assert.equal(records(session).server.partialCredit, 0);
+  // The student can still finish: the right move commits after the slips.
+  balance(session, { operation: 'subtract', operand: '6' });
+  assert.ok(records(session).server.partialCredit > 0);
 });
 
 test('Undo and Reset: a step may continue from any state the variant reached, or from the question', () => {
@@ -708,17 +715,25 @@ test('forged credit fields, verdicts and keys in the step work are never read', 
   assert.deepEqual(verdict.stepGrade, honest.stepGrade, 'the credit is the server\'s own');
 });
 
-test('the inefficient-move report is checked: a helpful move claimed as inefficient is not credited, but its attempt is spent', () => {
+test('the inefficient-move report is checked: a helpful move claimed as inefficient is not credited, and spends nothing', () => {
   const session = equationSession(LINEAR);
   const efficient = applyBalancedOperation({ equationState: session.equation, operation: 'subtract', operand: '6' });
   const verdict = verifyOnServer(LINEAR, records(session).server, equationStepWork({
     action: STEP_ACTIONS.INEFFICIENT_MOVE, before: session.equation, move: efficient, supportLevel: 3,
   }));
   expectUnverified(verdict, 'step-move-not-inefficient', 'efficient move');
-  assert.equal(verdict.countsAttempt, true, 'claiming to spend an attempt spends it');
+  // Decision D1: no step spends an attempt, a forged one included.
+  assert.equal(verdict.countsAttempt, false);
+  // An older workspace's honest report of a longer route is still read.
+  const longWay = applyBalancedOperation({ equationState: session.equation, operation: 'add', operand: '2' });
+  const honest = verifyOnServer(LINEAR, records(session).server, equationStepWork({
+    action: STEP_ACTIONS.INEFFICIENT_MOVE, before: session.equation, move: longWay, supportLevel: 5,
+  }));
+  assert.equal(honest.verified, true);
+  assert.equal(honest.countsAttempt, false);
 });
 
-test('a rejected move that fails continuity still spends its attempt', () => {
+test('a rejected move that fails continuity is unverified and spends nothing', () => {
   const session = equationSession(LINEAR);
   const other = parseEquationInput({ equation: '2x + 1 = 9' });
   const verdict = verifyOnServer(LINEAR, records(session).server, equationStepWork({
@@ -728,7 +743,7 @@ test('a rejected move that fails continuity still spends its attempt', () => {
     supportLevel: 3,
   }));
   expectUnverified(verdict, 'step-not-continuous', 'rejected elsewhere');
-  assert.equal(verdict.countsAttempt, true);
+  assert.equal(verdict.countsAttempt, false, 'decision D1: a slip never spends an attempt');
 });
 
 test('student text that is not plain algebra never reaches the engine', () => {
@@ -939,3 +954,130 @@ test('the step context opens the workspace QuestionEngine opens, and declines wh
   assert.match(context({ type: 'literal', formula: 'A = l w', solveFor: 'w', acceptedAnswers: ['A/l'] }), /^no:not-step-algebra/, 'the typed literal box has no steps');
   assert.match(context({ type: 'graphing', equation: 'y = 2x' }), /^no:/);
 });
+
+// ---------------------------------------------------------------------------
+// Student push Q: a substituted group was DRAWN 1(…) before and (…) after. A
+// state's key must not depend on which build rendered it (compactStepStateKey):
+// a record written before the deploy keeps working after it.
+// ---------------------------------------------------------------------------
+
+const SUBSTITUTED = { questionId: 'q-sub', type: 'stepAlgebra', prompt: 'Solve.', equation: '2x + 1*(-4x + 12) = 5 - 3', workspaceDifficulty: 3 };
+const oldRendering = (latex) => String(latex).replace('+\\left(-4', '+1\\left(-4');
+
+test('the one Simplify reports kinds the server verifies, and a record keyed by the old 1(…) rendering stays continuous', () => {
+  const session = equationSession(SUBSTITUTED);
+  // Step 1: the right side, 5 - 3 -> 2 (the group stays on the left).
+  const afterOne = { ...session.equation, right: '2' };
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  session.equation = afterOne;
+  assert.match(equationToLatex(afterOne), /x\+\\left\(-4/, 'drawn as the group, no 1');
+  // Step 2: Remove parentheses (inline-term-rewrite), as Simplify reports it.
+  const afterTwo = { ...afterOne, left: '2 * x - 4 * x + 12' };
+  step(session, rewritePayload(session, afterTwo, { kind: 'inline-term-rewrite', label: 'Rewrite one term on the left side' }), 'remove parentheses');
+
+  // The record as an older build wrote it: step 1's state rendered 1(…).
+  const legacy = JSON.parse(JSON.stringify(records(session).server));
+  legacy.stepGrades = legacy.stepGrades.map((entry, index) => (index === 0
+    ? { ...entry, equationAfter: oldRendering(entry.equationAfter) }
+    : entry));
+  assert.notEqual(legacy.stepGrades[0].equationAfter, records(session).server.stepGrades[0].equationAfter, 'the fixture really holds the old rendering');
+  assert.match(legacy.stepGrades[0].equationAfter, /\+1\\left\(-4/);
+  // Undo back to step 1's state, then a different step from it: continuous.
+  const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
+    action: STEP_ACTIONS.REWRITE,
+    kind: 'student-rewrite',
+    label: 'Rewrite / simplify left',
+    before: afterOne,
+    after: { ...afterOne, left: '-2 * x + 12' },
+    supportLevel: 3,
+  }));
+  assert.equal(again.verified, true, `a state recorded as 1(…) is the same state: ${again.reason}`);
+  // The partial-credit dedupe counts the two renderings as one state.
+  const twin = { ...legacy.stepGrades[0], equationAfter: records(session).server.stepGrades[0].equationAfter };
+  const withTwin = { ...legacy, stepGrades: [...legacy.stepGrades, twin] };
+  assert.equal(
+    calculateStepPartialCredit(withTwin.stepGrades, withTwin.variantIndex),
+    calculateStepPartialCredit(legacy.stepGrades, legacy.variantIndex),
+    'the old and new rendering of one state earn once',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Pass 3 Q-31: an implicit product was written with MathJS's TeX tie, 2~ x,
+// and is now written 2 x (the tie drew as a gap). The tie is spacing, so a
+// record written before that deploy keeps the same state keys after it.
+// ---------------------------------------------------------------------------
+
+const tieRendering = (latex) => String(latex).replace(/(\d) ([a-z])/g, '$1~ $2');
+
+test('a record keyed by the old 2~ x rendering stays continuous and earns once', () => {
+  const session = equationSession(SUBSTITUTED);
+  const afterOne = { ...session.equation, right: '2' };
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  session.equation = afterOne;
+  assert.doesNotMatch(equationToLatex(afterOne), /~/, 'drawn without the tie');
+  const legacy = JSON.parse(JSON.stringify(records(session).server));
+  legacy.stepGrades = legacy.stepGrades.map((entry) => ({ ...entry, equationBefore: tieRendering(entry.equationBefore), equationAfter: tieRendering(entry.equationAfter) }));
+  assert.match(legacy.stepGrades[0].equationAfter, /\d~ [a-z]/, 'the fixture really holds the old tie');
+  const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
+    action: STEP_ACTIONS.REWRITE,
+    kind: 'student-rewrite',
+    label: 'Rewrite / simplify left',
+    before: afterOne,
+    after: { ...afterOne, left: '-2 * x + 12' },
+    supportLevel: 3,
+  }));
+  assert.equal(again.verified, true, `a state recorded as 2~ x is the same state: ${again.reason}`);
+  const twin = { ...legacy.stepGrades[0], equationAfter: records(session).server.stepGrades[0].equationAfter };
+  assert.equal(
+    calculateStepPartialCredit([...legacy.stepGrades, twin], legacy.variantIndex),
+    calculateStepPartialCredit(legacy.stepGrades, legacy.variantIndex),
+    'the old and new rendering of one state earn once',
+  );
+  assert.equal(compactStepStateKey('y=2~ x+3'), compactStepStateKey('y=2 x+3'));
+});
+
+// Every copy of the step-state key. The shared one is compactStepStateKey;
+// two synchronous CommonJS callers keep their own: functions/index.js and
+// functions/lib/classroomGradeRuntime.js (Test Cycle and section grading).
+// (functions-path-admin/vendor is regenerated from functions/shared.)
+const KEY_COPIES = ['functions/index.js', 'functions/lib/classroomGradeRuntime.js'];
+const keyCopy = (path) => {
+  const source = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('function storedAlgebraStepPartialCredit('), source.indexOf('function getQuestionCredit('));
+  const copy = body.match(/const stateKey = (\(value\) => String\(value \|\| ""\)[\s\S]*?\));\n/);
+  assert.ok(copy, `${path}: storedAlgebraStepPartialCredit keeps its key`);
+  return new Function(`return ${copy[1]};`)();
+};
+
+test('every copy of the step-state key keys stored records exactly as compactStepStateKey does', () => {
+  for (const path of KEY_COPIES) assertKeyMatchesShared(path, keyCopy(path));
+});
+
+test('classroomGradeRuntime credits a state recorded in both renderings once, as the shared dedupe does', async () => {
+  const { createRequire } = await import('node:module');
+  const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
+  const step = (before, after) => ({ variantIndex: 0, equationBefore: before, equationAfter: after, accepted: true, productive: true, earned: 1, possible: 1, expectedTotalPoints: 3 });
+  for (const [label, steps] of [
+    ['the tie', [step('-2~ x+4=14', '-2~ x=10'), step('-2 x=10', '-2 x+4=14'), step('-2 x+4=14', '-2 x=10')]],
+    ['push Q', [step('2x+1\\left(-4x\\right)=2', 'x=1\\left(2\\right)'), step('x=\\left(2\\right)', 'x=1'), step('x=1', 'x=\\left(2\\right)')]],
+  ]) {
+    const record = { variantIndex: 0, stepGrades: steps };
+    assert.equal(runtime.storedAlgebraStepPartialCredit(record), calculateStepPartialCredit(steps, 0), label);
+  }
+});
+
+const assertKeyMatchesShared = (path, indexKey) => {
+  const inputs = [
+    'y=2~ x+3', 'y=2 x+3', 'y=2x+3', ' x = -3+2~ y',
+    '2x+1\\left(-4x+12\\right)=2', '2x+\\left(-4x+12\\right)=2', '1\\left(x+1\\right)=4', '=-1\\left(x\\right)',
+    'y=−2x', 'y=–2x', 'y=—2x', '\\frac{-10}{-2}', '', null,
+  ];
+  for (const input of inputs) assert.equal(indexKey(input), compactStepStateKey(input), `${path}: ${JSON.stringify(input)}`);
+  // and the pairs that must be one state are one state in both.
+  for (const key of [indexKey, compactStepStateKey]) {
+    assert.equal(key('y=2~ x+3'), key('y=2 x+3'), path);
+    assert.equal(key('2x+1\\left(-4x+12\\right)=2'), key('2x+\\left(-4x+12\\right)=2'), path);
+    assert.equal(key('y=−2x'), key('y=-2x'), path);
+  }
+};

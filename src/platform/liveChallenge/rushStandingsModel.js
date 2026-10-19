@@ -7,6 +7,10 @@
  *   rushRound / rushRoundCompleted   graphs a player has completed in the
  *                                    round now running (written with each
  *                                    batch of their taps)
+ *   rushRoundFinished                they have worked through every item of
+ *                                    that round (Graph the Line's Classic and
+ *                                    Sprint, which use the same race fields;
+ *                                    never a rush, which outlasts everyone)
  *   lastRound                        their facts for the round that just
  *                                    closed: completed, accuracy, rank in the
  *                                    field, championship points it earned
@@ -25,6 +29,10 @@ const byAlias = (left, right) => String(left.alias || '').localeCompare(String(r
 const joinedRows = (players) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player && player.joined !== false && player.playerKey);
 
+/** Whether a player has worked through every item of the round now running. */
+export const raceRoundFinished = (player, roundIndex) => integerOr(player?.rushRound) === integerOr(roundIndex)
+  && player?.rushRoundFinished === true;
+
 /** Graphs completed in the running round, most first; ties by alias. */
 export const rushRaceRows = (players, roundIndex) => joinedRows(players)
   .map((player) => ({
@@ -32,6 +40,7 @@ export const rushRaceRows = (players, roundIndex) => joinedRows(players)
     alias: String(player.alias || 'Player'),
     completed: integerOr(player.rushRound) === integerOr(roundIndex) ? Math.max(0, integerOr(player.rushRoundCompleted, 0)) : 0,
     playing: integerOr(player.rushRound) === integerOr(roundIndex),
+    finished: raceRoundFinished(player, roundIndex),
     score: Math.max(0, Math.round(Number(player.score) || 0)),
   }))
   .sort((left, right) => right.completed - left.completed || byAlias(left, right));

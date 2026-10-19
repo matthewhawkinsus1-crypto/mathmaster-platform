@@ -8,6 +8,7 @@ import {
   buildAwardPayload,
   createRequestIdController,
 } from '../../platform/classPointsClient.js';
+import Dialog from '../../ui/Dialog.jsx';
 import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 // Compact teacher-only award control: quick enough to use walking around the
@@ -31,12 +32,12 @@ const dialogStyle = {
 };
 const bodyStyle = { padding: '18px 20px', display: 'grid', gap: 14 };
 const amountButtonStyle = (selected) => ({
-  padding: '8px 0', minWidth: 44, borderRadius: 9, fontWeight: 900, fontSize: 14, cursor: 'pointer',
+  padding: '8px 0', minWidth: 44, borderRadius: 9, fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer',
   border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)',
   background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: selected ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)',
 });
-const fieldLabelStyle = { fontWeight: 800, fontSize: 12, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' };
-const selectStyle = { padding: '9px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', fontSize: 14, width: '100%' };
+const fieldLabelStyle = { fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' };
+const selectStyle = { padding: '9px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', fontSize: 'calc(14 * var(--mm-px))', width: '100%' };
 
 export default function ClassPointsAwardDialog({ student, classId, teacherEmail, onClose, onAwarded = null }) {
   const [amount, setAmount] = useState(QUICK_AWARD_AMOUNTS[0]);
@@ -120,12 +121,12 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       onMouseDown={(event) => { if (event.target === event.currentTarget && !submitting) onClose?.(); }}
       style={overlayStyle}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="class-points-award-title" style={dialogStyle}>
+      <Dialog as="section" onClose={onClose} closeOnEscape={false} aria-labelledby="class-points-award-title" style={dialogStyle}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--mm-border-soft)' }}>
-          <div style={{ color: 'var(--mm-warning-text)', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
-          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>
+          <div style={{ color: 'var(--mm-warning-text)', fontWeight: 900, fontSize: 'calc(12 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
+          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>
           {!studentName && (
-            <div style={{ marginTop: 2, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+            <div style={{ marginTop: 2, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
               {STUDENT_NAME_UNAVAILABLE}{studentIdLine ? ` · ${studentIdLine}` : ''}
             </div>
           )}
@@ -158,7 +159,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
                   onChange={(event) => chooseCustomAmount(event.target.value)}
                   style={{ ...selectStyle, width: 84, ...(usingCustomAmount ? { border: '2px solid #1a73e8' } : {}) }}
                 />
-                <span style={{ fontSize: 11.5, color: 'var(--mm-text-subtle)' }}>up to {MAX_AWARD_AMOUNT}</span>
+                <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>up to {MAX_AWARD_AMOUNT}</span>
               </div>
             </div>
 
@@ -188,7 +189,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
               )}
             </div>
 
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: 'var(--mm-text)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={announce}
@@ -202,7 +203,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
             </label>
 
             {error && (
-              <div role="alert" style={{ padding: '9px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13, fontWeight: 700 }}>{error}</div>
+              <div role="alert" style={{ padding: '9px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>{error}</div>
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -216,10 +217,10 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
                 {submitting ? (error ? 'Retrying…' : 'Awarding…') : error ? 'Retry' : `Award${Number.isFinite(effectiveAmount) && effectiveAmount > 0 ? ` +${effectiveAmount}` : ''}`}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>Signed in as {teacherEmail || 'your teacher account'}</div>
+            <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-subtle)' }}>Signed in as {teacherEmail || 'your teacher account'}</div>
           </div>
         )}
-      </section>
+      </Dialog>
     </div>
   );
 }

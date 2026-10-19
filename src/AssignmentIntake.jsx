@@ -184,13 +184,13 @@ export default function AssignmentIntake(props) {
       <section style={card} aria-label="Incomplete Assignments">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <h3 style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 18 }}>Incomplete Assignments</h3>
-            <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.45 }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 'calc(18 * var(--mm-px))' }}>Incomplete Assignments</h3>
+            <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45 }}>
               Parseable assignments with blocking question issues are saved here automatically instead of being discarded. They stay out of the normal Library until repaired and reviewed.
             </p>
           </div>
           {!loadingDrafts && draftSummary.count > 0 && (
-            <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 900 }}>
+            <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               {draftSummary.count} draft{draftSummary.count === 1 ? '' : 's'} · {draftSummary.blockers} blocker{draftSummary.blockers === 1 ? '' : 's'}
             </span>
           )}
@@ -212,7 +212,7 @@ export default function AssignmentIntake(props) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
                       <strong style={{ color: 'var(--mm-text-strong)' }}>{draft.title || 'Incomplete Assignment'}</strong>
-                      <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12 }}>
+                      <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                         {questionCount} question{questionCount === 1 ? '' : 's'} · {blockingCount} blocking issue{blockingCount === 1 ? '' : 's'} · revision {Number(draft.assignmentRevision) || 1} · saved {String(draft.updatedAt || draft.createdAt || '').replace('T', ' ').replace('Z', '')}
                       </div>
                     </div>

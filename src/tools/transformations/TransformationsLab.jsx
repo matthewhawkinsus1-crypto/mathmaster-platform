@@ -8,8 +8,10 @@ import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
+import { plotTransformMissMessage } from './plotTransformFeedback.js';
 import {
   TRANSFORMATION_FAMILY_LABELS,
   evaluateParentFunction,
@@ -18,13 +20,15 @@ import {
   studentTransformationSpec,
   transformedSourcePoints,
 } from './transformationsMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 
 const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly on the dashed target.', 'identify': 'Read the graph and recover the values of a, b, h and k that produced it.', 'pointMap': 'Send a point from the parent function through the transformation and give where it lands.', 'plotTransform': 'Transform the entire source graph by moving each defining point to its new location.', 'describe': 'Describe every change this graph makes to its parent function.', 'anchor': 'Find the coordinates of the transformed defining feature.'};
 const MODE_STEPS = {'match': ['Change one parameter at a time and watch what moves.', 'Use h and k for position, then a and b for reflections/scales.', 'Press Check when the two graphs overlap.'], 'identify': ['Find the defining feature of the graph — that gives you h and k.', 'Use one or more additional points to recover a and b.', 'Enter all four, then check.'], 'pointMap': ['For x, undo the inside multiplier b, then apply h.', 'For y, apply a and then k exactly as written.', 'Enter the transformed coordinates.'], 'plotTransform': ['Map each corner/end point using x/b + h and ay + k.', 'Plot the transformed defining points on the grid.', 'Connect them in the same order as the source graph, then check.'], 'describe': ['Read the inside changes for x using opposite/reciprocal behavior.', 'Read the outside changes for y exactly as written.', 'Then account for h and k translations.'], 'anchor': ['Identify which feature defines this family.', 'Find it on the transformed graph.', 'Count gridlines across, then up or down.']};
-const HINTS = {'match': ['Start with h and k to put the graph in the right place, then fix reflections/scales with a and b.', 'Use y = a·f(b(x − h)) + k. Inside changes control x; outside changes control y.', 'Remember the class rule: x\'s lie, y\'s tell the truth. For x, signs reverse and scale factors become reciprocals.'], 'identify': ['Find the defining feature first — the vertex, the corner, the endpoint. Its coordinates are (h, k).', 'Then compare another point. Outside a acts directly on y; inside b acts reciprocally on x.', 'Negative a reflects across the x-axis. Negative b reflects across the y-axis.'], 'pointMap': ['x and y are transformed by different parameters, so handle them separately.', 'For x, divide the parent x-coordinate by b, then add h.', 'For y, multiply by a first and then add k — y tells the truth.'], 'plotTransform': ['Move one defining point at a time instead of trying to redraw the whole graph at once.', 'For x, use opposite/reciprocal behavior; for y, use the outside transformation exactly as written.', 'The transformed graph keeps the same connections between corresponding defining points.'], 'describe': ['Compare the graph with the parent shape one feature at a time.', 'Outside a is direct: sign gives x-axis reflection and |a| is the vertical scale.', 'Inside b is opposite/reciprocal: sign gives y-axis reflection and the horizontal scale is 1/|b|.'], 'anchor': ['Every family is organized around one feature: a vertex, a corner, an endpoint, or an asymptote intersection.', 'On the parent function that feature sits at the origin. The transformation moves it to (h, k).', 'Count the gridlines rather than estimating — go across for x first, then up or down for y.']};
+const HINTS = {'match': ['Start with h and k to put the graph in the right place, then fix reflections/scales with a and b.', 'Use y = a·f(b(x − h)) + k. Inside changes control x; outside changes control y.', 'Remember the class rule: x\'s lie, y\'s tell the truth. For x, signs reverse and scale factors become reciprocals.'], 'identify': ['Find the defining feature first — the vertex, the corner, the endpoint. Its coordinates are (h, k).', 'Then compare another point. Outside a acts directly on y; inside b acts reciprocally on x.', 'Negative a reflects across the x-axis. Negative b reflects across the y-axis.'], 'pointMap': ['x and y are transformed by different parameters, so handle them separately.', 'For x, divide the parent x-coordinate by b, then add h.', 'For y, multiply by a first and then add k — y tells the truth.'], 'plotTransform': ['Move one defining point at a time instead of trying to redraw the whole graph at once.', 'For x, use opposite/reciprocal behavior; for y, use the outside transformation exactly as written.', 'Order matters: P1 is the image of S1, P2 is the image of S2, and so on. The transformed graph keeps the same connections between corresponding defining points.'], 'describe': ['Compare the graph with the parent shape one feature at a time.', 'Outside a is direct: sign gives x-axis reflection and |a| is the vertical scale.', 'Inside b is opposite/reciprocal: sign gives y-axis reflection and the horizontal scale is 1/|b|.'], 'anchor': ['Every family is organized around one feature: a vertex, a corner, an endpoint, or an asymptote intersection.', 'On the parent function that feature sits at the origin. The transformation moves it to (h, k).', 'Count the gridlines rather than estimating — go across for x first, then up or down for y.']};
 
 const pointCoordinates = (point) => (
   Array.isArray(point)
@@ -67,6 +71,9 @@ const parameterFields = (values, setters, keys) => (
 
 export default function TransformationsLab({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
+  // The bridge and each mode's first step are the mapping rule the item
+  // measures: withheld where the activity withholds hints or verdicts (R-10).
+  const methodWithheld = useMethodWithheld();
   const mode = questionData.mode || 'match';
   // The same reading of the question the shared grader marks against: the
   // graph drawn here is, by construction, the graph the server grades.
@@ -208,6 +215,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       return `Map the point one coordinate at a time. Start from (${parentPoint[0]}, ${parentPoint[1]}) and apply h to x, then a and k to y.`;
     }
     if (mode === 'plotTransform') {
+      // Every image found out of order, or the right graph through the wrong
+      // points: say what is right and what is left (plotTransformFeedback.js).
+      const correspondence = plotTransformMissMessage({ plotted: feedback.response?.plottedPoints, images: expectedTransformedPoints, spec: investigationSpec, family });
+      if (correspondence) return correspondence;
       const expectedCount = Number(feedbackParts.length || expectedTransformedPoints.length || 0);
       return `${feedbackPartsCorrect} of ${expectedCount} defining points are in the correct transformed locations. Use x/b + h for x and ay + k for y.`;
     }
@@ -218,7 +229,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     if (mode === 'describe') return 'At least one description is off. Use “x\'s lie, y\'s tell the truth”: a acts directly on y; b acts oppositely/reciprocally on x; h and k give the translations.';
     return 'Compare one parameter at a time. Change only a, then b, then h, then k, and watch what each one changes.';
   };
-  const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p></div> : null;
+  const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null;
   const resetFeedback = () => clearFeedback();
 
   /*
@@ -258,9 +269,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     equationInput: ['match', 'identify'].includes(mode)
       ? { label: 'y = a · f(b(x − h)) + k', studentState: true }
       : null,
-    instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
+    instruction: methodWithheld ? null : { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
     task: { text: questionData.prompt || questionData.task || MODE_TASKS[mode] || MODE_TASKS.match },
-    help: {
+    help: methodWithheld ? null : {
       content: (
         <>
           <TransformationBridge />
@@ -292,25 +303,25 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <p style={{ marginTop: 0 }}>Adjust <strong>{parameterKeys.join(', ')}</strong> until your solid blue graph lands exactly on the dashed red target.</p>
           {parameterFields(parameterValues, parameterSetters, parameterKeys)}
           <div style={{ marginTop: 14 }}>{graph([x => evaluateTransformedFunction(studentSpec, x), x => evaluateTransformedFunction(targetSpec, x)])}</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 13, color: 'var(--mm-text)' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
           </div>
-          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check transformation</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check transformation</SubmitText></button>
         </> : null}
 
         {mode === 'identify' ? <>
           <p>Read the transformed graph and recover its <strong>{parameterKeys.join(', ')}</strong> parameters.</p>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
           <div style={{ marginTop: 14 }}>{parameterFields(parameterValues, parameterSetters, parameterKeys)}</div>
-          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check parameters</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check parameters</SubmitText></button>
         </> : null}
 
         {mode === 'pointMap' ? <>
           <p>Map the parent-function point <strong>({parentPoint[0]}, {parentPoint[1]})</strong> through the transformation.</p>
           {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}><label>Transformed x<input type="number" value={mappedX} onChange={(event) => { setMappedX(event.target.value); resetFeedback(); }} style={inputStyle} /></label><label>Transformed y<input type="number" value={mappedY} onChange={(event) => { setMappedY(event.target.value); resetFeedback(); }} style={inputStyle} /></label></div>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check mapped point</SubmitText></button>
         </> : null}
 
         {mode === 'plotTransform' ? <>
@@ -354,10 +365,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               reached. Clear is not undo — it discards the whole construction in
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</button>
-            <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
+            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</FocusSafeButton>
+            <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}><SubmitText>Check graph</SubmitText></button>
           </div>
-          <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
+          <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
 
         {mode === 'describe' ? <>
@@ -373,24 +384,26 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <label style={{ display: 'block', marginTop: 10 }}>Horizontal shift (units)<input type="number" step="0.5" min="0" value={horizontalDistance} onChange={(event) => setHorizontalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical translation<select value={verticalDirection} onChange={(event) => setVerticalDirection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="up">Up</option><option value="down">Down</option><option value="none">None</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical shift (units)<input type="number" step="0.5" min="0" value={verticalDistance} onChange={(event) => setVerticalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check description</SubmitText></button>
         </> : null}
 
         {mode === 'anchor' ? <>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
           <p>Identify the transformed <strong>{anchor.label}</strong>{anchor.isOnGraph ? '.' : '. This is structural and is not a point on the rational graph.'}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>x-coordinate<input type="number" value={anchorX} onChange={(event) => setAnchorX(event.target.value)} style={inputStyle} /></label><label>y-coordinate<input type="number" value={anchorY} onChange={(event) => setAnchorY(event.target.value)} style={inputStyle} /></label></div>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check defining feature</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check defining feature</SubmitText></button>
         </> : null}
         {feedbackBlock}
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      <div className="mathmaster-work-view-secondary">
-        <Panel title="Transformation bridge" collapsible>
-          <TransformationBridge />
-        </Panel>
-      </div>
+      {methodWithheld ? null : (
+        <div className="mathmaster-work-view-secondary">
+          <Panel title="Transformation bridge" collapsible>
+            <TransformationBridge />
+          </Panel>
+        </div>
+      )}
     </ToolSplit>
     </EnlargeableFigure>
   </ToolShell>;

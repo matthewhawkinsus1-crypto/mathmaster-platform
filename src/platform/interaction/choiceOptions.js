@@ -107,3 +107,49 @@ export const stableShuffleChoices = (options = [], seed = '') => {
 };
 
 export const choiceSeed = (...parts) => parts.map(clean).filter(Boolean).join('::');
+
+/*
+ * THE NAME A SCREEN READER ANNOUNCES FOR A CHOICE.
+ *
+ * A choice written as delimited mathematics ("$\frac{1}{2}$", "\(y \le 4\)")
+ * is named by the mathematics inside. A dollar sign that opens no span is a
+ * price: "$20 grocery cards" stays "$20 grocery cards", never "20 grocery
+ * cards", which names twenty cards instead of the $20 card.
+ */
+export const choiceAccessibleLabel = (value) => {
+  const text = String(value ?? '').trim();
+  const wrapped = text.match(/^\$+([\s\S]*?)\$+$/) || text.match(/^\\\(([\s\S]*)\\\)$/);
+  return (wrapped && text.length > 1 ? wrapped[1] : text).trim();
+};
+
+/*
+ * THE CHOICES ONE MULTI-ANSWER FIELD SHOWS, IN THE ORDER IT SHOWS THEM.
+ *
+ * Authored options, or a two-way choice the label names ("Discrete or
+ * continuous?") when the key is one of them; then the stable shuffle.
+ * MultiAnswerGrader draws these and Read aloud says them
+ * (platform/language/questionReading.js), so what a student hears is the
+ * order on the screen. Null when the field is not a choice.
+ */
+const inferredBinaryOptions = (field) => {
+  const label = String(field?.label || field?.prompt || '').toLowerCase();
+  const answer = String(field?.answer ?? field?.acceptedAnswers?.[0] ?? '').trim().toLowerCase();
+  const patterns = [
+    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
+    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
+    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
+    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
+  ];
+  const match = patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer));
+  return match?.options || null;
+};
+
+export const choiceOptionsForField = (field, seed = '') => {
+  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
+  const options = authored || inferredBinaryOptions(field);
+  if (!options) return null;
+  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
+};
+
+/** The seed MultiAnswerGrader shuffles one field's choices with. */
+export const multiAnswerChoiceSeed = (question, field) => choiceSeed(question?.questionId || question?.prompt, field?.id);

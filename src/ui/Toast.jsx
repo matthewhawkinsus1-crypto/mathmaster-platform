@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import './uiKit.css';
+import Dialog from './Dialog.jsx';
+import { createToastTimer } from './toastTimer.js';
 
 /*
  * Replaces window.alert / window.confirm across the app.
@@ -16,7 +18,9 @@ import './uiKit.css';
 
 const ToastContext = createContext(null);
 
-const DEFAULT_DURATIONS = { error: 10000, warning: 8000, success: 5000, info: 5000 };
+// Info is long enough to read twice (NAV-10). Every toast's clock also stops
+// while it is hovered or holds focus (toastTimer.js).
+const DEFAULT_DURATIONS = { error: 10000, warning: 10000, success: 5000, info: 10000 };
 
 // A double-click on a button that asks for confirmation opens the dialog with
 // its first press; its second press lands on the backdrop a moment later. That
@@ -30,6 +34,7 @@ export function ToastProvider({ children }) {
   const [confirmState, setConfirmState] = useState(null);
   const timersRef = useRef(new Map());
   const confirmButtonRef = useRef(null);
+  const cancelButtonRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
   const confirmOpenedAtRef = useRef(0);
 
@@ -37,10 +42,13 @@ export function ToastProvider({ children }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
     const timer = timersRef.current.get(id);
     if (timer) {
-      clearTimeout(timer);
+      timer.cancel();
       timersRef.current.delete(id);
     }
   }, []);
+
+  const pauseToast = useCallback((id, reason) => timersRef.current.get(id)?.pause(reason), []);
+  const resumeToast = useCallback((id, reason) => timersRef.current.get(id)?.resume(reason), []);
 
   const showToast = useCallback((options) => {
     const { tone = 'info', title = '', message = '', duration } = typeof options === 'string'
@@ -52,10 +60,13 @@ export function ToastProvider({ children }) {
 
     const ms = Number.isFinite(Number(duration)) ? Number(duration) : (DEFAULT_DURATIONS[tone] ?? 5000);
     if (ms > 0) {
-      const timer = setTimeout(() => {
-        setToasts((current) => current.filter((toast) => toast.id !== id));
-        timersRef.current.delete(id);
-      }, ms);
+      const timer = createToastTimer({
+        ms,
+        onExpire: () => {
+          setToasts((current) => current.filter((toast) => toast.id !== id));
+          timersRef.current.delete(id);
+        },
+      });
       timersRef.current.set(id, timer);
     }
     return id;
@@ -66,7 +77,7 @@ export function ToastProvider({ children }) {
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
-      timers.forEach((timer) => clearTimeout(timer));
+      timers.forEach((timer) => timer.cancel());
       timers.clear();
     };
   }, []);
@@ -97,19 +108,6 @@ export function ToastProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!confirmState) return undefined;
-    confirmButtonRef.current?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeConfirm(false);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [confirmState, closeConfirm]);
-
   const value = useMemo(() => ({
     showToast,
     dismissToast,
@@ -128,12 +126,12 @@ export function ToastProvider({ children }) {
       <div className="mm-toast-viewport">
         <div aria-live="assertive" aria-atomic="false" style={{ display: 'contents' }}>
           {toasts.filter((toast) => toast.tone === 'error').map((toast) => (
-            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} />
+            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
           ))}
         </div>
         <div aria-live="polite" aria-atomic="false" style={{ display: 'contents' }}>
           {toasts.filter((toast) => toast.tone !== 'error').map((toast) => (
-            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} />
+            <ToastRow key={toast.id} toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
           ))}
         </div>
       </div>
@@ -155,9 +153,12 @@ export function ToastProvider({ children }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
           }}
         >
-          <div
+          {/* Opens on Cancel, the least destructive choice: Enter on a
+              "Reset this question?" must not reset it. Escape cancels. */}
+          <Dialog
             role="alertdialog"
-            aria-modal="true"
+            onClose={() => closeConfirm(false)}
+            initialFocusRef={cancelButtonRef}
             aria-labelledby="mm-confirm-title"
             aria-describedby={confirmState.message ? 'mm-confirm-message' : undefined}
             style={{
@@ -166,7 +167,7 @@ export function ToastProvider({ children }) {
               padding: '26px 28px', textAlign: 'left',
             }}
           >
-            <h2 id="mm-confirm-title" style={{ margin: 0, fontSize: '19px', color: 'var(--mm-ink)' }}>
+            <h2 id="mm-confirm-title" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-ink)' }}>
               {confirmState.title}
             </h2>
             {confirmState.message && (
@@ -175,7 +176,7 @@ export function ToastProvider({ children }) {
               </p>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', flexWrap: 'wrap' }}>
-              <button type="button" className="mm-btn mm-btn--neutral" onClick={() => closeConfirm(false)}>
+              <button type="button" ref={cancelButtonRef} className="mm-btn mm-btn--neutral" onClick={() => closeConfirm(false)}>
                 {confirmState.cancelLabel}
               </button>
               <button
@@ -187,16 +188,29 @@ export function ToastProvider({ children }) {
                 {confirmState.confirmLabel}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </ToastContext.Provider>
   );
 }
 
-function ToastRow({ toast, onDismiss }) {
+function ToastRow({ toast, onDismiss, onPause = null, onResume = null }) {
+  // A pointer resting on the toast, or focus inside it, holds it open.
   return (
-    <div className="mm-toast" data-tone={toast.tone}>
+    <div
+      className="mm-toast"
+      data-tone={toast.tone}
+      // A mouse resting on it, not a tap: on a touch screen "hover" would
+      // hold the toast until the next tap somewhere else.
+      onPointerEnter={(event) => { if (event.pointerType === 'mouse') onPause?.(toast.id, 'hover'); }}
+      onPointerLeave={(event) => { if (event.pointerType === 'mouse') onResume?.(toast.id, 'hover'); }}
+      onFocus={() => onPause?.(toast.id, 'focus')}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        onResume?.(toast.id, 'focus');
+      }}
+    >
       <div className="mm-toast__body">
         {toast.title && <p className="mm-toast__title">{toast.title}</p>}
         {toast.message && <p className="mm-toast__message">{toast.message}</p>}

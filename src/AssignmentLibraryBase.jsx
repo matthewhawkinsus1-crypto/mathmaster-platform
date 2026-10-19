@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
+import Dialog from './ui/Dialog.jsx';
 import {
   UNCATEGORIZED,
   assignmentFolderMatches,
@@ -93,13 +94,13 @@ function FolderRow({
             padding: 0,
             fontWeight: active ? 800 : 600,
             color: active ? 'var(--mm-primary)' : 'var(--mm-text)',
-            fontSize: '13px',
+            fontSize: 'calc(13 * var(--mm-px))',
           }}
         >
           {getFolderLabel(path)}
         </button>
         <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid var(--mm-border)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', cursor: 'pointer' }}>⋯</button>
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: 'calc(16 * var(--mm-px))', width: 28, height: 28, border: '1px solid var(--mm-border)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', cursor: 'pointer' }}>⋯</button>
           {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>New subfolder</button>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>Rename</button>
@@ -147,6 +148,7 @@ export default function AssignmentLibrary({
   const [dragOverFolder, setDragOverFolder] = useState(null);
   const [folderDialog, setFolderDialog] = useState(null); // { mode, path?, parentPath?, input }
   const [dialogError, setDialogError] = useState(null);
+  const folderDialogTitleId = useId();
   const [folderPaneCollapsed, setFolderPaneCollapsed] = useState(() => {
     try { return window.localStorage.getItem('mathmaster:library:folder-pane-collapsed') === 'true'; } catch { return false; }
   });
@@ -288,7 +290,7 @@ export default function AssignmentLibrary({
               background: smartView === view.id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
               color: smartView === view.id ? 'var(--mm-primary)' : 'var(--mm-text-muted)',
               fontWeight: 'bold',
-              fontSize: '12px',
+              fontSize: 'calc(12 * var(--mm-px))',
               cursor: 'pointer',
             }}
           >
@@ -300,14 +302,14 @@ export default function AssignmentLibrary({
       <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid var(--mm-border)', borderRadius: '10px', padding: '12px', background: 'var(--mm-surface-sunken)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <strong style={{ fontSize: '13px', color: 'var(--mm-text-muted)', textTransform: 'uppercase' }}>Folders</strong>
-            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid var(--mm-border)', borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)' }}>‹</button></div>
+            <strong style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', textTransform: 'uppercase' }}>Folders</strong>
+            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: 'calc(11 * var(--mm-px))', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid var(--mm-border)', borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)' }}>‹</button></div>
           </div>
 
           <button
             type="button"
             onClick={() => setSelectedFolder('')}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === '' ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === '' ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer' }}
           >
             All ({visibleForSmartView.length})
           </button>
@@ -317,12 +319,12 @@ export default function AssignmentLibrary({
             onDragOver={(event) => { event.preventDefault(); setDragOverFolder(UNCATEGORIZED); }}
             onDragLeave={() => setDragOverFolder(null)}
             onDrop={(event) => { event.preventDefault(); handleDropOnFolder(''); }}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '8px', border: dragOverFolder === UNCATEGORIZED ? '2px dashed #188038' : '2px solid transparent', borderRadius: '7px', background: dragOverFolder === UNCATEGORIZED ? 'var(--mm-success-bg)' : selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === UNCATEGORIZED ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '8px', border: dragOverFolder === UNCATEGORIZED ? '2px dashed #188038' : '2px solid transparent', borderRadius: '7px', background: dragOverFolder === UNCATEGORIZED ? 'var(--mm-success-bg)' : selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === UNCATEGORIZED ? 800 : 600, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer' }}
           >
             Uncategorized ({uncategorizedCount})
           </button>
 
-          {topLevelFolders.length === 0 && <p style={{ fontSize: '12px', color: 'var(--mm-text-subtle)', margin: '4px 0' }}>No folders yet. Create one to start organizing assignments.</p>}
+          {topLevelFolders.length === 0 && <p style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-subtle)', margin: '4px 0' }}>No folders yet. Create one to start organizing assignments.</p>}
           {topLevelFolders.map((path) => (
             <FolderRow
               key={path}
@@ -374,22 +376,22 @@ export default function AssignmentLibrary({
                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                   <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>
+                    <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>
                       {contentVersionLabel(assignment)}
                     </span>
-                    {lineage.familyId && <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 6px', borderRadius: 999, background: lineage.releaseStatus === 'superseded' ? 'var(--mm-surface-control)' : 'var(--mm-success-bg)', color: lineage.releaseStatus === 'superseded' ? 'var(--mm-text-muted)' : 'var(--mm-success-text)' }}>
+                    {lineage.familyId && <span style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, padding: '2px 6px', borderRadius: 999, background: lineage.releaseStatus === 'superseded' ? 'var(--mm-surface-control)' : 'var(--mm-success-bg)', color: lineage.releaseStatus === 'superseded' ? 'var(--mm-text-muted)' : 'var(--mm-success-text)' }}>
                       {lineage.releaseStatus === 'superseded' ? 'SUPERSEDED' : 'CURRENT'}
                     </span>}
                     {hasVersionHistory && <button
                       type="button"
                       onClick={(event) => { event.stopPropagation(); toggleVersionFamily(lineage.familyId); }}
                       onMouseDown={(event) => event.stopPropagation()}
-                      style={{ border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: 0 }}
+                      style={{ border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, cursor: 'pointer', padding: 0 }}
                     >
                       {versionHistoryOpen ? 'Hide Version History' : 'Version History'}
                     </button>}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', marginTop: 3 }}>
+                  <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: 3 }}>
                     {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
                   </div>
                 </div>
@@ -424,18 +426,18 @@ export default function AssignmentLibrary({
 
       {folderDialog && (
         <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }} style={dialogOverlayStyle}>
-          <div role="dialog" aria-modal="true" style={dialogCardStyle}>
+          <Dialog closeOnEscape={false} aria-labelledby={folderDialogTitleId} onClose={closeDialog} style={dialogCardStyle}>
             {folderDialog.mode === 'delete' ? (
               <>
-                <h3 style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
-                <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>
+                <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                   Assignments inside this folder become Uncategorized. Subfolders are removed too. This does not delete any assignment.
                 </p>
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
+                <h3 id={folderDialogTitleId} style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))', marginBottom: '6px' }}>
                   Folder path
                   <input
                     autoFocus
@@ -446,10 +448,10 @@ export default function AssignmentLibrary({
                     style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '7px', boxSizing: 'border-box' }}
                   />
                 </label>
-                <p style={{ fontSize: '11px', color: 'var(--mm-text-subtle)', margin: '4px 0 0' }}>Use &ldquo;/&rdquo; to nest a subfolder, e.g. Algebra I/Module 1.</p>
+                <p style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-subtle)', margin: '4px 0 0' }}>Use &ldquo;/&rdquo; to nest a subfolder, e.g. Algebra I/Module 1.</p>
               </>
             )}
-            {dialogError && <p style={{ color: 'var(--mm-danger)', fontWeight: 'bold', fontSize: '13px' }}>{dialogError}</p>}
+            {dialogError && <p style={{ color: 'var(--mm-danger)', fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))' }}>{dialogError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
               <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid var(--mm-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
               <button
@@ -460,7 +462,7 @@ export default function AssignmentLibrary({
                 {folderDialog.mode === 'delete' ? 'Delete' : folderDialog.mode === 'create' ? 'Create' : 'Save'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

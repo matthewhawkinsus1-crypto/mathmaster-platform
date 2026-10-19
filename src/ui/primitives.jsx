@@ -19,6 +19,7 @@ export function SearchField({ value, onChange, placeholder = 'Search…', label,
         placeholder={placeholder}
         aria-label={label || placeholder}
         autoComplete="off"
+        data-focus-ring="container"
       />
       {value && (
         <button type="button" className="mm-search__clear" onClick={() => onChange('')} aria-label="Clear search">
@@ -58,7 +59,7 @@ export function ProgressBar({ value, max = 100, tone, label }) {
   return (
     <div>
       {label && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '5px', fontSize: '12px', color: 'var(--mm-ink-muted)', fontWeight: 700 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '5px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted)', fontWeight: 700 }}>
           <span>{label}</span>
           <span>{percent}%</span>
         </div>
@@ -90,9 +91,9 @@ export function StatCard({ label, value, tone = 'neutral', hint, onClick }) {
   const palette = STAT_TONES[tone] || STAT_TONES.neutral;
   const content = (
     <>
-      <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 900, marginTop: '2px' }}>{value}</div>
-      {hint && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{hint}</div>}
+      <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+      <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900, marginTop: '2px' }}>{value}</div>
+      {hint && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{hint}</div>}
     </>
   );
 
@@ -123,7 +124,7 @@ export function SectionHeader({ title, description, actions, level = 2 }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap', marginBottom: '14px' }}>
       <div style={{ minWidth: 0 }}>
         <Heading style={{ margin: 0, color: 'var(--mm-ink)' }}>{title}</Heading>
-        {description && <p style={{ margin: '5px 0 0', color: 'var(--mm-ink-muted)', fontSize: '13px', lineHeight: 1.5 }}>{description}</p>}
+        {description && <p style={{ margin: '5px 0 0', color: 'var(--mm-ink-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{description}</p>}
       </div>
       {actions && <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>{actions}</div>}
     </div>

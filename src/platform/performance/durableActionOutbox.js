@@ -521,6 +521,60 @@ const retireIfCurrentTransaction = async (actionId, expectedCreatedOrder, retire
   }
 };
 
+/** Is `row` still the retirement the caller chose? Reason and time both. */
+const sameRetirement = (row, expected) => Boolean(row)
+  && String(row.retirement?.reason || '') === String(expected?.reason || '')
+  && Number(row.retirement?.retiredAt ?? 0) === Number(expected?.retiredAt ?? 0);
+
+/*
+ * RESTORING IS THE SAME MOVE, BACKWARDS.
+ *
+ * Only for a retirement that was the server's mistake (resendRetiredReviewWork).
+ * The retired row is read, checked to still be the one the caller chose, put
+ * back in the queue and removed from `retired`, with the student's tally
+ * adjusted, in ONE transaction: a crash cannot leave the envelope in neither
+ * store. A second tab that moved it first, or a drain that has since retired
+ * it again, leaves nothing for this one to move, and a row already back in the
+ * queue is never overwritten.
+ */
+const restoreRetiredIfUnchangedTransaction = async (actionId, expectedRetirement, restored) => {
+  const database = await openDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const keepsTally = database.objectStoreNames.contains(DEVICE_IDENTITY_STORE_NAME);
+      const transaction = database.transaction(
+        keepsTally ? [STORE_NAME, RETIRED_STORE_NAME, DEVICE_IDENTITY_STORE_NAME] : [STORE_NAME, RETIRED_STORE_NAME],
+        'readwrite',
+      );
+      const store = transaction.objectStore(STORE_NAME);
+      const retiredStore = transaction.objectStore(RETIRED_STORE_NAME);
+      let moved = false;
+      const read = retiredStore.get(actionId);
+      read.onerror = () => reject(read.error || new Error('Student action outbox request failed.'));
+      read.onsuccess = () => {
+        const current = read.result;
+        if (!sameRetirement(current, expectedRetirement)) return;
+        const queued = store.get(actionId);
+        queued.onerror = () => reject(queued.error || new Error('Student action outbox request failed.'));
+        queued.onsuccess = () => {
+          if (queued.result) return;
+          store.put(clone(restored));
+          retiredStore.delete(actionId);
+          moved = true;
+          if (keepsTally) {
+            keepRetiredTallyCurrent(transaction.objectStore(DEVICE_IDENTITY_STORE_NAME), { replaced: current, added: null });
+          }
+        };
+      };
+      transaction.oncomplete = () => resolve(moved);
+      transaction.onabort = () => reject(transaction.error || new Error('Student action outbox transaction aborted.'));
+      transaction.onerror = () => reject(transaction.error || new Error('Student action outbox transaction failed.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
 /** Record why a delivery has not succeeded yet, without disturbing the row's order. */
 const annotateIfCurrentTransaction = async (actionId, expectedCreatedOrder, delivery) => {
   const database = await openDatabase();
@@ -732,6 +786,8 @@ export const indexedDbOutboxStorage = Object.freeze({
   /** Move to the retained `retired` store only while the row is still current. */
   retireIfCurrent: (actionId, expectedCreatedOrder, retirement) => retireIfCurrentTransaction(actionId, expectedCreatedOrder, retirement),
   annotateIfCurrent: (actionId, expectedCreatedOrder, delivery) => annotateIfCurrentTransaction(actionId, expectedCreatedOrder, delivery),
+  /** Move a retired row back into the queue, only while it is still the retirement chosen. */
+  restoreRetiredIfUnchanged: (actionId, expectedRetirement, restored) => restoreRetiredIfUnchangedTransaction(actionId, expectedRetirement, restored),
   list: () => transactionRequest('readonly', (store) => store.getAll()),
   /** Every retired row. The device summary no longer calls this; see `readRetiredTally`. */
   listRetired: () => transactionRequest('readonly', (store) => store.getAll(), RETIRED_STORE_NAME),
@@ -848,6 +904,85 @@ export const listRetiredDurableActions = async ({ storage = indexedDbOutboxStora
   return (Array.isArray(actions) ? actions : [])
     .filter((action) => action && (!studentId || action.studentId === studentId))
     .sort(byCaptureOrder);
+};
+
+/*
+ * REVIEW WORK THE SERVER REFUSED BY MISTAKE IS SENT AGAIN.
+ *
+ * Until the server learned that a Test Cycle's Review is ordinary work
+ * (functions/shared/submissionIngestion.mjs, excludedAsSecureWork), every
+ * Review answer was answered "permanently-invalid / secure-assignment-excluded"
+ * and retired here. The answer was right about nothing: the student did the
+ * work, and their teacher saw 0/12. Retirement keeps the envelope, so the work
+ * is still on the Chromebook that captured it, and this puts it back in the
+ * queue for the server to judge again.
+ *
+ * Narrow on purpose:
+ *   - only rows retired with exactly that disposition and reason;
+ *   - only work the device itself recorded as Review (`payload.activityRole`).
+ *     The server still decides from its own copy of the question, so a row
+ *     that is not Review there is simply refused again;
+ *   - at most REVIEW_RESEND.maxAttempts times per row, at least minIntervalMs
+ *     apart. A page loaded before the fixed functions were live would be
+ *     refused again, and this gives it later chances without ever turning into
+ *     a loop. A resent row carries `reviewResend`, and keeps it if retired again;
+ *   - once per student per page load. Finding the rows reads the whole
+ *     `retired` store, which is exactly the cost the tally exists to avoid on
+ *     every report, so it must not run on every visibility change.
+ */
+export const REVIEW_RESEND = Object.freeze({
+  reason: 'secure-assignment-excluded',
+  maxAttempts: 3,
+  minIntervalMs: 6 * 60 * 60 * 1000,
+});
+const RESENDABLE_KINDS = Object.freeze(['ordinarySubmission', 'stepSubmission', 'questionReplacement', 'questionProgress']);
+
+export const isRetiredReviewWorkToResend = (row, { studentId, now = Date.now() } = {}) => {
+  if (!row || !studentId || row.studentId !== studentId) return false;
+  if (!RESENDABLE_KINDS.includes(row.kind)) return false;
+  if (row.retirement?.disposition !== SUBMISSION_DISPOSITION.PERMANENTLY_INVALID) return false;
+  if (row.retirement?.reason !== REVIEW_RESEND.reason) return false;
+  if (String(row.payload?.activityRole || '').trim().toLowerCase() !== 'review') return false;
+  if ((Number(row.reviewResend?.attempts) || 0) >= REVIEW_RESEND.maxAttempts) return false;
+  const lastAt = Number(row.reviewResend?.lastAt) || 0;
+  return !lastAt || Number(now) - lastAt >= REVIEW_RESEND.minIntervalMs;
+};
+
+/** The queue row a retired one becomes: its own envelope, minus the verdict. */
+export const reviewResendAction = (row, now = Date.now()) => {
+  const { retirement, delivery: _delivery, ...action } = row;
+  return {
+    ...action,
+    reviewResend: {
+      attempts: (Number(row.reviewResend?.attempts) || 0) + 1,
+      lastAt: Number(now),
+      previousReason: retirement?.reason || null,
+      previousRetiredAt: retirement?.retiredAt ?? null,
+    },
+  };
+};
+
+// Storage adapter -> student ids already checked by this page.
+const reviewResendCheckedThisPage = new WeakMap();
+
+export const resendRetiredReviewWork = async ({ storage = indexedDbOutboxStorage, studentId, now = Date.now() } = {}) => {
+  if (!studentId || typeof storage.restoreRetiredIfUnchanged !== 'function' || typeof storage.listRetired !== 'function') {
+    return { checked: false, resent: 0 };
+  }
+  const checked = reviewResendCheckedThisPage.get(storage) || new Set();
+  reviewResendCheckedThisPage.set(storage, checked);
+  if (checked.has(studentId)) return { checked: false, resent: 0 };
+  checked.add(studentId);
+
+  const rows = await listRetiredDurableActions({ storage, studentId });
+  let resent = 0;
+  for (const row of rows) {
+    if (!isRetiredReviewWorkToResend(row, { studentId, now })) continue;
+    // eslint-disable-next-line no-await-in-loop
+    if (await storage.restoreRetiredIfUnchanged(row.actionId, row.retirement, reviewResendAction(row, now))) resent += 1;
+  }
+  if (resent) recordPerformanceSample('review_work_resent', resent, { flow: 'outbox' });
+  return { checked: true, resent };
 };
 
 export const overlayDurableActionsOnGrades = (gradesByAssignment = {}, actions = []) => {
@@ -1298,6 +1433,16 @@ export const createMemoryOutboxStorage = (initial = [], { retired: initialRetire
       if (!current) return false;
       if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) return false;
       records.set(actionId, clone({ ...current, delivery }));
+      return true;
+    },
+    // Mirrors the IndexedDB restore: same guard, same tally upkeep.
+    async restoreRetiredIfUnchanged(actionId, expectedRetirement, restored) {
+      const current = retired.get(actionId) || null;
+      if (!sameRetirement(current, expectedRetirement)) return false;
+      if (records.has(actionId)) return false;
+      records.set(actionId, clone(restored));
+      retired.delete(actionId);
+      keepTallyCurrent({ replaced: current, added: null });
       return true;
     },
     async list() { return [...records.values()].map(clone); },

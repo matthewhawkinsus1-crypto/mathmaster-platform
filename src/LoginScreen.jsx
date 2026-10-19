@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import './LoginScreen.css';
 import { useAuth } from './auth/AuthProvider';
 import { isSetupRequired, readLoginHints, readRememberDevice, sendTeacherPasswordReset } from './auth/authService';
+import { exitTicketInSentence } from './platform/student/studentWords.js';
 
 const GoogleMark = () => (
   <svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
@@ -13,7 +14,7 @@ const GoogleMark = () => (
 );
 
 const BRAND_POINTS = [
-  'One sign-in for assignments, practice, DOL and your scratchpad work',
+  `One sign-in for assignments, practice, ${exitTicketInSentence}s and your scratchpad work`,
   'Your work follows you from a Chromebook to a phone and back',
   'Teachers get the roster, grades and Google Classroom sync in one place',
 ];
@@ -418,8 +419,9 @@ export default function LoginScreen({ launchAssignment }) {
         <div>
           <h1 className="mm-login__headline">Sign in and pick up exactly where you left off.</h1>
           <p className="mm-login__subhead">
-            Algebra practice, guided notes, interactive graphing and daily DOL checks — on whatever device is in front
-            of you.
+            {/* The page's one spelling of "(DOL)" (studentWords.js, D9). */}
+            Algebra practice, guided notes, interactive graphing and daily {exitTicketInSentence}s (DOL) — on whatever
+            device is in front of you.
           </p>
         </div>
         <ul className="mm-login__points">

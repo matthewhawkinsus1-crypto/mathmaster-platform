@@ -40,7 +40,8 @@ test('forced repost is idempotent for one teacher click but bypasses ordinary du
 test('browser exposes exact destination selection and an explicit duplicate warning', () => {
   const api = read('src/classroomApi.js');
   const manager = read('src/ClassroomManagerV2.jsx');
-  const app = read('src/App.jsx');
+  // The menu and the manager mount are the teacher's screen, its own module since G2.
+  const app = read('src/app/teacher/TeacherWorkspace.jsx');
 
   assert.match(api, /forceRepublishAssignmentToClassrooms = call\("forceRepublishAssignmentToClassrooms"\)/);
   assert.match(manager, /selectedCourseIds/);

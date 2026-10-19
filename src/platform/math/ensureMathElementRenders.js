@@ -41,3 +41,35 @@ export function ensureMathElementRenders(element, win = typeof window === 'undef
     observer?.disconnect();
   };
 }
+
+/*
+ * PRINTING TYPESETS EVERYTHING. A page printed before the student scrolled
+ * through it (a worked solution, Review My Work) printed every formula that
+ * had never been on screen as a blank: the lazy elements had no content
+ * (student push J; the "blank Representation / inline $x$" report — on
+ * screen they render when scrolled into view). Before printing, every
+ * <math-span>/<math-div> that has not rendered is rendered now.
+ */
+export function renderPendingMathElements(root = typeof document === 'undefined' ? null : document) {
+  if (!root?.querySelectorAll) return 0;
+  let rendered = 0;
+  root.querySelectorAll('math-span, math-div').forEach((element) => {
+    if (mathElementHasRendered(element) || typeof element.render !== 'function') return;
+    try {
+      element.render();
+      rendered += 1;
+    } catch { /* an element MathLive cannot render stays as it was */ }
+  });
+  return rendered;
+}
+
+let printListenerInstalled = false;
+export function installPrintMathRendering(win = typeof window === 'undefined' ? null : window) {
+  if (printListenerInstalled || !win?.addEventListener) return false;
+  printListenerInstalled = true;
+  win.addEventListener('beforeprint', () => renderPendingMathElements(win.document));
+  return true;
+}
+
+// Once, for every page that shows math (MathDisplay imports this module).
+installPrintMathRendering();

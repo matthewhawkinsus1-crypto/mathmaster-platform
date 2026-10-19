@@ -8,7 +8,7 @@ import {
   prerequisiteAccess,
 } from '../../assignmentLifecycle.js';
 import { isArchived } from '../../assignmentSmartViews.js';
-import { AUTHORING_STATES } from '../preflight/assignmentAuthoringState.js';
+import { AUTHORING_STATES } from '../preflight/authoringStates.js';
 import { normalizeGradingPeriodSettings, resolveAssignmentGradingPeriod } from '../student/gradingPeriods.js';
 
 /*

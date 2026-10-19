@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { describeSkill } from '../../platform/path/skillGraph';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions';
 import { curateStudentPanel, resolveChoiceState } from '../../platform/path/studentPanel';
+import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { practisableOptions } from '../../platform/path/recommendedCoverage.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // "Recommended for You" — the student's independent path.
@@ -25,6 +27,7 @@ const SLOT_STYLE = {
 function SkillCard({ card, label, onChoose, disabled }) {
   if (!card) return null;
   const style = SLOT_STYLE[card.slot] || SLOT_STYLE.choice;
+  const evidence = Array.isArray(card.evidence) ? card.evidence : [];
   return (
     <button
       type="button"
@@ -38,13 +41,27 @@ function SkillCard({ card, label, onChoose, disabled }) {
         display: 'block',
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: toneTextColor(style.chip), letterSpacing: 0.4 }}>
+      <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', color: toneTextColor(style.chip), letterSpacing: 0.4 }}>
         <span aria-hidden="true">{style.mark}</span> {label}
       </span>
-      <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', margin: '4px 0 2px', fontSize: 15 }}>
+      <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', margin: '4px 0 2px', fontSize: 'calc(15 * var(--mm-px))' }}>
         {card.description || card.title}
       </span>
-      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
+      {/* WHY, WITH THE EVIDENCE NAMED. The engine's list restates the verdict
+          with what drove it — the score and the questions behind it, the class
+          unit, what it builds on — so it replaces the one-line reason rather
+          than repeating it. A card with no evidence keeps the reason. */}
+      {evidence.length ? (
+        <span data-recommendation-evidence style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
+          {evidence.map((item) => (
+            <span key={`${item.kind}:${item.text}`} style={{ display: 'block' }}>
+              <span aria-hidden="true">· </span>{item.text}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{card.reason}</span>
+      )}
     </button>
   );
 }
@@ -58,16 +75,30 @@ export default function RecommendedSkills({
   teacherOverrides = [],
   requiredSkillIds = [],
   onChooseSkill,
+  // The course's coverage index; read here when not given (tests pass one).
+  coverage: coverageOverride = undefined,
 }) {
   const [showAll, setShowAll] = useState(false);
+  // undefined while loading; null when there is no index (fails closed).
+  const [loadedCoverage, setLoadedCoverage] = useState(undefined);
+  useEffect(() => {
+    if (coverageOverride !== undefined) return undefined;
+    let cancelled = false;
+    setLoadedCoverage(undefined);
+    fetchPathCoverage(courseId).then((index) => { if (!cancelled) setLoadedCoverage(index || null); });
+    return () => { cancelled = true; };
+  }, [courseId, coverageOverride]);
+  const coverage = coverageOverride !== undefined ? coverageOverride : loadedCoverage;
 
   // Prefer the options the caller already evaluated: My Math Path uses the
-  // same object, and two evaluations could drift apart between renders.
-  const options = useMemo(() => (
-    pathOptions || buildStudentPathOptions({
+  // same object, and two evaluations could drift apart between renders. Only
+  // skills a student can practise are offered (recommendedCoverage.js).
+  const options = useMemo(() => {
+    if (coverage === undefined) return null;
+    return practisableOptions(pathOptions || buildStudentPathOptions({
       student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds,
-    })
-  ), [pathOptions, student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds]);
+    }), coverage);
+  }, [coverage, pathOptions, student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds]);
 
   const panel = useMemo(() => (options ? curateStudentPanel(options) : null), [options]);
 
@@ -80,14 +111,14 @@ export default function RecommendedSkills({
 
   return (
     <section style={{ marginTop: 28, textAlign: 'left' }}>
-      <h3 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--mm-text-strong)' }}>Recommended for you</h3>
-      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Recommended for you</h3>
+      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
         {panel.confidence.message}
         {panel.confidence.level === 'low' && ' MathMaster gets better at this as you work.'}
       </p>
 
       {!choiceAllowed && (
-        <div role="status" style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 700, fontSize: 13, lineHeight: 1.5 }}>
+        <div role="status" style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
           {reason}
         </div>
       )}
@@ -116,7 +147,7 @@ export default function RecommendedSkills({
       )}
 
       {showAll && (
-        <ul style={{ marginTop: 12, paddingLeft: 20, lineHeight: 1.7, fontSize: 14 }}>
+        <ul style={{ marginTop: 12, paddingLeft: 20, lineHeight: 1.7, fontSize: 'calc(14 * var(--mm-px))' }}>
           {allSkills.map((row) => (
             <li key={row.skillId}>
               <button
@@ -139,7 +170,7 @@ export default function RecommendedSkills({
         // Honest rather than hidden: the student is not shown jargon, but the
         // claim "this matches what your class is learning" is softened while
         // the underlying calendar is a placeholder.
-        <p style={{ marginTop: 12, color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, color: 'var(--mm-text-subtle)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
           Your teacher is still setting up the course calendar, so these suggestions are a starting point.
         </p>
       )}

@@ -10,9 +10,11 @@
  * PRIVACY. Nothing here leaves the device on its own; it is copied only when a
  * person presses the button. And what is kept is scrubbed before it is stored:
  * no email addresses, no long digit runs (ids, phone numbers), no query
- * strings, at most 240 characters of message, and no stack, which can quote
- * code that holds question content. Student answers, names and answer keys are
- * never passed in by any caller.
+ * strings, at most 240 characters of message (480 for a question failure,
+ * which has to name the slot it happened in — assignment, question, family,
+ * lifecycle, record, pin — as well as what went wrong), and no stack, which
+ * can quote code that holds question content. Student answers, names and
+ * answer keys are never passed in by any caller.
  */
 
 import { getMathMasterBuildInfo } from './buildInfo.js';
@@ -20,17 +22,18 @@ import { getMathMasterBuildInfo } from './buildInfo.js';
 export const CLIENT_DIAGNOSTICS_STORAGE_KEY = 'mm:client-diagnostics';
 export const CLIENT_DIAGNOSTICS_LIMIT = 25;
 const MESSAGE_LIMIT = 240;
+export const QUESTION_DIAGNOSTIC_MESSAGE_LIMIT = 480;
 
 const memoryLog = [];
 
 /** Remove what could identify a person or carry content, and bound the size. */
-export const scrubDiagnosticText = (value) => String(value ?? '')
+export const scrubDiagnosticText = (value, limit = MESSAGE_LIMIT) => String(value ?? '')
   .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
   .replace(/\?[^\s'"]*/g, '')
   .replace(/\d{7,}/g, '[number]')
   .replace(/\s+/g, ' ')
   .trim()
-  .slice(0, MESSAGE_LIMIT);
+  .slice(0, Math.max(0, Math.min(Number(limit) || MESSAGE_LIMIT, QUESTION_DIAGNOSTIC_MESSAGE_LIMIT)));
 
 const storage = () => {
   try {
@@ -61,13 +64,13 @@ const screenPath = () => {
  * Keep one failure. `kind` is a short machine word (chunk-load, render-error,
  * unhandled-rejection, window-error); `source` names the boundary or listener.
  */
-export const recordClientDiagnostic = ({ kind, message, source = '' } = {}) => {
+export const recordClientDiagnostic = ({ kind, message, source = '', limit = MESSAGE_LIMIT } = {}) => {
   const build = getMathMasterBuildInfo();
   const entry = {
     at: new Date().toISOString(),
     kind: scrubDiagnosticText(kind || 'error').slice(0, 40),
     source: scrubDiagnosticText(source).slice(0, 60),
-    message: scrubDiagnosticText(message),
+    message: scrubDiagnosticText(message, limit),
     build: build?.gitSha ? String(build.gitSha).slice(0, 12) : 'unknown',
     screen: screenPath(),
     online: typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : null,

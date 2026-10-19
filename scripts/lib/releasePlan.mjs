@@ -14,7 +14,9 @@
  *                           mutations per project per minute ("HTTP 429 Per
  *                           project mutation requests per minute per region").
  *                           Before rules and Hosting, so the new client never
- *                           calls a callable that is not there yet.
+ *                           calls a callable that is not there yet. A few
+ *                           ship first or last, each alone
+ *                           (DEPLOY_FIRST_FUNCTIONS, DEPLOY_LAST_FUNCTIONS).
  *   3. Firestore rules      just before Hosting, so the window in which the old
  *                           client runs against new rules is as short as it can
  *                           be. The Admin SDK functions are not subject to them.
@@ -26,13 +28,27 @@
  * vendoring) as `functions:path-admin`, after the default codebase.
  *
  * PROVING THE FUNCTIONS LANDED (F-REL-3). A release that deploys any
- * default-codebase function also redeploys `platformBuildInfo`, last, and then
- * runs a read-only verify step: it calls that callable and requires the commit
- * it reports to be this checkout's HEAD. A wrong commit or no answer is treated
- * like a function that did not deploy — path-admin, rules and Hosting wait.
+ * default-codebase function also redeploys `platformBuildInfo`, last before the
+ * checks, and then runs a read-only verify step: it calls that callable and
+ * requires the commit it reports to be this checkout's HEAD. A wrong commit or
+ * no answer is treated like a function that did not deploy — path-admin, rules
+ * and Hosting wait.
+ *
+ * PROVING A BROWSER CAN REACH THEM. A deployed callable is still unreachable
+ * from a browser when its Cloud Run service does not grant `allUsers`
+ * `roles/run.invoker`, and the Firebase CLI grants that only when it creates a
+ * callable, never on a later deploy. So after the verify step comes an access
+ * step: every callable in the default codebase is checked, and the binding is
+ * granted where it is missing (scripts/lib/callableAccess.mjs). One a browser
+ * still cannot reach is treated like a function that did not deploy.
  */
 
 import { VENDORED_PATHS } from '../sync-path-admin-runtime.mjs';
+import { plannerClosure } from '../sync-functions-weekly-planner.mjs';
+
+// Read once, lazily: the planner's module closure, repo-relative.
+let plannerFiles = null;
+const weeklyPlannerFiles = () => (plannerFiles ||= new Set(plannerClosure()));
 
 export const RELEASE_TARGETS = Object.freeze({
   INDEXES: 'firestore:indexes',
@@ -50,8 +66,29 @@ export const RELEASE_TARGETS = Object.freeze({
  */
 export const VERIFY_FUNCTIONS = 'verify:functions';
 
+/**
+ * The browser-access step that follows the verify step: every default-codebase
+ * callable must grant `allUsers` `roles/run.invoker`, and is granted it where
+ * it does not. It changes IAM bindings only, never code, so like the verify
+ * step it is not a deploy target and `--only` cannot name it.
+ */
+export const ACCESS_FUNCTIONS = 'access:functions';
+
 /** The callable every functions release redeploys and then asks which commit is live. */
 export const BUILD_INFO_FUNCTION = 'platformBuildInfo';
+
+/**
+ * Functions whose place in a release is part of what keeps it safe: Live
+ * Challenge's server sweep (docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md,
+ * "Deploy"). The host heartbeat the sweep reads ships first and alone, so it is
+ * live before anything can act on it. The scheduled sweep ships last and alone,
+ * after the verify and access steps, and only when every other function shipped
+ * and both checks passed: a sweep running beside old callables or without the
+ * heartbeat is the mixed deploy its review ruled out. The sweep is a scheduled
+ * function, not a callable, so the access step has nothing to check for it.
+ */
+export const DEPLOY_FIRST_FUNCTIONS = Object.freeze(['calibrateLiveChallengeClock']);
+export const DEPLOY_LAST_FUNCTIONS = Object.freeze(['closeOverdueLiveChallengeRounds']);
 
 /**
  * Where a function without an explicit region is deployed: the Firebase CLI's
@@ -92,7 +129,7 @@ const ORDER = [
 const NO_DEPLOY = [
   /^docs\//, /^tests\//, /^functions\/test\//, /^\.github\//, /^drafts\//, /^seed\//,
   /\.md$/i, /\.txt$/i, /\.png$/i, /^[._]oxlintrc\.json$/, /^\.gitignore$/,
-  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|build-firebase-hosting)/,
+  /^scripts\/(?!build-ccmr|build-course-path|sync-path-admin|sync-functions-weekly-planner|build-firebase-hosting)/,
 ];
 
 const RULES = [
@@ -103,8 +140,12 @@ const RULES = [
     || /^scripts\/(build-course-path-release|sync-path-admin-runtime)/.test(file)],
   // functions/shared is also vendored into the path-admin codebase, so a change
   // there is a change to both.
+  // The weekly planner's src/ modules are copied into the default codebase at
+  // predeploy (scripts/sync-functions-weekly-planner.mjs), so the freeze plans
+  // with the browser's planner; a change to one is a functions change too.
   [RELEASE_TARGETS.FUNCTIONS, (file) => (file.startsWith('functions/') && !file.startsWith('functions/test/'))
-    || /^scripts\/build-ccmr-v2-1-production-release/.test(file)],
+    || /^scripts\/(build-ccmr-v2-1-production-release|sync-functions-weekly-planner)/.test(file)
+    || weeklyPlannerFiles().has(file)],
   [RELEASE_TARGETS.HOSTING, (file) => file.startsWith('src/') || file.startsWith('public/')
     || ['index.html', 'vite.config.js', 'package.json', 'package-lock.json', 'firebase.json'].includes(file)
     || file.startsWith('functions/shared/') // the browser imports the shared grading/policy modules
@@ -157,7 +198,8 @@ export const chunk = (list, size) => {
  * would also redeploy the path-admin codebase.
  *
  * Any release that deploys default-codebase functions also deploys
- * `platformBuildInfo`, in the LAST group, and is followed by one read-only
+ * `platformBuildInfo`, in the LAST group before the checks (only
+ * DEPLOY_LAST_FUNCTIONS come after them), and is followed by one read-only
  * verify step that expects it to report `expectedGitSha` (this checkout's
  * HEAD). A plan that cannot be verified is refused rather than planned
  * without the check.
@@ -182,10 +224,16 @@ export const buildReleasePlan = ({
       if (!known.has(BUILD_INFO_FUNCTION)) {
         throw new Error(`${BUILD_INFO_FUNCTION} is not in the default codebase. Every functions release redeploys it and then asks it which commit is live; restore exports.${BUILD_INFO_FUNCTION} in functions/index.js.`);
       }
-      // Last, so the verify step asks the function this release deployed most recently.
-      const names = [...new Set(requested.filter((name) => name !== BUILD_INFO_FUNCTION)), BUILD_INFO_FUNCTION];
-      chunk(names, groupSize).forEach((group, index, all) => steps.push({
-        target, group, label: `functions group ${index + 1}/${all.length}`,
+      const unique = [...new Set(requested.filter((name) => name !== BUILD_INFO_FUNCTION))];
+      const first = unique.filter((name) => DEPLOY_FIRST_FUNCTIONS.includes(name));
+      const last = unique.filter((name) => DEPLOY_LAST_FUNCTIONS.includes(name));
+      // platformBuildInfo last before the checks, so the verify step asks the
+      // function this release deployed most recently.
+      const names = [...first, ...unique.filter((name) => !first.includes(name) && !last.includes(name)), BUILD_INFO_FUNCTION];
+      const groups = [...first.map((name) => [name]), ...chunk(names.slice(first.length), groupSize)];
+      const total = groups.length + last.length;
+      groups.forEach((group, index) => steps.push({
+        target, group, label: `functions group ${index + 1}/${total}`, ...(index < first.length ? { deployFirst: true } : {}),
       }));
       steps.push({
         target: VERIFY_FUNCTIONS,
@@ -193,6 +241,13 @@ export const buildReleasePlan = ({
         function: BUILD_INFO_FUNCTION,
         expectedGitSha: normalizeGitSha(expectedGitSha),
       });
+      // Every callable is checked and repaired; the ones this release deployed
+      // decide whether it may go on (callableAccess.mjs#releaseAccessVerdict).
+      steps.push({ target: ACCESS_FUNCTIONS, label: 'browser access to callables', functions: names });
+      // Each alone, after both checks; the executor holds them unless both passed.
+      last.forEach((name, index) => steps.push({
+        target, group: [name], label: `functions group ${groups.length + index + 1}/${total}`, afterChecks: true,
+      }));
       continue;
     }
     steps.push({ target, label: target });
@@ -207,6 +262,9 @@ export const buildReleasePlan = ({
 export const deployCommandFor = (step, { project }) => {
   if (step.target === VERIFY_FUNCTIONS) {
     throw new Error(`${VERIFY_FUNCTIONS} is a read-only check, not a deploy command.`);
+  }
+  if (step.target === ACCESS_FUNCTIONS) {
+    throw new Error(`${ACCESS_FUNCTIONS} checks and grants Cloud Run IAM bindings; it is not a deploy command.`);
   }
   if (step.target === RELEASE_TARGETS.HOSTING) {
     return { command: 'npm', args: ['run', 'deploy:hosting'], env: { FIREBASE_PROJECT: project } };
@@ -349,6 +407,9 @@ export const describeStep = (step, { project, region = DEFAULT_FUNCTIONS_REGION 
     const expected = step.expectedGitSha ? step.expectedGitSha.slice(0, 12) : 'HEAD';
     return `POST ${url} ${init.body} -> result.gitSha must be ${expected}, else path-admin, rules and Hosting wait`;
   }
+  if (step.target === ACCESS_FUNCTIONS) {
+    return 'gcloud: every callable\'s Cloud Run service must grant allUsers roles/run.invoker (granted where missing), else path-admin, rules and Hosting wait';
+  }
   const { command, args } = deployCommandFor(step, { project });
   return `${command} ${args.join(' ')}`;
 };
@@ -356,17 +417,23 @@ export const describeStep = (step, { project, region = DEFAULT_FUNCTIONS_REGION 
 /**
  * The command that finishes an incomplete release: the functions that did not
  * deploy — and platformBuildInfo when the verify step failed, since
- * redeploying it re-runs the check — then the targets held back.
+ * redeploying it re-runs the check — then the targets held back. When only
+ * the access step failed, the repair is the access check itself; a functions
+ * re-run would repeat it anyway.
  */
-export const retryCommandFor = ({ failedFunctions = [], verification = null, stoppedBeforeTargets = null } = {}) => {
+export const retryCommandFor = ({ failedFunctions = [], heldFunctions = [], verification = null, access = null, stoppedBeforeTargets = null } = {}) => {
+  // A function held for the checks (DEPLOY_LAST_FUNCTIONS) is planned after them again.
   const names = [...new Set([
     ...(failedFunctions || []).map((entry) => entry.name),
     ...(verification?.status === 'failed' ? [verification.function || BUILD_INFO_FUNCTION] : []),
+    ...(heldFunctions || []),
   ])];
-  if (!names.length) return null;
+  const first = names.length
+    ? `node scripts/release-firebase.mjs --execute --functions ${names.join(',')}`
+    : (access?.status === 'failed' ? 'node scripts/verify-callable-access.mjs --fix --codebase default' : null);
+  if (!first) return null;
   const held = [...new Set(stoppedBeforeTargets || [])].map(aliasFor);
-  return `node scripts/release-firebase.mjs --execute --functions ${names.join(',')}`
-    + (held.length ? ` && node scripts/release-firebase.mjs --execute --only ${held.join(',')}` : '');
+  return first + (held.length ? ` && node scripts/release-firebase.mjs --execute --only ${held.join(',')}` : '');
 };
 
 /**

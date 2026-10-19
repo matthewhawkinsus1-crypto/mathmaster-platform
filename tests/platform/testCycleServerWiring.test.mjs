@@ -19,12 +19,13 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 test('secure issuance reads a stored plan and calls no model', () => {
   const issue = region(
     functionsIndex,
-    'async function issueCourseTestQuestion(',
+    'async function buildCourseTestExamItem(',
     '// Immutable evidence drives the Phase 5A mastery wheel',
-    'issueCourseTestQuestion',
+    'buildCourseTestExamItem',
   );
-  // It looks up the next plan entry and instantiates the family it names.
-  assert.match(issue, /nextPlanEntry\(plan, completedSlotIds\)/);
+  // It looks up the next plan entry — after every slot already ISSUED, skipped
+  // or not — and instantiates the family it names.
+  assert.match(issue, /nextPlanEntry\(plan, secureExamNavigation\.issuedSlotIds\(session\)\)/);
   assert.match(issue, /instantiateQuestion\(family, entry\.seedKey/);
   assert.match(issue, /buildIssuePlan\(instantiated\.question\)/);
 
@@ -47,15 +48,20 @@ test('the plan is written with the session, before a student can start it', () =
   assert.match(create, /examType: secureExam\.COURSE_TEST_EXAM_TYPE/);
   // And the batch refuses any plan that could not be completed from approved
   // families, rather than opening a session that would have to improvise.
+  // The refusal lives in the one opener every route to a Test session uses
+  // (the class-wide callable and the bulk operation), before its transaction.
   const assign = region(functionsIndex, 'exports.assignTestCycleSessions = onCall(', 'exports.preflightTestCycleAssignment', 'assign');
-  assert.match(assign, /planRequiresLiveGeneration\(plan\)/);
+  assert.match(assign, /await openTestSessionForStudent\(\s*db,/);
+  const opener = region(functionsIndex, 'async function openTestSessionForStudent(', 'async function ensureMissedTestRetestSession(', 'opener');
+  assert.match(opener, /if \(shared\.issuance\.planRequiresLiveGeneration\(plan\)\) \{\s*throw new HttpsError\("failed-precondition"/);
+  assert.ok(opener.indexOf('planRequiresLiveGeneration(plan)') < opener.indexOf('mutateTestCycleRecord(db, {'), 'the plan is refused before any session is written');
 });
 
 test('the issued instance id is written back onto the plan entry', () => {
   // This is what later lets corrections join evidence to blueprint slots and
   // lets the retest audit prove it reused nothing.
-  const issue = region(functionsIndex, 'async function issueCourseTestQuestion(', '// Immutable evidence drives the Phase 5A mastery wheel', 'issue');
-  assert.match(issue, /planEntry\.slotId === entry\.slotId \? \{ \.\.\.planEntry, questionInstanceId \}/);
+  const issue = region(functionsIndex, 'exports.issueSecureExamQuestion = onCall(', 'function sanitizeSecureExamDraft', 'issue');
+  assert.match(issue, /planEntry\.slotId === generated\.planEntry\.slotId \? \{ \.\.\.planEntry, questionInstanceId \}/);
 });
 
 test('releasing a failed Test builds the correction plan automatically', () => {
@@ -142,10 +148,12 @@ test('waiving corrections or unlocking a retest opens it immediately', () => {
 });
 
 test('a student is never handed the families or seeds behind their corrections', () => {
+  // The function itself: the server-side helpers after it (which read the
+  // private grading to diagnose a miss) are not the student payload.
   const visible = region(
     functionsIndex,
     'function studentVisibleCorrectionPlan(',
-    'exports.issueTestCycleCorrectionQuestion',
+    '\n}\n',
     'studentVisibleCorrectionPlan',
   );
   for (const secret of ['practiceFamilyIds', 'forbiddenInstanceIds', 'privateGrading', 'evidence:']) {

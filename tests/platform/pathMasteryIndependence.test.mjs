@@ -22,6 +22,14 @@ import { readFileSync } from 'node:fs';
 import {
   SUPPORTED_CREDIT, estimateInstructionalPerformanceLevel,
 } from '../../src/masteryEngine.js';
+import { MASTERY_STATUS, classifyMasteryStatus, masteryChecklist } from '../../functions/shared/masteryRule.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { ROLE_WEIGHT, applyMasteryEvent, masteryEventFacts } from '../../functions/shared/masteryScoring.mjs';
+import { createRequire } from 'node:module';
+import { buildAttemptSupportPayload, buildPrivateSupport } from '../../functions/shared/pathSolutionSupport.mjs';
+
+const mathPathHelpers = createRequire(import.meta.url)('../../functions/lib/mathPath.js');
+const { mathematicalIndependence, pathAttemptSupport } = mathPathHelpers;
 
 const serverSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 
@@ -78,12 +86,54 @@ test('mixed evidence lands between the two, not at the top', () => {
 // --- The label requires independent evidence ---------------------------------
 
 test('the Mastered gate requires successes the student produced unaided', () => {
-  assert.ok(serverSource.includes('independentSuccesses >= 2'),
-    'the server Mastered gate must require independent successes, not only a high estimate');
-  assert.ok(serverSource.includes('const weight = modified ? 0 : roleWeight;'),
-    'the support discount must NOT be folded back into the weight');
-  assert.ok(serverSource.includes('SUPPORTED_CREDIT'),
-    'the support discount must be applied to credit');
+  // This used to be `serverSource.includes('independentSuccesses >= 2')`. Once
+  // the gate moved into the shared rule, the only line in functions/index.js
+  // that still matched was the RETENTION CHECK's pass test — so the assertion
+  // stood for a behaviour it no longer looked at. It is now bound to the gate:
+  // the trigger hands the rule the count of unaided successes...
+  const trigger = region(
+    executableSource(serverSource),
+    'exports.updateMyMathPathMasteryFromEvidence',
+    '\nexports.',
+    'the server mastery trigger',
+  );
+  // The trigger scores each question through the shared scorer, which hands
+  // the rule its count of unaided successes (functions/shared/masteryScoring.mjs).
+  assert.match(trigger, /masteryScoring\.applyMasteryEvent\(profiles\[code\], facts, code,/,
+    'the server Mastered gate must run through the shared scorer');
+  // The count it is given is of answers that were right AND unaided: six
+  // correct answers, each with a hint, reach a high estimate and no success.
+  const event = (index, supportUsage) => ({
+    eventKey: `e${index}`, occurredAt: 1000 + index, masteryEvidenceKeys: ['texas:A.5A'],
+    questionSnapshot: { questionInstanceId: `q${index}`, dok: 3 }, source: { kind: 'path', activityRole: 'practice' },
+    performance: { score: 1, isCorrect: true, attemptNumber: 1 }, supportUsage,
+  });
+  let hinted;
+  for (let index = 0; index < 6; index += 1) {
+    hinted = applyMasteryEvent(hinted, masteryEventFacts(event(index, { hintUsed: true }), mathPathHelpers), 'A.5A').entry;
+  }
+  assert.equal(hinted.accumulator.independentSuccesses, 0,
+    'only a correct answer the student produced without support may count toward Mastered');
+  assert.notEqual(hinted.mastery.status, MASTERY_STATUS.MASTERED);
+  let unaided;
+  for (let index = 0; index < 6; index += 1) {
+    unaided = applyMasteryEvent(unaided, masteryEventFacts(event(index, {}), mathPathHelpers), 'A.5A').entry;
+  }
+  assert.equal(unaided.accumulator.independentSuccesses, 6);
+  assert.equal(unaided.mastery.status, MASTERY_STATUS.MASTERED);
+  // ...and the rule refuses Mastered without two of them, however high the
+  // estimate and however broad the evidence.
+  const strong = { estimate: 100, eligibleEvents: 6, effectiveWeight: 6, dokRepresented: [2, 3] };
+  assert.notEqual(classifyMasteryStatus({ ...strong, independentSuccesses: 0 }), MASTERY_STATUS.MASTERED,
+    'a top label assembled entirely from supported successes is a claim the evidence does not support');
+  assert.notEqual(classifyMasteryStatus({ ...strong, independentSuccesses: 1 }), MASTERY_STATUS.MASTERED);
+  assert.equal(classifyMasteryStatus({ ...strong, independentSuccesses: 2 }), MASTERY_STATUS.MASTERED);
+  // The discount is on CREDIT, never folded into the weight (where it would
+  // divide straight back out): hinted successes keep full weight and earn
+  // 75% each, so their estimate is 75, below Mastered however many there are.
+  const hintedFacts = masteryEventFacts(event(0, { hintUsed: true }), mathPathHelpers);
+  assert.equal(hintedFacts.weight, ROLE_WEIGHT.practice, 'the support discount must NOT be folded back into the weight');
+  assert.equal(hinted.mastery.estimate, 75, 'the support discount must be applied to credit');
 });
 
 test('the client performance level refuses Masters built entirely on support', () => {
@@ -117,19 +167,60 @@ test('support usage is derived from server state, not accepted from the request'
   assert.ok(!serverSource.includes('supportUsage: { ...supportUsage, isMathematicallyIndependent: independent }')
     || serverSource.includes('const claimed = request.data?.supportUsage'),
     'the request object must not be spread wholesale into the evidence document');
-  assert.ok(serverSource.includes('hintUsed: hintReleased'),
-    'hint usage must come from what the server actually released');
-  assert.ok(serverSource.includes('workedExampleUsed: reviewReleased'),
-    'solution-review exposure must be recorded, not assumed absent');
-  assert.ok(serverSource.includes('supportReleased: { hintReleased, reviewReleased }'),
+  // Hint and review use come from what the server released before this
+  // answer, never from the request; what this response releases is carried to
+  // the next attempt (behaviour below).
+  const handler = region(executableSource(serverSource), 'exports.submitPathResponse = onCall(', 'const independent = mathPath.mathematicalIndependence(supportUsage);', 'submitPathResponse support usage');
+  assert.match(handler, /const \{ used: supportBeforeAttempt, released: supportReleased \} = mathPath\.pathAttemptSupport\(\{\s*priorSupport: currentQuestion\.supportReleased \|\| \{\},\s*attemptSupport,\s*\}\);/);
+  assert.match(handler, /hintUsed: supportBeforeAttempt\.hintUsed,\s*workedExampleUsed: supportBeforeAttempt\.workedExampleUsed,\s*scaffoldUsed: supportBeforeAttempt\.scaffoldUsed,/);
+  assert.doesNotMatch(handler, /(hintUsed|workedExampleUsed|scaffoldUsed): (claimed|request)/);
+  assert.ok(serverSource.includes('attemptsUsed: attemptNumber,\n      supportReleased,\n'),
     'support must stay recorded across attempts on the same question');
 });
 
-test('a hint released on an earlier attempt still counts on the attempt that finalizes', () => {
-  // Sticky support: the student who needed a hint on attempt two did not stop
-  // needing it because attempt three is the one that closes the question.
-  assert.ok(serverSource.includes('Boolean(priorSupport.hintReleased) || Boolean(attemptSupport.support?.hint)'),
-    'the hint flag must OR with what was already released');
+// What each Path attempt is told and released, from the shared ladder.
+const respond = ({ attemptNumber = 1, attemptsAllowed = 1, isCorrect }) => buildAttemptSupportPayload({
+  support: buildPrivateSupport({ supportHints: ['Undo the addition first.'], solutionReview: { headline: 'Undo in reverse.', reasoning: ['Subtract 3.', 'Divide by 2.'] } }),
+  attemptNumber,
+  attemptsAllowed,
+  isCorrect,
+  questionFinalized: isCorrect || attemptNumber >= attemptsAllowed,
+});
+
+test('the review shown after an answer never marks that answer as helped (QA R2-M2)', () => {
+  // The QA repro: five one-attempt items, right, wrong, right, wrong, right,
+  // no hints. Every one closes its item, so every response releases the review.
+  const events = [true, false, true, false, true].map((isCorrect) => {
+    const attemptSupport = respond({ isCorrect });
+    assert.ok(attemptSupport.solutionReview, 'the review is released when the item closes');
+    const { used, released } = pathAttemptSupport({ priorSupport: {}, attemptSupport });
+    assert.equal(released.reviewReleased, true, 'and recorded as released, for anything after it');
+    assert.deepEqual(used, { hintUsed: false, workedExampleUsed: false, scaffoldUsed: false });
+    return { score: isCorrect ? 1 : 0, independent: mathematicalIndependence(used) };
+  });
+  const result = aggregate(events);
+  assert.equal(result.independentSuccesses, 3);
+  assert.equal(result.estimate, 60, '3 of 5 right, not 45');
+  const onYourOwn = masteryChecklist({ accumulator: { independentSuccesses: result.independentSuccesses } }).items.find((item) => item.key === 'independent');
+  assert.equal(onYourOwn.progress, '2 of 2');
+});
+
+test('help released before an answer still marks it, and stays on later attempts', () => {
+  // Three attempts: the hint arrives with the second miss's response.
+  const first = pathAttemptSupport({ priorSupport: {}, attemptSupport: respond({ attemptNumber: 1, attemptsAllowed: 3, isCorrect: false }) });
+  assert.equal(first.used.hintUsed, false);
+  const secondResponse = respond({ attemptNumber: 2, attemptsAllowed: 3, isCorrect: false });
+  assert.ok(secondResponse.support?.hint, 'the second miss releases the hint');
+  const second = pathAttemptSupport({ priorSupport: first.released, attemptSupport: secondResponse });
+  assert.equal(second.used.hintUsed, false, 'the hint it released came after attempt two');
+  assert.equal(second.released.hintReleased, true);
+  const third = pathAttemptSupport({ priorSupport: second.released, attemptSupport: respond({ attemptNumber: 3, attemptsAllowed: 3, isCorrect: true }) });
+  assert.deepEqual(third.used, { hintUsed: true, workedExampleUsed: false, scaffoldUsed: true }, 'the hint was on screen before attempt three');
+  assert.equal(mathematicalIndependence(third.used), false);
+  // A review released before an answer is a worked example for it.
+  const reviewed = pathAttemptSupport({ priorSupport: { reviewReleased: true }, attemptSupport: respond({ isCorrect: true }) });
+  assert.equal(reviewed.used.workedExampleUsed, true);
+  assert.equal(mathematicalIndependence(reviewed.used), false);
 });
 
 // --- Retention evidence is distinguishable ------------------------------------
@@ -137,6 +228,7 @@ test('a hint released on an earlier attempt still counts on the attempt that fin
 test('a retention probe is not recorded as ordinary practice', () => {
   assert.ok(serverSource.includes('session.sessionKind === "retentionProbe" ? "retention" : "practice"'),
     '"has this stayed with you?" and "are you learning this?" are different evidence');
-  assert.ok(/retention:\s*1\.15/.test(serverSource),
+  assert.equal(ROLE_WEIGHT.retention, 1.15,
     'the retention role needs its own weight, or the distinction has no effect downstream');
+  assert.notEqual(ROLE_WEIGHT.retention, ROLE_WEIGHT.practice);
 });

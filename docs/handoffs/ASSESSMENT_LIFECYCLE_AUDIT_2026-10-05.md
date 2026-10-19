@@ -217,7 +217,9 @@ policy locks were made external- and mastery-aware (tests in
   applied to secure course tests (the blueprint's equivalence policy forbids a
   different test). Documented calculator accommodations are.
 - **Secure player.** Text and choice responses only; rich math tools are not
-  available inside a secure item.
+  available inside a secure item. *Resolved 2026-10-06: secure items render
+  through the shared Rich Question Runtime — see
+  `docs/architecture/secure-rich-question-runtime.md`.*
 - **No server auto-finalize** for an expired timed session; it is finalized the
   next time the student or teacher touches it.
 - **Evidence check scope.** Delete's evidence check covers audience classes,

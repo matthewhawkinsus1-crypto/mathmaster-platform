@@ -4,12 +4,13 @@ import ToolShell, { AttemptOutcome } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
+import Dialog from '../../ui/Dialog.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import './LinearMultipleRepresentationsBoard.css';
@@ -111,7 +112,7 @@ const touchButton = {
   color: 'var(--mm-text-strong)',
   fontWeight: 700,
   cursor: 'pointer',
-  fontSize: 14,
+  fontSize: 'calc(14 * var(--mm-px))',
 };
 
 // Theme tokens, so the board follows dark mode like the rest of the question
@@ -138,7 +139,7 @@ const cellInput = {
   padding: '8px 10px',
   border: '1px solid var(--mm-primary-border)',
   borderRadius: 8,
-  fontSize: 17,
+  fontSize: 'calc(17 * var(--mm-px))',
   textAlign: 'center',
   background: 'var(--mm-surface)',
 };
@@ -150,19 +151,19 @@ const selectStyle = {
   padding: '8px 10px',
   border: '1px solid var(--mm-primary-border)',
   borderRadius: 8,
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   background: 'var(--mm-surface)',
 };
 
-const muted = { fontSize: 13, color: 'var(--mm-text-muted)', margin: 0, lineHeight: 1.45 };
-const errorText = { margin: 0, fontSize: 14, color: 'var(--mm-error-text)', fontWeight: 600, lineHeight: 1.4 };
+const muted = { fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: 0, lineHeight: 1.45 };
+const errorText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-error-text)', fontWeight: 600, lineHeight: 1.4 };
 
 const correctBadge = {
   display: 'inline-flex',
   alignItems: 'center',
   padding: '3px 10px',
   borderRadius: 999,
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 800,
   background: 'var(--mm-success-bg)',
   color: 'var(--mm-success-text)',
@@ -173,7 +174,7 @@ const givenBadge = {
   display: 'inline-block',
   padding: '3px 10px',
   borderRadius: 999,
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '0.06em',
   background: 'var(--mm-primary)',
@@ -320,7 +321,7 @@ function BoardPanel({ title, open = true, onToggle = null, toggleLabel = '', chi
       style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 14, padding: 14, background: 'var(--mm-surface)', textAlign: 'left', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text)' }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text)' }}>{title}</h3>
         {onToggle ? <CollapseToggle open={open} onToggle={onToggle} label={toggleLabel || title} /> : null}
       </div>
       {children}
@@ -372,7 +373,7 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
       {/* The title keeps a readable width; the badge and buttons wrap under it
           in a narrow column instead of squeezing it to one word per line. */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px 8px', flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 15, color: 'var(--mm-text-strong)', flex: '1 1 170px', minWidth: 0 }}>{title}</strong>
+        <strong style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', flex: '1 1 170px', minWidth: 0 }}>{title}</strong>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, flexWrap: 'wrap' }}>
           {verdict?.isCorrect ? <span style={correctBadge}>✓ Correct</span> : null}
           {headerActions}
@@ -408,13 +409,13 @@ function GivenRepresentation({ description, graphBounds }) {
   const headingId = useId();
   let body = null;
   if (description.kind === 'equation') {
-    body = <MathDisplay value={description.latex} style={{ fontSize: 26, color: 'var(--mm-text-strong)' }} ariaLabel={`Given equation ${description.latex}`} />;
+    body = <MathDisplay value={description.latex} style={{ fontSize: 'calc(26 * var(--mm-px))', color: 'var(--mm-text-strong)' }} ariaLabel={`Given equation ${description.latex}`} />;
   } else if (description.kind === 'points') {
     body = (
-      <p style={{ margin: 0, fontSize: 22, color: 'var(--mm-text-strong)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+      <p style={{ margin: 0, fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
         {description.points.map((point, index) => (
           <React.Fragment key={point.latex}>
-            {index > 0 ? <span style={{ fontSize: 16, color: 'var(--mm-text)' }}>and</span> : null}
+            {index > 0 ? <span style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text)' }}>and</span> : null}
             <MathDisplay value={point.latex} inline ariaLabel={`Given point ${point.latex}`} />
           </React.Fragment>
         ))}
@@ -424,12 +425,12 @@ function GivenRepresentation({ description, graphBounds }) {
     body = (
       <table
         aria-label="Given table of values"
-        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 18, background: 'var(--mm-surface)', borderRadius: 8, overflow: 'hidden' }}
+        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 'calc(18 * var(--mm-px))', background: 'var(--mm-surface)', borderRadius: 8, overflow: 'hidden' }}
       >
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>x</th>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>y</th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>x</th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>y</th>
           </tr>
         </thead>
         <tbody>
@@ -467,7 +468,7 @@ function GivenRepresentation({ description, graphBounds }) {
     );
   } else if (description.kind === 'scenario') {
     body = (
-      <MathText as="p" style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: 'var(--mm-text-strong)', maxWidth: '68ch' }}>
+      <MathText as="p" style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', lineHeight: 1.6, color: 'var(--mm-text-strong)', maxWidth: '68ch' }}>
         {description.text}
       </MathText>
     );
@@ -488,8 +489,8 @@ function GivenRepresentation({ description, graphBounds }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={givenBadge}>GIVEN</span>
-        <h3 id={headingId} style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)' }}>{description.label}</h3>
-        <span style={{ fontSize: 13, color: 'var(--mm-text)' }}>You start with this. You do not need to rebuild it.</span>
+        <h3 id={headingId} style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{description.label}</h3>
+        <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>You start with this. You do not need to rebuild it.</span>
       </div>
       {body}
     </section>
@@ -499,27 +500,21 @@ function GivenRepresentation({ description, graphBounds }) {
 function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
   const titleId = useId();
   const closeRef = useRef(null);
+  // Dialog opens on the close button and answers Escape; focus goes back to
+  // this graph's own Enlarge button, which a click does not focus in Safari.
   useEffect(() => {
     if (!open) return undefined;
     const focusTarget = returnFocusRef?.current || null;
-    closeRef.current?.focus({ preventScroll: true });
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
       focusTarget?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose, returnFocusRef]);
+  }, [open, returnFocusRef]);
   if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={onClose}
+      initialFocusRef={closeRef}
+      returnFocus={false}
       aria-labelledby={titleId}
       data-lmr-dialog={graph.key}
       style={{
@@ -552,14 +547,14 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <h3 id={titleId} style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>{graph.title}</h3>
+          <h3 id={titleId} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{graph.title}</h3>
           <button ref={closeRef} type="button" onClick={onClose} style={touchButton} aria-label={`Close enlarged ${graph.title}`}>
             ✕ Close
           </button>
         </div>
         {children}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -711,13 +706,17 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const next = typeof updater === 'function' ? updater(current) : updater;
     return readProcessDraft({ ...next, bind: processBinding }, processBinding);
   }), [setRawProcessDraft, processBinding]);
-  // Work recorded for another question — another version of a Question Family
-  // slot — establishes nothing here, so it is cleared rather than kept.
-  useEffect(() => {
-    if (!processMode) return;
-    if (processState?.stale) setProcessLog(null);
-    if (rawProcessDraft && rawProcessDraft.bind !== processBinding) setRawProcessDraft(null);
-  }, [processMode, processState?.stale, rawProcessDraft, processBinding, setProcessLog, setRawProcessDraft]);
+  // Work recorded for another version of this Question Family slot
+  // establishes nothing here — resolveLmrProcess ignores a log bound to
+  // another version, and readProcessDraft opens an empty workspace for one —
+  // but it is never erased just because it was seen. Until the first Submit
+  // pins the version on the server, another Chromebook can be dealt a
+  // different version under this same draft key, and a question that cannot
+  // be read for a moment binds as 'lmr1-invalid'. Erasing on sight made either
+  // permanent: the next keystroke synced the erased log to every device, and
+  // the device still showing the original version came back to locked cards.
+  // The first work recorded on this version replaces it (appendProcessEntry
+  // starts a log bound to this version; setProcessDraft rebinds the draft).
   const processRelevant = useMemo(() => (processMode ? lmrRelevantFacts(questionData) : []), [processMode, questionData]);
   const processSnapStep = useMemo(() => (processMode ? lmrProcessSnapStep(questionData, canonicalFacts) : 1), [processMode, questionData, canonicalFacts]);
   // The embedded algebra workspaces keep their drafts beside this question's,
@@ -1409,8 +1408,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       <table data-lmr-field="tableRows" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: 'var(--mm-text)' }}>x</th>
-            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: 'var(--mm-text)' }}>y</th>
+            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text)' }}>x</th>
+            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(19 * var(--mm-px))', color: 'var(--mm-text)' }}>y</th>
             <th scope="col" style={{ width: 48 }}><span className="mm-sr-only">Remove row</span></th>
           </tr>
         </thead>
@@ -1541,7 +1540,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     return (
       <label key={field} data-lmr-field={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>{label}</strong>
+          <strong style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{label}</strong>
           {contextVerdict ? (
             result
               ? <span style={correctBadge}>✓ Correct</span>
@@ -1581,7 +1580,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               clearFeedback();
               setValue(event.target.value);
             }}
-            style={{ ...selectStyle, fontSize: 16 }}
+            style={{ ...selectStyle, fontSize: 'calc(16 * var(--mm-px))' }}
           />
         )}
       </label>
@@ -1681,10 +1680,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             border: '1px solid var(--mm-tint-border)',
           }}
         >
-          <span style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>
+          <span style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
             <strong>Work in any order.</strong> {processMode ? 'Each fact you establish opens more of the board.' : 'Nothing is locked.'}
           </span>
-          <span style={{ fontSize: 13, color: 'var(--mm-text)' }}>
+          <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
             {canCheck ? 'Checked correct: ' : 'Filled in: '}
             <strong>{partsDone} of {partsTotal}</strong>
             <span aria-hidden="true"> · </span>
@@ -1792,7 +1791,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   data-lmr-comparison="true"
                   style={{ padding: 14, border: '2px solid #34a853', borderRadius: 12, background: 'var(--mm-success-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}
                 >
-                  <strong style={{ fontSize: 16, color: 'var(--mm-success-text)' }}>Three methods, one line</strong>
+                  <strong style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-success-text)' }}>Three methods, one line</strong>
                   <p style={{ ...muted, color: 'var(--mm-text)' }}>
                     Your intercepts, your slope-intercept points and your point-slope points all sit on the same line.
                   </p>
@@ -1811,7 +1810,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   </div>
                   <p style={{ ...muted, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
                     {GRAPHS.map((graph) => (
-                      <span key={graph.key}><span aria-hidden="true" style={{ color: graph.color, fontSize: 18 }}>●</span> {graph.title.split(' · ')[0]}</span>
+                      <span key={graph.key}><span aria-hidden="true" style={{ color: graph.color, fontSize: 'calc(18 * var(--mm-px))' }}>●</span> {graph.title.split(' · ')[0]}</span>
                     ))}
                   </p>
                 </div>
@@ -1836,7 +1835,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-              <strong style={{ fontSize: 16, color: 'var(--mm-text-strong)' }}>Submit your board</strong>
+              <strong style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Submit your board</strong>
               <p style={muted}>
                 {canCheck
                   ? 'Submitting checks every part together, including whether they all describe the same line.'
@@ -1845,17 +1844,18 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             </div>
             <button
               type="button"
+              data-work-view-check="true"
               onClick={handleSubmit}
               disabled={questionTerminal}
-              style={{ ...primaryButton, minHeight: 48, padding: '10px 22px', fontSize: 16, opacity: questionTerminal ? 0.6 : 1 }}
+              style={{ ...primaryButton, minHeight: 48, padding: '10px 22px', fontSize: 'calc(16 * var(--mm-px))', opacity: questionTerminal ? 0.6 : 1 }}
             >
-              Submit board
+              <SubmitText>Submit board</SubmitText>
             </button>
           </div>
 
           {confirmSubmit && emptyParts.length ? (
             <div role="alert" style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ margin: 0, fontSize: 14, color: 'var(--mm-warning-text)', fontWeight: 600 }}>
+              <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-warning-text)', fontWeight: 600 }}>
                 {emptyParts.length === 1 ? 'One part is still empty' : `${emptyParts.length} parts are still empty`}: {emptyParts.join(', ')}.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1879,7 +1879,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 gap: 6,
               }}
             >
-              <strong style={{ fontSize: 15 }}>
+              <strong style={{ fontSize: 'calc(15 * var(--mm-px))' }}>
                 {feedback.isCorrect
                   ? 'Every part is correct, and they all describe the same line.'
                   : `Not yet — ${Math.round((Number(feedback.score) || 0) * 100)}% of the board is correct.`}
@@ -1890,10 +1890,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 <AttemptOutcome inline showDetail={false} />
               </strong>
               {partsToRevisit.length ? (
-                <p style={{ margin: 0, fontSize: 14 }}>Take another look at: {partsToRevisit.join(', ')}.</p>
+                <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))' }}>Take another look at: {partsToRevisit.join(', ')}.</p>
               ) : null}
               {outliers.length ? (
-                <p style={{ margin: 0, fontSize: 14 }}>
+                <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))' }}>
                   {outliers.length === 1 ? 'This part does' : 'These parts do'} not describe the same line as the rest of your work: {outliers.join(', ')}.
                 </p>
               ) : null}
@@ -1914,10 +1914,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 {renderPlane(graph, 640, { showPlotHelp: false })}
               </div>
               <div style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ background: 'var(--mm-surface-sunken)', padding: '8px 12px', borderRadius: 10, fontSize: 14, color: 'var(--mm-text)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ background: 'var(--mm-surface-sunken)', padding: '8px 12px', borderRadius: 10, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span><strong>Your task:</strong> {graph.task}</span>
                   {graph.key === 'graph3' ? <span>{graph3Guide}</span> : null}
-                  <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
+                  <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                     Tap or press to place a point; drag a point to move it. Points land on {describeSnapStep(snapFor(graph.key))}.
                   </span>
                 </div>

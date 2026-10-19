@@ -63,12 +63,16 @@ test('the browser waiver map holds only live waivers; history gets every record'
 });
 
 test("the teacher's gradebook, Assignment Hub and student drawer all pass the waiver through", () => {
-  const gradebookRow = region(app, 'const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed', 'const gradeExplanation', 'gradebook row');
+  // The gradebook is the teacher's screen, its own module since G2; App
+  // computes gradebookHasPracticePass and passes it by name.
+  const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
+  const gradebookRow = region(teacherWorkspace, 'const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed', 'const gradeExplanation', 'gradebook row');
   // (`supportProfile` beside the waiver: the student's reduced-item-count
   // accommodation narrows the same denominator.)
   assert.match(gradebookRow, /calculateGrade\(grades, selectedAssignment, \{ practicePassRedeemed(, supportProfile)? \}\)/);
   assert.match(gradebookRow, /splitGradesBySection\(\{ tracker: grades, assignment: selectedAssignment, practicePassRedeemed(, supportProfile)? \}\)/);
-  assert.match(app, /classGradeProgress\(\{ assignment: selectedAssignment,[^\n]*hasPracticePass: gradebookHasPracticePass \}\)/);
+  assert.match(teacherWorkspace, /classGradeProgress\(\{ assignment: selectedAssignment,[^\n]*hasPracticePass: gradebookHasPracticePass \}\)/);
+  assert.match(app, /\n {8}gradebookHasPracticePass=\{gradebookHasPracticePass\}\n/);
   assert.match(app, /import \{ useClassPracticePasses \} from '\.\/platform\/rewards\/useClassPracticePasses\.js';/);
 
   // Hooks before the early return: a hook after `return null` crashes the

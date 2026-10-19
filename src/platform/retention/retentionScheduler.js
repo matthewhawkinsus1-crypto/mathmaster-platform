@@ -53,7 +53,13 @@ export const evaluateStudentRetentionSchedule = (
   Object.entries(masteryProfilesByTEKS).forEach(([rawTeksCode, profile]) => {
     const teksCode = toDisplayCode(rawTeksCode);
     const masteryStatus = profile?.mastery?.status;
-    if (!['Mastered', 'Secure'].includes(masteryStatus)) return;
+    // A retention check asks whether a MASTERED skill has stayed with the
+    // student (the shared rule's verdict, functions/shared/masteryRule.mjs).
+    // A Secure skill is still being learned: checking it offered "you have
+    // already shown this" beside the same skill's practice card, and two
+    // passed checks marked it retained, which keeps it out of weekly plans for
+    // weeks although it was never mastered.
+    if (masteryStatus !== 'Mastered') return;
 
     const existingSchedule = retentionSchedulesByTEKS[teksCode]
       || retentionSchedulesByTEKS[rawTeksCode]

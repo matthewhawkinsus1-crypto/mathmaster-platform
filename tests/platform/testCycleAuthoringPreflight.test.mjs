@@ -17,12 +17,13 @@ import {
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/activityPolicies.js';
 import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
+import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
 const card = componentSource('src/components/student/TestCycleCard.jsx');
 const lessonPreflight = componentSource('src/components/teacher/LessonPreflightModal.jsx');
-const app = componentSource('src/App.jsx');
+const app = appAndTeacherWorkspaceSource();
 
 /*
  * WHAT A TEST CYCLE MUST NOT BE ABLE TO PUBLISH, AND HOW A TEACHER ASSIGNS ONE.
@@ -309,14 +310,22 @@ test('a teacher assigns a whole class in one action, not one session at a time',
   assert.match(assign, /where\("classId", "==", classId\)/);
   assert.match(assign, /studentIds/);
   assert.match(assign, /for \(const \[studentId, studentData\] of eligible\)/);
-  // Each student gets their own plan and their own session.
-  assert.match(assign, /buildSecureIssuancePlan/);
+  // Each student gets their own plan and their own session, through the one
+  // opener the class-wide operation also uses (so the two cannot drift).
+  assert.match(assign, /await openTestSessionForStudent\(\s*db,/);
+  const opener = region(
+    functionsIndex,
+    'async function openTestSessionForStudent(',
+    'async function ensureMissedTestRetestSession(',
+    'openTestSessionForStudent',
+  );
+  assert.match(opener, /buildSecureIssuancePlan/);
   // Built and written INSIDE the record's transaction, so a double click reuses
   // the first session instead of minting a second Test for the same student.
-  assert.match(assign, /mutateTestCycleRecord\(db, \{/);
-  assert.match(assign, /if \(record\.test\.examSessionId\) return \{ value: \{ reused: true \} \};/);
-  assert.match(assign, /buildCourseTestSession\(db, \{/);
-  assert.match(assign, /transaction\.set\(ref, session\)/);
+  assert.match(opener, /mutateTestCycleRecord\(db, \{/);
+  assert.match(opener, /if \(record\.test\.examSessionId\) return \{ value: \{ reused: true \} \};/);
+  assert.match(opener, /buildCourseTestSession\(db, \{/);
+  assert.match(opener, /transaction\.set\(ref, session\)/);
   // And the whole batch is refused if preflight is blocked.
   assert.match(assign, /if \(preflight\.blocked\)/);
 });

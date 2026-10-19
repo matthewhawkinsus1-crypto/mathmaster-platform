@@ -56,7 +56,8 @@ test('post-deadline assignments become uncredited in-memory practice instead of 
   assert.equal(lifecycle.creditEligible, false);
   assert.match(appSource, /isPracticeMode = isStudentAssignment && activeLifecycle\.isPracticeOnly/);
   assert.match(appSource, /setPracticeTracker/);
-  assert.match(appSource, /Practice Mode — grading window ended/);
+  // The closed-work banner, in the student word list's words (NAV-17).
+  assert.match(appSource, /\{CLOSED_WORK\.bannerTitle\}/);
   // Practice Mode is kept apart from graded work by its own DRAFT BUCKET, not
   // by throwing the work away. Discarding it was itself a defect: a student who
   // practised after the deadline and turned the Chromebook off started again
@@ -77,9 +78,11 @@ test('root Administration remains discoverable to the protected email and server
   // is now imported from the module the callables enforce rather than repeated
   // as a second literal here, so the browser cannot come to believe in an
   // administrator the server would refuse. See tests/platform/adminAuthority.
-  assert.match(appSource, /import \{ isRootAdminEmail \} from '\.\.\/functions\/shared\/rolePolicy\.mjs'/);
-  assert.match(appSource, /rootAdminUiEligible/);
-  assert.match(appSource, /isRootAdminEmail\(user\.email\)/);
+  // The Administration entry is the teacher's screen, its own module since G2.
+  const teacherWorkspaceSource = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(teacherWorkspaceSource, /import \{ isRootAdminEmail \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/rolePolicy\.mjs'/);
+  assert.match(teacherWorkspaceSource, /const rootAdminUiEligible = user\.isRootAdmin === true\s*\|\| isRootAdminEmail\(user\.email\);/);
+  assert.match(teacherWorkspaceSource, /teacherWorkspaceMode === 'administration' && rootAdminUiEligible/);
   assert.match(adminUiSource, /Create Student Account/);
   assert.match(adminUiSource, /setStudentClass/);
   assert.match(authServiceSource, /createStudentAccount/);

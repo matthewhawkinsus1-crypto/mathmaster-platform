@@ -2,9 +2,10 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
 import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { LineGraphHostStatus, LineGraphReport, lineSettingsLine } from './LineGraphHost.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
-import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
+import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, HostSolutionPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
 import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
@@ -15,15 +16,30 @@ import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../funct
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
+import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
-import { projectorGameLabel } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import {
+  EXTENDED_TIME_HOST_HINT,
+  EXTENDED_TIME_MESSAGE,
+  projectorGameLabel,
+  roundWaitingOnExtendedTime,
+} from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import { LINE_GRAPH_GAME, defaultLineSetup, lineCreateRequest, lineSetupProblem } from '../../platform/liveChallenge/lineGraphSetupModel.js';
+import { raceRoundFinished } from '../../platform/liveChallenge/rushStandingsModel.js';
 import {
   CHALLENGE_STAGE,
   HOST_COMMAND,
+  QUESTION_SET_GAME,
   cueRemainingMs,
   hostPrimaryAction,
+  questionSetGameOf,
   roundCloseDue,
+  roomRoundsEndOnTheClock,
   roomRunsQuestionSets,
   stageHasOpenRound,
 } from '../../platform/liveChallenge/challengeShellModel.js';
@@ -36,7 +52,7 @@ import {
 } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
-import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
+import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSolution, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
 import { DEFAULT_CHALLENGE_REWARD_CHOICE, buildChallengeRewardPolicy, normalizeChallengeRewardChoice } from '../../platform/rewards/challengeRewardPolicy.js';
 import {
@@ -70,6 +86,11 @@ const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Alge
 // teacher chooses the rush; a classic game's console carries neither.
 const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
 const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
+// Graph the Line's the same way: loaded only when a teacher chooses it.
+const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
+const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
+// Whether Graph the Line's modes are offered to every teacher (not a preview).
+const LINE_GRAPH_LAUNCHED = LINE_GRAPH_MODE_IDS.every((id) => getChallengeMode(id).teacherSelectable);
 
 const speedPreset = (value) => [0, 10, 20, 35].includes(Number(value)) ? String(Number(value)) : 'custom';
 
@@ -107,26 +128,26 @@ function ChallengeReport({ report }) {
       <h3 style={{ marginTop: 0 }}>After the game</h3>
       {report.weakestStandard && (
         <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-warning-text)' }}>Hardest for this class</div>
-          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: 'var(--mm-text-strong)' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-warning-text)' }}>Hardest for this class</div>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: 'var(--mm-text)', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)', marginBottom: 14 }}>
         <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
         <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
         <span>
           {/* A game ended early says so: "3 of 10 rounds played", never "10 rounds". */}
           {Number.isInteger(report.playedRoundCount) && report.playedRoundCount < report.scheduledRoundCount
             ? <><strong>{report.playedRoundCount}</strong> of {report.scheduledRoundCount} rounds played</>
-            : <><strong>{report.scheduledRoundCount}</strong> rounds</>}
+            : <><strong>{report.scheduledRoundCount}</strong> {report.scheduledRoundCount === 1 ? 'round' : 'rounds'}</>}
           {report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}
         </span>
       </div>
       {report.standards?.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>By standard, hardest first</div>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>By standard, hardest first</div>
           {report.standards.map((entry) => (
-            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 14 }}>
+            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 'calc(14 * var(--mm-px))' }}>
               <span>{entry.standard}</span><span style={{ color: 'var(--mm-text-muted)' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
             </div>
           ))}
@@ -145,12 +166,13 @@ function ChallengeReport({ report }) {
             link.remove();
             URL.revokeObjectURL(url);
           }} style={{ ...secondary, color: 'var(--mm-primary-text)', borderColor: 'var(--mm-primary-border)' }}>Save this round set</button>
-          <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: 'var(--mm-text-muted)' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
+          <span style={{ display: 'block', marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
         </div>
       )}
       {report.graphFeatureRush && <RushReport report={report} />}
+      {report.lineGraph && <LineGraphReport report={report} />}
       {report.neverJoined?.length > 0 && (
-        <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 13.5, color: 'var(--mm-text)' }}>
+        <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
           <strong>Did not join:</strong> {report.neverJoined.length} student{report.neverJoined.length === 1 ? '' : 's'}. A student can be absent, on paper, or have lost their connection — this is a roster fact, not a finding.
         </div>
       )}
@@ -199,26 +221,35 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
   const paceOpen = clock.openEnded;
   const counting = clock.stage === CHALLENGE_STAGE.COUNTDOWN;
   const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
-  const timerLabel = counting ? 'Starts in' : locked ? 'Time!' : paceOpen ? 'Elapsed' : 'Time left';
+  // The class's time is up, but a student with extended time is still working
+  // (the room says only that someone is, never who): not a frozen "Time!".
+  const extendedTime = roundWaitingOnExtendedTime({ room, locked, joinedCount, answeredCount });
+  const timerLabel = counting ? 'Starts in' : extendedTime ? 'Still finishing' : locked ? 'Time!' : paceOpen ? 'Elapsed' : 'Time left';
   return (
     <section data-mm-live-status={clock.stage} style={{ ...panel, border: '2px solid #1a73e8' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-          <div style={{ color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${(room.currentRound || 0) + 1} of ${room.roundCount}`} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
-          <MathText as="div" style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 20, lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</MathText>
+          <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, textTransform: 'uppercase' }}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${(room.currentRound || 0) + 1} of ${room.roundCount}`} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+          <MathText as="div" style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 'calc(20 * var(--mm-px))', lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</MathText>
         </div>
         <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || locked ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)', color: low || locked ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{timerLabel}</div>
-          <div style={{ fontSize: 38, fontWeight: 1000 }}>
-            {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
-          </div>
-          {room?.timingMode === 'pace' && !paceOpen && !counting && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900 }}>Closing countdown</div>}
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{timerLabel}</div>
+          {extendedTime
+            ? <div data-mm-extended-time="1" style={{ marginTop: 4, maxWidth: 220, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 900, lineHeight: 1.3 }}>{EXTENDED_TIME_MESSAGE}</div>
+            : (
+              <div style={{ fontSize: 'calc(38 * var(--mm-px))', fontWeight: 1000 }}>
+                {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
+              </div>
+            )}
+          {room?.timingMode === 'pace' && !paceOpen && !counting && <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>Closing countdown</div>}
         </div>
       </div>
       <div style={{ marginTop: 14, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{answeredCount} of {joinedCount} joined students answered</div>
     </section>
   );
 }
+
+const STANDINGS_DISPLAY_KEY = 'mathmaster.liveChallenge.standingsDisplay';
 
 export function ChallengeProjector(props) {
   return <LiveChallengeArenaProjector {...props} />;
@@ -233,14 +264,14 @@ function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
         {preview.examples.map((example) => <span key={example.secondsUsed} style={{ padding: '6px 9px', borderRadius: 999, background: 'var(--mm-surface)' }}>Correct at {example.secondsUsed}s → {example.pointsBeforeStreakComeback.toLocaleString()}</span>)}
       </div>
-      <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5 }}>{preview.academicCreditNote} Interactive tools may earn partial correctness points as students work.</p>
+      <p style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{preview.academicCreditNote} Interactive tools may earn partial correctness points as students work.</p>
     </section>
   );
 }
 
 function AudioMixer({ mix, onMixChange, onEnable, audioReady }) {
   const slider = (key, label) => (
-    <label style={{ minWidth: 150, fontSize: 12, fontWeight: 800 }}>{label} {Math.round((mix?.[key] ?? 0) * 100)}%
+    <label style={{ minWidth: 150, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{label} {Math.round((mix?.[key] ?? 0) * 100)}%
       <input type="range" min="0" max="1" step="0.01" value={mix?.[key] ?? 0} onChange={(event) => onMixChange({ [key]: Number(event.target.value) })} style={{ display: 'block', width: '100%' }} />
     </label>
   );
@@ -252,7 +283,7 @@ function AudioMixer({ mix, onMixChange, onEnable, audioReady }) {
         <button type="button" onClick={() => onMixChange({ muted: !mix?.muted })} style={secondary}>{mix?.muted ? 'Unmute All' : 'Mute All'}</button>
         <button type="button" onClick={onEnable} style={{ ...secondary, color: 'var(--mm-primary-text)' }}>{audioReady ? 'Audio Ready' : 'Enable Audio'}</button>
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--mm-text-muted)' }}>Sound plays only from this screen, never from students&apos; devices, and nothing depends on it.</p>
+      <p style={{ margin: '8px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Sound plays only from this screen, never from students&apos; devices, and nothing depends on it.</p>
     </section>
   );
 }
@@ -285,6 +316,7 @@ export default function LiveChallengeTeacher({
   const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
+  const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
@@ -297,6 +329,17 @@ export default function LiveChallengeTeacher({
     const normalized = normalizeChallengeRewardChoice(next);
     setRewardChoiceState(normalized);
     try { window.localStorage.setItem('mathmaster.liveChallenge.rewardChoice', JSON.stringify(normalized)); } catch { /* private mode: not remembered */ }
+  };
+  // What the projector shows (functions/shared/liveChallengePrivacy.mjs): the
+  // top few by default — nobody is publicly last — or, by choice, the full
+  // standings. Remembered in this browser like the Rewards choice.
+  const [standingsDisplay, setStandingsDisplayState] = useState(() => {
+    try { return normalizeStandingsDisplay(window.localStorage.getItem(STANDINGS_DISPLAY_KEY)); } catch { return STANDINGS_DISPLAY.TOP_FEW; }
+  });
+  const setStandingsDisplay = (next) => {
+    const normalized = normalizeStandingsDisplay(next);
+    setStandingsDisplayState(normalized);
+    try { window.localStorage.setItem(STANDINGS_DISPLAY_KEY, normalized); } catch { /* private mode: not remembered */ }
   };
   const [warmupAssignmentId, setWarmupAssignmentId] = useState('');
   const [warmupDeliveryMode, setWarmupDeliveryMode] = useState('liveChallenge');
@@ -341,8 +384,10 @@ export default function LiveChallengeTeacher({
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
   useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
-  // A different course starts from that course's rush preset.
+  // A different course starts from that course's rush preset (and its Graph
+  // the Line preset, in the format already chosen).
   useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
+  useEffect(() => { setLineSetup((current) => defaultLineSetup(courseId, current.format)); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -427,8 +472,11 @@ export default function LiveChallengeTeacher({
   // after a refresh). Asked again a few times while it knows fewer names than
   // the room invited: a second tab can open a lobby whose roster is still being
   // written, and a single empty answer used to leave game names up for good.
+  // And again when the room invites someone new (a student added to the class
+  // mid-game), so they are named, and counted as not joined, at once.
   const rosterWanted = Boolean(room) && room.status !== 'cancelled';
-  const eligibleRef = useLatest(Number(room?.eligibleCount) || 0);
+  const invitedCount = Number(room?.eligibleCount) || 0;
+  const eligibleRef = useLatest(invitedCount);
   useEffect(() => {
     if (!roomId || !rosterWanted) return undefined;
     let cancelled = false;
@@ -451,7 +499,7 @@ export default function LiveChallengeTeacher({
     };
     load();
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [roomId, rosterWanted, eligibleRef]);
+  }, [roomId, rosterWanted, eligibleRef, invitedCount]);
   // A recovery notice is news for a moment, not a fixture.
   useEffect(() => {
     if (!recoveredNotice) return undefined;
@@ -471,17 +519,33 @@ export default function LiveChallengeTeacher({
   );
   const joinedCount = leaderboard.length;
   const rushMode = challengeMode === RUSH_MODE_ID;
+  // Graph the Line is offered to every teacher while its modes are
+  // teacher-selectable — the server's own switch. A mode that is not is a
+  // preview, which createLiveChallenge launches for the platform administrator
+  // only, so then the create panel offers it to the administrator alone.
+  const lineGraphOffered = LINE_GRAPH_LAUNCHED || isRootAdminEmail(signedInEmail);
+  const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;
+  // A game with its own settings: no Warm-Up link, no bank question style,
+  // no speed setting — and its own setup panel.
+  const ownSettingsGame = rushMode || lineMode;
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
-  const rushRoom = room?.challengeMode === RUSH_MODE_ID;
+  const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
+  const questionSetGame = questionSetGameOf(room);
+  const rushRoom = questionSetGame === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  const lineRoom = questionSetGame === QUESTION_SET_GAME.LINE_GRAPH;
   const questionSetRoom = roomRunsQuestionSets(room);
+  const roundsEndOnTheClock = roomRoundsEndOnTheClock(room);
   const currentRound = Number(room?.currentRound);
   const roundOpen = stageHasOpenRound(stage);
   // Who has finished the current round. A classic round: they answered it. A
-  // question-set round is every player's own work against the clock, so it
-  // finishes on the deadline.
-  const finishedKeys = useMemo(() => new Set(roundOpen && !questionSetRoom
-    ? players.filter((player) => player?.joined !== false && Number(player.answeredRound) === currentRound).map((player) => String(player.playerKey))
-    : []), [players, roundOpen, questionSetRoom, currentRound]);
+  // question-set round is every player's own work: a Classic or Sprint round
+  // of Graph the Line is finished by working through it (their public row
+  // says so); a rush, played against the clock, finishes only at its deadline.
+  const finishedKeys = useMemo(() => new Set(roundOpen && !roundsEndOnTheClock
+    ? players.filter((player) => player?.joined !== false && (questionSetRoom
+      ? raceRoundFinished(player, currentRound)
+      : Number(player.answeredRound) === currentRound)).map((player) => String(player.playerKey))
+    : []), [players, roundOpen, roundsEndOnTheClock, questionSetRoom, currentRound]);
   const answeredCount = finishedKeys.size;
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
   const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
@@ -499,11 +563,20 @@ export default function LiveChallengeTeacher({
   }), [rosterNames, players, diagnostics, roundOpen, currentRound, finishedKeys, clockOffsetMs]);
 
   // THE RESULTS MOMENT reads the round's own result document: the round's
-  // table and the standings it left, written in the commit that closed it.
+  // table and the standings it left, written in the commit that closed it —
+  // the teacher's whole copy (hostRounds), which no student can read; the
+  // projector applies the public rule (or the teacher's full standings) to it.
   const showingResults = stage === CHALLENGE_STAGE.ROUND_RESULTS;
-  const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
-  const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
+  const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults, { host: true });
+  const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults, { host: true });
   const roundView = useMemo(() => (showingResults ? roundResultsView({ summary: roundSummary, previousSummary }) : null), [showingResults, roundSummary, previousSummary]);
+  // THE WORKED SOLUTION, between rounds only. Read only once the server lists
+  // the round as published (never while it can be answered, nor while a
+  // Second Chance replay of it may come), and handed to the projector as a
+  // prop: the projector itself never reads Firebase.
+  const solutionRound = showingResults && Number.isInteger(currentRound) ? currentRound : null;
+  const roundSolution = useRoundSolution(roomId, solutionRound, solutionRound !== null && solutionRevealed(room, solutionRound));
+  const solutionState = solutionRound === null ? null : roundSolutionState({ room, roundIndex: solutionRound, solution: roundSolution, roundClosed: true });
   const finalRewards = useMemo(() => (stage === CHALLENGE_STAGE.COMPLETED ? placementRewardsFor(standingsRows(leaderboard), room?.rewardSummary) : null), [stage, leaderboard, room?.rewardSummary]);
   // THE STUDENTS' LIVE STANDINGS. Students no longer listen to every player's
   // row; this console, which does, asks for a fresh standings snapshot when the
@@ -589,10 +662,12 @@ export default function LiveChallengeTeacher({
     audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
     creatingRef.current = true;
     const result = await run('create', async () => {
-      if (rushMode) {
-        // Graph Feature Rush: no Warm-Up link, no bank question style, no
-        // speed setting — the mode's own settings, validated again by the server.
+      if (rushMode || lineMode) {
+        // Graph Feature Rush and Graph the Line: no Warm-Up link, no bank
+        // question style, no speed setting — the game's own settings,
+        // validated again by the server.
         if (rushProblem) throw new Error(rushProblem);
+        if (lineProblem) throw new Error(lineProblem);
         let created;
         try {
           created = await createLiveChallenge({
@@ -600,8 +675,11 @@ export default function LiveChallengeTeacher({
             classPeriod,
             courseId,
             // The same Rewards choice as every Live Challenge.
-            ...rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) }),
-            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Graph Feature Rush`,
+            ...(rushMode
+              ? rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
+              : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
+            standingsDisplay,
+            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Graph the Line'}`,
           });
         } catch (error) {
           const activeRoomId = error?.details?.roomId;
@@ -648,6 +726,7 @@ export default function LiveChallengeTeacher({
           title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
           // Null keeps the server's default (Class Points achievements only).
           rewardPolicy: buildChallengeRewardPolicy(rewardChoice),
+          standingsDisplay,
         });
       } catch (error) {
         const activeRoomId = error?.details?.roomId;
@@ -706,7 +785,7 @@ export default function LiveChallengeTeacher({
   // open host screens all send the close: the first closes it, the rest are
   // told it is already closed.
   const roundKey = room && roundOpen ? `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}` : '';
-  const everyoneFinished = roundOpen && !questionSetRoom && joinedCount > 0 && answeredCount >= joinedCount;
+  const everyoneFinished = roundOpen && !roundsEndOnTheClock && joinedCount > 0 && answeredCount >= joinedCount;
   const [allFinishedSince, setAllFinishedSince] = useState({ key: '', at: null });
   useEffect(() => {
     if (!everyoneFinished || !roundKey) return;
@@ -873,7 +952,7 @@ export default function LiveChallengeTeacher({
 
   if (!roomId || !room) {
     if (roomId && !roomMissing) {
-      return <section aria-busy="true" style={panel}><h2 style={{ margin: 0, fontSize: 22, color: 'var(--mm-text-strong)' }}>Opening your Live Challenge…</h2></section>;
+      return <section aria-busy="true" style={panel}><h2 style={{ margin: 0, fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Opening your Live Challenge…</h2></section>;
     }
     if (dryRunOpen && rushMode) {
       return (
@@ -883,6 +962,13 @@ export default function LiveChallengeTeacher({
             roundSeconds={rushSetup.roundSeconds}
             onClose={() => setDryRunOpen(false)}
           />
+        </Suspense>
+      );
+    }
+    if (dryRunOpen && lineMode) {
+      return (
+        <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
+          <LineGraphPractice setup={lineSetup} onClose={() => setDryRunOpen(false)} />
         </Suspense>
       );
     }
@@ -929,7 +1015,7 @@ export default function LiveChallengeTeacher({
                   {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
                 </select>
               </label>
-              {!rushMode && <label style={{ fontWeight: 800 }}>Run as a Warm-Up
+              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Run as a Warm-Up
                 <select value={warmupAssignmentId} onChange={(event) => setWarmupAssignmentId(event.target.value)} style={field}>
                   <option value="">No — students join from their dashboard</option>
                   {warmupAssignmentOptions.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>)}
@@ -940,20 +1026,20 @@ export default function LiveChallengeTeacher({
                     and accuracy, while the competition score stays a game
                     result. Without this sentence the setting looks like it
                     might put a leaderboard position into the gradebook. */}
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                   Students who open that assignment during its Warm-Up window are put straight into the
                   game — no invite to spot and no code to type. Their participation and accuracy are
                   recorded on the assignment; the challenge score is not.
                 </span>
               </label>}
-              {!rushMode && warmupAssignmentId && (
+              {!ownSettingsGame && warmupAssignmentId && (
                 <label style={{ fontWeight: 800 }}>Warm-Up delivery
                   <select value={warmupDeliveryMode} disabled={busy === 'saveWarmupDelivery'} onChange={(event) => changeWarmupDeliveryMode(event.target.value)} style={field}>
                     <option value="liveChallenge">Live Challenge — use game as Warm-Up</option>
                     <option value="teacherChoice">Teacher Choice — decide that day</option>
                     <option value="standard">Standard — use assignment questions</option>
                   </select>
-                  <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Teacher Choice is saved immediately and holds students on a waiting screen until you create the challenge or release the standard Warm-Up.</span>
+                  <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Teacher Choice is saved immediately and holds students on a waiting screen until you create the challenge or release the standard Warm-Up.</span>
                 </label>
               )}
               <label style={{ fontWeight: 800 }}>Course<input value={courseLabel(courseId)} readOnly style={{ ...field, background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)' }} /></label>
@@ -962,8 +1048,10 @@ export default function LiveChallengeTeacher({
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
+                  {lineGraphOffered && <option value={LINE_GRAPH_GAME}>{LINE_GRAPH_LAUNCHED ? 'Graph the Line' : 'Graph the Line (preview)'}</option>}
                 </select>
-                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
@@ -974,7 +1062,7 @@ export default function LiveChallengeTeacher({
                   <option value="absoluteValueEquation">Absolute Value Equations</option>
                   <option value="absoluteValueInequality">Absolute Value Inequalities</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Linear Equations → Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Linear Equations → Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities.</span>
               </label>}
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Difficulty
                 <select value={solverRaceDifficulty} onChange={(event) => setSolverRaceDifficulty(event.target.value)} style={field}>
@@ -1005,7 +1093,12 @@ export default function LiveChallengeTeacher({
                   <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
                 </Suspense>
               )}
-              {!rushMode && <>
+              {lineMode && (
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph the Line settings…</p>}>
+                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                </Suspense>
+              )}
+              {!ownSettingsGame && <>
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
                 <select
@@ -1017,7 +1110,7 @@ export default function LiveChallengeTeacher({
                 >
                   {[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
                 </select>
-                {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
+                {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
               </label>
               <label style={{ fontWeight: 800 }}>Race clock
                 <select value={timingMode} onChange={(event) => setTimingMode(event.target.value)} style={field}>
@@ -1028,13 +1121,13 @@ export default function LiveChallengeTeacher({
                 <select value={roundClosingThreshold ?? 'off'} onChange={(event) => changeClosingThreshold(event.target.value)} style={field}>
                   <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
               </label>
               <label style={{ fontWeight: 800 }}>Second Chance
                 <select value={secondChanceMode} onChange={(event) => setSecondChanceMode(event.target.value)} style={field}>
                   <option value="off">Off</option><option value="automatic">Automatic</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
               </label>
               </>}
               <label style={{ fontWeight: 800 }}>Player display
@@ -1044,9 +1137,18 @@ export default function LiveChallengeTeacher({
                   <option value="firstName">First Name</option>
                   <option value="fullName">Full Name</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Only the selected display name is sent to the public leaderboard.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Only the selected display name is sent to the public leaderboard.</span>
               </label>
-              {!rushMode && <label style={{ fontWeight: 800 }}>Speed influence
+              <label style={{ fontWeight: 800 }}>Projector shows
+                <select data-mm-standings-display="1" value={standingsDisplay} onChange={(event) => setStandingsDisplay(event.target.value)} style={field}>
+                  <option value={STANDINGS_DISPLAY.TOP_FEW}>Top 5 only (recommended)</option>
+                  <option value={STANDINGS_DISPLAY.FULL}>Full standings</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{standingsDisplay === STANDINGS_DISPLAY.FULL
+                  ? 'Every player the screen has room for, last place included. Each student still sees their own place on their device.'
+                  : 'Nobody is shown in last place: the class sees the top 5, and each student sees their own place on their device.'}</span>
+              </label>
+              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
                   const value = event.target.value;
                   if (value !== 'custom') setSpeedInfluencePercent(Number(value));
@@ -1060,15 +1162,15 @@ export default function LiveChallengeTeacher({
                 </select>
                 {speedPreset(speedInfluencePercent) === 'custom' && <input type="number" min="0" max="50" value={speedInfluencePercent} onChange={(event) => setSpeedInfluencePercent(Math.max(0, Math.min(50, Number(event.target.value) || 0)))} style={field} />}
               </label>}
-              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Live Challenge'}`} style={field} /></label>
+              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
-          {!rushMode && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
+          {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
           <ChallengeRewardSettings choice={rewardChoice} onChange={setRewardChoice} />
-          {!rushMode && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
-          {rushMode ? (
+          {!ownSettingsGame && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
+          {ownSettingsGame ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-              <button type="button" disabled={!classId || busy === 'create' || Boolean(rushProblem)} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || rushProblem ? .55 : 1 }}>{busy === 'create' ? 'Creating lobby…' : 'Create Lobby'}</button>
+              <button type="button" disabled={!classId || busy === 'create' || Boolean(rushProblem || lineProblem)} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || rushProblem || lineProblem ? .55 : 1 }}>{busy === 'create' ? 'Creating lobby…' : 'Create Lobby'}</button>
             </div>
           ) : (
             <>
@@ -1077,7 +1179,7 @@ export default function LiveChallengeTeacher({
                 <button type="button" onClick={() => { setMessage(''); setDryRunOpen(true); }} style={secondary}>Try it yourself first</button>
                 {warmupAssignmentId && (warmupDeliveryMode === 'teacherChoice' || warmupDeliveryMode === 'standard') && <button type="button" disabled={busy === 'standardWarmup'} onClick={useStandardWarmup} style={{ ...secondary, color: 'var(--mm-success-text)' }}>{busy === 'standardWarmup' ? 'Releasing Warm-Up…' : 'Use Standard Warm-Up'}</button>}
               </div>
-              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
+              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
             </>
           )}
         </section>
@@ -1096,6 +1198,8 @@ export default function LiveChallengeTeacher({
       answeredCount={answeredCount}
       clockOffsetMs={clockOffsetMs}
       roundView={roundView}
+      solution={solutionState ? roundSolution : null}
+      solutionState={solutionState || undefined}
       presentation={presentation}
       rewardsByKey={finalRewards}
       primaryAction={primaryAction}
@@ -1126,11 +1230,15 @@ export default function LiveChallengeTeacher({
   const standingTitle = presentation.placementPoints ? 'Championship' : 'Standings';
   // Ending a round early is for a round in play: not one still counting down,
   // and not one past its buzzer, which closes itself in a moment.
+  // Past the class's deadline while students with extended time finish, the
+  // round waits for them; the teacher may still end it.
+  const extendedTime = roundWaitingOnExtendedTime({ room, locked: stage === CHALLENGE_STAGE.ROUND_LOCKED, joinedCount, answeredCount });
   const secondaryControls = [
-    stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED
+    stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED || extendedTime
       ? { key: 'close', label: 'End Round Now', busyLabel: 'Closing…', onClick: () => setConfirming('close') }
       : null,
   ];
+  const roundAction = extendedTime && primaryAction ? { ...primaryAction, hint: EXTENDED_TIME_HOST_HINT } : primaryAction;
 
   return (
     <div style={{ display: 'grid', gap: 16 }} data-mm-host-console={stage || 'loading'}>
@@ -1139,9 +1247,9 @@ export default function LiveChallengeTeacher({
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <StagePill stage={stage} />
-            <span style={{ color: 'var(--mm-text-muted)', fontWeight: 800 }}>{gameLabel} · {room.classPeriod} · {courseLabel(room.courseId)}{!rushRoom && room.standardCode && room.standardCode !== 'mixed' ? ` · ${room.standardCode}` : ''}</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontWeight: 800 }}>{gameLabel} · {room.classPeriod} · {courseLabel(room.courseId)}{!questionSetRoom && room.standardCode && room.standardCode !== 'mixed' ? ` · ${room.standardCode}` : ''}</span>
           </div>
-          <h2 style={{ margin: '6px 0 0', fontSize: 26, lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
+          <h2 style={{ margin: '6px 0 0', fontSize: 'calc(26 * var(--mm-px))', lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {!cancelled && <button type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
@@ -1156,20 +1264,20 @@ export default function LiveChallengeTeacher({
         <>
           <section style={{ ...panel, background: 'var(--mm-primary-soft)', borderColor: 'var(--mm-primary-border)', display: 'grid', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, color: 'var(--mm-primary-text)' }}>
-              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
-              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.roundCount}</div></div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{room.roundCount}</div></div>
               {/* A classic round's time is fitted to its question (a one-step
                   question gets less, a multi-step one more); a rush round is
                   exactly this long. */}
-              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${questionSetRoom ? '' : '~'}${room.roundSeconds}s`}</div>{room.timingMode !== 'pace' && !questionSetRoom && <div style={{ fontSize: 12, fontWeight: 700 }}>fitted to each question</div>}</div>
-              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Scoring</div><div style={{ fontSize: 22, fontWeight: 1000, marginTop: 6 }}>{presentation.placementPoints ? 'Grand Prix' : presentation.strategyId === 'correctCount' ? 'Correct Count' : 'Points'}</div></div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${questionSetRoom ? '' : '~'}${room.roundSeconds}s`}</div>{room.timingMode !== 'pace' && !questionSetRoom && <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700 }}>fitted to each question</div>}</div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Scoring</div><div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000, marginTop: 6 }}>{presentation.placementPoints ? 'Grand Prix' : presentation.strategyId === 'correctCount' ? 'Correct Count' : 'Points'}</div></div>
             </div>
             <div style={{ color: 'var(--mm-primary-text)', lineHeight: 1.5 }}>
               <strong>How students join:</strong> students in {room.className || room.classPeriod || 'this class'} see a Live Challenge card on their MathMaster dashboard — no code to type.{room.assignmentId ? ' Students who open the linked assignment during its Warm-Up are taken straight in.' : ''}
             </div>
-            {rushRoom
-              ? <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>
-              : <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
+            {rushRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>}
+            {lineRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph the Line · {lineSettingsLine(room)}</div>}
+            {!questionSetRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-text)' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
             <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} />
           </section>
@@ -1180,7 +1288,7 @@ export default function LiveChallengeTeacher({
 
       {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && (
         <>
-          {!rushRoom && stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
+          {!questionSetRoom && stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
             <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 800 }}>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}</span>
               <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
@@ -1195,21 +1303,24 @@ export default function LiveChallengeTeacher({
               <ChallengeCountdown clock={clock} look="console" title={clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`} />
             </section>
           )}
-          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (rushRoom
-            ? <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />
-            : <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />)}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && rushRoom && <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && lineRoom && <LineGraphHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} finishedCount={answeredCount} closing={busy === 'close'} />}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && !questionSetRoom && <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />}
           {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
-            <HostRoundResultsPanel view={roundView} presentation={presentation} roundNumber={clock.roundNumber} fallbackRows={standingsRows(leaderboard)} />
+            <>
+              {solutionState && <HostSolutionPanel solution={roundSolution} state={solutionState} />}
+              <HostRoundResultsPanel view={roundView} presentation={presentation} roundNumber={clock.roundNumber} fallbackRows={standingsRows(leaderboard)} />
+            </>
           )}
           <section style={{ ...panel, padding: 14 }}>
-            <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={secondaryControls} />
+            <HostControlBar action={roundAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={secondaryControls} />
           </section>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
             {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
               <section style={panel}>
-                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
-                {rushRoom
-                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} />
+                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : lineRoom ? 'Live race · lines right this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
+                {questionSetRoom
+                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} label={lineRoom ? 'Lines right this round' : undefined} />
                   : <Leaderboard rows={leaderboard} presentation={presentation} limit={12} />}
               </section>
             )}
@@ -1222,7 +1333,7 @@ export default function LiveChallengeTeacher({
         <>
           <section style={{ ...panel, background: 'var(--mm-success-bg)', borderColor: 'var(--mm-success-border)', display: 'grid', gap: 12 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 26, color: 'var(--mm-success-text)' }}>Challenge complete</h2>
+              <h2 style={{ margin: 0, fontSize: 'calc(26 * var(--mm-px))', color: 'var(--mm-success-text)' }}>Challenge complete</h2>
               <p style={{ margin: '6px 0 0', color: 'var(--mm-success-text)' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
             </div>
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-success-text)' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}
@@ -1233,7 +1344,7 @@ export default function LiveChallengeTeacher({
               onPrimary={runPrimaryAction}
               secondary={[{ key: 'newChallenge', label: 'New Challenge', onClick: newChallenge }]}
             />
-            <div style={{ color: 'var(--mm-text)', fontSize: 13 }}>Play Again runs {replaySummary(room)}{room.assignmentId ? ' as a standalone game (the Warm-Up keeps this game’s result)' : ''}, with this device&apos;s Rewards choice.</div>
+            <div style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Play Again runs {replaySummary(room)}{room.assignmentId ? ' as a standalone game (the Warm-Up keeps this game’s result)' : ''}, with this device&apos;s Rewards choice.</div>
           </section>
           <section style={panel}>
             <h3 style={{ marginTop: 0 }}>Final {standingTitle.toLowerCase()}</h3>
@@ -1243,7 +1354,7 @@ export default function LiveChallengeTeacher({
                 never given names. */}
             <StandingsBoard rows={standingsRows(leaderboard)} presentation={presentation} look="console" limit={40} showCorrect={!presentation.placementPoints} rewardsByKey={finalRewards} namesByKey={showAliases ? rosterNameByKey : null} label="Final standings" />
             {rosterNameByKey.size > 0 && (
-              <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+              <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 <input type="checkbox" data-mm-final-names="1" checked={showAliases} onChange={(event) => setShowAliases(event.target.checked)} />
                 Show each student&apos;s name beside their game name (keep off while this screen is projected)
               </label>

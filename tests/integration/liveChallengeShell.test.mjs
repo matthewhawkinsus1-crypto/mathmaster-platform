@@ -71,7 +71,9 @@ const millis = (value) => value?.toMillis?.() ?? null;
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const privateRef = (roomId) => db.collection('liveChallengePrivate').doc(roomId);
 const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
-const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || null;
+// The teacher's whole copy of a closed round (the class's copy, rounds/{n}, holds
+// only the public rows: tests/platform/liveChallengeRankPrivacy.test.mjs).
+const roundDoc = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data() || null;
 const publicPlayers = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 const playerKeyOf = async (roomId, studentId) => (await privateRef(roomId).collection('players').doc(studentId).get()).data()?.playerKey || null;
 const diagnosticsOf = async (roomId, playerKey) => (await roomRef(roomId).collection('diagnostics').doc(playerKey).get()).data() || null;

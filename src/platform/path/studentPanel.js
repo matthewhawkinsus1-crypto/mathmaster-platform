@@ -14,7 +14,9 @@
 // Required work is not one of the four: it sits above them and suspends free
 // choice until it is done (§16), so it is returned separately.
 
-import { STATUS, explainForStudent } from './recommendationEngine.js';
+import {
+  EVIDENCE_KIND, STATUS, explainForStudent, explainRecommendationEvidence,
+} from './recommendationEngine.js';
 import { describeSkill } from './skillGraph.js';
 
 // More than this in "Your Choice" and the panel stops being a curation.
@@ -32,6 +34,10 @@ const toCard = (row, slot) => (row ? {
   description: describeSkill(row.skillId).description
     || describeSkill(row.skillId).label.split(' — ').slice(1).join(' — '),
   reason: explainForStudent(row),
+  // The same decision with its evidence named: the score and the questions
+  // behind it, the class unit, what it builds on, a teacher's priority. The
+  // card shows this in place of `reason` when there is any.
+  evidence: explainRecommendationEvidence(row),
   status: row.status,
   mastery: row.mastery,
   score: row.score,
@@ -44,10 +50,13 @@ const toCard = (row, slot) => (row ? {
 // A Strengthen card that points at the PREREQUISITE, not at the skill it is
 // blocking: the student cannot work on the blocked skill yet, so offering it
 // would be an invitation to fail.
-const repairCard = (blockedRow) => {
+const repairCard = (blockedRow, findRow = () => null) => {
   const target = blockedRow?.remediationTarget;
   if (!target) return null;
   const described = describeSkill(target);
+  // The repair's evidence is what it opens, plus the student's own score on
+  // it when the target is a skill of this course.
+  const targetRow = findRow(target);
   return {
     slot: 'strengthen',
     skillId: target,
@@ -55,6 +64,10 @@ const repairCard = (blockedRow) => {
     title: described.studentLabel || described.shortLabel || target,
     description: described.description || described.label.split(' — ').slice(1).join(' — '),
     reason: 'Strengthening this will unlock what comes next.',
+    evidence: [
+      { kind: EVIDENCE_KIND.PREREQUISITE, text: `Strengthening this opens ${describeSkill(blockedRow.skillId).studentLabel}, which builds on it.` },
+      ...(targetRow ? explainRecommendationEvidence(targetRow).filter((item) => item.kind === EVIDENCE_KIND.SCORE) : []),
+    ],
     status: STATUS.REMEDIATION,
     mastery: null,
     score: blockedRow.score,
@@ -96,10 +109,13 @@ export const curateStudentPanel = (options) => {
   // card at all, which is exactly backwards. Fall back to the prerequisite
   // that locked the highest-ranked skill and offer to repair that instead.
   const lockedWithTarget = list('locked').filter((row) => row.remediationTarget);
+  const findRow = (skillId) => ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked', 'mastered']
+    .flatMap(list)
+    .find((row) => row.skillId === skillId) || null;
   const strengthen = remediation.length
     ? toCard(remediation[0], 'strengthen')
     : lockedWithTarget.length
-      ? repairCard(lockedWithTarget[0])
+      ? repairCard(lockedWithTarget[0], findRow)
       : null;
 
   // A skill can legitimately be both the strongest current option and the one

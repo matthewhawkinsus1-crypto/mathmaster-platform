@@ -3,8 +3,9 @@
  *
  * Every helper operates the real controls of StepByStepAlgebraCore inside a
  * given host element: the operation rail, the MathLive operand field, the
- * pick-up button and the two sides; the inline distribution tokens; the
- * Rewrite / Simplify and Combine like terms term tokens; the cancellation
+ * pick-up button and the two sides; the inline distribution tokens; the one
+ * Simplify control (its highlighted parts, its box, its whole-side route) and
+ * the Rewrite menu (student push Q); the cancellation
  * terms and the required-simplification box. Nothing here computes algebra
  * for the student — the driver types exactly what a student would type, and
  * each helper waits for Step Algebra to accept it.
@@ -44,6 +45,9 @@ export const typeOperand = (page, host, operand) => setMathField(page, host.loca
 
 /** + − × ÷ on both sides by select-then-place, then wait for the pending move. */
 export const balancedMove = async (page, host, label, operand) => {
+  // Simplify stays open after its commits and owns the board while it is;
+  // a student closes it to reach the + − × ÷ rails.
+  await closeInlineModes(page, host);
   await chooseOperation(page, host, label);
   await typeOperand(page, host, operand);
   await host.locator('button.algebra-pickup-button').click();
@@ -53,11 +57,17 @@ export const balancedMove = async (page, host, label, operand) => {
   await settle(page, 500);
 };
 
-export const cancellationLabels = (host) => host.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
+// Terms are found by their source text (data-term-text), not their accessible
+// name: the name is spoken words ("plus 7, select to cancel") since job F.
+/** The source text of every term that can be cancelled now ("+ 7", "- 2 x"). */
+export const cancellationLabels = (host) => host.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+
+/** A selector for one interactive term: its source text and what selecting it does. */
+export const termSelector = (termText, interaction) => `[data-term-text="${termText}"][aria-label$="${interaction}"]`;
 
 /** Cross out a cancelling term by its visible label ("- 12"), on either side. */
 export const cancelTerm = async (page, host, termText) => {
-  await host.locator(`[aria-label="${termText}, select to cancel"]`).first().click();
+  await host.locator(`[data-term-text="${termText}"][aria-label$="select to cancel"]`).first().click();
   await settle(page, 700);
 };
 
@@ -94,70 +104,165 @@ export const distribute = async (page, host) => {
   await settle(page, 600);
 };
 
-async function openInlineMode(page, host, buttonText, labelSuffix) {
-  if (await host.locator(`[aria-label$="${labelSuffix}"]`).count()) return;
-  await host.locator('button', { hasText: buttonText }).first().click();
+/** Open the one Simplify control (it highlights every simplifiable part). */
+export const openSimplify = async (page, host) => {
+  const toggle = host.locator('button.algebra-simplify-toggle').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+    await settle(page, 250);
+  }
+};
+
+/** Open a Rewrite-menu tool (factor, split, reduce, arrange) by its kind. */
+export const openRewriteTool = async (page, host, kind) => {
+  const entry = host.locator(`.algebra-structure-toggle--${kind}`);
+  if (!(await entry.count())) {
+    await host.locator('button.algebra-rewrite-toggle').first().click();
+    await settle(page, 150);
+  }
+  await host.locator(`.algebra-structure-toggle--${kind}`).first().click();
   await settle(page, 250);
-}
+};
 
-const REWRITE_SUFFIX = 'select as the term you want to rewrite';
-const COMBINE_SUFFIX = 'select as a term to combine';
+/** The source text and index of every term on a side (the board's own tokens). */
+const sideTerms = (host, side) => sideBox(host, side).locator('[data-term-index]').evaluateAll((elements) => elements.map((element) => ({
+  index: Number(element.getAttribute('data-term-index')),
+  text: element.dataset.termText,
+})));
 
-/** Term indices on a side whose token label matches (labels exist once an inline mode is open). */
-const matchingTerms = async (host, side, suffix, match) => {
-  const labels = await sideBox(host, side).locator(`[data-term-index][aria-label$="${suffix}"]`).evaluateAll((elements) => elements.map((element) => ({
-    index: Number(element.getAttribute('data-term-index')),
-    text: element.getAttribute('aria-label').replace(/, select as .*$/, ''),
-  })));
+const matchingIndices = (terms, side, match) => {
   if (Array.isArray(match)) return match;
   if (typeof match === 'number') return [match];
-  const found = labels.filter((entry) => match.test(entry.text)).map((entry) => entry.index);
-  if (!found.length) throw new Error(`no ${side}-side term matches ${match}; terms are ${JSON.stringify(labels.map((entry) => entry.text))}`);
+  const found = terms.filter((entry) => match.test(entry.text)).map((entry) => entry.index);
+  if (!found.length) throw new Error(`no ${side}-side term matches ${match}; terms are ${JSON.stringify(terms.map((entry) => entry.text))}`);
   return found;
 };
 
-/** Rewrite / Simplify one term (an index, or the first whose label matches) as the student's equivalent. */
-export const rewriteTerm = async (page, host, side, match, replacement) => {
-  await openInlineMode(page, host, 'Rewrite / Simplify', REWRITE_SUFFIX);
-  const [termIndex] = await matchingTerms(host, side, REWRITE_SUFFIX, match);
-  const term = sideBox(host, side).locator(`[data-term-index="${termIndex}"][aria-label$="${REWRITE_SUFFIX}"]`);
-  const field = host.locator(`math-field[aria-label="Equivalent form for the selected ${side} side term"]`);
-  await term.click();
-  if (!(await field.isVisible().catch(() => false))) {
-    await settle(page, 300);
-    if (!(await field.isVisible().catch(() => false))) await term.click();
+const checkSimplifyBox = async (page, host, replacement) => {
+  const box = host.locator('.mm-simplify-box').first();
+  await box.waitFor({ timeout: 5000 });
+  const field = box.locator('math-field');
+  if (await field.count()) {
+    await setMathField(page, field.first(), replacement);
+    await box.locator('button.algebra-inline-commit', { hasText: 'Check' }).click();
+  } else {
+    // Parentheses after a plus, or a factor of 1: nothing to type.
+    await box.locator('button.algebra-inline-commit').click();
   }
-  await field.waitFor({ timeout: 5000 }).catch(async (error) => {
-    const pressed = await sideBox(host, side).locator('[aria-pressed="true"]').count();
-    const status = await host.locator('[role="status"]').allInnerTexts();
-    throw new Error(`rewrite field never opened for term ${termIndex} (${pressed} pressed; status ${JSON.stringify(status)}): ${error.message.split('\n')[0]}`);
-  });
-  await setMathField(page, field, replacement);
-  await host.locator('button.algebra-inline-commit', { hasText: 'Check' }).first().click();
   await settle(page, 500);
 };
 
-/** Combine like terms: select the terms (indices, or every label matching), type the combined term. */
-export const combineLikeTerms = async (page, host, side, match, combined) => {
-  await openInlineMode(page, host, 'Combine like terms', COMBINE_SUFFIX);
-  const termIndices = await matchingTerms(host, side, COMBINE_SUFFIX, match);
-  for (const index of termIndices) {
-    await sideBox(host, side).locator(`[data-term-index="${index}"][aria-label$="${COMBINE_SUFFIX}"]`).click();
-    await settle(page, 120);
-  }
-  await setMathField(page, host.locator('math-field[aria-label="Enter the single term these selected terms combine to"]'), combined);
-  await host.locator('button.algebra-inline-commit', { hasText: 'Check' }).first().click();
+/** Type a simpler version of a whole side (Simplify's free-form route). */
+export const simplifyWholeSide = async (page, host, side, replacement) => {
+  await openSimplify(page, host);
+  await host.locator('.mm-simplify-side-choice', { hasText: `the ${side} side` }).first().click();
+  await settle(page, 150);
+  await setMathField(page, host.locator(`math-field[aria-label^="A simpler version of the ${side} side"]`).first(), replacement);
+  await host.locator('button.mm-simplify-side-check').first().click();
   await settle(page, 500);
+};
+
+/**
+ * Simplify one term (an index, or the first whose source text matches) to
+ * the student's own result. A term that is a Simplify part (a product, a
+ * fraction, a factor of 1) is chosen on the board and simplified in the box;
+ * any other term is rewritten through the whole-side route, with the rest of
+ * the side kept exactly as the board shows it.
+ */
+export const rewriteTerm = async (page, host, side, match, replacement) => {
+  await openSimplify(page, host);
+  const terms = await sideTerms(host, side);
+  const [termIndex] = matchingIndices(terms, side, match);
+  // The parts toolbar lists every part with its id: side, kind, term indices.
+  const ids = await host.locator(`.mm-simplify-part[data-part-id^="${side}:"]`).evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+  const single = ids.find((id) => /:(product|fraction|unit|parentheses):/.test(id) && id.endsWith(`:${termIndex}`));
+  if (single) {
+    await host.locator(`.mm-simplify-part[data-part-id="${single}"]`).click();
+    await settle(page, 200);
+    await checkSimplifyBox(page, host, replacement);
+    return;
+  }
+  const rebuilt = terms.map((entry, position) => {
+    const text = entry.index === termIndex ? `+ (${replacement})` : entry.text;
+    return position === 0 ? text.replace(/^\+\s*/, '') : (/^[+-]/.test(text) ? text : `+ ${text}`);
+  }).join(' ');
+  await simplifyWholeSide(page, host, side, rebuilt);
+};
+
+/** Combine like terms: the Simplify part holding these terms (indices, or every label matching), then the combined term. */
+export const combineLikeTerms = async (page, host, side, match, combined) => {
+  await openSimplify(page, host);
+  const terms = await sideTerms(host, side);
+  const wanted = matchingIndices(terms, side, match);
+  const ids = await host.locator(`.mm-simplify-part[data-part-id^="${side}:likeTerms:"]`).evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+  const id = ids.find((entry) => {
+    const indices = entry.split(':')[2].split('.').map(Number);
+    return wanted.every((index) => indices.includes(index));
+  });
+  if (!id) throw new Error(`no like-terms part on the ${side} side holds terms ${JSON.stringify(wanted)}; parts are ${JSON.stringify(ids)}`);
+  await host.locator(`.mm-simplify-part[data-part-id="${id}"]`).click();
+  await settle(page, 200);
+  await checkSimplifyBox(page, host, combined);
 };
 
 export const closeInlineModes = async (page, host) => {
-  for (const text of ['Rewrite / Simplify', 'Combine like terms']) {
-    const button = host.locator('button', { hasText: text }).first();
-    if (await button.count() && (await button.getAttribute('aria-expanded')) === 'true') {
-      await button.click();
-      await settle(page, 200);
-    }
+  const toggle = host.locator('button.algebra-simplify-toggle').first();
+  if (await toggle.count() && (await toggle.getAttribute('aria-expanded')) === 'true') {
+    await toggle.click();
+    await settle(page, 200);
   }
-  const close = host.locator('button[aria-label="Close Rewrite / Simplify"]');
-  if (await close.count()) { await close.first().click(); await settle(page, 200); }
+  const rewrite = host.locator('button.algebra-rewrite-toggle').first();
+  if (await rewrite.count() && (await rewrite.getAttribute('aria-expanded')) === 'true') {
+    await rewrite.click();
+    await settle(page, 150);
+  }
+};
+
+/**
+ * Multiply out the products a substitution or a back-substitution left on the
+ * board, as the student does: for each [pattern, value], the product part
+ * whose term's source text matches is chosen in Simplify and the student's
+ * product typed. Patterns with no matching product are skipped.
+ */
+export const simplifyProducts = async (page, host, products) => {
+  for (const [match, value] of products) {
+    await openSimplify(page, host);
+    const ids = await host.locator('.mm-simplify-part[data-simplify-part="product"], .mm-simplify-part[data-simplify-part="unit"]').evaluateAll((elements) => elements.map((element) => element.dataset.partId));
+    let chosen = null;
+    for (const id of ids) {
+      const [side, , indices] = id.split(':');
+      const text = await sideBox(host, side).locator(`[data-term-index="${indices.split('.')[0]}"]`).first().getAttribute('data-term-text');
+      if (match.test(text || '')) { chosen = id; break; }
+    }
+    if (!chosen) continue;
+    await host.locator(`.mm-simplify-part[data-part-id="${chosen}"]`).click();
+    await settle(page, 250);
+    await checkSimplifyBox(page, host, value);
+  }
+  await closeInlineModes(page, host);
+};
+
+/**
+ * Remove the parentheses on a side: after a plus sign nothing is typed; after
+ * a minus sign the student chooses each term's new sign ('+' or '-', in the
+ * order the terms are inside the parentheses), or 'flip' to change them all.
+ */
+export const removeParentheses = async (page, host, side, signs = []) => {
+  await openSimplify(page, host);
+  await host.locator(`.mm-simplify-part[data-simplify-part="parentheses"][data-part-id^="${side}:"]`).first().click();
+  await settle(page, 250);
+  const box = host.locator('.mm-simplify-box').first();
+  const groups = box.locator('.mm-simplify-sign-group');
+  // 'flip': what a student does after a minus sign — every term inside, read
+  // off the board (data-sign-inside), changes sign.
+  if (signs === 'flip') {
+    const inside = await groups.evaluateAll((elements) => elements.map((element) => element.dataset.signInside));
+    signs = inside.map((sign) => (sign === '-' ? '+' : '-'));
+  }
+  for (let index = 0; index < signs.length; index += 1) {
+    await groups.nth(index).locator(`button[aria-label^="${signs[index] === '-' ? 'minus' : 'plus'} "]`).click();
+    await settle(page, 80);
+  }
+  await box.locator('button.algebra-inline-commit').click();
+  await settle(page, 600);
 };

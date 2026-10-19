@@ -8,6 +8,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
+import { buildLiveStatus } from '../../src/livePresence.js';
 import {
   activeStudentSpotlightQuery,
   activeTeacherSpotlightQuery,
@@ -376,6 +377,55 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
   }, { merge: true }));
+});
+
+test('"Ask my teacher" rides the student\'s own presence heartbeat: a time and a question position only', async () => {
+  const heartbeat = { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1', updatedAt: Date.now() };
+  // The heartbeat rewrites the whole document (no merge), carrying the request.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: 2 }));
+  // The teacher's monitor reads it.
+  const seen = await getDoc(doc(teacherA(), 'presence/STUDENT_A'));
+  assert.ok(seen.data().helpRequestedAt > 0);
+  // Cancelling is the next heartbeat without it.
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), heartbeat));
+  // Never a message, never a malformed value, never on another student.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpMessage: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: 'now' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now(), helpQuestionIndex: -1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), { studentId: 'STUDENT_B', helpRequestedAt: Date.now() }));
+  // A teacher cannot raise or clear it for a student.
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), { ...heartbeat, helpRequestedAt: Date.now() }));
+});
+
+test('presence holds exactly the heartbeat\'s keys, a known role and a recent help time (PR #462 review m7)', async () => {
+  // The real heartbeat, built the way App.jsx builds it, is accepted whole.
+  const now = Date.now();
+  const real = {
+    studentId: 'STUDENT_A',
+    name: 'Student A',
+    classId: 'class-a',
+    classPeriod: '2',
+    currentTeksCode: 'A.5A',
+    ...buildLiveStatus({ assignmentId: 'A1', assignmentTitle: 'Two-step equations', activityRole: 'dol', questionIndex: 2, questionCount: 8, questionStates: 'cxa.....', nowValue: now }),
+    helpRequestedAt: now,
+    helpQuestionIndex: 2,
+    pageVisible: true,
+    updatedAt: now,
+  };
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), real));
+  // No free text under another name.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequested: '<b>come here</b>' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpComment: 'come here' }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpMessage: 'come here' }));
+  // The monitor prints the role ("in <role>"): only a role the platform knows.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'detention — see me' }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, activityRole: 'classwork' }));
+  // A help time from this day, not the epoch's first millisecond or the year 287,000.
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 1 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: 9000000000000000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now + 3 * 3600000 }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 2 * 86400000 }));
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), { ...real, helpRequestedAt: now - 60000 }));
 });
 
 test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {
@@ -754,12 +804,17 @@ test('the collections that hold answers and credentials are unreachable from any
     'studentCredentials/cred-1',
     'adminAuditLog/entry-1',
     'examSessions/exam-1',
+    // An open secure item and the student's draft of it: the item carries its
+    // answer key until the session is finalized.
+    'examSessions/exam-1/items/examq-1',
     // The Test Cycle record is the single source of a recorded grade, and the
     // two plan documents hold approved families, generator seeds and private
     // grading for questions a student has not reached yet.
     'testCycleRecords/assignment-1__STUDENT_A',
     'testCycleCorrectionPlans/assignment-1__STUDENT_A',
     'testCycleRetestPlans/assignment-1__STUDENT_A',
+    // A class-wide operation's audit record: it names every student it touched.
+    'testCycleOperations/assignment-1__op-12345678',
     'classJoinCodes/code-1',
   ];
   for (const path of serverOnly) {
@@ -768,6 +823,68 @@ test('the collections that hold answers and credentials are unreachable from any
     await assertFails(getDoc(doc(teacherA(), path)));
     await assertFails(getDoc(doc(studentA(), path)));
   }
+});
+
+test('no client can read, write or list the open items of a secure session', async () => {
+  await assertFails(getDocs(collection(studentA(), 'examSessions/exam-1/items')));
+  await assertFails(getDocs(collection(teacherA(), 'examSessions/exam-1/items')));
+  await assertFails(setDoc(doc(studentA(), 'examSessions/exam-1/items/examq-1'), { draftResponse: { responsePayload: { responses: { answer: '4' } } } }));
+});
+
+test('no client can move the abandoned-test finalizer: its deadline hint and its sweep bookmark are server-only', async () => {
+  /*
+   * `autoFinalizeAt` on a secure session is where the scheduled finalizer
+   * looks for a timed test whose time ran out. A student who could write it
+   * could hide their own expired test from it, or point it at a classmate's;
+   * a hint is only where to look, but nobody but the server writes it. The
+   * sweep's bookmark (platformMigrations) is the server's too.
+   */
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'examSessions/exam-af'), {
+      examSessionId: 'exam-af', studentId: 'STUDENT_A', status: 'in_progress', startedAt: 1, timeLimitSeconds: 600, autoFinalizeAt: 720001,
+    });
+    await setDoc(doc(context.firestore(), 'platformMigrations/secureExamAutoFinalizeDeadlines'), { cursor: null, passStartedAt: 1, settleAfter: 2, completedAt: null });
+  });
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(updateDoc(doc(client, 'examSessions/exam-af'), { autoFinalizeAt: null }));
+    await assertFails(setDoc(doc(client, 'examSessions/exam-af'), { autoFinalizeAt: 9e15 }, { merge: true }));
+    await assertFails(setDoc(doc(client, 'examSessions/exam-af-new'), { studentId: 'STUDENT_A', status: 'in_progress', autoFinalizeAt: null }));
+    await assertFails(getDocs(query(collection(client, 'examSessions'), where('autoFinalizeAt', '<=', Date.now()))));
+    await assertFails(setDoc(doc(client, 'platformMigrations/secureExamAutoFinalizeDeadlines'), { completedAt: 1 }, { merge: true }));
+    await assertFails(deleteDoc(doc(client, 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  }
+  await assertFails(getDoc(doc(studentA(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  await assertFails(getDoc(doc(teacherA(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  // The root administrator may read the bookmark (the collection's rule), never change it.
+  await assertSucceeds(getDoc(doc(admin(), 'platformMigrations/secureExamAutoFinalizeDeadlines')));
+  let stored = null;
+  await env.withSecurityRulesDisabled(async (context) => {
+    stored = (await getDoc(doc(context.firestore(), 'examSessions/exam-af'))).data();
+  });
+  assert.equal(stored.autoFinalizeAt, 720001, 'the hint is unchanged');
+});
+
+test('no client can read or write when a Test Cycle\'s answers are released', async () => {
+  /*
+   * testCycleAnswerReleases says whether a course Test's correct answers and
+   * worked solutions are open and which students the teacher's release
+   * covered. Only the server reads it (getStudentSecureExamReview) and only
+   * the server writes it (releaseTestCycleAnswers, a reset): a student who
+   * could write it could open the answers to their class while classmates
+   * still sit the Test, and a teacher's write would skip the named list.
+   */
+  const path = 'testCycleAnswerReleases/assignment-1';
+  const forged = { assignmentId: 'assignment-1', test: { releasedAt: 1, releasedBy: 'uid', coveredStudentIds: ['STUDENT_A'] } };
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(getDoc(doc(client, path)));
+    await assertFails(setDoc(doc(client, path), forged));
+    await assertFails(getDocs(collection(client, 'testCycleAnswerReleases')));
+  }
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), path), forged);
+  });
+  await assertFails(updateDoc(doc(studentA(), path), { 'test.coveredStudentIds': ['STUDENT_A', 'STUDENT_B'] }));
+  await assertFails(deleteDoc(doc(teacherA(), path)));
 });
 
 test('a student cannot read their own Test Cycle record, plans, or write a recorded grade', async () => {
@@ -804,6 +921,20 @@ test('no client can write the recorded Test Cycle grade, not even the student wh
   await assertFails(updateDoc(doc(admin(), 'grades/STUDENT_A'), { testCycleGrades: forged }));
   // Removing it is no more allowed than rewriting it.
   await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { testCycleGrades: {} }));
+  /*
+   * The same map carries the proof that a student was added to a Test on
+   * their own (`individuallyAssigned`): it is what lets the server accept
+   * their Review answers and hand them the assessment. A student who could
+   * write it could assign themselves any class's secure Test.
+   */
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(updateDoc(doc(client, 'grades/STUDENT_A'), {
+      'testCycleGrades.another-class-test': { individuallyAssigned: true },
+    }));
+    await assertFails(updateDoc(doc(client, 'grades/STUDENT_A'), {
+      'testCycleGrades.assignment-1.individuallyAssigned': true,
+    }));
+  }
 
   // The pin does not lock the document: the student's own engagement time,
   // the one field their client writes, still saves. (Their graded work
@@ -837,13 +968,16 @@ test('no client can CREATE a grades row with a Test Cycle grade already in it', 
   // so any other student would be refused for the wrong reason and prove nothing.
   const studentNew = () => env.authenticatedContext('uid-new', { role: 'student', studentId: 'STUDENT_NEW' }).firestore();
 
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
+  // A student's own row carries no roster placement (only the Admin SDK
+  // places a student), so the student's attempts use the bare row.
+  const ownRow = { status: 'active', gradesByAssignment: {} };
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...ownRow, testCycleGrades: forged }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
   await assertFails(setDoc(doc(admin(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
 
-  // An ordinary roster row still creates, which is what the create rule is for,
-  // and so does one that names the field empty.
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), roster));
+  // An ordinary row still creates, which is what the create rule is for, and
+  // so does one that names the field empty.
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), ownRow));
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW2'), { ...roster, testCycleGrades: {} }));
 });
 
@@ -899,11 +1033,12 @@ test('no client can CREATE a grades row that already holds a Recovery record or 
   const studentNew = () => env.authenticatedContext('uid-new-recovery', { role: 'student', studentId: 'STUDENT_NEW_R' }).firestore();
   const forgedRecovery = { 'assignment-1': { dol: { status: 'completed', rawScore: 100, cap: 100 } } };
 
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
+  const ownRow = { status: 'active', gradesByAssignment: {} };
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...ownRow, sectionRecoveryByAssignment: forgedRecovery }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
-  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, warmupChallengeByAssignment: { a: { correct: 5 } } }));
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...ownRow, warmupChallengeByAssignment: { a: { correct: 5 } } }));
 
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), roster));
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), ownRow));
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R2'), { ...roster, sectionRecoveryByAssignment: {} }));
 });
 
@@ -1185,8 +1320,9 @@ test('clients cannot create a grades row that already contains teacher overrides
     },
   };
 
+  const ownRow = { status: 'active', gradesByAssignment: {} };
   await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), {
-    ...roster,
+    ...ownRow,
     teacherGradeOverridesByAssignment: forgedOverrides,
   }));
   await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_OVERRIDE_TEACHER_CREATE'), {
@@ -1194,7 +1330,7 @@ test('clients cannot create a grades row that already contains teacher overrides
     teacherGradeOverridesByAssignment: forgedOverrides,
   }));
 
-  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), roster));
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), ownRow));
 });
 
 test('grade override audit history is server-only and cannot be forged or read directly', async () => {
@@ -1277,6 +1413,27 @@ test('a student reads their own Class Points wallet and history, never another s
   await assertFails(getDoc(doc(studentB(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
   await assertSucceeds(getDoc(doc(studentA(), 'classPointTransactions/cp-tx-1')));
   await assertFails(getDoc(doc(studentB(), 'classPointTransactions/cp-tx-1')));
+});
+
+// A student who was never awarded anything has no account yet, and their
+// wallet listens to it anyway. That read must succeed (an empty wallet), not be
+// denied (which the screen showed as "Temporarily unavailable"); it must still
+// be denied to anyone the id does not name.
+test('a student reads their own MISSING Class Points account as empty; nobody else can', async () => {
+  const missing = classPointsAccountId('STUDENT_A', 'class-never-awarded');
+  const snapshot = await assertSucceeds(getDoc(doc(studentA(), `classPointAccounts/${missing}`)));
+  assert.equal(snapshot.exists(), false);
+  await assertFails(getDoc(doc(studentB(), `classPointAccounts/${missing}`)));
+  await assertFails(getDoc(doc(teacherB(), `classPointAccounts/${missing}`)));
+  // The length prefix is part of the name: a forged prefix names nobody.
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/99:STUDENT_A:class-a-x')));
+  await assertFails(getDoc(doc(studentA(), 'classPointAccounts/STUDENT_A')));
+  // And the history query on an empty ledger is allowed for its owner.
+  await assertSucceeds(getDocs(query(
+    collection(studentA(), 'classPointTransactions'),
+    where('studentId', '==', 'STUDENT_A'),
+    where('classId', '==', 'class-never-awarded'),
+  )));
 });
 
 test('no client can write a Class Points account, forged or otherwise — not even the root administrator', async () => {
@@ -1422,6 +1579,9 @@ const seedLiveChallengeEngine = async () => env.withSecurityRulesDisabled(async 
   await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/rounds/0'), {
     roundIndex: 0, standings: [{ playerKey: 'pk-a', alias: 'Nova Fox', rank: 1, matchPointsAwarded: 15 }],
   });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/solutions/0'), {
+    roundIndex: 0, available: true, prompt: 'Solve 2x = 8.', solutionReview: { headline: 'Divide by 2.', reasoning: ['x = 4'] },
+  });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_A'), { roomId: 'lc-room-a', playerKey: 'pk-a' });
   await setDoc(doc(db, 'liveChallengeInvites/STUDENT_B'), { roomId: 'lc-room-elsewhere', playerKey: 'pk-b' });
   // Two public player rows in the room, and its standings snapshot.
@@ -1500,15 +1660,31 @@ test('a closed round\'s result is read by the room\'s audience only, and written
   }
 });
 
-test('player rows are read by the room\'s audience (a student\'s own row included) and written by no client', async () => {
+test('a revealed round solution is read by the room\'s audience only, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const solution = 'liveChallengeRooms/lc-room-a/solutions/0';
+  await assertSucceeds(getDoc(doc(teacherA(), solution)));
+  await assertFails(getDoc(doc(teacherB(), solution)));
+  await assertSucceeds(getDoc(doc(studentA(), solution)), 'a student invited to the room');
+  await assertFails(getDoc(doc(studentB(), solution)), 'a student invited to another room');
+  await assertSucceeds(getDoc(doc(admin(), solution)));
+  await assertFails(getDoc(doc(stranger(), solution)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    // Nobody can publish (or pre-publish) a solution from a browser.
+    await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/solutions/1'), { available: true }));
+    await assertFails(updateDoc(doc(client, solution), { available: false }));
+  }
+});
+
+test('player rows: a student reads their own row only, the room\'s teacher every row, and no client writes one', async () => {
   await seedLiveChallengeEngine();
   const own = 'liveChallengeRooms/lc-room-a/players/pk-a';
   const classmate = 'liveChallengeRooms/lc-room-a/players/pk-classmate';
   await assertSucceeds(getDoc(doc(studentA(), own)), 'the row their invite names: the screen\'s own-row listener');
-  // Still readable in this release, for screens loaded before it (they list
-  // every row until they reload); the own-row-only tightening is a later deploy.
-  await assertSucceeds(getDoc(doc(studentA(), classmate)));
-  await assertSucceeds(getDocs(collection(studentA(), 'liveChallengeRooms/lc-room-a/players')));
+  // A classmate's row carries their score, and every score is every place
+  // (tests/rules/liveChallengeRankPrivacyRules.test.mjs).
+  await assertFails(getDoc(doc(studentA(), classmate)), "a classmate's row");
+  await assertFails(getDocs(collection(studentA(), 'liveChallengeRooms/lc-room-a/players')), 'listing every row');
   await assertFails(getDoc(doc(studentB(), own)), 'a student of another room');
   await assertFails(getDocs(collection(studentB(), 'liveChallengeRooms/lc-room-a/players')), 'a student of another room');
   await assertSucceeds(getDocs(collection(teacherA(), 'liveChallengeRooms/lc-room-a/players')), "the console's board");

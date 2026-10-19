@@ -2,6 +2,7 @@ import React from 'react';
 import MathText from '../common/MathText.jsx';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane.jsx';
 import { feasibleRegionPolygon } from '../../tools/systemsWorkspace/systemsMath.js';
+import { boundaryDash } from '../../platform/graph/verticalLineStyle.js';
 
 // The material a Path question gives the student to work FROM.
 //
@@ -25,7 +26,7 @@ const shell = {
 
 const titleStyle = {
   margin: '0 0 8px',
-  fontSize: 12,
+  fontSize: 'calc(12 * var(--mm-px))',
   fontWeight: 900,
   letterSpacing: '.05em',
   textTransform: 'uppercase',
@@ -35,7 +36,7 @@ const titleStyle = {
 const cellStyle = {
   padding: '7px 12px',
   border: '1px solid var(--mm-border)',
-  fontSize: 15,
+  fontSize: 'calc(15 * var(--mm-px))',
   color: 'var(--mm-text-strong)',
   textAlign: 'center',
   whiteSpace: 'nowrap',
@@ -97,7 +98,7 @@ const lineFromVisiblePoints = (entry = {}) => {
   return { vertical:false, m, b, entry };
 };
 
-function StimulusGraph({ graph }) {
+function StimulusGraph({ graph, describeFeatures = null }) {
   if (!graph || typeof graph !== 'object') return null;
   const bounds = {
     xMin:Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -6,
@@ -111,12 +112,16 @@ function StimulusGraph({ graph }) {
     .map((line, index) => (!line || line.vertical ? null : ({
       m:line.m,
       b:line.b,
-      dash:String(line.entry?.boundaryStyle || '') === 'dashed' ? '10 6' : undefined,
+      dash:boundaryDash({ boundaryStyle:line.entry?.boundaryStyle }),
       stroke:line.entry?.stroke,
       label:line.entry?.label || `Line ${index + 1}`,
     })))
     .filter(Boolean);
-  const verticalLines = resolvedLines.filter((line) => line?.vertical).map((line) => line.x);
+  // An authored vertical line is a boundary like any other line here, so it
+  // keeps its style: x = 5 of x ≤ 5 is solid, as the key and the legend say.
+  const verticalLines = resolvedLines
+    .filter((line) => line?.vertical)
+    .map((line) => ({ x:line.x, boundaryStyle:line.entry?.boundaryStyle, stroke:line.entry?.stroke }));
   const points = (Array.isArray(graph.points) ? graph.points : [])
     .map(graphPoint)
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
@@ -157,6 +162,15 @@ function StimulusGraph({ graph }) {
         yTickStep={graph.yTickStep}
         revealCoordinates={!graph.readCoordinates}
         pointHoverEnabled={!graph.readCoordinates}
+        // Reading the graph is the task: never a table of its values.
+        dataTable={!graph.readCoordinates}
+        // An author's description that does not give the answer away
+        // (src/platform/preflight/graphAccessibilityPreflight.js warns without one).
+        description={graph.accessibleDescription || null}
+        // null: the question's lifecycle decides (kinds only while it can be
+        // answered). A screen that asks nothing — the session recap — passes
+        // true for the full reading.
+        describeFeatures={describeFeatures}
       >
         {({ sx, sy, plotClip }) => curves.map((curve, index) => (
           <polyline
@@ -172,11 +186,11 @@ function StimulusGraph({ graph }) {
           />
         ))}
       </CoordinatePlane>
-      {(graph.xAxisLabel || graph.yAxisLabel) && <p style={{ textAlign: 'center', margin: '6px 0', fontSize: 13 }}>
+      {(graph.xAxisLabel || graph.yAxisLabel) && <p style={{ textAlign: 'center', margin: '6px 0', fontSize: 'calc(13 * var(--mm-px))' }}>
         Horizontal axis: {graph.xAxisLabel || 'x'} · Vertical axis: {graph.yAxisLabel || 'y'}
       </p>}
       {sourceLines.length > 1 && (
-        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'var(--mm-text-muted)' }}>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:'calc(12 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
           {sourceLines.map((line, index) => (
             <span key={`legend-${index}`}>
               <strong>{line.label || `Line ${index + 1}`}</strong>
@@ -192,7 +206,7 @@ function StimulusGraph({ graph }) {
 function OrderedPairList({ pairs }) {
   if (!pairs?.length) return null;
   return (
-    <p style={{ margin: 0, fontSize: 17, color: 'var(--mm-text-strong)', lineHeight: 1.7, textAlign: 'center' }}>
+    <p style={{ margin: 0, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.7, textAlign: 'center' }}>
       {'{ '}
       {pairs.map((pair, index) => (
         <span key={`p-${index}`} style={{ whiteSpace: 'nowrap' }}>
@@ -209,7 +223,7 @@ function WorkedSteps({ steps }) {
   return (
     <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
       {steps.map((step) => (
-        <li key={step.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
+        <li key={step.id} style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700, marginRight: 8 }}>{step.label}</span>
           <MathText>{step.work}</MathText>
         </li>
@@ -223,7 +237,7 @@ function ExpressionList({ expressions }) {
   return (
     <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
       {expressions.map((expression, index) => (
-        <MathText key={`e-${index}`} style={{ fontSize: 18, color: 'var(--mm-text-strong)' }}>{expression}</MathText>
+        <MathText key={`e-${index}`} style={{ fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{expression}</MathText>
       ))}
     </div>
   );
@@ -234,7 +248,7 @@ function LabelledItems({ items }) {
   return (
     <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 5 }}>
       {items.map((item) => (
-        <li key={item.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
+        <li key={item.id} style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <MathText>{item.label}</MathText>
         </li>
       ))}
@@ -242,7 +256,12 @@ function LabelledItems({ items }) {
   );
 }
 
-export const PathQuestionStimulus = ({ stimulus }) => {
+// `headingLevel`: the title's level on the page it sits in — 2 under a Path
+// question's h1, 4 under a Test result's h3 (SecureExamReview). A panel's
+// title is one deeper than its parent's.
+const titleTag = (level) => `h${Math.min(6, Math.max(2, Number(level) || 2))}`;
+
+export const PathQuestionStimulus = ({ stimulus, describeFeatures = null, headingLevel = 2 }) => {
   if (!stimulus) return null;
   const hasContent = Boolean(
     stimulus.graph
@@ -255,6 +274,7 @@ export const PathQuestionStimulus = ({ stimulus }) => {
     || stimulus.panels?.length,
   );
   if (!hasContent) return null;
+  const Title = titleTag(headingLevel);
 
   return (
     <section style={shell} aria-label={stimulus.title || 'Question information'}>
@@ -262,16 +282,16 @@ export const PathQuestionStimulus = ({ stimulus }) => {
           "Candidate check for $\sqrt{x+1}=x-(-1)$" is a stimulus title in the
           Algebra II bank — so the heading gets the same rendering the rest of
           this component already gave its content. */}
-      {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
-      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} />)}
-      <StimulusGraph graph={stimulus.graph} />
+      {stimulus.title && <Title style={titleStyle}><MathText>{stimulus.title}</MathText></Title>}
+      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} headingLevel={Math.min(6, headingLevel + 1)} />)}
+      <StimulusGraph graph={stimulus.graph} describeFeatures={describeFeatures} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />
       <WorkedSteps steps={stimulus.steps} />
       <ExpressionList expressions={stimulus.expressions} />
       <LabelledItems items={stimulus.items} />
       {stimulus.note && (
-        <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
+        <p style={{ margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <MathText>{stimulus.note}</MathText>
         </p>
       )}

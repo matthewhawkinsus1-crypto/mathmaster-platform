@@ -58,3 +58,36 @@ test('explicit section launches never jump into a different open section', () =>
     restrictToRole: 'warmup',
   }), null);
 });
+
+// "Every Start/Continue lands on the first unfinished question the student
+// can do now": finished questions are skipped when the caller says which.
+test('assignment entry skips finished questions in an open section', () => {
+  const finished = new Set([2]);
+  assert.equal(resolveStudentAssignmentEntry({
+    entries,
+    includedQuestionIndices,
+    requestedQuestionIndex: 0,
+    roleIsActionable: roleGate(['classwork', 'practice']),
+    isFinished: (index) => finished.has(index),
+  }), 3);
+});
+
+test('a finished requested question gives way to unfinished open work', () => {
+  assert.equal(resolveStudentAssignmentEntry({
+    entries,
+    includedQuestionIndices,
+    requestedQuestionIndex: 2,
+    roleIsActionable: roleGate(['classwork', 'practice']),
+    isFinished: (index) => index === 2,
+  }), 3);
+});
+
+test('when everything open is finished, entry reopens the requested question for review', () => {
+  assert.equal(resolveStudentAssignmentEntry({
+    entries,
+    includedQuestionIndices,
+    requestedQuestionIndex: 3,
+    roleIsActionable: roleGate(['classwork', 'practice']),
+    isFinished: () => true,
+  }), 3);
+});

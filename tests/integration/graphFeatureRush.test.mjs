@@ -148,7 +148,9 @@ const advance = async (roomId, classKey = 'pair') => {
   }));
 };
 
-const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data();
+// The teacher's whole copy of a closed round (the class's copy, rounds/{n}, holds
+// only the public rows: tests/platform/liveChallengeRankPrivacy.test.mjs).
+const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data();
 
 /* ===================== GAME 1: two players, Grand Prix ===================== */
 
@@ -285,7 +287,9 @@ test('a stale round token, a classic answer and a pacing change are refused or i
   assert.equal(stale?.code, 'failed-precondition');
   const classic = await failureOf(call('submitLiveChallengeResponse', student(A, { ...identity, submissionId: randomUUID(), responsePayload: {} })));
   assert.equal(classic?.code, 'failed-precondition');
-  assert.match(classic?.message || '', /tapping graphs/);
+  // Refused with a reason naming the game (the wording is mode-neutral now
+  // that more than one game plays on its own screen).
+  assert.match(classic?.message || '', /Graph Feature Rush is played on its own game screen/);
   const pacing = await call('updateLiveChallengePacing', teacher({ roomId: G1, roundClosingThreshold: 60 }));
   assert.equal(pacing.roundClosingThreshold, null);
   assert.equal((await roomOf(G1)).roundClosingThreshold, null);

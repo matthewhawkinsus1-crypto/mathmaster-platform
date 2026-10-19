@@ -3,6 +3,8 @@ import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
 import { useActiveUndoOwner } from './platform/workView/useMathUndoHistory.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import Dialog from './ui/Dialog.jsx';
+import { prefersReducedMotion } from './motionPreference.js';
 import {
   MAX_SCRATCHPAD_PAGES,
   canAddScratchpadPage,
@@ -403,9 +405,9 @@ export default function ScratchpadOverlay({
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={requestClose}
+      closeOnEscape={!saving}
       aria-label="Full-screen scratchpad"
       data-scratchpad-stroke-count={strokes.length}
       style={{
@@ -415,7 +417,8 @@ export default function ScratchpadOverlay({
         background: 'var(--mm-surface-sunken)',
         display: 'grid',
         gridTemplateRows: 'auto minmax(0, 1fr) auto',
-        animation: 'scratchpadSlideUp 220ms ease-out',
+        // No slide for a student who asked for less motion (A11Y-11).
+        animation: prefersReducedMotion() ? 'none' : 'scratchpadSlideUp 220ms ease-out',
       }}
     >
       <header
@@ -431,8 +434,8 @@ export default function ScratchpadOverlay({
         }}
       >
         <div>
-          <strong style={{ fontSize: '18px', color: 'var(--mm-text-strong)' }}>Student Scratchpad</strong>
-          <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', marginTop: '2px' }}>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Student Scratchpad</strong>
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', marginTop: '2px' }}>
             {readOnly
               ? 'This saved scratchpad is read-only because the question is locked.'
               : dirty
@@ -450,7 +453,7 @@ export default function ScratchpadOverlay({
           >
             ‹
           </button>
-          <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mm-text)', minWidth: '86px', textAlign: 'center' }}>
+          <span aria-live="polite" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)', minWidth: '86px', textAlign: 'center' }}>
             Page {pageIndex + 1} of {pageCount}
           </span>
           <button
@@ -501,11 +504,11 @@ export default function ScratchpadOverlay({
             backdropFilter: 'blur(4px)',
             pointerEvents: 'none',
             color: 'var(--mm-text)',
-            fontSize: '13px',
+            fontSize: 'calc(13 * var(--mm-px))',
           }}
         >
           <strong style={{ color: 'var(--mm-primary-text)' }}>Current question</strong>
-          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: 'var(--mm-text)', textAlign: 'left' }}>
+          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)', textAlign: 'left' }}>
             {compactQuestion}
           </QuestionPrompt>
         </div>
@@ -549,7 +552,7 @@ export default function ScratchpadOverlay({
         {readOnly ? (
           <strong style={{ color: 'var(--mm-text-muted)' }}>Read-only saved student work</strong>
         ) : <>
-        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'pen' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>✎ Pen</button>
+        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'pen' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>✎ Pen</button>
         {COLORS.map((item) => (
           <button
             type="button"
@@ -558,8 +561,9 @@ export default function ScratchpadOverlay({
             aria-label={`${item.label} ink`}
             onClick={() => { setColor(item.value); setTool('pen'); }}
             style={{
-              width: '38px',
-              height: '38px',
+              // 44px, the phone target size (A11Y-11): 38 was under it.
+              width: '44px',
+              height: '44px',
               borderRadius: '50%',
               border: color === item.value && tool === 'pen' ? '4px solid #f9ab00' : '3px solid var(--mm-border-soft)',
               outline: `1px solid ${item.value}`,
@@ -567,24 +571,25 @@ export default function ScratchpadOverlay({
             }}
           />
         ))}
-        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'eraser' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>▱ Eraser</button>
+        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'eraser' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>▱ Eraser</button>
         <UniversalUndoButton controller={scratchpadUndoController} disabled={readOnly} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }} />
-        <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>Clear All</button>
+        <button type="button" onClick={clearAll} style={{ minHeight: 44, padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>Clear All</button>
         <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
         </>}
-        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? 'var(--mm-danger)' : 'var(--mm-success-text)', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
+        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? 'var(--mm-danger)' : 'var(--mm-success-text)', fontWeight: 'bold', fontSize: 'calc(13 * var(--mm-px))' }}>{message}</span>}
       </footer>
 
       {confirmingClose && (
-        <div
+        <Dialog
           role="alertdialog"
-          aria-modal="true"
+          onClose={() => setConfirmingClose(false)}
+          closeOnEscape={!saving}
           aria-label="Unsaved scratchpad work"
           style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', padding: '20px' }}
         >
           <div style={{ width: 'min(460px, 100%)', padding: '22px 24px', borderRadius: '16px', background: 'var(--mm-surface)', boxShadow: '0 20px 60px rgba(15,23,42,0.35)', textAlign: 'left' }}>
-            <h2 style={{ margin: '0 0 8px', fontSize: '18px', color: 'var(--mm-text-strong)' }}>Save your work first?</h2>
+            <h2 style={{ margin: '0 0 8px', fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Save your work first?</h2>
             <p style={{ margin: '0 0 18px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
               {pageCount === 1
                 ? 'You have drawn on this scratchpad since it was last saved. Closing without saving deletes it.'
@@ -594,7 +599,7 @@ export default function ScratchpadOverlay({
               <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#188038', color: '#fff', fontWeight: 'bold' }}>
                 {saving ? 'Saving…' : 'Save and close'}
               </button>
-              <button type="button" onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>
+              <button type="button" data-autofocus onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>
                 Keep working
               </button>
               <button type="button" onClick={() => { setConfirmingClose(false); onClose?.(); }} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>
@@ -602,8 +607,8 @@ export default function ScratchpadOverlay({
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
-    </div>
+    </Dialog>
   );
 }

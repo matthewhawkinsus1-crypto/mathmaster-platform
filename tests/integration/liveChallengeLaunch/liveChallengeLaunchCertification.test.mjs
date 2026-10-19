@@ -66,7 +66,8 @@ const { leaderboardOptionsFor, getScoringStrategy, SCORE_ACCUMULATION } = await 
 const { CHALLENGE_STAGE } = await import(path.join(repo, 'src/platform/liveChallenge/challengeShellModel.js'));
 const { createDeviceFarm } = await import('../support/deviceFarm.mjs');
 const { createSimHost } = await import('../support/liveChallengeSimHost.mjs');
-const { projectionRankTable, STANDINGS_MIN_PUBLISH_INTERVAL_MS, STANDINGS_TOP_ROWS } = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
+const { STANDINGS_MIN_PUBLISH_INTERVAL_MS, STANDINGS_TOP_ROWS } = await import(path.join(repo, 'functions/shared/liveChallengeStandingsProjection.mjs'));
+const { classStandingsRows } = await import(path.join(repo, 'functions/shared/liveChallengePrivacy.mjs'));
 const db = admin.firestore();
 
 const SIZES = (process.env.LAUNCH_CERT_SIZES || '5,15,25,35,45,64').split(',').map(Number).filter((size) => size >= 5);
@@ -260,7 +261,7 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
   assert.equal(new Set(privateRows.map((row) => row.playerKey)).size, entry.students.length, `${label}: player keys are unique`);
   assert.equal(publicRows.length, views.size, `${label}: one public player per student who played, no duplicates (${publicRows.length})`);
   const publicByKey = new Map(publicRows.map((row) => [row.id, row]));
-  const totals = { scored: 0, duplicateReplies: 0, secondAnswersRefused: 0, droppedThenRetried: 0, answerMs: [] };
+  const totals = { scored: 0, duplicateReplies: 0, secondAnswersRefused: 0, droppedThenRetried: 0, resentAtGo: 0, answerMs: [] };
   // How the room's strategy turns answers into a score: per response (the
   // points each answer earned, summed) or per round (a placement each round,
   // the championship points summed).
@@ -289,6 +290,10 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
         // answered (already-exists), or over by the time it lands.
         if (refusal.kind === 'second') totals.secondAnswersRefused += 1;
         else if (/unavailable/.test(refusal.code)) totals.droppedThenRetried += 1;
+        // Sent at a GO this device showed before the server's (its clock runs
+        // ahead): refused as not started, and THAT answer was then resent and
+        // scored. Anything else refused while the round was open is a failure.
+        else if (refusal.reason === 'round_not_started' && record.accepted.some((reply) => reply.submissionId === refusal.submissionId && reply.kind === 'resend')) totals.resentAtGo += 1;
         else assert.fail(`${label}: ${view.studentId} round ${roundIndex + 1}: an answer sent while the round was open was refused: ${JSON.stringify(refusal)} (round record ${JSON.stringify(record)}; server handled ${JSON.stringify(record.accepted.concat(record.refused).map((entry) => [entry.submissionId, invocations[entry.submissionId]]))})`);
       });
       const reply = record.accepted[0];
@@ -322,25 +327,26 @@ const assertMatchIntegrity = async (farm, roomId, entry, views, label, privateRo
   board.forEach((row) => assert.equal(finalRank.get(row.playerKey), row.rank, `${label}: ${row.alias} is ranked the same on the board and in the match result`));
   for (let index = 1; index < board.length; index += 1) assert.ok(board[index - 1].rank <= board[index].rank, `${label}: the board is in rank order`);
   // THE FINAL STANDINGS AND PODIUM every screen shows ARE the match result's:
-  // one final snapshot, written from it in the finishing commit, and every
-  // screen holding exactly that snapshot — every seat, the top rows, its own place.
+  // one final snapshot, written from it in the finishing commit, holding only
+  // the public rule's rows (nobody else's place is in a document a classmate
+  // can read) — and every screen holding exactly that snapshot, plus its own
+  // final place from its own summary, written in the same commit.
   const ranked = (result?.standings || []).filter((row) => row.rank !== null);
-  const slotOf = new Map(privateRows.map((row) => [row.playerKey, row.slot]));
-  const bySlot = (left, right) => left[0] - right[0];
-  const expectedTable = ranked.map((row) => [slotOf.get(row.playerKey), row.rank, row.score]).sort(bySlot);
-  const expectedTop = ranked.slice(0, STANDINGS_TOP_ROWS).map((row) => [row.playerKey, row.rank, row.tied, row.score]);
+  const expectedPublic = classStandingsRows(ranked.map((row) => ({ ...row })), { totalCount: ranked.length });
+  const expectedTop = expectedPublic.rows.slice(0, STANDINGS_TOP_ROWS).map((row) => [row.playerKey, row.rank, row.tied, row.score]);
   const final = await standingsSnapshot(roomId);
   assert.equal(final?.kind, 'final', `${label}: the room's standings snapshot is the final one`);
   assert.equal(final.exact, true);
-  assert.deepEqual(projectionRankTable(final).map((seat) => [seat.slot, seat.rank, seat.score]).sort(bySlot), expectedTable, `${label}: the final snapshot is the match result, seat by seat`);
-  assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), expectedTop, `${label}: the podium is the match result's`);
+  assert.equal(final.count, ranked.length, `${label}: the final snapshot counts everyone who played`);
+  for (const field of ['ranks', 'scores', 'slotKeys']) assert.equal(field in final, false, `${label}: the final snapshot lists no every-seat ${field}`);
+  assert.deepEqual(final.top.map((row) => [row.playerKey, row.rank, row.tied, row.score]), expectedTop, `${label}: the podium is the match result's public rows`);
+  assert.equal(final.lastRank, expectedPublic.lastRank, `${label}: where the class's last group starts`);
   for (const view of views.values()) {
     assert.equal(view.standings?.kind, 'final', `${label}: ${view.studentId}'s screen holds the final standings (${JSON.stringify(view.standings && { kind: view.standings.kind, phase: view.standings.phase })})`);
     assert.equal(view.standings.count, ranked.length, `${label}: ${view.studentId} counts everyone who played`);
-    assert.deepEqual([...view.standings.table].sort(bySlot), expectedTable, `${label}: ${view.studentId}'s screen holds every final place`);
     assert.deepEqual(view.standings.top, expectedTop, `${label}: ${view.studentId}'s screen shows the podium`);
     const own = ranked.find((row) => row.playerKey === view.invite.playerKey);
-    assert.deepEqual([view.standings.self?.rank, view.standings.self?.tied, view.standings.self?.score], [own.rank, own.tied, own.score], `${label}: ${view.studentId}'s own final place`);
+    assert.deepEqual([view.standings.self?.rank, view.standings.self?.tied, view.standings.self?.score], [own.rank, own.tied, own.score], `${label}: ${view.studentId}'s own final place (their own summary)`);
   }
   return totals;
 };
@@ -363,6 +369,10 @@ const assertBoundedStandings = (views, { label, gameMs, host, size }) => {
   const own = [...views.values()].map((view) => view.stats.standings.selfCallbacks || 0);
   // Its own row: the join, one answer a round, and a re-attach or two.
   own.forEach((count, index) => assert.ok(count <= 2 + ROUNDS * 2 + 4, `${label}: ${[...views.values()][index].studentId} received its own row ${count} times`));
+  // Its own summary (its own place): written only at each round's close and
+  // at the finish — never by a classmate's answer — plus a re-attach or two.
+  const summaries = [...views.values()].map((view) => view.stats.standings.summaryCallbacks || 0);
+  summaries.forEach((count, index) => assert.ok(count <= 1 + ROUNDS + 1 + 3, `${label}: ${[...views.values()][index].studentId} received its own summary ${count} times`));
   const publishes = host.replies.filter((reply) => reply.published === true).length;
   assert.ok(publishes <= live, `${label}: ${publishes} live snapshots in ${Math.round(gameMs / 1000)} s`);
   // The pacer reached the screens: a live snapshot arrived on ordinary screens while a round was open.
@@ -420,6 +430,11 @@ for (const size of SIZES) {
     const doubleSender = lobby[Math.min(3, lobby.length - 1)];
     const delayed = new Set(lobby.filter((_, index) => index % 10 === 4));
     if (!delayed.size) delayed.add(refreshesAfterRunning);
+    // A device whose calibrated clock runs 200 ms ahead of the server's, and a
+    // student who answers the moment GO shows: the answer can reach the server
+    // before the round has started there. It must be resent at GO, the same
+    // answer, and scored once (a class of five has no ordinary device to spare).
+    const clockAhead = lobby.find((studentId) => ![offlineAtZero, backgrounded, refreshesAfterRunning, doubleSender].includes(studentId) && !delayed.has(studentId)) || null;
     const profileOf = (studentId, index) => ({
       deliveryJitterMs: delayed.has(studentId) ? 1_500 : 150,
       rttMs: Math.round(random() * 40),
@@ -429,6 +444,7 @@ for (const size of SIZES) {
       // every snapshot late.
       ...(studentId === backgrounded ? { tickMs: 1_000, rttMs: 150, deliveryFixedMs: 700, deliveryJitterMs: 0 } : {}),
       ...(studentId === doubleSender ? { lostReply: true, secondAnswer: true } : {}),
+      ...(studentId === clockAhead ? { clockSkewMs: 200, answerJitterMs: 0, tickMs: 25, rttMs: 0 } : {}),
     });
     const farm = await createDeviceFarm({ workers: WORKERS });
     // The teacher's console: every row, and the pacer for the students' live standings.
@@ -476,10 +492,10 @@ for (const size of SIZES) {
       assertEveryDevicePlayed(views, roomId, label);
       const totals = await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
       const standings = assertBoundedStandings(views, { label, gameMs, host, size });
-      // A constant four listeners' worth per screen — room, standings snapshot,
-      // own row (no invite listener here) — and never a classmate's row.
+      // A constant listener set per screen — room, standings snapshot, own row,
+      // own summary (no invite listener here) — and never a classmate's row.
       const census = await farm.listeners();
-      assert.deepEqual({ room: census.room, standings: census.standings, self: census.self, players: census.players }, { room: size, standings: size, self: size, players: 0 }, `${label}: one room, one standings and one own-row listener per screen, and no player-row listener: ${JSON.stringify(census)}`);
+      assert.deepEqual({ room: census.room, standings: census.standings, self: census.self, summary: census.summary, players: census.players }, { room: size, standings: size, self: size, summary: size, players: 0 }, `${label}: one room, one standings, one own-row and one own-summary listener per screen, and no player-row listener: ${JSON.stringify(census)}`);
       assert.ok(totals.secondAnswersRefused >= 1, `${label}: a second answer for a round is refused, never scored`);
       assert.ok(totals.duplicateReplies >= 1, `${label}: an answer resent after a lost reply is recognised as the same answer`);
 
@@ -543,6 +559,13 @@ for (const size of SIZES) {
         duplicateRepliesAbsorbed: totals.duplicateReplies,
         secondAnswersRefused: totals.secondAnswersRefused,
         droppedAnswersRetried: totals.droppedThenRetried,
+        // Answers refused before the server's GO and resent at it (the clock-ahead device's).
+        answersResentAtGo: totals.resentAtGo,
+        // The clock-ahead device, round by round: refusals before GO, and what was scored.
+        clockAhead: clockAhead ? Object.values(answersOf(views.get(clockAhead), roomId)).map((record) => ({
+          refusedBeforeGo: record.refused.filter((refusal) => refusal.reason === 'round_not_started').length,
+          scored: record.accepted.map((reply) => reply.kind),
+        })) : null,
         answerRoundTripMs: percentiles(totals.answerMs),
         roomBytesAtLaunch: JSON.stringify(started).length,
         lobbyRoundOneOnScreenAfterZeroMsMax: Math.max(...ordinary.map((view) => seenOf(view, roomId).rounds[0].at - startsAtMs)),
@@ -732,7 +755,7 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       // eslint-disable-next-line no-await-in-loop
       const listeners = await farm.listeners();
       listenerSamples.push(listeners);
-      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, standings: ENDURANCE_CLASS, self: ENDURANCE_CLASS, players: 0, invite: ENDURANCE_CLASS, total: 4 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
+      assert.deepEqual(listeners, { room: ENDURANCE_CLASS, standings: ENDURANCE_CLASS, self: ENDURANCE_CLASS, summary: ENDURANCE_CLASS, players: 0, invite: ENDURANCE_CLASS, total: 5 * ENDURANCE_CLASS }, `${label}: one listener of each kind per device`);
       // eslint-disable-next-line no-await-in-loop
       heap.push(await farm.heapMb());
     }
@@ -763,4 +786,12 @@ test('certification report', () => {
   console.log(`[launch-cert] ${JSON.stringify(report)}`);
   assert.equal(Object.keys(report.sizes).length, SIZES.length, 'every class size was certified');
   assert.ok(report.rush && report.endurance, 'the graph-rich launch and the endurance run were certified');
+  // The clock-ahead devices: an answer sent at a GO the server had not yet
+  // reached was refused, resent at GO and scored (assertMatchIntegrity holds
+  // every such refusal to that). Over the run it must have happened at least
+  // once, or the scenario certified nothing.
+  const clockAhead = Object.values(report.sizes).map((entry) => entry.clockAhead).filter(Boolean);
+  if (clockAhead.length) {
+    assert.ok(clockAhead.flat().some((round) => round.refusedBeforeGo > 0 && round.scored.includes('resend')), `no clock-ahead answer was refused before GO and then scored on its resend: ${JSON.stringify(clockAhead)}`);
+  }
 });

@@ -15,7 +15,7 @@ import { describeAnswerFormat } from './platform/interaction/answerFormatHints.j
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -25,16 +25,13 @@ const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
   .replace(/²/g, '^2')
   .replace(/³/g, '^3');
 
-// The spoken name of a choice: its text without TeX delimiters ("$5$" → "5").
-const choiceLabel = (value) => String(value ?? '').trim().replace(/^\$+|\$+$/g, '').replace(/^\\\(|\\\)$/g, '').trim();
-
 const renderChoiceText = (value) => {
   const text = String(value ?? '');
   const format = resolveLabelFormat(text);
   return format
     // Named by its own text: every choice was announced "Mathematical
     // expression", so a screen reader could not tell 11 from 5.
-    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceLabel(text)} />
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text)} />
     : normalizePlainMathTypography(text);
 };
 
@@ -61,26 +58,6 @@ const shouldUseInequalityInput = (field) => {
   return acceptedAnswersForField(field).some((value) => /[<>≤≥]/.test(String(value)));
 };
 
-
-const inferredBinaryOptions = (field) => {
-  const label = String(field?.label || field?.prompt || '').toLowerCase();
-  const answer = String(field?.answer ?? field?.acceptedAnswers?.[0] ?? '').trim().toLowerCase();
-  const patterns = [
-    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
-    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
-    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
-    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
-  ];
-  const match = patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer));
-  return match?.options || null;
-};
-
-const choiceOptionsForField = (field, seed = '') => {
-  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
-  const options = authored || inferredBinaryOptions(field);
-  if (!options) return null;
-  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
-};
 
 const shouldUsePlainTextInput = (field) => {
   if (field?.type === 'text' || field?.inputMode === 'text') return true;
@@ -137,7 +114,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
     <div>
       {/* Classed so the Enlarge button can be given room beside it on a phone
           (WorkViewShell.css, PQ-025). */}
-      <h2 className="mathmaster-multipart-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
+      <h2 className="mathmaster-multipart-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{question.heading || (safeFields.length > 1 ? 'Complete Each Part' : 'Your answer')}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       {/* A data table beside its answer fields where there is room. Stacked,
           the table sat centred with ~370px blank either side on a 1180px
@@ -212,12 +189,12 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 })()}
               </label>
               {answerShape.hint && !choiceOptions && (
-                <p style={{ margin: '-4px 0 10px', fontSize: '13px', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
+                <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
                   {answerShape.hint}
                 </p>
               )}
               {formatProblems[field.id] ? (
-                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: '13px', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
                   {formatProblems[field.id]}
                 </p>
               ) : null}
@@ -232,7 +209,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                         key={raw}
                         role="radio"
                         aria-checked={selected}
-                        aria-label={choiceLabel(raw)}
+                        aria-label={choiceAccessibleLabel(raw)}
                         onClick={() => history.setValue((current) => ({ ...current, [field.id]: raw }))}
                         style={{
                           minHeight: '46px',
@@ -241,7 +218,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                           border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`,
                           background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                           color: 'var(--mm-text-strong)',
-                          fontSize: '16px',
+                          fontSize: 'calc(16 * var(--mm-px))',
                           textAlign: 'left',
                           cursor: 'pointer',
                         }}
@@ -269,7 +246,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                     border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
                     background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : grade?.isCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
                     color: 'var(--mm-text-strong)',
-                    fontSize: '18px',
+                    fontSize: 'calc(18 * var(--mm-px))',
                     fontFamily: 'inherit',
                   }}
                 />

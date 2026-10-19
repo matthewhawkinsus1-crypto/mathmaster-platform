@@ -23,6 +23,7 @@ import {
   sequenceTerm,
 } from './sequenceMath';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * Every Check is marked by the shared grader
@@ -124,7 +125,7 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
         <label>Sequence family<select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="arithmetic">Arithmetic</option><option value="geometric">Geometric</option></select></label>
         <label style={{ display: 'block', marginTop: 10 }}>Common {kindAnswer === 'arithmetic' ? 'difference' : kindAnswer === 'geometric' ? 'ratio' : 'change'}<input value={changeAnswer} onChange={(event) => setChangeAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>a<sub>{targetN}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check analysis</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check analysis</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Pattern, common change, and target term all agree.' : 'Use equal differences for arithmetic sequences and equal ratios for geometric sequences.'}</ResultPill></div> : null}
       <HintPanel hints={['Look at how each term becomes the next one. Adding the same amount every time is arithmetic; multiplying by the same amount is geometric.', 'Subtract each term from the one after it. If you always get the same number, that number is the common difference.', 'If subtraction does not give a constant, try dividing instead — a constant ratio means geometric.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid></EnlargeableFigure>
@@ -312,7 +313,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             >
               Clear graph
             </button>
-            <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
           </div>
         )}
         {plotMessage && <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700 }}>{plotMessage}</p>}
@@ -338,7 +339,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           <label style={{ display: 'block', marginTop: 16 }}>
             Explicit rule
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
-              <strong style={{ fontSize: 20 }}>aₙ =</strong>
+              <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>aₙ =</strong>
               <input
                 value={explicitRule}
                 onChange={(event) => setExplicitRule(event.target.value)}
@@ -354,11 +355,11 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             <div style={{ fontWeight: 800, marginBottom: 6 }}>Recursive rule</div>
             <div style={{ display: 'grid', gap: 8 }}>
               <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
-                <strong style={{ fontSize: 18 }}>a₁ =</strong>
+                <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>a₁ =</strong>
                 <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} />
               </label>
               <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
-                <strong style={{ fontSize: 18 }}>aₙ =</strong>
+                <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>aₙ =</strong>
                 <input
                   value={recursiveRule}
                   onChange={(event) => setRecursiveRule(event.target.value)}
@@ -377,7 +378,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           </label>
         )}
 
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check the complete sequence model</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check the complete sequence model</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}>
           <ResultPill ok={feedback.isCorrect}>
             {feedback.isCorrect
@@ -433,20 +434,20 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
         <label>
           Explicit rule
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <strong style={{ fontSize: 20 }}>aₙ =</strong>
+            <strong style={{ fontSize: 'calc(20 * var(--mm-px))' }}>aₙ =</strong>
             <input value={explicitRule} onChange={(event) => setExplicitRule(event.target.value)} placeholder="Write the full expression in n" style={inputStyle} />
           </div>
         </label>
         <div style={{ marginTop: 18, fontWeight: 800 }}>Recursive rule</div>
         <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 6 }}>
-          <strong style={{ fontSize: 18 }}>a₁ =</strong>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>a₁ =</strong>
           <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} />
         </label>
         <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 8 }}>
-          <strong style={{ fontSize: 18 }}>aₙ =</strong>
+          <strong style={{ fontSize: 'calc(18 * var(--mm-px))' }}>aₙ =</strong>
           <input value={recursiveRule} onChange={(event) => setRecursiveRule(event.target.value)} placeholder="Use aₙ₋₁ in your rule" style={inputStyle} />
         </label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check both equations</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check both equations</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}>
           <ResultPill ok={feedback.isCorrect}>
             {feedback.isCorrect
@@ -491,13 +492,13 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     <EnlargeableFigure label="Missing term workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
         <p style={{ color: 'var(--mm-text-muted)' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
       </Panel>
       <Panel title="Recover the structure">
         <label>Missing value a<sub>{missingIndex}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Sequence family<select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="arithmetic">Arithmetic</option><option value="geometric">Geometric</option></select></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check missing term</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check missing term</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The missing term preserves the sequence structure.' : 'Check the common difference or ratio on both sides of the blank.'}</ResultPill></div> : null}
       <HintPanel hints={['The structure of a sequence does not change partway through, so terms you can see tell you about the ones you cannot.', 'Use two consecutive known terms to find the difference or the ratio.', 'Then step forward from the term before the gap using that same difference or ratio.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid></EnlargeableFigure>
@@ -528,7 +529,7 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
         <p><strong>S<sub>{sumN}</sub> = a₁ + a₂ + ··· + a<sub>{sumN}</sub></strong></p>
         <label>Last included term a<sub>{sumN}</sub><input value={lastTerm} onChange={(event) => setLastTerm(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Partial sum S<sub>{sumN}</sub><input value={sumAnswer} onChange={(event) => setSumAnswer(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check finite sum</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check finite sum</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The last term and finite sum are consistent.' : 'Find the correct final term first, then include every term from a₁ through it.'}</ResultPill></div> : null}
       <HintPanel hints={['A series is what you get when you add the terms of a sequence together.', 'Find the last term first — you need it before you can use most sum formulas.', 'For an arithmetic series the sum is the number of terms times the average of the first and last term.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid></EnlargeableFigure>
@@ -719,7 +720,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
               >
                 Clear both
               </button>
-              <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {leftLabel}: {leftPlottedPoints.length}/{leftRows.length} · {rightLabel}: {rightPlottedPoints.length}/{rightRows.length}
               </span>
             </div>
@@ -735,7 +736,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
       <Panel title={`Compare at n = ${compareN}`}>
         <label>Larger term<select value={relation} onChange={(event) => setRelation(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="A">{leftLabel}</option><option value="B">{rightLabel}</option><option value="equal">They are equal</option></select></label>
         <label style={{ display: 'block', marginTop: 10 }}>Absolute difference between the terms<input value={difference} onChange={(event) => setDifference(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check comparison</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check comparison</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (requirePlot ? 'Both discrete graphs and the comparison agree.' : 'The comparison uses the same term number for both sequences.') : (requirePlot ? 'Check every plotted point for both sequences, then compare the two requested terms.' : 'Evaluate both rules at n = ' + compareN + ', then compare their outputs.')}</ResultPill></div> : null}
       <HintPanel hints={['Do not judge by the early terms — additive and multiplicative growth trade places.', 'Compute the requested term of each sequence independently before comparing anything.', 'Geometric growth starts slower but overtakes arithmetic growth eventually, and then pulls away fast.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>

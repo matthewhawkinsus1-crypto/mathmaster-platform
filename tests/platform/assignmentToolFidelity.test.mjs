@@ -426,7 +426,8 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(graph, /marker: boundary\.closed \? 'closed' : 'open'/);
   assert.match(graph, /continuationFunctionEndpoints/);
   assert.match(graph, /marker: 'arrow'/);
-  assert.match(relation, /Move the pointer over the grid to see the exact coordinate/);
+  // The coordinate guide before plotting, by pointer or by the arrow keys (A11Y-12).
+  assert.match(relation, /Move the pointer over the grid, or focus it and use the arrow keys, to see the exact coordinate/);
   assert.match(relation, /allowTypedPlot \?/);
   assert.match(relation, /analysisFields\.map/);
   // The function question's choices live with the server's grader, and the

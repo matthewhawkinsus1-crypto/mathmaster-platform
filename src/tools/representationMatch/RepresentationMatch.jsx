@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import './RepresentationMatch.css';
-import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 
 const CardSetStack = ({ children }) => (
   <div className="mathmaster-tool-card-set-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}>{children}</div>
@@ -12,10 +13,10 @@ import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import representationMatchGrader from '../../../functions/shared/serverGrading/tools/representationMatch.mjs';
 import {
   buildLinearConnectionCards,
-  describeLinearCard,
   linearConnectionsCardKinds,
   linearConnectionsTask,
   linearGroupLabels,
@@ -35,6 +36,8 @@ import {
   tableAuditFunction,
   tableAuditRows,
 } from './representationMath';
+import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS, spokenLinearCard } from './linearCardLabels.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -90,7 +93,10 @@ const MODE_STEPS = {
   findMismatch: ['Pick a couple of input values.', 'Work out what each card predicts for those inputs.', 'The card that disagrees with the other two is the mismatch.'],
   tableAudit: ['Substitute each row’s x into the rule.', 'Compare the result with the y in that row.', 'Select the one row where they disagree.'],
   graphMatch: ['Find the key features of the equation: where it crosses the axes and how fast it grows.', 'Look for those same features in each graph.', 'Select the graph that has all of them.'],
-  linearConnections: ['Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.', 'Choose the next group and repeat.', 'Compare the numbers each card gives you rather than how the card looks.'],
+  // The first two say how the board works (a group button, then card taps),
+  // so an exit ticket, quiz or test keeps them; the third is how to decide
+  // which cards belong together, the method (student pass 3, W6-4).
+  linearConnections: [controlStep('Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -132,6 +138,8 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
    * question.
    */
   const mode = representationMatchMode(questionData);
+  // An exit ticket, quiz or test before release withholds the method (R-10).
+  const methodWithheld = useMethodWithheld();
   const sets = useMemo(() => representationSetsFor({ mode, sets: questionData.sets }), [questionData.sets, mode]);
   const targetId = representationTargetId(questionData, sets);
   const graphMatchBounds = useMemo(() => graphMatchBoundsFor(sets, questionData.graphBounds), [sets, questionData.graphBounds]);
@@ -184,6 +192,24 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const [activeLineSlot, setActiveLineSlot] = useState(0);
   const [mismatchSelection, setMismatchSelection] = usePersistentToolState('linearMismatchSelection', '');
   const [correctionChoice, setCorrectionChoice] = usePersistentToolState('linearCorrectionChoice', '');
+
+  // Universal Undo over every answer in every mode (TOOL-2,
+  // useFieldUndoHistory.js): a card sorted or taken out, a choice, a row.
+  // Which group is being sorted into is a selection, not an answer.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      equation: [equation, setEquation],
+      table: [table, setTable],
+      context: [context, setContext],
+      mismatchKind: [mismatchKind, setMismatchKind],
+      badRow: [badRow, setBadRow],
+      graphId: [graphId, setGraphId],
+      linearAssignments: [linearAssignments, setLinearAssignments],
+      mismatchSelection: [mismatchSelection, setMismatchSelection],
+      correctionChoice: [correctionChoice, setCorrectionChoice],
+    },
+  });
 
   const toggleCardAssignment = (cardId) => {
     setLinearAssignments((current) => {
@@ -252,7 +278,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     cursor: 'pointer',
                   }}
                 >
-                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 18 }} ariaLabel={`Equation choice ${item.equation || ''}`} />
+                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 'calc(18 * var(--mm-px))' }} ariaLabel={`Equation choice ${item.equation || ''}`} />
                 </button>
               );
             })}
@@ -274,11 +300,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const targetSet = representationById(sets, targetId);
   const cards = mixedRepresentationCards(sets, mixed);
 
-  const LINEAR_KIND_LABELS = {
-    slopeIntercept: 'Slope-intercept equation', factoredLinear: 'Factored form', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
-    graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Situation', table: 'Table',
-  };
-  const linearGraphBounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
+  const linearGraphBounds = questionData.graphBounds || DEFAULT_LINEAR_GRAPH_BOUNDS;
   const renderLinearCardBody = (card) => {
     if (card.kind === 'graph') {
       // The plane scales to the card's width; this sets its proportions. At
@@ -303,11 +325,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       );
     }
     if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
-      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} style={{ fontSize: 20 }} />;
+      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
     }
-    if (card.kind === 'slope') return <MathDisplay value={`m = ${card.value}`} format="ascii-math" inline style={{ fontSize: 20 }} />;
-    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <MathDisplay value={Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : String(card.value)} format="ascii-math" inline style={{ fontSize: 20 }} />;
-    return <span style={{ fontSize: 15, lineHeight: 1.45, color: 'var(--mm-text-strong)' }}>{String(card.value)}</span>;
+    if (card.kind === 'slope') return <MathDisplay value={`m = ${card.value}`} format="ascii-math" inline style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
+    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <MathDisplay value={Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : String(card.value)} format="ascii-math" inline style={{ fontSize: 'calc(20 * var(--mm-px))' }} />;
+    return <span style={{ fontSize: 'calc(15 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-strong)' }}>{String(card.value)}</span>;
   };
 
   // Cards grouped by SIZE, not by answer: the shuffled deck is split into
@@ -359,25 +381,25 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           {selectRepresentation('Equation', equation, setEquation)}
           {selectRepresentation('Table', table, setTable)}
           {selectRepresentation('Context', context, setContext)}
-          <button type="button" onClick={check} style={buttonStyle}>Check set</button>
+          <button type="button" data-work-view-check="true" onClick={check} style={buttonStyle}><SubmitText>Check set</SubmitText></button>
         </> : null}
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
           <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchKind === card.kind ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
-          <button type="button" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
+          <button type="button" data-work-view-check="true" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}><SubmitText>Check mismatch</SubmitText></button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
           <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: badRow === index ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
-          <button type="button" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}>Check row</button>
+          <button type="button" data-work-view-check="true" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}><SubmitText>Check row</SubmitText></button>
         </> : null}
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
           <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: graphId === item.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
-          <button type="button" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
+          <button type="button" data-work-view-check="true" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}><SubmitText>Check graph</SubmitText></button>
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
@@ -401,7 +423,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                 >
                   <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: groupColor(index), flex: '0 0 auto' }} />
                   {label}
-                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+                  <span style={{ fontWeight: 700, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                     · {linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
                   </span>
                 </button>
@@ -426,7 +448,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         data-card-kind={card.kind}
                         onClick={() => toggleCardAssignment(card.id)}
                         aria-pressed={assignedSlot === activeLineSlot}
-                        aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${describeLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        // Spoken, not program text (A11Y-3): "y equals negative 2 over 3 x
+                        // plus 4", which is also what a voice-control student says.
+                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
                           border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',
@@ -434,9 +458,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                           background: assigned ? 'var(--mm-surface)' : 'var(--mm-surface)',
                         }}
                       >
-                        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
+                        <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
                         {renderLinearCardBody(card)}
-                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: assigned ? groupColor(assignedSlot) : 'var(--mm-text-subtle)' }}>
+                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: assigned ? groupColor(assignedSlot) : 'var(--mm-text-subtle)' }}>
                           {assigned ? <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: groupColor(assignedSlot) }} /> : null}
                           {assigned ? lineLabels[assignedSlot] : 'Not sorted yet'}
                         </div>
@@ -447,7 +471,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               );
             })}
           </div>
-          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
+          <button type="button" data-work-view-check="true" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check groups</SubmitText></button>
         </div> : null}
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
@@ -475,7 +499,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               </select>
             </label>
           ) : null}
-          <button type="button" onClick={check} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}>Check answer</button>
+          <button type="button" data-work-view-check="true" onClick={check} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}><SubmitText>Check answer</SubmitText></button>
         </> : null}
 
         {feedback ? (() => {
@@ -492,17 +516,23 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     : mode === 'linearConnections' && linearTask === 'group'
                       ? `${(feedback.metadata?.parts || []).find((part) => part.id === 'pairings')?.response || '0 of 0'} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
                       : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
-          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p></div>;
+          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect} message={message}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>;
         })() : null}
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
       {/* Left-aligned text: the question runtime centres text, which put the
-          bullets at the left edge and each sentence in the middle. */}
-      <Panel title="Representation reasoning" collapsible>
-        <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
-        <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
-      </Panel>
+          bullets at the left edge and each sentence in the middle.
+          THE FOLD IS METHOD (student pass 3, W6-4; W4-1's round-2 note): what
+          each representation shows and "check them against each other" is
+          how these items are solved, so an exit ticket, quiz or test before
+          release does not show it, the same as the card's method steps. */}
+      {methodWithheld ? null : (
+        <Panel title="Representation reasoning" collapsible>
+          <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
+          <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
+        </Panel>
+      )}
     </Layout>
   </ToolShell>;
 }

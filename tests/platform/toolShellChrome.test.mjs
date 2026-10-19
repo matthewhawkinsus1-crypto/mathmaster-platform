@@ -39,7 +39,11 @@ test('the workspace name does not restate the task', () => {
 
 test('the tool header is a label, not a headline plus a paragraph', () => {
   const source = codeOf('src/tools/shared/ToolShell.jsx');
-  assert.doesNotMatch(source, /fontSize: 24/);
+  // The title is label-sized (it was a 24px headline); the size is in
+  // --mm-px so it follows the student's text-size setting.
+  const title = source.match(/<h2 style=\{\{[^}]*?fontSize: 'calc\(([\d.]+) \* var\(--mm-px\)\)'[^}]*\}\}>\{title\}<\/h2>/);
+  assert.ok(title, 'the tool title has a font size in --mm-px');
+  assert.ok(Number(title[1]) <= 16, `the tool title is ${title[1]}px, a headline`);
   assert.match(source, /summary="About this tool"/);
   // The description folds and starts folded: it describes the tool, which is
   // worth reading once rather than on every question.
@@ -64,8 +68,15 @@ test('the steps fold and start folded, so the tool is what opens', () => {
   const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
   const fold = taskCard.slice(taskCard.indexOf('<QuietDisclosure'), taskCard.indexOf('</QuietDisclosure>'));
   assert.match(fold.slice(0, 300), /summary=\{summary\}[\s\S]*defaultOpen=\{false\}/);
-  // The count is named, so a student who has not opened them knows what is inside.
-  assert.match(taskCard, /const summary = steps\.length\s*\?\s*`How to do this \(\$\{steps\.length\} step/);
+  // The count is named, so a student who has not opened them knows what is inside
+  // — the count of the steps the card actually shows (R-10 withholds them on
+  // an assessment, and the summary must not promise steps that are not there).
+  // Worked out by taskCardSupport, the one decision the card and Work View
+  // Help both draw from (R-10).
+  const support = source.slice(source.indexOf('export const taskCardSupport'), source.indexOf('export const TaskCardDirections'));
+  assert.match(support, /const summary = shownSteps\.length\s*\?\s*`How to do this \(\$\{shownSteps\.length\} step/);
+  assert.match(taskCard, /const support = taskCardSupport\(/);
+  assert.match(fold, /<TaskSupport [^>]*steps=\{shownSteps\}/);
 });
 
 test('a fold is remembered per block of text, not per tool', () => {
@@ -73,7 +84,8 @@ test('a fold is remembered per block of text, not per tool', () => {
   // is what should happen when they are no longer the steps the student read.
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   assert.match(source, /const contentKey = \(value\)/);
-  assert.match(source, /contentKey\(\[taskText, \.\.\.steps, note \|\| ''\]/);
+  // The text the card shows: its directions, the steps and note it shows.
+  assert.match(source, /contentKey\(\[taskText, \.\.\.shownSteps, shownNote \|\| ''\]/);
   assert.match(source, /contentKey\(`\$\{title\}\|\$\{subtitle\}`\)/);
 });
 
@@ -114,9 +126,14 @@ test('tool directions themselves are folded with the repeated steps', () => {
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
   const disclosure = taskCard.slice(taskCard.indexOf('<QuietDisclosure'));
-  const direction = disclosure.indexOf('mathmaster-tool-task-directions');
+  // The fold's content is TaskSupport (shared with Work View's Help since
+  // TOOL-3), and TaskSupport is what draws the directions.
+  const support = source.slice(source.indexOf('const TaskSupport'), source.indexOf('export const TaskCard'));
+  const direction = disclosure.indexOf('<TaskSupport ');
   const close = disclosure.indexOf('</QuietDisclosure>');
   assert.ok(direction > 0 && direction < close, 'tool directions belong inside the folded support block');
+  assert.match(disclosure.slice(direction, close), /showsDirections=\{showsDirections\}/);
+  assert.match(support, /\{showsDirections \? \(\s*<div className="mathmaster-tool-task-directions"/);
   assert.match(disclosure.slice(0, 300), /defaultOpen=\{false\}/);
 });
 
@@ -133,10 +150,13 @@ test('the tool description opens the steps fold, and the header offers it only w
   // A TaskCard says it took it, and opens its fold with it, ahead of the steps.
   const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
   assert.match(taskCard, /useLayoutEffect\(\(\) => \(registerTaskCard \? registerTaskCard\(\) : undefined\), \[registerTaskCard\]\);/);
-  assert.match(taskCard, /const hasSupport = Boolean\(description \|\|/);
+  const decision = source.slice(source.indexOf('export const taskCardSupport'), source.indexOf('export const TaskCardDirections'));
+  assert.match(decision, /const hasSupport = Boolean\(shownDescription \|\|/);
   const fold = taskCard.slice(taskCard.indexOf('<QuietDisclosure'), taskCard.indexOf('</QuietDisclosure>'));
-  const about = fold.indexOf('mathmaster-tool-task-about');
-  assert.ok(about > 0 && about < fold.indexOf('mathmaster-tool-task-directions') && about < fold.indexOf('steps.map'), 'the description is the fold\'s first line');
+  assert.match(fold, /<TaskSupport description=\{description\}/);
+  const support = source.slice(source.indexOf('const TaskSupport'), source.indexOf('export const TaskCard'));
+  const about = support.indexOf('mathmaster-tool-task-about');
+  assert.ok(about > 0 && about < support.indexOf('mathmaster-tool-task-directions') && about < support.indexOf('steps.map'), 'the description is the fold\'s first line');
   // The header's own fold is marked merged once a TaskCard took the description...
   assert.match(shell, /<div className="mathmaster-tool-shell-about" data-merged=\{taskCards > 0 \? 'true' : undefined\}/);
   // ...and is then hidden, except in Work View, which hides the task card.
@@ -148,7 +168,7 @@ test('the tool description opens the steps fold, and the header offers it only w
 test('on a phone the tool name is a label on the Enlarge row, and the steps fold takes its row', () => {
   const css = codeOf('src/components/student/MathToolMobileLayout.css');
   const title = css.slice(css.indexOf('.mathmaster-question-container .mathmaster-tool-shell-header h2 {'));
-  assert.match(title.slice(0, 260), /font-size:\s*13px !important;[\s\S]*-webkit-line-clamp:\s*2;/);
+  assert.match(title.slice(0, 260), /font-size:\s*calc\(13 \* var\(--mm-px\)\) !important;[\s\S]*-webkit-line-clamp:\s*2;/);
   assert.doesNotMatch(css, /tool-shell-header h2\s*\{\s*font-size:\s*clamp\(/, 'the 16–21px headline is the defect');
   // As tall as the opener's row, level with it — portrait only: a phone held
   // sideways hides the name and keeps its 6px header.

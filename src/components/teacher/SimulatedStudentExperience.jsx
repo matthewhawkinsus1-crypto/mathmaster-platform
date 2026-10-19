@@ -4,27 +4,28 @@ import { MyMathPathExperience } from '../student/MyMathPathApp.jsx';
 import { STUDENT_DESTINATION } from '../../platform/student/navigationModel.js';
 import { buildStudentDashboardModel } from '../../studentDashboardModel.js';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
-import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
-import { adaptLegacyMasteryToPhase5 } from '../../services/masteryStateService.js';
+import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
 import {
   assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getIncludedQuestionIndices,
-  prerequisiteAccess, questionIsIncluded,
+  getSectionAccessState, getWarmupState, prerequisiteAccess, questionIsIncluded,
 } from '../../assignmentLifecycle';
-import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy';
+import { normalizeQuestionRecord } from '../../attemptPolicy';
+import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
+import { splitGrade } from '../../platform/teacher/gradeEvidence.js';
 import { matchesSmartView } from '../../assignmentSmartViews.js';
 import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
 import { fetchTeacherPathBankSnapshot } from '../../platform/path/pathBankSimulationService.js';
 import { buildSimulatorCoverageIndex } from '../../platform/simulation/simulatorCoverageIndex.js';
+import { ccmrPlanFrameworks, normalizeStoredCcmrPlan, validateCcmrPlanInput } from '../../platform/ccmr/ccmrPlan.js';
 
-// The same arithmetic App.jsx uses for a real student's recorded grade. It is
-// three lines and lives on App's closure there; duplicating those three lines
-// is better than exporting App's internals into the simulator.
-const calculateGrade = (assignmentTracker, assignmentData) => {
-  if (!assignmentTracker || !assignmentData?.questions?.length) return 0;
-  const included = getIncludedQuestionIndices(assignmentData);
-  if (!included.length) return 0;
-  const earned = included.reduce((total, index) => total + getQuestionCredit(assignmentTracker?.[index]), 0);
-  return Math.round((earned / included.length) * 100);
+// The same grade App.jsx gives a real student: its calculateGrade lives on
+// App's closure, so these two lines repeat it. Both read splitGrade, the one
+// weighted grade every gradebook and export uses, so a simulated student is
+// never graded by different arithmetic (a private copy here once ignored
+// question weights, and read V5 assignments as having no questions).
+const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false, supportProfile = null } = {}) => {
+  if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) return 0;
+  return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed, supportProfile }).score ?? 0;
 };
 
 // What the simulated student is actually looking at.
@@ -119,17 +120,27 @@ export default function SimulatedStudentExperience({
   // simulated session died on "That simulated session no longer exists."
   const learnerRef = useRef(learner);
   learnerRef.current = learner;
+  // Retention schedules follow the same read-through-a-ref, sync-afterwards
+  // pattern: a finished retention check moves them inside the runtime, which
+  // publishes them back up exactly as production's submitPathResponse does.
+  const retentionSchedulesRef = useRef(retentionSchedulesByTEKS);
+  retentionSchedulesRef.current = retentionSchedulesByTEKS;
   const runtime = useMemo(() => (pathBankQuestions ? createTeacherPathRuntime({
     assignments,
     pathBankQuestions,
     courseId,
     learner: learnerRef.current,
-    onChange: ({ learner: nextLearner, sessionAssignment }) => {
+    retentionSchedulesByTEKS: retentionSchedulesRef.current,
+    onChange: ({ learner: nextLearner, sessionAssignment, retentionSchedulesByTEKS: nextSchedules }) => {
       setSessionAssignments((current) => [
         ...current.filter((entry) => entry.id !== sessionAssignment.id),
         sessionAssignment,
       ]);
-      evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
+      evidenceRef.current?.({
+        learner: nextLearner,
+        sessionAssignment,
+        ...(nextSchedules ? { retentionSchedulesByTEKS: nextSchedules } : {}),
+      });
     },
     // A deliberate reset (new slot, or "Reset simulated student") DOES replace
     // the runtime, because the learner identity changed.
@@ -138,6 +149,8 @@ export default function SimulatedStudentExperience({
   // Teacher force-skill actions rewrite the learner without changing its id.
   // Hand those through rather than rebuilding.
   useEffect(() => { runtime?.syncLearner?.(learner); }, [runtime, learner]);
+  // "Make Retention Due" rewrites the schedules the same way.
+  useEffect(() => { runtime?.syncRetentionSchedules?.(retentionSchedulesByTEKS); }, [runtime, retentionSchedulesByTEKS]);
 
   // Flatten the synthetic learner's recorded attempts into the evidence-event
   // shape the practice-history timeline reads.
@@ -197,10 +210,11 @@ export default function SimulatedStudentExperience({
   }) : null), [learner, allAssignments, courseId, pacing, teacherOverrides, nowValue]);
 
   const masteryData = useMemo(() => {
-    const legacyProfile = buildStudentMasteryProfile({ student: learner, assignments: allAssignments });
-    const evidenceRows = collectStudentEvidence({ student: learner, assignments: allAssignments });
+    // The same builder the live student's wheel and Path map read, with no
+    // server document — a simulated learner has none — so the simulator applies
+    // the identical Mastered rule.
     return {
-      masteryProfilesByTEKS: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows, retentionSchedulesByTEKS }),
+      masteryProfilesByTEKS: buildUnifiedMasteryProfiles({ student: learner, assignments: allAssignments, serverProfiles: {}, retentionSchedulesByTEKS }),
       retentionSchedulesByTEKS,
     };
   }, [learner, allAssignments, retentionSchedulesByTEKS]);
@@ -220,7 +234,14 @@ export default function SimulatedStudentExperience({
       getAssignmentLifecycle,
       prerequisiteAccess,
       calculateGrade,
-      getDOLState,
+      // A simulation has no bell schedule, so a Warm-Up/DOL window cannot be
+      // placed in a class period. Read without one, the real windows say
+      // "locked" on their day and "closed" (Finished) afterwards. The
+      // simulated student instead sees timed sections as untimed — open
+      // whenever the lesson is, the same as a window switched off.
+      getDOLState: (args) => ({ ...getDOLState(args), enabled: false, status: 'unavailable' }),
+      getWarmupState: (args) => ({ ...getWarmupState(args), enabled: false, status: 'unavailable' }),
+      getSectionAccessState,
       getIncludedQuestionIndices,
       normalizeQuestionRecord,
       questionIsIncluded,
@@ -229,15 +250,39 @@ export default function SimulatedStudentExperience({
     },
   }), [assignments, classPeriod, nowValue, learner]);
 
+  // The simulated student's CCMR plan. A teacher sets goals and a test date in
+  // the student's own CCMR hub below, exactly as a student would; the saves
+  // stay here in memory and never reach the setMyCcmrPlan callable or a real
+  // student's document. The same plan feeds the CCMR screens (through the
+  // context override) and the weekly Path (through `ccmrPlan`), so the
+  // simulated week follows a goal or a test date the way a real one does.
+  //
+  // One plan per simulated learner: each slot is a different synthetic
+  // student (its id names the slot), and one student's test date must not
+  // follow the teacher into another slot.
+  const learnerKey = learner?.id || 'simulated';
+  const [simulatedCcmrPlans, setSimulatedCcmrPlans] = useState({});
+  const simulatedCcmrPlan = simulatedCcmrPlans[learnerKey] || null;
+  const saveSimulatedCcmrPlan = (request) => {
+    // The callable's own rule, so the simulator refuses what production refuses.
+    const validated = validateCcmrPlanInput(request, { now: Date.now() });
+    if (!validated.ok) {
+      return Promise.reject(Object.assign(new Error(validated.message), { code: 'functions/invalid-argument' }));
+    }
+    const plan = normalizeStoredCcmrPlan({ ...validated.plan, updatedAt: Date.now() });
+    setSimulatedCcmrPlans((current) => ({ ...current, [learnerKey]: plan }));
+    return Promise.resolve(plan);
+  };
+
   // The forced CCMR evidence, handed straight to the student's own CCMR
   // screens: a teacher who sets SAT proficiency to 45% should watch the real
   // wheel become a transfer gap, not read a number in an inspector.
   const assessmentContext = useMemo(() => ({
     assessmentEvidence,
     directIndex,
-    goals: [],
+    goals: ccmrPlanFrameworks(simulatedCcmrPlan),
     teacherPriorities: [],
-  }), [assessmentEvidence, directIndex]);
+  }), [assessmentEvidence, directIndex, simulatedCcmrPlan]);
 
   return (
     <div>
@@ -252,7 +297,7 @@ export default function SimulatedStudentExperience({
               minHeight: 40, padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
               border: `1px solid ${view === id ? '#1a73e8' : 'var(--mm-tint-border)'}`,
               background: view === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-              color: view === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
+              color: view === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
             }}
           >
             {label}
@@ -296,7 +341,7 @@ export default function SimulatedStudentExperience({
 
       {view === 'path' && runtime && (
         <>
-          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: pathBankQuestions.length ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.45 }}>
+          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: pathBankQuestions.length ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
             <strong>Production Path-bank simulation.</strong> {pathBankQuestions.length
               ? `${pathBankQuestions.length} active secure bank questions loaded. Classroom assignments are evidence only; they are not the Path content source.`
               : 'The secure Path bank is empty. Initialize it in Administration → Path content coverage before expecting students to have Path practice.'}
@@ -320,6 +365,8 @@ export default function SimulatedStudentExperience({
             evidenceEvents={simulatedEvidenceEvents}
             loading={false}
             assessmentContextOverride={assessmentContext}
+            ccmrPlan={simulatedCcmrPlan}
+            onSaveCcmrPlan={saveSimulatedCcmrPlan}
             onExit={assignments.length ? () => setView('assignments') : null}
           />
         </>

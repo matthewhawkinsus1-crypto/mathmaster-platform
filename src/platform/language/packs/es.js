@@ -19,6 +19,8 @@
  * choice after its letter ("B) No solution").
  */
 
+import { supportChoices, supportSentences } from './esSupport.js';
+
 export const LANGUAGE = 'es';
 export const LANGUAGE_NAME = 'Español';
 
@@ -207,4 +209,10 @@ export const choices = [
   ['The y-intercept is {1}.', 'La intersección con el eje y es {1}.'],
 ];
 
-export default { LANGUAGE, LANGUAGE_NAME, sentences, choices };
+// The platform's own support sentences (hints, miss messages, back-up steps,
+// worked examples) — ./esSupport.js. Directions first: they are the more
+// specific match where both could apply.
+const allSentences = [...sentences, ...supportSentences];
+const allChoices = [...choices, ...supportChoices];
+
+export default { LANGUAGE, LANGUAGE_NAME, sentences: allSentences, choices: allChoices };

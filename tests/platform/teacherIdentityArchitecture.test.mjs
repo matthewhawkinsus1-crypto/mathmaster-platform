@@ -49,6 +49,9 @@ const walk = (directory) => readdirSync(join(ROOT, directory)).flatMap((entry) =
 const SRC_FILES = walk('src').filter((path) => /\.(?:jsx?|mjs)$/.test(path) && !/\.test\./.test(path)).sort();
 
 const APP = code('src/App.jsx');
+// The teacher's screen (every mount below, the gradebook) is its own module
+// since G2; App renders it and hands it each handler and index by name.
+const TEACHER_WORKSPACE = code('src/app/teacher/TeacherWorkspace.jsx');
 const SERVER = code('functions/index.js');
 
 /** Every `import ... from '...'` in a module: [{ specifier, names }] (local names). */
@@ -91,13 +94,17 @@ const FULL_STUDENT_DATA_TABS = Object.freeze([
 ]);
 
 test('Test F: TEACHER_FULL_STUDENT_DATA_TABS is unchanged, and only ever consulted', () => {
-  const declaration = region(APP, 'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full-data tab list');
+  // Declared in app/screenScopes.js since the App split; App imports and reads it.
+  const SCOPES = readFileSync(new URL('../../src/app/screenScopes.js', import.meta.url), 'utf8');
+  const declaration = region(SCOPES, 'export const TEACHER_FULL_STUDENT_DATA_TABS = new Set([', ']);', 'full-data tab list');
   const tabs = [...declaration.matchAll(/'([^']+)'/g)].map(([, tab]) => tab);
   assert.deepEqual([...tabs].sort(), [...FULL_STUDENT_DATA_TABS].sort(), 'the full-data tab list changed');
   for (const lightTab of ['home', 'classesWorkspace', 'assignments', 'library', 'pacing', 'attendanceHistory', 'access']) {
     assert.ok(!tabs.includes(lightTab), `${lightTab} must stay on the compact roster`);
   }
-  assert.equal((APP.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 1);
+  assert.equal((SCOPES.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 1);
+  assert.equal((APP.match(/\bTEACHER_FULL_STUDENT_DATA_TABS\s*=/g) || []).length, 0, 'App reads the one table, never a second');
+  assert.match(APP, /\bTEACHER_FULL_STUDENT_DATA_TABS,\n[\s\S]*?\} from '\.\/app\/screenScopes\.js';/);
   assert.doesNotMatch(APP, /TEACHER_FULL_STUDENT_DATA_TABS\.(?:add|delete|clear)\(/);
 });
 
@@ -176,7 +183,9 @@ const FULL_RECORD_HELPER_CALL = /\b(?:fetchStudentGradeRecord|fetchStudentMaster
 const MODULE_ANCHOR = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
 const APP_BODY_ANCHOR = /^ {2}(?:const\s+([\w$]+)\s*=|useEffect\(\(\)\s*=>\s*\{\s*\n\s*([^\n]+))/gm;
 const anchorOf = (source, index, path) => {
-  const patterns = path === 'src/App.jsx' ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
+  // The teacher workspace's body members are anchored like App's: G2 moved
+  // App's teacher-only handlers into it verbatim.
+  const patterns = path === 'src/App.jsx' || path === 'src/app/teacher/TeacherWorkspace.jsx' ? [MODULE_ANCHOR, APP_BODY_ANCHOR] : [MODULE_ANCHOR];
   let best = null;
   patterns.forEach((pattern) => {
     for (const match of source.matchAll(pattern)) {
@@ -219,12 +228,15 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     // …and the receipt listener on their own document. (Closing a DOL no
     // longer touches the document: the DOL projection is server-owned.)
     "useEffect: if (user?.role !== 'student' || !user.id) {": 1,
-    // A teacher saving a question-weight change migrates the affected grades in one transaction.
-    saveQuestionEditor: 1,
     // The profile drawer: ONE student, when a teacher opens them.
     "useEffect: if (user?.role !== 'teacher' || !profileDrawerStudentId) {": 1,
     // Assignment Hub "who has finished?": one class, on request.
     loadClassGradeRecords: 1,
+  },
+  // App's teacher-only handlers moved here with the teacher's screen (G2).
+  'src/app/teacher/TeacherWorkspace.jsx': {
+    // A teacher saving a question-weight change migrates the affected grades in one transaction.
+    saveQuestionEditor: 1,
     // Repair-from-Library writes corrected grades.
     handleRepairAssignmentFromLibrary: 1,
   },
@@ -297,7 +309,8 @@ test('Test F: a corrected name reaches every screen through one roster callable 
   assert.match(code('src/auth/authService.js'), /setStudentName:\s*\(\{[^)]*\}\)\s*=>\s*callable\('setStudentName'\)/);
 
   // Both Student Access mounts are wired to the refetch, and the refetch is the roster callable.
-  const mounts = APP.match(/<SignInAccess\b[^>]*\/>/g) || [];
+  const mounts = TEACHER_WORKSPACE.match(/<SignInAccess\b[^>]*\/>/g) || [];
+  assert.match(APP, /\n {8}refreshTeacherRosterAfterNameChange=\{refreshTeacherRosterAfterNameChange\}\n/);
   assert.equal(mounts.length, 2, 'teacher Student Access and the admin accounts screen');
   mounts.forEach((mount) => assert.match(mount, /onStudentIdentityChanged=\{refreshTeacherRosterAfterNameChange\}/));
   const refresh = region(APP, 'const refreshTeacherRosterAfterNameChange = ', ';\n', 'refreshTeacherRosterAfterNameChange');
@@ -495,7 +508,8 @@ const MAJOR_SURFACES = Object.freeze({
   'Live Class Monitor': 'src/components/teacher/LiveClassMonitor.jsx',
   'Classes Workspace': 'src/ClassesWorkspace.jsx',
   'Assignment Hub': 'src/components/teacher/AssignmentHub.jsx',
-  'Gradebook (App)': 'src/App.jsx',
+  // The gradebook moved with the teacher's screen out of App.jsx (G2).
+  'Gradebook (teacher workspace)': 'src/app/teacher/TeacherWorkspace.jsx',
   'Student Support Dashboard': 'src/components/teacher/StudentSupportDashboard.jsx',
   'Student Case Review': 'src/components/teacher/caseReview/StudentCaseReviewView.jsx',
   'Support Evidence Report': 'src/components/teacher/SupportEvidenceReportView.jsx',
@@ -527,19 +541,20 @@ test('Test I: every major teacher surface names students through the shared name
   assert.match(classify, /name: resolvedName \|\| STUDENT_NAME_UNAVAILABLE,/);
 
   // Teacher Home looks stored ids up in the index App builds from the roster.
-  assert.match(region(APP, '<TeacherHome', '/>', 'TeacherHome mount'), /studentIdentityIndex=\{teacherStudentIdentityIndex\}/);
+  assert.match(region(TEACHER_WORKSPACE, '<TeacherHome', '/>', 'TeacherHome mount'), /studentIdentityIndex=\{teacherStudentIdentityIndex\}/);
+  assert.match(APP, /\n {8}teacherStudentIdentityIndex=\{teacherStudentIdentityIndex\}\n/);
 });
 
 test('Test I: the profile drawer and the gradebook show the formatted name, and the id only as an id', () => {
   // The drawer is handed the name; it never derives one from the id.
-  const drawerMount = region(APP, '<StudentProfileDrawer', '/>', 'StudentProfileDrawer mount');
+  const drawerMount = region(TEACHER_WORKSPACE, '<StudentProfileDrawer', '/>', 'StudentProfileDrawer mount');
   assert.match(drawerMount, /studentName=\{profileDrawerStudent \? formatStudentName\(profileDrawerStudent\) : ''\}/);
   const drawer = code('src/components/teacher/StudentProfileDrawer.jsx');
   assert.match(drawer, /<h2[^>]*>\{studentName\}<\/h2>/);
   assert.doesNotMatch(drawer, /<h2[^>]*>\{studentId\}/);
 
   // Gradebook rows: the name link, then the labelled id.
-  const gradebook = region(APP, "{teacherTab === 'grades' && (", "{teacherTab === '", 'gradebook');
+  const gradebook = region(TEACHER_WORKSPACE, "{teacherTab === 'grades' && (", "{teacherTab === '", 'gradebook');
   assert.match(gradebook, /<StudentNameLink studentId=\{student\.id\} studentName=\{formatStudentName\(student\)\}/);
   assert.match(gradebook, />ID \{student\.id\}<\/div>/);
   assert.match(gradebook, /<h3[^>]*>\{formatStudentName\(student\)\} · \{selectedAssignment\.title\}<\/h3>/);

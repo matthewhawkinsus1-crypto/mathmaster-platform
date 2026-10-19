@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChoiceChips, ProcessMessage, muted, primaryButton, quietButton, touchButton } from './processUi.jsx';
+import { useModalDialog } from '../../../ui/Dialog.jsx';
 import {
   ExtendTableMethod,
   FieldsMethod,
@@ -141,18 +142,12 @@ export default function ProcessWorkspace({
 
   // Enlarged, the workspace takes the screen (Escape returns it to the board's
   // flow); the same elements stay mounted, so no work is lost either way.
+  // useModalDialog opens on the Enlarge toggle, traps Tab and answers Escape.
+  useModalDialog(sectionRef, { onClose: () => setEnlarged(false), initialFocusRef: enlargeRef, returnFocus: false, active: enlarged });
   useEffect(() => {
     if (!enlarged) return undefined;
-    sectionRef.current?.querySelector?.('[data-process-enlarge]')?.focus?.({ preventScroll: true });
-    const onKey = (event) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      setEnlarged(false);
-    };
-    window.addEventListener('keydown', onKey);
     const returnTo = enlargeRef.current;
     return () => {
-      window.removeEventListener('keydown', onKey);
       returnTo?.focus?.({ preventScroll: true });
     };
   }, [enlarged]);
@@ -245,7 +240,7 @@ export default function ProcessWorkspace({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px 10px', flexWrap: 'wrap' }}>
-        <h3 id={headingId} style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)', flex: '1 1 200px' }}>{title}</h3>
+        <h3 id={headingId} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))', color: 'var(--mm-text-strong)', flex: '1 1 200px' }}>{title}</h3>
         <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button
             ref={enlargeRef}
@@ -265,7 +260,7 @@ export default function ProcessWorkspace({
 
       {methods.length ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mm-text)' }}>How will you find it?</span>
+          <span style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>How will you find it?</span>
           <ChoiceChips
             label={`Methods to ${title.toLowerCase()}`}
             name="method"

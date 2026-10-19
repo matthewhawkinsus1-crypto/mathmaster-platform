@@ -52,9 +52,9 @@
    tasks scroll inside it, and the Task button opens the full text. */
 .mathmaster-work-view-persistent-task { max-height: calc(1.35em * 4); overflow-y: auto; }
 .mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid var(--mm-border); border-radius: 8px; background: var(--mm-surface); color: var(--mm-primary); font-weight: 800; }
-.mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled] { opacity: .45; cursor: not-allowed; }
+.mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled], .mathmaster-work-view-actions button[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 /* The action that finishes the work (Submit / Check) reads as the primary one once it is available. */
-.mathmaster-work-view-actions button[data-action-emphasis="primary"]:not([disabled]) { border-color: var(--mm-primary); background: var(--mm-primary); color: var(--mm-on-primary); }
+.mathmaster-work-view-actions button[data-action-emphasis="primary"]:not([disabled]):not([aria-disabled="true"]) { border-color: var(--mm-primary); background: var(--mm-primary); color: var(--mm-on-primary); }
 .mathmaster-work-view-drawer { display: none; }
 .mathmaster-work-view-drawer[data-open="true"] { grid-row: 2; display: block; padding: 12px 14px; border-bottom: 1px solid var(--mm-border); background: var(--mm-surface); overflow: auto; max-height: min(42dvh, 360px); }
 .mathmaster-work-view-body { display: contents; }
@@ -73,7 +73,7 @@
 /* What the view carries, as one line of caption text under the actions
    (PQ-027). Each label used to be a grey rounded chip the size of a button, and
    a student read "Pan and zoom" as a button that would not press. */
-.mathmaster-work-view-capabilities { margin: 6px 2px 0; color: var(--mm-text-muted); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.mathmaster-work-view-capabilities { margin: 6px 2px 0; color: var(--mm-text-muted); font-size: calc(12 * var(--mm-px)); font-weight: 600; line-height: 1.45; }
 .mathmaster-work-view-capabilities-lead { font-weight: 800; }
 
 /* The one sentence saying what this step asks for. It is not a capability chip
@@ -89,7 +89,7 @@
   border-radius: 0 8px 8px 0;
   background: var(--mm-info-bg);
   color: var(--mm-text-strong);
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
   font-weight: 750;
   line-height: 1.4;
 }
@@ -211,6 +211,23 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] 
 }
 
 /*
+ * …AND THE INSTRUCTION IN THE HEADER KEEPS TO ONE LINE.
+ *
+ * Seven actions fill that rail only under a header of one task line and one
+ * instruction line (49px at 740×360). Graphing 2's first instruction names the
+ * keyboard route (A11Y-12) and took two lines there: a 58px header, and
+ * "Start over" 6px below the screen. With seven or more actions the
+ * instruction ends in an ellipsis instead. Its whole sentence stays in the
+ * page for a screen reader, and Graphing 2 shows all of it beside the plane.
+ */
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"]:has(> .mathmaster-work-view-body > .mathmaster-work-view-actions > button:nth-of-type(7)) > .mathmaster-work-view-header .mathmaster-work-view-instruction {
+  max-height: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
  * A LANDSCAPE KEYPAD DOCKS TO THE RIGHT, WHICH IS WHERE THE RAIL IS.
  *
  * On a phone held sideways the keypad is not a bottom bar — it is a right-hand
@@ -301,9 +318,9 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 /*
  * THE EMBEDDED PHONE LAYOUT STANDS DOWN INSIDE WORK VIEW.
  *
- * MathToolMobileLayout pins a graph panel at 46dvh with its own scrollbar so a
- * student can read the graph while scrolling to the answer below it. That is
- * right for the embedded column and wrong here: Work View already gives the
+ * MathToolMobileLayout used to pin a graph panel at 46dvh with its own
+ * scrollbar (removed Oct 15, 2026: in the embedded phone column it covered the
+ * whole workspace, and with it Graphing's Check). It was also wrong here: Work View already gives the
  * workspace the majority of the screen and scrolls as one surface, so the cap
  * cut a 680px workspace down to 388 and clipped the zoom buttons half-way
  * through their own row. `!important` because the rule it answers is itself
@@ -714,7 +731,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   border-left-width: 3px;
   border-radius: 0;
   background: none;
-  font-size: 12.5px;
+  font-size: calc(12.5 * var(--mm-px));
   line-height: 1.35;
   max-height: calc(1.35em * 2);
   overflow-y: auto;
@@ -783,7 +800,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: calc(14 * var(--mm-px));
 }
 
 /* The step's kind and status are whole words or nothing: the name gives way. */
@@ -821,6 +838,15 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 
 [data-open="true"][data-height="short"] .workflow-focus__progress-text { display: none; }
 
+/* The first hint, offered in words before the first try (D5), folds into Help.
+   Its two lines under the step took the step's height: 186px of the 250px kept
+   for it at 844x390, and 58px of 140 with the keypad up at 390x664. Help opens
+   the same Hint panel, with the same sentence on what a hint costs and the same
+   reveal button, so the offer is one tap away, not gone. (No hint-ladder words
+   in this comment: in development this sheet is inlined into the page, and
+   assessmentLeakGates reads the whole document for them on a DOL or test.) */
+[data-open="true"][data-height="short"] [data-first-hint-offer] { display: none; }
+
 /*
  * WHAT STARTS UNDER THE OPENER LEAVES IT ROOM (PQ-025).
  *
@@ -836,7 +862,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  * tool header that already has the room. The relation workspace's toolbar
  * (an equation that may have no solution or every solution, an inequality,
  * an absolute value) starts in the same place: at 390px the button sat on
- * "Combine like terms".
+ * a tool button ("Combine like terms", now part of Simplify).
  */
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__rail,
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__navigator,
@@ -850,6 +876,26 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
    toolbar WRAPS, and a right margin narrows every row of it — at 344px each
    chip and button took a row of its own. On a phone its first chip cannot share
    a row with the button anyway, so the toolbar starts below the button. */
+/*
+ * The help panel and the "open in another tab" notice open at the top of the
+ * work, centred, a card 860px wide at most. Where one starts the work its
+ * first line ran under the button ("…noted with your attem|p" at 1366x768,
+ * student pass 3 HELP-21), so there it stays centred and stops short of the
+ * button on both sides; on a phone, where that leaves no width, it starts
+ * below the button instead (below).
+ */
+.mathmaster-hint-panel,
+.mathmaster-paused-panel {
+  margin: 0 auto 12px;
+  max-width: 860px;
+}
+
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-hint-panel,
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-paused-panel {
+  box-sizing: border-box;
+  max-width: min(860px, calc(100% - 2 * var(--mm-work-view-opener-space, 176px)));
+}
+
 @media (max-width: 600px) {
   .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-multipart-heading {
     padding-right: var(--mm-work-view-opener-space, 176px);
@@ -860,5 +906,16 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-relation-toolbar {
     margin-right: 0;
     margin-top: var(--mm-work-view-opener-bottom, 52px);
+  }
+
+  /* Padding on the row, not a margin on the panel: a margin would collapse
+     through the work area and the surface, and take the button down with it. */
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child {
+    padding-top: var(--mm-work-view-opener-bottom, 52px);
+  }
+
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-hint-panel,
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > .mathmaster-top-panel-row:first-child > .mathmaster-paused-panel {
+    max-width: none;
   }
 }

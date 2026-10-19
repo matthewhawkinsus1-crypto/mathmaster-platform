@@ -6,7 +6,7 @@
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
 //    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults are not installed; VIEWPORTS=1366x768,768x1024,390x844
-//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2,T3 to run some journeys.)
+//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2,T3,P1 to run some journeys.)
 //
 // Same harness as journeys.mjs: the real App.jsx with `firebase/*` replaced by
 // in-memory fakes and a synthetic school. `&recovery=p0` adds
@@ -42,6 +42,13 @@
 //       teacher sees what happened and re-scores it — 100%, recorded 90 —
 //       with the stored results untouched.
 //
+//   P1  targeted Recovery Practice (`&recovery=targeted`, student push J):
+//       Tomas's Q3 miss was classified "intercepts-swapped". His first
+//       Recovery practice question is a fresh intercepts question — the one
+//       the server dealt (untargeted it would be Q1), never the one he missed
+//       — headed "DOL Recovery practice"; he answers it, the server records
+//       exactly that question, and the next one is dealt.
+//
 // At every viewport nothing scrolls sideways; on a touch screen the controls
 // this change added are at least 44 px. `--slow` adds 4× CPU throttling and a
 // slow network (the Chromebook).
@@ -54,7 +61,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
-import { newSchoolContext } from './schoolClock.mjs';
+import { newSchoolContext, schoolNow } from './schoolClock.mjs';
 import {
   EXCLUDED_STUDENT_ID,
   HELD_STUDENT_ID,
@@ -64,8 +71,13 @@ import {
   RECOVERY_SHARED_ASSIGNMENT_ID,
   RECOVERY_SHARED_ASSIGNMENT_TITLE,
   SUBMITTING_STUDENT_ID,
+  TARGETED_ASSIGNMENT_ID,
+  TARGETED_ASSIGNMENT_TITLE,
+  TARGETED_STUDENT_ID,
+  recoveryContextFor,
   recoveryFieldAnswers,
 } from './recoveryFixture.js';
+import { nextRecoveryPracticeItem } from '../../../functions/shared/sectionRecoveryService.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -187,11 +199,16 @@ const touchTargets = async (where, page, selector) => {
 
 /* ------------------------------------------------------------- student */
 
-// From the dashboard its Grades tab; from an assignment's result screen (which
-// has no dashboard tabs) its "View All Grades".
+// The way a student reaches Grades from where they are. From the dashboard:
+// the student nav's Grades. From an assignment's result screen (no student
+// nav): its Back control when it leads to Grades ("← Grades", because the
+// student came from Grades), else its "View All Grades" (the screen only
+// offers the list the student did NOT come from).
 const openStudentGrades = async (page) => {
-  const fromResult = page.getByRole('button', { name: 'View All Grades' });
-  if (await fromResult.count()) await fromResult.first().click();
+  const backToGrades = page.getByRole('button', { name: /^←\s*Grades$/ });
+  const viewAllGrades = page.getByRole('button', { name: 'View All Grades' });
+  if (await backToGrades.count()) await backToGrades.first().click();
+  else if (await viewAllGrades.count()) await viewAllGrades.first().click();
   else await page.getByRole('button', { name: /^Grades$/ }).first().click();
   await page.waitForTimeout(500 * SLOW_FACTOR);
 };
@@ -200,7 +217,7 @@ const openResult = async (page, title) => {
   await openStudentGrades(page);
   const row = gradeRow(page, title);
   await row.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  await row.getByRole('button', { name: 'View Results' }).click();
+  await row.getByRole('button', { name: 'See results' }).click();
   const card = page.locator('[data-section-recovery-panel] [data-recovery-section="dol"]');
   await card.waitFor({ timeout: 30000 * SLOW_FACTOR });
   return card;
@@ -240,14 +257,19 @@ const sidebar = (page, name) => page.locator('nav, aside').getByRole('button', {
 const openTeacherGradebook = async (page, assignmentId = RECOVERY_ASSIGNMENT_ID) => {
   await sidebar(page, 'Grades');
   await page.waitForTimeout(700 * SLOW_FACTOR);
+  // Grades opens on its class chooser, or on a class whose assignment picker is
+  // enabled. The picker stays disabled until a class is chosen, and a slow
+  // device draws the chooser late: wait for one or the other, never assume.
+  await page.waitForFunction(() => Boolean(document.querySelector('section[aria-labelledby="gradebook-choose-class"]')
+    || document.querySelector('select[aria-label="Gradebook assignment"]:not([disabled])')), null, { timeout: 30000 * SLOW_FACTOR });
   const chooser = page.locator('section[aria-labelledby="gradebook-choose-class"]');
   if (await chooser.count()) {
     await chooser.getByRole('button', { name: new RegExp(CLASS_NAME) }).first().click();
     await page.waitForTimeout(700 * SLOW_FACTOR);
   }
-  const picker = page.locator('select[aria-label="Gradebook assignment"]');
+  const picker = page.locator('select[aria-label="Gradebook assignment"]:not([disabled])');
   await picker.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  await picker.selectOption(assignmentId);
+  await picker.selectOption(assignmentId, { timeout: 30000 * SLOW_FACTOR });
   await page.waitForTimeout(700 * SLOW_FACTOR);
 };
 const studentRow = (page, studentId) => page.locator('tbody tr').filter({ hasText: `ID ${studentId}` }).first();
@@ -578,6 +600,52 @@ const journeys = {
     expect(where, after.rawScore === 100 && after.legacyCorrection?.rawScoreBefore === 70, `stored: 100, corrected from 70 (${after.rawScore})`);
     await closeDevice(where, device);
   },
+};
+
+journeys.P1 = async (viewport) => {
+  const where = `P1 ${viewport.width}x${viewport.height}`;
+  const device = await openDevice({ viewport, query: `reset=1&recovery=targeted&as=student&studentId=${TARGETED_STUDENT_ID}` });
+  const { page } = device;
+  const db = await harnessDb(page);
+  const assignment = assignmentFrom(db, TARGETED_ASSIGNMENT_ID);
+  const gradeData = db[`grades/${TARGETED_STUDENT_ID}`];
+  const evidence = Object.entries(db).filter(([key]) => key.startsWith(`grades/${TARGETED_STUDENT_ID}/evidenceEvents/`)).map(([, value]) => value);
+  // Read at the harness's clock, the one the page built this fixture from
+  // (schoolClock.mjs: the most recent Wednesday 11:00 in Chicago). This
+  // runner's own clock is up to a week later, and the fixture's Recovery end
+  // date is five days after ITS now — so on the real clock the window had
+  // "ended" from every Monday night until Wednesday morning, Practice dealt
+  // nothing, and this journey failed on every branch (seen Oct 13, 2026).
+  const contextOf = (misconceptionRecords) => recoveryContextFor({ assignment, gradeData, studentId: TARGETED_STUDENT_ID, nowValue: schoolNow(), misconceptionRecords });
+  const untargeted = nextRecoveryPracticeItem(contextOf(null));
+  const targetedContext = contextOf(evidence);
+  const dealt = nextRecoveryPracticeItem(targetedContext);
+  expect(where, evidence.length === 1, 'the stored, trusted evidence is in place');
+  expect(where, untargeted?.storageIndex === 0, `untargeted, Practice would open on Q1 (${untargeted?.storageIndex})`);
+  expect(where, dealt?.storageIndex === 2, `targeted, the server deals Q3, the question with the diagnosed error (${dealt?.storageIndex})`);
+  expect(where, !targetedContext.seenFingerprints.includes(dealt?.pin?.fingerprint), 'never the question he missed');
+
+  const card = await openResult(page, TARGETED_ASSIGNMENT_TITLE);
+  await card.getByRole('button', { name: 'Practice for DOL Recovery' }).click();
+  const runner = page.locator('[data-recovery-runner="practice"]');
+  await runner.waitFor({ timeout: 30000 * SLOW_FACTOR });
+  expect(where, /DOL Recovery practice/.test(squash(await runner.innerText())), 'headed "DOL Recovery practice"');
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  const shown = squash(await runner.innerText());
+  expect(where, /intercepts/i.test(shown) && !/Solve for x/.test(shown), `the first question is an intercepts question (${shown.slice(0, 160)})`);
+  await noSidewaysScroll(where, page);
+  await shot(page, 'p1-targeted-practice');
+
+  await answerQuestion(page, runner, recoveryFieldAnswers(assignment, dealt));
+  await runner.getByRole('button', { name: 'Next practice question' }).waitFor({ timeout: 20000 * SLOW_FACTOR });
+  const after = recoveryRecord(await harnessDb(page), TARGETED_STUDENT_ID, TARGETED_ASSIGNMENT_ID);
+  const answered = after?.practice?.items || [];
+  expect(where, answered.length === 1 && answered[0].key === dealt.pin.fingerprint, 'the server recorded exactly the question it dealt');
+  expect(where, answered[0]?.correct === true, 'answered right, graded right');
+  await runner.getByRole('button', { name: 'Next practice question' }).click();
+  await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  await shot(page, 'p1-next');
+  await closeDevice(where, device);
 };
 
 const started = Date.now();

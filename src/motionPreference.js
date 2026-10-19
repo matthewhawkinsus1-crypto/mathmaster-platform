@@ -21,6 +21,13 @@ export const prefersReducedMotion = () => {
 };
 
 /**
+ * How a scroll the platform starts should move: 'smooth' unless the student
+ * asked for less motion (student pass 3, A11Y-11). A scroll is not meaning, so
+ * it jumps rather than glides.
+ */
+export const scrollMotion = () => (prefersReducedMotion() ? 'auto' : 'smooth');
+
+/**
  * Subscribe to the preference. The listener form matters: a student who turns
  * reduced motion on mid-session should not have to reload to be believed.
  */

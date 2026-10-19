@@ -57,6 +57,13 @@ export const MobileViewportContainer = ({
   // The student's language Support tools for this item (StudentSupportTray):
   // inline under the task, never over the answer fields or the tool.
   supportTray = null,
+  // Universal-design tools only (no plan support): on a laptop the tray goes
+  // AFTER the work. Above it, a row every student now has pushed the first
+  // step off a Chromebook screen and, loading a moment late, moved the work
+  // under the student's first tap (PR #454). On a phone it stays in the task
+  // panel, which is beside the work in landscape (a row after the work broke
+  // that grid). Plan supports keep their place everywhere.
+  supportTrayAfterWork = false,
   toolWorkspace,
   actionButtons = null,
   workBar = null,
@@ -66,6 +73,8 @@ export const MobileViewportContainer = ({
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
+  // What the last pointer press landed on; cleared by the next key press.
+  const pointerPressRef = useRef(null);
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const workspaceActive = workspaceMode !== 'normal';
   const [isMobile, setIsMobile] = useState(detectMobile);
@@ -117,13 +126,9 @@ export const MobileViewportContainer = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-    const html = document.documentElement;
-    if (visualViewport.pinchZoomed) html.dataset.mmPinchZoomed = 'true';
-    else delete html.dataset.mmPinchZoomed;
-    return () => { delete html.dataset.mmPinchZoomed; };
-  }, [visualViewport.pinchZoomed]);
+  // html[data-mm-pinch-zoomed] is page-wide and owned by installPinchZoomRootFlag
+  // (main.jsx). Setting it here and clearing it on unmount left the next
+  // question reading "not zoomed" while the person was still zoomed in.
 
   useEffect(() => {
     const root = rootRef.current;
@@ -256,8 +261,14 @@ export const MobileViewportContainer = ({
     // overflow:hidden ancestors. The result looks like the entire question
     // jumps sideways while the student types. Move only the nearest local
     // scroll container vertically and then restore page-level x position.
+    // A drawing surface the student just pressed (a coordinate plane) is
+    // under their finger already and opens no keypad: scrolling it here moved
+    // it between press and lift, so the point landed a row off (pass 3,
+    // TOOL-11). Keyboard focus on it still reveals it.
+    const pressedDrawing = target?.matches?.('.mathmaster-touch-surface')
+      && pointerPressRef.current && target.contains?.(pointerPressRef.current);
     window.requestAnimationFrame(() => {
-      if (isMobile) scrollFocusedControlVertically(target, { root: rootRef.current });
+      if (isMobile && !pressedDrawing) scrollFocusedControlVertically(target, { root: rootRef.current });
       scheduleHorizontalViewportStabilization({ root: rootRef.current });
     });
   };
@@ -279,6 +290,7 @@ export const MobileViewportContainer = ({
   };
 
   const handleKeyDownCapture = (event) => {
+    pointerPressRef.current = null;
     if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       restoreFocusedHorizontalPosition();
     }
@@ -400,6 +412,7 @@ export const MobileViewportContainer = ({
     <div
       ref={rootRef}
       onFocusCapture={handleFocusCapture}
+      onPointerDownCapture={(event) => { pointerPressRef.current = event.target; }}
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
@@ -427,7 +440,7 @@ export const MobileViewportContainer = ({
               </div>
               {!isPromptCollapsed && (
                 <div className="prompt-body">
-                  <QuestionPrompt variant="plain" style={{ color: 'var(--mm-text-strong)', fontWeight: 800, fontSize: 18, margin: 0 }}>
+                  <QuestionPrompt variant="plain" style={{ color: 'var(--mm-text-strong)', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))', margin: 0 }}>
                     {originalTaskPrompt || 'Complete the math task.'}
                   </QuestionPrompt>
                   {currentStagePrompt && (
@@ -486,7 +499,7 @@ export const MobileViewportContainer = ({
               with the page instead of riding in the sticky anchor, where they
               floated over the tool's own buttons (live QA). */}
           {!workspaceActive && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div>}
-          {!workspaceActive && supportTray && <div className="mathmaster-question-support-tray">{supportTray}</div>}
+          {!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">{supportTray}</div>}
           {!workspaceActive && contextPanel}
           {responseFields}
         </>
@@ -494,12 +507,13 @@ export const MobileViewportContainer = ({
 
       {/* A focused solver workspace hides the task panel; the Support tools
           stay reachable above the work. */}
-      {workspaceActive && supportTray && <div className="mathmaster-question-support-tray">{supportTray}</div>}
+      {workspaceActive && supportTray && !(supportTrayAfterWork && !isMobile) && <div className="mathmaster-question-support-tray">{supportTray}</div>}
       <main className="math-tool-workspace">
         <React.Fragment key="math-tool-workspace">
           {toolWorkspace}
         </React.Fragment>
       </main>
+      {supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">{supportTray}</div>}
 
       {/* THE BAR PUBLISHES ITS HEIGHT. It is sticky over the bottom of the
           question, so the page's scroll padding (App.css) is computed from the

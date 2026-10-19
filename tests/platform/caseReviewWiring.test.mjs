@@ -12,7 +12,10 @@ import { caseReviewWindow } from '../../src/platform/caseReview/caseReviewStore.
 import { CASE_EVIDENCE_LIMITS } from '../../functions/shared/caseReviewEvidence.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
-const app = read('src/App.jsx');
+const appShell = read('src/App.jsx');
+// The teacher's screen (drawer, case review, support report) is its own
+// lazily loaded module since G2; App renders it.
+const app = read('src/app/teacher/TeacherWorkspace.jsx');
 const drawer = read('src/components/teacher/StudentProfileDrawer.jsx');
 const view = read('src/components/teacher/caseReview/StudentCaseReviewView.jsx');
 const store = read('src/platform/caseReview/caseReviewStore.js');
@@ -23,10 +26,14 @@ const caseComponents = readdirSync(caseComponentDir).filter((name) => name.endsW
   .map((name) => ({ name, source: readFileSync(new URL(name, caseComponentDir), 'utf8') }));
 
 test('App loads the case review lazily and mounts it between the drawer and the Support Evidence Report', () => {
-  assert.match(app, /const StudentCaseReviewView = lazy\(\(\) => import\('\.\/components\/teacher\/caseReview\/StudentCaseReviewView\.jsx'\)\);/);
-  const executable = executableSource(app);
-  assert.doesNotMatch(executable, /import StudentCaseReviewView from/, 'never imported eagerly');
-  assert.doesNotMatch(executable, /from '\.\/platform\/caseReview\//, 'no case review module in the main bundle');
+  // Declared lazily in app/lazyScreens.js since the App split; App imports it from there.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const StudentCaseReviewView = lazy\(\(\) => import\('\.\.\/components\/teacher\/caseReview\/StudentCaseReviewView\.jsx'\)\);/);
+  assert.match(app, /^import \{[^}]*\bStudentCaseReviewView\b[^}]*\} from '\.\.\/lazyScreens\.js';$/m);
+  for (const source of [app, appShell]) {
+    const executable = executableSource(source);
+    assert.doesNotMatch(executable, /import StudentCaseReviewView from/, 'never imported eagerly');
+    assert.doesNotMatch(executable, /from '(?:\.\/|(?:\.\.\/)+)platform\/caseReview\//, 'no case review module in the main bundle');
+  }
   const mountAt = app.indexOf('<StudentCaseReviewView');
   assert.ok(mountAt > app.indexOf('<StudentProfileDrawer'), 'after the drawer, so it stacks above the student it was opened from');
   assert.ok(mountAt < app.indexOf('<SupportEvidenceReportView'), 'before the support report, which it can open on top of itself');
@@ -98,11 +105,25 @@ test('the evidence callable is read-only, teacher-only, and authorizes before it
 });
 
 test('Escape closes the case review only when it is the top layer and nothing above handled it', () => {
-  const effect = region(view, 'const onKey = (event) => {', '\n    };', 'escape handler');
-  assert.match(effect, /if \(event\.key !== 'Escape' \|\| event\.defaultPrevented \|\| printing\) return;/);
-  assert.match(effect, /if \(modals\.length && modals\[modals\.length - 1\] !== shellRef\.current\) return;/);
-  assert.match(effect, /event\.preventDefault\(\);\n      onCloseRef\.current\?\.\(\);/);
-  assert.match(view, /<article ref=\{shellRef\} className="cr-shell" role="dialog" aria-modal="true"/);
+  // The shell is the shared modal Dialog (src/ui/Dialog.jsx): it answers Escape
+  // only when it is the topmost Dialog and nothing above already handled the
+  // key, marks it handled, and stays open while printing.
+  const dialog = read('src/ui/Dialog.jsx');
+  assert.match(view, /import Dialog from '\.\.\/\.\.\/\.\.\/ui\/Dialog\.jsx';/);
+  const shell = region(view, '<Dialog as="article"', '\n', 'case review shell');
+  assert.match(shell, /ref=\{shellRef\}/);
+  assert.match(shell, /className="cr-shell"/);
+  assert.match(shell, /onClose=\{closeIfTopLayer\}/);
+  assert.match(shell, /closeOnEscape=\{!printing\}/);
+  // Topmost Dialog, not covered by a later non-Dialog modal, key not handled.
+  assert.match(dialog, /const onTop = \(\) => isTopDialog\(token\) && !coveredByForeignModal\(dialog\);/);
+  assert.match(dialog, /if \(handledInside \|\| !onTop\(\)\) return;/);
+  assert.match(dialog, /if \(escapeRef\.current && typeof onCloseRef\.current === 'function'\) \{\s*event\.stopPropagation\(\);\s*event\.preventDefault\(\);/);
+  assert.match(dialog, /<Tag ref=\{setRef\} role=\{role\} aria-modal="true"/);
+  // A modal above it that is not a Dialog (a Toast confirmation) is found by
+  // DOM order.
+  const guard = region(view, 'const closeIfTopLayer = () => {', '\n  };', 'top-layer guard');
+  assert.match(guard, /if \(modals\.length && modals\[modals\.length - 1\] !== shellRef\.current\) return;\n\s*onCloseRef\.current\?\.\(\);/);
 });
 
 test('printing renders the print copy onto <body> and hides the app while it prints', () => {

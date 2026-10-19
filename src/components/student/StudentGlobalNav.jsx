@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import {
   STUDENT_DESTINATION,
   STUDENT_DESTINATION_LABEL,
   STUDENT_DESTINATION_ORDER,
+  phoneNavGroups,
 } from '../../platform/student/navigationModel.js';
 
 /*
@@ -30,8 +31,12 @@ import {
  *
  * MOBILE IS THE DEFAULT CASE, NOT THE EXCEPTION.
  *
- * Six controls do not fit across 390px, so the row wraps rather than scrolling
- * sideways — a horizontally scrolling nav hides destinations behind a gesture
+ * Six controls do not fit across 390px. They used to wrap to three rows
+ * (about 150px above every screen). On a phone (index.css, max-width 640px)
+ * the row now holds Home, Assignments and Grades — plus the screen the
+ * student is on, if it is another — and one "More" button that unfolds the
+ * rest in place (student pass 3, NAV-13; phoneNavGroups). Nothing scrolls
+ * sideways: a horizontally scrolling nav hides destinations behind a gesture
  * nobody is told about. Every control is at least 44px tall.
  */
 
@@ -63,18 +68,30 @@ const ACTIVE_TEXT = Object.freeze({
 export default function StudentGlobalNav({
   current = null,
   onNavigate = null,
-  onLogout = null,
-  // Screens embedded inside another shell (a teacher previewing a student's
-  // Path, for instance) have their own way out and must not offer Log Out.
-  showLogout = true,
+  // `onLogout` and `showLogout` are still accepted from callers but no longer
+  // drawn: Log Out lives in ONE place, the identity bar that is pinned to the
+  // top of every student screen (StudentIdentityBar.jsx). Two Log Out buttons
+  // a few pixels apart was one too many, and only the bar's asks before
+  // throwing away work that has not been sent.
   // A compact row for headers that already carry a title and a Back control.
   dense = false,
   label = 'Student navigation',
   style = null,
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const idBase = useId();
+  const groups = phoneNavGroups(current);
+  const foldedId = (destination) => `${idBase}-more-${destination}`;
   return (
     <nav
       aria-label={label}
+      className="mm-student-nav"
+      data-more-open={moreOpen ? 'true' : 'false'}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || !moreOpen) return;
+        setMoreOpen(false);
+        event.currentTarget.querySelector('.mm-student-nav__more')?.focus();
+      }}
       style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
         minWidth: 0, ...style,
@@ -83,10 +100,13 @@ export default function StudentGlobalNav({
       {STUDENT_DESTINATION_ORDER.map((destination) => {
         const active = current === destination;
         const tone = TONE[destination];
+        const folded = groups.folded.includes(destination);
         return (
           <button
             key={destination}
             type="button"
+            id={folded ? foldedId(destination) : undefined}
+            className={folded ? 'mm-student-nav__folded' : undefined}
             // The current screen is still a button so the row does not reflow
             // when a student moves between destinations, but it is marked and
             // does not navigate.
@@ -100,7 +120,7 @@ export default function StudentGlobalNav({
               border: active ? `2px solid ${tone}` : '2px solid transparent',
               background: active ? 'var(--mm-surface)' : tone,
               color: active ? ACTIVE_TEXT[destination] : '#fff',
-              fontWeight: 900, fontSize: dense ? 13 : 14,
+              fontWeight: 900, fontSize: dense ? 'calc(13 * var(--mm-px))' : 'calc(14 * var(--mm-px))',
               cursor: active ? 'default' : 'pointer',
               overflowWrap: 'anywhere',
             }}
@@ -109,20 +129,37 @@ export default function StudentGlobalNav({
           </button>
         );
       })}
-      {showLogout && onLogout && (
-        <button
-          type="button"
-          onClick={onLogout}
-          style={{
-            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-            minHeight: MIN_TOUCH_TARGET_PX, padding: dense ? '9px 12px' : '10px 15px',
-            borderRadius: 9, border: '2px solid var(--mm-border)', background: 'var(--mm-surface-control)',
-            color: 'var(--mm-text-muted)', fontWeight: 800, fontSize: dense ? 13 : 14, cursor: 'pointer',
-          }}
-        >
-          Log Out
-        </button>
-      )}
+      {/* Drawn only on a phone (index.css): unfolds the places above. */}
+      <button
+        type="button"
+        className="mm-student-nav__more"
+        aria-expanded={moreOpen}
+        aria-controls={groups.folded.map(foldedId).join(' ')}
+        onClick={(event) => {
+          const opening = !moreOpen;
+          setMoreOpen(opening);
+          // The unfolded places come before More in the row, so Tab from More
+          // would leave the nav: opening moves focus to the first of them.
+          if (opening) {
+            const nav = event.currentTarget.closest('nav');
+            window.requestAnimationFrame(() => nav?.querySelector('.mm-student-nav__folded')?.focus());
+          }
+        }}
+        style={{
+          appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+          minHeight: MIN_TOUCH_TARGET_PX,
+          padding: dense ? '9px 12px' : '10px 15px',
+          borderRadius: 9,
+          border: '2px solid var(--mm-border)',
+          background: 'var(--mm-surface)',
+          color: 'var(--mm-text)',
+          fontWeight: 900, fontSize: dense ? 'calc(13 * var(--mm-px))' : 'calc(14 * var(--mm-px))',
+          cursor: 'pointer', gap: 6,
+        }}
+      >
+        {moreOpen ? 'Less' : 'More'}
+        <span aria-hidden="true" style={{ display: 'inline-block', transform: moreOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+      </button>
     </nav>
   );
 }

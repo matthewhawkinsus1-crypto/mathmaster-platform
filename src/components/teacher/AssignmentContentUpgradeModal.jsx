@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Dialog from '../../ui/Dialog.jsx';
 import { describeAuthError, teacherAdmin } from '../../auth/authService.js';
 
 const LABELS = {
@@ -137,9 +138,10 @@ export default function AssignmentContentUpgradeModal({
         padding: 20,
       }}
     >
-      <section
-        role="dialog"
-        aria-modal="true"
+      <Dialog
+        as="section"
+        onClose={onClose}
+        closeOnEscape={!committing}
         aria-label="Upgrade assignment content"
         style={{
           width: 'min(900px, 100%)',
@@ -165,8 +167,8 @@ export default function AssignmentContentUpgradeModal({
         {!preview && error && (
           <div role="alert" style={{ marginTop: 16, padding: 12, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', borderRadius: 8 }}>
             <strong>Preview failed.</strong> {error.message}
-            {error.errorCode && <div style={{ marginTop: 5, fontSize: 12 }}>Error code: {error.errorCode}</div>}
-            {error.detail && <div style={{ marginTop: 3, fontSize: 12 }}>Reason: {error.detail}</div>}
+            {error.errorCode && <div style={{ marginTop: 5, fontSize: 'calc(12 * var(--mm-px))' }}>Error code: {error.errorCode}</div>}
+            {error.detail && <div style={{ marginTop: 3, fontSize: 'calc(12 * var(--mm-px))' }}>Reason: {error.detail}</div>}
           </div>
         )}
 
@@ -179,7 +181,7 @@ export default function AssignmentContentUpgradeModal({
               </div>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {Object.entries(preview.counts || {}).map(([key, count]) => (
-                  <span key={key} style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', fontSize: 12, fontWeight: 800 }}>
+                  <span key={key} style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>
                     {LABELS[key] || key}: {count}
                   </span>
                 ))}
@@ -243,8 +245,8 @@ export default function AssignmentContentUpgradeModal({
           {preview && error && (
             <div role="alert" style={{ marginBottom: 10, padding: 12, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', borderRadius: 8 }}>
               <strong>{success ? 'Refresh warning.' : 'Upgrade failed.'}</strong> {error.message}
-              {error.errorCode && <div style={{ marginTop: 5, fontSize: 12 }}>Error code: {error.errorCode}</div>}
-              {error.detail && <div style={{ marginTop: 3, fontSize: 12 }}>Reason: {error.detail}</div>}
+              {error.errorCode && <div style={{ marginTop: 5, fontSize: 'calc(12 * var(--mm-px))' }}>Error code: {error.errorCode}</div>}
+              {error.detail && <div style={{ marginTop: 3, fontSize: 'calc(12 * var(--mm-px))' }}>Reason: {error.detail}</div>}
             </div>
           )}
 
@@ -281,7 +283,7 @@ export default function AssignmentContentUpgradeModal({
             )}
           </div>
         </div>
-      </section>
+      </Dialog>
     </div>
   );
 }

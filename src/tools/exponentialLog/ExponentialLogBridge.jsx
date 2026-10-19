@@ -5,6 +5,7 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import exponentialLogGrader from '../../../functions/shared/serverGrading/tools/exponentialLogBridge.mjs';
 import {
@@ -15,6 +16,7 @@ import {
   normalizeExponentialSpec,
   transformedExponentialValue,
 } from './exponentialLogMath';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const inputStyle = { width: '100%', padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
@@ -69,6 +71,7 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
   const [expAnswer, setExpAnswer] = usePersistentToolState('expAnswer', '');
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
+  useFieldUndoHistory({ questionData, fields: { logAnswer: [logAnswer, setLogAnswer], expAnswer: [expAnswer, setExpAnswer] } });
   const work = { logAnswer, expAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -81,11 +84,11 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
     <ToolGrid min={340}>
       <InversePairGraph spec={simpleSpec} sampleX={values.exponent} />
       <Panel title="One relationship, two statements">
-        <p style={{ fontSize: 21, fontWeight: 900 }}>{values.base}<sup>{values.exponent}</sup> = {displayNumber(values.value)}</p>
+        <p style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 900 }}>{values.base}<sup>{values.exponent}</sup> = {displayNumber(values.value)}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>A logarithm answers the inverse question: “what exponent on this base produces the value?”</p>
         <label>log<sub>{values.base}</sub>({displayNumber(values.value)}) =<input value={logAnswer} onChange={(event) => setLogAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>{values.base}<sup>{values.exponent}</sup> =<input value={expAnswer} onChange={(event) => setExpAnswer(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check inverse forms</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check inverse forms</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Both notations describe the same base–exponent–value relationship.' : 'Keep the base fixed: exponential output becomes logarithm input, and the exponent becomes logarithm output.'}</ResultPill></div> : null}
       <HintPanel hints={['An exponential statement and a logarithmic statement can say exactly the same thing in two notations.', 'b^e = r and log_b(r) = e carry identical information — the base stays the base in both.', 'A logarithm is the answer to a question about an exponent, so the log always equals the exponent.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
@@ -101,6 +104,7 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
   };
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
   const [exponentAnswer, setExponentAnswer] = usePersistentToolState('exponentAnswer', '');
+  useFieldUndoHistory({ questionData, fields: { xAnswer: [xAnswer, setXAnswer], exponentAnswer: [exponentAnswer, setExponentAnswer] } });
   const work = { xAnswer, exponentAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -112,14 +116,14 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Solve the exponential equation for x.'} steps={['Get the power by itself on one side.', 'Take a logarithm of both sides to bring the exponent down.', 'Solve the resulting equation for x.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
-        <p style={{ fontSize: 22, fontWeight: 900 }}>{equation.base}<sup>{exponentText}</sup> = {equation.rhs}</p>
-        <p style={{ fontSize: 18 }}>log<sub>{equation.base}</sub>({equation.rhs}) = {exponentText}</p>
+        <p style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>{equation.base}<sup>{exponentText}</sup> = {equation.rhs}</p>
+        <p style={{ fontSize: 'calc(18 * var(--mm-px))' }}>log<sub>{equation.base}</sub>({equation.rhs}) = {exponentText}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm converts the exponential statement into an equation for the exponent.</p>
       </Panel>
       <Panel title="Solve and verify">
         <label>Exponent value log<sub>{equation.base}</sub>({equation.rhs})<input value={exponentAnswer} onChange={(event) => setExponentAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>x<input value={xAnswer} onChange={(event) => setXAnswer(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check exponential solution</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check exponential solution</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The logarithmic bridge isolates the exponent correctly.' : 'Find the exponent that produces the right side first, then solve the resulting linear equation.'}</ResultPill></div> : null}
       <HintPanel hints={['The unknown is stuck in the exponent, and a logarithm is the tool that brings it down.', 'Isolate the power first — anything multiplied by or added to it has to move across before you take logs.', 'log(b^x) = x·log(b), which turns the exponent into an ordinary coefficient you can divide by.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
@@ -135,6 +139,7 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
   };
   const [argumentAnswer, setArgumentAnswer] = usePersistentToolState('argumentAnswer', '');
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
+  useFieldUndoHistory({ questionData, fields: { argumentAnswer: [argumentAnswer, setArgumentAnswer], xAnswer: [xAnswer, setXAnswer] } });
   const work = { argumentAnswer, xAnswer };
   useReportToolWork(work);
   const check = () => {
@@ -146,14 +151,14 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Solve the logarithmic equation for x, and respect the domain.'} steps={['Get a single logarithm by itself.', 'Rewrite the statement in exponential form.', 'Check that the argument of the log is actually positive.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
-        <p style={{ fontSize: 21, fontWeight: 900 }}>log<sub>{equation.base}</sub>({argumentText}) = {equation.result}</p>
-        <p style={{ fontSize: 18 }}>{equation.base}<sup>{equation.result}</sup> = {argumentText}</p>
+        <p style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 900 }}>log<sub>{equation.base}</sub>({argumentText}) = {equation.result}</p>
+        <p style={{ fontSize: 'calc(18 * var(--mm-px))' }}>{equation.base}<sup>{equation.result}</sup> = {argumentText}</p>
         <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm’s argument must stay positive. The exponential rewrite makes that required value explicit.</p>
       </Panel>
       <Panel title="Solve and check the domain">
         <label>Required argument value {equation.base}<sup>{equation.result}</sup><input value={argumentAnswer} onChange={(event) => setArgumentAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>x<input value={xAnswer} onChange={(event) => setXAnswer(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check logarithmic solution</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check logarithmic solution</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The exponential rewrite gives a valid positive logarithm input.' : 'Rewrite exponentially, solve the linear equation, then confirm the original log argument is positive.'}</ResultPill></div> : null}
       <HintPanel hints={['Rewriting a log equation exponentially removes the log entirely.', 'log_b(A) = c becomes A = b^c. Then solve for x inside A.', 'You must check your answer: a log is undefined for arguments that are zero or negative, so a value that makes the inside non-positive has to be rejected.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
@@ -168,6 +173,7 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
   const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
   const [asymptote, setAsymptote] = usePersistentToolState('asymptote', '');
   const [domainSide, setDomainSide] = usePersistentToolState('domainSide', '');
+  useFieldUndoHistory({ questionData, fields: { inverseAnswer: [inverseAnswer, setInverseAnswer], asymptote: [asymptote, setAsymptote], domainSide: [domainSide, setDomainSide] } });
   const work = { inverseAnswer, asymptote, domainSide };
   useReportToolWork(work);
   const check = () => {
@@ -183,7 +189,7 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
         <label>f⁻¹({displayNumber(pair.exponential[1])})<input value={inverseAnswer} onChange={(event) => setInverseAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Inverse vertical asymptote x =<input value={asymptote} onChange={(event) => setAsymptote(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Inverse domain relative to x = {features.logarithmDomainBoundary}<select value={domainSide} onChange={(event) => setDomainSide(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="greater">x &gt; {features.logarithmDomainBoundary}</option><option value="less">x &lt; {features.logarithmDomainBoundary}</option></select></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check inverse features</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check inverse features</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Point reflection, asymptote swap, and inverse domain all agree.' : 'Swap x/y roles: the exponential range becomes the logarithm domain, and y = k becomes x = k.'}</ResultPill></div> : null}
       <HintPanel hints={['Taking an inverse reflects the graph across the line y = x, and reflection swaps horizontal for vertical.', 'An exponential has a horizontal asymptote; its logarithmic inverse has a vertical asymptote in the mirrored position.', 'The domain of the inverse is the range of the original, and its range is the original’s domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
@@ -198,6 +204,7 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
   const y = Number(questionData.y ?? defaultY);
   const [inverseAfterForward, setInverseAfterForward] = usePersistentToolState('inverseAfterForward', '');
   const [forwardAfterInverse, setForwardAfterInverse] = usePersistentToolState('forwardAfterInverse', '');
+  useFieldUndoHistory({ questionData, fields: { inverseAfterForward: [inverseAfterForward, setInverseAfterForward], forwardAfterInverse: [forwardAfterInverse, setForwardAfterInverse] } });
   const work = { inverseAfterForward, forwardAfterInverse };
   useReportToolWork(work);
   const check = () => {
@@ -213,9 +220,9 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
         <label>f⁻¹(f({x})) =<input value={inverseAfterForward} onChange={(event) => setInverseAfterForward(event.target.value)} style={inputStyle} /></label>
         <p style={{ marginTop: 16 }}><strong>Use inverse-domain input y = {displayNumber(y)}</strong></p>
         <label>f(f⁻¹({displayNumber(y)})) =<input value={forwardAfterInverse} onChange={(event) => setForwardAfterInverse(event.target.value)} style={inputStyle} /></label>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check compositions</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check compositions</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Both compositions return the starting input, confirming the inverse relationship.' : 'True inverses undo each other: f⁻¹(f(x)) = x and f(f⁻¹(y)) = y on the valid domains.'}</ResultPill></div> : null}
-      <HintPanel hints={['A function and its inverse undo each other, so composing them should return the value you started with.', 'f⁻¹(f(x)) = x, and f(f⁻¹(y)) = y — as long as you stay inside each function’s domain.', 'If a composition does not return the starting value, check the domain: the inverse may not be defined there.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <HintPanel hints={['Work from the inside out: evaluate the inner function at the given input first.', 'Then apply the outer function to that result, staying inside each function’s domain.', 'If a composition does not return the starting value, check the domain: the inverse may not be defined there.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }

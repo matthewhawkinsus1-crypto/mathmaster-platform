@@ -99,11 +99,19 @@ audit row per release.
 | Retest 70/30 targeting | `functions/shared/testCycleRetest.mjs` |
 | Publication preflight | `functions/shared/testCyclePreflight.mjs` |
 | Open / scheduled / paused / archived | `functions/shared/assessmentAvailability.mjs` |
+| When the Test and the home window are open | `functions/shared/testCycleAvailability.mjs` |
+| Class-wide operations and their account | `functions/shared/testCycleBulk.mjs` |
 | CommonJS bridge + evidence join | `functions/lib/testCycle.js` |
 | Student list labels ("Review required", "Retest unlocked"…) | `src/platform/student/testCycleDiscovery.js` |
 | Teacher row states and the actions that apply now | `src/platform/teacher/testCycleTeacherRows.js` |
+| What a class-wide button promises, school-time inputs, grade sources | `src/platform/teacher/testCycleTeacherTools.js` |
+| Which window a student's card shows | `src/platform/student/testCycleScheduleView.js` |
 | Teacher preview of every student stage | `src/platform/teacher/testCyclePreviewModel.js` |
 | What an edit does to a saved cycle's contract | `src/platform/assessment/testCycleContractEdit.js` |
+| What each mode may do for the student (Test, Retest, Corrections, …) | `functions/shared/questionRuntimePolicy.mjs` |
+| Which Rich Tools may run securely, and on which devices | `functions/shared/secureToolCertification.mjs` |
+| One secure item: public payload, grading, stored form | `functions/lib/secureItems.js`, `functions/lib/secureItemStorage.js` |
+| The shared question runtime every secure surface renders | `src/components/question/RichQuestionRuntime.jsx` |
 
 Everything under `functions/shared/` is pure: no Firestore, no network, no
 clock. That is what lets the browser and Cloud Functions share it and what makes
@@ -151,6 +159,21 @@ down.
 The plan is stripped from every client payload by `publicSession` — teacher
 payloads included — because a family plus a seed reproduces the question.
 
+## Rich Tools are first-class on the secure Test
+
+A Test, Retest, Correction or preview item is rendered by the shared Rich
+Question Runtime — the real Graphing, Systems, Step Algebra, Number Line,
+Mapping, Data Modeling, Regression and Function Investigation tools in
+QuestionEngine for a tool item, the secure response fields otherwise — under
+the capability policy of its mode, which the server stamps on the payload
+(`runtimeMode`). The secure modes keep every response tool and remove every
+assistance capability; the server strips assistance keys from the payload,
+forces assessment settings, grades the raw construction with the tool's Path
+Tool Contract grader, and withholds the verdict until release. Preflight
+refuses a family whose tool is not certified, or whose tool differs from the
+one its target requires; a Retest keeps each target's tool. Full design:
+`docs/architecture/secure-rich-question-runtime.md`.
+
 ## Corrections
 
 Built automatically when a released Test scores below the passing threshold,
@@ -161,10 +184,13 @@ evidence. A misconception is named only when the evidence carried one;
 otherwise the correction targets the missed standard rather than inventing a
 diagnosis.
 
-Corrections are instructional and non-secure — hints, three attempts per
-question (enforced by the server: `CORRECTION_ATTEMPTS_PER_QUESTION`), immediate
-feedback — and cannot move a recorded grade. `TestCycleCorrections.jsx` imports
-nothing from the secure runtime, and the grade rule has no correction input.
+Corrections are instructional and non-secure — hints from the second miss,
+the item's own feedback, three attempts per question (enforced by the server:
+`CORRECTION_ATTEMPTS_PER_QUESTION`), immediate feedback, the worked review once
+an item closes — and cannot move a recorded grade. A missed graphing item is
+corrected on the Graphing tool: the item renders in the shared runtime in
+`corrections` mode. `TestCycleCorrections.jsx` imports nothing from the secure
+runtime, and the grade rule has no correction input.
 
 ## Retest
 
@@ -215,6 +241,114 @@ archived instead. The rules pin these fields and the cycle's contract
 (`assessmentPolicy`, `testBlueprint`, `secureTestReference`) to the server, and
 only a root admin may delete an assignment document directly.
 
+## When it is open: class time for the Test, home for what follows
+
+`resolveAssessmentAvailability` answers "is this assessment open at all?".
+`functions/shared/testCycleAvailability.mjs` answers WHEN each secure part may
+be STARTED:
+
+- **The original Test** — in the student's own class period on the Test day
+  the teacher sets. The times are read from the bell schedule the platform
+  already stores (`settings/classSchedule`, through `resolvePeriodWindow`) in
+  the school's zone; nobody types a class time. What is stored is the DAY; the
+  times are resolved live, so a modified schedule entered that morning moves
+  the window and an undesignated Friday waits until it is designated.
+- **Corrections and the Retest** — from home, from the moment that Test window
+  closes until the assignment's late due date (the due date when there is
+  none). A teacher can extend, reopen or remove that close.
+
+Availability is not a timer: a Test is untimed unless its blueprint sets a
+limit, and **an attempt started inside a window may be finished after it**.
+
+**Nothing is enforced until a teacher sets a Test day.** A cycle with no window
+for a class is `unset` and behaves exactly as it did before windows existed —
+which is what keeps a cycle already under way from closing on students when
+this ships. Both screens say that no window is set.
+
+Where it is stored: class windows, the policy (`classTime` / `alwaysOpen`) and
+the home window's close live on `assignment.testAvailability` (server-owned in
+`firestore.rules`, changed only by `updateTestCycleAvailability`, audited in
+`testAvailabilityHistory`). One student's reopened Test window or longer home
+window lives on that student's own server-only record (`record.availability`),
+never on the shared assignment document.
+
+The gate is `assertCourseTestEntryAllowed`, which every route into a secure
+session passes (start, and every question issue): it resolves the stage WITH
+the schedule, so the card and the refusal are the same decision. A new
+correction question is issued only inside the home window
+(`assertFollowUpWindowOpen`). An external-original cycle has no windows.
+
+### A student who missed the Test
+
+A student who never STARTED the Test before its window closed
+(`studentMissedOriginalTest`) goes straight to a Retest, with no Corrections —
+there are no answers of theirs to correct, and waiting on a score that will
+never exist is how an absent student used to be stranded. Review is still
+required unless waived. Opening their card opens the Retest
+(`ensureMissedTestRetestSession`): the whole Test blueprint issued for the
+retest stage, marked `retest.withoutOriginal`.
+
+Its score is stored and shown as a Retest score. The recorded grade is the
+capped one (`recordedTestCycleGrade` with no original is the capped retest);
+the actual score sits beside it everywhere and the breakdown says "Original
+Test: Not taken". If the teacher reopens the Test window and the student
+starts the original after all, the unstarted stand-in Retest is closed
+(`syncTestCycleSessionState`).
+
+### A grade set by hand
+
+`adjustTestCycleGrade` records a grade from a named source — the Review score,
+the Retest's actual score, or a typed grade with a note. The server reads the
+first two itself. It replaces the RECORDED grade only: the secure scores and
+the grade the rule would record (`ruleRecordedGrade`) are kept, and setting,
+changing or removing it is an audit row on the record (who, when, from what,
+what it replaced).
+
+## Who it is for: classes, and students added on their own
+
+`updateTestCycleAudience` adds classes and individual students to the SAME
+Test (the assignment editor still makes a separate copy). The caller must be
+teacher of record for every class added and for the class of every student
+added. Nothing that exists is touched and no session is created; adding
+something already there is reported as already assigned.
+
+A student added on their own is NOT listed on the assignment document (every
+signed-in student can read it). Their Test Cycle record carries
+`audience.individual`, projected to
+`grades/{id}.testCycleGrades[assignmentId].individuallyAssigned`, which only
+the server writes. That one field is what `studentMatchesAssignmentAudience`
+accepts (the cycle's callables, ingestion of their Review answers, the
+deadline finalizer) and what their own device reads to fetch the assignment by
+id and show it (`studentAssignmentScope.js`, `assignmentIsForStudent`).
+
+## Class-wide actions are one server operation
+
+Waive Review and Open Test sessions for a class or for ticked students run as
+`runTestCycleBulkAction`: the browser names the operation (its id is the
+idempotency key), the server resolves who it applies to once, works a few
+students at a time inside a time budget, and stores each student's outcome on
+`testCycleOperations/{assignmentId__operationId}` as it goes. If students
+remain it returns `running` and the browser asks again with the same id. Each
+student's step is idempotent, so an interrupted operation resumes without
+doing anyone twice; a short lease keeps two requests from working it at once.
+
+Four outcomes: succeeded, already complete, not eligible, failed — each with
+the student named and the reason. `summarizeBulkOperation` writes the only
+headline, and it says "finished" only when nobody failed and nobody is left.
+The operation document is the audit record.
+
+## The teacher callables' runtime
+
+On the default 256 MiB and 60 seconds, the panel loader was killed for memory
+on 29 of 36 teacher calls on 7–8 October 2026 and two other callables hit the
+60-second limit, which a browser reports as "the server did not answer". The
+teacher callables now declare their memory and timeout
+(`TEST_CYCLE_PANEL_OPTIONS`, `_ACTION_`, `_SWEEP_` in `functions/index.js`),
+the loader reads only the fields it uses (`testCycleRosterFieldMask`), and
+every one asks who is calling before it reads the assignment
+(`assignmentForTeacherCall`). The browser waits longer than the server may
+take (`CALL_TIMEOUT_MS` in `src/services/testCycleService.js`).
+
 ## What a teacher sees
 
 - **Results, release & retests** (`TestCycleControls`, from the assignment
@@ -226,9 +360,12 @@ only a root admin may delete an assignment document directly.
   attention", with Unlock on the row.
 - **Preview** (`TestCyclePreview`): every student stage built from the
   assignment's real policy and blueprint through the same shared modules, at
-  phone, iPad and Chromebook widths, plus real secure items drawn and graded by
+  phone, iPad and Chromebook widths, plus real secure items — Rich Tools
+  included, in the same runtime and under the same Secure Test, Retest or
+  Corrections policy a student gets — drawn and graded by
   `previewTestCycleSecureItems` / `gradeTestCyclePreviewItem`. Preview writes
-  nothing: no session, record, grade or draft (the emulator suite asserts it).
+  nothing: no session, record, grade or draft (the emulator suites assert it),
+  and its device drafts are cleared on every draw and on close.
 
 ## External originals and mastery-gated Review
 
@@ -254,6 +391,11 @@ speak of a retest and of the mastery bar where they apply.
 | `getAssignmentEvidenceSummary` | teacher | Whether deletion is safe, and why not |
 | `manageAssignmentLifecycle` | teacher | archive / unarchive / unpublish / publish / delete |
 | `attachTestCycleContract` | teacher of record | Attach or replace the contract before any session exists |
+| `updateTestCycleAudience` | teacher of record (of what is added too) | Add classes and individual students to the same Test |
+| `updateTestCycleAvailability` | teacher of record | Set the Test day, extend or reopen a window, the home window's close; one student's own window |
+| `runTestCycleBulkAction` | teacher of record | Waive Review / Open Test sessions as one resumable operation |
+| `getTestCycleOperation` | teacher of record | An operation's progress and per-student account |
+| `adjustTestCycleGrade` | teacher of record | Record a grade by hand from a named source, or remove it; audited |
 
 ## Testing
 
@@ -262,6 +404,30 @@ speak of a retest and of the mastery bar where they apply.
   against the emulator, adversarially: skipping Review, finalizing an unopened
   Test, replaying markers, students calling teacher callables, archived and
   scheduled cycles, policy locks, preview writing nothing, delete vs archive.
+- `tests/platform/secureRichToolMatrix.test.mjs` — every certified Rich Tool,
+  issued, public in every mode, answered from public data, graded, stored.
+- `tests/integration/testCycleRichToolCertification.test.mjs` — a seven-tool
+  Rich Tool Test Cycle through the real handlers: preflight, Test, release,
+  review, Corrections, Retest, preview.
+- `tests/integration/pathRichToolStorage.test.mjs` — every bank item that
+  nests arrays stored through the codec against the emulator, and a Data
+  Modeling item through My Math Path's real submit, write-back and finalize.
+- `tests/platform/secureToolDraftCleanup.test.mjs` — a recorded or previewed
+  construction cannot come back from the tools' in-memory cache.
+- `node tests/browser/testCycleRichToolQa.mjs` — QA tool: every bank Rich Tool
+  in the real secure container at Chromebook, iPad and phone, light and dark,
+  with an interaction, autosave, reload and submit.
+- `tests/integration/testCycleSecureWorkflow.test.mjs` — the real handlers
+  for windows, the missed-Test Retest, audience, bulk operations (repeat,
+  resume, partial failure), grade adjustments, archive and delete.
+- `tests/platform/testCycleAvailability.test.mjs`,
+  `testCycleScheduledStages.test.mjs` (every kind of student against every
+  moment), `testCycleBulk.test.mjs`, `testCycleGradeAdjustment.test.mjs`,
+  `testCycleReviewSummary.test.mjs`, `testCycleTeacherTools.test.mjs`,
+  `testCycleSecureWorkflowWiring.test.mjs` — the pure rules and the wiring.
+- `node tests/browser/testCycleSecureWorkflowQa.mjs` — a QA tool: the teacher
+  panel and the student card in Chromium against the real handlers, at
+  desktop and Chromebook viewports.
 - `node tests/browser/testCycleLifecycleQa.mjs` — a QA tool, not a CI gate:
   real components in Chromium against the real handlers, as a teacher and as
   students, through Review → Test → release → Corrections → Retest → capped

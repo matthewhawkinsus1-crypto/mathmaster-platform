@@ -11,9 +11,11 @@ import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
 import FigureMatchStage from './FigureMatchStage';
+import { figureMatchWrongItems } from './figureMatch';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
-import { previewFigures } from './choicePreview';
+import { choicePreviewLabel, previewFigures, previewGivenEvaluators } from './choicePreview';
+import { evaluateStaticGraphFunction } from '../../graphSpecUtils';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
@@ -61,7 +63,7 @@ const panel = {
   border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)',
   padding: 16, marginBottom: 12, textAlign: 'left',
 };
-const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const stageHeading = { margin: '0 0 8px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)' };
 const waitingPanel = { ...panel, background: 'var(--mm-surface-sunken)', borderStyle: 'dashed', color: 'var(--mm-text-muted)' };
 
 
@@ -70,11 +72,11 @@ const choiceChip = (active) => ({
   padding: '10px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer',
   border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 14,
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))',
 });
 
 const textArea = {
-  width: '100%', minHeight: 84, fontSize: 15, padding: '10px', resize: 'vertical',
+  width: '100%', minHeight: 84, fontSize: 'calc(15 * var(--mm-px))', padding: '10px', resize: 'vertical',
   border: '1px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box',
 };
 
@@ -89,7 +91,7 @@ function StageSource({ input, stages }) {
   const upstream = stages.find((entry) => entry.id === input.sourceStageId);
   const label = getStage(upstream?.kind)?.label || input.sourceStageId;
   return (
-    <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
+    <p style={{ margin: '0 0 8px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
       Built from your answer to <strong>{label}</strong>
       {typeof input.value === 'string' && input.value ? <> — <MathDisplay value={input.value} inline /></> : null}
     </p>
@@ -135,7 +137,7 @@ function PointInputStage({ stage, value, onChange, disabled }) {
         />
       )}
       {pointCount > 1 && !none ? (
-        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
           There are {pointCount}. Separate them with a comma between the pairs.
         </p>
       ) : null}
@@ -171,18 +173,17 @@ function PointInputStage({ stage, value, onChange, disabled }) {
 function ChoicePreviewGraph({ stage, value }) {
   const config = isObject(stage?.previewOnGraph) ? stage.previewOnGraph : null;
   const graph = isObject(config?.graph) ? config.graph : (isObject(config) ? config : {});
-  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
+  // The given graph (an expression model and/or structured functions) under the
+  // preview, and the selected choice's LABEL: an { id, label } choice stores its
+  // id, which draws nothing (functions/shared/toolMath/workflow/choicePreview.mjs).
+  const functions = useMemo(() => previewGivenEvaluators({
+    graph: isObject(config?.graph) ? config.graph : (isObject(config) ? config : {}),
+    evaluateModel: evaluateModelAt,
+    evaluateSpec: evaluateStaticGraphFunction,
+  }), [config]);
+  const shown = choicePreviewLabel(stage, value);
 
-  const functions = useMemo(() => {
-    if (!model) return [];
-    const evaluate = (x) => {
-      const y = evaluateModelAt(model, x);
-      return Number.isFinite(y) ? y : Number.NaN;
-    };
-    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
-  }, [model]);
-
-  const figures = previewFigures(value);
+  const figures = previewFigures(shown);
   const given = Array.isArray(graph.points) ? graph.points : [];
   const viewWindow = {
     xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
@@ -206,11 +207,11 @@ function ChoicePreviewGraph({ stage, value }) {
         lines={figures.lines}
         verticalLines={figures.verticalLines}
         horizontalLines={figures.horizontalLines}
-        ariaLabel={value ? `Graph showing the option you selected, ${value}` : 'Graph'}
+        ariaLabel={shown ? `Graph showing the option you selected, ${shown}` : 'Graph'}
       />
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }} aria-live="polite">
-        {value
-          ? `Showing ${value} on the graph. Try another option to see what it looks like.`
+      <p style={{ margin: '6px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }} aria-live="polite">
+        {shown
+          ? `Showing ${shown} on the graph. Try another option to see what it looks like.`
           : 'Choose an option to see it drawn on the graph.'}
       </p>
     </div>
@@ -362,7 +363,7 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
     <div style={{ display: 'grid', gap: 12 }}>
       {[['independent', 'Independent (input)'], ['dependent', 'Dependent (output)']].map(([role, label]) => (
         <div key={role}>
-          <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{label}</p>
+          <p style={{ margin: '0 0 6px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>{label}</p>
           <div style={chipRow}>
             {quantities.map((quantity) => (
               <button
@@ -448,7 +449,7 @@ const toolAction = (onChange) => (actionType, payload) => {
 function GraphStageWaiting() {
   return (
     <div style={waitingPanel}>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+      <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
         Finish the earlier steps first — this graph is built from what you write there.
       </p>
     </div>
@@ -602,7 +603,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null, wrongItems = [] }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -720,7 +721,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         </>
       );
     case 'figureMatch':
-      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} wrongItems={wrongItems} />;
     case 'classification':
     case 'multipleChoice':
       return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} showFigure={showFigure} />;
@@ -742,7 +743,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
       // Validation rejects unknown kinds at Preflight, so reaching here means a
       // known kind with no renderer yet. Say so rather than showing a blank.
       return (
-        <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 13 }}>
+        <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
           This step type ({stage.kind}) is not available in this workspace yet.
         </p>
       );
@@ -1270,6 +1271,13 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
+    // A sort marked wrong names its wrong figures (P2-4). Only from a review,
+    // which QuestionEngine passes only where outcome feedback is shown, and
+    // only for the exact response that was checked ('incorrect', not
+    // 'changed').
+    const wrongItems = reviewStatus === 'incorrect' && stage.kind === 'figureMatch'
+      ? figureMatchWrongItems(stage, responses[stage.id], grading?.[stage.id]?.match)
+      : [];
     // A graph stage is rendered exactly as the server rebuilds it: with its
     // finite domain's boundary semantics (so the student marks open/closed
     // endpoints instead of leaving a stopped segment ambiguous) and with the
@@ -1321,7 +1329,7 @@ export default function WorkflowRunner({
             <h4 style={{ ...stageHeading, color: 'var(--mm-text-muted)' }}>
               Step {index + 1}. {definition?.label || stage.kind}
             </h4>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
               Finish <strong>{getStage(upstream?.kind)?.label || waitingStageId}</strong> first — this step is built
               from what you write there.
             </p>
@@ -1333,7 +1341,7 @@ export default function WorkflowRunner({
     return (
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : stagePanelStyle}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
-        {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+        {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 'calc(16 * var(--mm-px))', margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
         {locked.has(stage.id) ? (
           /* THE LIVE COMPONENT IS NOT RENDERED AT ALL, rather than rendered
              disabled. Several stage components take no `disabled` prop — the
@@ -1369,6 +1377,7 @@ export default function WorkflowRunner({
               canonicalSavedAt={canonicalSavedAt}
               revealCorrectness={revealCorrectness}
               graphStage={graphStage}
+              wrongItems={wrongItems}
             />
           </>
         )}
@@ -1396,7 +1405,7 @@ export default function WorkflowRunner({
       <div style={{ textAlign: 'left' }}>
         {promptAndScenario}
         {workflow.map((stage, index) => renderStage(stage, index))}
-        <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '4px 2px 0' }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', margin: '4px 2px 0' }}>
           {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
         </p>
       </div>

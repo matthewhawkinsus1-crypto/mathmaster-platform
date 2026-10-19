@@ -20,6 +20,7 @@ const student = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
 const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
 const projector = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
 const parts = read('src/components/liveChallenge/ChallengeShellParts.jsx');
+const dialogSource = read('src/ui/Dialog.jsx');
 const studentShell = read('src/components/liveChallenge/ChallengeStudentShell.jsx');
 const rushRound = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
 const studentMain = region(student, 'export default function LiveChallengeStudent(', null, 'student screen');
@@ -32,7 +33,7 @@ test('a student\'s screen is a function of the match\'s stage, read at its calib
   // open), the round's results (only once it closed), the end.
   assert.match(studentMain, /\{room\.status === 'lobby' && \(\s*<StudentLobbyCard /);
   assert.match(studentMain, /const roundOpen = room\.status === 'running' && room\.roundState !== 'closed';/);
-  assert.match(studentMain, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
+  assert.match(studentMain, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
   assert.match(studentMain, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'final screen');
   assert.match(finished, /<StudentFinalCard/);
@@ -92,12 +93,19 @@ test('a finished game: your place, then what reached your wallet, then the top o
   assert.ok(order.every((at) => at > -1), 'all three are shown');
   assert.deepEqual([...order].sort((left, right) => left - right), order, 'in that order');
   assert.match(finalCard, /selfRow\.tied \? `tied for \$\{ordinal\(selfRow\.rank\)\} ` : ''/, 'a shared place says so');
-  assert.match(finalCard, /It does not change your assignment grade\./);
+  // What the game counts for, said truthfully: a Warm-Up game's accuracy is
+  // the Warm-Up grade; a standalone game changes no grade (challengeRecapModel).
+  assert.match(finalCard, /\{gameGradeSentence\(\{ warmup \}\)\}/);
+  assert.doesNotMatch(executableSource(finalCard), /does not change your assignment grade/i, 'never the old, false sentence');
   // Until the standings arrive (a refresh on the podium) the card waits in
   // words; it never tells a player who was there that they joined too late.
   assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
-  assert.match(finished, /loading=\{!finalStandings\}/);
+  // Waiting is the final snapshot, the student's own summary, or — for a
+  // student who played — their own final place in it (a repair writes it).
+  assert.match(finished, /loading=\{finalLoading\}/);
+  assert.match(studentMain, /const finalLoading = !finalStandings \|\| !summaryFresh \|\| \(selfRow\?\.joined === true && !ownFinal\);/);
+  assert.match(finished, /warmup=\{Boolean\(room\.assignmentId\)\}/, 'a Warm-Up game is one with an assignment');
   // The final place and podium come from the FINAL snapshot only — the one
   // written from the match result — never from a live one still on screen.
   assert.match(studentMain, /const finalStandings = room\.status === 'finished' && standings\?\.kind === PROJECTION_KIND\.FINAL \? standings : null;/);
@@ -154,15 +162,20 @@ test('destructive host actions are confirmed once; harmless ones never ask', () 
 
 test('a confirmation keeps keyboard focus where the teacher put it, and Tab inside it', () => {
   const dialog = region(parts, 'export function ConfirmDialog(', '\nconst CONFETTI_COLORS', 'confirm dialog');
-  // The console hands a new onCancel every time a student's progress arrives:
-  // read through a ref, it can never re-run the focus effect (which put focus
-  // back on "Keep playing" under a teacher tabbing to the red button).
-  assert.match(dialog, /const onCancelRef = useLatest\(onCancel\);/);
-  assert.match(dialog, /\}, \[open, onCancelRef\]\);/);
-  assert.doesNotMatch(dialog, /\[open, onCancel\]/);
+  // The console hands a new onCancel every time a student's progress arrives.
+  // It must never re-run the focus step (which put focus back on "Keep
+  // playing" under a teacher tabbing to the red button). The confirm is the
+  // shared Dialog, opening on "Keep playing" and cancelling on Escape, with no
+  // focus effect of its own keyed on onCancel...
+  assert.match(dialog, /<Dialog role="alertdialog" onClose=\{onCancel\} initialFocusRef=\{cancelRef\}/);
+  assert.doesNotMatch(executableSource(dialog), /useEffect|\[open, onCancel\]/);
+  // ...and the Dialog reads onClose through a ref and focuses once per opening.
+  const modal = region(dialogSource, 'export function useModalDialog(', '\nconst Dialog = ', 'useModalDialog');
+  assert.match(modal, /onCloseRef\.current = onClose;/);
+  assert.match(modal, /\n {2}\}, \[active\]\);\n\}\s*$/);
   // aria-modal is kept: Tab and Shift+Tab wrap inside the dialog.
-  assert.match(dialog, /if \(event\.key !== 'Tab'\) return;/);
-  assert.match(dialog, /\(event\.shiftKey \? last : first\)\.focus\(\);/);
+  assert.match(modal, /if \(event\.key !== 'Tab'\) return;/);
+  assert.match(modal, /nextFocusIndex\(\{ count: items\.length, activeIndex: items\.indexOf\(doc\.activeElement\), shift: event\.shiftKey \}\)/);
 });
 
 test('Play Again is a fresh match with the same settings; its name settings are secured or it is cancelled', () => {
@@ -186,7 +199,9 @@ test('Play Again is a fresh match with the same settings; its name settings are 
  */
 test('names reach the console only — in the lobby, during the game and after it', () => {
   assert.match(teacher, /const rosterWanted = Boolean\(room\) && room\.status !== 'cancelled';/);
-  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef]);', 'roster read');
+  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef, invitedCount]);', 'roster read');
+  // Read again when the room invites a student added to the class mid-game.
+  assert.match(teacher, /const invitedCount = Number\(room\?\.eligibleCount\) \|\| 0;\n  const eligibleRef = useLatest\(invitedCount\);/);
   assert.match(rosterEffect, /if \(!roomId \|\| !rosterWanted\) return undefined;/);
   assert.match(rosterEffect, /getLiveChallengeHostRoster\(\{ roomId \}\)/);
   assert.match(rosterEffect, /names\.length < eligibleRef\.current && attempts < 4/);
@@ -227,12 +242,17 @@ test('the final standings under the podium show only rows that fit whole, and th
   // The viewport's row budget asked for five rows at 1366×768 where three
   // fit; the rest, and "Everyone sees their own final place", were cut off.
   const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
-  assert.match(finale, /const fit = useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\);/);
+  // `remaining` is already bounded by the screen's row budget (and the room's
+  // standings choice) in finalBoardRows; the fit measures what is left.
+  assert.match(finale, /const board = finalBoardRows\(room, leaderboard, rows\);/);
+  assert.match(finale, /const fit = useRowsThatFit\(boardRef, remaining\.length\);/);
   assert.match(finale, /const shownBelow = fit\.room \? remaining\.slice\(0, fit\.rows\) : \[\];/);
   assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
   // With no room under the podium at all (150% zoom), the note moves into
-  // the podium's heading rather than vanishing.
-  assert.match(finale, /\{!fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
+  // the podium's heading rather than vanishing. (With no podium at all — no
+  // place may be projected — the note stands in for the steps instead.)
+  assert.match(finale, /\{hasPodium && !fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
+  assert.match(finale, /<section data-mm-podium-none=\{board\.totalCount\}[^\n]*\n[^\n]*Everyone sees their own final place on their device\./);
   const fit = region(projector, 'function useRowsThatFit(', '\nfunction FinalPodium(', 'row fit');
   assert.match(fit, /Math\.floor\(\(space - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
   assert.match(fit, /const room = space >= FINAL_NOTE_PX;/);

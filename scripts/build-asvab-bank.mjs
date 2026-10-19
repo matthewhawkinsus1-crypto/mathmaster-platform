@@ -144,6 +144,18 @@ for (const question of documents) {
 }
 
 const payload = `${JSON.stringify({ documents }, null, 2)}\n`;
+// --check: the committed outputs must be exactly what the drafts build; write
+// nothing. A fix made only in a generated seed would be undone by the next
+// build, so this is pinned by tests/platform/kSweep_asvabSourceParity.test.mjs.
+if (process.argv.includes('--check')) {
+  const stale = OUTPUTS.filter((output) => readFileSync(path.join(ROOT, output), 'utf8') !== payload);
+  if (stale.length) {
+    console.error(`Stale ASVAB outputs (rebuild from drafts/asvab-*.json): ${stale.join(', ')}`);
+    process.exit(1);
+  }
+  console.log('ASVAB outputs match the drafts.');
+  process.exit(0);
+}
 for (const output of OUTPUTS) writeFileSync(path.join(ROOT, output), payload);
 
 const byDomain = authored.reduce((counts, q) => {

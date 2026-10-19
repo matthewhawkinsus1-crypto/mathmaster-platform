@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { region } from './helpers/sourceContract.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -65,7 +66,28 @@ const chainTo = (graph, target) => {
   return chain.join(' -> ');
 };
 
-const graph = staticGraph(path.join(repo, 'src/main.jsx'));
+// The first load of a signed-in student: main.jsx's static graph (the shell
+// and the sign-in screen), then App.jsx's, which src/app/shell/AppShell.jsx
+// loads the moment an account is signed in (and prefetches while the sign-in
+// screen is up). Everything either reaches is "the first load" here.
+const signInGraph = staticGraph(path.join(repo, 'src/main.jsx'));
+const graph = new Map(signInGraph);
+for (const [file, parent] of staticGraph(path.join(repo, 'src/App.jsx'))) {
+  if (!graph.has(file)) graph.set(file, parent ?? path.join(repo, 'src/app/shell/AppShell.jsx'));
+}
+
+test('the sign-in screen does not wait for the app: main.jsx reaches App.jsx only by a lazy import', () => {
+  assert.ok(!signInGraph.has(path.join(repo, 'src/App.jsx')), `App.jsx is statically reachable from main.jsx: ${chainTo(signInGraph, path.join(repo, 'src/App.jsx'))}`);
+  assert.ok(signInGraph.has(path.join(repo, 'src/app/shell/AppShell.jsx')) && signInGraph.has(path.join(repo, 'src/LoginScreen.jsx')));
+  // Nothing of the grading, tools or assignment runtime before sign-in.
+  for (const heavy of ['pkg:mathjs', 'pkg:mathlive', 'src/QuestionEngine.jsx', 'src/assignmentLifecycle.js', 'src/platform/policies/activityPolicies.js']) {
+    const key = heavy.startsWith('pkg:') ? heavy : path.join(repo, heavy);
+    assert.ok(!signInGraph.has(key), `${heavy} is on the sign-in path: ${signInGraph.has(key) ? chainTo(signInGraph, key) : ''}`);
+  }
+  const shell = readFileSync(path.join(repo, 'src/app/shell/AppShell.jsx'), 'utf8');
+  assert.match(shell, /export const loadApp = \(\) => import\('\.\.\/\.\.\/App\.jsx'\);/);
+  assert.match(shell, /const App = lazy\(loadApp\);/);
+});
 
 test('the first load reaches App and the student and teacher shells (the walker works)', () => {
   assert.ok(graph.has(path.join(repo, 'src/App.jsx')));
@@ -82,18 +104,43 @@ for (const [pkg, why] of [
   });
 }
 
-// mathjs is still in the first load (the shared tool mathematics reaches it),
-// but only as factories: the client's instance (src/platform/math/mathjs.js)
-// builds each function on first use, and the hardened instance the shared
-// modules read through (functions/shared/algebra/safeMath.mjs) is built and
-// locked on first use too. Importing 'mathjs' anywhere else in the first load
-// brings back its prebuilt instance, about 0.5 s more of main thread before
-// the sign-in screen on a 4x-throttled CPU (tests/platform/mathjsInstance.test.mjs).
-const LAZY_MATHJS_INSTANCES = ['functions/shared/algebra/safeMath.mjs', 'src/platform/math/mathjs.js'];
-test('the first load reaches mathjs only through the lazily built instances', () => {
-  const importers = [...graph.keys()]
-    .filter((file) => !file.startsWith('pkg:') && /\.(m?jsx?)$/.test(file))
-    .filter((file) => staticImports(file).some((specifier) => specifier === 'mathjs' || specifier.startsWith('mathjs/')))
-    .map((file) => path.relative(repo, file));
-  assert.deepEqual(importers.filter((file) => !LAZY_MATHJS_INSTANCES.includes(file)), []);
+// mathjs is not in the first load. It reached it through two of App's static
+// imports, the question generator (for a student's printed worksheet) and the
+// teacher's grader repair (for the Grades tab), and through them the shared
+// tool mathematics and the hardened instance (functions/shared/algebra/
+// safeMath.mjs): 174 KB gzip in front of every student's Home. Both now load
+// where they run; the question screen brings mathjs with QuestionEngine. (Where
+// it does load, it is still built lazily: tests/platform/mathjsInstance.test.mjs.)
+test('mathjs is not in the first load', () => {
+  assert.ok(!graph.has('pkg:mathjs'), `mathjs is in the first load: ${graph.has('pkg:mathjs') ? chainTo(graph, 'pkg:mathjs') : ''}`);
+  for (const file of ['src/problemGenerator.js', 'src/platform/assignment/liveQuestionCorrection.js', 'functions/shared/algebra/safeMath.mjs']) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+});
+
+// What App kept of the generator: whether a question can come back as a
+// different one (the "Request New Question" rule) is the shared rule itself,
+// and the generator loads when a student prints a worksheet, before any
+// question is resolved, with a failed load reported like a failed render.
+test('App loads the question generator where a student prints, not with Home', () => {
+  const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
+  assert.match(app, /^import \{ canGenerateDistinctVariants as isPersonalizedBlueprint \} from '\.\.\/functions\/shared\/questionVariability\.mjs';$/m);
+  const exportPdf = region(app, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
+  assert.match(exportPdf, /let generateQuestion;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
+});
+
+// The worksheet and answer-key builders run when someone asks for a PDF, so
+// they load with it (src/platform/resources/pdfLoaders.js). App imported the
+// worksheet model statically, so every tool whose answer key it can print —
+// the Matrix Lab's whole model, 6 KB gzip — joined every student's first load.
+test('the worksheet and answer-key builders are not in the first load', () => {
+  for (const file of [
+    'src/platform/resources/assignmentWorksheetPdfModel.js',
+    'src/platform/resources/teacherAssignmentWorksheetExport.js',
+    'functions/shared/toolMath/matrixLab/matrixLabModel.mjs',
+  ]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
 });

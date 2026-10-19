@@ -22,7 +22,7 @@ const REMEDIES = Object.freeze({
   internal: 'OpenAI answered with something MathMaster could not use. The exact provider status is in the diagnostics below and in Cloud Logging.',
 });
 
-const rowStyle = { display: 'flex', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 13 };
+const rowStyle = { display: 'flex', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 'calc(13 * var(--mm-px))' };
 
 export default function AssignmentAiHealth() {
   const [busy, setBusy] = useState(false);
@@ -53,8 +53,8 @@ export default function AssignmentAiHealth() {
 
   return (
     <section style={panel}>
-      <h2 style={{ margin: 0, fontSize: 19 }}>Assignment AI health</h2>
-      <p style={{ margin: '6px 0 14px', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.5 }}>
+      <h2 style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))' }}>Assignment AI health</h2>
+      <p style={{ margin: '6px 0 14px', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.5 }}>
         Makes one very small real request to the AI provider and reports exactly what came back.
         It proves the server credential, the model entitlement, the billing quota and the network
         path in a single check, so &ldquo;the AI is not working&rdquo; resolves to one specific cause.
@@ -65,13 +65,13 @@ export default function AssignmentAiHealth() {
         type="button"
         onClick={runCheck}
         disabled={busy}
-        style={{ minHeight: 44, padding: '10px 18px', border: 0, borderRadius: 9, background: busy ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900, fontSize: 14.5, cursor: busy ? 'progress' : 'pointer' }}
+        style={{ minHeight: 44, padding: '10px 18px', border: 0, borderRadius: 9, background: busy ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900, fontSize: 'calc(14.5 * var(--mm-px))', cursor: busy ? 'progress' : 'pointer' }}
       >
         {busy ? 'Checking the AI provider…' : 'Run AI connection check'}
       </button>
 
       {error && (
-        <div style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13.5, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.5 }}>
           <strong>The self-test could not run.</strong>
           <div style={{ marginTop: 5 }}>{error}</div>
           <div style={{ marginTop: 7, color: 'var(--mm-error-text)' }}>
@@ -90,7 +90,7 @@ export default function AssignmentAiHealth() {
             borderRadius: 9,
             background: result.ok ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)',
             color: result.ok ? 'var(--mm-success-text)' : 'var(--mm-warning-text)',
-            fontSize: 13.5,
+            fontSize: 'calc(13.5 * var(--mm-px))',
             lineHeight: 1.5,
           }}
         >
@@ -102,7 +102,7 @@ export default function AssignmentAiHealth() {
 
       {(diagnostics || result) && (
         <div style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--mm-text)' }}>Diagnostics</h3>
+          <h3 style={{ margin: '0 0 6px', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>Diagnostics</h3>
           <div style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 9, padding: '4px 13px' }}>
             {[
               ['Configured model', result?.requestedModel],
@@ -122,7 +122,7 @@ export default function AssignmentAiHealth() {
                 </div>
               ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
             Every teacher-facing AI failure is now recorded the same way, in Cloud Logging under
             {' '}<code>Integrated assignment AI failed</code> and in the <code>assignmentAiAudit</code> collection.
           </p>

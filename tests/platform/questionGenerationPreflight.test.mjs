@@ -209,7 +209,10 @@ test('the Pre-Flight modal shows the panel, uses the runtime default mode and pa
   assert.match(modal, /data-question-generation-panel="true"/);
   assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5, \{ classSize: preflightClassSize \}\)/);
   const app = componentSource('src/App.jsx');
-  assert.match(app, /rosterSizesByClassId=\{preflightRosterSizesByClassId\}/);
+  // The modal is mounted by the teacher's screen (its own module since G2),
+  // given App's memo by name.
+  assert.match(componentSource('src/app/teacher/TeacherWorkspace.jsx'), /rosterSizesByClassId=\{preflightRosterSizesByClassId\}/);
+  assert.match(app, /\n {8}preflightRosterSizesByClassId=\{preflightRosterSizesByClassId\}\n/);
   assert.match(region(app, 'const preflightRosterSizesByClassId = useMemo(', '}, [teacherRosterSummaries]);', 'roster size memo'), /sizes\[student\.classId\] = \(sizes\[student\.classId\] \|\| 0\) \+ 1/);
 });
 

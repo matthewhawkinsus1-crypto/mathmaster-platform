@@ -18,6 +18,9 @@
 //                      or a full reload at every checkpoint #341 lists
 //   preview-negated    Teacher Preview: isolating y puts -(…) into E2; the
 //                      group must stay whole with the -1 offered to distribute
+//   strip-fit-*        Q-24: with a solver open, every equation in the strip
+//                      above it shows whole (1366×768 at 100%, 110% and 125%
+//                      text with Isolate x and with R₁ simplifying; 390×844)
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -115,6 +118,26 @@ const errorText = (page) => page.locator('.mathmaster-systems-substitution-feedb
 
 const expect = (journey, condition, detail) => { if (!condition) note(journey, detail); return Boolean(condition); };
 
+/**
+ * Q-24: while a solver is open the originals (and derived equations) are a
+ * strip above it. Every equation in it must show whole — no box in a card
+ * narrower than what it holds. Returns the clipped ones.
+ */
+const clippedStripEquations = (page) => page.evaluate(() => (
+  [...document.querySelectorAll('.mathmaster-reduction-layout.has-active-solver .mathmaster-reduction-equation-card')]
+    .flatMap((card) => [card, ...card.querySelectorAll('*')]
+      // A 1px box is the visually hidden spoken text, not a clipped equation.
+      .filter((element) => element.clientWidth > 1 && element.scrollWidth > element.clientWidth + 1)
+      .map((element) => `${card.innerText.replace(/\s+/g, ' ').trim()} (${element.scrollWidth}px in ${element.clientWidth}px)`))
+));
+const expectStripFits = async (page, journey, where) => {
+  const strip = await page.locator('.mathmaster-reduction-layout.has-active-solver').count();
+  expect(journey, strip === 1, `${where}: the originals are not a strip above an active solver`);
+  const clipped = await clippedStripEquations(page);
+  expect(journey, !clipped.length, `${where}: equations cut short in the strip: ${JSON.stringify(clipped)}`);
+  return clipped;
+};
+
 /** Run one step of a journey; a failure is recorded with a screenshot and ends the journey. */
 const step = async (page, journey, name, action) => {
   try {
@@ -148,6 +171,33 @@ const dragTokenOnto = async (page, token, target, journey = 'drag') => {
       dy: fromBottom ? Math.ceil(y - over.top) + 24 : -Math.ceil(over.bottom - y) - 24,
     };
   });
+  // A target below the fold loses the drop too. Nothing covers it there
+  // (elementFromPoint finds nothing off screen), so Playwright scrolled it into
+  // view with the button already down, and the drop landed nowhere. In CI the
+  // 3×3 verification's z on Equation 3 did, whenever the click before it had
+  // not scrolled the page: no card had all three values, "0 of 3 substituted". So
+  // the token and the target come on screen together first, and the drag
+  // itself never scrolls.
+  const offScreenBy = async () => {
+    const source = await token.elementHandle();
+    const dy = await target.evaluate((element, tokenElement) => {
+      const boxes = [element, tokenElement].map((node) => node.getBoundingClientRect());
+      const top = Math.min(...boxes.map((box) => box.top));
+      const bottom = Math.max(...boxes.map((box) => box.bottom));
+      const margin = 16;
+      if (top >= margin && bottom <= window.innerHeight - margin) return 0;
+      // Centre the pair; a pair taller than the screen centres the target.
+      const [low, high] = bottom - top <= window.innerHeight - 2 * margin ? [top, bottom] : [boxes[0].top, boxes[0].bottom];
+      return Math.round((low + high) / 2 - window.innerHeight / 2);
+    }, source);
+    await source.dispose();
+    return dy;
+  };
+  const offScreen = await offScreenBy();
+  if (offScreen) {
+    await page.evaluate((dy) => window.scrollBy(0, dy), offScreen);
+    await settle(page, 200);
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const cover = await coverOf();
     if (!cover) break;
@@ -156,6 +206,7 @@ const dragTokenOnto = async (page, token, target, journey = 'drag') => {
   }
   const still = await coverOf();
   expect(journey, still === null, `the drop target is still covered by "${still?.by}" — the drop would land there instead`);
+  expect(journey, (await offScreenBy()) === 0, 'the token and its drop target are not on screen together — the drag would scroll with the button down');
   await token.dragTo(target);
   await settle(page, 500);
 };
@@ -212,6 +263,8 @@ const useFormAsToken = async (page) => {
 };
 
 /** R1: 2(-y - z + 6) - y + 3z = 9  ->  -3y + z = -3. */
+// A term is matched by its source text, which is written either way once
+// Simplify rebuilds a side: 2 (-z) as typed by distribution, 2 * -z after.
 const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   await page.locator('button', { hasText: 'Simplify R₁' }).click();
   await settle(page, 700);
@@ -219,8 +272,8 @@ const standardizeR1 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^2 \(-y\)$/, '-2y');
-  await rewriteTerm(page, host, 'left', /2 \(-z\)$/, '-2z');
-  await rewriteTerm(page, host, 'left', /2 \(6\)$/, '12');
+  await rewriteTerm(page, host, 'left', /2 (\(-z\)|\* -z)$/, '-2z');
+  await rewriteTerm(page, host, 'left', /2 (\(6\)|\* 6)$/, '12');
   await combineLikeTerms(page, host, 'left', /y$/, '-3y');
   await combineLikeTerms(page, host, 'left', /z$/, 'z');
   await closeInlineModes(page, host);
@@ -238,8 +291,8 @@ const standardizeR2 = async (page, { pauseAfterDistribution = null } = {}) => {
   if (pauseAfterDistribution) await pauseAfterDistribution();
   const host = solver(page);
   await rewriteTerm(page, host, 'left', /^3 \(-y\)$/, '-3y');
-  await rewriteTerm(page, host, 'left', /3 \(-z\)$/, '-3z');
-  await rewriteTerm(page, host, 'left', /3 \(6\)$/, '18');
+  await rewriteTerm(page, host, 'left', /3 (\(-z\)|\* -z)$/, '-3z');
+  await rewriteTerm(page, host, 'left', /3 (\(6\)|\* 6)$/, '18');
   await combineLikeTerms(page, host, 'left', /y$/, '-y');
   await combineLikeTerms(page, host, 'left', /z$/, '-4z');
   await closeInlineModes(page, host);
@@ -272,7 +325,7 @@ const solveReducedSubsystem = async (page, journey, { pauseMidSolve = null } = {
   // -y - 4(-3 + 3y) = -14
   await distribute(page, host);
   await rewriteTerm(page, host, 'left', /-4 \(-3\)|4 \(-3\)/, '12');
-  await rewriteTerm(page, host, 'left', /4 \(3/, '-12y');
+  await rewriteTerm(page, host, 'left', /4 (\(3|\* 3)/, '-12y');
   await combineLikeTerms(page, host, 'left', /y$/, '-13y');
   await closeInlineModes(page, host);
   await balancedMove(page, host, 'Subtract', '12');
@@ -320,7 +373,9 @@ const runFull3x3 = async (context, scope) => {
     // methods the workspace can offer (matching the 2×2 badge's own wording),
     // even though THIS fixture is authored method:"substitution" and never
     // shows an Elimination control — asserted separately below.
-    observed.badge = await page.locator('text=Algebraic Systems (3×3 Substitution / Elimination)').count();
+    // The tool header's own badge. Work View's Help drawer (TOOL-3) repeats
+    // the badge in its closed "About this tool" section.
+    observed.badge = await page.locator('.mathmaster-tool-shell-badge', { hasText: 'Algebraic Systems (3×3 Substitution / Elimination)' }).count();
     expect(journey, observed.badge === 1, 'the 3×3 question did not route to the 3×3 substitution workspace');
     observed.originals = await page.locator('.mathmaster-reduction-reference [data-equation-id]').count();
     expect(journey, observed.originals === 3, `expected three original equations in the reference column, saw ${observed.originals}`);
@@ -340,7 +395,9 @@ const runFull3x3 = async (context, scope) => {
     await leaveAndReturn(page);
     expect(journey, await page.locator('text=Isolated expression ready').count(), 'isolation was lost on leave-and-return');
     await useFormAsToken(page);
-    observed.token = await page.locator('.mathmaster-systems-substitution-token').getAttribute('aria-label');
+    // The token carries the expression; its name says it in words (pass 3,
+    // A11Y-3: "Pick up the expression negative y minus z plus 6 …").
+    observed.token = await page.locator('.mathmaster-systems-substitution-token').getAttribute('data-token-value');
     expect(journey, /-y - z \+ 6/.test(observed.token || ''), `token is not the student's isolated expression in plain notation: ${observed.token}`);
     const box = await page.locator('.mathmaster-systems-substitution-token').boundingBox();
     expect(journey, box && box.height <= 64 && box.width <= 320, `token is not compact: ${JSON.stringify(box)}`);
@@ -395,6 +452,8 @@ const runFull3x3 = async (context, scope) => {
   if (!(await step(page, journey, 'standardize R1 (leave mid-solve)', async () => {
     await standardizeR1(page, {
       pauseAfterDistribution: async () => {
+        // A substituted equation is the widest card the strip holds.
+        await expectStripFits(page, journey, 'standardizing R1');
         const mid = await mathState(solver(page));
         await leaveAndReturn(page);
         const back = await mathState(solver(page));
@@ -489,7 +548,7 @@ const runFull3x3 = async (context, scope) => {
   }))) { report.push(observed); await page.close(); return; }
 
   await step(page, journey, 'check my work', async () => {
-    await workflow(page).locator('button', { hasText: 'Check my work' }).click();
+    await workflow(page).locator('button', { hasText: /^Submit — / }).first().click();
     await settle(page, 800);
     observed.result = await page.locator('text=Correct').count();
     expect(journey, observed.result > 0, 'the completed 3×3 was not graded correct');
@@ -530,7 +589,11 @@ const runReset = async (context) => {
   await page.close();
 };
 
-/** Teacher Preview: a subtracted substitution keeps its group and offers the -1 to the student. */
+/**
+ * Teacher Preview: a subtracted substitution keeps its group, drawn -(…) with
+ * no factor of 1, and removing the parentheses asks the student for every
+ * changed sign (student push Q) — never a -1 to multiply.
+ */
 const runNegatedGroup = async (context) => {
   const journey = 'preview-negated-group';
   const page = await context.newPage();
@@ -552,9 +615,16 @@ const runNegatedGroup = async (context) => {
     await settle(page, 800);
     const standardizer = solver(page);
     observed.state = await mathState(standardizer);
-    observed.factor = await standardizer.locator('.algebra-inline-factor-token').first().evaluate((element) => [...element.querySelectorAll('math-span, math-div')].map((math) => math.textContent).join(' ') || element.textContent).catch(() => '');
-    expect(journey, /1\\left\(/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
-    expect(journey, /-\s*1|−\s*1/.test(observed.factor), `the -1 factor was not offered for distribution: ${JSON.stringify(observed.factor)}`);
+    expect(journey, /-\\left\(- x- z\+6\\right\)/.test(observed.state || ''), `the subtracted group was not kept whole: ${observed.state}`);
+    expect(journey, !/1\\left\(/.test(observed.state || ''), `a factor of 1 is shown: ${observed.state}`);
+    expect(journey, (await standardizer.locator('.algebra-inline-factor-token, button.algebra-distribute-toggle').count()) === 0, 'a factor of -1 was offered to distribute');
+    await standardizer.locator('button.algebra-simplify-toggle').click();
+    await settle(page, 300);
+    await standardizer.locator('.mm-simplify-part[data-simplify-part="parentheses"]').click();
+    await settle(page, 300);
+    observed.signChoices = await standardizer.locator('.mm-simplify-signs button').count();
+    observed.signsChosen = await standardizer.locator('.mm-simplify-signs button[aria-pressed="true"]').count();
+    expect(journey, observed.signChoices === 6 && observed.signsChosen === 0, `the student was not asked for every sign: ${observed.signChoices} choices, ${observed.signsChosen} pre-chosen`);
     await shoot(page, 'preview-negated-group-kept-whole');
   });
   report.push(observed);
@@ -678,6 +748,57 @@ if (wanted('student-3x3')) await runFull3x3(context, 'student');
 if (wanted('teacherPreview-3x3')) await runFull3x3(context, 'teacherPreview');
 if (wanted('student-reset')) await runReset(context);
 await context.close();
+
+// Q-24: the strip of originals above an open solver shows every equation
+// whole — at 1366×768 with 100% and 125% browser text, and on a phone.
+if (wanted('strip-fit')) {
+  const rootFonts = {};
+  const settings = [
+    ['laptop', { width: 1366, height: 768 }, 1],
+    ['laptop-110', { width: 1366, height: 768 }, 1.1],
+    ['laptop-125', { width: 1366, height: 768 }, 1.25],
+    ['phone', { width: 390, height: 844 }, 1],
+  ];
+  for (const [name, viewport, textScale] of settings) {
+    const scaled = await browser.newContext({ viewport });
+    // Q4 and Q5 with Isolate x open; on a laptop also Q1 while R₁ is
+    // simplified — R₁ = 2(−y − z + 6) − y + 3z = 9 is the widest card.
+    for (const q of viewport.width > 1000 ? [3, 4, 0] : [3, 4]) {
+      // A page per question: the browser text size did not survive a second
+      // navigation of the same page.
+      const page = await scaled.newPage();
+      if (textScale !== 1) {
+        const cdp = await scaled.newCDPSession(page);
+        await cdp.send('Page.setFontSizes', { fontSizes: { standard: Math.round(16 * textScale), fixed: Math.round(13 * textScale) } });
+      }
+      const journey = `strip-fit-${name}-q${q}`;
+      await step(page, journey, q === 0 ? 'simplify R₁' : 'isolate x in Equation 1', async () => {
+        await open(page, { scope: 'student', q });
+        if (q === 0) {
+          await isolateXInEquationOne(page, journey);
+          await useFormAsToken(page);
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 2: choose where"] [data-variable="x"]'));
+          await placeValue(page, 'click', page.locator('.mathmaster-systems-substitution-token'), page.locator('[aria-label^="Equation 3: choose where"] [data-variable="x"]'));
+          await page.locator('button', { hasText: 'Simplify R₁' }).click();
+        } else {
+          await page.locator('button[aria-label="Isolate x in Equation 1"]').click();
+        }
+        await solver(page).waitFor({ timeout: 15000 });
+        await settle(page, 400);
+        // The app's own root size differs by width; 125% text must scale the laptop's.
+        const rootFont = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+        rootFonts[name] = rootFont;
+        if (textScale !== 1) expect(journey, rootFont >= rootFonts.laptop * (textScale - 0.02), `browser text did not grow: ${rootFont}px against ${rootFonts.laptop}px at 100%`);
+        const clipped = await expectStripFits(page, journey, `${viewport.width}×${viewport.height} at ${textScale * 100}% text`);
+        const solverWidth = await solver(page).evaluate((element) => Math.round(element.getBoundingClientRect().width));
+        await shoot(page, journey);
+        report.push({ journey, rootFont, solverWidth, clipped: clipped.length });
+      });
+      await page.close();
+    }
+    await scaled.close();
+  }
+}
 
 // A Chromebook-width and a phone-width look at the finished workspace.
 for (const [name, viewport] of wanted('layout') ? [['chromebook', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]] : []) {

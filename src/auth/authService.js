@@ -252,7 +252,20 @@ export const teacherAdmin = {
       firstName: String(firstName || '').trim(),
       lastName: String(lastName || '').trim(),
     }).then((result) => result.data || {}),
-  assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
+  /**
+   * Set or correct a student's district (SIS) ID — the number grade exports
+   * use. The server validates it (digits only), checks the caller is the root
+   * admin or the student's teacher of record, refuses a number another
+   * student already answers to, and changes nothing else: the MathMaster
+   * account ID, the student's work and how they sign in stay as they are.
+   * Resolves to { studentId, sisStudentId, previousSisStudentId, changed }.
+   */
+  setStudentSisId: ({ studentId, sisStudentId = '' }) =>
+    callable('setStudentSisId')({
+      studentId: String(studentId || '').trim(),
+      sisStudentId: String(sisStudentId || '').trim(),
+    }).then((result) => result.data || {}),
+  assignStudentToTeacher:({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),
@@ -288,6 +301,10 @@ export const teacherAdmin = {
   /** Reads (no argument) or sets class-scoped assignment lists for students. */
   setAssignmentReadScope: (studentListScoped) =>
     callable('setAssignmentReadScope')(typeof studentListScoped === 'boolean' ? { studentListScoped } : {})
+      .then((result) => result.data || {}),
+  /** Sets class-scoped opening of one assignment by id (D10 P0-3); refused while lists are open. */
+  setAssignmentGetScope: (studentGetScoped) =>
+    callable('setAssignmentReadScope')({ studentGetScoped: studentGetScoped === true })
       .then((result) => result.data || {}),
   /**
    * Where students' private assignment controls stand: the storage switch,
@@ -368,30 +385,4 @@ export function isSetupRequired(error) {
   return error?.details?.reason === 'needs-setup';
 }
 
-const FRIENDLY_ERRORS = {
-  'auth/invalid-email': 'That does not look like a valid email address.',
-  'auth/invalid-credential': 'That email and password do not match an account.',
-  'auth/wrong-password': 'That email and password do not match an account.',
-  'auth/user-not-found': 'That email and password do not match an account.',
-  'auth/user-disabled': 'That account has been disabled. Ask your school administrator.',
-  'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
-  'auth/popup-closed-by-user': 'The Google sign-in window closed before finishing.',
-  'auth/network-request-failed': 'No connection. Check the network and try again.',
-  'auth/unauthorized-domain': 'This web address is not authorized for Google sign-in yet.',
-  'functions/unauthenticated': 'Sign in again to continue.',
-  'functions/permission-denied': 'Those sign-in details are not correct.',
-  'functions/resource-exhausted': 'Too many attempts. Wait a few minutes and try again.',
-  'functions/internal': 'The server could not finish that request. Refresh and try once more; if it repeats, check the Firebase Functions log for the failing action.',
-};
-
-/** Turns any auth failure into something worth showing a student or teacher. */
-export function describeAuthError(error) {
-  if (!error) return 'Something went wrong. Try again.';
-  const code = error.code || '';
-  // Callable errors carry a server-written message that is already specific
-  // ("3 attempts left", "ask your teacher for the current code"). Prefer it.
-  if (code.startsWith('functions/') && error.message && !error.message.startsWith('INTERNAL')) {
-    return error.message;
-  }
-  return FRIENDLY_ERRORS[code] || error.message || 'Something went wrong. Try again.';
-}
+export { describeAuthError } from './authErrorText.js';

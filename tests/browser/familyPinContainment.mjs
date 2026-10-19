@@ -74,7 +74,7 @@ async function studentJourney(q1 = 'attempted') {
   expect(await panel.getAttribute('data-question-resolution-recovery') === 'needs-repair', 'recovery: needs a teacher\'s repair');
   const text = await panel.innerText();
   expect(/needs your teacher/i.test(text) && /not showing you a different one/i.test(text), 'the student is told plainly, in non-technical words', text);
-  expect(/recorded answers, attempts and grade/i.test(text), 'the student is told their recorded work is kept', text);
+  expect(/recorded answers, tries and grade/i.test(text), 'the student is told their recorded work is kept', text);
   expect(!/at \w+ \(|\.jsx:\d|TypeError|stack/i.test(text), 'no stack trace on screen', text);
   expect(!/1\|1\|1|harness-student/i.test(await page.content()), 'no fingerprint values or student id in the page');
   expect(await submitVisible(page) === 0, 'no Submit button on the failed question');
@@ -201,7 +201,8 @@ async function recoveryPracticeEmptyJourney() {
   const { context, page } = await open('mode=recovery-practice');
   await page.waitForSelector('[data-recovery-runner="practice"]', { timeout: 120000 });
   await settle(page);
-  expect(/no practice question to show/i.test(await page.locator('body').innerText()), 'the runner says so (on main: resolveQuestionMaximumAttempts(null) threw and replaced the app)');
+  const empty = page.locator('[data-recovery-practice-empty]');
+  expect(await empty.count() === 1 && /no new practice questions left/i.test(await empty.innerText()), 'the runner says so (on main: resolveQuestionMaximumAttempts(null) threw and replaced the app)');
   expect(!(await uncaught(page)).length, 'no uncaught error');
   await context.close();
 }

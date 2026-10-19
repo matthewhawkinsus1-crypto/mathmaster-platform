@@ -13,6 +13,17 @@ name: Student and Teacher Journeys
 #   walkthrough scope      tests/browser/teacherWorkflow/walkthroughJourneys.mjs
 #                          (only the selected class's live assignments; class
 #                          switch; empty state; a stale saved session retired)
+#   district ID correction tests/browser/teacherWorkflow/districtIdJourneys.mjs
+#                          (its own job: an account made under a mistyped
+#                          number gets its real district ID in Student
+#                          Access; nothing else about the student changes;
+#                          every Grade Export file — update, re-export, new
+#                          lesson — then carries the corrected ID; a second
+#                          student cannot take it; she signs in as before)
+#   extra time on the DOL  tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
+#                          (D7: a student with extra time keeps working after
+#                          the class's DOL closed and reads their own close;
+#                          a classmate's is closed; Live view lists who)
 #   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 #                          (its own job: one own-controls listener per student,
 #                          one class listener per teacher; a shared Chromebook
@@ -30,7 +41,10 @@ name: Student and Teacher Journeys
 #   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
 #                          (lmr-wu-1: partial work, timer close, teacher reopen,
 #                          resume, submit; malformed drafts; a second board;
-#                          throttled nightly) and, on QuestionEngine alone,
+#                          and with the harness server — Checks ingested, the
+#                          deadline auto-submit closing Q1, the reopen, a
+#                          refresh, another Chromebook; throttled nightly) and,
+#                          on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
 #   held Recovery         tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
 #                          (a Recovery question MathMaster could not grade:
@@ -38,6 +52,10 @@ name: Student and Teacher Journeys
 #                          Grade; the teacher finalizes or issues a
 #                          replacement; Chromebook, iPad, phone; throttled
 #                          nightly)
+#   Recovery answers       tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+#   across Chromebooks     (answers saved on one Chromebook are on the next,
+#                          and graded on Submit there; offline says "this
+#                          device only" until it syncs; Chromebook, phone)
 #   family pin containment tests/browser/familyPinContainment.mjs
 #                          (a Question Family pin that will not replay is one
 #                          question's failure: never a substitute question,
@@ -48,7 +66,29 @@ name: Student and Teacher Journeys
 #   process mode           tests/browser/lmrProcessMode.mjs
 #                          (the same board's facts established by a process,
 #                          verified, reused, then built on)
+#   prerequisite early     tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
+#                          (a met prerequisite opens Classwork and Practice,
+#                          the server accepts the answer; Warm-Up and DOL stay
+#                          shut; without it the lesson still opens later)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
+#   submit and finish      tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
+#                          (its own job: Submit names the try it spends, the
+#                          last try and one try; the save line calls a draft a
+#                          draft and an answer an answer, also after a reload,
+#                          and its live region stays silent unless the student
+#                          must act; finishing lands on the results page; a
+#                          skipped question is the way back; Enter and focus
+#                          after a closed question; Chromebook and phone)
+#   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
+#                          (its own job: refresh on every student screen and
+#                          question, Back/Forward Home -> question -> Grades,
+#                          a deep link through sign-in, another class's or
+#                          student's address shows nothing, Log Out returns
+#                          to /, a teacher's tab and monitor; desktop, phone)
+#   screen changes         tests/browser/teacherWorkflow/studentScreenChange.mjs
+#                          (same job: focus and the spoken name on a screen
+#                          change, one main per screen, Back by origin, the
+#                          one-row phone nav, Assignments' filters kept)
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
 # nightly and on demand. Read-only: this workflow writes nothing back.
@@ -65,9 +105,14 @@ on:
       - "tests/browser/lmrProcess*"
       - "tests/browser/warmupReopenDraft*"
       - "tests/browser/familyPinContainment*"
+      - "tests/browser/feedbackTeaches*"
+      - "tests/browser/readAloudTranslate*"
+      - "tests/browser/reviewMyWork*"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
+      - "firebase.json"
+      - "vercel.json"
   schedule:
     - cron: "17 7 * * *"
   workflow_dispatch:
@@ -88,7 +133,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm }
       - run: npm ci
-      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
       - run: npx playwright install --with-deps chromium
       - name: Start the teacher harness
         run: |
@@ -124,6 +169,16 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+      - name: A prerequisite met early opens Classwork and Practice (and nothing timed)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
+      - name: Extra time on the exit ticket (D7) — the student's own window, and the teacher's Live view
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
@@ -134,6 +189,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+      - name: Recovery answers saved on one Chromebook, submitted from another
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
       - name: Held Recovery, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
@@ -145,6 +205,51 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/enduranceJourneys.mjs
 
+  # Its own runner: the teacher job is near its time limit. About a minute:
+  # one journey, desktop and phone.
+  district-id:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Correct a district ID typed wrong at account creation, through to the TEAMS file
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1440x900,390x844"
+        run: node tests/browser/teacherWorkflow/districtIdJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. One journey,
+  # 1366x768 and 390x844.
+  submit-and-finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Submit names its cost, the save line tells draft from answer, finishing lands on the results
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
+
   # Its own runner: the teacher job is near its time limit, and these journeys
   # run every device size in both storage states (mirrored, retired).
   private-controls:
@@ -155,7 +260,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm }
       - run: npm ci
-      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
       - run: npx playwright install --with-deps chromium
       - name: Start the teacher harness
         run: |
@@ -180,7 +285,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm }
       - run: npm ci
-      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
       - run: npx playwright install --with-deps chromium
       - name: Start the teacher harness
         run: |
@@ -201,6 +306,38 @@ jobs:
           THROTTLED_REPEAT: "20"
         run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 
+  # Its own runner: the teacher job is near its time limit. A few minutes:
+  # every student screen reloaded, on a Chromebook and a phone.
+  app-urls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Real URLs — refresh, Back/Forward, deep links, and what an address may reach
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/appUrlJourneys.mjs
+      # Student pass 3 (NAV-3, NAV-9, NAV-13, NAV-15): focus and the spoken
+      # name on every screen change, one main per screen, Back by origin,
+      # the one-row phone nav, Assignments' filters kept for Back.
+      - name: Screen changes, landmarks and the phone nav
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/studentScreenChange.mjs
+
   student:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -209,7 +346,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm }
       - run: npm ci
-      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
       - run: npx playwright install --with-deps chromium
       - name: Start the student harness server
         run: |
@@ -247,6 +384,29 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/familyPinContainment.mjs
+      # Hints, miss messages and worked solutions in the real QuestionEngine,
+      # including the transformations / quadratics families (student push J).
+      - name: Feedback that teaches (hints, families, worked solutions)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/feedbackTeaches.mjs
+      # Read aloud says the whole question (choices, matrices, parts heard
+      # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
+      - name: Read aloud and Translate (heard and seen)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/readAloudTranslate.mjs
+      # Review My Work on a closed assignment (answers, outcomes, worked solutions).
+      - name: Review My Work
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/reviewMyWork.mjs
       - name: Question Family pin containment, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

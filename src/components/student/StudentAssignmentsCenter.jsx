@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
@@ -8,7 +8,10 @@ import {
   buildStudentAssignmentsCenter,
 } from '../../platform/student/studentAssignmentsCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
-import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { formatDateTime, formatRemainingTime, studentDueText } from '../../assignmentLifecycle';
+import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
+import { readAssignmentsView, writeAssignmentsView } from '../../platform/student/assignmentsCenterMemory.js';
+import { SEE_RESULTS } from '../../platform/student/studentWords.js';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -44,13 +47,13 @@ const STATUS_TONE = {
 const control = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
-  fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
+  fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))', cursor: 'pointer', flex: '1 1 auto',
   border: primary ? 0 : '2px solid var(--mm-border)',
   background: primary ? 'var(--mm-primary)' : 'var(--mm-surface)',
   color: primary ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
 
-function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
+function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, onOpenRecovery }) {
   const tone = STATUS_TONE[row.status] || STATUS_TONE.notStarted;
   return (
     <article
@@ -61,22 +64,23 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          {/* Under the screen's h1 with nothing between: h2 (NAV-23; it was an h3). */}
+          <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h2>
           {/* Named as one thing, because it is one thing. A student who sees
               four stages listed as four assignments starts asking which of
               them counts. */}
           {row.isTestCycle && (
-            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
+            <div style={{ marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
               Test Cycle · Review → Test → Corrections → Retest
             </div>
           )}
           {row.testCycleDetail && (
-            <div data-test-cycle-discovery={row.testCycleKey} style={{ marginTop: 4, fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+            <div data-test-cycle-discovery={row.testCycleKey} style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.45 }}>
               {row.testCycleDetail}
             </div>
           )}
-          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
-            Due {formatDateTime(row.dueAt)}
+          <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
+            {studentDueText(row.dueAt)}
             {row.frozen
               ? ` · Closed ${formatDateTime(row.lateDueAt)}`
               : row.lifecycle?.isLate
@@ -89,10 +93,10 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
           {row.displayGrade !== null && (
-            <div style={{ fontSize: 'clamp(17px, 5.5vw, 22px)', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
+            <div style={{ fontSize: 'clamp(calc(17 * var(--mm-px)), calc(5.5vw * var(--mm-text-scale, 1)), calc(22 * var(--mm-px)))', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
           )}
           {row.statusLabel && (
-            <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
+            <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
               {row.statusLabel}
             </span>
           )}
@@ -109,31 +113,58 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+      {/* An open Warm-Up/DOL Recovery, with its own button: the row's Practice
+          button is the assignment's practice, which never unlocks one. */}
+      <RecoveryInlineNotice opportunities={row.recovery} studentId={studentId} onOpen={onOpenRecovery} />
+
+      {/* Every button comes from the one "Today" rule (resolveActions): Start/
+          Continue only when it lands on work open this minute, at the
+          question it names; a Recovery opens the result page where it lives;
+          waiting work says what it waits for; closed work is a no-credit
+          retry; excused work offers its result only. */}
+      <div data-row-actions={row.assignmentId} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 14 }}>
         {row.canContinue && (
-          <button type="button" style={control(true)} onClick={() => onContinue?.(row.assignmentId)}>
+          <button
+            type="button"
+            style={control(true)}
+            onClick={() => onContinue?.(row.assignmentId, row.continueQuestionIndex ?? undefined)}
+          >
             {row.continueLabel}
           </button>
         )}
+        {row.canRecover && (
+          <button type="button" style={control(true)} onClick={() => onOpenResult?.(row.assignmentId)}>
+            {row.recoveryLabel}
+          </button>
+        )}
+        {row.waitText && (
+          <span data-row-wait style={{ flex: '1 1 200px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+            {row.waitText}
+          </span>
+        )}
         {row.canViewResults && (
-          <button type="button" style={control(!row.canContinue)} onClick={() => onOpenResult?.(row.assignmentId)}>
-            View Results
+          <button type="button" style={control(!row.canContinue && !row.canRecover)} onClick={() => onOpenResult?.(row.assignmentId)}>
+            {SEE_RESULTS}
           </button>
         )}
         {row.canPractice && (
           <button type="button" style={control(false)} onClick={() => onPractice?.(row.assignmentId)}>
-            Practice
+            {row.practiceLabel}
           </button>
         )}
-        {/* A locked assignment with nothing to open says why, rather than
-            offering a button that does nothing. */}
-        {!row.canContinue && !row.canViewResults && !row.canPractice && (
-          <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Opens when your teacher releases it.</span>
+        {/* Nothing to open and no wait to name (a release date not yet
+            reached, say): still say so, rather than an empty row. */}
+        {!row.canContinue && !row.canRecover && !row.waitText && !row.canViewResults && !row.canPractice && (
+          <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Not open yet — it appears here when it opens.</span>
         )}
       </div>
     </article>
   );
 }
+
+// The category tabs and the one panel they control (NAV-23).
+const ASSIGNMENTS_PANEL_ID = 'assignments-panel';
+const assignmentsTabId = (categoryId) => `assignments-tab-${categoryId}`;
 
 export default function StudentAssignmentsCenter({
   dashboard,
@@ -145,17 +176,43 @@ export default function StudentAssignmentsCenter({
   onContinue = null,
   onOpenResult = null,
   onPractice = null,
+  // Open Warm-Up/DOL Recoveries by assignment id (buildStudentRecoveryDiscovery),
+  // the signed-in student (for the NEW mark) and the handler that opens one.
+  recoveryByAssignment = {},
+  studentId = null,
+  onOpenRecovery = null,
 }) {
-  const [search, setSearch] = useState('');
-  const [periodId, setPeriodId] = useState(null);
-  const [category, setCategory] = useState(ASSIGNMENT_CATEGORY.ACTIVE);
+  // As the student left them, when they come Back (assignmentsCenterMemory.js).
+  const [remembered] = useState(() => readAssignmentsView(studentId));
+  const [search, setSearch] = useState(remembered.search || '');
+  const [periodId, setPeriodId] = useState(remembered.periodId || null);
+  const [category, setCategory] = useState(
+    Object.values(ASSIGNMENT_CATEGORY).includes(remembered.category) ? remembered.category : ASSIGNMENT_CATEGORY.ACTIVE,
+  );
+  useEffect(() => { writeAssignmentsView(studentId, { search, category, periodId }); }, [studentId, search, category, periodId]);
+  // On a phone the search and the marking period fold behind one button
+  // (NAV-13, index.css); a search in progress keeps them open.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const center = useMemo(() => buildStudentAssignmentsCenter({
-    dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category,
-  }), [dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category]);
+    dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment,
+  }), [dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment]);
 
   const { categories, activeCategory, activePeriodId, periodOptions, isSearching, visibleEntries, totalCount } = center;
   const activeGroup = categories.find((group) => group.id === activeCategory) || null;
+  // Left/Right (and Up/Down), Home and End select the neighbouring tab and
+  // move focus to it.
+  const moveBetweenTabs = (event) => {
+    const index = categories.findIndex((group) => group.id === activeCategory);
+    if (index < 0 || !categories.length) return;
+    const last = categories.length - 1;
+    const next = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const target = categories[(next + categories.length) % categories.length];
+    setCategory(target.id);
+    document.getElementById(assignmentsTabId(target.id))?.focus();
+  };
 
   return (
     <div
@@ -176,13 +233,46 @@ export default function StudentAssignmentsCenter({
         />
 
         <header style={{ marginBottom: 14, textAlign: 'left' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
             Everything your teacher has assigned you — {totalCount} assignment{totalCount === 1 ? '' : 's'}, including finished and closed work.
           </p>
         </header>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {/* Phone only (index.css): one row instead of two until the student
+            asks for the search. Laptops always show the search and period. */}
+        <button
+          type="button"
+          className="mm-assignments-filters__toggle"
+          aria-expanded={filtersOpen || Boolean(search)}
+          aria-controls="assignments-filters"
+          onClick={() => {
+            if (search) return; // a search in progress stays open
+            const opening = !filtersOpen;
+            setFiltersOpen(opening);
+            if (opening && typeof window !== 'undefined') {
+              window.requestAnimationFrame(() => document.getElementById('assignments-search')?.focus());
+            }
+          }}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            width: '100%', minHeight: MIN_TOUCH_TARGET_PX, marginBottom: 12, padding: '9px 13px',
+            borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
+            fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))', textAlign: 'left', cursor: 'pointer',
+            justifyContent: 'space-between', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+            <span aria-hidden="true">🔍 </span>Search · {periodOptions.find((option) => option.id === activePeriodId)?.label || 'All marking periods'}
+          </span>
+          <span aria-hidden="true">{filtersOpen || search ? '▴' : '▾'}</span>
+        </button>
+        <div
+          id="assignments-filters"
+          className="mm-assignments-filters"
+          data-open={filtersOpen || Boolean(search) ? 'true' : 'false'}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}
+        >
           <label htmlFor="assignments-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             Search assignments
           </label>
@@ -195,7 +285,7 @@ export default function StudentAssignmentsCenter({
             style={{
               flex: '1 1 220px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
               padding: '9px 13px', borderRadius: 10, border: '2px solid var(--mm-border)',
-              fontSize: 14, fontFamily: 'inherit',
+              fontSize: 'calc(14 * var(--mm-px))', fontFamily: 'inherit',
             }}
           />
           <label htmlFor="assignments-period" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
@@ -208,7 +298,7 @@ export default function StudentAssignmentsCenter({
             style={{
               flex: '1 1 180px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
               padding: '9px 11px', borderRadius: 10, border: '2px solid var(--mm-border)',
-              fontSize: 14, fontFamily: 'inherit', background: 'var(--mm-surface)',
+              fontSize: 'calc(14 * var(--mm-px))', fontFamily: 'inherit', background: 'var(--mm-surface)',
             }}
           >
             {/* Past marking periods stay selectable. A closed term is exactly
@@ -223,21 +313,27 @@ export default function StudentAssignmentsCenter({
         </div>
 
         {isSearching ? (
-          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>
             {/* Search deliberately reaches past the tabs and the period filter,
                 so it says so — otherwise the counts above look wrong. */}
             {visibleEntries.length} result{visibleEntries.length === 1 ? '' : 's'} across every tab and marking period.
           </p>
         ) : (
-          <div role="tablist" aria-label="Assignment categories" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          // Real tabs (NAV-23): each controls the one panel below; the selected
+          // tab is the one Tab stop, and the arrow keys, Home and End move
+          // between them (and select, as the pattern's automatic activation).
+          <div role="tablist" aria-label="Assignment categories" onKeyDown={moveBetweenTabs} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {categories.map((group) => {
               const active = group.id === activeCategory;
               return (
                 <button
                   key={group.id}
+                  id={assignmentsTabId(group.id)}
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-controls={ASSIGNMENTS_PANEL_ID}
+                  tabIndex={active ? 0 : -1}
                   onClick={() => setCategory(group.id)}
                   style={{
                     appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
@@ -245,7 +341,7 @@ export default function StudentAssignmentsCenter({
                     border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
                     background: active ? '#1a73e8' : 'var(--mm-surface)',
                     color: active ? '#fff' : 'var(--mm-text)',
-                    fontWeight: 900, fontSize: 13, cursor: 'pointer',
+                    fontWeight: 900, fontSize: 'calc(13 * var(--mm-px))', cursor: 'pointer',
                   }}
                 >
                   {group.label} · {group.count}
@@ -255,8 +351,13 @@ export default function StudentAssignmentsCenter({
           </div>
         )}
 
+        <div
+          id={ASSIGNMENTS_PANEL_ID}
+          role={isSearching ? undefined : 'tabpanel'}
+          aria-labelledby={isSearching ? undefined : assignmentsTabId(activeCategory)}
+        >
         {!isSearching && activeGroup?.hint && (
-          <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
+          <p style={{ margin: '0 0 12px', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
         )}
 
         {visibleEntries.length === 0 ? (
@@ -275,9 +376,12 @@ export default function StudentAssignmentsCenter({
               onContinue={onContinue}
               onOpenResult={onOpenResult}
               onPractice={onPractice}
+              studentId={studentId}
+              onOpenRecovery={onOpenRecovery}
             />
           ))
         )}
+        </div>
 
         <BuildStamp />
       </div>

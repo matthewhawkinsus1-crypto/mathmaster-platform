@@ -19,6 +19,8 @@ import * as service from '../../../src/platform/liveChallenge/liveChallengeServi
 
 export {
   readLiveChallengeRound,
+  readLiveChallengePlayerSummary,
+  readLiveChallengeSolution,
   readChallengeReport,
   timestampMillis,
   setWarmupChallengeDelivery,
@@ -86,6 +88,9 @@ export const watchLiveChallengePlayer = counted('self', loggedSelf);
 export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
 export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
 export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
+// The student's own place (playerSummaries/{studentId}): changes only at a
+// round's close and the finish.
+export const watchLiveChallengePlayerSummary = counted('summary', service.watchLiveChallengePlayerSummary);
 
 const params = new URLSearchParams(window.location.search);
 const BRIDGE = params.get('bridge') || 'http://localhost:5299';
@@ -134,6 +139,7 @@ export const joinLiveChallenge = call('joinLiveChallenge');
 export const startLiveChallenge = call('startLiveChallenge');
 export const closeLiveChallengeRound = call('closeLiveChallengeRound');
 export const advanceLiveChallenge = call('advanceLiveChallenge');
+export const getLiveChallengeMatchRecap = call('getLiveChallengeMatchRecap');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
@@ -146,6 +152,9 @@ export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
 export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
+export const getLineGraphRound = call('getLineGraphRound');
+export const submitLineGraphAttempts = call('submitLineGraphAttempts');
+export const previewLineGraph = call('previewLineGraph');
 export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');
 export const getLiveChallengeExperience = call('getLiveChallengeExperience');
 export const createChallengeDryRun = call('createChallengeDryRun');

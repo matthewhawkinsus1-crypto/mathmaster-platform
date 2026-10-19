@@ -17,13 +17,14 @@ import {
 } from './inverseCompositionMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import inverseCompositionGrader from '../../../functions/shared/serverGrading/tools/inverseCompositionLab.mjs';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid var(--mm-tint-border)', borderRadius:8, background:'var(--mm-surface)' };
-const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
+const Field = ({ label, children }) => <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 
 export default function InverseCompositionLab({ questionData = {}, onAction }) {
   // f, g (or the lab's defaults) and the input x come from the shared
@@ -49,6 +50,18 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const [restrictionChoice, setRestrictionChoice] = usePersistentToolState('restrictionChoice', UNANSWERED);
   const { feedback, submit } = useToolSubmission(onAction);
   const revealAnswers = useRevealAnswers();
+  // Universal Undo over every answer (TOOL-2, useFieldUndoHistory.js). A given
+  // input x is the question's, not the student's, and is never written back.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      ...(inputLocked ? {} : { x: [draftX, setX] }),
+      fogAnswer: [fogAnswer, setFogAnswer],
+      gofAnswer: [gofAnswer, setGofAnswer],
+      inverseAnswer: [inverseAnswer, setInverseAnswer],
+      restrictionChoice: [restrictionChoice, setRestrictionChoice],
+    },
+  });
 
   const canInvert = useMemo(() => hasFunctionalInverse(f), [f]);
   const fx = useMemo(() => evaluateSpecWithDomain(f, Number(x)), [f, x]);
@@ -111,7 +124,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             : missed.includes('restriction')
               ? 'The arithmetic is right, but the domain restriction is not. A parabola only becomes one-to-one when you keep a single side of its vertex.'
               : 'The inverse value is off. f⁻¹ undoes f, so f⁻¹(f(x)) has to give you back the x you started with.';
-    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{explain}</p></div>;
+    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={explain}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>;
   })() : null;
 
   const modeHints = mode === 'composition' ? [
@@ -161,11 +174,11 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
           </div>
           {showInverse && f.type === 'quadratic' ? <div style={{marginTop:12,padding:12,borderRadius:10,background:'var(--mm-warning-bg)',color:'var(--mm-warning-text)'}}><strong>Inverse condition:</strong> {restrictionDescription(f)}</div> : null}
           {inputLocked
-            ? <div style={{marginTop:12,padding:11,borderRadius:9,background:'var(--mm-surface-sunken)',border:'1px solid var(--mm-border)',fontSize:13,color:'var(--mm-text-muted)'}}><strong>Given input:</strong> x = {x}</div>
+            ? <div style={{marginTop:12,padding:11,borderRadius:9,background:'var(--mm-surface-sunken)',border:'1px solid var(--mm-border)',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}><strong>Given input:</strong> x = {x}</div>
             : <Field label="Choose input x"><input type="number" step="0.1" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field>}
           <div style={{display:'grid',gridTemplateColumns:showComposition?'1fr 1fr':'1fr',gap:10,marginTop:12}}>
-            <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>f(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(fx)?round(fx,3):'undefined'}</div></div>
-            {showComposition ? <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>g(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(gx)?round(gx,3):'undefined'}</div></div> : null}
+            <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>f(x)</strong><div style={{fontSize:'calc(24 * var(--mm-px))',fontWeight:900,marginTop:4}}>{Number.isFinite(fx)?round(fx,3):'undefined'}</div></div>
+            {showComposition ? <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>g(x)</strong><div style={{fontSize:'calc(24 * var(--mm-px))',fontWeight:900,marginTop:4}}>{Number.isFinite(gx)?round(gx,3):'undefined'}</div></div> : null}
           </div>
         </Panel>
 
@@ -179,9 +192,9 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             <div style={{padding:11,borderRadius:10,background:'var(--mm-primary-subtle)'}}>{x}</div><strong>→ f →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-accent-subtle)'}}>{Number.isFinite(fx)?round(fx,2):'undefined'}</div><strong>→ g →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-success-bg)',fontWeight:800}}>{revealAnswers?(Number.isFinite(gof)?round(gof,2):'undefined'):'?'}</div>
           </div>
           <Field label={`Enter (g ∘ f)(${x})`}><input type="number" step="0.1" value={gofAnswer} onChange={(e)=>setGofAnswer(e.target.value)} style={inputStyle}/></Field>
-          <p style={{fontSize:13,color:'var(--mm-text-muted)',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
+          <p style={{fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
           {mode === 'composition' ? <>
-            <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check compositions</button>
+            <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}><SubmitText>Check compositions</SubmitText></button>
             {feedbackBlock}
             <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
           </> : null}
@@ -198,7 +211,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
               {x:fx,y:inverseAtFx,label:'swapped',fill:'#d93025'},
             ] : []}
           />
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:10,fontSize:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:10,fontSize:'calc(12 * var(--mm-px))'}}>
             <div style={{padding:8,borderRadius:8,background:'var(--mm-primary-subtle)'}}><strong>f</strong> — solid blue</div>
             <div style={{padding:8,borderRadius:8,background:'var(--mm-error-bg)'}}><strong>f⁻¹</strong> — dashed red</div>
             <div style={{padding:8,borderRadius:8,background:'var(--mm-surface-control)'}}><strong>y = x</strong> — grey mirror line</div>
@@ -217,7 +230,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
               "No restriction needed" default answered. */}
           {f.type === 'quadratic' || asksRestriction ? <div style={{marginTop:14}}><Field label={f.type === 'quadratic' ? 'Which restriction makes the quadratic one-to-one?' : 'Does f need a restricted domain to have an inverse?'}><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
 
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}><SubmitText>Check function reasoning</SubmitText></button>
           {feedbackBlock}
           <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
         </Panel> : null}

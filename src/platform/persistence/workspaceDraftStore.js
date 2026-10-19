@@ -9,7 +9,7 @@
  */
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { mergeWorkspaceDraftDocument, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { mergeWorkspaceDraftDocumentReport, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 
 export const WORKSPACE_DRAFT_COLLECTION = 'studentWorkspaceDrafts';
 
@@ -33,20 +33,25 @@ export const readWorkspaceDraft = async ({ studentId, assignmentId }) => {
 export const writeWorkspaceDraft = async (patch) => {
   if (!patch?.documentId) return false;
   const reference = doc(db, WORKSPACE_DRAFT_COLLECTION, patch.documentId);
+  let droppedKeys = [];
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(reference);
-    const merged = mergeWorkspaceDraftDocument({
+    const report = mergeWorkspaceDraftDocumentReport({
       existing: snapshot.exists() ? snapshot.data() : null,
       patch,
     });
+    // Of the attempt that commits (a retried transaction runs again).
+    droppedKeys = report.droppedKeys;
     transaction.set(reference, {
-      ...merged,
+      ...report.document,
       // Server-stamped: a Chromebook with a wrong clock must not win by
       // claiming the future, and the rules require it to be request.time.
       updatedAt: serverTimestamp(),
     });
   });
-  return true;
+  // The drafts the document's caps left out (workspaceDraftSchema.mjs): the
+  // sync tells the student they are on this device only.
+  return { written: true, droppedKeys };
 };
 
 /**
@@ -55,7 +60,10 @@ export const writeWorkspaceDraft = async (patch) => {
  * This is what makes "resume where you left off" survive a different device,
  * rather than depending on the browser that happens to be in front of them.
  */
-export const readLatestWorkspaceResume = async (studentId, { maxAssignments = 1 } = {}) => {
+// More than one: a Recovery's saved answers live in this collection too
+// (`…-recovery`, platform/recovery/recoveryAnswerDrafts.js) and carry no
+// resume, so the newest document alone could hide the assignment to resume.
+export const readLatestWorkspaceResume = async (studentId, { maxAssignments = 4 } = {}) => {
   if (!studentId) return null;
   const snapshot = await getDocs(query(
     collection(db, WORKSPACE_DRAFT_COLLECTION),

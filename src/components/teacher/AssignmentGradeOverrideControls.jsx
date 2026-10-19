@@ -67,18 +67,18 @@ export default function AssignmentGradeOverrideControls({ student, assignment, o
   };
 
   return <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}>
-    <div style={{ fontSize: 12, fontWeight: 900 }}>Academic integrity consequence</div>
+    <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>Academic integrity consequence</div>
     {override && <div style={{ marginTop: 6, color: 'var(--mm-error-text)', fontWeight: 800 }}>Teacher assignment override · {override.score}%</div>}
     <label>Scope <select value={scope} onChange={(event) => setScope(event.target.value)}><option value="assignment">Whole assignment</option><option value="section">This section</option></select></label>
     {scope === 'section' && <label> Affected section <select value={sectionRole} onChange={(event) => setSectionRole(event.target.value)}>{sectionRoles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>}
     <label style={{ display: 'block', marginTop: 8 }}>Incident <select value={reasonCode} onChange={(event) => setReasonCode(event.target.value)}>{INTEGRITY_REASONS.map((reason) => <option key={reason.code} value={reason.code}>{reason.label}</option>)}</select></label>
     <label style={{ display: 'block', marginTop: 8 }}>Participant role <select value={participantRole} onChange={(event) => setParticipantRole(event.target.value)}>{PARTICIPANT_ROLES.map((role) => <option key={role.code} value={role.code}>{role.label}</option>)}</select></label>
     <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={teacherConfirmed} onChange={(event) => setTeacherConfirmed(event.target.checked)} /> I personally confirm this incident</label>
-    <label style={{ display: 'block', marginTop: 8, fontSize: 12 }}>Optional note<input value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} style={{ display: 'block', width: '100%', marginTop: 4 }} /></label>
+    <label style={{ display: 'block', marginTop: 8, fontSize: 'calc(12 * var(--mm-px))' }}>Optional note<input value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} style={{ display: 'block', width: '100%', marginTop: 4 }} /></label>
     <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
       <button type="button" disabled={busy || !teacherConfirmed} onClick={() => act({ action: 'issueZero' })}>Apply 0% Integrity Consequence</button>
       <button type="button" disabled={busy || !teacherConfirmed} onClick={() => act({ action: scope === 'section' ? 'restoreSectionZero' : 'restoreAutomatic' })}>Restore {scope === 'section' ? 'section' : 'assignment'}</button>
     </div>
-    {message && <div role="status" style={{ marginTop: 6, fontSize: 12 }}>{message}</div>}
+    {message && <div role="status" style={{ marginTop: 6, fontSize: 'calc(12 * var(--mm-px))' }}>{message}</div>}
   </div>;
 }
