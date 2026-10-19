@@ -220,7 +220,30 @@ Both stay as they were. This is how the recording bears on each:
 
 ## Gate
 
-GATE_TABLE
+Gated at `6d727b70` (the code; later commits change only this handoff). The browser drivers were run one at a time.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 12131 / 12131 |
+| `node --test tests/tools/*.test.mjs` | 1710 / 1710, 0 skipped |
+| `npm run lint` | exit 0, 0 errors; 496 warnings, the same count as the base |
+| `npm run build` / `npm run build:firebase` | ok; no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs --report` | studentHome **839.6 KB** gzip (base 839.3: **+0.3 KB**, the registry entries in `misconceptionCodes.mjs` and the sitting helpers in `testCycleAvailability.mjs`, both on the first load); signIn 291.9 KB; within baseline. `first-load-baseline.json` not edited. |
+| `npm run test:rules` | 248 / 248 and 224 / 224 (adds `testCycleClassSittingsRules`) |
+| `npm run test:test-cycle-certification` | 40 / 40 (adds M and N) |
+| `npm run test:challenge-finish` (every integration file) | 490 / 490 |
+| `npm run test:secure-exam-navigation` | 25 / 25 |
+| `npm run test:secure-exam-auto-finalize` | 11 / 11 |
+| `npm run test:grade-authority` | 14 / 14 |
+| `npm run test:canonical-persistence` | 35 / 35 |
+| `npm run test:test-cycle-device` | all 12 device × stage combinations |
+| Browser `secureResults` | 324 passed, 0 failed |
+| Browser `secureAccessParity` (Vite on 5199, `AUDIT_ORIGIN`) | 26 / 26 |
+| Browser `secureExamNavigation` | 387 passed, 2 failed, twice. Both failures are in the practice-SAT list ("Escape inside the list closes it", "practiceJourney ran to the end"). The base `530ac3cf` gives **the same 387 / 2**, so they are pre-existing and outside this item. |
+| Browser `testCycleRichToolQa` (its own servers) | 490 checks, 0 findings |
+| Teacher harness (5188) `dolExtraTimeJourneys` | all passed |
+| Teacher harness (5188) `recoveryHoldJourneys` | 450 checks, no findings |
+| `node scripts/release-firebase.mjs --since 530ac3cf` | plans functions (all groups), `functions:path-admin`, `firestore:rules`, Hosting; see Deploy targets |
 
 ## Cloud Functions whose behaviour changes (for the planner)
 
@@ -305,4 +328,4 @@ functions. No index change: the one query is a single-field equality.
   name, which a Path template does not carry; reading them from the equation
   text could name the wrong error.
 - **No backfill** of sittings or evidence for past Tests.
-- BROWSER_NOTES
+- The two `secureExamNavigation` practice-SAT failures are on the base as well. Not investigated here.
