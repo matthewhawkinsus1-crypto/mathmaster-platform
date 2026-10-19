@@ -206,7 +206,7 @@ Run on this branch's head; the base is `530ac3cf` (a worktree, for the base comp
 | `draftSaveNoticeReloadJourneys.mjs` (new) | 10 / 10; with App's old cleanup put back, R1 fails 3 checks (shown, then restored) |
 | **Live Challenge** (own servers) | |
 | `npm run test:live-challenge-teaching-browser` | 58 / 58 |
-| `node tests/browser/liveChallengeShellQa.mjs` | SHELL_RESULT |
+| `node tests/browser/liveChallengeShellQa.mjs` | **2 findings, the same 2 on the base**: "the projector round table is not in the round's order" (classic) and "the projector does not say the round earned championship points" (scoring). Teacher projector; not touched here. The student-side stages pass. |
 
 **Mutations.** 37 mutations of the new code, each run against `studentHonestFailures.test.mjs` (the arrival one
 against `appUrlArrival.test.mjs`): all 37 caught. They cover:
@@ -291,6 +291,9 @@ Nothing here may load lazily: the failure notices have to show when a dynamic im
   - `tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs` (teacher harness on 5188).
 
 ## Not done
+
+- `liveChallengeShellQa`'s two projector findings and `studentHomeToday`'s offline console errors fail on the base too
+  (gate table); not mine to fix on this branch.
 
 - `LinearInterceptsOrchestrator`'s own intercept step (decision 3).
 - A slip that could not be saved (decision 1).
