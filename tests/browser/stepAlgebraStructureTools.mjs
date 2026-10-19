@@ -376,7 +376,7 @@ async function slopeTwoFourEight(context) {
     await settle(page);
     if (guard === 0) {
       await page.locator('button[aria-label^="Numerator factor 2"]').first().click();
-      await page.locator('button[aria-label^="Denominator factor -1"]').first().click();
+      await page.locator('button[aria-label^="Denominator factor negative 1"]').first().click();
       await settle(page);
       expect(journey, (await statusTexts(page)).some((text) => /not the same factor/.test(text)), 'a mismatched cancellation was not refused');
       await page.locator('button[aria-label^="Numerator factor 2"]').first().click();
