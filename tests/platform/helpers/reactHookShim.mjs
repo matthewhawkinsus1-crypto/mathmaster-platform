@@ -13,7 +13,7 @@ const noop = () => {};
 export const Fragment = Symbol.for('shim.fragment');
 export const StrictMode = Fragment;
 export const Suspense = Fragment;
-export const createElement = (type, props, ...children) => ({ type, props: { ...(props || {}), children } });
+export const createElement = (type, props, ...children) => ({ type, props: { ...props, children } });
 export const jsx = (type, props) => ({ type, props });
 export const jsxs = jsx;
 export const jsxDEV = jsx;
