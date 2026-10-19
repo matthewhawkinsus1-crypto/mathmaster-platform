@@ -82,7 +82,7 @@ def review_native(task):
     # weights. Hints/solutions remain instructional and never join the retest.
     result = {'type': 'multiAnswer', 'heading': task['title'], 'prompt': 'Complete every response for this review task.', 'answerFields': fields,
               'stimulus': {'kind': 'panels', 'panels': panels}, 'questionWeight': 1,
-              'alignments': [{'framework': 'TEKS', 'code': standard} for standard in dict.fromkeys(STANDARDS[n-1] for n in task['coversOriginalQuestions'])],
+              'alignments': [{'framework': 'teks', 'code': standard, 'role': 'primary', 'evidenceLevel': 'assessed'} for standard in dict.fromkeys(STANDARDS[n-1] for n in task['coversOriginalQuestions'])],
               'hints': [EXPLANATIONS[part['skill']] for part in task['parts']],
               'explanation': ' '.join(EXPLANATIONS[part['skill']] for part in task['parts']), 'dok': 2, 'difficultyBand': 3}
     if 13 in task['coversOriginalQuestions']: result['permittedTools'] = ['linearRegression']
@@ -111,7 +111,7 @@ def build():
     for i, task in enumerate(reviews[0]):
         variants = [review_native(form[i]) for form in reviews]
         questions.append({**variants[0], 'questionId': 'dol2-' + task['id'].lower(), 'questionFamily': {'scope': 'assignment', 'recoveryEligible': True}, 'variants': variants})
-    assignment = {'schemaVersion': 5, 'assignment': {'title': 'Algebra I · District DOL #2 Review & Retest', 'courseId': 'algebra1',
+    assignment = {'schemaVersion': 5, 'portableContract': {'kind': 'mathmasterCanonicalAssignmentV5', 'version': 1}, 'assignment': {'title': 'Algebra I · District DOL #2 Review & Retest', 'courseId': 'algebra1',
                   'instructionalPurpose': 'review', 'gradingPurpose': 'test', 'instructions': 'Attempt all seven review tasks and earn at least 80% review mastery. Then complete the 13-question secure retest. The recorded replacement cannot exceed 70 and cannot lower your original district grade.'},
                   'variantPolicy': {'mode': 'personalized'}, 'assessmentPolicy': {'mode': 'testCycle', 'passingScore': 70,
                   'externalAssessment': {'source': 'Eduphoria'}, 'review': {'required': True, 'minimumMastery': 80}, 'corrections': {'requiredForRetest': False}, 'retest': {'maxRecordedGrade': 70}},

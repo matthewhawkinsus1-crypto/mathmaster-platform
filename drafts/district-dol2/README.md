@@ -1,6 +1,8 @@
 # Algebra I District DOL #2 review and retest
 
-`assignment.json` is the native V5 assignment import for the platform changes in this branch. Deploy those changes before importing it; the secure bank is delivered with the Functions code, not embedded in the student assignment.
+`assignment.json` is the corrected native V5 assignment import from PR #439, verified against the assessment lifecycle update merged in PR #443. The secure bank is delivered with the Functions code, not embedded in the student assignment. The original PR #439 Functions and the PR #443 lifecycle changes must be deployed before creating student sessions.
+
+The corrected export uses valid lowercase TEKS alignment metadata and identifies its already compiled native contract. It passes the complete import and teacher preflight path with no blocking errors. Seven binary-response advisory notes remain; they do not disable Save to Library or Create & Assign. Five review tasks contain graphs or tables. The follow-up platform fix makes the teacher representation audit recognize these nested visuals; deploy that frontend change to remove the incorrect “No visual questions” label.
 
 ## Teacher setup
 
@@ -24,6 +26,6 @@ The grade record retains the original score and raw retest score. The replacemen
 
 Regenerate both files with `python scripts/content/build_district_dol2.py`. The server-only bank is `functions/seeds/secureAssessments/algebra1_district_dol2.json`; it is resolved by ID for this blueprint and is not added to the ordinary Path curriculum bank.
 
-Deploy the frontend and affected Functions through the repository's documented release workflow. No new Firestore collection or rules changes are introduced. This branch has not been deployed or imported into a production class; complete an authenticated teacher/student smoke test before assigning it to students.
+Deploy the frontend and affected Functions through the repository's documented release workflow. No new Firestore collection or rules changes are introduced. The corrected import, persisted contract, server candidate preflight, and assessment lifecycle have been verified locally, including real callable execution against the Firestore emulator. This follow-up branch has not been deployed or imported into a production class; confirm the authenticated teacher/student flow in the deployed environment before assigning it to students.
 
 See `VALIDATION.md` for checks and remaining verification limits.
