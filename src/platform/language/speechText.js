@@ -310,7 +310,10 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     // letter or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
     // its own sign: a divided term "-10 / -2" is "negative 10 over negative 2"
     // (it read "negative 10 / minus 2"; pass 3, MATH_DISPLAY "Not done").
-    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*(?:\d+(?:\.\d+)?|[A-Za-z]|\([^()]*\)))/g, ` $1 ${w.over} $2 `)
+    // A word denominator is the whole word: one letter taken from "sin", "pi"
+    // or a spoken "the square root of" left the rest spelled out ("1 over s
+    // in", "180 over p i", "1 over t he absolute value of b"; review SF2).
+    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*(?:\d+(?:\.\d+)?|[A-Za-z]+|\([^()]*\)))/g, ` $1 ${w.over} $2 `)
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')

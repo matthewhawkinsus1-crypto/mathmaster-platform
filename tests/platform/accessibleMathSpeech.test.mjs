@@ -72,6 +72,34 @@ test('a division whose denominator carries a sign is "over negative"', () => {
   assert.equal(mathToSpeech('-2/3x'), 'negative 2 over 3 x');
 });
 
+// Review SF2: a denominator that is a word — a function, pi, or math already
+// said in words ("the square root of") — was cut after its first letter and
+// the rest spelled: "1 over s in", "180 over p i", "2 over t he square root
+// of 3". Signed or not, the whole word is the denominator.
+test('a word denominator is read whole, with or without a sign', () => {
+  const cases = [
+    ['1/-sin(x)', '1 over negative sin times the quantity x', '1 sobre negativo sin por la cantidad x'],
+    ['3 / -sqrt(2)', '3 over negative the square root of 2', '3 sobre negativo la raíz cuadrada de 2'],
+    ['x/-√2', 'x over negative the square root of 2', 'x sobre negativo la raíz cuadrada de 2'],
+    ['2/-pi', '2 over negative pi', '2 sobre negativo pi'],
+    ['1/-ln(x)', '1 over negative ln times the quantity x', '1 sobre negativo ln por la cantidad x'],
+    ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
+    ['1/sin(x)', '1 over sin times the quantity x', '1 sobre sin por la cantidad x'],
+    ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
+    ['1/|b|', '1 over the absolute value of b', '1 sobre el valor absoluto de b'],
+  ];
+  for (const [value, en, es] of cases) {
+    assert.equal(mathToSpeech(value), en, value);
+    assert.equal(mathToSpeech(value, { language: 'es' }), es, `${value} (es)`);
+  }
+  // Prose the platform really shows (a lesson's hint and step).
+  assert.equal(speechTextFor('Multiply a radian measure by $180/\\pi$ to express it in degrees.'), 'Multiply a radian measure by 180 over pi to express it in degrees.');
+  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals ln 3 over ln 2.');
+  // A one-letter denominator is still one letter.
+  assert.equal(mathToSpeech('x/y'), 'x over y');
+  assert.equal(mathToSpeech('3/-x'), '3 over negative x');
+});
+
 test('MathDisplay hides the typeset element and renders one spoken copy from its value', () => {
   const source = executableSource(read('src/MathDisplay.jsx'));
   assert.doesNotMatch(source, /Mathematical expression/, 'the placeholder default label is gone');
