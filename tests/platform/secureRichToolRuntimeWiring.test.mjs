@@ -87,7 +87,9 @@ test('Rich Tool work survives: device drafts restored before mount, and sent wit
   // Restored in the state initializer — before QuestionEngine mounts and reads.
   assert.match(toolItem, /useState\(\(\) => \{[\s\S]{0,400}restoreQuestionDrafts\(own\)/);
   const emit = region(toolItem, 'const emitDraft = useCallback(', '}, [draftKey]);', 'draft emission');
-  assert.match(emit, /workspaceDrafts: draftKey \? readQuestionDraftFamily\(draftKey\) : \[\]/);
+  // Every draft of the item, less this device's Undo history (pass 3 review;
+  // tests/tools/persistedUndoNotSent.test.mjs).
+  assert.match(emit, /workspaceDrafts: draftKey \? withoutPersistedUndo\(readQuestionDraftFamily\(draftKey\)\) : \[\]/);
   assert.match(emit, /raw: latestRawRef\.current/);
   // Only the student's own edits go up, not a workspace writing back on mount.
   assert.match(toolItem, /if \(!edit \|\| !belongsToDraft\(key, draftKey\)\) return;/);
@@ -133,7 +135,7 @@ test('the engine\'s disabled final action is readable in both themes ("Record an
   };
   const ratio = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
 
-  const submitButton = region(engine, 'className="mathmaster-bar-submit"', '</button>', 'bar submit');
+  const submitButton = region(engine, 'className={`mathmaster-bar-submit', '</button>', 'bar submit');
   const background = submitButton.match(/background: submitDisabled \? 'var\(--([\w-]+)\)'/);
   const color = submitButton.match(/color: submitDisabled \? 'var\(--([\w-]+)\)'/);
   assert.ok(background && color, 'the disabled state takes its colours from theme tokens');
@@ -176,8 +178,13 @@ test('QuestionEngine publishes a registry tool\'s live work under server grading
   const serverBranch = region(handler, 'if (serverGrading) {', 'return;\n    }', 'server branch');
   assert.match(serverBranch, /onResponseStateChangeRef\.current\?\.\(work \?\? null\)/);
   assert.doesNotMatch(serverBranch, /gradeRegistryToolWork|setAnswerState/);
-  // And the host's label reaches every registry tool.
-  assert.match(region(engine, '<ToolRuntimeProvider\n          showImmediateFeedback={showOutcomeFeedback && !serverGrading}\n          hintsAllowed={toolHintsAllowed}\n          onHintUsed={recordHintUse}\n          questionTerminal={locked}\n          attemptOutcome', '>', 'registry provider'), /submitLabel=\{hostSubmitLabel\}/);
+  // And the host's label reaches every registry tool: the provider of the
+  // registry mount (the one that carries the tool's attempt outcome), however
+  // many attributes it has.
+  const registryMount = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool mount');
+  const registryProvider = (registryMount.match(/<ToolRuntimeProvider\b[^>]*>/) || [''])[0];
+  assert.match(registryProvider, /\sattemptOutcome=\{toolAttemptOutcome\}/, 'this is the registry provider');
+  assert.match(registryProvider, /\ssubmitLabel=\{hostSubmitLabel\}/);
 });
 
 test('every certified registry tool names its final action through the runtime label', () => {
@@ -207,7 +214,8 @@ test('Graphing\'s "Your line" readout is a self-check, withheld where help is', 
   const graphing = read('src/tools/graphing2/Graphing2.jsx');
   assert.match(graphing, /const showLineReadout = hintsAllowed;/);
   assert.match(graphing, /\{showLineReadout \? \(\s*<>\s*<dt[^>]*>Your line<\/dt>/);
-  assert.match(graphing, /label: studentLine && showLineReadout \? `Your line: \$\{formatLine\(studentLine\)\}` : 'Your line'/);
+  // Pass 3 (TOOL-7): the readout is written by lineReadoutText; still gated the same way.
+  assert.match(graphing, /label: studentLine && showLineReadout \? `Your line: \$\{lineReadoutText\(studentLine\)\}` : 'Your line'/);
 });
 
 test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is', () => {
@@ -216,7 +224,9 @@ test('the Data Modeling Lab\'s teaching notes are hints: withheld where help is'
   // item that asks it. The same for reading r and residual plots, and for
   // choosing between models.
   const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
-  assert.match(lab, /const teachingNotes = useHintsAllowed\(\);/);
+  // Since W6-4 (review N3) the notes follow the method gate: withheld where
+  // hints are, and also where verdicts are withheld with hints on.
+  assert.match(lab, /const methodWithheld = useMethodWithheld\(\);\s*const teachingNotes = !methodWithheld;/);
   [
     'Interpret r by its sign',
     'It does not, by itself, prove causation',
@@ -256,8 +266,17 @@ test('Data Modeling: the guide steps on a secure item repeat no withheld teachin
   });
   // Chosen by the hint permission; an unknown mode falls back to secure steps.
   assert.match(source, /const guideSteps = teachingNotes\s*\? \(MODE_STEPS\[mode\] \|\| MODE_STEPS\.full\)\s*: \(SECURE_MODE_STEPS\[mode\] \|\| MODE_STEPS\[mode\] \|\| SECURE_MODE_STEPS\.full\);/);
-  assert.match(source, /const taskSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
-  assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\} \/>/);
+  assert.match(source, /const wordedSteps = hostSubmitLabel \? withoutCheckInvitation\(guideSteps\) : guideSteps;/);
+  assert.match(source, /<TaskCard question=\{questionData\} task=\{MODE_TASKS\[mode\] \|\| MODE_TASKS\.full\} steps=\{taskSteps\}[^>]*\/>/);
+  // The secure lists say what to do, not how to judge it, so the card shows
+  // them where the method is withheld (R-10). Since W6-4 each secure step is a
+  // control step rather than the whole list `stepsAreControls`, so the
+  // directions sentence ("Use … regression technology", the route) does not
+  // come back beside them; a mode with no secure list falls back to teaching
+  // steps and is withheld. Rendered per mode in toolDirectionsSplit.test.mjs.
+  assert.match(source, /const secureSteps = !teachingNotes && Boolean\(SECURE_MODE_STEPS\[mode\]\);/);
+  assert.match(source, /const taskSteps = secureSteps \? wordedSteps\.map\(controlStep\) : wordedSteps;/);
+  assert.doesNotMatch(source, /<TaskCard [^>]*stepsAreControls/);
 });
 
 test('only the student\'s own work is autosaved, and only a host that keeps live tool work is sent it', () => {
@@ -344,7 +363,11 @@ test('Step Algebra judges no committed move where verdicts are withheld', () => 
   assert.doesNotMatch(shown, /solved|longer way|Look for|correct/i);
   // The status box drops correctness colour; a genuine error stays red.
   assert.match(core, /const tone = !verdictsShown && message\.tone !== 'error' \? 'neutral' : message\.tone;/);
-  assert.match(core, /if \(verdictsShown\) setMessage\(\{ tone: 'growth', text: attemptsDoNotExpire/);
+  // Before a move is committed nothing judges it: decision D1 removed the
+  // attempt charge for a longer route, which was the one place attemptMove
+  // showed evaluateMove's verdict (and it was gated on verdictsShown).
+  const attempt = executableSource(region(core, 'const attemptMove = async', 'const localPoint =', 'attemptMove'));
+  assert.doesNotMatch(attempt, /verdict\.message|evaluateMove\(/);
 });
 
 test('no tool invites a "check" beside the action that records a secure item\'s only answer', () => {

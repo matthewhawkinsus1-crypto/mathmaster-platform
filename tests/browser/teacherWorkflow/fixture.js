@@ -219,6 +219,10 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // Warm-Up is still inside its default ten-minute window.
   const p3StartMin = Number(params?.get?.('p3StartMin'));
   const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 40) * 60_000;
+  // `?p3EndMin=<n>`: Period 3 ends in n minutes (default 50). With 3, the
+  // class's DOL (10 minutes, closing 5 before the bell) closed 2 minutes ago.
+  const p3EndMin = Number(params?.get?.('p3EndMin'));
+  const p3EndMs = now + (Number.isFinite(p3EndMin) && p3EndMin > 0 ? p3EndMin : 50) * 60_000;
   const todayKey = dateKey(now);
   const yesterday = previousSchoolDay(now);
   const fixture = {};
@@ -227,7 +231,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const clampStart = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(0, 5, 0, 0)).getTime());
   const clampEnd = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(23, 55, 0, 0)).getTime());
   const todayPeriods = {
-    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(now + 50 * 60_000)) },
+    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(p3EndMs)) },
   };
   if (sameDay(now - 4 * 3600_000, now)) todayPeriods['Period 1'] = { enabled: true, start: hhmm(now - 4 * 3600_000), end: hhmm(now - 3 * 3600_000) };
   if (sameDay(now + 3 * 3600_000, now)) todayPeriods['Period 5'] = { enabled: true, start: hhmm(now + 2 * 3600_000), end: hhmm(now + 3 * 3600_000) };
@@ -383,6 +387,12 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
       assignmentActivity: {},
     });
   });
+  // `?d7=1` (dolExtraTimeJourneys.mjs): the first Algebra II Period 3
+  // student has the teacher's "extra time" box (decision D7: 1.5× on the DOL).
+  if (params?.get?.('d7') === '1') {
+    const extended = students.find((student) => student.id === DOL_EXTRA_TIME.extended);
+    extended.profile = { inclusionStatus: false, accommodations: ['extra-time'], modifications: [], translationLanguage: null };
+  }
   students.forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
 
   // ---------------------------------------------------------------- live presence
@@ -532,6 +542,9 @@ const addPrerequisiteEarlyScenario = ({ fixture, now, lesson, sectionsFor }) => 
  * The private records are built with the server's own record builder, and
  * each has its staff-only history entry.
  */
+/** `?d7=1`: who has extra time on the DOL, and a classmate who does not (both Algebra II Period 3). */
+export const DOL_EXTRA_TIME = Object.freeze({ extended: '910001', classmate: '910002' });
+
 export const PRIVATE_CONTROLS = Object.freeze({ extended: '910001', granted: '910003', excused: '910006', plain: '910004' });
 const addPrivateControlsScenario = ({ fixture, now, mode, classRecord }) => {
   const at = new Date(now - DAY).toISOString();

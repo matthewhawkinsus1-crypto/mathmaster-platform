@@ -65,12 +65,12 @@ test('Classroom split launch preserves exact section and closed links stop on fr
     new URL('../../src/components/student/StudentAssignmentResult.jsx', import.meta.url),
     'utf8',
   );
-  // The no-credit retry names the Classroom section it is scoped to ("Try DOL
-  // again — no credit"); closed work is never labelled "Practice", which in
-  // student copy means only the lesson's Practice section.
+  // The no-credit retry names the Classroom section it is scoped to ("Try these
+  // DOL questions again — no credit", NAV-8); closed work is never labelled
+  // "Practice", which in student copy means only the lesson's Practice section.
   assertCapability(
     result,
-    [/tryAgainLabel\(sectionLabel\)/, /`Try \$\{sectionLabel\} again/],
+    [/resultTryAgainLabel\(sectionLabel\)/, /tryAgainLabel\(sectionLabel\)/, /`Try \$\{sectionLabel\} again/],
     'The Assignment Result screen must offer a retry scoped to the Classroom section it was opened from.',
   );
   const appResult = region(

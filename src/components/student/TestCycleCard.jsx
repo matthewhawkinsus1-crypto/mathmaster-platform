@@ -6,6 +6,9 @@ import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
 import { studentScheduleBlocks } from '../../platform/student/testCycleScheduleView.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
+import { opensWhenPhrase } from '../../platform/student/studentWhen.js';
+import { describeStudentError } from '../../platform/student/studentErrorText.js';
+import { LEVEL } from '../../platform/student/navigationModel.js';
 import {
   markTestCycleSeen,
   retestPolicyRelevant,
@@ -13,7 +16,7 @@ import {
   reviewSkillRows,
   reviewWasWaived,
   sittingFactsFor,
-  testCycleDueFacts,
+  testCycleCardDueFacts,
   testReviewLabel,
   testReviewSessionIdFor,
   testSkillsSection,
@@ -136,7 +139,9 @@ const factStyle = { margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(
 // How often an open Test review asks whether it may still be shown.
 const TEST_REVIEW_RECHECK_MS = 30000;
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, lateDueAt = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+// `exitLabel`: the Back control's words, naming where it goes ("← Home");
+// App derives it from where the card was opened (NAV-9).
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, classLateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -150,7 +155,10 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // the card, or to the corrections question the student was working on.
   const [testReviewReturn, setTestReviewReturn] = useState('card');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  // What the last failed load said, in a student's words (NAV-11), and how
+  // many loads have failed in a row (Try again stops being offered after two).
+  const [error, setError] = useState(null);
+  const failedLoadsRef = useRef(0);
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
@@ -180,13 +188,15 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
       const next = await getStudentTestCycle({ assignmentId });
       if (seq !== loadSeqRef.current) return;
       setCard(next);
-      setError('');
+      setError(null);
+      failedLoadsRef.current = 0;
       // Opening the card is seeing it: the list's "New" marker for this cycle
       // clears until its stage changes again.
       if (studentId) markTestCycleSeen(studentId, assignmentId);
     } catch (loadError) {
       if (seq !== loadSeqRef.current) return;
-      setError(loadError.message || 'This assessment could not be opened.');
+      failedLoadsRef.current += 1;
+      setError(describeStudentError(loadError, { level: LEVEL.TEST_CYCLE, retryCount: failedLoadsRef.current - 1 }));
     } finally {
       if (seq === loadSeqRef.current) setLoading(false);
     }
@@ -251,10 +261,21 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
   if (loading && !card) return <section style={shell}><p role="status" style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
   if (error && !card) {
+    // Never a dead end: the server's sentence or "Can't reach MathMaster",
+    // Try again only while it can help, and always a named way out.
     return (
-      <section style={shell}>
-        <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error}</p>
-        <button type="button" onClick={load} style={{ ...quietButtonStyle, justifySelf: 'start', minHeight: 44 }}>Try again</button>
+      <section style={shell} data-test-cycle-error>
+        <h1 style={{ margin: 0, letterSpacing: '-0.24px', lineHeight: '118%', fontSize: 'calc(20 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>This test could not be opened</h1>
+        <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error.text}</p>
+        {error.exhaustedMessage && <p style={{ margin: 0, color: 'var(--mm-text)' }}>{error.exhaustedMessage}</p>}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {error.retry && (
+            <button type="button" onClick={load} style={{ ...quietButtonStyle, minHeight: 44 }}>Try again</button>
+          )}
+          {onExit && (
+            <button type="button" data-test-cycle-exit onClick={onExit} style={{ ...quietButtonStyle, minHeight: 44 }}>{exitLabel}</button>
+          )}
+        </div>
       </section>
     );
   }
@@ -296,6 +317,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         onPracticeSkill={onPracticeSkill}
         skillLabels={card.testSkills}
         backLabel="Back to my assessment"
+        studentSupportProfile={studentProfile}
       />
     );
   }
@@ -312,6 +334,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             corrections={card.corrections}
             reviewExamSessionId={testReviewId}
             testAnswersHeld={card.testAnswersHeld === true}
+            studentSupportProfile={studentProfile}
             onReviewTest={() => openTestReview('corrections')}
             onProgress={load}
             onComplete={backToCard}
@@ -325,6 +348,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             onPracticeSkill={onPracticeSkill}
             skillLabels={card.testSkills}
             backLabel="Back to my corrections"
+            studentSupportProfile={studentProfile}
           />
         )}
       </>
@@ -339,6 +363,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         onPracticeSkill={onPracticeSkill}
         skillLabels={card.testSkills}
         backLabel="Back to my assessment"
+        studentSupportProfile={studentProfile}
       />
     );
   }
@@ -368,7 +393,9 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // open says until when (each from a tested helper in testCycleDiscovery.js).
   const reviewWaived = reviewWasWaived(card);
   const sitting = sittingFactsFor(card);
-  const due = testCycleDueFacts({ dueAt: card.dueAt, lateDueAt });
+  // The student's own dates ahead of the Test; the close the server enforces
+  // in Corrections and the Retest (testCycleCardDueFacts).
+  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, classLateDueAt });
   const scheduleBlocks = studentScheduleBlocks(card);
   const testSkills = testSkillsSection(card);
 
@@ -379,12 +406,13 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         {card.secure && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
         {card.hintsAllowed && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
-      <h2 ref={headingRef} tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(23 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
+      {/* The screen's top heading (NAV-15): the test's name. */}
+      <h1 ref={headingRef} tabIndex={-1} style={{ margin: 0, letterSpacing: '-0.24px', lineHeight: '118%', fontSize: 'clamp(calc(18 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(23 * var(--mm-px)))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h1>
       <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
 
       {availability?.reason === 'scheduled' && availability.opensAt && (
         <p role="status" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontWeight: 800 }}>
-          Opens {formatDateTime(new Date(availability.opensAt).toISOString())}.
+          Opens {opensWhenPhrase(availability.opensAt)}.
         </p>
       )}
 
@@ -466,7 +494,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
         {card.policy?.summary && retestPolicyRelevant(card) && <p style={factStyle}>{card.policy.summary}</p>}
         {due.dueAt && (
           <p data-test-cycle-due="" style={factStyle}>
-            Due {formatDateTime(due.dueAt)}.{due.finalLateDueAt ? ` Late work is still open: final late due ${formatDateTime(due.finalLateDueAt)}.` : ''}
+            Due {formatDateTime(due.dueAt)}.{due.finalLateDueAt ? ` Late work is accepted until ${formatDateTime(due.finalLateDueAt)}.` : ''}
           </p>
         )}
       </div>
@@ -486,8 +514,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
           </button>
         )}
         {onExit && (
-          <button type="button" onClick={onExit} style={quietButtonStyle}>
-            Back
+          <button type="button" data-test-cycle-exit onClick={onExit} style={quietButtonStyle}>
+            {exitLabel}
           </button>
         )}
       </div>

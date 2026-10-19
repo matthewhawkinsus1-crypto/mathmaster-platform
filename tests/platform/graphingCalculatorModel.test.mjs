@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, formatNumber, normalizeEntryText,
+  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, formatNumber, normalizeEntryText,
   panViewport, parseGraphEntries, parseGraphEntry, readNumberEntry, tableOfValues, zoomViewport,
 } from '../../src/platform/assessment/graphingCalculatorModel.js';
 import { executableSource } from './helpers/sourceContract.mjs';
@@ -104,7 +104,9 @@ test('anything that is not plain mathematics is refused, with a sentence to act 
   }
   assert.equal(parseGraphEntry('a = 5').code, 'left-side');
   assert.equal(parseGraphEntry('x % 2').code, 'unsupported-operator');
-  assert.equal(parseGraphEntry('[1, 2]').code, 'unsupported');
+  // A character no key makes is named, in the keypad's words (TOOL-8, W6-4).
+  assert.equal(parseGraphEntry('[1, 2]').code, 'symbol');
+  assert.match(parseGraphEntry('[1, 2]').error, /It could not read “\[”\. Use x, numbers/);
 });
 
 test('f(x) = … labels a graph and defines nothing another line can call', () => {
@@ -173,7 +175,14 @@ test('it never runs what was typed as code, and uses mathjs only to parse', () =
   const code = executableSource(source);
   assert.doesNotMatch(code, /\beval\s*\(|new\s+Function\b|\bFunction\s*\(|setTimeout\s*\(\s*['"`]/, 'no eval, no Function constructor');
   const imports = [...code.matchAll(/^\s*import\s+[^;]+;/gm)].map((match) => match[0].trim());
-  assert.deepEqual(imports, ["import { parse } from '../math/mathjs.js';"], 'the only thing taken from mathjs is its parser');
+  // Since W6-4 it also reads the keypad's refusal reasons, a module with no
+  // imports of its own: mathjs still reaches it only as the parser.
+  assert.deepEqual(imports, [
+    "import { parse } from '../math/mathjs.js';",
+    "import { bracketProblem, calculatorErrorMessage, firstUnreadable } from '../policies/calculatorErrorReasons.js';",
+  ], 'the only thing taken from mathjs is its parser');
+  const reasons = executableSource(readFileSync(new URL('../../src/platform/policies/calculatorErrorReasons.js', import.meta.url), 'utf8'));
+  assert.doesNotMatch(reasons, /^\s*import\b/m, 'the shared reasons import nothing');
   assert.doesNotMatch(code, /\bmath\.(evaluate|compile)|\.compile\(\)|\.evaluate\(\s*\{/, 'mathjs\'s evaluator is never called');
   // The allowlist is the whole surface: every operator and function by name.
   const operators = code.match(/const OPERATORS = Object\.freeze\(\{([\s\S]*?)\}\);/)[1];
@@ -226,3 +235,56 @@ test('the trace and table boxes read numbers the way a line does, and an empty b
   assert.deepEqual(tableOfValues(line, { start: readNumberEntry('1/2'), step: readNumberEntry('1/2'), rows: 3 }).map((row) => row.y), [2, 3, 4]);
 });
 
+
+// TOOL-8 for the graphing calculator (W6-4). W5-4 gave the keypad a reason for
+// each refusal; this calculator kept its own words, and a "#" silently cut the
+// line short. The same diagnosis and sentences now serve both.
+test('a refused line says what to change, in the keypad calculator\'s words', async () => {
+  const { calculatorErrorMessage: keypadMessage } = await import('../../src/components/calculatorKeys.js');
+  const { calculatorErrorMessage } = await import('../../src/platform/policies/calculatorErrorReasons.js');
+  assert.equal(keypadMessage, calculatorErrorMessage, 'one function, not a copy');
+  const said = (text) => parseGraphEntry(text);
+  assert.deepEqual([said('y = (x + 2').code, said('y = (x + 2').error], ['bracket-open', 'A bracket is not closed. Add the missing “)”.']);
+  assert.deepEqual([said('y = 2x)').code, said('y = 2x)').error], ['bracket-close', 'A “)” has no “(” to match it.']);
+  assert.equal(said('y = 2x +').error, 'It could not read that. Check for a missing number, or two signs side by side.');
+  for (const [text, symbol] of [['y = 2x;', ';'], ['y = [x]', '['], ['y = x {2}', '{'], ['y = 2x # 3', '#'], ['# 3', '#']]) {
+    const entry = said(text);
+    assert.equal(entry.kind, ENTRY_KINDS.ERROR, `${text} is refused, never graphed`);
+    assert.equal(entry.code, 'symbol', text);
+    assert.equal(entry.error, `It could not read “${symbol}”. Use x, numbers, + − × ÷, brackets and the function keys.`, text);
+  }
+  // A sentence that already names the problem stands.
+  assert.equal(said('evaluate(1)').code, 'unknown-function');
+  assert.equal(said('x % 2').code, 'unsupported-operator');
+  assert.equal(said('sin').code, 'needs-brackets');
+  assert.match(said('1/0').error, /^That has no number answer\. Check for dividing by 0/);
+  // Lines that are fine are unchanged.
+  assert.equal(said('y = 2(x + 1)').kind, ENTRY_KINDS.FUNCTION);
+  assert.equal(said('y = log(x, 2)').kind, ENTRY_KINDS.FUNCTION);
+  assert.equal(said('|x - 2|').kind, ENTRY_KINDS.FUNCTION);
+});
+
+// A flat turn (W5-7's review note, W6-4). Near (x − 2.718)⁶ − 3's minimum every
+// x within about 0.02 computes −3, so the shortest "as low" x was 2.7, and in a
+// zoomed view that x failed the real-turn test and the minimum vanished.
+test('a turn flatter than a parabola reads where it is, in every view', () => {
+  const turns = (text, xMin = -10, xMax = 10) => {
+    const found = findGraphFeatures(parseGraphEntry(text), { xMin, xMax });
+    return { minima: found.minima, maxima: found.maxima, zeros: found.zeros };
+  };
+  for (const [xMin, xMax] of [[-10, 10], [-5, 5], [2, 4], [2.6, 2.8]]) {
+    assert.deepEqual(turns('y = (x - 2.718)^6 - 3', xMin, xMax).minima, [{ x: 2.718, y: -3 }], `(x − 2.718)⁶ − 3 on [${xMin}, ${xMax}]`);
+  }
+  assert.deepEqual(turns('y = -(x + 0.577)^8 + 2').maxima, [{ x: -0.577, y: 2 }]);
+  // A flat touch of y = 0 is that zero, exactly.
+  assert.deepEqual(turns('y = (x - 1.234)^6'), { minima: [{ x: 1.234, y: 0 }], maxima: [], zeros: [1.234] });
+  // A lopsided flat turn has no middle that is its turn: (x − 1)⁴ + 0.001(x − 1)³
+  // turns at x = 1 − 0.00075, where the search finds it.
+  assert.deepEqual(turns('y = (x - 1)^4 + 0.001(x - 1)^3', 0.5, 4).minima.map(({ x }) => x), [0.99925]);
+  // Parabolas, a cubic's turns and corners are read as before (the integer
+  // vertex sweep in assignmentCalculatorSetting covers 6,448 parabolas).
+  assert.deepEqual(turns('y = x^3 - 3x'), { minima: [{ x: 1, y: -2 }], maxima: [{ x: -1, y: 2 }], zeros: turns('y = x^3 - 3x').zeros });
+  assert.deepEqual(turns('y = abs(x - 0.3) - 2').minima, [{ x: 0.3, y: -2 }]);
+  // A flat inflection is not a turn.
+  assert.deepEqual([turns('y = (x - 2.718)^5 + 1').minima, turns('y = (x - 2.718)^5 + 1').maxima], [[], []]);
+});

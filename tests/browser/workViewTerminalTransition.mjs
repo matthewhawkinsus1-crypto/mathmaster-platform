@@ -56,9 +56,19 @@ const assertCleanClose = async (page) => {
     flag: document.documentElement.dataset.workViewOpen,
     overflow: document.documentElement.style.overflow,
     actions: document.documentElement.style.getPropertyValue('--mm-work-view-actions'),
-    activeInWorkView: Boolean(document.activeElement?.closest?.('.mathmaster-work-view-host')),
+    // Focus is never left in the enlarged view that just closed. The host
+    // element wraps the question in the page too, so "in Work View" is an OPEN
+    // host; since student pass 3 a submit that closes the question moves focus
+    // on, to Next / Continue or the closed card — in the page, and visible.
+    activeInWorkView: Boolean(document.activeElement?.closest?.('.mathmaster-work-view-host[data-open="true"]')),
+    activeHidden: (() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) return false;
+      const rect = active.getBoundingClientRect();
+      return rect.width === 0 || rect.height === 0 || getComputedStyle(active).visibility === 'hidden';
+    })(),
   }));
-  if (state.flag || state.overflow === 'hidden' || state.actions || state.activeInWorkView) throw new Error(`terminal cleanup failed: ${JSON.stringify(state)}`);
+  if (state.flag || state.overflow === 'hidden' || state.actions || state.activeInWorkView || state.activeHidden) throw new Error(`terminal cleanup failed: ${JSON.stringify(state)}`);
 };
 
 const assertTappableContinuation = async (page, viewportName) => {
@@ -116,7 +126,9 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
 
     await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'expired' })));
     await assertCleanClose(page);
-    await page.getByText(/response is closed after/i).waitFor();
+    // The closed card's verdict (QuestionEngine.jsx; "tries", D9, since
+    // student pass 3 Batch 1).
+    await page.getByText(/This question is closed after \d+ tr(?:y|ies)\./i).waitFor();
     await assertTappableContinuation(page, `${viewport.name}/${route}/expired`);
 
   // Start the assignment-lock scenario from a fresh QuestionEngine. The

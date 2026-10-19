@@ -40,7 +40,9 @@ test('date-only action keys render as local calendar dates instead of UTC instan
 test('sidebar badge keeps only the last projected count after Action Center releases heavy data', () => {
   assert.match(teacherWorkspace, /actionCount=\{teacherActionOpenCount\}/);
   assert.match(app, /\n {8}teacherActionOpenCount=\{teacherActionOpenCount\}\n/);
-  assert.match(app, /const currentTeacherActionOpenCount = openTeacherActionCount\(teacherActionItems\)/);
+  // The count comes from the teacher kit (app/teacher/teacherKit.js); the
+  // teacher's screen renders only once it is here.
+  assert.match(app, /const currentTeacherActionOpenCount = teacherKit \? teacherKit\.openTeacherActionCount\(teacherActionItems\) : 0;/);
   assert.match(app, /setTeacherActionOpenCountCache\(currentTeacherActionOpenCount\)/);
   assert.match(app, /const teacherActionOpenCount = teacherTab === 'actionCenter'/);
 });

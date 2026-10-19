@@ -5,6 +5,7 @@ import {
   studentAssignmentView,
 } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
+import { withStudentTimingProfile } from '../../../functions/shared/sectionDeadline.mjs';
 import { studentFacingDol } from './studentAssignmentScope.js';
 
 /*
@@ -152,13 +153,30 @@ export const privateOverrideFor = (controls, assignmentId) => {
  * removal of staff names from class-wide DOL data — is applied again here so a
  * caller can never skip either.
  */
-export const projectStudentAssignments = ({ assignments = [], studentId = null, profile = null, controls = EMPTY_STUDENT_CONTROLS } = {}) => {
+// The same stored profile, whatever order its keys arrive in.
+const stableJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+};
+export const sameTimingProfile = (left, right) => stableJson(left || null) === stableJson(right || null);
+
+// `timingProfile` is the grade document's own `profile` field — exactly what the
+// server's deadline readers use (gradeData.profile || null) — so the student's
+// DOL window (D7) on this device is the one the server enforces. It is kept
+// apart from `profile`, the normalized copy, which falls back to the whole
+// grade document when the field is missing.
+export const projectStudentAssignments = ({ assignments = [], studentId = null, profile = null, timingProfile = null, controls = EMPTY_STUDENT_CONTROLS } = {}) => {
   const owner = clean(studentId);
   if (!owner) return [];
   const own = controlsForStudent(controls, owner);
-  return (assignments || []).filter((assignment) => assignment?.id).map((assignment) => withStudentSupportDates(
+  // The timing profile rides along in memory (withStudentTimingProfile) so the
+  // student's DOL window is their own, extra time included (decision D7).
+  return (assignments || []).filter((assignment) => assignment?.id).map((assignment) => withStudentTimingProfile(withStudentSupportDates(
     studentFacingDol(studentAssignmentView(assignment, { studentId: owner, privateOverride: privateOverrideFor(own, assignment.id) })),
     owner,
     profile,
-  ));
+  ), timingProfile, owner));
 };

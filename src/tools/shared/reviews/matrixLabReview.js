@@ -113,11 +113,26 @@ const systemReview = (question, model) => {
   const { classification } = model;
   if (!classification) return null;
   const values = classification.type === SOLUTION_TYPES.ONE ? classification.solution.map(formatRational) : model.variables.map(() => '');
+  // A singular system: which row is a multiple of which, and whether the
+  // constants follow — the reason the review states, and (where the question
+  // asks for it, justifySingular) the reason the student gives.
+  let found = null;
+  if (classification.type !== SOLUTION_TYPES.ONE) {
+    const augmented = model.keyA.map((row, index) => [...row, model.keyB[index][0]]);
+    for (let i = 0; i < model.keyA.length && !found; i += 1) {
+      for (let j = 0; j < model.keyA.length && !found; j += 1) {
+        if (i === j) continue;
+        const factor = rowMultipleOf(model.keyA[j], model.keyA[i]);
+        if (factor) found = { i, j, factor, constants: Boolean(rowMultipleOf(augmented[j], augmented[i])) };
+      }
+    }
+  }
   const state = {
     A, B,
     inverse: model.keyInverse ? model.keyInverse.map((row) => row.map(formatRational)) : [],
     classification: classification.type,
     values,
+    ...(found ? { singularReason: { row: String(found.j + 1), otherRow: String(found.i + 1), factor: formatRational(found.factor), constant: found.constants ? 'follows' : 'breaks' } } : {}),
   };
   if (!accepted(question, state)) return null;
   const steps = model.buildEquation ? [...buildSteps] : [];
@@ -126,15 +141,6 @@ const systemReview = (question, model) => {
     steps.push(`X = A⁻¹B = ${columnText(classification.solution.map((value) => [value]))}, so ${model.variables.map((variable, index) => `${variable} = ${show(classification.solution[index])}`).join(', ')}.`);
   } else {
     steps.push('The calculator reports ERR: SINGULAR MATRIX: A has no inverse, so the system does not have exactly one solution.');
-    const augmented = model.keyA.map((row, index) => [...row, model.keyB[index][0]]);
-    let found = null;
-    for (let i = 0; i < model.keyA.length && !found; i += 1) {
-      for (let j = 0; j < model.keyA.length && !found; j += 1) {
-        if (i === j) continue;
-        const factor = rowMultipleOf(model.keyA[j], model.keyA[i]);
-        if (factor) found = { i, j, factor, constants: Boolean(rowMultipleOf(augmented[j], augmented[i])) };
-      }
-    }
     if (found) {
       steps.push(`The coefficients of equation ${found.j + 1} are ${show(found.factor)} times those of equation ${found.i + 1}${found.constants ? ', and so is its constant: the two equations say the same thing.' : ', but its constant is not: the two equations contradict each other.'}`);
     }

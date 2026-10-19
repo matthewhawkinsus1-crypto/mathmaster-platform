@@ -427,10 +427,18 @@ test('an answer the math editor wrote as LaTeX is drawn as mathematics; typed te
   for (const trial of editorLatex) assert.equal(answerIsLatex(trial.serialized), true, trial.serialized);
   // A typed answer (text profiles, and every answer from before the editor) keeps its spaces and words.
   for (const trial of fixture.trials.filter((entry) => entry.editor === 'text')) assert.equal(answerIsLatex(trial.serialized), false, trial.serialized);
-  for (const typed of ['7', '0.75', 'all real numbers', '0 ≤ t ≤ 8', '3/4', 'x^2', '$3x + 6$', '\\$25', '']) {
+  // `\$25` used to sit here as typed text. Since H-13 it is what the editor
+  // sends for a dollar field, and drawn it reads "$25" whichever box wrote it
+  // (no spaces or words to lose), so it is asserted as drawn below.
+  for (const typed of ['7', '0.75', 'all real numbers', '0 ≤ t ≤ 8', '3/4', 'x^2', '$3x + 6$', '']) {
     assert.equal(answerIsLatex(typed), false, typed);
   }
   assert.equal(answerIsLatex('2^{10}'), true);
+  // The editor's percent and dollar signs (H-13): drawn, not shown as `25\%`.
+  assert.equal(answerIsLatex('25\\%'), true);
+  assert.equal(answerIsLatex('\\$25.50'), true);
+  assert.equal(answerIsLatex('\\$25'), true);
+  assert.equal(answerIsLatex('$25.50'), false, 'a typed price is text');
 });
 
 test('a question whose answers are held says when they come, not that there is none', async () => {

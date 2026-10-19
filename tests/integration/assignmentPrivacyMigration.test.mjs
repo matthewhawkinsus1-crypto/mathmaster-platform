@@ -168,12 +168,42 @@ test('a second run changes nothing and duplicates nothing', async () => {
 });
 
 test('the read-scope switch reads as off, turns on and off, and is audited', async () => {
-  assert.deepEqual(await call('setAssignmentReadScope', ROOT), { studentListScoped: false, changed: false }, 'absent means off');
-  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: true }), { studentListScoped: true, changed: true });
+  // The response names both switches since D10 P0-3 added the by-id one
+  // (studentGetScoped); the list switch behaves exactly as before.
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT), { studentListScoped: false, studentGetScoped: false, changed: false }, 'absent means off');
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: true }), { studentListScoped: true, studentGetScoped: false, changed: true });
   assert.equal((await db.collection('platformFlags').doc('assignmentReadScope').get()).data().studentListScoped, true);
   assert.equal((await call('migrateAssignmentPrivacy', ROOT)).studentListScoped, true, 'the migration report shows the switch');
-  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: false }), { studentListScoped: false, changed: true });
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: false }), { studentListScoped: false, studentGetScoped: false, changed: true });
   const actions = (await db.collection(ADMIN_AUDIT_COLLECTION).where('target', '==', 'assignmentReadScope').get()).docs.map((entry) => entry.data().action);
   assert.ok(actions.includes('assignment_read_scope_enforced') && actions.includes('assignment_read_scope_relaxed'));
-  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: 'yes' }), { studentListScoped: false, changed: false }, 'anything but a boolean only reads');
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: 'yes' }), { studentListScoped: false, studentGetScoped: false, changed: false }, 'anything but a boolean only reads');
+});
+
+test('the by-id switch (D10 P0-3) is refused while lists are open, then turns on and off on its own, audited', async () => {
+  await assert.rejects(
+    call('setAssignmentReadScope', ROOT, { studentGetScoped: true }),
+    (error) => error.code === 'failed-precondition',
+    'a narrowed get protects nothing while the whole collection can be listed',
+  );
+  assert.equal((await db.collection('platformFlags').doc('assignmentReadScope').get()).data().studentGetScoped, undefined, 'nothing was written');
+  // Both in one call is allowed (the list goes on first in the same write).
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentListScoped: true, studentGetScoped: true }), { studentListScoped: true, studentGetScoped: true, changed: true });
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentGetScoped: false }), { studentListScoped: true, studentGetScoped: false, changed: true }, 'the list switch is left as it was');
+  assert.deepEqual(await call('setAssignmentReadScope', ROOT, { studentGetScoped: true }), { studentListScoped: true, studentGetScoped: true, changed: true });
+  const stored = (await db.collection('platformFlags').doc('assignmentReadScope').get()).data();
+  assert.equal(stored.studentListScoped, true);
+  assert.equal(stored.studentGetScoped, true);
+  const actions = (await db.collection(ADMIN_AUDIT_COLLECTION).where('target', '==', 'assignmentReadScope').get()).docs.map((entry) => entry.data().action);
+  assert.ok(actions.includes('assignment_get_scope_enforced') && actions.includes('assignment_get_scope_relaxed'));
+  // Lists off while by-id is on is refused too, so "by-id on, lists off" is never stored.
+  await assert.rejects(
+    call('setAssignmentReadScope', ROOT, { studentListScoped: false }),
+    (error) => error.code === 'failed-precondition',
+  );
+  assert.equal((await db.collection('platformFlags').doc('assignmentReadScope').get()).data().studentListScoped, true, 'nothing was written');
+  await assert.rejects(call('setAssignmentReadScope', TEACHER, { studentGetScoped: false }), (error) => error.code === 'permission-denied');
+  await assert.rejects(call('setAssignmentReadScope', STUDENT, { studentGetScoped: false }), (error) => error.code === 'permission-denied');
+  // Leave the switches as the other cases expect them.
+  await call('setAssignmentReadScope', ROOT, { studentListScoped: false, studentGetScoped: false });
 });

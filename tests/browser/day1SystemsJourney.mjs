@@ -239,7 +239,7 @@ const divideOut = async (page, divisor, result) => {
 /** Back-substitute the 2×2's first value into R₁ or R₂ by select-then-place. */
 const subsystemBackSubstitute = async (page, value, rIndex, variable) => {
   const sub = subsystem(page);
-  await sub.locator(`button[aria-label="Pick up the solved value ${value}"]`).click();
+  await sub.locator(`button[aria-label^="Pick up the solved value "][data-token-value="${value}"]`).click();
   await settle(page, 200);
   await sub.locator('.mathmaster-systems-backsub-equations > div').nth(rIndex)
     .locator(`button[aria-label="Variable ${variable}. Place the selected value or expression here"]`).click();
@@ -286,7 +286,9 @@ const verifyAll = async (page, journey, sides) => {
 };
 
 const submitAndGrade = async (page, questionId) => {
-  await workflow(page).getByRole('button', { name: 'Check my work' }).first().click();
+  // The system's final action says Submit and its cost under QuestionEngine
+  // (D9, RUN-4); "Check my work" where no host gives it one.
+  await workflow(page).getByRole('button', { name: /^(Check my work$|Submit — )/ }).first().click();
   await settle(page, 1200);
   const grades = await page.evaluate(() => window.__mm361.grades());
   return grades.filter((grade) => grade.questionId === questionId).pop() || null;

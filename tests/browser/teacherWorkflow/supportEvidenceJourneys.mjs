@@ -247,9 +247,9 @@ const journeys = {
     // next action is resuming Lesson 3 ('a-today'). Dates are compared as the
     // page prints them, so this holds in any browser time zone.
     const LESSON_3 = 'Systems of Equations — Lesson 3: Elimination';
-    // "Due <date>" on lists and results; the primary "Do this next" card
-    // names an individualized date as "Your due date: <date>".
-    const DUE = /\b(?:Due|Your due date:) (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
+    // "Due: <date>" on lists and results (one form since pass 3, NAV-18); the
+    // primary "Do this next" card names an individualized date as "Your due date: <date>".
+    const DUE = /\b(?:Due:|Your due date:) (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
     const nextCard = await text(page.locator('section[aria-labelledby="what-now-heading"]'));
     const nextDue = nextCard.match(DUE)?.[1] || null;
     const classDue = await page.evaluate((iso) => new Date(iso).toLocaleString(undefined, {
@@ -267,7 +267,7 @@ const journeys = {
       const rowDue = (await text(row)).match(DUE)?.[1] || null;
       expect('S1', rowDue === nextDue, `${tab} tab shows the student's own due date (${rowDue}; expected ${nextDue})`);
       if (tab === 'Grades') {
-        await row.getByRole('button', { name: 'View Results' }).click();
+        await row.getByRole('button', { name: 'See results' }).click();
         await page.waitForTimeout(1200);
         const resultDue = (await text(page.locator('main').first())).match(DUE)?.[1] || null;
         expect('S1', resultDue === nextDue, `the assignment result shows the student's own due date (${resultDue}; expected ${nextDue})`);
@@ -293,10 +293,11 @@ const journeys = {
       }
     } else {
       // Phones and portrait tablets hide the assignment header by design (the
-      // dashboard above carries the date); Support tools move to the expanded
-      // navigator, which the student opens with "Show progress".
-      const show = page.getByRole('button', { name: 'Show progress' });
-      if (await show.count()) await show.first().click();
+      // dashboard above carries the date); Support tools move to the
+      // navigator's chip ("More", or the most urgent status), which the
+      // student opens (pass 3).
+      const chip = page.locator('.mathmaster-assignment-status-chip').filter({ visible: true });
+      if (await chip.count()) await chip.first().click();
       await page.waitForTimeout(600);
     }
     const tools = page.locator('[data-student-support-tools]:visible');
@@ -427,7 +428,7 @@ const journeys = {
     await noSidewaysScroll('S3', page, 'Support tools open');
 
     // The same tools in Work View.
-    const enlarge = page.getByRole('button', { name: /Enlarge question/ }).first();
+    const enlarge = page.getByRole('button', { name: /Open Work View/ }).first();
     if (await enlarge.count()) {
       await enlarge.click();
       await page.locator('[data-work-view-supports]').first().click();

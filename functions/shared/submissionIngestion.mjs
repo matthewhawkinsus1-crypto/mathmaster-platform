@@ -675,8 +675,9 @@ export const buildIngestedAttempt = ({
    * record, its stepGrades and its partial credit are not read at all. A
    * step that does not follow from a state this variant has been in, or is
    * not what its operation produces, is recorded as an `unverified-step`
-   * that earns nothing; an attempt it spends (a rejected or inefficient
-   * move) is still spent. recordQuestionStep never completes a question.
+   * that earns nothing. No step spends an attempt (decision D1:
+   * stepActionCountsAttempt), so a step an older workspace charged for is
+   * not charged here. recordQuestionStep never completes a question.
    *
    * A step without stepWork — queued by a client built before step work
    * existed — keeps the sanitized path below, unchanged. So does a step whose
@@ -896,6 +897,8 @@ export const buildIngestedAttempt = ({
         classId: gradeDocument?.classId || null,
         at: academicAt,
         timeZone,
+        // Their extra time stretches a teacher's reopen too (decision D7).
+        studentProfile: gradeDocument?.profile || null,
       }),
     })
     : null;

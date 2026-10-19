@@ -258,6 +258,49 @@ export const transformedSourcePoints = (sourcePoints, spec) => (Array.isArray(so
   .filter(Boolean);
 
 /*
+ * WHAT A WRONG PLOT GOT RIGHT (student pass 3, R-4 / PR-12). A plot is
+ * graded image by image, in plotting order: P1 must be S1's image. Two wrong
+ * plots have done most of the mathematics, and the lab used to answer both
+ * with "1 of 5 … Use x/b + h …":
+ *
+ *   'reordered'  every image was found, one plotted point each, but not each
+ *                in its own place (S5's image plotted first, say);
+ *   'sameGraph'  every plotted point is on the transformed graph, and none
+ *                is the image of its own point (each point moved up 3 when
+ *                the graph moved left 3: the same line, the wrong points).
+ *                Only read when every image is itself on that graph, so "the
+ *                graph" is the one the student was shown.
+ *
+ * Null for anything else, including a correct plot. Feedback only: the grade
+ * is the grader's (serverGrading/tools/transformationsLab.mjs plotTransform).
+ */
+export const plottedPointCorrespondence = ({ plotted = [], images = [], spec = {}, tolerance = 0.01 } = {}) => {
+  const points = (Array.isArray(plotted) ? plotted : []).map(pointCoordinates);
+  const targets = (Array.isArray(images) ? images : []).map(pointCoordinates);
+  if (!targets.length || points.length !== targets.length) return null;
+  if (points.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) return null;
+  const same = ([x1, y1], [x2, y2]) => Math.abs(x1 - x2) <= tolerance && Math.abs(y1 - y2) <= tolerance;
+  if (points.every((point, index) => same(point, targets[index]))) return null;
+  // One plotted point for each image (a matching, so a doubled point never counts twice).
+  const unused = [...targets];
+  const everyImageFound = points.every((point) => {
+    const at = unused.findIndex((target) => same(point, target));
+    if (at < 0) return false;
+    unused.splice(at, 1);
+    return true;
+  });
+  if (everyImageFound) return 'reordered';
+  // A plot with some images already in place is told its count ("4 of 5 …")
+  // by the lab: "not the images of their own points" would be false for them.
+  if (points.some((point, index) => same(point, targets[index]))) return null;
+  const onGraph = ([x, y]) => {
+    const value = evaluateTransformedFunction(spec, x);
+    return Number.isFinite(value) && Math.abs(value - y) <= tolerance;
+  };
+  return targets.every(onGraph) && points.every(onGraph) ? 'sameGraph' : null;
+};
+
+/*
  * HOW THE TRANSFORMATIONS LAB READS ITS QUESTION — ONE DEFINITION.
  *
  * TransformationsLab.jsx draws from this and the shared grader

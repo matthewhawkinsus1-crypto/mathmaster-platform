@@ -78,20 +78,22 @@ test('intercept controls use student words, never staging vocabulary', () => {
   }
 });
 
-test('an intercept question submits as "Submit Intercepts", not as a solved equation', () => {
+// The label once named the work ("Submit Solved Equation"), and an intercept
+// question — two ordered pairs, not a solved equation — had to be told apart.
+// Since student pass 3 (RUN-4, D9) the action is "Submit" and its cost for
+// every route, so no route can be named for work the student never did.
+test('an intercept question is never labelled as a solved equation', () => {
   const engine = source('src/QuestionEngine.jsx');
-  const label = region(engine, 'const submitLabel = submitting', 'const workspaceActions', 'submit label');
-  const intercept = label.indexOf('ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS');
-  const stepAlgebra = label.indexOf("'Submit Solved Equation'");
-  assert.ok(intercept > -1 && stepAlgebra > intercept, 'the intercept route is decided before the Step Algebra label');
-  assert.match(label, /'Submit Intercepts'/);
+  const label = region(engine, 'const tryCost = submitTryCost(', 'const workspaceActions', 'submit label');
+  assert.match(label, /const submitLabel = submitActionLabel\(\{ hostLabel: hostSubmitLabel, submitting, cost: tryCost \}\);/);
+  assert.doesNotMatch(label, /Solved Equation|Intercepts|LINEAR_INTERCEPTS|stepAlgebra/, 'the label names no route');
 });
 
 // ─── Locked work is inert to the keyboard, not only to the mouse ───────────
 
 test('the locked tool region passes a boolean inert (React 19 reads "" as false)', () => {
   const engine = source('src/QuestionEngine.jsx');
-  const lockedRegion = region(engine, '<div aria-disabled={locked', '<QuestionModuleBoundary', 'locked tool region');
+  const lockedRegion = region(engine, '<div aria-disabled={workAreaClosed', '<QuestionModuleBoundary', 'locked tool region');
   assert.match(lockedRegion, /inert=\{[^}]*\? true : undefined\}/);
   assert.doesNotMatch(lockedRegion, /inert=\{[^}]*\? '' : undefined\}/);
 });
@@ -260,8 +262,12 @@ test('running linear regression makes its line the student\'s model and keeps th
 test('the Work View rail renders the finishing action as the primary one', () => {
   const figure = source('src/components/common/EnlargeableFigure.jsx');
   assert.match(figure, /const primaryShellActions = new Set\(registeredCapabilities\.primaryActions \|\| \[\]\)/);
-  assert.match(figure, /data-action-emphasis=\{primaryShellActions\.has\(action\) \? 'primary' : undefined\}/);
-  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\) \{[^}]*background: var\(--mm-primary\)/);
+  // Since pass 3 (A11Y-2) each rail control is a WorkViewActionButton, told
+  // whether it is primary; an unavailable one (disabled, or aria-disabled while
+  // it keeps focus) is not drawn as primary.
+  assert.match(figure, /primary=\{primaryShellActions\.has\(action\)\}/);
+  assert.match(region(figure, 'function WorkViewActionButton(', '\n}\n', 'rail button'), /data-action-emphasis=\{primary \? 'primary' : undefined\}/);
+  assert.match(source('src/components/common/WorkViewShell.css'), /button\[data-action-emphasis="primary"\]:not\(\[disabled\]\)(?::not\(\[aria-disabled="true"\]\))? \{[^}]*background: var\(--mm-primary\)/);
 });
 
 test('the shared confirm dialog stacks above Work View and its phone keypad', () => {
@@ -300,7 +306,10 @@ test('the DOL "do this next" opens the first DOL question the student has not tr
 
 test('the Warm-Up banner leaves once every Warm-Up question is finished', () => {
   const app = source('src/App.jsx');
-  const banner = region(app, 'const renderStudentWarmupBanner', 'const renderIdleOverlay', 'warm-up banner');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  assert.match(banner, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(banner, /const warmupFinished = questionIndices\.every/);
   assert.match(banner, /questionIndices\.length && !warmupFinished \?/);
 });
@@ -308,7 +317,7 @@ test('the Warm-Up banner leaves once every Warm-Up question is finished', () => 
 test('the DOL question note is one quiet line in student words', () => {
   const engine = executableSource(source('src/QuestionEngine.jsx'));
   assert.doesNotMatch(engine, /records the daily DOL grade during the active class window/);
-  assert.match(engine, /DOL exit ticket · this question counts toward today&apos;s DOL grade\./);
+  assert.match(engine, /Exit ticket · this question counts toward today&apos;s exit ticket grade\./);
 });
 
 // The media features App.css uses, evaluated the way a browser does, so the

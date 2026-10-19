@@ -33,6 +33,14 @@ export const getQuadraticParameterization = (spec = {}) => {
  *   standard: y = ax² + bx + c
  *   vertex:   y = a(x - h)² + k
  */
+/**
+ * A line's slope and intercept exactly as it is drawn: a line written without
+ * a slope is drawn with slope 1, without an intercept through the origin.
+ * Everything that reasons about the drawn line (equal-unit framing, where two
+ * lines meet) reads it here, so it reasons about the line on the screen.
+ */
+export const staticLineCoefficients = (spec = {}) => ({ m: Number(spec?.m ?? 1), b: Number(spec?.b ?? 0) });
+
 export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
   const x = Number(xValue);
   if (!Number.isFinite(x)) return Number.NaN;
@@ -50,7 +58,10 @@ export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
     if (x > maximum || (!maximumInclusive && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
   }
 
-  if (type === 'line') return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
+  if (type === 'line') {
+    const { m, b } = staticLineCoefficients(spec);
+    return m * x + b;
+  }
   if (type === 'quadratic') {
     const a = Number(spec.a ?? 1);
     if (getQuadraticParameterization(spec) === 'vertex') {
@@ -289,18 +300,169 @@ const niceBound = (value, direction = 'out') => {
   return Math.round(scaled) * magnitude;
 };
 
+// GraphDisplay's plot area: 620 x 430 less 48px padding on each side.
+export const STATIC_GRAPH_PLOT_ASPECT = (620 - 96) / (430 - 96);
+
+const axisWords = (value) => String(value ?? '').trim().toLowerCase();
+
+// Both axes measure the same thing. A graph of cost against hours has two
+// different units, and a square unit there means nothing.
+const axesShareOneUnit = (graph = {}) => {
+  const xUnit = axisWords(graph.xAxisUnit);
+  const yUnit = axisWords(graph.yAxisUnit);
+  if (xUnit || yUnit) return xUnit === yUnit;
+  const xLabel = axisWords(graph.xAxisLabel);
+  const yLabel = axisWords(graph.yAxisLabel);
+  return (!xLabel || xLabel === 'x') && (!yLabel || yLabel === 'y');
+};
+
+/**
+ * WHETHER A STATIC FIGURE IS DRAWN WITH EQUAL UNITS (student pass 3, R-1).
+ *
+ * The plot area is 524 x 334, so a square window drew one unit of y about
+ * two thirds as tall as one unit of x, and the fitter then widened y to keep a
+ * steep line in frame. On the perpendicular-lines lesson a line and its "90°
+ * rotation" met at about 30°. Where the picture's angle or shape is the
+ * mathematics, one unit is the same length on both axes:
+ *   - two or more lines and nothing else (perpendicular, parallel);
+ *   - a drawn segment or polygon (distance, a figure and its rotation or
+ *     reflection);
+ * and only when both axes measure the same unit.
+ *
+ * Authoring: `equalUnits: true` asks for it on any figure, `equalUnits: false`
+ * turns it off. `lockViewport: true` keeps the author's window exactly.
+ */
+export const staticGraphUsesEqualUnits = (graph = {}) => {
+  if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return false;
+  if (graph.equalUnits === true) return true;
+  if (graph.equalUnits === false || !axesShareOneUnit(graph)) return false;
+  const functions = staticViewportFunctions(graph);
+  if (functions.some((spec) => (spec?.type || spec?.kind || 'line') !== 'line')) return false;
+  const segments = Array.isArray(graph.segments) ? graph.segments.length : 0;
+  return functions.length >= 2 || segments > 0;
+};
+
+// The author's window (or one around the landmarks), every landmark kept in
+// frame, then the shorter axis widened until a unit is the same length both
+// ways. A line is not chased off the window: it is infinite. What has to show
+// is the marked points, each line's y-intercept and where the lines meet
+// (review S2: the old fit's tall window showed (0, 12) for y = -2x + 12, and
+// this one must too).
+const lineLandmarks = (functions, [xMin, xMax], [yMin, yMax]) => {
+  const lines = functions
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map(staticLineCoefficients)
+    .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
+  // A meeting point far outside the window (two nearly parallel lines) would
+  // blow the window up: only one within a window's span of it is kept.
+  const near = ([x, y]) => x >= xMin - (xMax - xMin) && x <= xMax + (xMax - xMin)
+    && y >= yMin - (yMax - yMin) && y <= yMax + (yMax - yMin);
+  const found = [];
+  if (xMin <= 0 && xMax >= 0) lines.forEach(({ b }) => found.push([0, b]));
+  lines.forEach((first, index) => lines.slice(index + 1).forEach((second) => {
+    if (Math.abs(first.m - second.m) < 1e-9) return;
+    const x = (second.b - first.b) / (first.m - second.m);
+    found.push([x, first.m * x + first.b]);
+  }));
+  return found.filter(near);
+};
+
+// Widen [min, max] by `grow` in all. A window that starts or ends at 0 (a
+// quadrant-I figure) grows away from that edge, so it never gains a negative
+// half the author left out (review N5).
+const widen = (min, max, grow) => {
+  if (min === 0 && max > 0) return [min, max + grow];
+  if (max === 0 && min < 0) return [min - grow, max];
+  return [min - grow / 2, max + grow / 2];
+};
+
+const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
+  const span = (min, max, fallbackMin, fallbackMax) => {
+    const authoredMin = finite(min) ? Number(min) : Number.NaN;
+    const authoredMax = finite(max) ? Number(max) : Number.NaN;
+    return [Number.isFinite(authoredMin) ? authoredMin : fallbackMin, Number.isFinite(authoredMax) ? authoredMax : fallbackMax];
+  };
+  const around = (values) => {
+    if (!values.length) return [-10, 10];
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const pad = Math.max(1, (high - low) * 0.25);
+    return [Math.floor(Math.min(low - pad, -1)), Math.ceil(Math.max(high + pad, 1))];
+  };
+  let [xMin, xMax] = span(graph.xMin, graph.xMax, ...around(landmarks.map(([x]) => x)));
+  let [yMin, yMax] = span(graph.yMin, graph.yMax, ...around(landmarks.map(([, y]) => y)));
+  if (!(xMin < xMax)) [xMin, xMax] = [-10, 10];
+  if (!(yMin < yMax)) [yMin, yMax] = [-10, 10];
+  const kept = [...landmarks, ...lineLandmarks(functions, [xMin, xMax], [yMin, yMax])];
+  if (kept.length) {
+    const xs = kept.map(([x]) => x);
+    const ys = kept.map(([, y]) => y);
+    const markerPad = Math.max(0.5, Math.min(2, Math.max(xMax - xMin, yMax - yMin) * 0.08));
+    // A landmark on a 0 edge (the origin of a quadrant-I figure) keeps it.
+    const lowX = Math.min(...xs) - markerPad;
+    const lowY = Math.min(...ys) - markerPad;
+    xMin = Math.min(xMin, xMin === 0 && Math.min(...xs) >= 0 ? 0 : lowX);
+    xMax = Math.max(xMax, Math.max(...xs) + markerPad);
+    yMin = Math.min(yMin, yMin === 0 && Math.min(...ys) >= 0 ? 0 : lowY);
+    yMax = Math.max(yMax, Math.max(...ys) + markerPad);
+  }
+  const aspect = Number(plotAspect) > 0 ? Number(plotAspect) : STATIC_GRAPH_PLOT_ASPECT;
+  const xSpan = xMax - xMin;
+  const ySpan = yMax - yMin;
+  if (xSpan / ySpan < aspect) [xMin, xMax] = widen(xMin, xMax, ySpan * aspect - xSpan);
+  else [yMin, yMax] = widen(yMin, yMax, xSpan / aspect - ySpan);
+  // Equal units must not uncover a meeting point outside an authored x-range
+  // (re-review R1): an author who crops a system so it must be solved
+  // algebraically (a DOL, quiz or test) must not have the graph show the
+  // answer. If it would, the figure keeps the old fit, which only ever widens
+  // y over the authored x-range and so never showed one.
+  const authoredX = finite(graph.xMin) && finite(graph.xMax);
+  if (authoredX && croppedMeetingPoints(functions, [Number(graph.xMin), Number(graph.xMax)])
+    .some(([x, y]) => x >= xMin && x <= xMax && y >= yMin && y <= yMax)) return null;
+  // Nor may it leave a line entirely off the plot: the old fit shows it.
+  const missesWindow = (spec) => {
+    const { m, b } = staticLineCoefficients(spec);
+    const [low, high] = [m * xMin + b, m * xMax + b].sort((first, second) => first - second);
+    return high < yMin || low > yMax;
+  };
+  if (functions.some((spec) => (spec?.type || spec?.kind || 'line') === 'line' && missesWindow(spec))) return null;
+  const tidy = (value) => Number(value.toFixed(6));
+  return { ...graph, xMin: tidy(xMin), xMax: tidy(xMax), yMin: tidy(yMin), yMax: tidy(yMax), equalUnits: true };
+};
+
+// Where two lines meet outside the author's x-range.
+const croppedMeetingPoints = (functions, [xMin, xMax]) => {
+  const lines = functions
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map(staticLineCoefficients)
+    .filter(({ m, b }) => Number.isFinite(m) && Number.isFinite(b));
+  const points = [];
+  lines.forEach((first, index) => lines.slice(index + 1).forEach((second) => {
+    if (Math.abs(first.m - second.m) < 1e-9) return;
+    const x = (second.b - first.b) / (first.m - second.m);
+    if (x < xMin || x > xMax) points.push([x, first.m * x + first.b]);
+  }));
+  return points;
+};
+
 /**
  * Expand a static graph's y-window when authored bounds would hide the
  * mathematics. AI authors should describe the model; the renderer owns the
  * final student-friendly viewport. `lockViewport: true` is the explicit opt-out
  * for rare lessons where cropping itself is instructional.
  */
-export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingRatio = 0.08 } = {}) => {
+export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingRatio = 0.08, plotAspect = STATIC_GRAPH_PLOT_ASPECT, equalUnits = true } = {}) => {
   if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return graph;
   if (graph.lockViewport === true || graph.autoFit === false) return graph;
 
   const functions = staticViewportFunctions(graph);
   const landmarks = staticGraphViewportLandmarks(graph, functions);
+  // `equalUnits: false` in the options: a host that draws the window on a plane
+  // of its own proportions (an interactive stage) keeps the old fit.
+  if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) {
+    const framed = fitEqualUnitViewport(graph, landmarks, plotAspect, functions);
+    if (framed) return framed;
+  }
   const landmarkXs = landmarks.map(([x]) => x);
   const landmarkYs = landmarks.map(([, y]) => y);
 
@@ -417,6 +579,17 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
 
 export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBoundaryVisibility = false } = {}) => {
   graph = fitStaticGraphViewport(graph);
+  // A locked window is the author's frame, held to every rule even when the
+  // author also asked for equal units (re-review R2).
+  const equalUnitLines = graph?.equalUnits === true && graph?.lockViewport !== true
+    && staticViewportFunctions(graph).every((spec) => (spec?.type || spec?.kind || 'line') === 'line');
+  const slopes = staticViewportFunctions(graph)
+    .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
+    .map((spec) => staticLineCoefficients(spec).m);
+  const hasPerpendicularPartner = (spec) => {
+    const { m } = staticLineCoefficients(spec);
+    return slopes.some((other) => Math.abs(m * other + 1) < 1e-6);
+  };
   const errors = [];
   const warnings = [];
   const { xMin, xMax, yMin, yMax } = graphBounds(graph);
@@ -471,11 +644,18 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
     }
     if (finiteCount > 0 && visibleCount === 0) {
       errors.push(`${fnLabel} is completely outside the visible y-range [${yMin}, ${yMax}]`);
-    } else if (finiteCount > 0 && visibleCount / finiteCount < 0.55) {
+    } else if (finiteCount > 0 && visibleCount / finiteCount < 0.55 && !(equalUnitLines && (visibleCount / finiteCount >= 0.2 || hasPerpendicularPartner(spec)))) {
+      // Exempt with equal units: one line of any perpendicular pair steeper
+      // than 1 always leaves the window, and that is the true picture (R-1).
+      // Not a line that shows on under a fifth of the window and is no one's
+      // perpendicular: that one is cropped, and the author should know.
       warnings.push(`${fnLabel} is mostly outside the visible y-range; students will see less than 55% of the sampled curve`);
     }
 
-    if (graph.allowClipping === true) return;
+    // An equal-unit window crops a steep line on purpose: GraphDisplay clips it
+    // to the plot and draws its arrow where it leaves (R-1). Not a clipped
+    // locked viewport, so a strict audit does not reject it.
+    if (graph.allowClipping === true || equalUnitLines) return;
     const type = spec.type || spec.kind || 'line';
     if (!strictBoundaryVisibility || ['reciprocal', 'rational', 'logarithmic'].includes(type)) return;
 

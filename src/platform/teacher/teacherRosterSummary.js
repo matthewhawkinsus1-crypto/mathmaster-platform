@@ -60,6 +60,9 @@ export const normalizeTeacherRosterSummary = (entry = {}) => {
     linkedEmail: record.linkedEmail || null,
     sisStudentId: record.sisStudentId || null,
     profile: normalizeStudentProfile(record.profile || {}),
+    // The stored `profile` field as-is: the DOL window (D7) is computed from it,
+    // as on the student's device and the server.
+    timingProfile: record.profile && typeof record.profile === 'object' ? record.profile : null,
   };
 };
 

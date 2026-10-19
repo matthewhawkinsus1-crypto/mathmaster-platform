@@ -4,6 +4,9 @@
 //   ?role=practice|dol      the activity policy
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
+//   ?support=read           give the student Read aloud only (a plan's text-to-speech)
+//   ?q=matrices             the real ACT-style matrices item of Algebra II M1 T2 L3
+//                           (tests/browser/readAloudTranslate.mjs)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -15,11 +18,13 @@ import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
+import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { emptyQuestionRecord, recordQuestionAttempt } from '../../src/attemptPolicy.js';
 import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { familyFor } from '../../src/platform/supports/families/index.js';
 import day2Transformations from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
+import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -71,6 +76,9 @@ const QUESTIONS = {
   transform: compileAuthoringIntentV5(day2Transformations).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.type === 'multiAnswer' && familyFor(entry)?.family === 'transformations'),
+  matrices: compileAuthoringIntentV5(matricesLesson).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === 'l3m-pr-12-ccmr'),
   system: {
     questionId: 'feedback-system',
     type: 'system',
@@ -83,9 +91,11 @@ const question = QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
 window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? '')) : [];
-const studentProfile = params.get('support') === 'translate'
-  ? { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' }
-  : {};
+const SUPPORT_PROFILES = {
+  translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
+  read: { accommodations: ['text-to-speech'] },
+};
+const studentProfile = SUPPORT_PROFILES[params.get('support')] || {};
 
 window.__mmGrades = [];
 window.__mmHelp = [];
@@ -109,7 +119,16 @@ function Harness() {
   };
   return (
     <div className="mathmaster-assignment-screen" data-feedback-fixture={which} data-feedback-role={role} style={{ fontFamily: '"Segoe UI", sans-serif', minHeight: '100vh', padding: 12 }}>
-      <main className="mathmaster-question-stage" style={{ maxWidth: 1120, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
+      {/* The shell App.jsx renders around a question. On a phone it is a
+          two-row grid, the navigator and then the question filling the rest of
+          the screen, and the work area scrolls inside that. Without it the
+          stage took its content's height, the phone work area collapsed to a
+          strip, and what a submit puts inside it (RUN-1) could not be reached. */}
+      <div className="mathmaster-assignment-shell" style={{ maxWidth: 1120, margin: '0 auto' }}>
+        <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className="mathmaster-assignment-unified-nav" aria-label="Assignment questions" style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '4px 0' }}>
+          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#174ea6', color: '#fff', fontWeight: 800, fontSize: 12 }}>Q1</span>
+        </nav>
+      <main className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
         <QuestionEngine
           question={question}
           questionRecord={record}
@@ -131,9 +150,13 @@ function Harness() {
             window.__mmAnswers = (delivered?.answerFields || []).map((field) => String(field.answer ?? ''));
           }}
           onAskTeacher={(requested) => { window.__mmHelp.push(requested); setHelp(requested); }}
+          // ?next=1: a way on, as App.jsx gives a question with one after it
+          // (tests/browser/closedQuestionEnter.mjs counts the presses).
+          onNextQuestion={params.get('next') === '1' ? () => { window.__mmAdvanced = (window.__mmAdvanced || 0) + 1; } : null}
           helpRequested={help}
         />
       </main>
+      </div>
     </div>
   );
 }

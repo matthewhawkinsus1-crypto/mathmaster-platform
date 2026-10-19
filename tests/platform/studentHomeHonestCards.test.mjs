@@ -26,7 +26,8 @@ const act = region(card, 'const act = () => {', '\n  };', 'WhatShouldIDoNow act(
 /* 1. PRIVACY. */
 
 test('Home shows only the class period under the name — never a support plan', () => {
-  assert.match(header, /<p [^>]*>\{student\.classPeriod\}<\/p>/, 'the header line is the class period alone');
+  // The class period alone, as a student reads it ("Period 3", studentWords.js; student pass 3).
+  assert.match(header, /<p [^>]*>\{studentPeriodLabel\(student\.classPeriod\)\}<\/p>/, 'the header line is the class period alone');
   // Nothing on Home reads or prints a support-plan field; a classmate can read
   // this screen over a shoulder. (Comments may explain the rule.)
   assert.doesNotMatch(code, /inclusionStatus|Inclusion|\bIEP\b|special[ -]?ed|\b504\b/i);
@@ -103,15 +104,15 @@ test('finished, closed and excused work is never Late and never offers late or l
   assert.match(assignmentCard, /const late = !finished && Boolean\(lifecycle\.isLate\);/);
   // Status: excused, closed and finished are decided before late.
   const status = region(assignmentCard, 'const status = excused', ';\n', 'status chip');
-  const position = (label) => status.indexOf(`label: '${label}'`);
+  const position = (label) => status.indexOf(label === 'Closed' ? 'label: CLOSED_WORK.label' : `label: '${label}'`);
   assert.ok(position('Excused') > -1 && position('Closed') > -1 && position('Finished') > -1 && position('Late') > -1);
   assert.ok(position('Excused') < position('Late') && position('Closed') < position('Late') && position('Finished') < position('Late'));
   assert.doesNotMatch(executableSource(assignmentCard), /Continue Late Work|'Locked'|Practice — No Credit/);
 });
 
 test('buttons: See results / Try it again — no credit / Open Recovery / Start or Continue at the model\'s question', () => {
-  assert.match(assignmentCard, /\{finished && primaryButton\('See results', \(\) => openResult\(assignment\.id\)/);
-  assert.match(assignmentCard, /\{closed && primaryButton\('Try it again — no credit', \(\) => onStartAssignment\?\.\(assignment\.id\)/);
+  assert.match(assignmentCard, /\{finished && primaryButton\(SEE_RESULTS, \(\) => openResult\(assignment\.id\)/);
+  assert.match(assignmentCard, /\{closed && primaryButton\(CLOSED_WORK\.tryAgain, \(\) => onStartAssignment\?\.\(assignment\.id\)/);
   assert.match(assignmentCard, /const actionable = !finished && \(entry\.actionable \?\? !entry\.disabled\) === true;/);
   assert.match(assignmentCard, /const isRecovery = actionable && entry\.action === 'recovery';/);
   assert.match(assignmentCard, /\{isRecovery && primaryButton\('Open Recovery', \(\) => openResult\(assignment\.id\)/);
@@ -138,7 +139,8 @@ test('excused work shows Excused and no grade', () => {
 });
 
 test('the card lists the lesson\'s real sections with progress, not the retired assignmentType', () => {
-  assert.match(assignmentCard, /sections\.map\(\(section\) => section\.label\)\.join\(' · '\)/);
+  // The exit ticket is spelled out on one card only (D9); every other section is its label.
+  assert.match(assignmentCard, /sections\.map\(\(section\) => \(section\.role === 'dol' \? studentSectionLabel\('dol', \{ spelledOut: spellsOutExitTicket \}\) : section\.label\)\)\.join\(' · '\)/);
   assert.match(assignmentCard, /sectionChip\(section, \{ waitText: entry\.waitText, nextOpening: lesson\?\.nextOpening \}\)/);
   const chip = region(view, 'const sectionChip = ', '\n};', 'sectionChip');
   for (const state of ['DONE', 'EXCUSED', 'OPEN', 'RECOVERY', 'OPENS_LATER', 'LOCKED', 'CLOSED']) {
@@ -174,7 +176,7 @@ test('"Nothing waiting" only when the next action is not assigned work', () => {
 test('a waiting DOL says its real open time, never "the final N minutes of class"', () => {
   assert.doesNotMatch(code, /final \{[^}]*\} minutes of class|minutesBeforeEnd/);
   assert.match(assignmentCard, /\['waiting', 'beforeClass'\]\.includes\(dol\.status\)\s*\? formatClock\(dol\.opensAt\)/);
-  assert.match(assignmentCard, /DOL opens at \{dolOpensAt\}/);
+  assert.match(assignmentCard, /\{EXIT_TICKET\} opens at \{dolOpensAt\}/);
 });
 
 /* 5. WhatShouldIDoNow. */

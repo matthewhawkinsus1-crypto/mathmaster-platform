@@ -47,17 +47,13 @@ test('embedded, the tool row carries the step name and target instead of the sup
 });
 
 test('embedded, the solver never states an attempt count it does not keep', () => {
-  // The policy footnote ("Attempts remaining: 3 …") is the standalone solver's.
+  // The policy footnote is the standalone solver's.
   const footnote = region(core, '{!embedded && <p', '</p>}', 'policy footnote');
   assert.match(footnote, /supportPolicy\.description/);
-  assert.match(footnote, /Attempts remaining/);
-  // Every in-flight message that counts attempts is gated off when embedded.
-  const counted = [...core.matchAll(/attempts remain/g)];
-  assert.ok(counted.length >= 2, 'the attempt messages were not found');
-  counted.forEach((match) => {
-    const before = core.slice(Math.max(0, match.index - 700), match.index);
-    assert.match(before, /(\|\| embedded \?|&& !embedded\))/, `an attempt count near …${core.slice(match.index - 60, match.index + 20)}… is not gated`);
-  });
+  // Since decision D1 no move or slip spends a try, so neither the footnote
+  // nor any in-flight message counts attempts at all — embedded or not.
+  assert.doesNotMatch(footnote, /Attempts remaining|attemptsRemaining/);
+  assert.doesNotMatch(core, /attempts remain|final attempt/i);
 });
 
 test('embedded, the solver is not a card inside the stage card and its board fits one step', () => {

@@ -28,7 +28,8 @@ const panelBox = (page) => page.locator(PANEL).boundingBox();
 
 for (const [width, height] of [[1366, 768], [390, 844]]) {
   const at = `${width}x${height}`;
-  const page = await browser.newPage({ viewport: { width, height } });
+  // Clipboard access, so the paste case below can run.
+  const page = await browser.newPage({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error?.message || error)));
   await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=linearTableWorkbench`, { waitUntil: 'networkidle' });
@@ -44,6 +45,119 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.waitForFunction((s) => !document.querySelector(s), PANEL);
   assert.ok(await activeIs(page, OPENER), `${at}: Escape returns focus to the Calculator button`);
   assert.equal(await page.locator(OPENER).getAttribute('aria-expanded'), 'false', `${at}: the work bar knows it closed`);
+
+  // Pass 3, A11Y-6: every key has a spoken name, and the answer is announced.
+  await page.keyboard.press('Enter');
+  await page.locator(PANEL).waitFor();
+  await page.waitForFunction(() => document.activeElement?.matches?.('[data-calculator-expression]'));
+  const keyNames = await page.locator(`${PANEL} button`).evaluateAll((keys) => keys.map((key) => key.getAttribute('aria-label') || ''));
+  assert.ok(keyNames.length > 18 && keyNames.every(Boolean), `${at}: every calculator button has a name ${JSON.stringify(keyNames)}`);
+  for (const name of ['Clear', 'Equals', 'Insert exponent', 'Insert stacked fraction', 'Minus']) {
+    assert.ok(keyNames.includes(name), `${at}: a key is named "${name}"`);
+  }
+  const announcement = () => page.locator(`${PANEL} [data-calculator-result-announcement]`).textContent().then((text) => text.replace(/ /g, ' ').trim());
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('3.75*2');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((s) => /equals/.test(document.querySelector(s)?.textContent || ''), `${PANEL} [data-calculator-result-announcement]`);
+  assert.equal(await announcement(), 'equals 7.5, exactly 15 over 2', `${at}: Enter announces the answer and its fraction`);
+  assert.equal(await page.locator(`${PANEL} [data-calculator-result-announcement]`).getAttribute('role'), 'status');
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('2+3');
+  await page.locator(`${PANEL} button[aria-label="Equals"]`).click();
+  await page.waitForFunction((s) => document.querySelector(s)?.textContent?.trim() === 'equals 5' || document.querySelector(s)?.textContent?.replace(/ /g, '').trim() === 'equals 5', `${PANEL} [data-calculator-result-announcement]`);
+  // After Clear the field shows "0". A key typed on the keyboard replaces it,
+  // as the keypad does: "(2+3" is (2+3) = 5, never 0(2+3) = 0.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('(2+3');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((s) => /equals|could|read|bracket/.test(document.querySelector(s)?.textContent || ''), `${PANEL} [data-calculator-result-announcement]`);
+  assert.equal(await announcement(), 'equals 5', `${at}: typing after Clear replaces the 0`);
+  // What the calculator could not read is shown under "Error" and said (TOOL-8).
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2+3=5');
+  await page.keyboard.press('Enter');
+  await page.locator(`${PANEL} [data-calculator-error]`).waitFor();
+  const unreadable = 'It could not read “=”. Use numbers, + − × ÷, brackets and the function keys.';
+  assert.equal((await page.locator(`${PANEL} [data-calculator-error]`).textContent()).trim(), unreadable, `${at}: the reason is shown`);
+  assert.equal(await announcement(), unreadable, `${at}: and said`);
+  // A key typed after "Error" replaces it: 5, never "Error5" (read as "E").
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(([s, before]) => (document.querySelector(s)?.textContent || '').replace(/\u00a0/g, ' ').trim() !== before, [`${PANEL} [data-calculator-result-announcement]`, unreadable]);
+  assert.equal(await announcement(), 'equals 5', `${at}: typing after Error replaces it`);
+  // Text that arrives with no key — an IME or dictation commit, a touch
+  // keyboard, a paste — replaces the 0 after Clear too (review F1).
+  // The region alternates a trailing no-break space so that the same answer
+  // twice is a new announcement: wait for its raw text to change.
+  const rawAnnouncement = () => page.locator(`${PANEL} [data-calculator-result-announcement]`).textContent();
+  const evaluateTyped = async (typeIt) => {
+    await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+    await page.locator('[data-calculator-expression]').focus();
+    const before = await rawAnnouncement();
+    await typeIt();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(([s, previous]) => document.querySelector(s)?.textContent !== previous, [`${PANEL} [data-calculator-result-announcement]`, before]);
+    return announcement();
+  };
+  assert.equal(await evaluateTyped(() => page.keyboard.insertText('(2+3)')), 'equals 5', `${at}: committed text after Clear replaces the 0`);
+  const pasted = await page.evaluate(async () => {
+    try { await navigator.clipboard.writeText('(2+3)'); return true; } catch { return false; }
+  });
+  console.log(`calculator keyboard ${at}: paste case ${pasted ? 'run' : 'skipped (no clipboard in this browser)'}`);
+  if (pasted) {
+    // A paste lands asynchronously, and MathLive reports it (the input event
+    // that drops the 0) a moment later: wait for both before Enter.
+    const paste = async () => {
+      await page.keyboard.press('ControlOrMeta+v');
+      await page.waitForFunction(() => {
+        const value = document.querySelector('[data-calculator-expression]')?.value || '';
+        return /2\+3/.test(value) && !value.startsWith('0');
+      }, null, { timeout: 3000 }).catch(() => {});
+    };
+    assert.equal(await evaluateTyped(paste), 'equals 5', `${at}: a paste after Clear replaces the 0`);
+    // A pasted "*" reaches the field as ∗ (U+2217): it multiplies (review N-a).
+    await page.evaluate(async () => navigator.clipboard.writeText('0.5*2'));
+    const pasteProduct = async () => {
+      await page.keyboard.press('ControlOrMeta+v');
+      await page.waitForFunction(() => /5/.test(document.querySelector('[data-calculator-expression]')?.value || ''), null, { timeout: 3000 }).catch(() => {});
+    };
+    assert.equal(await evaluateTyped(pasteProduct), 'equals 1', `${at}: a pasted 0.5*2 is 1`);
+  }
+  // Backspace on "Error" clears it (review N2): then 5 is 5.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2+3=5');
+  await page.keyboard.press('Enter');
+  await page.locator(`${PANEL} [data-calculator-error]`).waitFor();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(([s, before]) => (document.querySelector(s)?.textContent || '').replace(/\u00a0/g, ' ').trim() !== before, [`${PANEL} [data-calculator-result-announcement]`, unreadable]);
+  assert.equal(await announcement(), 'equals 5', `${at}: Backspace on Error, then 5`);
+  // A 0 that "=" computed is a result, as one Enter computed (review N1): 2 − 2, then ×5, is 0.
+  await page.locator(`${PANEL} button[aria-label="Clear"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.type('2-2');
+  await page.locator(`${PANEL} button[aria-label="Equals"]`).click();
+  await page.locator('[data-calculator-expression]').focus();
+  await page.keyboard.press('End');
+  await page.keyboard.type('*5');
+  const afterEquals = await page.locator('[data-calculator-expression]').evaluate((n) => n.value);
+  assert.ok(/^0/.test(afterEquals), `${at}: the computed 0 stays (${afterEquals})`);
+  for (const control of ['Close calculator', 'Move calculator']) {
+    const box = await page.locator(`${PANEL} [aria-label="${control}"]`).boundingBox();
+    assert.ok(box.width >= 44 && box.height >= 44, `${at}: ${control} is a 44px target (${box.width}×${box.height})`);
+  }
+  await page.keyboard.press('Escape');
+  await page.waitForFunction((s) => !document.querySelector(s), PANEL);
+  await page.locator(OPENER).focus();
 
   // ✕ by keyboard: same return.
   await page.keyboard.press('Enter');
@@ -113,7 +227,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
   await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphing2`, { waitUntil: 'networkidle' });
-  const enlarge = page.locator('button:has-text("Enlarge question")').first();
+  const enlarge = page.locator('button:has-text("Open Work View")').first();
   const modals = () => page.locator('[aria-modal="true"]').count();
   const modalsBefore = await modals();
   if (await enlarge.count()) {
@@ -133,7 +247,7 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.waitForFunction((n) => document.querySelectorAll('[aria-modal="true"]').length === n, modalsBefore);
     console.log('calculator over Work View: ok');
   } else {
-    throw new Error('graphing2 has no Enlarge question button');
+    throw new Error('graphing2 has no Open Work View button');
   }
   await page.close();
 }

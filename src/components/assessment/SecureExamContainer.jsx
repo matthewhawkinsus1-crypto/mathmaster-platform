@@ -1104,6 +1104,9 @@ export const SecureExamContainer = ({
               accommodationConfirmed={courseTest || session.accommodationsConfirmed === true}
               busy={busy || Boolean(pause)}
               navigationMode
+              // One calculator: the toolbar's graphing calculator, never a
+              // second one inside the question (H-19).
+              calculatorInToolbar={tools.graphingCalculator}
               onSubmit={saveItemNow}
               onDraftChange={autosaveDraft}
             />

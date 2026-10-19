@@ -107,6 +107,19 @@ const isBareExpression = (text) => {
 const MODEL_INPUT = '__mm_input__';
 
 /*
+ * x and y name the screen's axes. A function rule's letters are free, but not
+ * those two: `x = 2y` makes x the output, and `2y` makes y the input, so both
+ * draw a different line from `f(x) = 2x` on the student's own graph. Renaming
+ * the input would otherwise reduce `x = 2y` to the key's `2·input` and accept
+ * it; `x = 3` (a vertical line) would likewise pass for the constant `y = 3`.
+ */
+const swapsTheAxes = (text) => {
+  const parts = String(text ?? '').split('=');
+  if (parts.length === 2 && normalizeMathAnswer(parts[0]).toLowerCase() === 'x') return true;
+  return String(parseFunctionModel(text)?.variable || '').toLowerCase() === 'y';
+};
+
+/*
  * A bare right side is a model too. The table and graph stages already read
  * `5x+40` as the student's function (modelExpression), so the equation stage
  * has to read it the same way: live QA (Algebra I DOL #2) built a correct
@@ -207,6 +220,7 @@ const matchesAnswer = (stage, response, expected) => {
   if (ALGEBRAIC_KINDS.has(stage.kind)) {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
     if (stage.kind === 'equationInput' && stage.acceptEquivalentFunctionRule === true) {
+      if (swapsTheAxes(response) && !swapsTheAxes(expected)) return false;
       if (definesAFunction(response) && definesAFunction(expected)) {
         // A MODELLING prompt asks for the relationship, not a particular choice
         // of letters. Canonicalize the declared input variable before comparing:
@@ -316,8 +330,11 @@ const gradeFigureMatch = (stage, response, key) => {
     credit: right.length / asked.length,
     detail: isCorrect
       ? 'Every figure is in the right category.'
-      // Which ones are wrong is deliberately not named: saying so would turn a
-      // second attempt into elimination rather than recognition.
+      // The figures themselves are named on screen by the step, from the
+      // student's own placements (figureMatchWrongItems, P2-4): an eight-figure
+      // sort that only turned red left nothing to act on. That trades some
+      // elimination on a later try for feedback a student can use — an owner
+      // decision recorded in docs/handoffs/STUDENT_PASS3_MATRIX_LAB_FEEDBACK.md.
       : `${right.length} of ${asked.length} figures are in the right category.`,
   };
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { SECTION_GRADE_KEYS } from '../../platform/teacher/gradeEvidence.js';
+import { EXIT_TICKET, EXIT_TICKET_SPELLED_OUT } from '../../platform/student/studentWords.js';
 
 // The four lesson-section grades, wrapped so they stack on a phone.
 //
@@ -11,18 +12,22 @@ import { SECTION_GRADE_KEYS } from '../../platform/teacher/gradeEvidence.js';
 // A section with no questions renders nothing: an empty Warm-Up shown as 0%
 // would be a grade the student never had the chance to earn.
 
+// The exit ticket is "Exit ticket (DOL)" once per screen, then "Exit ticket"
+// (studentWords.js, D9): the screen says which breakdown spells it out.
 const SECTION_LABEL = {
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'DOL',
+  dol: EXIT_TICKET,
 };
 
 // `shares` (optional) is the Grade Center entry's sectionShares: each section's
 // share of the assignment's points, read through gradeWeightTotals() and only
 // present when the shares add up to the assignment's own grade. Absent, the
 // breakdown shows the section grades alone, exactly as before.
-export default function GradeSectionBreakdown({ sections = {}, shares = null, hidden = false, compact = false }) {
+// `spellExitTicket`: this breakdown is the screen's first mention of the exit
+// ticket (a result page has one breakdown; Grades has one per row).
+export default function GradeSectionBreakdown({ sections = {}, shares = null, hidden = false, compact = false, spellExitTicket = true }) {
   const present = SECTION_GRADE_KEYS
     .map((key) => ({ key, split: sections?.[key] || null }))
     .filter(({ split }) => Number(split?.total) > 0);
@@ -57,7 +62,7 @@ export default function GradeSectionBreakdown({ sections = {}, shares = null, hi
             }}
           >
             <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
-              {SECTION_LABEL[key]}
+              {key === 'dol' && spellExitTicket ? EXIT_TICKET_SPELLED_OUT : SECTION_LABEL[key]}
             </div>
             <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 'calc(13 * var(--mm-px))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
               {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}

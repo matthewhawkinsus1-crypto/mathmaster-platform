@@ -1,11 +1,7 @@
 import { teacherMayOverrideDiagnostic } from './assignmentRepairTriage.js';
+import { AUTHORING_STATES } from './authoringStates.js';
 
-export const AUTHORING_STATES = Object.freeze({
-  INCOMPLETE: 'incomplete',
-  NEEDS_REVIEW: 'needsReview',
-  READY: 'ready',
-  PUBLISHED: 'published',
-});
+export { AUTHORING_STATES };
 
 const BLOCKING_SEVERITIES = new Set(['blocking', 'error']);
 const RESOLVED_FLAG_STATUSES = new Set(['fixed', 'resolved', 'dismissed', 'closed']);

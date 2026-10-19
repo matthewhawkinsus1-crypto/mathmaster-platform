@@ -80,6 +80,27 @@ export const clearDraftSaveProblems = (kind = null) => {
   return changed;
 };
 
+/*
+ * Every problem of one question's draft family (its key and every nested key):
+ * the work was started over, replaced by a new problem, retired with the
+ * assignment, or its answer was submitted. What was not being saved is no
+ * longer the student's unfinished work, so the notice and Home's status must
+ * not go on saying it is. A later write that fails reports it again.
+ */
+export const clearDraftSaveProblemsForFamily = (prefix) => {
+  const base = String(prefix || '');
+  if (!base) return false;
+  let changed = false;
+  KINDS.forEach((kind) => {
+    const set = problems.get(kind);
+    [...set].forEach((key) => {
+      if (key === base || key.startsWith(`${base}:`)) { set.delete(key); changed = true; }
+    });
+  });
+  if (changed) notify();
+  return changed;
+};
+
 /** `{ 'device-full': n, 'backup-refused': n, 'backup-full': n }`. */
 export const currentDraftSaveProblems = () => snapshot();
 
@@ -110,6 +131,13 @@ export const draftSaveProblemsFor = ({ studentId, assignmentId } = {}) => {
   if (!studentId || !assignmentId) return Object.fromEntries(KINDS.map((kind) => [kind, 0]));
   const part = (value) => encodeURIComponent(String(value ?? ''));
   const prefix = `mathmaster:draft:v2::${part(studentId)}:${part(assignmentId)}:`;
+  return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
+};
+
+/* Every problem of one student, on any assignment: what Home's status line reads. */
+export const draftSaveProblemsForStudent = (studentId) => {
+  if (!studentId) return Object.fromEntries(KINDS.map((kind) => [kind, 0]));
+  const prefix = `mathmaster:draft:v2::${encodeURIComponent(String(studentId))}:`;
   return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
 };
 

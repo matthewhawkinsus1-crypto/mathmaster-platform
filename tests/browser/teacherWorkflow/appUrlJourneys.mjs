@@ -172,6 +172,10 @@ const runStudentJourneys = async (viewport) => {
   await record(/Welcome, /);
   await page.getByRole('button', { name: /^Continue$/ }).filter({ visible: true }).first().click();
   await record(QUESTION);
+  // The navigator starts compact (pass 3); its question numbers are behind
+  // "Show progress".
+  const progress = page.locator('.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button');
+  if (await progress.count()) await progress.first().click();
   await page.locator('[title^="Classwork Question 1"]').filter({ visible: true }).first().click();
   await record(/[Qq]uestion 1 of 2/);
   await page.locator('[title^="Classwork Question 2"]').filter({ visible: true }).first().click();
@@ -234,6 +238,9 @@ const runStudentJourneys = async (viewport) => {
   // U8 — My Math Path's own tabs: Back onto /path/progress shows Progress.
   const activeMathPathTab = () => page.evaluate(() => [...document.querySelectorAll('nav button')]
     .find((button) => getComputedStyle(button).borderBottomColor === 'rgb(26, 115, 232)')?.textContent?.trim() || null);
+  // After a load, "Math Path" is on screen (the student nav) about a second
+  // before My Math Path's own tabs are drawn; read the tab once they are.
+  const mathPathTabsDrawn = () => page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().waitFor({ timeout: 60_000 });
   await page.goto(`${ORIGIN}/path?${asStudent}`);
   await ready(page, /Math Path/);
   await page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().click();
@@ -243,11 +250,13 @@ const runStudentJourneys = async (viewport) => {
   await ready(page, /Welcome, /);
   await page.goBack();
   await ready(page, /Math Path/);
+  await mathPathTabsDrawn();
   await page.waitForTimeout(500);
   expect(`U8 ${tag}`, pathOf(page) === '/path/progress', `Back went to ${pathOf(page)}`);
   expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `Back onto /path/progress shows ${await activeMathPathTab()}`);
   await page.reload();
   await ready(page, /Math Path/);
+  await mathPathTabsDrawn();
   await page.waitForTimeout(500);
   expect(`U8 ${tag}`, (await activeMathPathTab()) === 'My Progress', `reload of /path/progress shows ${await activeMathPathTab()}`);
 
@@ -372,7 +381,8 @@ const runExcusedJourney = async (viewport) => {
     await page.waitForTimeout(4000);
     expect(`U10 ${tag}`, pathOf(page) === `/assignments/${TODAY}/results`, `${probe} for an excused student went to ${pathOf(page)}`);
     expect(`U10 ${tag}`, !QUESTION.test(await bodyText(page)), `${probe} opened a question for an excused student`);
-    expect(`U10 ${tag}`, /excused/i.test(await toasts(page)), `${probe}: no excused message (${await toasts(page)})`);
+    // Said on the result page itself since student pass 3 (NAV-10), not in a toast.
+    expect(`U10 ${tag}`, /You are excused from this/.test(await page.locator('[data-result-notice="excused"]').innerText().catch(() => '')), `${probe}: no excused notice on the result page`);
   }
   await context.close();
   passed.push(`excused ${tag}`);

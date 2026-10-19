@@ -146,7 +146,13 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
   assert.match(effect, /student\.setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*student\.openStudentDashboardMode\('testCycle'\)/);
   assert.match(effect, /student\.setPathLaunchTeks\(plan\.launchTeks\)/);
   assert.match(effect, /teacher\.startTeacherPreview\(teacherPlan\.assignmentId\)/);
-  assert.match(effect, /if \(plan\.message\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
+  // A message about another screen is said at once; one about the work (the
+  // question moved) is said when the workspace is on screen, or at once when
+  // the start went elsewhere (wave-3 gate: it sat over Home, then a loading
+  // screen, for seconds).
+  assert.match(effect, /if \(plan\.message && plan\.action !== 'assignment'\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
+  assert.match(effect, /const opening = student\.startAssignment\(/);
+  assert.match(effect, /if \(plan\.message\) \{\s*if \(opening === true && student\.showWhenWorkspaceOpens\) student\.showWhenWorkspaceOpens\(plan\.message\);\s*else toastInfo\(plan\.message\.title, plan\.message\.body\);\s*\}/);
   assert.match(hook, /^import \{ planStudentArrival, planTeacherArrival \} from '\.\/urlArrival\.js';$/m);
   assert.match(hook, /^import \{ readMathPathRouteState, readRouteOwner, readStudentRouteState \} from '\.\.\/\.\.\/platform\/student\/browserHistory\.js';$/m);
   assert.match(hook, /^import \{ readTeacherRouteState \} from '\.\.\/\.\.\/platform\/teacher\/teacherBrowserHistory\.js';$/m);
@@ -154,7 +160,8 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
 
 test('App hands the arrival its real actions, each declared before the call (no temporal dead zone)', () => {
   assert.match(app, /^import \{ useUrlArrival \} from '\.\/app\/routes\/useUrlArrival\.js';$/m);
-  assert.match(app, /^import \{ readUrlArrival \} from '\.\/app\/routes\/urlArrival\.js';$/m);
+  // The same module also gives App its arrival messages (a Classroom link that cannot open, NAV-11).
+  assert.match(app, /^import \{[^}\n]*\breadUrlArrival\b[^}\n]*\} from '\.\/app\/routes\/urlArrival\.js';$/m);
   assert.match(app, /import \{ questionAddressFor, studentQuestionEntries \} from '\.\/app\/routes\/questionAddress\.js';/);
   assert.match(app, /import \{ resetAddressToHome, studentUrlFor, teacherUrlFor \} from '\.\/app\/routes\/browserUrl\.js';/);
   const callAt = appCode.indexOf('useUrlArrival({');
@@ -168,6 +175,23 @@ test('App hands the arrival its real actions, each declared before the call (no 
     assert.ok(declaredAt > 0 && declaredAt < callAt, `${action} is declared after useUrlArrival is called`);
   }
   assert.ok(callAt < appCode.indexOf('if (!userIsSignedInAccount)'), 'a hook is called before the session guard returns');
+});
+
+test('the arrival notice about the work waits for the workspace commit, and the start says when it opened it', () => {
+  const start = region(appCode, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const openStudentDashboardMode = ', 'startAssignment');
+  assert.match(start, /setActiveView\('assignment'\);\s*return true;\s*\};\s*$/);
+  const notice = region(appCode, 'const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);', '}, [workspaceArrivalNotices, activeView, toastInfo]);', 'workspace notice effect');
+  assert.match(notice, /const showWhenWorkspaceOpens = useCallback\(\(notice\) => \{\s*if \(notice\?\.title\) setWorkspaceArrivalNotices\(\(current\) => \[\.\.\.current, notice\]\);/);
+  assert.match(notice, /if \(!workspaceArrivalNotices\.length \|\| activeView !== 'assignment'\) return;/);
+  assert.match(notice, /if \(shownArrivalNoticesRef\.current\.has\(notice\)\) return;\s*shownArrivalNoticesRef\.current\.add\(notice\);\s*toastInfo\(notice\.title, notice\.body\);/);
+  assert.match(notice, /setWorkspaceArrivalNotices\(\[\]\);/);
+  // The start's own notices wait for the workspace too (review S2).
+  assert.match(start, /showWhenWorkspaceOpens\(\{ title: 'That question is not open right now', body: 'It opened where you can work now\.' \}\);/);
+  assert.match(start, /if \(detour\) showWhenWorkspaceOpens\(detour\);/);
+  assert.doesNotMatch(start, /toastInfo\('That question is not open right now'/);
+  const call = region(appCode, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
+  assert.match(call, /showWhenWorkspaceOpens,/);
+  assert.ok(appCode.indexOf('const showWhenWorkspaceOpens = useCallback(') < appCode.indexOf('useUrlArrival({'));
 });
 
 test('startAssignment still redirects every Test Cycle to its card, before any requested question', () => {
@@ -211,6 +235,8 @@ test('excused work opens its result page, never the graded workspace, whatever d
   const gate = start.indexOf("resolveStudentOverride({ assignment: assignmentData, studentId: user.id })?.excused === true");
   assert.ok(gate > 0, 'startAssignment checks the student\'s excusal');
   assert.ok(gate < start.indexOf('setActiveAssignmentId(assignmentId)'), 'before the workspace opens');
-  assert.match(start.slice(gate, gate + 400), /openStudentAssignmentResult\(assignmentId, \{ origin: 'assignments' \}\);\s*return;/);
+  // It lands on the result page, which says why (NAV-10: studentOpenGate.js).
+  assert.match(start.slice(gate, gate + 400), /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.EXCUSED \}\)\);\s*return;/);
+  assert.match(start, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
   assert.match(app, /^import \{ resolveStudentOverride \} from '\.\.\/functions\/shared\/studentAssignmentOverrides\.mjs';$/m);
 });

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getExamPolicy } from '../../platform/policies/examPolicyResolver.js';
+import { UNFINISHED_WORK_LINE, takeDueTimeAlert } from '../../platform/student/timeLeftAlerts.js';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 const formatTime = (seconds) => {
   if (seconds == null) return 'Untimed';
@@ -78,6 +80,24 @@ export const ExamPrepHeader = ({
     return () => window.clearInterval(id);
   }, [initialDeadline, clockPaused, pausedRemainingSeconds]);
 
+  /*
+   * WARNED BEFORE THE END (pass 3, RUN-10). At 2:00 and 0:30 — once each per
+   * deadline, never while the teacher has the clock stopped — an assertive
+   * region says how long is left and what happens to the answers, and the
+   * same words stay on screen. The region is always mounted, so the words are
+   * a change a screen reader reads, not a region that arrives already filled.
+   */
+  const [timeAlert, setTimeAlert] = useState(null);
+  const previousRemainingMsRef = useRef(null);
+  useEffect(() => {
+    if (secondsRemaining == null || clockPaused) { previousRemainingMsRef.current = null; return; }
+    const remainingMs = secondsRemaining * 1000;
+    const due = takeDueTimeAlert({ key: `test|${initialDeadline}`, remainingMs, previousRemainingMs: previousRemainingMsRef.current });
+    previousRemainingMsRef.current = remainingMs;
+    if (due) setTimeAlert(due);
+  }, [secondsRemaining, clockPaused, initialDeadline]);
+  const timeAlertText = timeAlert ? `${timeAlert.words} on this test. ${UNFINISHED_WORK_LINE.test}` : '';
+
   const forceVisible = secondsRemaining != null && secondsRemaining <= 5 * 60;
   // The timer button's name says what it shows and what pressing it does.
   const timerLabel = secondsRemaining == null
@@ -121,6 +141,12 @@ export const ExamPrepHeader = ({
         {tools}
         {!tools && policy.examType !== 'courseTest' && policy.formulaSheet === 'none' && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 'calc(12 * var(--mm-px))' }}>No formula sheet</span>}
       </div>
+      {timeAlertText && (
+        <div data-secure-time-warning="" aria-hidden="true" style={{ flexBasis: '100%', padding: '6px 10px', borderRadius: 7, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
+          ⏰ {timeAlertText}
+        </div>
+      )}
+      <span role="alert" style={SR_ONLY_STYLE}>{timeAlertText}</span>
     </header>
   );
 };

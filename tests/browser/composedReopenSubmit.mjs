@@ -38,7 +38,9 @@ const openScene = async () => {
   await page.waitForTimeout(600);
 };
 const scene = () => page.locator(`[data-draft-scene="${SCENE}"]`);
-const submit = () => scene().getByRole('button', { name: /^Submit( Answer)?$/ }).first();
+// The button's name is the label the student reads (D9, RUN-4): "Submit", or
+// "Submit — uses 1 of 3 tries" when the question counts tries.
+const submit = () => scene().getByRole('button', { name: /^Submit( — .+)?$/ }).first();
 const submitEnabled = async () => {
   const button = submit();
   if (!(await button.count())) return { found: false, enabled: false };

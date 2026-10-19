@@ -40,17 +40,90 @@ test("a secure field item offers prompt-only supports from the student's own pla
   assert.match(fieldProps, /studentSupportProfile=\{supportProfile\}/);
 });
 
-test("a secure Rich Tool item's own tray offers Read aloud and Translate only", () => {
+test("a secure Rich Tool item's own tray offers the student's secure supports, Vocabulary without worked examples (H-16)", () => {
   assert.match(runtime, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
-  const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '};', 'tray entitlement');
+  const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '\n};\n', 'tray entitlement');
   assert.match(entitlement, /const entitlement = secureAccessEntitlement\(rawStudentSupportProfile\);/);
-  // Vocabulary's glossary entries carry worked examples the engine tray cannot hide.
-  assert.match(entitlement, /entitlement\.tools\.filter\(\(tool\) => tool !== SUPPORT_TOOL\.VOCABULARY\)/);
+  // Every secure tool the plan grants on a test — Vocabulary included, so a
+  // glossary accommodation reaches tool items — and the glossary's examples off.
+  // …and the PROMPT's words only, never the tool's own list (H-16 review B2).
+  assert.match(entitlement, /return \{ tools: entitlement\.tools, language: entitlement\.language, showExamples: false, promptTermsOnly: true \};/);
+  assert.doesNotMatch(executableSource(entitlement), /filter\(/, 'no tool is taken away from the plan\'s secure set');
   const tool = region(runtime, 'const ToolItem = (', '\n};\n', 'ToolItem');
   assert.match(tool, /\(\) => \(policy\.secure \? secureToolTrayEntitlement\(rawStudentSupportProfile\) : null\)/);
   assert.match(region(tool, '<QuestionEngine', '/>', 'engine props'), /supportEntitlement=\{trayEntitlement\}/);
   const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
   assert.match(region(root, '<ToolItem', '/>', 'ToolItem props'), /rawStudentSupportProfile=\{studentSupportProfile\}/);
+});
+
+test('a secure tool item\'s Vocabulary lists the prompt\'s words, never the tool\'s method words (H-16 review B2)', async () => {
+  const { supportToolsForItem } = await import('../../src/platform/language/supportToolsModel.js');
+  // The entitlement RichQuestionRuntime hands the engine on a secure tool item.
+  const secure = { tools: ['vocabulary'], language: null, showExamples: false, promptTermsOnly: true };
+  const METHOD = ['distribute', 'inverse-operation', 'like-terms', 'elimination', 'substitution', 'dashed', 'solid', 'shade', 'boundary'];
+  for (const [prompt, toolType] of [
+    ['Solve $3(x+2)=18$.', 'stepAlgebra'],
+    ['Solve the system $x+y=5$ and $x-y=1$.', 'systemsWorkspace'],
+    ['Graph $y<2x-3$.', 'graphing2'],
+  ]) {
+    const terms = supportToolsForItem({ entitlement: secure, prompt, toolType }).tools[0].termIds;
+    assert.deepEqual(terms.filter((id) => METHOD.includes(id)), [], `${toolType}: ${terms.join(', ')}`);
+    // A practice surface keeps the tool's words.
+    const practice = supportToolsForItem({ entitlement: { tools: ['vocabulary'], language: null }, prompt, toolType }).tools[0].termIds;
+    assert.ok(practice.some((id) => METHOD.includes(id)), `${toolType}: practice keeps its tool words`);
+  }
+  // The prompt's own words stay.
+  assert.ok(supportToolsForItem({ entitlement: secure, prompt: 'Graph $y<2x-3$.', toolType: 'graphing2' }).tools[0].termIds.includes('graph'));
+});
+
+test('the engine tray\'s Vocabulary panel leaves the examples out when the entitlement says so (H-16)', () => {
+  const tray = componentSource('src/components/student/supportTools/SupportToolsTray.jsx');
+  assert.match(tray, /<VocabularyPanel tool=\{open\} language=\{entitlement\.language\} showExamples=\{entitlement\.showExamples !== false\}/);
+  const panel = region(tray, 'function VocabularyPanel(', '\n}\n', 'VocabularyPanel');
+  const secure = region(panel, 'if (!showExamples) {', '\n  }\n', 'the example-free branch');
+  // The same pure helper the secure field tray uses, which returns no example.
+  assert.match(secure, /secureVocabularyEntries\(glossary, tool\.termIds, \{ language \}\)\.map/);
+  assert.doesNotMatch(executableSource(secure), /\.example\b|Example:/);
+  assert.ok(panel.indexOf('if (!showExamples) {') < panel.indexOf('entry.example'), 'the example-free branch returns before any example is drawn');
+});
+
+test('one calculator on an exam item: where the toolbar has the graphing calculator, the item draws none (H-19)', () => {
+  const container = componentSource('src/components/assessment/SecureExamContainer.jsx');
+  assert.match(region(container, '<SecureExamQuestionPlayer', '/>', 'player'), /calculatorInToolbar=\{tools\.graphingCalculator\}/);
+  const player = componentSource('src/components/assessment/SecureExamQuestionPlayer.jsx');
+  assert.match(region(player, '<RichQuestionRuntime', '/>', 'runtime'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
+  assert.match(region(root, '<ToolItem', '/>', 'ToolItem props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  assert.match(region(root, '<FieldItem', '/>', 'FieldItem props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  const field = region(runtime, 'const FieldItem = (', '\n};\n', 'FieldItem');
+  assert.match(field, /\{!calculatorInToolbar && <CalculatorPanel policy=\{calculatorPolicy\}/);
+  assert.equal((executableSource(field).match(/<CalculatorPanel/g) || []).length, 1);
+  const tool = region(runtime, 'const ToolItem = (', '\n};\n', 'ToolItem');
+  assert.match(region(tool, '<QuestionEngine', '/>', 'engine props'), /calculatorInToolbar=\{calculatorInToolbar\}/);
+  // The engine: no work-bar button, no Work View rail entry, no panel. Every
+  // calculator it can draw (the keypad, and the graphing calculator it offers
+  // on an ordinary assignment) and the work-bar button sit inside a
+  // `{!calculatorInToolbar && …}` expression, however that block is written.
+  const engine = componentSource('src/QuestionEngine.jsx');
+  const guardedSpans = (code) => {
+    const spans = [];
+    for (let at = code.indexOf('{!calculatorInToolbar &&'); at >= 0; at = code.indexOf('{!calculatorInToolbar &&', at + 1)) {
+      let depth = 0;
+      for (let i = at; i < code.length; i += 1) {
+        if (code[i] === '{') depth += 1;
+        else if (code[i] === '}' && --depth === 0) { spans.push([at, i + 1]); break; }
+      }
+    }
+    return spans;
+  };
+  const code = executableSource(engine);
+  const spans = guardedSpans(code);
+  const inside = (index) => spans.some(([start, end]) => index > start && index < end);
+  const drawn = [...code.matchAll(/<(CalculatorPanel|AssignmentGraphingCalculator)\b/g)];
+  assert.ok(drawn.some((match) => match[1] === 'CalculatorPanel'), 'the engine still has its keypad calculator');
+  for (const match of drawn) assert.ok(inside(match.index), `<${match[1]}> is drawn outside {!calculatorInToolbar && …}`);
+  assert.ok(inside(code.indexOf('onClick={handleCalculatorControl}')), 'the work-bar Calculator button is behind the guard');
+  assert.match(code, /calculator: calculatorInToolbar \? null : \{\n\s*id: 'calculator',/);
 });
 
 test('the toolbar carries the tools the exam policy grants, and the question is padded clear of them', () => {
@@ -84,6 +157,8 @@ test('opening the graphing calculator on a question is recorded on that question
 });
 
 test("the Tests & Exams list passes Practise this skill through to the review", () => {
-  assert.match(dashboard, /export const StudentSecureExamDashboard = \(\{ studentProfile, onExit, onOpenCourseTest = null, onPracticeSkill = null \}\) => \{/);
+  // The prop is taken (the list later gained `testCycles`, so the whole
+  // signature is not pinned — only that this prop is one of its props).
+  assert.match(dashboard, /export const StudentSecureExamDashboard = \(\{[^)]*\bonPracticeSkill = null\b[^)]*\}\) => \{/);
   assert.match(dashboard, /<SecureExamReview examSessionId=\{reviewing\.examSessionId\} onBack=\{[^}]*\}[^>]*onPracticeSkill=\{onPracticeSkill\} \/>/);
 });

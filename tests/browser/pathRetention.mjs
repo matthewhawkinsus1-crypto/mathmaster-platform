@@ -64,7 +64,7 @@ const SCENES = (facts) => [
   },
   {
     name: 'overview',
-    mustContain: ['Retention concern', 'Priority verification focus', 'Verify now · 2 questions', 'Some recent answers on this one were off'],
+    mustContain: ['Time to refresh a skill', 'Priority verification focus', 'Verify now · 2 questions', 'Some recent answers on this one were off'],
     click: { text: 'Verify now · 2 questions', index: 'last' },
     expectLaunch: { ...CHECK, teksCode: facts.pending[0].teksCode },
   },

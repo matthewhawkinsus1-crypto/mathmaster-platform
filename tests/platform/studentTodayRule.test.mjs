@@ -495,5 +495,5 @@ test('an individualized due date is named as the student\'s own on the primary c
   assert.equal(plain.individualizedDue, false);
   const { readFileSync } = await import('node:fs');
   const card = readFileSync(new URL('../../src/components/student/WhatShouldIDoNow.jsx', import.meta.url), 'utf8');
-  assert.match(card, /\{nextAction\.individualizedDue \? 'Your due date: ' : 'Due '\}\{formatDateTime\(nextAction\.dueAt\)\}/);
+  assert.match(card, /\{nextAction\.individualizedDue \? 'Your due date: ' : 'Due: '\}\{formatDateTime\(nextAction\.dueAt\)\}/);
 });

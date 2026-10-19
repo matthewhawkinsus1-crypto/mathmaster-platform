@@ -107,15 +107,15 @@ for (const viewport of VIEWPORTS) {
   await page.waitForTimeout(300);
 
   const expectations = [
-    ['Slope from Two Points', ['Start'], ['View Results']],
-    ['Two-Step Equations', ['Start'], ['View Results']],
-    ['Graphing Linear Equations', ['Continue', 'View Results'], ['Start']],
-    ['Distributive Property', ['Continue', 'View Results'], ['Start']],
-    ['Solving One-Step Equations', ['View Results'], ['Start', 'Continue']],
-    ['Writing Expressions', ['View Results'], ['Start', 'Continue']],
-    ['Order of Operations', ['View Results'], ['Start', 'Continue']],
-    ['Integers on a Number Line', ['View Results', 'Try it again — no credit'], ['Start', 'Continue', 'Practice']],
-    ['Inequalities', ['View Results'], ['Start', 'Continue']],
+    ['Slope from Two Points', ['Start'], ['See results']],
+    ['Two-Step Equations', ['Start'], ['See results']],
+    ['Graphing Linear Equations', ['Continue', 'See results'], ['Start']],
+    ['Distributive Property', ['Continue', 'See results'], ['Start']],
+    ['Solving One-Step Equations', ['See results'], ['Start', 'Continue']],
+    ['Writing Expressions', ['See results'], ['Start', 'Continue']],
+    ['Order of Operations', ['See results'], ['Start', 'Continue']],
+    ['Integers on a Number Line', ['See results', 'Try it again — no credit'], ['Start', 'Continue', 'Practice']],
+    ['Inequalities', ['See results'], ['Start', 'Continue']],
   ];
   for (const [title, mustHave, mustNot] of expectations) {
     const buttons = await rowButtons(title);
@@ -131,6 +131,33 @@ for (const viewport of VIEWPORTS) {
   });
   const afterStart = await page.evaluate(() => window.__mmGrades.clicks.slice(-1)[0]);
   if (afterStart?.kind !== 'start' || afterStart?.value !== 'missing-open') fail('grades', `Start handed back ${JSON.stringify(afterStart)}`);
+
+  // NAV-2 / D4: the missing caveat sits under the big number, and the
+  // "N missing" chip opens the period and moves focus to the missing row —
+  // even when the period was folded first.
+  const missingSeen = await page.evaluate(() => {
+    const summary = document.querySelector('[aria-label="Current marking period grade"]');
+    const warning = summary?.querySelector('[data-missing-warning]');
+    return { warning: warning?.textContent || null, chip: summary?.querySelector('button[data-show-missing]')?.innerText.trim() || null };
+  });
+  if (missingSeen.warning !== '1 missing — your Classroom grade may be lower') fail('grades', `missing warning reads ${JSON.stringify(missingSeen.warning)}`);
+  if (!/^1 missing/.test(missingSeen.chip || '')) fail('grades', `missing chip is not a button: ${JSON.stringify(missingSeen.chip)}`);
+  const periodHeading = await page.evaluate(() => {
+    const button = document.querySelector('section[aria-labelledby^="grade-period-"] button[aria-expanded]');
+    return { parent: button?.parentElement?.tagName || null, expanded: button?.getAttribute('aria-expanded') };
+  });
+  if (!/^H[2-6]$/.test(periodHeading.parent || '')) fail('grades', `period header button sits in <${periodHeading.parent}>, not a heading (NAV-15)`);
+  if (periodHeading.expanded === 'true') {
+    await page.evaluate(() => document.querySelector('section[aria-labelledby^="grade-period-"] button[aria-expanded]').click());
+    await page.waitForTimeout(100);
+  }
+  await page.getByRole('button', { name: 'Show the missing assignment' }).click();
+  await page.waitForTimeout(400);
+  const focused = await page.evaluate(() => {
+    const active = document.activeElement;
+    return { status: active?.dataset?.gradeStatus || null, title: active?.querySelector('h3')?.textContent || null };
+  });
+  if (focused.status !== 'missing' || focused.title !== 'Slope from Two Points') fail('grades', `"1 missing" moved focus to ${JSON.stringify(focused)}`);
 
   // Ways to raise your grade: visible, counted, each row a big button.
   const ways = await page.evaluate(() => {

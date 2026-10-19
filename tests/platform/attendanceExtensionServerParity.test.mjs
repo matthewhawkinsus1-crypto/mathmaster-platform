@@ -26,6 +26,10 @@ import { CHECKPOINT_STATUS } from '../../functions/shared/responseCheckpointSche
 import { buildResponseCheckpointAction } from '../../src/platform/performance/responseCheckpoint.js';
 import { assignmentCreditLifecycle, evaluatePracticePassEligibility } from '../../functions/shared/classPointRewards.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { studentClassroomDeadlines } from '../../functions/shared/classroomStudentDeadlines.mjs';
+import { createRequire } from 'node:module';
+
+const runtime = createRequire(import.meta.url)('../../functions/lib/classroomGradeRuntime.js');
 
 const CLASS_ID = 'class-a';
 const CLASS_PERIOD = 'Period 3';
@@ -170,26 +174,51 @@ test('Practice Pass eligibility (assignmentCreditLifecycle) also recognizes the 
 });
 
 test('Google Classroom grade passback resolves stage against the per-student final cutoff, not only the class one', () => {
+  // Rewritten (H-116) from pinned text to behaviour. What it protects: a
+  // Classroom "final" grade is never posted for an extended student before
+  // their own authorized cutoff — read from THEIR private controls with the
+  // server's authority, merged with any copy still on the shared document.
+  const assignment = baseAssignment();
+  const own = studentClassroomDeadlines({ assignment, studentId: 'S1042', privateOverride: undefined });
+  assert.equal(own.finalAtMs, Date.parse(STUDENT_EXTENDED_LATE_DUE), 'the shared copy alone');
+  const fromPrivate = studentClassroomDeadlines({
+    assignment: { ...assignment, studentOverrides: {} }, studentId: 'S1042',
+    privateOverride: { studentId: 'S1042', assignmentId: 'A1', lateDueAt: STUDENT_EXTENDED_LATE_DUE },
+  });
+  assert.equal(fromPrivate.finalAtMs, Date.parse(STUDENT_EXTENDED_LATE_DUE), 'the private record alone');
+  assert.equal(studentClassroomDeadlines({ assignment, studentId: 'S9999', privateOverride: null }).finalAtMs, null, 'no extension: the class cutoff decides');
+
+  // The stage: between the class cutoff and S1042's, a class-wide final
+  // wake-up is progress for S1042 and final for everyone else.
+  const between = Date.parse('2026-09-28T12:00:00.000Z');
+  const progress = { complete: false, attempted: 1, total: 4, meaningfulProgress: true };
+  const stage = (studentFinalCutoff) => runtime.resolveClassroomGradeStage({
+    assignment, progress, releaseSignal: { reason: 'final-deadline' }, nowValue: between, studentFinalCutoff,
+  });
+  assert.equal(stage(null), 'final-deadline');
+  assert.match(String(stage(own.finalAtMs)), /progress/);
+  assert.equal(runtime.resolveClassroomGradeStage({
+    assignment, progress, releaseSignal: null, nowValue: Date.parse('2026-10-03T00:00:00.000Z'), studentFinalCutoff: own.finalAtMs,
+  }), 'final-deadline', 'and final once their own cutoff passes');
+
+  // The whole-assignment trigger in functions/index.js runs the same rule
+  // (its stage helper cannot be imported here; the emulator suite
+  // tests/integration/studentAssignmentOverrides.test.mjs runs it): its own
+  // cutoff comes from the lib reader above, with the student's profile.
   const source = executableSource(fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
-  // The stage is "final" only at the LATER of the class cutoff and the
-  // student's own…
-  const helper = region(source, 'function studentLateDueAt(', 'async function resolvedStudentFinalCutoff(', 'studentLateDueAt');
-  assert.match(helper, /const studentFinal = toDate\(studentFinalCutoff\);/);
-  assert.match(helper, /return studentFinal\.getTime\(\) > classFinal\.getTime\(\) \? studentFinal : classFinal;/);
-  const stage = region(source, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'resolveClassroomGradeStage');
-  assert.match(stage, /const lateDueAt = studentLateDueAt\(assignment, studentFinalCutoff\);/);
-  // …the student's own cutoff is read from THEIR private controls, with the
-  // server's authority (studentAssignmentOverrides.mjs), merged with any copy
-  // still on the shared document…
-  const reader = region(source, 'async function resolvedStudentFinalCutoff(', 'function resolveClassroomGradeStage(', 'resolvedStudentFinalCutoff');
-  assert.match(reader, /await studentOverrideRef\(db, studentId, assignmentId\)/);
-  assert.match(reader, /overrides\.resolveStudentOverride\(\{[\s\S]*privateOverride: privateOverrideFrom\(snapshot\)/);
-  // …and syncGradeToClassroom passes exactly that for the student whose grade
-  // changed, so a Classroom "final" grade can never be posted for an extended
-  // student before their own authorized cutoff arrives.
+  const stageHelper = region(source, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'resolveClassroomGradeStage');
+  assert.match(stageHelper, /const lateDueAt = studentLateDueAt\(assignment, studentFinalCutoff\);/);
+  assert.match(stageHelper, /if \(reason === "final-deadline" && !\(lateDueAt && now < lateDueAt\.getTime\(\)\)\) return "final-deadline";/);
+  const reader = region(source, 'async function resolvedStudentClassroomDeadlines(', 'function resolveClassroomGradeStage(', 'resolvedStudentClassroomDeadlines');
+  assert.match(reader, /classroomStudentCheckpoints\.studentClassroomDeadlinesFor\(\{ db, assignmentId, assignment, studentId, studentProfile \}\)/);
   const sync = region(source, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
-  assert.match(sync, /await resolvedStudentFinalCutoff\(db, assignmentId, assignment, event\.params\.studentId\)/);
-  assert.match(sync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff,\s*\}\)/);
+  assert.match(sync, /await resolvedStudentClassroomDeadlines\(db, assignmentId, assignment, event\.params\.studentId, afterData\.profile \|\| null\)/);
+  assert.match(sync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff,\s*studentDueAt,\s*\}\)/);
+  // The lib reader reads the private record by the student's own id.
+  const lib = executableSource(fs.readFileSync(new URL('../../functions/lib/classroomStudentCheckpoints.js', import.meta.url), 'utf8'));
+  const libReader = region(lib, 'async function studentClassroomDeadlinesFor(', 'async function recordDeferredStudentCheckpoint(', 'studentClassroomDeadlinesFor');
+  assert.match(libReader, /const ref = await overrideRefFor\(db, studentId, assignmentId\);/);
+  assert.match(libReader, /privateOverride: privateOverrideOf\(snapshot\)/);
 });
 
 test('evaluatePracticePassEligibility threads studentId through to the lifecycle check', () => {

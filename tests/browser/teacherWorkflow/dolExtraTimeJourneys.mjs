@@ -1,0 +1,242 @@
+// EXTRA TIME ON THE EXIT TICKET (DECISION D7) — IN THE REAL APP.
+//
+//   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &
+//   node tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
+//
+//   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
+//    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
+//    when the defaults are not installed; VIEWPORTS=1366x768,390x844.)
+//
+// The school is the harness fixture with `&d7=1&p3StartMin=40&p3EndMin=3`
+// (fixture.js DOL_EXTRA_TIME): Period 3 ends in three minutes, so today's DOL
+// (10 minutes, closing 5 before the bell) closed for the class two minutes
+// ago. Student 910001 has the teacher's "extra time" box: 1.5× time on the
+// DOL, so their exit ticket closes at the bell. (The fixture's 910002 and
+// 910005 already had extra time; 910003 has no profile.)
+//
+//   X1  the student with extra time: today's DOL is still open on their
+//       device, they read "Your exit ticket closes at H:MM — extra time."
+//       with THEIR close (the Period 3 bell), not the class's, and the class
+//       pack-up banner does not tell them to sign out mid-DOL.
+//   X2  a classmate without extra time, at the same moment: the DOL is
+//       closed, and the pack-up banner shows.
+//   X4  the same classmate in the lesson's Classwork during pack-up (NAV-24):
+//       the pack-up line ("Finish up — your work is saved.") sits in the
+//       pinned stack under the identity bar and never covers the sticky
+//       assignment navigator — its section tabs and Previous/Next stay
+//       pressable, also after scrolling.
+//   X5  (NAV-25 review B1) the teacher opens a Live Challenge lobby while that
+//       student is on their open exit ticket: no lobby invite on the DOL — no
+//       banner, no phone chip, nothing said — so nothing offers to leave a DOL
+//       whose clock runs. The same student in Classwork does get the invite.
+//   X6  (NAV-24 review B2) the classmate's device cannot save drafts (every
+//       mathmaster:draft* write throws QuotaExceededError) during pack-up:
+//       the line never says "your work is saved" (data-pack-up-notice is not
+//       "saved") while Batch 3 says the work is not being saved.
+//   X3  the teacher's Live view lists the students still working with extra
+//       time on the DOL — 910001 among them — counting down to the last close.
+//
+// Exit code 1 on any finding. Screenshots in
+// tests/browser/artifacts/dolExtraTime/ (git-ignored).
+
+import { mkdirSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { newSchoolContext } from './schoolClock.mjs';
+
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repo = path.resolve(here, '../../..');
+const ARTIFACTS = path.join(repo, 'tests/browser/artifacts/dolExtraTime');
+const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
+const VIEWPORTS = (process.env.VIEWPORTS || '1366x768,390x844')
+  .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
+
+rmSync(ARTIFACTS, { recursive: true, force: true });
+mkdirSync(ARTIFACTS, { recursive: true });
+
+const launchOptions = { args: ['--no-sandbox'] };
+if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
+else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
+const browser = await chromium.launch(launchOptions);
+
+// fixture.js DOL_EXTRA_TIME (not imported: fixture.js pulls in the app's
+// browser modules).
+const EXTENDED = '910001';
+const CLASSMATE = '910003';
+const LESSON = 'a-today';
+const SCENARIO = 'd7=1&p3StartMin=40&p3EndMin=3&questions=real';
+const PACK_UP = /Pack up and return your device/;
+const EXTRA_TIME_LINE = /Your exit ticket closes at (\d{1,2}):(\d{2}) — extra time\./;
+
+const findings = [];
+const passed = [];
+const squash = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+const expect = (journey, condition, detail) => {
+  if (!condition) findings.push({ journey, detail });
+  return Boolean(condition);
+};
+const bodyText = async (page) => squash(await page.locator('body').innerText());
+const shown = (page, pattern) => page.getByText(pattern).filter({ visible: true }).first();
+const pathOf = (page) => new URL(page.url()).pathname;
+
+// The Period 3 bell, as the school's schedule says it, in student words ("11:03").
+const bellOf = (page) => page.evaluate(() => {
+  const schedule = window.__mmHarnessStore.get('settings/classSchedule');
+  const today = Object.values(schedule.modifiedSchedules || {})[0];
+  const [hour, minute] = String(today.periods['Period 3'].end).split(':').map(Number);
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')}`;
+});
+
+const run = async (viewport) => {
+  const tag = `${viewport.width}x${viewport.height}`;
+  const context = await newSchoolContext(browser, { viewport });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  // X3 first: seed the school as the teacher (reset), on Home's live class.
+  await page.goto(`${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1&${SCENARIO}`, { timeout: 180_000 });
+  await page.getByText('IN SESSION NOW').waitFor({ timeout: 60_000 });
+  await page.getByRole('group', { name: 'Classes in session' }).getByRole('button', { name: /Algebra II — Period 3/ }).click().catch(() => {});
+  await page.waitForTimeout(1500);
+  const bell = await bellOf(page);
+  const extendedName = await page.evaluate((id) => window.__mmHarnessStore.get(`grades/${id}`)?.displayName, EXTENDED);
+  const classmateName = await page.evaluate((id) => window.__mmHarnessStore.get(`grades/${id}`)?.displayName, CLASSMATE);
+  const chip = page.locator('[data-dol-extra-time]').filter({ visible: true }).first();
+  if (expect(`X3 ${tag}`, await chip.count(), 'the live view shows no "DOL extra time" timer')) {
+    const chipText = squash(await chip.innerText());
+    const count = Number(await chip.getAttribute('data-dol-extra-time'));
+    expect(`X3 ${tag}`, new RegExp(`^DOL extra time · ${count} students? · \\d+:\\d{2}$`).test(chipText), `the timer reads "${chipText}"`);
+    const title = String(await chip.getAttribute('title'));
+    expect(`X3 ${tag}`, /still working with extra time/.test(title) && title.includes(extendedName), `it does not name ${extendedName}: ${title}`);
+    expect(`X3 ${tag}`, !title.includes(classmateName), `it names ${classmateName}, who has no extra time`);
+    await chip.scrollIntoViewIfNeeded();
+  }
+  await page.screenshot({ path: path.join(ARTIFACTS, `X3-teacher-live-${tag}.png`) });
+
+  // X1 — the student with extra time.
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${EXTENDED}`, { timeout: 180_000 });
+  await shown(page, /[Qq]uestion \d+ of \d+|RESULT SO FAR|Welcome, /).waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(1500);
+  const studentText = await bodyText(page);
+  expect(`X1 ${tag}`, pathOf(page) === `/assignments/${LESSON}/dol/1`, `the DOL did not open for the student with extra time (at ${pathOf(page)})`);
+  expect(`X1 ${tag}`, !/time is up|no new submission is allowed/i.test(studentText), 'the student with extra time is told the DOL has closed');
+  const match = studentText.match(EXTRA_TIME_LINE);
+  expect(`X1 ${tag}`, Boolean(match) && `${match[1]}:${match[2]}` === bell, `expected "Your exit ticket closes at ${bell} — extra time." — read ${match?.[0] || 'no extra-time line'}`);
+  const line = page.getByText(EXTRA_TIME_LINE).first();
+  if ((await line.count()) > 0) {
+    await line.scrollIntoViewIfNeeded();
+    const box = await line.boundingBox();
+    expect(`X1 ${tag}`, Boolean(box && box.x >= 0 && box.x + box.width <= viewport.width + 1), `the line is clipped sideways: ${JSON.stringify(box)}`);
+  }
+  expect(`X1 ${tag}`, await page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).count() > 0, 'no answer field: the DOL is not workable');
+  expect(`X1 ${tag}`, !PACK_UP.test(studentText), 'the pack-up banner tells a student mid-DOL (on extra time) to sign out');
+  await page.screenshot({ path: path.join(ARTIFACTS, `X1-student-extra-time-${tag}.png`) });
+
+  // X5 — a lobby opened while the exit ticket is open: not offered on the DOL.
+  await page.evaluate(() => window.__mmHarnessStore.set('liveChallengeInvites/910001', { status: 'invited', roomId: 'room-probe', title: 'Probe challenge' }));
+  await page.waitForTimeout(1500);
+  const onDol = await page.evaluate(() => ({
+    banner: [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0),
+    chip: /Challenge lobby open/.test(document.body.innerText),
+    said: document.querySelector('[data-classroom-announcement]')?.textContent || '',
+  }));
+  expect(`X5 ${tag}`, !onDol.banner && !onDol.chip, `the lobby invite shows on the open exit ticket: ${JSON.stringify(onDol)}`);
+  expect(`X5 ${tag}`, !/lobby/i.test(onDol.said), `the lobby was announced on the open exit ticket: "${onDol.said}"`);
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${EXTENDED}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  const onClasswork = await page.evaluate(() => ({
+    banner: [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0),
+    chip: /Challenge lobby open/.test(document.body.innerText),
+    path: location.pathname,
+  }));
+  expect(`X5 ${tag}`, onClasswork.banner || onClasswork.chip, `no lobby invite in Classwork either: ${JSON.stringify(onClasswork)}`);
+  await page.evaluate(() => window.__mmHarnessStore.remove('liveChallengeInvites/910001'));
+
+  // X2 — a classmate, same moment: the class window.
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
+  await shown(page, /[Qq]uestion \d+ of \d+|RESULT SO FAR|Welcome, /).waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(1500);
+  const classmateText = await bodyText(page);
+  expect(`X2 ${tag}`, !EXTRA_TIME_LINE.test(classmateText), 'a classmate without extra time reads an extra-time line');
+  expect(`X2 ${tag}`, pathOf(page) !== `/assignments/${LESSON}/dol/1` || /time is up|no new submission is allowed/i.test(classmateText),
+    `the DOL is still open for a classmate without extra time (${pathOf(page)})`);
+  expect(`X2 ${tag}`, PACK_UP.test(classmateText), 'the classmate does not see the class pack-up banner');
+  await page.screenshot({ path: path.join(ARTIFACTS, `X2-classmate-${tag}.png`) });
+
+  const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth);
+  expect(`layout ${tag}`, overflow <= 1, `sideways scrolling (${overflow}px)`);
+
+  // X4 — the classmate in Classwork while the pack-up line shows.
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  for (const scrolled of [0, 600]) {
+    await page.evaluate((y) => window.scrollTo(0, y), scrolled);
+    await page.waitForTimeout(300);
+    const layout = await page.evaluate(() => {
+      const visible = (node) => node && node.getClientRects().length > 0;
+      const notice = document.querySelector('[data-pack-up-notice]');
+      const nav = [...document.querySelectorAll('.mathmaster-assignment-unified-nav')].find(visible);
+      if (!notice || !nav) return { notice: Boolean(notice), nav: Boolean(nav) };
+      const noticeBox = notice.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const controls = [...nav.querySelectorAll('button')].filter(visible).map((button) => {
+        const box = button.getBoundingClientRect();
+        const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { label: button.getAttribute('aria-label') || button.innerText.trim().slice(0, 30), hit: Boolean(at && (at === button || button.contains(at))) };
+      });
+      return { notice: true, nav: true, text: notice.innerText.replace(/\s+/g, ' '), noticeBottom: Math.round(noticeBox.bottom), navTop: Math.round(navBox.top), covered: controls.filter((control) => !control.hit).map((control) => control.label), controls: controls.length };
+    });
+    if (!expect(`X4 ${tag} scrolled ${scrolled}`, layout.notice && layout.nav, `could not measure: ${JSON.stringify(layout)}`)) continue;
+    expect(`X4 ${tag} scrolled ${scrolled}`, /Finish up — your work is saved\./.test(layout.text), `the line reads "${layout.text}"`);
+    expect(`X4 ${tag} scrolled ${scrolled}`, layout.navTop >= layout.noticeBottom - 1, `the navigator (top ${layout.navTop}) is under the pack-up line (bottom ${layout.noticeBottom})`);
+    expect(`X4 ${tag} scrolled ${scrolled}`, layout.controls > 0 && layout.covered.length === 0, `covered navigator controls: ${layout.covered.join(', ')}`);
+  }
+  // X6 — drafts cannot be saved on this device during pack-up.
+  await context.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (String(key).startsWith('mathmaster:draft')) throw new DOMException('quota', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
+  await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  const field = page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).first();
+  if (expect(`X6 ${tag}`, await field.count(), 'no answer field in Classwork to type into')) {
+    await field.click();
+    await page.keyboard.type('12');
+    await page.waitForTimeout(2500);
+    const quota = await page.evaluate(() => ({
+      kind: document.querySelector('[data-pack-up-notice]')?.getAttribute('data-pack-up-notice') || null,
+      text: document.querySelector('[data-pack-up-notice]')?.innerText.replace(/\s+/g, ' ') || '',
+      notSaving: /not being saved/i.test(document.body.innerText),
+    }));
+    expect(`X6 ${tag}`, quota.kind && quota.kind !== 'saved', `the pack-up line says the work is saved while drafts cannot be: ${JSON.stringify(quota)}`);
+    expect(`X6 ${tag}`, !/your work is saved/.test(quota.text), `the pack-up line reads "${quota.text}"`);
+    if (!quota.notSaving) console.log(`  note X6 ${tag}: no "not being saved" alert on screen (${quota.kind})`);
+  }
+  expect(`errors ${tag}`, errors.length === 0, `page errors: ${errors.join(' | ')}`);
+  passed.push(tag);
+  await context.close();
+};
+
+for (const viewport of VIEWPORTS) {
+  try {
+    await run(viewport);
+  } catch (error) {
+    findings.push({ journey: `${viewport.width}x${viewport.height}`, detail: `threw: ${error.stack || error.message}` });
+  }
+}
+await browser.close();
+
+for (const tag of passed) console.log(`ran   ${tag}`);
+for (const { journey, detail } of findings) console.log(`FAIL  ${journey}: ${detail}`);
+console.log(findings.length ? `\n${findings.length} finding(s).` : '\nAll extra-time DOL journeys passed.');
+process.exit(findings.length ? 1 : 0);

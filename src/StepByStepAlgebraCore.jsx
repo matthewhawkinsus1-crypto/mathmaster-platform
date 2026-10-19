@@ -41,8 +41,10 @@ import {
   undoSimplify,
 } from './platform/algebra/simplify/simplifyState.js';
 import { rewriteMenuEntries, rewriteMenuOptions } from './platform/algebra/simplify/rewriteMenu.js';
-import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+import { normalizeQuestionRecord } from './attemptPolicy';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { spokenMathValue, spokenOperation } from './tools/shared/spokenMathValue.js';
+import { useFocusSafeDisabled } from './components/common/useFocusSafeDisabled.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 // What each step earns, and the raw work it is reported with: one definition,
@@ -86,7 +88,8 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
-import { useHintsAllowed, useHintUseReporter, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -148,6 +151,19 @@ const balancedStep = (move, after) => {
   };
 };
 
+// A distribution token or target that runs out of things to do while it has
+// focus keeps the focus instead of dropping it to the top of the page: placing
+// the factor on the focused term disabled that term (pass 3, A11Y-2;
+// useFocusSafeDisabled). A press while it is unavailable does nothing.
+function FocusSafeButton({ available, onClick, children, ...props }) {
+  const availability = useFocusSafeDisabled(available);
+  return (
+    <button type="button" {...props} {...availability} onClick={(event) => { if (available) onClick?.(event); }}>
+      {children}
+    </button>
+  );
+}
+
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
 function CancellationFactorRow({
@@ -180,7 +196,7 @@ function CancellationFactorRow({
                   onTokenClick(index);
                 }
               } : undefined}
-              aria-label={cancellable ? `${factor.text}, mark this factor for cancellation` : undefined}
+              aria-label={cancellable ? `${spokenMathValue(factor.text)}, mark this factor for cancellation` : undefined}
               aria-pressed={cancellable ? selected || crossed : undefined}
               style={{
                 position: 'relative',
@@ -308,7 +324,6 @@ export default function StepByStepAlgebra({
   onStepGrade,
   onUndoStateChange,
   disabled = false,
-  maximumAttempts = 3,
   attemptsDoNotExpire = false,
   draftKey = null,
   autoOpenDistribution = false,
@@ -340,6 +355,8 @@ export default function StepByStepAlgebra({
   // like every other hint, so the attempt's mastery weight is discounted.
   hintsAllowed: hintsAllowedProp = true,
   onHintUsed: onHintUsedProp = null,
+  // What a hint costs, in the host's words where it has its own (HELP-17).
+  hintCostNote = null,
   // Which equation this workspace was opened on when a host built it — the
   // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
   // the equation the server must check it against. Never a verdict.
@@ -361,8 +378,14 @@ export default function StepByStepAlgebra({
   // judges a move from the equation it was applied to, so Corrections and
   // practice keep their coaching under server grading.
   const verdictsShown = useToolRuntimeContext().verdictsWithheld !== true;
+  // The support level is the teacher's setting. Its badge and sentence are
+  // shown only in a teacher's preview (pass 3, Q-12).
+  const teacherView = useTeacherView();
   const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
   const onHintUsed = onHintUsedProp || contextHintReporter;
+  // Where the host carries the platform's hint ladder (QuestionEngine), the
+  // strategic hint is a rung of it, not a second hint control (below).
+  const publishHints = useToolHintPublisher();
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
   const question = useContentStableValue(questionProp);
@@ -830,11 +853,11 @@ export default function StepByStepAlgebra({
     });
   };
 
-  // A balanced move's step: committed (BALANCED_MOVE), reported before it is
-  // committed because it costs an attempt (INEFFICIENT_MOVE), or a rejected
-  // cancellation/simplification of the pending move (REJECTED_MOVE). Credit,
-  // attempt use and the saved state come from the shared definitions; the
-  // raw work travels with them so the server can derive the same credit.
+  // A balanced move's step: committed (BALANCED_MOVE), or a rejected
+  // cancellation/simplification of the pending move (REJECTED_MOVE, a slip).
+  // Credit, attempt use (none, decision D1) and the saved state come from the
+  // shared definitions; the raw work travels with them so the server can
+  // derive the same credit.
   const saveStep = async ({ move, action, equationAfter = equation }) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
@@ -1249,7 +1272,7 @@ export default function StepByStepAlgebra({
 
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
-    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
+    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your tries will not change.');
     if (!confirmed) return;
 
     setEquation(pristineEquation);
@@ -1275,7 +1298,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setHeldToken(null);
-    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your attempt count did not change.' });
+    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your tries did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {
@@ -1319,20 +1342,10 @@ export default function StepByStepAlgebra({
     }
 
     // F3. An inefficient move is NOT rejected. It is valid algebra by a longer
-    // road, so it is applied and described; at levels 3 and 4 it also costs an
-    // attempt, which is a pacing decision rather than a verdict on the maths.
-    const verdict = evaluateMove(move, supportLevel);
-    if (verdict.countsAttempt) {
-      const result = await saveStep({ move, action: STEP_ACTIONS.INEFFICIENT_MOVE });
-      if (result?.expired) {
-        setPendingMove(null);
-        setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
-        return;
-      }
-      // The pacing is real either way; the judgement of the move is shown only
-      // where verdicts are.
-      if (verdictsShown) setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
-    }
+    // road, so it is applied and described, and it never spends a try at any
+    // level (decision D1). The shorter route is coaching: commitMove shows
+    // evaluateMove's message, and the committed step records that the move
+    // was not the efficient one.
 
     if (move.requiredCancellationSides.length === 0) {
       if (move.simplificationTargets?.length) {
@@ -1530,11 +1543,10 @@ export default function StepByStepAlgebra({
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
-        if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
-      } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
+      // A wrong-side tap is a slip, not an answer: feedback, never a try
+      // (decision D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
       return;
     }
     const next = [...new Set([...crossedSides, side])];
@@ -1565,12 +1577,11 @@ export default function StepByStepAlgebra({
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
-      } else {
-        setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
-      }
+      // An intermediate simplification is checked before it is committed, so a
+      // wrong one is a slip to revise, not an answer: never a try (decision
+      // D1). Levels that record slips keep one for the teacher.
+      if (supportPolicy.recordsSlips && !embedded) await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
+      setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });
       return;
     }
     const cancellationsComplete = pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side));
@@ -1902,11 +1913,27 @@ export default function StepByStepAlgebra({
     stagePlacement(side, position);
   };
   const suggestedMove = getSuggestedMove(equation);
-  const attemptsRemaining = attemptsDoNotExpire ? null : getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
+  // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
+  // hint control beside the work bar's Hint: it opened with no try at all and
+  // was recorded only as "a hint was used". Inside a question it is now the
+  // solver's STANDING rung of the platform ladder (toolHintChannel.js): open
+  // from the start as it always was, without taking a family rung's place in
+  // the one-per-try release, and now read through the leak guard, counted
+  // with the other hints, and shown as read in Work View Help too. It follows
+  // the equation on screen, so it changes as the student works. Without a
+  // platform ladder (the tools lab, a server-graded host) the solver keeps its
+  // own disclosure.
+  const strategicHint = hintsAllowed && question.showHint !== false && suggestedMove && !solved
+    ? `Look for a move that cancels a term: ${describeOperation(suggestedMove.operation, suggestedMove.operand)}.`
+    : '';
+  useEffect(() => {
+    if (!publishHints || !strategicHint) return undefined;
+    return publishHints([{ text: strategicHint, standing: true }]);
+  }, [publishHints, strategicHint]);
   const inlineToolActive = Boolean(
     (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,
   );
@@ -1992,8 +2019,8 @@ export default function StepByStepAlgebra({
           return (
             <span key={`distribution-${sideTermIndex}`} className="algebra-inline-distribution-group">
               {needsLeadingPlus ? <span aria-hidden="true">+</span> : null}
-              <button
-                type="button"
+              <FocusSafeButton
+                available={!disabled && !isDistributionComplete(distributionState)}
                 className={`algebra-inline-factor-token${distributionState.armed ? ' is-armed' : ''}`}
                 draggable={!isDistributionComplete(distributionState)}
                 onClick={armDistributionFactor}
@@ -2002,20 +2029,19 @@ export default function StepByStepAlgebra({
                   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
                   setDistributionState((current) => armDistributionFactorState(current));
                 }}
-                disabled={disabled || isDistributionComplete(distributionState)}
                 aria-pressed={distributionState.armed}
-                aria-label={`Pick up the factor ${distributionState.factorText}`}
+                aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               >
                 <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-              </button>
+              </FocusSafeButton>
               <span aria-hidden="true">(</span>
               <span className="algebra-inline-distribution-targets">
                 {distributionState.terms.map((term, index) => {
                   const placed = distributionState.placedIndices.includes(index);
                   return (
-                    <button
+                    <FocusSafeButton
                       key={`${index}-${term.text}`}
-                      type="button"
+                      available={!disabled && !placed && distributionState.armed}
                       className={`algebra-inline-distribution-target${placed ? ' is-placed' : ''}${distributionState.armed && !placed ? ' is-ready' : ''}`}
                       onClick={() => placeDistributionFactor(index)}
                       onDragOver={(event) => { if (!placed) event.preventDefault(); }}
@@ -2025,11 +2051,10 @@ export default function StepByStepAlgebra({
                           setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                         }
                       }}
-                      disabled={disabled || placed || !distributionState.armed}
                       aria-pressed={placed}
                       aria-label={placed
-                        ? `Factor applied to ${term.text}`
-                        : `Apply the factor to ${term.text}`}
+                        ? `Factor applied to ${spokenMathValue(term.text)}`
+                        : `Apply the factor to ${spokenMathValue(term.text)}`}
                     >
                       <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
                       {placed ? (
@@ -2037,7 +2062,7 @@ export default function StepByStepAlgebra({
                           × <MathDisplay value={distributionState.factorLatex} format="latex" inline />
                         </span>
                       ) : null}
-                    </button>
+                    </FocusSafeButton>
                   );
                 })}
               </span>
@@ -2293,7 +2318,7 @@ export default function StepByStepAlgebra({
           </div>
         ) : (
           <>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
+            {teacherView ? <div data-support-badge="" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div> : null}
             <div style={{ padding: '8px 12px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 'bold' }}>{objectiveLabel}</div>
           </>
         )}
@@ -2428,17 +2453,16 @@ export default function StepByStepAlgebra({
             {' '}Pick up the factor, then select each term it multiplies.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <button
-              type="button"
+            <FocusSafeButton
+              available={!disabled && !isDistributionComplete(distributionState)}
               draggable={!isDistributionComplete(distributionState)}
               onDragStart={(event) => {
                 event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
                 event.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={armDistributionFactor}
-              disabled={disabled || isDistributionComplete(distributionState)}
               aria-pressed={distributionState.armed}
-              aria-label={`Pick up the factor ${distributionState.factorText}`}
+              aria-label={`Pick up the factor ${spokenMathValue(distributionState.factorText)}`}
               style={{
                 minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
                 border: distributionState.armed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
@@ -2447,15 +2471,15 @@ export default function StepByStepAlgebra({
               }}
             >
               <MathDisplay value={distributionState.factorLatex} format="latex" inline />
-            </button>
+            </FocusSafeButton>
             <span aria-hidden="true" style={{ color: 'var(--mm-text-muted)' }}>&rarr;</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {distributionState.terms.map((term, index) => {
                 const placed = distributionState.placedIndices.includes(index);
                 return (
-                  <button
+                  <FocusSafeButton
                     key={`${index}-${term.text}`}
-                    type="button"
+                    available={!disabled && !placed && distributionState.armed}
                     onClick={() => placeDistributionFactor(index)}
                     onDragOver={(event) => { if (!placed) event.preventDefault(); }}
                     onDrop={(event) => {
@@ -2464,9 +2488,8 @@ export default function StepByStepAlgebra({
                         setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
                       }
                     }}
-                    disabled={disabled || placed || !distributionState.armed}
                     aria-pressed={placed}
-                    aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
+                    aria-label={placed ? `Factor already applied to ${spokenMathValue(term.text)}` : `Apply the factor to ${spokenMathValue(term.text)}`}
                     style={{
                       minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 'calc(22 * var(--mm-px))', fontWeight: 800,
                       border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid var(--mm-tint-border)',
@@ -2482,7 +2505,7 @@ export default function StepByStepAlgebra({
                       format="latex"
                       inline
                     />
-                  </button>
+                  </FocusSafeButton>
                 );
               })}
             </div>
@@ -2595,7 +2618,7 @@ export default function StepByStepAlgebra({
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
                 role={sideTapReady ? 'button' : undefined}
                 tabIndex={sideTapReady ? 0 : undefined}
-                aria-label={sideTapReady ? `Place ${describeOperation(armedTile.operation, operand)} on the ${side} side` : undefined}
+                aria-label={sideTapReady ? `Place ${spokenOperation(armedTile.operation, operandLabel)} on the ${side} side` : undefined}
                 onClick={(event) => tapPlacementOnSide(side, event)}
                 onKeyDown={(event) => {
                   /* Not gated on isMobile any more. A student on a Chromebook
@@ -2776,7 +2799,8 @@ export default function StepByStepAlgebra({
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
             aria-label={operandLabel
-              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${describeOperationToken(armedTile.operation, operandLabel).text}`
+              // "Pick up divide by negative 3", not the chip's typeset text ("― / -3").
+              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${spokenOperation(armedTile.operation, operandLabel)}`
               : undefined}
           >
             {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}
@@ -2835,7 +2859,7 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {!publishHints && strategicHint && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint? <span data-hint-cost-note="" style={{ fontWeight: 'normal', fontSize: 'calc(12.5 * var(--mm-px))' }}>{hintCostSentence(hintCostNote)}</span></summary><p style={{ margin: '8px 0 0' }}>{strategicHint}</p></details>}
       {message && (() => {
         // Where verdicts are withheld, a message keeps its words but loses its
         // correctness colour; only a genuine error stays red.
@@ -2845,12 +2869,13 @@ export default function StepByStepAlgebra({
         return <div role="status" data-message-tone={tone} style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>;
       })()}
       {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '12px' }}>
-        {/* The level's own sentence promises "Hints are available on request";
-            where the activity withholds hints that is no longer true. */}
-        {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
-        {supportPolicy.inefficientMoveCostsAttempt
-          ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
-          : ' A longer route is still correct algebra here and costs nothing.'}
+        {/* The level's own sentence is teacher policy ("Nothing is simplified
+            for the student"): a teacher's preview only. It promises "Hints are
+            available on request"; where the activity withholds hints that is
+            no longer true. */}
+        {teacherView ? <span data-support-policy="">{hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}{' '}</span> : null}
+        {/* Decision D1: no move or slip spends a try, at any level. */}
+        {'A longer route is still correct algebra and never uses a try.'}
       </p>}
 
       {heldToken && (

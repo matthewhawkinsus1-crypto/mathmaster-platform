@@ -5,13 +5,15 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import { resolveSpecialCaseReport } from './algebraicOutcomeModel.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
+import { scrollMotion } from '../../motionPreference.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { expressionsEquivalent, latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
@@ -113,7 +115,8 @@ export function MathDragToken({
         if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
         onArm?.();
       }}
-      aria-label={ariaLabel || `Pick up ${expression}`}
+      aria-label={ariaLabel || `Pick up ${spokenMathValue(expression)}`}
+      data-token-value={expression}
       title="Drag this onto the place you think it belongs. On touch or keyboard, select it and then select a destination."
     >
       {label ? <span className="mathmaster-systems-token-label">{label}</span> : null}
@@ -131,7 +134,7 @@ export function SubstitutionToken({ variable, expression, onArm, label = null, a
       expression={expression}
       label={label}
       onArm={onArm}
-      ariaLabel={ariaLabel || `Pick up the expression ${expression} from the isolated equation`}
+      ariaLabel={ariaLabel || `Pick up the expression ${spokenMathValue(expression)} from the isolated equation`}
     />
   );
 }
@@ -191,7 +194,7 @@ export function VariableDropEquation({
               onVariableAttempt(part, payload.slice(payloadPrefix.length));
             }}
             aria-label={hasPlacedValue
-              ? `Variable ${part} currently has value ${placedValues[part]}`
+              ? `Variable ${part} currently has value ${spokenMathValue(String(placedValues[part]))}`
               : `Variable ${part}. Place the selected value or expression here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
@@ -235,8 +238,9 @@ export function SystemsWorkTrail({ stages = [] }) {
               <span
                 className="mathmaster-systems-completed-math"
                 data-summary-math={stage.summaryMath || ''}
-                aria-label={stage.summaryMath || stage.summaryLatex}
               >
+                {/* No label: a span's aria-label is ignored or read as the raw
+                    program syntax; MathDisplay below speaks the equation. */}
                 <MathDisplay
                   value={stage.summaryLatex || stage.summaryMath}
                   format={stage.summaryLatex ? 'latex' : 'ascii-math'}
@@ -349,7 +353,7 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
     const frame = window.requestAnimationFrame(() => {
       // `start` + the scroll-margin under the sticky task (App.css): the
       // solver's own controls land just below the task, not under it.
-      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      hostRef.current?.scrollIntoView?.({ behavior: scrollMotion(), block: 'start' });
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -461,7 +465,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   React.useEffect(() => { stagesMountedRef.current = true; }, []);
   const revealStageOnAppear = useCallback((element) => {
     if (!element || !stagesMountedRef.current || typeof window === 'undefined') return;
-    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
   }, []);
   const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
   // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing
@@ -1844,7 +1848,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     variable={survivingVariable}
                     expression={firstSolvedExpression}
                     label="Solved value"
-                    ariaLabel={`Pick up the solved value ${firstSolvedExpression}`}
+                    ariaLabel={`Pick up the solved value ${spokenMathValue(firstSolvedExpression)}`}
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
                   <div className="mathmaster-systems-backsub-equations">
@@ -1907,7 +1911,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       expression={`${variable} = ${solutionExpressions[variable]}`}
                       label="Solved value"
                       onArm={() => armVerificationValue(variable)}
-                      ariaLabel={`Pick up solved value ${solutionExpressions[variable]} for ${variable}`}
+                      ariaLabel={`Pick up solved value ${spokenMathValue(solutionExpressions[variable])} for ${variable}`}
                     />
                 ))}
               </div>
@@ -1995,7 +1999,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           {readyToSubmit ? (
             // A reduced subsystem submits nothing: its solution goes up to the
             // 3×3 workflow, which verifies in the original equations.
-            subsystem ? null : <button type="button" onClick={check} style={actionStyle}>Check my work</button>
+            subsystem ? null : <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
           ) : null}
           {feedback ? (
             <div style={{ marginTop: 14 }}>

@@ -18,22 +18,28 @@ test('the scale is 1 to 5 and every level answers every policy question', () => 
     assert.equal(entry.level, index + 1);
     assert.equal(typeof entry.autoSimplifyOppositeSide, 'boolean');
     assert.equal(typeof entry.showCancellationHints, 'boolean');
-    assert.equal(typeof entry.inefficientMoveCostsAttempt, 'boolean');
+    assert.equal(typeof entry.recordsSlips, 'boolean');
+    // Decision D1: no level has a setting that charges a try for a move.
+    assert.equal('inefficientMoveCostsAttempt' in entry, false, `level ${entry.level} must not carry an attempt charge`);
     assert.ok(entry.description.length > 10);
   });
 });
 
 test('the support decisions are genuinely separate, not one dial', () => {
   // Level 2 shows cues but does not simplify for the student; level 5 hides
-  // cues and charges nothing. Under the old two-mode model neither was sayable.
+  // cues and coaches least. Under the old two-mode model neither was sayable.
+  // (Since decision D1 no level charges for a move, so that is no longer one
+  // of the decisions; recording slips for the teacher is.)
   const supported = getSupportPolicy(2);
   assert.equal(supported.showCancellationHints, true);
   assert.equal(supported.autoSimplifyOppositeSide, false);
-  assert.equal(supported.inefficientMoveCostsAttempt, false);
+  assert.equal(supported.recordsSlips, false);
 
   const open = getSupportPolicy(5);
   assert.equal(open.showCancellationHints, false);
-  assert.equal(open.inefficientMoveCostsAttempt, false);
+  assert.equal(open.coaching, 'minimal');
+  assert.equal(getSupportPolicy(3).recordsSlips, true);
+  assert.equal(getSupportPolicy(4).recordsSlips, true);
 });
 
 test('only level 1 simplifies the opposite side for the student', () => {
@@ -76,6 +82,23 @@ test('F3 — validity, efficiency and progress are three separate answers', () =
   assert.equal(longWay.efficient, false, 'but not the move a teacher would pick');
 });
 
+test('D1 — an invalid move is still blocked and never charged by the move check', () => {
+  // As before D1: the workspace refuses it (shake, message) before any step
+  // is reported, so it never reached the attempt count either.
+  SUPPORT_LEVELS.forEach((entry) => {
+    const verdict = evaluateMove({ preservesSolution: false, productive: false }, entry.level);
+    assert.equal(verdict.blocked, true);
+    assert.equal(verdict.tone, 'error');
+    assert.equal(verdict.countsAttempt, false);
+  });
+});
+
+test('the level descriptions no longer promise that only Open is free', () => {
+  SUPPORT_LEVELS.forEach((entry) => {
+    assert.doesNotMatch(entry.description, /cost|attempt|tr(y|ies)/i, `level ${entry.level} describes attempts`);
+  });
+});
+
 test('F3 — only an equivalence-breaking move is blocked', () => {
   // Multiplying by zero collapses the solution set, so it is refused. The
   // engine throws on a literal zero operand, which is the same protection at a
@@ -88,13 +111,18 @@ test('F3 — only an equivalence-breaking move is blocked', () => {
   assert.match(verdict.message, /change the solution set/);
 });
 
-test('F3 — a longer route costs an attempt only where the level says so', () => {
+// Decision D1 (docs/qa/student-experience-pass-3.md, RUN-2): a valid move
+// never spends the question's tries, at any level. Levels 3 and 4 charged one
+// for a longer route until then; on a one-try DOL that ended the question.
+test('D1 — a valid longer route never costs an attempt, at any level, and is still coached', () => {
   const longWay = move('add', '7');
-  [1, 2, 5].forEach((level) => {
-    assert.equal(evaluateMove(longWay, level).countsAttempt, false, `level ${level} should not charge`);
-  });
-  [3, 4].forEach((level) => {
-    assert.equal(evaluateMove(longWay, level).countsAttempt, true, `level ${level} should charge`);
+  SUPPORT_LEVELS.forEach((entry) => {
+    const verdict = evaluateMove(longWay, entry.level);
+    assert.equal(verdict.countsAttempt, false, `level ${entry.level} must not charge a valid move`);
+    // The coaching and the efficiency evidence stay.
+    assert.equal(verdict.efficient, false);
+    assert.equal(verdict.tone, 'growth');
+    assert.match(verdict.message, /longer way round|shorter route/);
   });
   // The helpful move never costs an attempt at any level.
   SUPPORT_LEVELS.forEach((entry) => {

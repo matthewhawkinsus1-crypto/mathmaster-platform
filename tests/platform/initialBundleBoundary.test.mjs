@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { region } from './helpers/sourceContract.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -103,20 +104,30 @@ for (const [pkg, why] of [
   });
 }
 
-// mathjs is still in the first load (the shared tool mathematics reaches it),
-// but only as factories: the client's instance (src/platform/math/mathjs.js)
-// builds each function on first use, and the hardened instance the shared
-// modules read through (functions/shared/algebra/safeMath.mjs) is built and
-// locked on first use too. Importing 'mathjs' anywhere else in the first load
-// brings back its prebuilt instance, about 0.5 s more of main thread before
-// the sign-in screen on a 4x-throttled CPU (tests/platform/mathjsInstance.test.mjs).
-const LAZY_MATHJS_INSTANCES = ['functions/shared/algebra/safeMath.mjs', 'src/platform/math/mathjs.js'];
-test('the first load reaches mathjs only through the lazily built instances', () => {
-  const importers = [...graph.keys()]
-    .filter((file) => !file.startsWith('pkg:') && /\.(m?jsx?)$/.test(file))
-    .filter((file) => staticImports(file).some((specifier) => specifier === 'mathjs' || specifier.startsWith('mathjs/')))
-    .map((file) => path.relative(repo, file));
-  assert.deepEqual(importers.filter((file) => !LAZY_MATHJS_INSTANCES.includes(file)), []);
+// mathjs is not in the first load. It reached it through two of App's static
+// imports, the question generator (for a student's printed worksheet) and the
+// teacher's grader repair (for the Grades tab), and through them the shared
+// tool mathematics and the hardened instance (functions/shared/algebra/
+// safeMath.mjs): 174 KB gzip in front of every student's Home. Both now load
+// where they run; the question screen brings mathjs with QuestionEngine. (Where
+// it does load, it is still built lazily: tests/platform/mathjsInstance.test.mjs.)
+test('mathjs is not in the first load', () => {
+  assert.ok(!graph.has('pkg:mathjs'), `mathjs is in the first load: ${graph.has('pkg:mathjs') ? chainTo(graph, 'pkg:mathjs') : ''}`);
+  for (const file of ['src/problemGenerator.js', 'src/platform/assignment/liveQuestionCorrection.js', 'functions/shared/algebra/safeMath.mjs']) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+});
+
+// What App kept of the generator: whether a question can come back as a
+// different one (the "Request New Question" rule) is the shared rule itself,
+// and the generator loads when a student prints a worksheet, before any
+// question is resolved, with a failed load reported like a failed render.
+test('App loads the question generator where a student prints, not with Home', () => {
+  const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
+  assert.match(app, /^import \{ canGenerateDistinctVariants as isPersonalizedBlueprint \} from '\.\.\/functions\/shared\/questionVariability\.mjs';$/m);
+  const exportPdf = region(app, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
+  assert.match(exportPdf, /let generateQuestion;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so

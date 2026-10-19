@@ -217,7 +217,7 @@ test('Ways to raise: waiting work keeps its way, with no Start and the wait line
     assert.equal(way.waitText, todayByAssignment[id].waitText);
     assert.ok(way.text.endsWith(todayByAssignment[id].waitText), way.text);
   }
-  assert.match(wayFor(ways, 'waiting-dol').text, /DOL opens/);
+  assert.match(wayFor(ways, 'waiting-dol').text, /Exit ticket opens/);
   // Waiting is still a way: Home's count includes it.
   assert.equal(countWaysToRaise(ways), countWaysToRaise(datesOnly));
 });

@@ -631,6 +631,9 @@ export const readRender = ({ html }) => ({
   placedInB: (html.match(/In Line B\./g) || []).length,
   unsorted: (html.match(/In not sorted yet\./g) || []).length,
   review: /Card-sort solution/.test(html),
-  closedNotice: /This response is closed after/.test(html),
+  // The closed card (student pass 3, RUN-6): its sentence names the tries, in
+  // the student word list's terms; "This response is closed after N attempts"
+  // was the panel it replaced.
+  closedNotice: /data-closed-question-card=""[\s\S]*This question is closed after \d+ tr(?:y|ies)\./.test(html),
   correctNotice: /Question complete/.test(html),
 });

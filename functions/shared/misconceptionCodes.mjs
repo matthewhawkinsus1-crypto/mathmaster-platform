@@ -282,6 +282,20 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     evidenceRequired: 'Absolute value instance: both submitted solutions are the same correct solution.',
     teks: ['A2.6E'],
   }),
+  // --- Linear: the form of a line's equation (student pass 3, R-3) ---------------------
+  ...[
+    ['slope-intercept', 'slope-intercept form (y = mx + b)'],
+    ['point-slope', 'point-slope form (y − y₁ = m(x − x₁))'],
+    ['standard', 'standard form (Ax + By = C)'],
+  ].map(([form, name]) => code({
+    id: `line-wrong-form-${form}`,
+    concept: 'linear-forms',
+    domain: 'linear',
+    label: `Right line, not in ${name}`,
+    teacherMeaning: `The equation describes the correct line, but it is not written in ${name}, the form the question asks for (or, when the question names none, the form its key is written in).`,
+    evidenceRequired: `multiAnswer field: the submitted equation and the field's key have the same graph; the field was graded wrong; the form asked for is ${name} (named by the field's label or prompt, or the key's own form, and the two do not disagree); and the submitted equation is not written in it.`,
+    teks: ['A.2B'],
+  })),
   // --- Quadratics ---------------------------------------------------------------------
   code({
     id: 'vertex-x-sign-reversed',
@@ -344,6 +358,9 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   ...['full', 'unrecognized', 'association'].map((mode) => classifier(`tool:dataModelingLab/${mode}`, 1, ['correlation-direction-reversed', 'correlation-treated-as-causation'])),
   // The correlation view asks for r and its reading; it shows no causation choice.
   classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
+  // --- Student pass 3 (additive under registry v1) ---
+  // An ordinary multiAnswer field: the right line in the wrong form.
+  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard']),
 ]);
 const CLASSIFIER_BY_ID = new Map(MISCONCEPTION_CLASSIFIERS.map((entry) => [entry.id, entry]));
 

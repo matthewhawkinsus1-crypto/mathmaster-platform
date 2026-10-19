@@ -30,7 +30,7 @@ test('geometry, sequences, sets and logs say what the notation means', () => {
   assert.equal(mathToSpeech('\\triangle ABC \\cong \\triangle DEF'), 'triangle ABC is congruent to triangle DEF');
   assert.equal(mathToSpeech('\\log_2(8)'), 'log base 2 of 8');
   assert.equal(mathToSpeech('\\text{Area} = \\pi r^2'), 'Area equals pi r squared');
-  assert.equal(mathToSpeech('\\$4.50'), '4.50 dollars');
+  assert.equal(mathToSpeech('\\$4.50'), '4 dollars and 50 cents');
   assert.equal(mathToSpeech('sqrt(x)'), 'the square root of x');
 });
 
@@ -132,7 +132,8 @@ test('j(x) is a function, not j times x', () => {
 test('every price in a list of prices is spoken in dollars', () => {
   assert.equal(
     speechTextFor('small baskets for $15.75, medium baskets for $25, and large baskets for $32.50. They took in $2,086.25 and sold twice as many.'),
-    'small baskets for 15.75 dollars, medium baskets for 25 dollars, and large baskets for 32.50 dollars. They took in 2,086.25 dollars and sold twice as many.',
+    // Said the way a person says money (pass 3, item 3): dollars and cents.
+    'small baskets for 15 dollars and 75 cents, medium baskets for 25 dollars, and large baskets for 32 dollars and 50 cents. They took in 2,086 dollars and 25 cents and sold twice as many.',
   );
   assert.equal(
     speechTextFor('The team sold $20, $25, and $50 gas cards.'),

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
 
-const fieldQuestion = ({ id, expected, equivalence }) => ({
+const fieldQuestion = ({ id, expected, equivalence, inputProfile = 'expression' }) => ({
   id,
   active: true,
   alignmentKeys: ['texas:A.2A'],
@@ -22,7 +22,7 @@ const fieldQuestion = ({ id, expected, equivalence }) => ({
   responseFields: [{
     id: 'answer',
     label: 'Answer',
-    inputProfile: 'expression',
+    inputProfile,
     equivalence,
     expected,
   }],
@@ -85,4 +85,13 @@ test('Teacher Simulator keeps primary expected answer when accepted alternatives
   question.responseFields[0].accepted = ['1+x'];
   const result = await runOne(question, 'x+1');
   assert.equal(result.grading.isCorrect, true);
+});
+
+// A grouped number (#496) is one number in a number box and two values in a
+// list, in the simulation exactly as in production (mathPath valuesEquivalent).
+test('Teacher Simulator reads 1,250 as production does: one number, but two values in a list', async () => {
+  const number = await runOne(fieldQuestion({ id: 'grouped-number', expected: '1250', inputProfile: 'number' }), '1,250');
+  assert.equal(number.grading.isCorrect, true);
+  const listed = await runOne(fieldQuestion({ id: 'grouped-list', expected: '1250', inputProfile: 'list' }), '1,250');
+  assert.equal(listed.grading.isCorrect, false);
 });

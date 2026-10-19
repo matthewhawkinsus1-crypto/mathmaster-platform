@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
@@ -724,7 +725,7 @@ const exitButton = { minHeight: 44, padding: '11px 20px', border: 0, borderRadiu
  * in words). It is a slot, not game logic: the game's own placement and
  * points beside it are unchanged and never read rewards.
  */
-export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
+export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = BACK_TO_HOME, renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
   // Whether the room on screen came from this device's cache (the server is
   // unreachable), and whether a server copy has arrived since the screen opened.
@@ -1108,8 +1109,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     [studentProfile],
   );
 
+  // These waiting states are the screen's top heading (h1, NAV-15), like the room title once it opens.
   if (!invite || !roomId) {
-    return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
+    return <div style={{ padding: 40, textAlign: 'center' }}><h1 style={{ fontSize: 'calc(24 * var(--mm-px))', lineHeight: '118%', letterSpacing: '-0.24px', margin: '0 0 8px' }}>No Live Challenge is waiting.</h1><button type="button" onClick={onExit}>{exitLabel}</button></div>;
   }
 
   if (!room || roomMissing) {
@@ -1117,10 +1119,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <div data-mm-student-room={roomMissing ? 'missing' : 'opening'} style={{ minHeight: '100vh', padding: 40, background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', color: '#eef1f6', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
         {roomMissing ? (
           <>
-            <h2 style={{ color: '#fff' }}>This Live Challenge is no longer available.</h2>
+            <h1 style={{ fontSize: 'calc(24 * var(--mm-px))', lineHeight: '118%', letterSpacing: '-0.24px', margin: '0 0 8px', color: '#fff' }}>This Live Challenge is no longer available.</h1>
             <p>Your teacher may have closed it. Nothing was lost — head back to your dashboard.</p>
           </>
-        ) : <h2 style={{ color: '#fff' }}>Opening {invite.title || 'Live Challenge'}…</h2>}
+        ) : <h1 style={{ fontSize: 'calc(24 * var(--mm-px))', lineHeight: '118%', letterSpacing: '-0.24px', margin: '0 0 8px', color: '#fff' }}>Opening {invite.title || 'Live Challenge'}…</h1>}
         {error && <p role="alert" style={{ color: '#ffb4ab' }}>{error}</p>}
         {(roomMissing || error) && (
           <button type="button" onClick={onExit} style={{ marginTop: 12, minHeight: 44, padding: '10px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.3)', background: 'rgba(255,255,255,.08)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{exitLabel}</button>

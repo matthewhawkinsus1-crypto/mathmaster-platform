@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+// The outcome is drawn below the fix list (CheckRow), not inside the pill.
+import { AttemptOutcome } from '../shared/ToolShell';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { ResultPill } from '../shared/ToolShell';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
@@ -75,8 +78,12 @@ export function CellInput({ value, onChange, label, onFocus, style = null, inval
   );
 }
 
-/** A matrix the student fills in, drawn with brackets like every other matrix. */
-export function MatrixInput({ name, cells, onCell, rowLabels = null, colLabels = null, rowTitle = null, colTitle = null, onFocusCell, highlightRow = null, highlightCol = null, labelFor = null, showName = true }) {
+/**
+ * A matrix the student fills in, drawn with brackets like every other matrix.
+ * `invalidCells` ("i,j" keys) are the cells the latest visible verdict marked
+ * wrong (P2-5: A⁻¹ and a product are marked cell by cell).
+ */
+export function MatrixInput({ name, cells, onCell, rowLabels = null, colLabels = null, rowTitle = null, colTitle = null, onFocusCell, highlightRow = null, highlightCol = null, labelFor = null, showName = true, invalidCells = null }) {
   const label = labelFor || ((i, j) => `${name ? `Matrix ${name}, ` : ''}row ${i + 1}, column ${j + 1}`);
   return (
     <MatrixGrid
@@ -91,7 +98,7 @@ export function MatrixInput({ name, cells, onCell, rowLabels = null, colLabels =
       highlightCol={highlightCol}
       cellMinWidth={56}
       renderCell={(i, j, value) => (
-        <CellInput value={value} label={label(i, j)} onChange={(next) => onCell(i, j, next)} onFocus={() => onFocusCell?.(i, j)} />
+        <CellInput value={value} label={label(i, j)} onChange={(next) => onCell(i, j, next)} onFocus={() => onFocusCell?.(i, j)} invalid={Boolean(invalidCells?.has?.(`${i},${j}`))} />
       )}
     />
   );
@@ -172,27 +179,78 @@ export function YesNo({ value, onChange, label }) {
 }
 
 /**
- * Check, and what came back: a verdict, and — when wrong — which parts to
- * reconsider, named but never answered. `notes` are lesson-specific reasons
- * ({ partId, text }: a row copied before moving terms) the view already worked
- * out; a part with a note is not listed a second time.
+ * Check, and what came back: a verdict and ONE list of what to fix
+ * (matrixLabFixList: each line names a row, a cell or a field, and says why
+ * when the reason is in the student's own work), then the platform's outcome
+ * for the attempt.
+ *
+ * The order is the point (student pass 3, P2-1 and P2-3). The outcome box
+ * ("Not quite. You have 2 tries left…") scrolls itself clear of the work bar
+ * once per attempt, so it comes AFTER the list: the list is then on screen
+ * too, where it used to sit under the bar. And the outcome is told not to
+ * repeat the parts as "Focus on: …" — this list already names them, so the
+ * student reads one list, not three.
+ *
+ * `blocker` is a format message shown before any try is spent: Check stays
+ * off while a cell is not a number yet (a bare "−"), or while the work is the
+ * matrix as it was given (P2-10). It describes only what the student typed,
+ * so it is shown on an exit ticket too.
+ *
+ * `confirm` asks once before a Check that would spend a try on work the
+ * student has not touched (an authored start left as given): the first press
+ * shows it, a second press checks. Never a dead end — an item published with
+ * a right start stays answerable.
+ *
+ * Nothing here renders while the activity withholds outcome feedback:
+ * `feedback` is null there (useToolSubmission), so no line can reveal a key.
  */
-export function CheckRow({ label, onCheck, enabled, feedback, notes = [] }) {
-  const explained = new Set(notes.map((note) => note.partId));
-  const wrong = (feedback?.metadata?.parts || []).filter((part) => !part.isCorrect && !explained.has(part.id));
+// How long after the "check it as it is?" prompt a second press still counts
+// as the same gesture.
+const CONFIRM_SETTLE_MS = 400;
+
+export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], blocker = null, confirm = null }) {
+  // The confirmation answered for this exact message; any edit that changes
+  // or clears it asks again.
+  const [confirmed, setConfirmed] = useState(null);
+  useEffect(() => { if (!confirm) setConfirmed(null); }, [confirm]);
+  const asking = Boolean(confirm) && confirmed === confirm;
+  // A double-click or double-tap is one gesture: its second press must not
+  // answer a prompt the student has not read yet. A timestamp, not a timer —
+  // Check never goes dead.
+  const askedAt = useRef(0);
+  const press = () => {
+    if (confirm && !asking) { askedAt.current = Date.now(); setConfirmed(confirm); return; }
+    if (asking && Date.now() - askedAt.current < CONFIRM_SETTLE_MS) return;
+    setConfirmed(null);
+    onCheck();
+  };
+  const lines = feedback && !feedback.isCorrect ? fixList : [];
+  const lineText = (line) => line.text || `Reconsider: ${line.labels.join(', ')}`.replace(/([^.?!])$/, '$1.');
+  const verdict = feedback ? (feedback.isCorrect ? 'Correct' : 'Not yet — see what to fix') : null;
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={onCheck} disabled={!enabled} style={primaryStyle(enabled)}>{label}</button>
-        {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet — see what to reconsider'}</ResultPill> : null}
+        <button data-primary-answer-action="true" data-mm-enter-action="submit" type="button" onClick={press} disabled={!enabled} style={primaryStyle(enabled)}><SubmitText>{label}</SubmitText></button>
+        {/* stageCheck: the outcome is drawn below the list, not inside the pill. */}
+        {feedback ? <ResultPill ok={feedback.isCorrect} stageCheck>{verdict}</ResultPill> : null}
       </div>
-      {feedback && !feedback.isCorrect && (wrong.length || notes.length) ? (
-        <ul style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.55, textAlign: 'left' }}>
-          {notes.map((note) => <li key={`n-${note.partId}`}><MathText>{note.text}</MathText></li>)}
-          {wrong.slice(0, 8).map((part) => <li key={part.id}>Reconsider: <strong>{part.label}</strong></li>)}
-          {wrong.length > 8 ? <li>…and {wrong.length - 8} more</li> : null}
+      {asking ? (
+        <p role="status" data-matrix-confirm-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{confirm}</p>
+      ) : null}
+      {blocker ? (
+        <p role="status" data-matrix-format-message="" style={{ margin: '10px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>{blocker}</p>
+      ) : null}
+      {lines.length ? (
+        <ul data-matrix-fix-list="" style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.55, textAlign: 'left' }}>
+          {lines.slice(0, 8).map((line) => (
+            <li key={line.ids.join('|')}>
+              {line.text ? <MathText>{line.text}</MathText> : <>Reconsider: <strong>{line.labels.join(', ')}</strong></>}
+            </li>
+          ))}
+          {lines.length > 8 ? <li>…and {lines.length - 8} more</li> : null}
         </ul>
       ) : null}
+      {feedback ? <AttemptOutcome showDetail={false} verdict={verdict} coaching={lines.map(lineText).join(' ') || null} /> : null}
     </div>
   );
 }

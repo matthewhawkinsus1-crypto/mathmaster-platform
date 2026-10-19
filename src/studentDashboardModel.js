@@ -8,6 +8,7 @@ import { filterStudentRequiredIndices, studentOmittedIndices } from '../function
 import { assignmentIsArchived, assignmentIsUnpublished } from '../functions/shared/assessmentAvailability.mjs';
 import { describeTestCycleForStudent } from './platform/student/testCycleDiscovery.js';
 import { SECTION_STATE, describeLessonSections, describeSectionWait } from './platform/student/lessonSections.js';
+import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, RECOVERY_NAME, exitTicketInSentence } from './platform/student/studentWords.js';
 import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.js';
 import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
@@ -68,7 +69,7 @@ export const BUCKET_LABEL = Object.freeze({
   [BUCKET.PAST_DUE]: 'Past due',
   [BUCKET.DO_NOW]: 'Due today',
   [BUCKET.COMING_UP]: 'Assigned — due later',
-  [BUCKET.PRACTICE]: 'Closed — try again (no credit)',
+  [BUCKET.PRACTICE]: CLOSED_WORK.groupLabel,
   [BUCKET.COMPLETED]: 'Finished',
 });
 
@@ -620,6 +621,31 @@ export const buildStudentDashboardModel = ({
  *   6. Nothing pressing — which is a real answer, and is said as one rather
  *      than left as an empty screen.
  */
+/** A live Warm-Up/DOL window's close, in ms, or null when it has none. */
+const liveWindowClosesAt = (state) => {
+  const value = state?.endsAt;
+  if (value === null || value === undefined) return null;
+  const ms = value instanceof Date ? value.getTime() : typeof value === 'number' ? value : Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+};
+
+/**
+ * "Closes at 2:45 PM" (today) or "Closes Thu, Oct 8, 2:45 PM" (another day):
+ * the line a timed card prints instead of the lesson's due date (NAV-12).
+ */
+export const describeClosesAt = (closesAt, {
+  nowValue = Date.now(),
+  formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+  formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+} = {}) => {
+  const ms = Number(closesAt);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const at = new Date(ms);
+  const now = new Date(Number(nowValue));
+  const sameDay = at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth() && at.getDate() === now.getDate();
+  return sameDay ? `Closes at ${formatTime(at)}` : `Closes ${formatDay(at)}`;
+};
+
 const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
   // The card prints a due date under the decision, and it has to be this
   // student's: an individualized (extra-time) due date lives on the lifecycle
@@ -643,9 +669,16 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       kind: 'dol',
       assignment: activeDol.assignment,
       dueAt: dueFor(activeDol.assignment, activeDol.lifecycle),
+      // NAV-12: when it closes, from the DOL window's own state — the
+      // student's, so an extended window is the one named — not the lesson's
+      // due date, which can be tomorrow while this closes in minutes.
+      closesAt: liveWindowClosesAt(activeDol.state),
       questionIndex: firstUnattempted ?? 0,
-      headline: 'Your exit ticket is open',
-      detail: 'It is timed, so do this one first.',
+      headline: `Your ${exitTicketInSentence} (DOL) is open`,
+      // This card is the screen's one spelling of "(DOL)" (D9).
+      spellsOutExitTicket: true,
+      // Which lesson: the separate DOL card that named it is not drawn.
+      detail: `${activeDol.assignment?.title || 'Your lesson'} — it is timed, so do this one first.`,
       actionLabel: 'Start the exit ticket',
       urgency: 'now',
     };
@@ -659,8 +692,9 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       dueAt: dueFor(activeWarmup.assignment, activeWarmup.lifecycle),
       // The first Warm-Up question still to do, never a finished one.
       questionIndex: firstOpenLiveQuestionIndex({ indices: activeWarmup.questionIndices, records: activeWarmup.records, section: 'warmup' }) ?? 0,
+      closesAt: liveWindowClosesAt(activeWarmup.state),
       headline: 'Warm-Up is open now',
-      detail: 'Start with the Warm-Up while its class timer is running.',
+      detail: `${activeWarmup.assignment?.title || 'Your lesson'} — start it while its class timer is running.`,
       actionLabel: 'Start Warm-Up',
       urgency: 'now',
     };
@@ -701,7 +735,7 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
     ...(entry.action === 'recovery' ? (entry.lesson?.recoverySection?.recoveryState === 'locked' ? {
       // A locked Recovery is still available (it keeps the lesson open); the
       // next action is the unlock path, on the result page's Recovery panel.
-      headline: `Practice to unlock your ${entry.lesson.recoverySection.label} Recovery`,
+      headline: `Practice to unlock your ${RECOVERY_NAME[entry.lesson.recoverySection.role] || `${entry.lesson.recoverySection.label} Recovery`}`,
       detail: `${entry.assignment.title} — a little more Practice unlocks a second try.`,
       actionLabel: 'Open Recovery',
     } : {
@@ -782,12 +816,20 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
     .flatMap((bucket) => dashboard?.groups?.[bucket] || [])
     .find((entry) => !entry.excused && entry.finished !== true) || null;
   if (waiting) {
+    // When what waits is the exit ticket, this card is the first place Home
+    // names it, so it spells it out (D9: once per screen).
+    const waitsOnExitTicket = waiting.lesson?.nextOpening?.role === 'dol'
+      && String(waiting.waitText || '').startsWith(EXIT_TICKET);
+    const waitText = waitsOnExitTicket
+      ? `${EXIT_TICKET_SPELLED_OUT}${waiting.waitText.slice(EXIT_TICKET.length)}`
+      : waiting.waitText;
     return {
       kind: 'assignedSoon',
       assignmentId: waiting.assignment.id,
       headline: 'Nothing to start this minute',
-      detail: waiting.waitText
-        ? `${waiting.assignment.title} — ${waiting.waitText}. My Math Path is open until then.`
+      spellsOutExitTicket: waitsOnExitTicket,
+      detail: waitText
+        ? `${waiting.assignment.title} — ${waitText}. My Math Path is open until then.`
         : `${waiting.assignment.title} is assigned but not open yet. My Math Path is open until then.`,
       actionLabel: 'Open My Math Path',
       urgency: 'thisWeek',
@@ -840,7 +882,7 @@ export const resolveNextAction = (args = {}) => {
     ...action,
     // An individualized (extra-time) due date is named as the student's own.
     individualizedDue: lines.individualizedDue,
-    ...(lifecycle.isLate ? { lateLine: `${lines.finalLabel}: ${lines.finalText}` } : {}),
+    ...(lifecycle.isLate ? { lateLine: lines.finalLine || lines.dueLine } : {}),
   };
 };
 

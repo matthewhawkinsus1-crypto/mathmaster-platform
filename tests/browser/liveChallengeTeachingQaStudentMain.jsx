@@ -34,7 +34,6 @@ function Harness() {
           invite={invite}
           studentProfile={studentProfile}
           onExit={() => {}}
-          exitLabel="Back to Dashboard"
           renderMatchRewards={(roomId, match = {}) => (
             <section data-mm-rewards-slot="1" style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.06)', color: '#eef1f6' }}>
               Rewards slot for {roomId}: {(match.offered || []).join(' · ') || 'nothing offered'}

@@ -56,7 +56,9 @@ test('the tool support directions start folded', () => {
   const taskCard = shell.slice(shell.indexOf('export const TaskCard'), shell.indexOf('export const HintPanel'));
   // The summary names the step count; it is worked out before the fold now
   // that the fold can also hold only the tool's description (PQ-023).
-  assert.match(taskCard, /const summary = steps\.length\s*\?\s*`How to do this \(\$\{steps\.length\} step/);
+  // The steps it shows: an assessment withholds the method steps (R-10).
+  const support = shell.slice(shell.indexOf('export const taskCardSupport'), shell.indexOf('export const TaskCardDirections'));
+  assert.match(support, /const summary = shownSteps\.length\s*\?\s*`How to do this \(\$\{shownSteps\.length\} step/);
   assert.match(taskCard, /<QuietDisclosure\s+summary=\{summary\}\s+storageKey=\{`mm\.tool\.steps\./);
   assert.match(taskCard, /storageKey=\{`mm\.tool\.steps\.\$\{supportKey\}`\}[\s\S]{0,160}defaultOpen=\{false\}/);
   // `defaultOpen` with no value is `true` in JSX and is exactly the regression

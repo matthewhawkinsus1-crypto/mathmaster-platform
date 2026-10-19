@@ -14,7 +14,9 @@
  *                           mutations per project per minute ("HTTP 429 Per
  *                           project mutation requests per minute per region").
  *                           Before rules and Hosting, so the new client never
- *                           calls a callable that is not there yet.
+ *                           calls a callable that is not there yet. A few
+ *                           ship first or last, each alone
+ *                           (DEPLOY_FIRST_FUNCTIONS, DEPLOY_LAST_FUNCTIONS).
  *   3. Firestore rules      just before Hosting, so the window in which the old
  *                           client runs against new rules is as short as it can
  *                           be. The Admin SDK functions are not subject to them.
@@ -26,10 +28,11 @@
  * vendoring) as `functions:path-admin`, after the default codebase.
  *
  * PROVING THE FUNCTIONS LANDED (F-REL-3). A release that deploys any
- * default-codebase function also redeploys `platformBuildInfo`, last, and then
- * runs a read-only verify step: it calls that callable and requires the commit
- * it reports to be this checkout's HEAD. A wrong commit or no answer is treated
- * like a function that did not deploy — path-admin, rules and Hosting wait.
+ * default-codebase function also redeploys `platformBuildInfo`, last before the
+ * checks, and then runs a read-only verify step: it calls that callable and
+ * requires the commit it reports to be this checkout's HEAD. A wrong commit or
+ * no answer is treated like a function that did not deploy — path-admin, rules
+ * and Hosting wait.
  *
  * PROVING A BROWSER CAN REACH THEM. A deployed callable is still unreachable
  * from a browser when its Cloud Run service does not grant `allUsers`
@@ -73,6 +76,19 @@ export const ACCESS_FUNCTIONS = 'access:functions';
 
 /** The callable every functions release redeploys and then asks which commit is live. */
 export const BUILD_INFO_FUNCTION = 'platformBuildInfo';
+
+/**
+ * Functions whose place in a release is part of what keeps it safe: Live
+ * Challenge's server sweep (docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md,
+ * "Deploy"). The host heartbeat the sweep reads ships first and alone, so it is
+ * live before anything can act on it. The scheduled sweep ships last and alone,
+ * after the verify and access steps, and only when every other function shipped
+ * and both checks passed: a sweep running beside old callables or without the
+ * heartbeat is the mixed deploy its review ruled out. The sweep is a scheduled
+ * function, not a callable, so the access step has nothing to check for it.
+ */
+export const DEPLOY_FIRST_FUNCTIONS = Object.freeze(['calibrateLiveChallengeClock']);
+export const DEPLOY_LAST_FUNCTIONS = Object.freeze(['closeOverdueLiveChallengeRounds']);
 
 /**
  * Where a function without an explicit region is deployed: the Firebase CLI's
@@ -182,7 +198,8 @@ export const chunk = (list, size) => {
  * would also redeploy the path-admin codebase.
  *
  * Any release that deploys default-codebase functions also deploys
- * `platformBuildInfo`, in the LAST group, and is followed by one read-only
+ * `platformBuildInfo`, in the LAST group before the checks (only
+ * DEPLOY_LAST_FUNCTIONS come after them), and is followed by one read-only
  * verify step that expects it to report `expectedGitSha` (this checkout's
  * HEAD). A plan that cannot be verified is refused rather than planned
  * without the check.
@@ -207,10 +224,16 @@ export const buildReleasePlan = ({
       if (!known.has(BUILD_INFO_FUNCTION)) {
         throw new Error(`${BUILD_INFO_FUNCTION} is not in the default codebase. Every functions release redeploys it and then asks it which commit is live; restore exports.${BUILD_INFO_FUNCTION} in functions/index.js.`);
       }
-      // Last, so the verify step asks the function this release deployed most recently.
-      const names = [...new Set(requested.filter((name) => name !== BUILD_INFO_FUNCTION)), BUILD_INFO_FUNCTION];
-      chunk(names, groupSize).forEach((group, index, all) => steps.push({
-        target, group, label: `functions group ${index + 1}/${all.length}`,
+      const unique = [...new Set(requested.filter((name) => name !== BUILD_INFO_FUNCTION))];
+      const first = unique.filter((name) => DEPLOY_FIRST_FUNCTIONS.includes(name));
+      const last = unique.filter((name) => DEPLOY_LAST_FUNCTIONS.includes(name));
+      // platformBuildInfo last before the checks, so the verify step asks the
+      // function this release deployed most recently.
+      const names = [...first, ...unique.filter((name) => !first.includes(name) && !last.includes(name)), BUILD_INFO_FUNCTION];
+      const groups = [...first.map((name) => [name]), ...chunk(names.slice(first.length), groupSize)];
+      const total = groups.length + last.length;
+      groups.forEach((group, index) => steps.push({
+        target, group, label: `functions group ${index + 1}/${total}`, ...(index < first.length ? { deployFirst: true } : {}),
       }));
       steps.push({
         target: VERIFY_FUNCTIONS,
@@ -221,6 +244,10 @@ export const buildReleasePlan = ({
       // Every callable is checked and repaired; the ones this release deployed
       // decide whether it may go on (callableAccess.mjs#releaseAccessVerdict).
       steps.push({ target: ACCESS_FUNCTIONS, label: 'browser access to callables', functions: names });
+      // Each alone, after both checks; the executor holds them unless both passed.
+      last.forEach((name, index) => steps.push({
+        target, group: [name], label: `functions group ${groups.length + index + 1}/${total}`, afterChecks: true,
+      }));
       continue;
     }
     steps.push({ target, label: target });
@@ -394,10 +421,12 @@ export const describeStep = (step, { project, region = DEFAULT_FUNCTIONS_REGION 
  * the access step failed, the repair is the access check itself; a functions
  * re-run would repeat it anyway.
  */
-export const retryCommandFor = ({ failedFunctions = [], verification = null, access = null, stoppedBeforeTargets = null } = {}) => {
+export const retryCommandFor = ({ failedFunctions = [], heldFunctions = [], verification = null, access = null, stoppedBeforeTargets = null } = {}) => {
+  // A function held for the checks (DEPLOY_LAST_FUNCTIONS) is planned after them again.
   const names = [...new Set([
     ...(failedFunctions || []).map((entry) => entry.name),
     ...(verification?.status === 'failed' ? [verification.function || BUILD_INFO_FUNCTION] : []),
+    ...(heldFunctions || []),
   ])];
   const first = names.length
     ? `node scripts/release-firebase.mjs --execute --functions ${names.join(',')}`

@@ -171,9 +171,13 @@ const assertStepAlgebraOpenedForY = async (page, journey) => {
 };
 
 const assertTokenIsPlainMath = async (page, journey) => {
-  const label = await page.locator('.mathmaster-systems-substitution-token').getAttribute('aria-label');
+  // The label speaks the value in words, so the value itself is checked too.
+  const token = page.locator('.mathmaster-systems-substitution-token');
+  const label = await token.getAttribute('aria-label');
+  const value = await token.getAttribute('data-token-value');
   const chips = await workTrailChips(page);
   if (/~/.test(label || '')) note(journey, `token carries LaTeX spacing: ${label}`);
+  if (/~/.test(value || '')) note(journey, `token value carries LaTeX spacing: ${value}`);
   if (chips.some((chip) => chip.includes('~'))) note(journey, `isolation chip carries LaTeX spacing: ${JSON.stringify(chips)}`);
 };
 
@@ -495,9 +499,12 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await openFresh(page, { scope: 'teacherPreview', seed: exactSeed, questionIndex: 2 });
   const exactToken = page.locator('.mathmaster-systems-substitution-token');
   await exactToken.waitFor({ timeout: 10000 });
+  // The token carries its value; its name says it in words (pass 3, A11Y-3):
+  // "Pick up the solved value 20 over 9", never a decimal.
+  const exactTokenValue = await exactToken.getAttribute('data-token-value');
   const exactTokenLabel = await exactToken.getAttribute('aria-label');
-  if (!/20\s*\/\s*9/.test(exactTokenLabel || '')) {
-    note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenLabel}`);
+  if (!/20\s*\/\s*9/.test(exactTokenValue || '') || !/20 over 9/.test(exactTokenLabel || '')) {
+    note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenValue} / ${exactTokenLabel}`);
   }
   if (/2\.222/.test(exactTokenLabel || '')) {
     note('preview-exact-fraction', `back-substitution token exposed decimal approximation: ${exactTokenLabel}`);

@@ -140,3 +140,21 @@ export const figureMatchKeyProblems = (stage, rule) => {
 
   return problems;
 };
+
+/**
+ * Which figures a checked matching step placed wrongly, by position (0-based):
+ * the screen names them "Figure 3", never by id (student pass 3, P2-4). A
+ * sort that only turned red left a student to guess which of eight figures
+ * to move. Shown only where the step's verdict is shown (WorkflowRunner reads
+ * it from a submission review, which QuestionEngine withholds on an exit
+ * ticket, quiz or test before release). Empty without a key.
+ */
+export const figureMatchWrongItems = (stage, value, key) => {
+  if (!isObject(key)) return [];
+  const assignments = readFigureMatch(value);
+  return matchItems(stage).flatMap((item, index) => {
+    const id = text(item.id);
+    if (!id || !(id in key)) return [];
+    return assignments[id] && text(assignments[id]) === text(key[id]) ? [] : [index];
+  });
+};

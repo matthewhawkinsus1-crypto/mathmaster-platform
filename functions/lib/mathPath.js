@@ -555,6 +555,13 @@ function digitalSatNumberField(question, field) {
   return framework === 'digitalSAT' && (profile === 'number' || profile === 'numeric');
 }
 
+const FIELD_FORMAT_KEYS = ['inputProfile', 'answerFormat', 'notation', 'toolProfile'];
+function fieldFormatOf(field) {
+  return Object.fromEntries(FIELD_FORMAT_KEYS
+    .filter((key) => typeof field?.[key] === 'string' && field[key].trim())
+    .map((key) => [key, field[key].trim()]));
+}
+
 function privateGradingDefinition(question) {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
   const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => {
@@ -589,6 +596,11 @@ function privateGradingDefinition(question) {
         : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
           .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
       ...(digitalSatNumberField(question, field) ? { numberRules: 'digitalSAT' } : {}),
+      // What kind of answer the field takes, so the grader can tell a list
+      // or a pair (where `1,250` is two values) from one number
+      // (answerEquivalence fieldAcceptsThousandsSeparators). Stored on new
+      // issues only; a stored item keeps what it was issued with.
+      ...fieldFormatOf(field),
     };
   });
   return { ...explicit, fields };
@@ -690,7 +702,11 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'nonnegativeRadicalExpression') {
       return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
     }
-    return equivalence.sameValue(actual, expected, tolerance);
+    // A list or pair field never reads `1,250` as one number (its kind is
+    // stored with the private grading, fieldFormatOf).
+    return equivalence.sameValue(actual, expected, tolerance, {
+      thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(field),
+    });
   });
 }
 

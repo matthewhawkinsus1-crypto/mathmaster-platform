@@ -1,17 +1,20 @@
 import {
   asNumber,
+  fieldAcceptsThousandsSeparators,
   looksLikeFiniteSetNotation,
   normalizeAnswer,
   parseFiniteSetNotation,
   sameDigitalSatStudentProducedResponse,
   sameFiniteSetNotation,
+  sameNumberWithThousandsSeparators,
+  sameNumericPair,
   sameValue,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
-export { looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation };
+export { fieldAcceptsThousandsSeparators, looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation };
 
 const ELLIPSIS_TOKEN = '__mathmaster_ellipsis__';
 const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;
@@ -136,14 +139,14 @@ const sameSingletonSetAndScalar = (left, right, tolerance = 1e-9) => {
   return false;
 };
 
-export const compareMathAnswer = (studentAnswer, acceptedAnswer, tolerance = 1e-9) => (
-  sameValue(studentAnswer, acceptedAnswer, tolerance)
+export const compareMathAnswer = (studentAnswer, acceptedAnswer, tolerance = 1e-9, options = {}) => (
+  sameValue(studentAnswer, acceptedAnswer, tolerance, options)
   || sameSingletonSetAndScalar(studentAnswer, acceptedAnswer, tolerance)
   || sameNumericRoster(studentAnswer, acceptedAnswer, tolerance)
 );
 
-export const matchesAnyAnswer = (studentAnswer, acceptedAnswers = []) =>
-  acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer));
+export const matchesAnyAnswer = (studentAnswer, acceptedAnswers = [], options = {}) =>
+  acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, undefined, options));
 
 /**
  * All authored correct forms for one response field.
@@ -181,6 +184,10 @@ const isOrderedPairField = (field) => (
   field?.answerFormat === 'orderedPair' || field?.inputContract?.format === 'orderedPair'
 );
 
+/** A single-number answer written with (or keyed with) thousands separators. */
+export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = []) =>
+  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer));
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
 
@@ -194,15 +201,29 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
-      return expectedPair ? compareOrderedPair(studentAnswer, expectedPair) : false;
+      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair);
+      // A key with a root in a coordinate is not a pair of plain numbers:
+      // compared by exact value (sameNumericPair, student pass 3), or, for a
+      // pair key that is not two constants (`(\pi,\sqrt{2})`,
+      // `(x+\sqrt{2},1)`), as the same text. A key that is not written as a
+      // pair at all ("none") is still not one this box can take.
+      if (typeof acceptedAnswer !== 'string') return false;
+      const key = normalizeAnswer(acceptedAnswer);
+      return sameNumericPair(studentAnswer, acceptedAnswer)
+        || (/^\(.*,.*\)$/.test(key) && normalizeAnswer(studentAnswer) === key);
     });
+  }
+
+  const thousandsSeparators = fieldAcceptsThousandsSeparators(field);
+  if (thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
+    return true;
   }
 
   if (field?.gradingMode === 'equivalentExpression') {
     return acceptedAnswers.some((acceptedAnswer) => sameEquivalentExpression(studentAnswer, acceptedAnswer));
   }
 
-  return matchesAnyAnswer(studentAnswer, acceptedAnswers);
+  return matchesAnyAnswer(studentAnswer, acceptedAnswers, { thousandsSeparators });
 };
 
 export const parseOrderedPair = (value) => {

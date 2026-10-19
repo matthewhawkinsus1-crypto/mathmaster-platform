@@ -1,7 +1,8 @@
 import MathText from './components/common/MathText.jsx';
+import MathDisplay from './MathDisplay';
 import SolutionReview, { legacySolutionReviewContent } from './SolutionReview';
 import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
-import { buildClosedQuestionReview } from './platform/supports/review/closedQuestionReview.js';
+import { buildClosedQuestionReview, buildPartReviewRows, partReviewSpeech } from './platform/supports/review/closedQuestionReview.js';
 
 /*
  * THE ONE WORKED-SOLUTION PANEL FOR A CLOSED CLASSROOM QUESTION.
@@ -18,8 +19,24 @@ import { buildClosedQuestionReview } from './platform/supports/review/closedQues
  *
  * and, for a student who got it right, why it worked.
  *
- * Rendered only by QuestionEngine once the question is closed and outcome
- * feedback is open; it is never given a question that can still be answered.
+ * PART BY PART (HELP-11): given the device's grading of each part
+ * (`yourParts`), a question with several answer boxes first lists every part
+ * with what the student wrote beside the answer, the wrong parts first — and
+ * the legacy review then leaves out its own bare "label: answer" list.
+ * Read aloud reads all of it, the legacy review included (it used to read
+ * only the authored and tool reviews).
+ *
+ * Rendered by QuestionEngine once the question is closed and outcome feedback
+ * is open, and — given only `{ solutionReview }`, the review the server
+ * released — by a Test's results (SecureExamReview) and Corrections
+ * (RichQuestionRuntime), so every worked solution a student reads has Read
+ * aloud and Translate when they are entitled to them (student pass 3, H-6).
+ * It is never given a question that can still be answered.
+ *
+ * `headingLevel` fits the page it sits in (H-14): 3 under a classroom
+ * question, 4 under a Test result's "Question N". `showIntro` false leaves
+ * out the line about a closed classroom question where the page has already
+ * said whether the answer was right.
  * When there is nothing to show it says so in one line — it never promises a
  * review "below" that is not there.
  */
@@ -31,18 +48,42 @@ export default function SolutionReviewPanel({
   isToolQuestion = false,
   wasCorrect = false,
   incorrectParts = [],
+  yourParts = [],
   allowReplacement = false,
   readAloud = null,
   translation = null,
   onSupportEvidence = null,
+  headingLevel = 3,
+  showIntro = true,
 }) {
   const review = buildClosedQuestionReview({ question, isToolQuestion, wasCorrect, legacyContent: legacySolutionReviewContent });
   if (!review) return null;
   const { authored, tool, legacy, hasContent } = review;
+  const partRows = hasContent && !isToolQuestion ? buildPartReviewRows({ question, parts: yourParts }) : [];
+  const speechText = [partReviewSpeech(partRows), review.speechText].filter(Boolean).join(' ');
+  const Heading = `h${Math.min(6, Math.max(2, Number(headingLevel) || 3))}`;
   return (
     <section aria-label="Worked solution" data-worked-solution={hasContent ? 'present' : 'absent'} style={box}>
-      <h3 style={{ margin: '0 0 6px', color: 'var(--mm-text-strong)' }}>{wasCorrect ? 'Why that works' : 'Worked solution'}</h3>
-      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{review.intro}</p>
+      <Heading style={{ margin: '0 0 6px', color: 'var(--mm-text-strong)' }}>{wasCorrect ? 'Why that works' : 'Worked solution'}</Heading>
+      {(showIntro || !hasContent) && <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{review.intro}</p>}
+
+      {partRows.length > 0 && (
+        <div data-part-review="" style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+          <strong style={{ color: 'var(--mm-text-strong)' }}>Part by part</strong>
+          {partRows.map((part) => (
+            <div key={part.id} data-part-review-row={part.isCorrect === false ? 'wrong' : part.isCorrect === true ? 'right' : 'ungraded'} style={{ ...row, borderLeft: `4px solid ${part.isCorrect === false ? 'var(--mm-error-text)' : part.isCorrect === true ? 'var(--mm-success-text)' : 'var(--mm-tint-border)'}`, display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 800, color: 'var(--mm-text-strong)' }}>
+                <MathText>{part.label}</MathText>
+                {part.isCorrect === false ? <span aria-label="not correct" style={{ marginLeft: 8, color: 'var(--mm-error-text)' }}>✗</span> : part.isCorrect === true ? <span aria-label="correct" style={{ marginLeft: 8, color: 'var(--mm-success-text)' }}>✓</span> : null}
+              </span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'baseline' }}>
+                <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>You wrote: </span>{part.yourAnswer ? <MathDisplay value={part.yourAnswer} format="latex" inline /> : <em>nothing</em>}</span>
+                <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Correct: </span><MathText>{part.correct}</MathText></span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {authored && (
         <div data-review-source="authored" style={{ display: 'grid', gap: 10, marginBottom: (tool || legacy) ? 14 : 0 }}>
@@ -77,10 +118,10 @@ export default function SolutionReviewPanel({
         </div>
       )}
 
-      {legacy && <SolutionReview question={question} incorrectParts={incorrectParts} embedded />}
+      {legacy && <SolutionReview question={question} incorrectParts={incorrectParts} embedded hideAnswerDetails={partRows.length > 0} />}
 
       {hasContent && (
-        <SupportedTextActions text={review.speechText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} />
+        <SupportedTextActions text={speechText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} />
       )}
 
       {allowReplacement && (

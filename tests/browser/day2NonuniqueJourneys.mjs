@@ -42,6 +42,10 @@ import {
 } from './day2NonuniqueDriver.mjs';
 import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
 
+// The system's final action: "Check my work" in the tools lab, "Submit — uses
+// 1 of 3 tries" under QuestionEngine (student pass 3, D9). A count of 0 must
+// mean the action is absent, whichever words it carries.
+const finalAction = (page) => page.getByRole('button', { name: /^(Check my work$|Submit — )/ });
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ARTIFACTS = path.join(path.resolve(here, '../..'), 'tests/browser/artifacts/day2NonuniqueJourneys');
@@ -80,7 +84,7 @@ const locked = async (page, where) => {
   check(await page.getByRole('button', { name: 'Connect my result to 3D', exact: true }).count() === 0, `${where}: the 3D connection is available before it was earned`);
   check(await page.locator('.mathmaster-threeplane-viewport').count() === 0, `${where}: a 3D model is on screen before it was earned`);
   check(await page.locator('[data-stage="plane-relationships"]').count() === 0, `${where}: plane relationships are asked before classification`);
-  check(await page.getByRole('button', { name: 'Check my work', exact: true }).count() === 0, `${where}: the question can be submitted before it is interpreted`);
+  check(await finalAction(page).count() === 0, `${where}: the question can be submitted before it is interpreted`);
 };
 const noEarlyReveal = async (page, where) => {
   const text = await workspaceText(page);
@@ -113,14 +117,14 @@ const statePlanes = async (page, answers) => {
 };
 const openModel = async (page, where) => {
   await page.getByRole('button', { name: 'Connect my result to 3D', exact: true }).click();
-  await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+  await page.getByRole('img', { name: /3D view of the three planes/ }).waitFor();
   await settle(page, 400);
   const caption = await page.locator('.mathmaster-threeplane-viewport').innerText();
   check(!/coincident|parallel/i.test(caption), `${where}: the 3D model captions the plane relationships the student is about to state: ${caption.replace(/\s+/g, ' ').slice(0, 200)}`);
   await noOverflow(page, where);
 };
 const submitWork = async (page) => {
-  await page.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await finalAction(page).click();
   await settle(page, 700);
   const grades = await page.evaluate(() => window.__day2Grades || []);
   return grades[grades.length - 1] || null;
@@ -198,10 +202,10 @@ export async function dependentDirect(page, run = `dependent-${Date.now()}`) {
   await classify(page, 'identity', 'infinite');
 
   await openModel(page, 'dependent model');
-  check(await page.getByRole('button', { name: 'Check my work', exact: true }).count() === 0, 'submittable before the plane relationships were stated');
+  check(await finalAction(page).count() === 0, 'submittable before the plane relationships were stated');
   const wrong = await statePlanes(page, { '1-2': 'line', '1-3': 'parallel', '2-3': 'line' });
   check(/Planes 1 and 3, compare the coefficient ratio and the constant ratio/.test(wrong) && !/Your plane relationships/.test(wrong), `coincident-vs-parallel confusion got no targeted feedback: ${wrong.slice(0, 300)}`);
-  check(await page.getByRole('button', { name: 'Check my work', exact: true }).count() === 0, 'submittable with wrong plane relationships');
+  check(await finalAction(page).count() === 0, 'submittable with wrong plane relationships');
   const right = await statePlanes(page, { '1-3': 'coincident' });
   check(/Your plane relationships/.test(right), `correct plane relationships were not accepted: ${right.slice(0, 200)}`);
   await undo(page);
@@ -331,7 +335,7 @@ export async function inconsistentPhone(page, run = `inconsistent-phone-${Date.n
   check(/Your plane relationships/.test(await page.locator('[data-stage="plane-relationships"]').innerText()), 'refresh lost the stated plane relationships');
   await undo(page);
   check(await page.getByRole('button', { name: 'Check the plane relationships', exact: true }).count() === 1, 'Undo after refresh did not reopen the plane relationships');
-  check(await page.getByRole('button', { name: 'Check my work', exact: true }).count() === 0, 'still submittable after the plane relationships were undone');
+  check(await finalAction(page).count() === 0, 'still submittable after the plane relationships were undone');
 }
 
 export async function inconsistentDirect(page, run = `inconsistent-direct-${Date.now()}`) {

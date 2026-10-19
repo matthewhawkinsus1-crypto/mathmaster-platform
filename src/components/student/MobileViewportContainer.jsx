@@ -73,6 +73,8 @@ export const MobileViewportContainer = ({
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
+  // What the last pointer press landed on; cleared by the next key press.
+  const pointerPressRef = useRef(null);
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const workspaceActive = workspaceMode !== 'normal';
   const [isMobile, setIsMobile] = useState(detectMobile);
@@ -259,8 +261,14 @@ export const MobileViewportContainer = ({
     // overflow:hidden ancestors. The result looks like the entire question
     // jumps sideways while the student types. Move only the nearest local
     // scroll container vertically and then restore page-level x position.
+    // A drawing surface the student just pressed (a coordinate plane) is
+    // under their finger already and opens no keypad: scrolling it here moved
+    // it between press and lift, so the point landed a row off (pass 3,
+    // TOOL-11). Keyboard focus on it still reveals it.
+    const pressedDrawing = target?.matches?.('.mathmaster-touch-surface')
+      && pointerPressRef.current && target.contains?.(pointerPressRef.current);
     window.requestAnimationFrame(() => {
-      if (isMobile) scrollFocusedControlVertically(target, { root: rootRef.current });
+      if (isMobile && !pressedDrawing) scrollFocusedControlVertically(target, { root: rootRef.current });
       scheduleHorizontalViewportStabilization({ root: rootRef.current });
     });
   };
@@ -282,6 +290,7 @@ export const MobileViewportContainer = ({
   };
 
   const handleKeyDownCapture = (event) => {
+    pointerPressRef.current = null;
     if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       restoreFocusedHorizontalPosition();
     }
@@ -403,6 +412,7 @@ export const MobileViewportContainer = ({
     <div
       ref={rootRef}
       onFocusCapture={handleFocusCapture}
+      onPointerDownCapture={(event) => { pointerPressRef.current = event.target; }}
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}

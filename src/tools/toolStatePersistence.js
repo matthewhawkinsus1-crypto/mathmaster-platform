@@ -130,9 +130,13 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     keyboardCursor: 'Where the keyboard crosshair sits on the coordinate plot before Enter plots. A cursor, not a point; plotted points stay draft-backed (job H, T1).',
     keyboardMessage: 'The polite live-region text for the keyboard crosshair ("Crosshair at (x, y)", "Plotted (x, y)"). Positions only, never a verdict.',
     keyboardHelpVisible: 'Whether the keyboard instruction under the plot is shown (keyboard focus only). Presentation.',
+    lastArrowChange: 'What the last arrow press did ("Arrow drawn from -2 to 3"), said in the status line (pass 3, TOOL-10). Speech, not work; the arrows themselves are draft-backed.',
+    arrowFocusIndex: 'Which Remove button takes focus after an arrow is removed (pass 3, A11Y-2). Focus, not work.',
   }),
   openSortBoard: entry(['openSortBoard/OpenSortBoard.jsx'], {
     selectedId: 'Which card is picked up. Selection, not a placement.',
+    announcement: 'The polite screen-reader read-out of the last placement ("Graph C placed in Group 2 · Linear. 2 cards left to place."). Speech, not work.',
+    focusRequest: 'Where keyboard focus goes after a placement or a removed group (the next card, or a group heading). Consumed in the next effect; focus, never mathematics.',
   }),
   constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {
@@ -179,6 +183,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   // draft-backed matrices, so pressing its button again reproduces it.
   matrixLab: entry(['matrixLab/MatrixLab.jsx', 'matrixLab/MatrixCalculator.jsx', 'matrixLab/matrixLabUi.jsx'], {
     activeId: 'Which element (a_ij) a tap will place next. Selection, not an answer; the tapped cells themselves are draft-backed.',
+    confirmed: 'Whether Check is asking "check the matrix as it was given?" after one press. A prompt, not work; it asks again after a reload.',
     focus: 'Which product cell has focus, so its row and column light up. Presentation.',
     result: 'What the matrix calculator last printed. Recomputed from the draft-backed matrices by pressing the command again.',
     view: 'Whether the calculator shows fractions or decimals. Presentation.',
@@ -208,15 +213,18 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
     keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
-    keyboardHelpVisible: 'Whether the plane has keyboard focus, which shows the keyboard plotting help.',
+    keyboardHelpVisible: 'Whether the keyboard plotting help is shown: from the plane’s first keyboard focus until the question changes.',
+    renderedWidth: 'How wide the plane is drawn, measured, so its text stays readable on a phone (pass 3, TOOL-11). Layout.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
     insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',
+    plotAnnouncement: 'What the last plot did, said once in the live region ("Plotted (3, -2).", student pass 3 A11Y-1). Gone when the crosshair moves; the points themselves are the tool\'s.',
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
     wrapped: 'Whether a verdict pill wraps at its current width, which sets its corner radius (PQ-032). Measured layout.',
     slot: 'This verdict area\'s token in the question\'s attempt-outcome registry (PQ-022). Which slot shows an outcome is presentation; the outcome itself is the engine\'s grading result.',
     taskCards: 'How many TaskCards opened their fold with this tool\'s description (PQ-023), which decides whether the header still offers "About this tool". Layout.',
+    insideLiveRegion: 'Whether this outcome slot sits inside a verdict area that is itself a live region, measured after mount, so the tool\'s words are not said twice (student pass 3, A11Y-1). Layout.',
   }),
   'shared/useToolSubmission.js': Object.freeze({
     feedback: 'The verdict for the last submission. A grading result, never a draft.',

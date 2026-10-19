@@ -43,6 +43,12 @@ test('the activities that withhold help are the ones this gate exists for', () =
   });
 });
 
+test('a tool shows a ladder of its own only where hints are allowed and the host has no ladder', () => {
+  const context = code('src/tools/shared/ToolRuntimeContext.jsx');
+  const own = region(context, 'export const useOwnHintLadder = () => {', '};', 'useOwnHintLadder');
+  assert.match(own, /return runtime\.hintsAllowed !== false && !runtime\.publishHints;/);
+});
+
 test('the runtime context carries hintsAllowed, allowed unless a provider says false', () => {
   const context = code('src/tools/shared/ToolRuntimeContext.jsx');
   const defaults = region(context, 'const DEFAULT_RUNTIME', '};', 'the default runtime');
@@ -97,14 +103,16 @@ test('HintPanel renders nothing where hints are withheld, before it renders anyt
 
 test('the Work View Help drawer stops printing a question\'s authored hints where hints are withheld', () => {
   const view = code('src/tools/shared/RegisteredToolWorkView.jsx');
-  assert.match(view, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\/ToolRuntimeContext';/);
+  // The gate is useOwnHintLadder: hints allowed (pinned with the context
+  // below) and no platform ladder to hand them to (HELP-10).
+  assert.match(view, /import \{[^}]*\buseOwnHintLadder\b[^}]*\} from '\.\/ToolRuntimeContext';/);
   const body = region(view, 'export default function RegisteredToolWorkView', 'const capabilities', 'the work view');
   // Called before the early return, so the hook order never changes.
-  assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') > -1);
-  assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') < body.indexOf('if (!inventory'));
+  assert.ok(body.indexOf('const ownLadder = useOwnHintLadder();') > -1);
+  assert.ok(body.indexOf('const ownLadder = useOwnHintLadder();') < body.indexOf('if (!inventory'));
   assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') > -1);
   assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') < body.indexOf('if (!inventory'));
-  assert.match(body, /const authoredHints = hintsAllowed && Array\.isArray\(questionData\?\.hints\)/);
+  assert.match(body, /const authoredHints = ownLadder && Array\.isArray\(questionData\?\.hints\)/);
   // Where they are allowed, they are the recorded, one-at-a-time HintPanel —
   // never the whole list printed unrecorded.
   assert.match(body, /const helpText = authoredHints\.length\s*\?\s*<HintPanel hints=\{authoredHints\} onHintUsed=\{\(\) => reportHintUse\?\.\(\)\} \/>/);
@@ -119,11 +127,14 @@ for (const file of [
   test(`${path.basename(file)} publishes its hints-only Work View Help only where hints are allowed`, () => {
     const source = code(file);
     // Other runtime hooks may come from the same import (the constraint
-    // builder also reads whether outcomes are shown); this one must.
-    assert.match(source, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
-    assert.match(source, /\n\s*const hintsAllowed = useHintsAllowed\(\);/);
+    // builder also reads whether outcomes are shown); this one must. Since
+    // student pass 3 (HELP-10) the gate is useOwnHintLadder — hints allowed
+    // AND no platform ladder to hand them to (pinned with the context below);
+    // inside a question that ladder is the Help instead.
+    assert.match(source, /import \{[^}]*\buseOwnHintLadder\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
+    assert.match(source, /\n\s*const ownHintLadder = useOwnHintLadder\(\);/);
     const capabilities = region(source, 'const workspaceCapabilities', 'return (', 'the Work View capabilities');
-    assert.match(capabilities, /\n\s*help: hintsAllowed \? \{/);
+    assert.match(capabilities, /\n\s*help: ownHintLadder \? \{/);
     assert.match(capabilities, /\} : null,/);
   });
 }
@@ -138,8 +149,12 @@ test('the systems workspace\'s embedded Step Algebra offers no strategic hint wh
   assert.match(embedded, /\n\s*const offerHint = showHint && hintsAllowed;/);
   assert.match(embedded, /\.\.\.\(offerHint \? \{\} : \{ showHint: false \}\),/);
   assert.match(embedded, /\[normalizedEquationText, solveFor, prompt, workspaceDifficulty, objectiveKey, requireSimplifiedFinalForm, offerHint\]/);
-  // The flag it sets is the one the solver's hint reads.
-  assert.match(read('src/StepByStepAlgebraCore.jsx'), /question\.showHint !== false && suggestedMove && !solved && <details/);
+  // The flag it sets is the one the solver's hint reads: the strategic hint
+  // (its disclosure, or its rung of the platform ladder — TOOL-5) exists only
+  // while showHint is not false.
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  assert.match(core, /\n\s*const strategicHint = hintsAllowed && question\.showHint !== false && suggestedMove && !solved\n/);
+  assert.match(core, /\{!publishHints && strategicHint && <details/);
 });
 
 // ------------------------------------------------------------------- the guard
@@ -205,7 +220,17 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
   assert.match(body, /\n\s*const onHintUsed = onHintUsedProp \|\| contextHintReporter;/);
   const hint = core.match(/\{([^{}\n]*)&& <details onToggle=\{\(event\) => \{ if \(event\.currentTarget\.open\) onHintUsed\?\.\(\); \}\}[^\n]*Need a strategic hint\?/);
   assert.ok(hint, 'the strategic hint reports when it is opened');
-  assert.match(hint[1], /^hintsAllowed && /, 'and is not rendered at all where hints are withheld');
+  // It is rendered only from strategicHint, which is empty where hints are
+  // withheld — so neither the disclosure nor the published rung exists there.
+  assert.match(hint[1], /^!publishHints && strategicHint $/, 'and is not rendered at all where hints are withheld');
+  assert.match(core, /\n\s*const strategicHint = hintsAllowed && /);
+  // ONE LADDER (TOOL-5): inside a question the hint is a rung of the platform
+  // ladder — published to it, and no disclosure of its own beside it.
+  assert.match(core, /\n\s*const publishHints = useToolHintPublisher\(\);/);
+  assert.match(runtimeImport[1], /\buseToolHintPublisher\b/, 'the publisher hook is imported where it is called');
+  const publish = region(core, 'useEffect(() => {\n    if (!publishHints || !strategicHint)', '}, [publishHints, strategicHint]);', 'the strategic hint rung');
+  // A STANDING rung: open from the start, taking no family rung's place.
+  assert.match(publish, /return publishHints\(\[\{ text: strategicHint, standing: true \}\]\);/);
 
   // Every solver QuestionEngine mounts is handed the permission and the
   // recorder, including the one inside the intercepts orchestrator.
@@ -214,7 +239,10 @@ test('the step-algebra solver\'s strategic hint follows the same permission, and
     .map((match) => engine.slice(match.index, engine.indexOf('/>', match.index)));
   assert.ok(mounts.length >= 4, `found ${mounts.length} solver mounts`);
   mounts.forEach((mount) => assert.match(mount, /\{\.\.\.stepAlgebraHintProps\}/, mount.slice(0, 60)));
-  assert.match(engine, /const stepAlgebraHintProps = \{\s*hintsAllowed: toolHintsAllowed,\s*onHintUsed: recordHintUse,\s*\};/);
+  // (It also carries what a hint costs, in the host's words — HELP-17.)
+  const solverProps = region(engine, 'const stepAlgebraHintProps = {', '};', 'the solver hint props');
+  assert.match(solverProps, /\n\s*hintsAllowed: toolHintsAllowed,\n/);
+  assert.match(solverProps, /\n\s*onHintUsed: recordHintUse,\n/);
   assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
   const orchestrator = code('src/LinearInterceptsOrchestrator.jsx');
   const inner = region(orchestrator, '<StepByStepAlgebraCore', '/>', 'the intercept solver');

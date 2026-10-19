@@ -6,7 +6,9 @@ import {
   NO_ANSWER_TEXT,
   OUTCOME_LABEL,
   REVIEW_OUTCOME,
+  LOAD_ERROR_TEXT,
   buildReviewMyWorkModel,
+  describeReviewLoadError,
   formatSubmittedAnswer,
   looksLikeMath,
   teacherReasonLine,
@@ -130,7 +132,7 @@ test('component: the model is built only from what load() returned, after it ret
   assert.equal((code.match(/buildReviewMyWorkModel\(/g) || []).length, 1);
   assert.doesNotMatch(code, /getStoredAssignmentQuestions|assignment\.sections|assignment\?\.sections/);
   // A failed load leaves no result behind.
-  assert.match(region(code, '.catch(() => {', '\n      });'), /setState\(\{ status: 'error', result: null \}\)/);
+  assert.match(region(code, '.catch((error) => {', '\n      });'), /setState\(\{ status: 'error', result: null, error: /);
   // Solutions are rendered only from model rows.
   const list = region(code, '{model && (', '\n      )}\n    </section>');
   assert.match(list, /model\.items\.map\(\(item\) => <ReviewQuestion/);
@@ -139,19 +141,56 @@ test('component: the model is built only from what load() returned, after it ret
 test('component: every solution renderer sits inside the supplement boundary', () => {
   const solution = region(code, 'function WorkedSolution', 'function ReviewQuestion');
   const boundary = region(solution, '<QuestionSupplementBoundary', '</QuestionSupplementBoundary>');
-  assert.match(boundary, /<ToolSolutionReview question=\{question\} \/>/);
-  assert.match(boundary, /<SolutionReview question=\{question\} \/>/);
-  assert.equal((code.match(/<SolutionReview\b/g) || []).length, 1);
-  assert.equal((code.match(/<ToolSolutionReview\b/g) || []).length, 1);
-  // The renderer is imported (the named content check rides the same import, QA round 2).
-  assert.match(component, /^import SolutionReview(, \{ legacySolutionReviewContent \})? from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
-  assert.match(component, /^import ToolSolutionReview from '\.\.\/\.\.\/tools\/shared\/ToolSolutionReview\.jsx';$/m);
+  // One renderer since student pass 3 (HELP-12): the closed question's own
+  // panel, for every question type and tool, with the unscored practice
+  // beside it — both inside the boundary, and nowhere else on the page.
+  assert.match(boundary, /<SolutionReviewPanel\s+question=\{question\}/);
+  assert.match(boundary, /<PracticeLikeThis question=\{question\}/);
+  assert.equal((code.match(/<SolutionReviewPanel\b/g) || []).length, 1);
+  assert.equal((code.match(/<PracticeLikeThis\b/g) || []).length, 1);
+  assert.doesNotMatch(code, /<SolutionReview\b|<ToolSolutionReview\b/, 'not the thin renderers it replaced');
+  // The renderers are imported (the content check rides the legacy import, QA round 2).
+  assert.match(component, /^import SolutionReviewPanel from '\.\.\/\.\.\/SolutionReviewPanel\.jsx';$/m);
+  assert.match(component, /^import \{ legacySolutionReviewContent \} from '\.\.\/\.\.\/SolutionReview\.jsx';$/m);
+  assert.match(component, /^import PracticeLikeThis from '\.\.\/\.\.\/platform\/supports\/workedExample\/PracticeLikeThis\.jsx';$/m);
   assert.match(component, /^import QuestionSupplementBoundary from '\.\.\/\.\.\/QuestionSupplementBoundary\.jsx';$/m);
+});
+
+test('NAV-1: a refusal shows the server\'s reason and no retry; only a failure to reach the server says Try again', () => {
+  const whole = 'Your answers and solutions appear here once this assignment has closed for your whole class.';
+  // What the Firebase SDK hands the browser: "functions/<code>", the server's message, its details.
+  for (const code of ['functions/failed-precondition', 'failed-precondition', 'functions/permission-denied', 'functions/not-found']) {
+    assert.deepEqual(describeReviewLoadError({ code, message: whole }), { kind: 'refused', text: whole, retry: false }, code);
+  }
+  assert.deepEqual(
+    describeReviewLoadError({ code: 'functions/failed-precondition', message: 'Your teacher has not released feedback for this assignment yet.' }).text,
+    'Your teacher has not released feedback for this assignment yet.',
+  );
+  // The one refusal a retry can change keeps the button, in its own words.
+  assert.deepEqual(
+    describeReviewLoadError({ code: 'functions/failed-precondition', message: 'Your answers and solutions cannot be shown right now. Try again later.', details: { retry: true } }),
+    { kind: 'refused', text: 'Your answers and solutions cannot be shown right now. Try again later.', retry: true },
+  );
+  // Network, a server crash, a bare code, nothing at all: the generic line and Try again.
+  for (const error of [
+    { code: 'functions/internal', message: 'internal' },
+    { code: 'functions/unavailable', message: 'Failed to fetch' },
+    { code: 'functions/deadline-exceeded', message: 'deadline-exceeded' },
+    { code: 'functions/failed-precondition', message: 'failed-precondition' },
+    new TypeError('Failed to fetch'),
+    null,
+  ]) {
+    assert.deepEqual(describeReviewLoadError(error), { kind: 'network', text: LOAD_ERROR_TEXT, retry: true }, JSON.stringify(error));
+  }
 });
 
 test('component: loading, error with retry, and tap targets', () => {
   assert.match(code, /state\.status === 'error' && \(/);
-  assert.match(region(code, "state.status === 'error' && (", '</div>'), /\{LOAD_ERROR_TEXT\}[\s\S]*onClick=\{fetchRows\}/);
+  // The caught error is classified, and the retry button is drawn only when the classification allows it.
+  assert.match(region(code, '.catch((error) => {', '});'), /error: describeReviewLoadError\(error\)/);
+  const errorBlock = region(code, "state.status === 'error' && (", '</div>');
+  assert.match(errorBlock, /\{state\.error\?\.text \|\| LOAD_ERROR_TEXT\}/);
+  assert.match(errorBlock, /\{state\.error\?\.retry !== false && <button[^>]*onClick=\{fetchRows\}>Try again<\/button>\}/);
   assert.match(region(code, 'const buttonStyle = {', '};'), /minHeight: MIN_TOUCH_TARGET_PX/);
   assert.doesNotMatch(code, /width:\s*['"]?\d{3,}px/);
 });

@@ -66,12 +66,30 @@ const submit = async (page) => {
   await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
   await page.waitForTimeout(500);
 };
-const outcome = (page) => page.locator('[role="status"]').filter({ hasText: /Not quite|final allowed attempt|Correct!/ }).first();
+const outcome = (page) => page.locator('[role="status"]').filter({ hasText: /Not quite|That was your (?:last|only) try|Correct!/ }).first();
+// Scrolled to, it shows: its top is on screen, and at least 40px of it (or
+// all of it, if shorter) shows through the viewport and every scrolling or
+// clipping box around it. A box clipped to a strip still has a position on
+// screen, so the position alone is not enough.
 const reachable = async (page, locator) => {
   await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   const viewport = page.viewportSize();
-  return Boolean(box) && box.y >= 0 && box.y < viewport.height && box.x >= -1 && box.x + Math.min(box.width, 40) <= viewport.width + 1;
+  if (!box || box.y < 0 || box.y >= viewport.height || box.x < -1 || box.x + Math.min(box.width, 40) > viewport.width + 1) return false;
+  const shown = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    let top = Math.max(0, rect.top);
+    let bottom = Math.min(window.innerHeight, rect.bottom);
+    for (let node = element.parentElement; node; node = node.parentElement) {
+      if (getComputedStyle(node).overflowY !== 'visible') {
+        const clip = node.getBoundingClientRect();
+        top = Math.max(top, clip.top);
+        bottom = Math.min(bottom, clip.bottom);
+      }
+    }
+    return { visible: Math.max(0, bottom - top), height: rect.height };
+  });
+  return shown.visible >= Math.min(40, shown.height) - 1;
 };
 
 const noSidewaysScroll = async (page, where) => {
@@ -91,14 +109,14 @@ for (const device of DEVICES) {
     const firstHint = panel.locator('li[data-hint-source]').first();
     check((await firstHint.textContent()).includes('change in y divided by the change in x'), `${device.name}: the authored hint comes first`);
     check(await reachable(page, firstHint), `${device.name}: the hint is on screen`);
-    const waiting = panel.getByText(/next one opens after your next attempt/);
+    const waiting = panel.getByText(/next one opens after your next try/);
     check(await waiting.count() === 1, `${device.name}: the next hint waits for another try`, `${await waiting.count()} shown`);
 
     await answer(page, '-\\frac{3}{4}');
     await submit(page);
     const box = outcome(page);
     const text = await box.textContent();
-    check(/Not quite\. You have 2 attempts remaining/.test(text), `${device.name}: the attempt outcome is unchanged`, text);
+    check(/Not quite\. You have 2 tries left\./.test(text), `${device.name}: the attempt outcome is unchanged`, text);
     // Attempts left: a miss a generic check explains (here a sign flip)
     // shows nothing an ordinary miss does not (PR #462 review M6b; QA M1).
     check(await box.locator('[data-miss-feedback]').count() === 0, `${device.name}: no check-specific message while attempts are left`, await box.textContent());
@@ -115,7 +133,7 @@ for (const device of DEVICES) {
     await answer(page, '2');
     await submit(page);
     const closed = await outcome(page).textContent();
-    check(/final allowed attempt \(3 total\)\. This response is locked\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
+    check(/That was your last try \(3 in all\)\. The worked solution is below\./.test(closed), `${device.name}: closed, pointing at a review that exists`, closed);
     const review = page.locator('[aria-label="Worked solution"][data-worked-solution="present"]');
     check(await review.isVisible(), `${device.name}: the worked solution is shown`);
     check((await review.textContent()).includes('Change in y: 5 − 2 = 3.'), `${device.name}: from the authored solutionReview`);
@@ -139,7 +157,7 @@ for (const device of DEVICES) {
       shown[kind] = await page.locator('[role="status"], [aria-live]').evaluateAll((nodes) => nodes.map((node) => node.outerHTML).join('\n'));
       await context.close();
     }
-    check(/Not quite\. You have 2 attempts remaining/.test(shown.none), `${device.name}: the ordinary miss is the plain outcome`, shown.none);
+    check(/Not quite\. You have 2 tries left\./.test(shown.none), `${device.name}: the ordinary miss is the plain outcome`, shown.none);
     for (const kind of ['sign-flipped', 'reciprocal']) {
       check(shown[kind] === shown.none, `${device.name}: a ${kind} miss shows exactly what an ordinary miss shows`, shown[kind]);
     }
@@ -250,8 +268,11 @@ for (const device of DEVICES) {
     check(await actions.getByRole('button', { name: /Translate/ }).isVisible(), `${device.name}: an entitled student can translate a hint`);
     await actions.getByRole('button', { name: /Translate/ }).click();
     await page.waitForTimeout(600);
+    // Student pass 3, HELP-3: Translate is offered only when it will show the
+    // student's language, so pressing it shows Spanish — never "not available".
     const translated = await actions.textContent();
-    check(/Show English|not available/.test(translated), `${device.name}: Translate answers (a translation, or says there is none)`, translated.slice(0, 160));
+    const spanish = actions.locator('[data-translated-text][lang="es"]');
+    check(/Show English/.test(translated) && await spanish.count() === 1 && /\b(Tanto|te dicen|igual)\b/.test(await spanish.textContent()), `${device.name}: Translate shows the hint in Spanish`, translated.slice(0, 160));
     await context.close();
   }
 }

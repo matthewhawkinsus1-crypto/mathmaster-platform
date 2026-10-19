@@ -4,17 +4,21 @@ import CalculatorPanel from '../CalculatorPanel.jsx';
 import MathText from '../common/MathText.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
-import PathSolutionReview from '../student/PathSolutionReview.jsx';
+import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
-import { SUPPORT_TOOL } from '../../platform/language/supportToolsEntitlement.js';
 import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { toolsEntitlementFromProfile } from '../../platform/language/supportToolsEntitlement.js';
+import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
+import { speechAvailable } from '../../platform/language/speechText.js';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { engineActivityPolicyForMode, resolveQuestionRuntimePolicy } from '../../platform/assessment/questionRuntimePolicy.js';
 import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDrafts } from '../../questionDraftStorage.js';
+// The Undo history stays on this device (persistedMathUndo.js).
+import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 
@@ -79,8 +83,23 @@ const card = {
 
 const sectionLabelStyle = { color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' };
 
-/** The instructional panels a mode allows, below whichever renderer ran. */
-const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
+/**
+ * The instructional panels a mode allows, below whichever renderer ran. The
+ * worked solution is the one panel every closed question uses
+ * (SolutionReviewPanel), given only the review the server released, with
+ * Read aloud and Translate from the student's own plan for this mode's
+ * activity (Corrections: 'corrections'), and its heading under the item's h1.
+ */
+const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = null }) => {
+  const solutionSupports = useMemo(() => {
+    let entitlement = null;
+    try {
+      entitlement = toolsEntitlementFromProfile(supportProfile, { activityRole: policy.activityRole || null, universalDesignRole: policy.activityRole || null });
+    } catch {
+      entitlement = null;
+    }
+    return workedSolutionSupports(entitlement, { speechReady: speechAvailable() });
+  }, [supportProfile, policy.activityRole]);
   if (!feedback) return null;
   const caps = policy.capabilities;
   return (
@@ -99,7 +118,13 @@ const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
         </div>
       )}
       {caps.workedSolution && feedback.solutionReview && (
-        <PathSolutionReview review={feedback.solutionReview} wasCorrect={Boolean(feedback.isCorrect)} />
+        <SolutionReviewPanel
+          question={{ solutionReview: feedback.solutionReview }}
+          wasCorrect={Boolean(feedback.isCorrect)}
+          headingLevel={2}
+          readAloud={solutionSupports.readAloud}
+          translation={solutionSupports.translation}
+        />
       )}
     </>
   );
@@ -117,7 +142,7 @@ const InstructionalSupport = ({ policy, feedback, isToolItem }) => {
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -194,6 +219,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       readOnly={locked}
                       autoFocus={fieldIndex === 0}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
+                      prompt={question?.prompt || ''}
                     />
                   )}
                 </fieldset>
@@ -207,9 +233,11 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
               the container's Previous/Next. */}
           {!navigationMode && <button type="submit" disabled={!enabled} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !enabled ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !enabled ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !enabled ? 'not-allowed' : 'pointer' }}>{actionLabel}</button>}
         </form>
-        <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} />
+        <InstructionalSupport policy={policy} feedback={feedback} isToolItem={false} supportProfile={rawStudentSupportProfile || studentSupportProfile} />
       </section>
-      <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
+      {/* One calculator (H-19): where the exam toolbar has the graphing
+          calculator, the item draws no second, scientific one. */}
+      {!calculatorInToolbar && <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />}
     </main>
   );
 };
@@ -220,18 +248,23 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  */
 /*
  * On a secure Rich Tool item the engine's own support tray offers what a
- * secure item allows — Read aloud and Translate, from the student's own plan
- * for a test — and nothing else: no Break it down, no Help me say it, and no
- * Vocabulary, whose glossary entries carry worked examples (the engine's tray
- * has no way to leave them out yet). A practice surface keeps its tray.
+ * secure item allows — Read aloud, Translate and Vocabulary, from the
+ * student's own plan for a test — and nothing else: no Break it down and no
+ * Help me say it. Vocabulary lists the PROMPT's words only
+ * (`promptTermsOnly`: a tool's own word list — distribute, elimination,
+ * shade — defines its method), each with its definition and WITHOUT the
+ * glossary's worked example (`showExamples: false`): an example applies the
+ * word, and can apply it to exactly what the item asks. Both match the secure
+ * field item's tray. A student with a glossary accommodation kept the terms
+ * on a field item but lost them on a tool item (student pass 3, H-16). A
+ * practice surface keeps its tray, examples included.
  */
 const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   const entitlement = secureAccessEntitlement(rawStudentSupportProfile);
-  const tools = entitlement.tools.filter((tool) => tool !== SUPPORT_TOOL.VOCABULARY);
-  return { tools, language: tools.includes(SUPPORT_TOOL.TRANSLATE) ? entitlement.language : null };
+  return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -264,7 +297,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
     onDraftChangeRef.current({
       responses: {},
       ...(latestRawRef.current ? { raw: latestRawRef.current } : {}),
-      workspaceDrafts: draftKey ? readQuestionDraftFamily(draftKey) : [],
+      workspaceDrafts: draftKey ? withoutPersistedUndo(readQuestionDraftFamily(draftKey)) : [],
     }, supportUsageRef.current);
   }, [draftKey]);
 
@@ -320,7 +353,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           await onSubmitRef.current?.({
             responses: {},
             ...(raw ? { raw } : {}),
-            workspaceDrafts: draftKey ? readQuestionDraftFamily(draftKey) : [],
+            workspaceDrafts: draftKey ? withoutPersistedUndo(readQuestionDraftFamily(draftKey)) : [],
           }, supportUsage);
         } catch { /* the container reports a save that did not land */ }
         return null;
@@ -362,6 +395,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
       {policy.secure && <div style={{ ...sectionLabelStyle, margin: '0 4px 8px' }}>Secure exam question</div>}
       <Suspense fallback={<p role="status" style={{ padding: 30, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Opening the math workspace…</p>}>
         <QuestionEngine
+          calculatorInToolbar={calculatorInToolbar}
           question={engineQuestion}
           questionRecord={{
             status: Number(attempt?.used || 0) > 0 ? 'attempted' : 'unattempted',
@@ -379,6 +413,9 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           // verdict is withheld: it is called that, not "Check". In a test the
           // student moves around in, it saves a draft, and says so.
           submitLabel={policy.secure ? (navigationMode ? 'Save answer' : 'Record answer') : null}
+          // Saving a draft in a test the student moves around in costs nothing:
+          // no "1 of 1 try left" over it (RUN-4).
+          showTriesCount={!navigationMode}
           serverGrading={serverGrading}
           onResponseStateChange={handleRawWork}
           assignmentLocked={Boolean(closed)}
@@ -387,7 +424,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           onGrade={async () => null}
         />
       </Suspense>
-      <InstructionalSupport policy={policy} feedback={feedback} isToolItem />
+      <InstructionalSupport policy={policy} feedback={feedback} isToolItem supportProfile={rawStudentSupportProfile || supportProfile} />
     </main>
   );
 };
@@ -414,6 +451,8 @@ export default function RichQuestionRuntime({
   // A secure test the student moves around in (see the header): no
   // per-question record step, and `onSubmit` only saves a draft.
   navigationMode = false,
+  // The host's toolbar has the item's calculator (SecureExamContainer).
+  calculatorInToolbar = false,
   onSubmit,
   onDraftChange,
 }) {
@@ -463,6 +502,7 @@ export default function RichQuestionRuntime({
         attempt={attempt}
         executionScope={executionScope}
         navigationMode={navigationMode}
+        calculatorInToolbar={calculatorInToolbar}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />
@@ -480,6 +520,7 @@ export default function RichQuestionRuntime({
       closed={closed}
       feedback={feedback}
       navigationMode={navigationMode}
+      calculatorInToolbar={calculatorInToolbar}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

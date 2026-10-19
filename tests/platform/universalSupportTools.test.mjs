@@ -126,7 +126,8 @@ test('the Path session recap describes its graphs in full; the live question doe
   const recap = executableSource(read('src/components/student/MyMathPathSessionRecap.jsx'));
   assert.match(recap, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\} describeFeatures \/>/);
   const stimulus = executableSource(read('src/components/student/PathQuestionStimulus.jsx'));
-  assert.match(stimulus, /export const PathQuestionStimulus = \(\{ stimulus, describeFeatures = null \}\)/, 'default: the lifecycle decides');
+  // headingLevel (H-14) only sets the title's level on the page it sits in.
+  assert.match(stimulus, /export const PathQuestionStimulus = \(\{ stimulus, describeFeatures = null(?:, headingLevel = 2)? \}\)/, 'default: the lifecycle decides');
   assert.match(stimulus, /<StimulusGraph graph=\{stimulus\.graph\} describeFeatures=\{describeFeatures\} \/>/);
   assert.match(region(stimulus, '<CoordinatePlane', '>', 'plane'), /describeFeatures=\{describeFeatures\}/);
   const player = executableSource(read('src/components/student/PathSessionPlayer.jsx'));

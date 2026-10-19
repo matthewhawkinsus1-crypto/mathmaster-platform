@@ -74,22 +74,86 @@ const toolReviewOf = (question) => {
   }
 };
 
-const legacyHasContent = (question, legacyContent) => {
+const legacyContentOf = (question, legacyContent) => {
   try {
-    return typeof legacyContent === 'function' && Boolean(legacyContent(question)?.hasContent);
+    return typeof legacyContent === 'function' ? legacyContent(question) || null : null;
   } catch {
-    return false;
+    return null;
   }
 };
 
-// Does the legacy review walk through steps (a workflow), or only state the answer?
-const legacyHasSteps = (question, legacyContent) => {
-  try {
-    return typeof legacyContent === 'function' && list(legacyContent(question)?.workflowSolution?.entries).length > 0;
-  } catch {
-    return false;
-  }
+// LaTeX is read as mathematics ($…$ for speechText.js), a sentence as words.
+const looksLikeProse = (value) => (clean(value).match(/[A-Za-z]{2,}/g) || []).length >= 3 && !/\\(?:frac|sqrt|pi|infty|quad)|[=<>≤≥≠^]/.test(clean(value));
+const spokenMath = (value) => {
+  const text = clean(value);
+  if (!text) return '';
+  return text.includes('$') || looksLikeProse(text) ? text : `$${text}$`;
 };
+
+/*
+ * WHAT THE LEGACY REVIEW SAYS, AS WORDS FOR READ ALOUD (HELP-11). 79 real
+ * items had a worked solution Read aloud skipped, because only the authored
+ * and tool reviews reached `speechText`. Each piece the legacy review draws is
+ * read in the order it is drawn: the workflow's steps, the equation, the
+ * answer forms, each part's answer, the graph-reading summary.
+ */
+export const legacyReviewSpeechLines = (question, content) => {
+  if (!content || typeof content !== 'object') return [];
+  const lines = [];
+  list(content.workflowSolution?.entries).forEach((entry) => {
+    lines.push([clean(entry.title), clean(entry.prompt)].filter(Boolean).join('. '));
+    if (clean(entry.math)) lines.push(spokenMath(entry.math));
+    list(entry.lines).forEach((line) => lines.push(clean(line)));
+    list(entry.table?.rows).forEach((row) => lines.push(`Input ${row[0]}, output ${row[1]}`));
+    if (clean(entry.note)) lines.push(clean(entry.note));
+  });
+  if (clean(question?.equationLatex)) lines.push(spokenMath(question.equationLatex));
+  list(content.representations).forEach((representation) => lines.push(spokenMath(representation)));
+  list(content.completeAnswerDetails).forEach((detail) => lines.push(clean(detail)));
+  list(content.analysisSummary).forEach((summary) => lines.push(clean(summary)));
+  return lines.map(clean).filter(Boolean);
+};
+
+/*
+ * PART BY PART: WHAT THE STUDENT WROTE BESIDE THE ANSWER, WRONG PARTS FIRST
+ * (HELP-11). For a question with several authored answer boxes, given the
+ * device's own grading of each part ({ key | id, response, isCorrect }).
+ * Rows: { id, label, yourAnswer, correct, isCorrect } — parts marked wrong
+ * first, then parts not graded, then the right ones; authored order within
+ * each. Empty for a single box (the card's "Your answer" already says it) and
+ * for anything that is not a list of answer boxes.
+ */
+const fieldAnswerText = (field) => {
+  const candidates = [field?.answer, field?.expected, ...list(field?.acceptedAnswers), ...list(field?.accepted)];
+  const first = candidates.find((value) => value !== undefined && value !== null && clean(Array.isArray(value) ? value.join(', ') : value) !== '');
+  if (first === undefined) return '';
+  return Array.isArray(first) ? `(${first.join(', ')})` : clean(first);
+};
+
+export const buildPartReviewRows = ({ question = null, parts = [] } = {}) => {
+  const fields = list(question?.answerFields).filter((field) => field && clean(field.id));
+  const given = list(parts).filter((part) => part && clean(part.key ?? part.id));
+  if (fields.length < 2 || !given.length) return [];
+  const rows = fields.map((field, order) => {
+    const part = given.find((entry) => clean(entry.key ?? entry.id) === clean(field.id));
+    return {
+      id: clean(field.id),
+      label: clean(field.label || field.prompt) || `Part ${order + 1}`,
+      yourAnswer: clean(part?.response),
+      correct: fieldAnswerText(field),
+      isCorrect: typeof part?.isCorrect === 'boolean' ? part.isCorrect : null,
+      order,
+    };
+  }).filter((row) => row.correct);
+  if (rows.length < 2) return [];
+  const rank = (row) => (row.isCorrect === false ? 0 : row.isCorrect === null ? 1 : 2);
+  return rows.sort((a, b) => rank(a) - rank(b) || a.order - b.order).map(({ order: _order, ...row }) => row);
+};
+
+/** The rows as words for Read aloud. */
+export const partReviewSpeech = (rows = []) => list(rows).map((row) => (
+  `${row.label}: ${row.isCorrect === false ? 'not correct. ' : row.isCorrect === true ? 'correct. ' : ''}You wrote ${row.yourAnswer ? spokenMath(row.yourAnswer) : 'nothing'}. The answer is ${spokenMath(row.correct)}.`
+)).join(' ');
 
 export const buildClosedQuestionReview = ({ question = null, isToolQuestion = false, wasCorrect = false, legacyContent = null } = {}) => {
   if (!question || typeof question !== 'object') return null;
@@ -102,23 +166,28 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
   const family = ownReview?.reasoning?.length || toolSteps ? null : familyReviewOf(question);
   const authored = family ? withFamilySteps(ownReview, family) : ownReview;
   const fromFamily = Boolean(family);
-  const legacy = !isToolQuestion && legacyHasContent(question, legacyContent);
+  const legacyReview = isToolQuestion ? null : legacyContentOf(question, legacyContent);
+  const legacy = Boolean(legacyReview?.hasContent);
   const hasContent = Boolean(authored || tool || legacy);
   // The words promise what is shown: steps only when there are steps
   // (release-candidate QA m9 — "Compare each step" over a bare answer).
-  const hasSteps = Boolean(list(authored?.reasoning).length || list(tool?.steps).length || (legacy && legacyHasSteps(question, legacyContent)));
+  const hasSteps = Boolean(list(authored?.reasoning).length || list(tool?.steps).length || (legacy && list(legacyReview?.workflowSolution?.entries).length > 0));
   const intro = !hasContent
-    ? 'A worked solution is not available for this question yet. Ask your teacher to go over it with you.'
+    // HELP-24: Ask is gone once a question closes, so this does not point at
+    // it; the teacher is someone to talk to, not a button.
+    ? 'There is no worked solution for this question yet. Your teacher can go over it with you.'
     : wasCorrect
       ? (hasSteps
         ? 'You got this one. Here is the reasoning behind it, so the next one is not a guess.'
         : 'You got this one. Here is the answer, for reference.')
       : (hasSteps
-        ? 'This question is closed. Compare each step of your work with the worked solution.'
-        : 'This question is closed. Compare your answer with the correct one below.');
+        ? 'Compare each step of your work with the worked solution.'
+        : 'Compare your answer with the correct one below.');
   const speechText = [
     authored?.headline, ...(authored?.reasoning || []), authored?.answerSummary, authored?.commonError,
     ...(tool?.steps || []), ...(tool?.items || []).map((item) => `${item.label}: ${item.value}`), tool?.why ? `Why it works: ${tool.why}` : '',
+    // The legacy review is read too (HELP-11): it used to be skipped.
+    ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []),
   ].map(clean).filter(Boolean).join(' ');
   return { authored, tool, legacy, fromFamily, hasContent, hasSteps, intro, speechText };
 };

@@ -146,7 +146,7 @@ const keyboardRoute = async (width, height) => {
   await page.keyboard.press('Tab');
   assert.equal((await active(page)).tag, 'SELECT', `${at}: Strength select follows`);
   await page.keyboard.press('ArrowDown'); // Strong
-  await tabUntil(page, (a) => a.text === 'Submit my regression', { what: 'Submit my regression' });
+  await tabUntil(page, (a) => /^Submit — /.test(a.text || ''), { what: 'Submit my regression' });
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => (window.__KB_GRADES__ || []).some((entry) => entry.kind === 'grade'), null, { timeout: 30000 });
 
@@ -169,7 +169,7 @@ const pointerRoute = async (width, height) => {
   await page.locator('.regression-result').waitFor();
   await page.getByLabel('Direction').selectOption('positive');
   await page.getByLabel('Strength').selectOption('strong');
-  await page.getByRole('button', { name: 'Submit my regression' }).click();
+  await page.getByRole('button', { name: /^Submit — / }).first().click();
   await page.waitForFunction(() => (window.__KB_GRADES__ || []).some((entry) => entry.kind === 'grade'), null, { timeout: 30000 });
   const state = await snapshot(page);
   await page.close();

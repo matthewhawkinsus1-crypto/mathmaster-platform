@@ -7,6 +7,7 @@ import {
   TRY_AGAIN_LABEL,
   describeResultNextStep,
   describeSectionStatus,
+  resultTryAgainLabel,
   tryAgainLabel,
 } from '../../src/platform/student/studentResultNextStep.js';
 import { LEVEL, resolveBack } from '../../src/platform/student/navigationModel.js';
@@ -52,10 +53,10 @@ test('open but nothing workable: the wait text and every section\'s status, no S
   const step = stepFor('waiting-dol');
   assert.equal(step.kind, RESULT_STEP.WAITING);
   assert.equal(step.continueLabel, null);
-  assert.match(step.waitText, /^DOL opens at /);
+  assert.match(step.waitText, /^Exit ticket opens at /);
   assert.deepEqual(
     step.sections.map(({ label, text }) => `${label} — ${text}`),
-    ['Classwork — done', 'DOL — opens at 2:15 PM'],
+    ['Classwork — done', 'Exit ticket — opens at 2:15 PM'],
   );
 
   const locked = stepFor('locked-practice');
@@ -142,9 +143,12 @@ test('closed work is never "Practice": "Try it again — no credit" / "Try DOL a
   assert.equal(tryAgainLabel(), TRY_AGAIN_LABEL);
   assert.equal(TRY_AGAIN_LABEL, 'Try it again — no credit');
   assert.equal(tryAgainLabel('DOL'), 'Try DOL again — no credit');
+  // The result page names its retry by the questions it reopens (NAV-8):
+  // "Try these questions again — no credit", "Try these DOL questions again — no credit".
   const retry = region(resultSource, '{entry.practiceAvailable', '</button>', 'retry button');
-  assert.match(retry, /tryAgainLabel\(sectionLabel\)/);
+  assert.match(retry, /resultTryAgainLabel\(sectionLabel\)/);
   assert.match(retry, /onPractice\?\.\(entry\.assignmentId\)/);
+  assert.equal(resultTryAgainLabel('DOL'), 'Try these DOL questions again — no credit');
   assert.doesNotMatch(resultSource, /Practice This Skill|`Practice \$\{sectionLabel\}`/);
 });
 

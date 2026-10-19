@@ -28,14 +28,13 @@
 //     are in.
 //
 // HOW TO RUN: see tests/browser/stagedQuestion.mjs.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import StudentIdentityBar from '../../src/components/student/StudentIdentityBar.jsx';
 import { writeQuestionDraft } from '../../src/questionDraftStorage.js';
 import { activeStages, readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
-import { shouldCompactAssignmentNavigation } from '../../src/platform/layout/assignmentNavigationChrome.js';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -71,35 +70,16 @@ const QUESTION_PICKER = (
 );
 
 // App.jsx's assignment navigator, with the same classes and rows: what sits
-// above the question on every screen size. Like App.jsx it starts expanded and
-// folds to its one-row form on a short landscape screen, or once the work has
-// reached the top of the screen (shouldCompactAssignmentNavigation, on mount,
-// scroll and resize).
-function Navigator({ stageRef }) {
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
-    let frame = 0;
-    const update = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const work = stageRef.current?.querySelector('[data-work-view-focus="true"]')
-          || stageRef.current?.querySelector('.math-tool-workspace');
-        if (shouldCompactAssignmentNavigation({
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-          workTop: work?.getBoundingClientRect?.().top ?? Infinity,
-        })) setCollapsed(true);
-      });
-    };
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, [stageRef]);
+// above the question on every screen size. Like App.jsx since pass 3 (RUN-7,
+// "THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE"), a question opens under its
+// one-row form; "Show progress" opens the section tabs and question numbers,
+// and "Focus view" folds them again. The phone's status chip (NAV-5) and
+// Overview sit in the row in both forms, as in App.jsx. (This copy used to
+// start full and fold only once the work reached the top of the screen, as
+// App.jsx did before RUN-7. With CI's wider system font that full form put
+// the first step of the question below a phone's fold.)
+function Navigator() {
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className={`mathmaster-assignment-unified-nav${collapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
@@ -109,7 +89,8 @@ function Navigator({ stageRef }) {
           <>
             <div className="mathmaster-collapsed-current-location" role="status">
               <strong>Classwork</strong>
-              <span>Question 2 of 4</span>
+              <span className="mathmaster-location-long">Question 2 of 4</span>
+              <span className="mathmaster-location-short" aria-hidden="true">Q2 of 4</span>
             </div>
             <div className="mathmaster-unified-question-controls mathmaster-focus-inline-controls">
               <button type="button" aria-label="Previous question">‹ <span>Previous</span></button>
@@ -129,11 +110,12 @@ function Navigator({ stageRef }) {
             ))}
           </div>
         )}
-        {!collapsed && (
-          <button type="button" className="mathmaster-overview-button" aria-expanded="false">
-            <span className="mathmaster-overview-button-label">Overview</span> ▾
-          </button>
-        )}
+        <button type="button" className="mathmaster-assignment-status-chip is-more" aria-expanded="false">
+          More <span aria-hidden="true">▾</span>
+        </button>
+        <button type="button" className="mathmaster-overview-button" aria-expanded="false">
+          <span className="mathmaster-overview-button-label">Overview</span> ▾
+        </button>
         <button type="button" className="mathmaster-focus-view-button" aria-expanded={!collapsed} onClick={() => setCollapsed((current) => !current)}>
           {collapsed ? 'Show progress' : 'Focus view'}
         </button>
@@ -169,7 +151,6 @@ function Navigator({ stageRef }) {
 
 function Harness() {
   const [scene, setScene] = useState(current);
-  const stageRef = useRef(null);
   useEffect(() => { listeners.add(setScene); return () => listeners.delete(setScene); }, []);
   if (!scene) return <div data-staged-idle="1">idle</div>;
   return (
@@ -183,8 +164,8 @@ function Harness() {
       />
       <div className="mathmaster-assignment-screen" style={{ padding: 20 }}>
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
-          <Navigator key={scene.draftKey} stageRef={stageRef} />
-          <main ref={stageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <Navigator key={scene.draftKey} />
+          <main className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
               key={scene.draftKey}
               question={scene.question}

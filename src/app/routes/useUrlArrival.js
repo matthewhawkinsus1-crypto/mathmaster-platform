@@ -62,9 +62,16 @@ export const useUrlArrival = ({
         mathPathRoute: readMathPathRouteState(window.history.state),
       });
       if (!plan) return;
-      if (plan.message) toastInfo(plan.message.title, plan.message.body);
+      if (plan.message && plan.action !== 'assignment') toastInfo(plan.message.title, plan.message.body);
       if (plan.action === 'assignment') {
-        student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
+        const opening = student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
+        // A notice about the work is shown with the work, not over the screen
+        // it is leaving; a start that went elsewhere (the result page, a
+        // section not open) says it now.
+        if (plan.message) {
+          if (opening === true && student.showWhenWorkspaceOpens) student.showWhenWorkspaceOpens(plan.message);
+          else toastInfo(plan.message.title, plan.message.body);
+        }
       } else if (plan.action === 'result') {
         student.openStudentAssignmentResult(plan.assignmentId, { sectionKey: plan.sectionKey, origin: plan.origin });
       } else if (plan.action === 'testCycle') {

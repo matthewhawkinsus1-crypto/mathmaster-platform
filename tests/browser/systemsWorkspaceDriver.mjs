@@ -159,7 +159,8 @@ export const substitute = async (page, rows, log = () => {}) => {
     await settle(page, 500);
   }
   const token = page.locator('button[aria-label^="Pick up the expression"]:visible').first();
-  const expression = (await token.getAttribute('aria-label')).replace(/^Pick up the expression /, '').replace(/ from the isolated equation$/, '');
+  // The label says the expression in words; the token carries its value.
+  const expression = await token.getAttribute('data-token-value');
   await token.click();
   await settle(page, 300);
   const target = 1 - index;
@@ -201,7 +202,7 @@ export const solveEmbedded = async (page, variable, log = () => {}) => {
 };
 
 export const checkMyWork = async (page, log = () => {}) => {
-  await page.locator('button:visible', { hasText: 'Check my work' }).first().click();
+  await page.locator('button:visible', { hasText: /^(Check my work|Submit — )/ }).first().click();
   await settle(page, 1500);
   log('checked');
 };

@@ -34,7 +34,6 @@ function Harness() {
           invite={invite}
           studentProfile={{ studentId, name: studentId }}
           onExit={() => setExited(true)}
-          exitLabel="Back to Dashboard"
         />
       </div>
     </Boundary>

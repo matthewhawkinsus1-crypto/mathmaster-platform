@@ -139,16 +139,20 @@ for (const viewport of VIEWPORTS) {
   };
   const expect = (problems, condition, message) => { if (!condition) problems.push(message); };
   const lastCall = async () => (await calls(page)).at(-1) || null;
+  // Each row's title is its own heading, whatever its level (the Assignments rows are h2 since NAV-23).
+  const rowTitles = () => page.evaluate(() => [...document.querySelectorAll('article')]
+    .map((article) => article.querySelector('h1, h2, h3, h4, h5, h6')?.textContent)
+    .filter(Boolean));
 
   await scene('center', async (problems) => {
     // Upcoming: soonest due first.
     expect(problems, await clickButton(page, 'Upcoming ·') === 'ok', 'could not open Upcoming');
     await page.waitForTimeout(120);
-    const upcoming = await page.evaluate(() => [...document.querySelectorAll('article h3')].map((h) => h.textContent));
+    const upcoming = await rowTitles();
     expect(problems, JSON.stringify(upcoming) === JSON.stringify(['Solving Inequalities', 'Slope from Two Points', 'Quadratics Investigation']), `Upcoming order: ${JSON.stringify(upcoming)}`);
     const upcomingText = await textOf(page);
     expect(problems, upcomingText.includes('Practice opens when your teacher starts it in class'), 'locked Practice wait text missing');
-    expect(problems, /DOL opens at/.test(upcomingText), 'DOL wait text missing');
+    expect(problems, /Exit ticket opens at/.test(upcomingText), 'DOL wait text missing');
     const waitingButtons = await page.evaluate(() => [...document.querySelectorAll('article')]
       .filter((article) => /Solving Inequalities|Slope from Two Points/.test(article.innerText))
       .flatMap((article) => [...article.querySelectorAll('button')].map((button) => button.innerText.trim())));
@@ -158,7 +162,7 @@ for (const viewport of VIEWPORTS) {
     // Active: past due first; Continue carries the question index.
     expect(problems, await clickButton(page, 'Active ·') === 'ok', 'could not open Active');
     await page.waitForTimeout(120);
-    const active = await page.evaluate(() => [...document.querySelectorAll('article h3')].map((h) => h.textContent));
+    const active = await rowTitles();
     expect(problems, active[0] === 'Linear Functions', `Active does not lead with past-due work: ${JSON.stringify(active)}`);
     expect(problems, await clickButton(page, 'Continue', { within: { selector: 'article', text: 'Systems of Equations' } }) === 'ok', 'Continue not clickable');
     const cont = await lastCall();
@@ -185,7 +189,7 @@ for (const viewport of VIEWPORTS) {
       .filter((article) => article.innerText.includes('Unit 2 Review'))
       .map((article) => ({ text: article.innerText, buttons: [...article.querySelectorAll('button')].map((button) => button.innerText.trim()) }))[0]);
     expect(problems, /excused/i.test(excusedButtons?.text || ''), 'excused row does not say Excused');
-    expect(problems, JSON.stringify(excusedButtons?.buttons) === JSON.stringify(['View Results']), `excused row offers ${JSON.stringify(excusedButtons?.buttons)}`);
+    expect(problems, JSON.stringify(excusedButtons?.buttons) === JSON.stringify(['See results']), `excused row offers ${JSON.stringify(excusedButtons?.buttons)}`);
     problems.push(...await layoutProblems(page));
   });
 
@@ -196,7 +200,7 @@ for (const viewport of VIEWPORTS) {
     }, title);
     // Waiting work (DOL later today, Practice locked): no Start/Continue, and
     // the row says what it is waiting for.
-    for (const [title, wait] of [['Slope from Two Points', /DOL opens at/], ['Solving Inequalities', /Practice opens when your teacher/]]) {
+    for (const [title, wait] of [['Slope from Two Points', /Exit ticket opens at/], ['Solving Inequalities', /Practice opens when your teacher/]]) {
       const row = await rowOf(title);
       expect(problems, row && !row.buttons.some((label) => /^(Start|Continue)$/.test(label)), `${title} offers ${JSON.stringify(row?.buttons)} although nothing is open`);
       expect(problems, row && wait.test(row.text), `${title} does not say what it is waiting for`);
@@ -217,7 +221,7 @@ for (const viewport of VIEWPORTS) {
 
   await scene('resultWaiting', async (problems) => {
     const text = await textOf(page);
-    for (const needle of ['Nothing here is open right now', 'DOL opens at', 'Classwork — done', 'DOL — opens at', 'Up next', 'Systems of Equations']) {
+    for (const needle of ['Nothing here is open right now', 'Exit ticket opens at', 'Classwork — done', 'Exit ticket — opens at', 'Up next', 'Systems of Equations']) {
       expect(problems, text.includes(needle) || text.toLowerCase().includes(needle.toLowerCase()), `missing "${needle}"`);
     }
     // Only the Up next card (another assignment) may offer Continue.
@@ -260,7 +264,8 @@ for (const viewport of VIEWPORTS) {
 
   await scene('resultClosed', async (problems) => {
     const labels = await buttons(page);
-    expect(problems, labels.includes('Try DOL again — no credit'), `closed retry label: ${JSON.stringify(labels)}`);
+    // NAV-8: the result page says which questions it reopens.
+    expect(problems, labels.includes('Try these DOL questions again — no credit'), `closed retry label: ${JSON.stringify(labels)}`);
     expect(problems, !labels.some((label) => label.startsWith('Practice')), 'a "Practice…" button on closed work');
     expect(problems, (await textOf(page)).includes('not replayed'), 'without a review panel the honest copy stays');
   });
@@ -270,6 +275,33 @@ for (const viewport of VIEWPORTS) {
     expect(problems, text.includes('Your recorded answers'), 'review panel not rendered');
     expect(problems, !text.includes('not replayed'), '"not replayed" shown beside a review panel');
     expect(problems, !(await buttons(page)).includes('Review My Work'), 'Review My Work offered beside the panel');
+  });
+
+  // NAV-8 / NAV-9: two practices, named apart; Back from Home says Home.
+  await scene('resultClosedFromHome', async (problems) => {
+    const labels = await buttons(page);
+    expect(problems, labels[0] === '← Home', `Back from Home reads ${JSON.stringify(labels[0])}`);
+    expect(problems, labels.includes('Try these questions again — no credit') && labels.includes('Practice this skill'), `closed buttons: ${JSON.stringify(labels)}`);
+    expect(problems, await clickButton(page, 'Try these questions again — no credit') === 'ok', 'Try these questions again not clickable');
+    expect(problems, (await lastCall())?.type === 'practice', 'Try these questions again did not reopen the assignment');
+    expect(problems, await clickButton(page, 'Practice this skill') === 'ok', 'Practice this skill not clickable');
+    expect(problems, (await lastCall())?.type === 'practiceSkill', 'Practice this skill did not open skill practice');
+    expect(problems, await clickButton(page, '← Home') === 'ok', '← Home not clickable');
+    expect(problems, (await lastCall())?.type === 'home', '← Home did not go Home');
+  });
+
+  // NAV-4: the notice is on the page; nothing offers to reopen it.
+  await scene('resultPaused', async (problems) => {
+    const text = await textOf(page);
+    expect(problems, text.includes('Your teacher paused this — your work is saved.'), 'paused notice missing');
+    expect(problems, !(await buttons(page)).some((label) => /Try .*again/.test(label)), 'a paused lesson offered a retry');
+  });
+
+  await scene('resultPausedEntry', async (problems) => {
+    const text = await textOf(page);
+    expect(problems, text.includes('Your teacher paused this — your work is saved.'), 'a paused lesson reached from Grades does not say so');
+    const labels = await buttons(page);
+    expect(problems, !labels.some((label) => /Try .*again|Review My Work/.test(label)), `a paused lesson offers what would bounce: ${JSON.stringify(labels)}`);
   });
 
   await scene('resultExcused', async (problems) => {

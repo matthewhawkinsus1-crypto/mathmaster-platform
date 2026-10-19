@@ -64,13 +64,15 @@ test('App.jsx: a failed queue returns "not submitted", never null', () => {
   assert.match(failure, /setStudentPersistenceStatus\('volatile'\);/);
   assert.match(failure, /return SUBMISSION_NOT_QUEUED;/);
   assert.doesNotMatch(failure, /return null;/);
-  assert.match(failure, /toastWarning\('Not submitted', '[^']*press Submit again\.'\);/);
+  // Said once: the engine's alert carries the message. A toast saying it
+  // again was a second announcement of the same thing (pass 3, wave 6).
+  assert.doesNotMatch(failure, /toast(?:Warning|Error|Info|Success)\(/);
   // Nothing is counted for it: the tracker is only written after the queue.
   assert.ok(submit.indexOf('setTracker(updatedTracker);', enqueue) > submit.indexOf('return SUBMISSION_NOT_QUEUED;'));
 });
 
 test('the save line has its own words for an unqueued change, never "saved"', () => {
-  const line = region(app, "{!preview && studentPersistenceStatus !== 'idle' && (", '</p>');
+  const line = region(app, '{!preview && studentSaveLineShown && (', '</p>');
   const volatile = line.match(/studentPersistenceStatus === 'volatile'\s*\?\s*'([^']*)'/)?.[1];
   assert.ok(volatile, 'volatile has a branch of its own');
   assert.match(volatile, /^Not saved/);

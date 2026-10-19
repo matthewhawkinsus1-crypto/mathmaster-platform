@@ -62,17 +62,23 @@ test('What changed items are built once in App from records the student reads, w
 
 test('Log Out warns about unsent work on the one identity bar', () => {
   assert.match(app, /import \{ describeLogoutRisk \} from '\.\/platform\/student\/logoutGuard\.js'/);
+  // The shell reads the risk once (the pack-up line, NAV-24, reads it too) and
+  // hands it to the one identity bar; a teacher preview has none.
+  const shell = region(app, 'const renderStudentIdentityShell = ', '<StudentIdentityBar', 'identity shell');
+  assert.match(shell, /const studentShellLogoutRisk = preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
   const bar = region(app, '<StudentIdentityBar', '/>', 'identity bar');
-  assert.match(bar, /logoutRisk=\{preview \? null : describeLogoutRisk\(\{\s*outboxDepth: studentOutboxDepth,\s*pendingGradeCount: studentPendingGradeCount/);
+  assert.match(bar, /logoutRisk=\{studentShellLogoutRisk\}/);
 });
 
 test('Home is wired without the support flag, with results, save status and What changed', () => {
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
   assert.doesNotMatch(home, /inclusionStatus/);
   assert.match(home, /onOpenResult=\{\(assignmentId\) => openStudentAssignmentResult\(assignmentId/);
-  assert.match(home, /saveStatus=\{describeSaveStatus\(\{/);
+  // The shared save status (Home and the pack-up line read the same one).
+  assert.match(home, /saveStatus=\{studentSaveStatusNow\(\)\}/);
+  assert.match(app, /const studentSaveStatusNow = \(\) => describeSaveStatus\(\{/);
   assert.match(home, /whatChangedPanel=\{renderWhatChangedPanel\(true\)\}/);
-  assert.match(app, /import \{ describeSaveStatus \} from '\.\/platform\/student\/saveStatusModel\.js'/);
+  assert.match(app, /import \{[^}]*\bdescribeSaveStatus\b[^}]*\} from '\.\/platform\/student\/saveStatusModel\.js'/);
   const before = region(app, 'const studentNextAction = resolveNextAction({', '<StudentDashboardView', 'before Home');
   assert.doesNotMatch(before, /renderStudentWarmupBanner\(\)/, 'Home offers the Warm-Up once, not as a banner too');
 });
@@ -95,10 +101,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
   // Filtered by the Today rule (review finding C / item 3).
   assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
-  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0\)\}/);
+  // Started from Grades, so a start that cannot happen lands on a result page whose Back says Grades (NAV-9).
+  assert.match(grades, /onStart=\{\(assignmentId, questionIndex\) => startAssignment\(assignmentId, questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\)\}/);
   assert.match(grades, /waysToRaise=\{studentWaysToRaiseNow\(\)\}/);
   assert.match(grades, /if \(way\.action === 'none'\) return undefined;/);
-  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0\);/);
+  assert.match(grades, /if \(way\.action === 'start'\) return startAssignment\(way\.assignmentId, way\.questionIndex \?\? 0, \{ origin: NAV_LEVEL\.GRADES \}\);/);
   assert.match(grades, /whatChangedPanel=\{renderWhatChangedPanel\(false\)\}/);
   const home = region(app, '<StudentDashboardView', 'recommended={{', 'Home render');
   assert.match(home, /waysToRaise=\{\{ count: countWaysToRaise\(studentWaysToRaiseNow\(\)\) \}\}/);
@@ -115,7 +122,19 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   assert.match(panel, /resultEntry\.frozen/);
   assert.match(panel, /!resultEntry\.isTestCycle/);
   assert.match(panel, /!assignmentHasHeldTeacherFeedback\(recoveryAssignment\)/);
-  assert.match(panel, /<ReviewMyWork assignment=\{recoveryAssignment\} load=\{loadMyReviewWork\} \/>/);
+  // The panel is THIS assignment's review, loaded through the server callable
+  // (prop order and any further props — the student's questions for their
+  // teacher, D6 — are not the contract).
+  const mount = region(panel, '<ReviewMyWork', '</Suspense>', 'the Review My Work mount');
+  assert.match(mount, /\bassignment=\{recoveryAssignment\}/);
+  assert.match(mount, /\bload=\{loadMyReviewWork\}/);
+  // The student's own profile rides along for Read aloud and Translate beside
+  // each worked solution (student pass 3, HELP-12)…
+  assert.match(mount, /\bstudentProfile=\{user\.profile\}/);
+  // …and it carries the student's own questions and their teacher's answers
+  // for the same assignment, read for the signed-in student (TeacherAnswers).
+  assert.match(mount, /teacherAnswers=\{<TeacherAnswers studentId=\{user\.id\} assignmentId=\{recoveryAssignment\.id\} \/>\}/);
+  assert.match(app, /^import TeacherAnswers from '\.\/components\/student\/TeacherAnswers\.jsx';$/m);
 });
 
 test('"Use a Practice Pass" is offered only to a student who holds one', () => {
@@ -136,7 +155,10 @@ test('entry shares the Today rule\'s predicates, with their imports (review find
 });
 
 test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
-  const banner = region(app, 'const renderStudentWarmupBanner = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
+  // status chip offers the same Warm-Up); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  assert.match(app, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
   assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);
   assert.match(app, /import \{[^}]*\bassignmentIsExcusedForStudent\b[^}]*\} from '\.\/platform\/student\/studentGradeCenterModel\.js'/);

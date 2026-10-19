@@ -180,8 +180,42 @@ test('each question shows the answer given, the right answer and the worked solu
   assert.match(article, /answerRows\.length \? <AnswerRows rows=\{answerRows\} \/> : <span[^>]*>Left blank<\/span>/);
   assert.match(article, /\{result\.correctAnswers\.length > 0 && \(/);
   assert.match(article, /Correct answer/);
-  assert.match(article, /\? <PathSolutionReview review=\{result\.workedSolution\} wasCorrect=\{result\.status === RESULT_STATUS\.CORRECT\} \/>\s*\n?\s*: <p[^>]*>\{result\.solutionNote\}<\/p>/);
-  assert.match(reviewScreen, /import PathSolutionReview from '\.\.\/student\/PathSolutionReview\.jsx';/);
+  // The one worked-solution panel (H-6), given ONLY the released review, its
+  // heading under this card's h3 (H-14), with Read aloud and Translate from
+  // the student's plan for a test; otherwise the note saying why there is none.
+  const solution = region(article, '{result.workedSolution', '{code &&', 'worked solution');
+  const panel = region(solution, '<SolutionReviewPanel', '/>', 'panel props');
+  assert.match(panel, /question=\{\{ solutionReview: result\.workedSolution \}\}/);
+  assert.match(panel, /wasCorrect=\{result\.status === RESULT_STATUS\.CORRECT\}/);
+  assert.match(panel, /headingLevel=\{4\}/);
+  assert.match(panel, /readAloud=\{solutionSupports\.readAloud\}/);
+  assert.match(panel, /translation=\{solutionSupports\.translation\}/);
+  assert.match(solution, /: <p[^>]*>\{result\.solutionNote\}<\/p>/);
+  assert.match(reviewScreen, /^import SolutionReviewPanel from '\.\.\/\.\.\/SolutionReviewPanel\.jsx';$/m);
+  assert.doesNotMatch(executableSource(reviewScreen), /PathSolutionReview/, 'one panel, not two');
+  const supports = region(reviewScreen, 'const solutionSupports = useMemo(', ');', 'solution supports');
+  assert.match(supports, /workedSolutionSupports\(secureAccessEntitlement\(studentSupportProfile\), \{ speechReady: speechAvailable\(\) \}\)/);
+  assert.match(reviewScreen, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
+  assert.match(reviewScreen, /^import \{ workedSolutionSupports \} from '\.\.\/\.\.\/platform\/supports\/workedSolutionSupports\.js';$/m);
+});
+
+test('a question\'s figure is in its result: the stimulus and formula the student saw (item 4)', () => {
+  const article = region(reviewScreen, 'items.map((item, index) => {', '</article>', 'question card');
+  assert.match(article, /\{item\.questionSnapshot\?\.stimulus && \([\s\S]*<PathQuestionStimulus stimulus=\{item\.questionSnapshot\.stimulus\} headingLevel=\{4\} \/>/);
+  assert.match(article, /\{item\.questionSnapshot\?\.formulaLatex && \([\s\S]*<MathDisplay value=\{item\.questionSnapshot\.formulaLatex\} \/>/);
+  assert.ok(article.indexOf('<PathQuestionStimulus') > article.indexOf('item.questionSnapshot.prompt'), 'under the prompt');
+  assert.ok(article.indexOf('<PathQuestionStimulus') < article.indexOf('Your answer'), 'before the answers');
+  assert.match(reviewScreen, /^import PathQuestionStimulus from '\.\.\/student\/PathQuestionStimulus\.jsx';$/m);
+});
+
+test('both screens that open a Test\'s results hand it the student\'s own profile', () => {
+  const card = componentSource('src/components/student/TestCycleCard.jsx');
+  const reviews = card.match(/<SecureExamReview[\s\S]*?\/>/g) || [];
+  assert.equal(reviews.length, 3);
+  reviews.forEach((element) => assert.match(element, /studentSupportProfile=\{studentProfile\}/));
+  assert.match(region(card, '<TestCycleCorrections', '/>', 'corrections'), /studentSupportProfile=\{studentProfile\}/);
+  const dashboard = componentSource('src/components/assessment/StudentSecureExamDashboard.jsx');
+  assert.match(region(dashboard, '<SecureExamReview', '/>', 'dashboard review'), /studentSupportProfile=\{studentProfile\}/);
 });
 
 test('the score is the model\'s sentence, not "correct of answered"', () => {
@@ -297,7 +331,8 @@ test('a review opened from Corrections lies over them: the typed answer survives
   const focus = region(card, 'const returnFocusRef = useRef(null);', '}, [mode, card]);', 'return focus');
   assert.match(focus, /if \(returnTo === 'corrections'\) correctionsRef\.current\?\.querySelector\('\[data-corrections-heading\]'\)\?\.focus\(\);/);
   assert.match(focus, /else headingRef\.current\?\.focus\(\);/);
-  assert.match(card, /<h2 ref=\{headingRef\} tabIndex=\{-1\}/);
+  // The card's heading takes that focus (the screen's h1 since NAV-15).
+  assert.match(card, /<h[1-6] ref=\{headingRef\} tabIndex=\{-1\}/);
 });
 
 test('every review the card opens names skills the way the card does', () => {

@@ -9,12 +9,14 @@ import { readFileSync } from 'node:fs';
 import {
   WHAT_CHANGED_KIND,
   buildWhatChanged,
+  countUnseenWhatChanged,
   markWhatChangedSeen,
   readWhatChangedSeenAt,
   rememberWhatChangedFirstSeen,
   toMillis,
   untimedWhatChangedKeys,
   whatChangedSeenKey,
+  whatChangedUpdatesLabel,
 } from '../../src/platform/student/whatChangedModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -290,17 +292,15 @@ test('no teacher note, identity or email ever reaches the output', () => {
 
 /* ---- reopened / extended / excused ------------------------------------- */
 
-test('excused and reopened are untimed state items: listed last, never "new"', () => {
+test('excused is an untimed state item: listed last, never "new"; a bare reopen is not listed (NAV-16)', () => {
   const items = build({
     assignments: [lesson('a1'), lesson('a2'), lesson('a3', { feedbackReleased: true, feedbackReleasedAt: iso(NOW - 5 * DAY) })],
     controlsByAssignmentId: { a1: { excused: true }, a2: { reopened: true } },
   });
-  assert.deepEqual(kinds(items), ['released:a3', 'excused:a1', 'reopened:a2']);
+  assert.deepEqual(kinds(items), ['released:a3', 'excused:a1']);
   assert.equal(items[1].text, 'Lesson a1 is excused');
-  assert.equal(items[2].text, 'Lesson a2 was reopened');
   assert.equal(items[1].at, null);
   assert.equal(items[1].unseen, false);
-  assert.equal(items[2].unseen, false);
 });
 
 test('an excused assignment does not also announce itself as new, extended or another try', () => {
@@ -328,7 +328,7 @@ test('another DOL try is listed with its change time', () => {
     controlsByAssignmentId: { a1: { dolExtraAttempts: 1, dolAttemptGrant: { extraAttempts: 1, changedAt: iso(NOW - HOUR) } } },
   });
   assert.deepEqual(kinds(items), ['moreAttempts:a1']);
-  assert.equal(items[0].text, 'You have another try on the DOL for Lesson a1');
+  assert.equal(items[0].text, 'You have another try on the exit ticket for Lesson a1');
   assert.equal(items[0].at, NOW - HOUR);
 });
 
@@ -487,11 +487,80 @@ test('an empty list draws nothing when compact and "Nothing new" otherwise', () 
 });
 
 test('onMarkSeen is called once, after the list has been on screen', () => {
-  const effect = region(list, 'useEffect(() => {', '}, [list.length, onMarkSeen]);', 'the seen effect');
-  assert.match(effect, /if \(marked\.current \|\| !list\.length \|\| typeof onMarkSeen !== 'function'\) return;/);
-  assert.match(effect, /marked\.current = true;\s*onMarkSeen\(\);/);
+  // Since NAV-6 "on screen" means half of it in view (the test below); once
+  // is still once: the first mark sets the flag, and nothing marks twice.
+  const effect = region(list, 'useEffect(() => {', '}, [hasItems, canMark]);', 'the seen effect');
+  assert.match(effect, /if \(marked\.current \|\| !hasItems \|\| !canMark\) return undefined;/);
+  assert.match(effect, /const mark = \(\) => \{\s*if \(marked\.current\) return;\s*marked\.current = true;\s*onMarkSeenRef\.current\?\.\(\);/);
+  assert.match(list, /const canMark = typeof onMarkSeen === 'function';/);
 });
 
 test('the kinds are the six decision-6 events plus another DOL try', () => {
   assert.deepEqual(Object.values(WHAT_CHANGED_KIND).sort(), ['excused', 'extended', 'gradeChanged', 'moreAttempts', 'new', 'released', 'reopened', 'retest']);
+});
+
+/* ---- student pass 3: NAV-14, NAV-6, NAV-7 -------------------------------- */
+
+test('NAV-16: only what really changed is listed — a bare "reopened" never is, and an extension\'s promise is one the lesson keeps', async () => {
+  const { getAssignmentLifecycle } = await import('../../src/assignmentLifecycle.js');
+  const closed = lesson('a1', { dueAt: '2026-09-20', lateDueAt: '2026-09-25' });
+  // Closed work: the flag opens nothing (studentAssignmentOverrides.mjs), so
+  // nothing may say it did.
+  const onClosed = build({ assignments: [closed], controlsByAssignmentId: { a1: { reopened: true } } });
+  assert.deepEqual(kinds(onClosed), [], 'a reopened flag on closed work opens nothing, so it is not news');
+  // Open work: the flag moves no date, so "open for you until <the class's
+  // date>" was true of the whole class — nothing changed for this student.
+  const onOpen = build({ assignments: [lesson('a2')], controlsByAssignmentId: { a2: { reopened: true } } });
+  assert.deepEqual(kinds(onOpen), []);
+  [...onClosed, ...onOpen].forEach((item) => assert.doesNotMatch(item.text, /reopen|open for you/i));
+
+  // A real extension on closed work: listed, in the student's words, with the
+  // date the lifecycle actually applies to this student.
+  const control = { reopened: true, lateDueAt: '2026-10-30T17:00:00Z', extension: { grantedAt: NOW - HOUR } };
+  const both = build({ assignments: [closed], controlsByAssignmentId: { a1: control } });
+  assert.deepEqual(kinds(both), ['extended:a1']);
+  assert.match(both[0].text, /^You have more time on Lesson a1 — now due \w{3}, Oct 30,/);
+  // ...and the lesson honours it: for this student it is open again (late
+  // work, still counting) while the class's copy stays closed.
+  const forStudent = { ...closed, studentOverrides: { 'stu-1': control } };
+  const own = getAssignmentLifecycle(forStudent, NOW, { studentId: 'stu-1' });
+  assert.equal(own.isPracticeOnly, false, 'the extension the line names really reopens the lesson for this student');
+  assert.equal(own.creditEligible, true);
+  assert.equal(getAssignmentLifecycle(closed, NOW, { studentId: 'stu-1' }).isPracticeOnly, true, 'without it the lesson is closed');
+});
+
+test('NAV-6: Home counts what is new as "N updates"', () => {
+  assert.equal(countUnseenWhatChanged([{ unseen: true }, { unseen: false }, { unseen: true }]), 2);
+  assert.equal(countUnseenWhatChanged(null), 0);
+  assert.equal(whatChangedUpdatesLabel(0), null);
+  assert.equal(whatChangedUpdatesLabel(1), '1 update');
+  assert.equal(whatChangedUpdatesLabel(2), '2 updates');
+  const home = executableSource(readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8'));
+  const line = region(home, '{whatChangedPanel && whatChangedUpdatesLabel(whatChangedUnseenCount) && (', '</p>');
+  assert.match(line, /document\.getElementById\('mm-what-changed-heading'\)/);
+  assert.match(line, /heading\.focus\(/);
+  // Under Do this next, above the assignment groups.
+  assert.ok(home.indexOf('<WhatShouldIDoNow') < home.indexOf('data-what-changed-updates'));
+  assert.ok(home.indexOf('data-what-changed-updates') < home.indexOf('{whatChangedPanel}'));
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /whatChangedUnseenCount=\{countUnseenWhatChanged\(whatChangedItems\)\}/);
+});
+
+test('NAV-6 / NAV-7: the list is marked seen once half of it is on screen; Home never prints a reason', () => {
+  const list = executableSource(readFileSync(new URL('../../src/components/student/WhatChangedList.jsx', import.meta.url), 'utf8'));
+  const effect = region(list, 'useEffect(() => {', '}, [hasItems, canMark]);');
+  assert.match(effect, /new window\.IntersectionObserver\(/);
+  // Half the list, or half the screen of a list taller than the screen (review note).
+  assert.match(effect, /entry\.isIntersecting && entry\.intersectionRect\.height\s*>= Math\.min\(entry\.boundingClientRect\.height \* 0\.5, screen \* 0\.5\)\)\)[\s\S]*?mark\(\);/);
+  // Not on mount: the only unconditional mark is the no-observer fallback.
+  assert.match(effect, /typeof window\.IntersectionObserver !== 'function'\) \{\s*mark\(\);/);
+  assert.match(list, /\{item\.reasonText && !compact && \(/);
+});
+
+test('NAV-7: the result page lists its own assignment\'s changes with their reasons', () => {
+  const page = executableSource(readFileSync(new URL('../../src/components/student/StudentAssignmentResult.jsx', import.meta.url), 'utf8'));
+  const block = region(page, '{Array.isArray(changes) && changes.length > 0 && (', '</section>');
+  assert.match(block, /\{item\.reasonText \? <span[^>]*>Reason: \{item\.reasonText\}<\/span> : null\}/);
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /changes=\{whatChangedItems\.filter\(\(item\) => item\.assignmentId === assignmentResultRoute\.assignmentId\)\}/);
 });

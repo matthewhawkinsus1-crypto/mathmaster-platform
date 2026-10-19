@@ -12,6 +12,8 @@ import {
   ACCESS_FUNCTIONS,
   BUILD_INFO_FUNCTION as B,
   DEFAULT_FUNCTIONS_REGION,
+  DEPLOY_FIRST_FUNCTIONS,
+  DEPLOY_LAST_FUNCTIONS,
   RELEASE_TARGETS as T,
   VERIFY_FUNCTIONS,
   assessBuildInfoResponse,
@@ -627,4 +629,104 @@ test('a change to the weekly planner the freeze vendors deploys Functions as wel
   assert.ok(reasons.hosting.includes(plannerFile));
   assert.ok(!reasons.functions.includes('src/App.css'), 'other browser files stay Hosting only');
   assert.deepEqual(unclassified, []);
+});
+
+// --- functions whose place in a release is part of their safety -------------
+// Live Challenge's server sweep (STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md,
+// "Deploy"): the host heartbeat first and alone; the scheduled sweep last and
+// alone, after both checks, and only when the rest of the release is proven.
+
+const [HEARTBEAT] = DEPLOY_FIRST_FUNCTIONS;
+const [SWEEP] = DEPLOY_LAST_FUNCTIONS;
+
+test('the Live Challenge heartbeat ships first and alone, and the sweep last and alone, after both checks', () => {
+  const steps = buildReleasePlan({
+    targets: [T.FUNCTIONS, T.PATH_ADMIN, T.RULES, T.HOSTING],
+    allFunctions: ['advanceLiveChallenge', SWEEP, 'closeLiveChallengeRound', HEARTBEAT, B],
+    groupSize: 8,
+    expectedGitSha: HEAD,
+  });
+  assert.deepEqual(steps.map((step) => step.label), [
+    'functions group 1/3', 'functions group 2/3', `verify ${B}`, 'browser access to callables', 'functions group 3/3', T.PATH_ADMIN, T.RULES, T.HOSTING,
+  ]);
+  assert.deepEqual(steps.filter((step) => step.target === T.FUNCTIONS).map((step) => step.group), [
+    [HEARTBEAT], ['advanceLiveChallenge', 'closeLiveChallengeRound', B], [SWEEP],
+  ]);
+  assert.deepEqual(steps.filter((step) => step.deployFirst).map((step) => step.group), [[HEARTBEAT]]);
+  assert.deepEqual(steps.filter((step) => step.afterChecks).map((step) => step.group), [[SWEEP]]);
+  // The access step judges what browsers call; the sweep is a scheduled function.
+  assert.deepEqual(steps.find((step) => step.target === ACCESS_FUNCTIONS).functions, [HEARTBEAT, 'advanceLiveChallenge', 'closeLiveChallengeRound', B]);
+
+  // Exact names keep the order: asked for alone, the sweep still waits for the checks.
+  const alone = buildReleasePlan({ targets: [], only: [T.FUNCTIONS], allFunctions: [SWEEP, HEARTBEAT, B], functionNames: [SWEEP], expectedGitSha: HEAD });
+  assert.deepEqual(alone.map((step) => step.group || step.target), [[B], VERIFY_FUNCTIONS, ACCESS_FUNCTIONS, [SWEEP]]);
+
+  // The real default codebase exports both, under these names, and plans them this way.
+  const names = listDeployableFunctions().functions.map((fn) => fn.name);
+  assert.ok(names.includes(HEARTBEAT) && names.includes(SWEEP));
+  const fleet = buildReleasePlan({ targets: [T.FUNCTIONS, T.HOSTING], allFunctions: names, expectedGitSha: HEAD });
+  const deploys = fleet.filter((step) => step.target === T.FUNCTIONS);
+  assert.deepEqual(deploys[0].group, [HEARTBEAT]);
+  assert.deepEqual(deploys.at(-1).group, [SWEEP]);
+  assert.equal(fleet.indexOf(deploys.at(-1)), fleet.findIndex((step) => step.target === ACCESS_FUNCTIONS) + 1, 'right after the access step');
+  assert.ok(deploys.at(-2).group.at(-1) === B, 'platformBuildInfo still ships last before the checks');
+});
+
+test('the sweep ships after both checks pass, and Hosting after it', async () => {
+  const order = [];
+  const outcome = await executeReleasePlan({
+    steps: plan([HEARTBEAT, 'a', SWEEP], [T.HOSTING]),
+    runner: async (step) => { order.push(step.group ? `functions:${step.group.join('+')}` : step.target); return { ok: true, output: '' }; },
+    verifyBuildInfo: async (step) => { order.push(`verify:${step.function}`); return serving(HEAD)(); },
+    ensureCallableAccess: async () => { order.push('access'); return reachable(); },
+  });
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(order, [`functions:${HEARTBEAT}`, `functions:a+${B}`, `verify:${B}`, 'access', `functions:${SWEEP}`, T.HOSTING]);
+  assert.deepEqual(outcome.heldFunctions, []);
+  assert.equal(retryCommandFor(outcome), null);
+});
+
+test('the sweep never ships beside a function that did not deploy, and the finishing command ships it', async () => {
+  const deployed = [];
+  const runner = async (step) => {
+    if (step.group?.includes('broken')) return { ok: false, output: 'SyntaxError: Unexpected token )' };
+    deployed.push(...(step.group || [step.target]));
+    return { ok: true, output: '' };
+  };
+  const outcome = await executeReleasePlan({ steps: plan([HEARTBEAT, 'broken', SWEEP], [T.HOSTING]), runner, verifyBuildInfo: serving(HEAD), ensureCallableAccess: reachable });
+  assert.equal(outcome.ok, false);
+  assert.ok(deployed.includes(HEARTBEAT) && !deployed.includes(SWEEP) && !deployed.includes(T.HOSTING));
+  assert.deepEqual(outcome.heldFunctions, [SWEEP]);
+  assert.deepEqual(outcome.stoppedBeforeTargets, [T.HOSTING]);
+  assert.equal(retryCommandFor(outcome),
+    `node scripts/release-firebase.mjs --execute --functions broken,${SWEEP} && node scripts/release-firebase.mjs --execute --only hosting`);
+
+  // Shipping Hosting anyway is about Hosting: the sweep is still held.
+  deployed.length = 0;
+  const anyway = await executeReleasePlan({
+    steps: plan([HEARTBEAT, 'broken', SWEEP], [T.HOSTING]), runner, verifyBuildInfo: serving(HEAD), ensureCallableAccess: reachable, continueAfterFunctionFailure: true,
+  });
+  assert.equal(anyway.ok, false);
+  assert.ok(deployed.includes(T.HOSTING) && !deployed.includes(SWEEP));
+  assert.deepEqual(anyway.heldFunctions, [SWEEP]);
+});
+
+test('the sweep is held when the functions serve another commit, or a browser cannot reach a callable', async () => {
+  const ran = (steps) => steps.filter((step) => step.group).flatMap((step) => step.group);
+  for (const [why, checks] of [
+    ['another commit', { verifyBuildInfo: serving(OTHER), ensureCallableAccess: reachable }],
+    ['an unreachable callable', { verifyBuildInfo: serving(HEAD), ensureCallableAccess: async () => ({ ok: false, checked: true, summary: { total: 3, failing: ['a'] }, grants: [], redeploy: [] }) }],
+    ['no access checker at all', { verifyBuildInfo: serving(HEAD) }],
+  ]) {
+    const deployed = [];
+    const outcome = await executeReleasePlan({
+      steps: plan([HEARTBEAT, 'a', SWEEP], [T.HOSTING]),
+      runner: async (step) => { deployed.push(step); return { ok: true, output: '' }; },
+      ...checks,
+    });
+    assert.equal(outcome.ok, false, why);
+    assert.ok(!ran(deployed).includes(SWEEP), `${why}: the sweep is not deployed`);
+    assert.deepEqual(outcome.heldFunctions, [SWEEP], why);
+    assert.ok(retryCommandFor(outcome).includes(SWEEP), `${why}: the finishing command ships it`);
+  }
 });

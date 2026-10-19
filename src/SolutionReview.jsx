@@ -415,7 +415,7 @@ export const legacySolutionReviewContent = (question) => {
  * intro line promises another problem only when one can be requested
  * (`allowReplacement`).
  */
-export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false }) {
+export default function SolutionReview({ question, incorrectParts = [], embedded = false, allowReplacement = false, hideAnswerDetails = false }) {
   const content = legacySolutionReviewContent(question);
   // Nothing to show: no frame, no "Compare your work with the solution."
   if (!content || !content.hasContent) return null;
@@ -438,8 +438,8 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
       {!embedded && (
         <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
           {allowReplacement
-            ? 'This question is closed. Review the solution, then you can request a new question at the same difficulty.'
-            : 'This question is closed. Compare your work with the solution.'}
+            ? 'Review the solution, then you can request a new question at the same difficulty.'
+            : 'Compare your work with the solution.'}
         </p>
       )}
       {workflowSolution?.entries?.length > 0 && (
@@ -498,7 +498,9 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
           })}
         </div>
       )}
-      {completeAnswerDetails.length > 0 && (
+      {/* `hideAnswerDetails`: the panel already lists each part, with what
+          the student wrote beside it (SolutionReviewPanel, HELP-11). */}
+      {!hideAnswerDetails && completeAnswerDetails.length > 0 && (
         <div style={{ display: 'grid', gap: '7px', marginBottom: '14px' }}>
           {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>{item}</div>)}
         </div>

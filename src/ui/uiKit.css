@@ -15,13 +15,25 @@
 .mm-toast-viewport {
   position: fixed;
   z-index: 20000;
-  bottom: max(18px, env(safe-area-inset-bottom));
+  /* Above the sticky Submit / Next bar when one is on screen (its height is
+     published as --mm-action-bar-height), never over it (student pass 3). */
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--mm-action-bar-height, 0px));
   right: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: min(420px, calc(100vw - 36px));
   pointer-events: none;
+}
+
+/* A phone's action bar is at the bottom of the screen: toasts sit at the top,
+   under the student identity bar, where they cover no control a student is
+   about to press. */
+@media (max-width: 640px) {
+  .mm-toast-viewport {
+    top: calc(var(--mm-student-identity-stack-offset, 0px) + 8px);
+    bottom: auto;
+  }
 }
 
 .mm-toast {

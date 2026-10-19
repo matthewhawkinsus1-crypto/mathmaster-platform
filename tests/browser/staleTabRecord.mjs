@@ -110,10 +110,13 @@ const runViewport = async (viewport) => {
   // Wait for the outcome, not a clock (review of #463): the closed view and a
   // settled math field, or the 10 s budget.
   await tab2.bringToFront();
-  await tab2.waitForFunction(() => /question complete|correct/i.test(document.body.innerText)
+  // An exit ticket holds its verdict until results open (activityPolicies), so
+  // its closed view is "Response submitted", never "Question complete" or ✓.
+  await tab2.waitForFunction(() => /Response submitted/.test(document.body.innerText)
     && document.querySelector('math-field')?.value === '5', null, { timeout: 10000 }).catch(() => {});
   const tab2Text = await bodyText(tab2);
-  check(/question complete|correct/i.test(tab2Text), `[${tag}] tab 2 shows the question closed`);
+  check(/Response submitted/.test(tab2Text), `[${tag}] tab 2 shows the question closed`);
+  check(!/Question complete|✓\s*correct/i.test(tab2Text), `[${tag}] tab 2's closed view keeps the exit ticket's verdict held`);
   check(await value(tab2) === '5', `[${tag}] tab 2's closed view shows the RECORDED answer, 5`, await value(tab2));
   check(await value(tab2) !== '7', `[${tag}] tab 2 no longer shows its unsubmitted 7 under the verdict`, await value(tab2));
 

@@ -36,6 +36,8 @@ const QUESTIONS = [
   Object.freeze({ questionId: 'st-q5-substituted', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '2 * x + 1 * (-4 * x + 12) = 2', solveFor: 'x' }),
   Object.freeze({ questionId: 'st-q6-unit-products', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '2 * x + (1) * (-4 * x) + (1) * (12) = 2', solveFor: 'x' }),
   Object.freeze({ questionId: 'st-q7-subtracted', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '3 * x - 1 * (-4 * x + 12) = 4', solveFor: 'x' }),
+  // Pass 3 Q-13 / Q-31: ÷ −2 shows (−10)/(−2), and −2x has no gap.
+  Object.freeze({ questionId: 'st-q8-divide-negative', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '-2x = -10', solveFor: 'x' }),
 ];
 
 const params = new URLSearchParams(window.location.search);

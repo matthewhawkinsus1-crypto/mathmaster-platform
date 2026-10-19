@@ -55,15 +55,16 @@ const SCENES = [
     name: 'assignmentsCenterClosed',
     as: 'assignmentsCenterPracticeTab',
     clickText: 'Closed — try again ·',
-    mustContain: ['Try it again — no credit', 'View Results'],
+    mustContain: ['Try it again — no credit', 'See results'],
     mustReach: ['Try it again — no credit'],
   },
-  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home', 'Assignments'] },
+  // One way back (NAV-20): the shared nav's Home, on every size; no second "← Home" under it.
+  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'See results'], mustNotContain: ['← Home'], mustReach: ['Home', 'Assignments'] },
   // A closed row offers its no-credit re-try, never a bare "Practice".
-  { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustReach: ['← Home', 'Try it again — no credit'] },
+  { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods'], mustNotContain: ['← Home'], mustReach: ['Home', 'Try it again — no credit'] },
   // The Classroom receipt is said plainly: never the sync's "checkpoint" or
   // "teacher draft" vocabulary.
-  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL', 'Google Classroom shows 84%'], mustNotContain: ['checkpoint', 'teacher draft'], mustReach: ['View All Grades', 'Try DOL again — no credit', '← Assignments'] },
+  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL', 'Google Classroom shows 84%'], mustNotContain: ['checkpoint', 'teacher draft'], mustReach: ['View All Grades', 'Try these DOL questions again — no credit', '← Assignments'] },
   { name: 'assignmentResultOpen', mustContain: ['Your grade'], mustReach: ['View All Grades'] },
 ];
 

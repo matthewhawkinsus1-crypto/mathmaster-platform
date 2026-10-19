@@ -150,10 +150,76 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   assert.match(app, /import \{[^}]*\bdescribeDraftSaveProblems\b[^}]*\bdraftSaveProblemsFor\b[^}]*\bsubscribeDraftSaveHealth\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/,
     'imported next to its use');
   assert.match(app, /useEffect\(\(\) => subscribeDraftSaveHealth\(\(\) => setDraftSaveHealthVersion\(\(value\) => value \+ 1\)\), \[\]\);/);
-  const notice = region(app, '{!preview && draftSaveHealthVersion >= 0 && (() => {', '})()}');
-  assert.match(notice, /describeDraftSaveProblems\(draftSaveProblemsFor\(\{ studentId: user\?\.id, assignmentId: activeAssignmentId \}\)\)/);
-  assert.match(notice, /<p role="alert" data-draft-save-problem=\{problem\.kind\}[^>]*>\s*\{problem\.text\}\s*<\/p>/);
+  // The problem is read once per render (re-read on every health change) and
+  // shared by the notice and the save line (saveLineIsAboutDrafts, below).
+  const problem = region(app, 'const studentDraftSaveProblem = ', ';\n');
+  assert.match(problem, /= draftSaveHealthVersion >= 0\s*\? describeDraftSaveProblems\(draftSaveProblemsFor\(\{ studentId: user\?\.id, assignmentId: activeAssignmentId \}\)\)\s*: null$/);
+  const notice = region(app, '{!preview && studentDraftSaveProblem && (', '</p>');
+  assert.match(notice, /<p role="alert" data-draft-save-problem=\{studentDraftSaveProblem\.kind\}[^>]*>\s*\{studentDraftSaveProblem\.text\}\s*$/);
   // Not gated on the outbox status: a draft can fail while nothing is queued.
   assert.doesNotMatch(notice, /studentPersistenceStatus/);
+  assert.doesNotMatch(problem, /studentPersistenceStatus/);
   assert.match(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/, 'a shared Chromebook\'s next student starts clean');
+});
+
+/*
+ * BATCH 3 INTO PASS 3: THE SAVE LINES AGREE WITH THE NOTICE.
+ *
+ * Session B's line under a question says "Draft saved on this device" about
+ * the student's progress in the device queue; Home says "All work saved".
+ * Beside the notice above ("Your work is not being saved on this device") a
+ * student read both at once. The notice is the honest one: while it stands, a
+ * line about drafts is not shown, and Home says the work needs attention.
+ */
+test('while a draft is not being saved, no line says drafts are saved', async () => {
+  const { saveLineIsAboutDrafts, describeSaveStatus, initialSaveSubject, nextSaveSubject } = await import('../../src/platform/student/saveStatusModel.js');
+  const draft = initialSaveSubject();
+  const answer = nextSaveSubject(draft, { type: 'answer-sent' });
+  const recordedAnswer = nextSaveSubject(answer, { type: 'status', status: 'durable' });
+  for (const status of ['capturing', 'queued', 'syncing', 'durable', 'submitted']) {
+    assert.equal(saveLineIsAboutDrafts({ persistenceStatus: status, subject: draft }), true, `${status}: a draft line`);
+  }
+  for (const status of ['capturing', 'queued', 'syncing']) {
+    assert.equal(saveLineIsAboutDrafts({ persistenceStatus: status, subject: answer }), false, `${status}: an answer on its way stays`);
+  }
+  for (const status of ['durable', 'submitted']) {
+    assert.equal(saveLineIsAboutDrafts({ persistenceStatus: status, subject: recordedAnswer }), false, `${status}: "Answer recorded" stays`);
+  }
+  assert.equal(saveLineIsAboutDrafts({ persistenceStatus: 'queued', subject: draft, pendingGradeCount: 1 }), false, 'answers still owed are answers');
+  for (const status of ['idle', 'offline', 'needs-review', 'rejected', 'volatile']) {
+    assert.equal(saveLineIsAboutDrafts({ persistenceStatus: status, subject: draft }), false, `${status} asks something of the student and stays`);
+  }
+
+  // Home: never "All work saved" while a draft is not being saved.
+  assert.equal(describeSaveStatus({ persistenceStatus: 'submitted', draftsUnsaved: true }).tone, 'attention');
+  assert.equal(describeSaveStatus({ persistenceStatus: 'idle', draftsUnsaved: true }).tone, 'attention');
+  assert.equal(describeSaveStatus({ persistenceStatus: 'offline', draftsUnsaved: true }).tone, 'attention', 'not "saved on this device" either');
+  assert.match(describeSaveStatus({ persistenceStatus: 'rejected', draftsUnsaved: true }).text, /assignment has closed/, 'the closed assignment keeps its own words');
+  assert.equal(describeSaveStatus({ persistenceStatus: 'submitted' }).tone, 'saved');
+});
+
+test('Home reads one student\'s problems on any assignment', async () => {
+  const health = await import('../../src/platform/persistence/draftSaveHealth.js');
+  health.clearDraftSaveProblems();
+  health.reportDraftSaveProblem(health.DRAFT_SAVE_PROBLEM.DEVICE_FULL, 'mathmaster:draft:v2::s1:a2:q:0');
+  assert.equal(health.draftSaveProblemsForStudent('s1')['device-full'], 1);
+  health.reportDraftSaveProblem(health.DRAFT_SAVE_PROBLEM.BACKUP_FULL, 'mathmaster:draft:v2::s10:a1:q:0');
+  assert.equal(health.draftSaveProblemsForStudent('s1')['backup-full'], 0, 'student s10 is not student s1');
+  assert.equal(health.draftSaveProblemsForStudent('s10')['backup-full'], 1);
+  assert.equal(health.draftSaveProblemsForStudent('s2')['device-full'], 0);
+  assert.equal(health.draftSaveProblemsForStudent('')['device-full'], 0);
+  health.clearDraftSaveProblems();
+});
+
+test('App: the save line gives way to the notice, and Home is told', () => {
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /import \{[^}]*\bsaveLineIsAboutDrafts\b[^}]*\} from '\.\/platform\/student\/saveStatusModel\.js';/);
+  assert.match(app, /import \{[^}]*\bdraftSaveProblemsForStudent\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/);
+  const shown = region(app, 'const studentSaveLineShown = ', ';\n');
+  assert.match(shown, /^const studentSaveLineShown = studentPersistenceStatus !== 'idle'\s*&& !\(studentDraftSaveProblem && saveLineIsAboutDrafts\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount \}\)\)$/);
+  assert.match(app, /\{!preview && studentSaveLineShown && \(\s*<p data-save-line=""/);
+  // Home and the pack-up line read one save status (NAV-24 review B2).
+  assert.match(app, /saveStatus=\{studentSaveStatusNow\(\)\}/);
+  const home = region(app, 'const studentSaveStatusNow = () => describeSaveStatus({', '});');
+  assert.match(home, /draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean\(describeDraftSaveProblems\(draftSaveProblemsForStudent\(user\?\.id\)\)\)/);
 });

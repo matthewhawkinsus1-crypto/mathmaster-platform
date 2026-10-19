@@ -37,7 +37,7 @@ test('Step Algebra exposes optional simplification and a non-attempt-reset actio
   const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /Keep as written/);
   assert.match(source, /Reset work/);
-  assert.match(source, /attempt count will not change/);
+  assert.match(source, /your tries will not change/);
   assert.match(source, /setEquation\(pristineEquation\)/);
   assert.match(source, /resolution: 'keep'/);
   assert.match(source, /resolution: 'simplified'/);

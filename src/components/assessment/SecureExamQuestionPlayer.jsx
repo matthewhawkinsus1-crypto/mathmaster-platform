@@ -31,6 +31,9 @@ export const SecureExamQuestionPlayer = ({
   // as they work, nothing is recorded per item, and the item has no
   // "record & continue" button (RichQuestionRuntime, NAVIGATION MODE).
   navigationMode = false,
+  // The exam toolbar has this item's calculator (secureExamTools.js
+  // graphingCalculator): the item draws none of its own (H-19).
+  calculatorInToolbar = false,
   onSubmit,
   onDraftChange,
 }) => (
@@ -48,6 +51,7 @@ export const SecureExamQuestionPlayer = ({
     studentSupportProfile={studentSupportProfile}
     executionScope={executionScope}
     navigationMode={navigationMode}
+    calculatorInToolbar={calculatorInToolbar}
     onSubmit={onSubmit}
     onDraftChange={onDraftChange}
   />

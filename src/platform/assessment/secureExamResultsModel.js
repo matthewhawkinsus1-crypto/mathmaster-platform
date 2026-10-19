@@ -158,7 +158,10 @@ export const notReachedNote = (review) => {
  * already carries `$…$` delimiters is MathText's to split.
  * ------------------------------------------------------------------------- */
 
-const LATEX_MARKUP = /\\[A-Za-z]+|\\[{}]|[\^_]\{/;
+// `\%` and `\$` too: the editor's percent and dollar signs (a field naming
+// them uses the editor since H-13), which typed text would show with their
+// backslashes.
+const LATEX_MARKUP = /\\[A-Za-z]+|\\[{}%$]|[\^_]\{/;
 const UNESCAPED_DOLLAR = /(^|[^\\])\$/;
 
 export const answerIsLatex = (value) => {

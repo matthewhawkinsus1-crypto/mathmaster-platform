@@ -2,6 +2,7 @@ import React from 'react';
 import MathText from '../common/MathText.jsx';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane.jsx';
 import { feasibleRegionPolygon } from '../../tools/systemsWorkspace/systemsMath.js';
+import { boundaryDash } from '../../platform/graph/verticalLineStyle.js';
 
 // The material a Path question gives the student to work FROM.
 //
@@ -111,12 +112,16 @@ function StimulusGraph({ graph, describeFeatures = null }) {
     .map((line, index) => (!line || line.vertical ? null : ({
       m:line.m,
       b:line.b,
-      dash:String(line.entry?.boundaryStyle || '') === 'dashed' ? '10 6' : undefined,
+      dash:boundaryDash({ boundaryStyle:line.entry?.boundaryStyle }),
       stroke:line.entry?.stroke,
       label:line.entry?.label || `Line ${index + 1}`,
     })))
     .filter(Boolean);
-  const verticalLines = resolvedLines.filter((line) => line?.vertical).map((line) => line.x);
+  // An authored vertical line is a boundary like any other line here, so it
+  // keeps its style: x = 5 of x ≤ 5 is solid, as the key and the legend say.
+  const verticalLines = resolvedLines
+    .filter((line) => line?.vertical)
+    .map((line) => ({ x:line.x, boundaryStyle:line.entry?.boundaryStyle, stroke:line.entry?.stroke }));
   const points = (Array.isArray(graph.points) ? graph.points : [])
     .map(graphPoint)
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
@@ -251,7 +256,12 @@ function LabelledItems({ items }) {
   );
 }
 
-export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
+// `headingLevel`: the title's level on the page it sits in — 2 under a Path
+// question's h1, 4 under a Test result's h3 (SecureExamReview). A panel's
+// title is one deeper than its parent's.
+const titleTag = (level) => `h${Math.min(6, Math.max(2, Number(level) || 2))}`;
+
+export const PathQuestionStimulus = ({ stimulus, describeFeatures = null, headingLevel = 2 }) => {
   if (!stimulus) return null;
   const hasContent = Boolean(
     stimulus.graph
@@ -264,6 +274,7 @@ export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
     || stimulus.panels?.length,
   );
   if (!hasContent) return null;
+  const Title = titleTag(headingLevel);
 
   return (
     <section style={shell} aria-label={stimulus.title || 'Question information'}>
@@ -271,8 +282,8 @@ export const PathQuestionStimulus = ({ stimulus, describeFeatures = null }) => {
           "Candidate check for $\sqrt{x+1}=x-(-1)$" is a stimulus title in the
           Algebra II bank — so the heading gets the same rendering the rest of
           this component already gave its content. */}
-      {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
-      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} />)}
+      {stimulus.title && <Title style={titleStyle}><MathText>{stimulus.title}</MathText></Title>}
+      {(stimulus.panels || []).map((panel, index) => <PathQuestionStimulus key={index} stimulus={panel} describeFeatures={describeFeatures} headingLevel={Math.min(6, headingLevel + 1)} />)}
       <StimulusGraph graph={stimulus.graph} describeFeatures={describeFeatures} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />

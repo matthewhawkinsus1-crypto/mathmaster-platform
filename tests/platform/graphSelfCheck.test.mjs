@@ -29,15 +29,25 @@ test('a plotted point is measured against the function it was meant to land on',
   assert.equal(report.checked, 2);
   assert.equal(report.results[0].correct, true);
   assert.equal(report.results[1].correct, false);
-  assert.equal(report.results[1].text, '2 units above the function');
+  // Which way, and what to work out — never by how much (HELP-22).
+  assert.equal(report.results[1].text, 'too high — find f(2) and compare');
+  assert.equal(report.results[1].direction, 'high');
   assert.equal(report.allOnFunction, false);
 });
 
-test('the miss is described in the student own direction and units', () => {
-  assert.equal(describeVerticalMiss(3, 5).text, '2 units below the function');
-  assert.equal(describeVerticalMiss(7, 5).text, '2 units above the function');
-  assert.equal(describeVerticalMiss(4, 5).text, '1 unit below the function');
+test('the miss says too high or too low and sends the student to the rule, never the distance (HELP-22)', () => {
+  // "(3, 4) — 2 units below the function" was the correction itself: the
+  // student moved the point up 2 and learned nothing about f(3).
+  assert.equal(describeVerticalMiss(3, 5, { x: 3 }).text, 'too low — find f(3) and compare');
+  assert.equal(describeVerticalMiss(7, 5, { x: 3 }).text, 'too high — find f(3) and compare');
+  assert.equal(describeVerticalMiss(7, 5, { x: -1.5, name: 'g' }).text, 'too high — find g(−1.5) and compare');
+  assert.equal(describeVerticalMiss(4, 5).text, 'too low', 'no x, no rule to name');
   assert.equal(describeVerticalMiss(5, 5).correct, true);
+  [[3, 5], [7, 5], [4.5, 5], [-10, 5]].forEach(([plotted, real]) => {
+    assert.doesNotMatch(describeVerticalMiss(plotted, real, { x: 3 }).text, /unit|above|below|\d+(?:\.\d+)? /, 'no distance');
+  });
+  const report = checkPlottedPoints({ placements: { c: [3, 4] }, tasks, evaluate: line });
+  assert.equal(report.results[0].delta, undefined, 'the distance is not carried to the screen');
 });
 
 test('a point the student has not placed is not called wrong', () => {
@@ -111,7 +121,11 @@ test('a DOL cannot carry the self-check, however the question is authored', () =
   // switch it on for an exit ticket, and a bank question carried into a DOL
   // loses it automatically.
   const engine = codeOf('src/QuestionEngine.jsx');
-  assert.match(engine, /const selfCheckAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false && !locked;/);
+  // The same gates as the hint ladder: hints allowed, no server-graded host,
+  // a recognised role (an unknown role fails closed), and the item open.
+  assert.match(engine, /const selfCheckAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false && !serverGrading && ladderRoleKnown && !locked;/);
+  assert.match(engine, /const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;/);
+  assert.match(engine, /const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
   assert.doesNotMatch(engine, /question\.\w*[Ss]elfCheck/);
 
   const workspace = codeOf('src/InteractiveGraphWorkspace.jsx');
@@ -196,4 +210,36 @@ test('the self-check control clears the Chromebook touch minimum', () => {
   const source = codeOf('src/InteractiveGraphWorkspace.jsx');
   const block = source.slice(source.indexOf('onClick={runSelfCheck}'));
   assert.match(block.slice(0, 420), /minHeight: 44/);
+});
+
+test('"Check Point Placements" stays free; which way a point is off is an opt-in, charged only on that press (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const check = region(source, 'const checkPoints = () => {', 'const beginDrawing', 'checkPoints');
+  // The commit check never builds a direction report and never charges.
+  assert.doesNotMatch(check, /onSelfCheck|selfCheckReportFor|setSelfCheckReport/);
+  assert.match(check, /setPointMissShown\(!correct\);/);
+  // The opt-in runs the self-check, which is what charges.
+  const run = region(source, 'const runSelfCheck = () => {', '};', 'runSelfCheck');
+  assert.match(run, /if \(report\.checked > 0\) onSelfCheck\?\.\(report\);/);
+  const offer = region(source, '{selfCheckAllowed && !construction.pointsValidated && Object.keys(construction.placements).length > 0', '</button>', 'the opt-in');
+  assert.match(offer, /&& \(outcomesWithheld \|\| Object\.keys\(construction\.placements\)\.length < tasks\.length \|\| pointMissShown\) && \(/, 'offered where withheld, on a partial plot, or after a miss');
+  assert.match(offer, /onClick=\{runSelfCheck\}/);
+  assert.match(offer, /\{outcomesWithheld \? 'Check my points' : 'Which way is each point off\?'\}/);
+  assert.equal((source.match(/onClick=\{runSelfCheck\}/g) || []).length, 1, 'one self-check control');
+  // A point that moves takes the miss (and its offer) away with it.
+  assert.match(region(source, 'const placeTask = ', 'const nearestEndpoint', 'placeTask'), /setPointMissShown\(false\);/);
+});
+
+test('where outcomes are shown the report lists only the points that are off (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const report = region(source, '{selfCheckReport && !construction.pointsValidated && (', '</ul>', 'the report');
+  assert.match(report, /selfCheckReport\.results\.filter\(\(entry\) => outcomesWithheld \|\| !entry\.correct\)\.map/);
+});
+
+test('the check and its report are body-size text, not 11-12px (HELP-22)', () => {
+  const source = codeOf('src/InteractiveGraphWorkspace.jsx');
+  const report = region(source, '{selfCheckReport && !construction.pointsValidated && (', '</ul>', 'the report');
+  assert.match(report, /fontSize: 'calc\(16 \* var\(--mm-px\)\)'/);
+  assert.doesNotMatch(report, /calc\(1[12](?:\.5)? \* var/);
+  (source.match(/<span[^>]*data-hint-cost-note=""[^>]*>/g) || []).forEach((note) => assert.match(note, /calc\(16 \* var\(--mm-px\)\)/));
 });

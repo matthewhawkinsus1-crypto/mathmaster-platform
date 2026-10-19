@@ -63,8 +63,10 @@ test('the checked-in baseline holds the measured split, and CI checks it after t
   assert.ok(baseline.paths.signIn.bytes > 0 && baseline.paths.studentHome.bytes > 0);
   // The point of the shell: the sign-in screen is a fraction of the app. Measured
   // 1,406 KB gzip for both before src/app/shell/AppShell.jsx; ~288 KB after.
+  // Home itself shrank to ~847 KB when mathjs left the first load (pass 3 W5-1),
+  // so the sign-in screen is now about a third of it, not less.
   assert.ok(baseline.paths.signIn.bytes < 400 * 1024, `sign-in baseline ${baseline.paths.signIn.bytes} B — the app is back on the sign-in path`);
-  assert.ok(baseline.paths.signIn.bytes * 3 < baseline.paths.studentHome.bytes);
+  assert.ok(baseline.paths.signIn.bytes * 2 < baseline.paths.studentHome.bytes);
   const workflow = readFileSync(new URL('../../.github/workflows/full-platform-suite.yml', import.meta.url), 'utf8');
   const build = workflow.indexOf('run: npm run build\n');
   const budget = workflow.indexOf('run: node scripts/check-first-load-budget.mjs');

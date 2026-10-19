@@ -1,8 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../common/MathText.jsx';
 import StandardBadge from '../common/StandardBadge.jsx';
-import PathSolutionReview from '../student/PathSolutionReview.jsx';
+import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
+import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
+import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
+import { speechAvailable } from '../../platform/language/speechText.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { getStudentSecureExamReview } from '../../services/secureExamService.js';
 import { describeToolWork, rawToolWorkOf, toolWorkLabel } from '../../platform/assessment/secureToolWorkSummary.js';
@@ -151,12 +155,22 @@ const REVIEW_RECHECK_MS = 30000;
 // taken back), as opposed to a network failure, which leaves the review as it is.
 const reviewRefused = (error) => /failed-precondition|permission-denied|not-found/.test(String(error?.code || ''));
 
-export default function SecureExamReview({ examSessionId, onBack, onPracticeSkill = null, skillLabels = null, backLabel = 'Back to Tests & Exams' }) {
+/*
+ * `studentSupportProfile` is the student's OWN profile (not the flattened
+ * assessment one): Read aloud and Translate beside a released worked solution
+ * follow their plan for a test, as the test's own items did
+ * (secureItemAccess.js). Nothing else on this screen reads it.
+ */
+export default function SecureExamReview({ examSessionId, onBack, onPracticeSkill = null, skillLabels = null, backLabel = 'Back to Tests & Exams', studentSupportProfile = null }) {
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const headingRef = useRef(null);
   const released = !loading && !error && reviewIsReleased(review);
+  const solutionSupports = useMemo(
+    () => workedSolutionSupports(secureAccessEntitlement(studentSupportProfile), { speechReady: speechAvailable() }),
+    [studentSupportProfile],
+  );
 
   useEffect(() => {
     let active = true;
@@ -279,6 +293,20 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
                 ) : (
                   <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)' }}>The question itself was not saved for this older test, but its result and skill still are.</p>
                 )}
+                {/* The question's own figure — graph, table, pairs — as the
+                    student saw it on the test (the snapshot carries the
+                    sanitized stimulus and formula), so a graph question's
+                    review is not a prompt about a picture that is missing. */}
+                {item.questionSnapshot?.formulaLatex && (
+                  <div data-result-figure="formula" style={{ marginTop: 10, padding: 12, borderRadius: 9, background: 'var(--mm-surface-sunken)', overflowX: 'auto' }}>
+                    <MathDisplay value={item.questionSnapshot.formulaLatex} />
+                  </div>
+                )}
+                {item.questionSnapshot?.stimulus && (
+                  <div data-result-figure="stimulus" style={{ minWidth: 0 }}>
+                    <PathQuestionStimulus stimulus={item.questionSnapshot.stimulus} headingLevel={4} />
+                  </div>
+                )}
 
                 <div data-result-block="yours" style={answerBox}>
                   <span style={blockLabel}>Your answer</span>
@@ -292,8 +320,20 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
                   </div>
                 )}
 
+                {/* The one worked-solution panel, given only the released
+                    review: Read aloud and Translate for a student entitled
+                    to them, its heading under this "Question N" (h3). */}
                 {result.workedSolution
-                  ? <PathSolutionReview review={result.workedSolution} wasCorrect={result.status === RESULT_STATUS.CORRECT} />
+                  ? (
+                    <SolutionReviewPanel
+                      question={{ solutionReview: result.workedSolution }}
+                      wasCorrect={result.status === RESULT_STATUS.CORRECT}
+                      headingLevel={4}
+                      showIntro={false}
+                      readAloud={solutionSupports.readAloud}
+                      translation={solutionSupports.translation}
+                    />
+                  )
                   : <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>{result.solutionNote}</p>}
 
                 {code && <StandardBadge code={code} framework={framework} domainId={item.assessmentDomainId || null} examStyle style={{ marginTop: 13 }} />}
