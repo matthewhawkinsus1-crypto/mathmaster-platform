@@ -15,66 +15,9 @@ import {
   runOrderedPairTextKeysReport,
 } from '../../scripts/report-ordered-pair-text-keys.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { readOnlyStore } from './helpers/readOnlyFirestore.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-
-const WRITE_METHODS = new Set(['set', 'update', 'delete', 'create', 'add', 'batch', 'runTransaction', 'bulkWriter', 'recursiveDelete', 'bundle']);
-
-/** An in-memory Firestore that refuses every write and applies field masks as Firestore does. */
-export const readOnlyStore = (documents) => {
-  const attempts = [];
-  const guard = (target, label) => new Proxy(target, {
-    get(object, property) {
-      if (WRITE_METHODS.has(property)) {
-        return () => { attempts.push(`${label}.${String(property)}`); throw new Error(`write refused: ${label}.${String(property)}`); };
-      }
-      return object[property];
-    },
-  });
-  const masked = (data, fields) => {
-    if (!fields) return structuredClone(data);
-    const out = {};
-    fields.forEach((field) => {
-      const parts = field.split('.');
-      let source = data;
-      for (const part of parts) source = source?.[part];
-      if (source === undefined) return;
-      let target = out;
-      parts.slice(0, -1).forEach((part) => { target[part] ??= {}; target = target[part]; });
-      target[parts.at(-1)] = structuredClone(source);
-    });
-    return out;
-  };
-  const reads = [];
-  const masks = [];
-  const snapshot = (docPath, fields = null) => {
-    const data = documents.get(docPath);
-    return { id: docPath.split('/').at(-1), exists: data !== undefined, ref: { path: docPath }, data: () => (data === undefined ? undefined : masked(data, fields)) };
-  };
-  const query = (collectionPath, state = { limit: Infinity, after: null, fields: null }) => guard({
-    orderBy: () => query(collectionPath, state),
-    select: (...fields) => { masks.push(fields); return query(collectionPath, { ...state, fields }); },
-    limit: (count) => query(collectionPath, { ...state, limit: count }),
-    startAfter: (doc) => query(collectionPath, { ...state, after: doc }),
-    get: async () => {
-      reads.push(collectionPath);
-      let rows = [...documents.keys()].filter((key) => key.startsWith(`${collectionPath}/`) && !key.slice(collectionPath.length + 1).includes('/')).sort();
-      if (state.after) rows = rows.slice(rows.indexOf(state.after.ref.path) + 1);
-      return { docs: rows.slice(0, state.limit).map((key) => snapshot(key, state.fields)) };
-    },
-  }, `query(${collectionPath})`);
-  const docRef = (docPath) => guard({ id: docPath.split('/').at(-1), path: docPath, get: async () => snapshot(docPath) }, `doc(${docPath})`);
-  const db = guard({
-    collection: (name) => guard({ ...query(name), doc: (id) => docRef(`${name}/${id}`) }, `collection(${name})`),
-    getAll: async (...args) => {
-      reads.push('getAll');
-      const options = args.at(-1)?.fieldMask ? args.pop() : {};
-      if (options.fieldMask) masks.push(options.fieldMask);
-      return args.map((ref) => snapshot(ref.path, options.fieldMask || null));
-    },
-  }, 'db');
-  return { db, attempts, reads, masks };
-};
 
 const seeded = () => {
   const docs = new Map();
@@ -127,7 +70,7 @@ test('the report counts text pair keys in sections, variants and legacy lists; r
   ]);
   assert.deepEqual(attempts, []);
   assert.ok(reads.every((name) => name === 'assignments'), reads.join());
-  assert.ok(masks.length && masks.every((fields) => JSON.stringify(fields) === JSON.stringify(ASSIGNMENT_FIELDS)));
+  assert.ok(masks.length && masks.every(([, fields]) => JSON.stringify(fields) === JSON.stringify(ASSIGNMENT_FIELDS)));
   assert.doesNotMatch(JSON.stringify(report), /per-student-secret|never read/);
   const named = await runOrderedPairTextKeysReport({ db, assignmentIds: ['C-legacy', 'gone'] });
   assert.deepEqual(named.missingAssignments, ['gone']);
@@ -144,4 +87,105 @@ test('the script has no write mode, no Firestore write call, and writes only und
   assert.match(readFileSync(path.join(repo, '.gitignore'), 'utf8'), /^release-reports$/m);
   assert.throws(() => parseReportArgs(['--project', 'p', '--execute']), /no write mode/);
   assert.throws(() => parseReportArgs(['--assignment', 'a']), /--project is required/);
+});
+
+// --- recorded answers whose verdict would change -----------------------------
+
+const { runGraderGaps2RegradeReport, parseReportArgs: parseRegradeArgs, wave7Rule, EVIDENCE_FIELDS } = await import('../../scripts/report-grader-gaps-2-regrade.mjs');
+const { createRequire } = await import('node:module');
+const functionsRequire = createRequire(new URL('../../functions/package.json', import.meta.url));
+const mathPath = functionsRequire('./lib/mathPath.js');
+const { storableItem } = functionsRequire('./lib/secureItemStorage.js');
+
+const evidenceDoc = (response, isCorrect, extra = {}) => ({ evidence: { submittedResponse: response, automaticResult: { graded: true, isCorrect }, submittedAt: '2026-10-01T12:00:00Z', ...extra } });
+const fieldsResponse = (values) => ({ kind: 'fields', type: 'multiAnswer', value: '', fields: Object.entries(values).map(([id, value]) => ({ id, value, isComplete: true })) });
+const scalarResponse = (value) => ({ kind: 'scalar', type: 'orderedPair', value, fields: [] });
+
+const regradeSeed = () => {
+  const docs = new Map();
+  docs.set('assignments/A1', {
+    schemaVersion: 5,
+    studentOverrides: { S1: 'per-student-secret' },
+    sections: [{ role: 'practice', questions: [
+      { type: 'multiAnswer', questionId: 'q0', answerFields: [{ id: 'v', label: 'Value', answer: '7/2', inputProfile: 'number' }] },
+      { type: 'multiAnswer', questionId: 'q1', answerFields: [{ id: 'v', label: 'Value', answer: '1.5', inputProfile: 'number' }] },
+      { type: 'orderedPair', questionId: 'q2', prompt: 'Where?', answer: '(2,3)' },
+      { type: 'multiAnswer', questionId: 'q3', answerFields: [{ id: 'v', label: 'Value', answer: '4' }] },
+      // A family slot's key is drawn per student: the stored template is not it.
+      { type: 'multiAnswer', questionId: 'q4', questionFamily: { id: 'fam' }, answerFields: [{ id: 'v', label: 'Value', answer: '5' }] },
+      // A fraction drill draws its sum on the device; an authored one is keyed.
+      { type: 'fraction', questionId: 'q5', prompt: 'Add.' },
+      { type: 'fraction', questionId: 'q6', prompt: 'Simplify 14/4.', answer: '7/2' },
+    ] }],
+  });
+  docs.set('grades/S1', { displayName: 'never read' });
+  docs.set('grades/S1/responseInspectionEvidence/A1__q0', evidenceDoc(fieldsResponse({ v: '3\\frac{1}{2}' }), false));
+  docs.set('grades/S1/responseInspectionEvidence/A1__q1', evidenceDoc(fieldsResponse({ v: '3\\frac{1}{2}' }), true));
+  docs.set('grades/S1/responseInspectionEvidence/A1__q2', evidenceDoc(scalarResponse('(2,3)'), false));
+  docs.set('grades/S1/responseInspectionEvidence/A1__q3', evidenceDoc(fieldsResponse({ v: '4' }), true));
+  docs.set('grades/S1/responseInspectionEvidence/A1__q4', evidenceDoc(fieldsResponse({ v: '4' }), false));
+  docs.set('grades/S1/responseInspectionEvidence/A1__q5', evidenceDoc({ kind: 'scalar', type: 'fraction', value: '1/2', fields: [] }, false));
+  // Lowest terms keeps its rule: a mixed number stays wrong here.
+  docs.set('grades/S1/responseInspectionEvidence/A1__q6', evidenceDoc({ kind: 'scalar', type: 'fraction', value: '3\\frac{1}{2}', fields: [] }, false));
+  const grading = mathPath.privateGradingDefinition({ responseFields: [{ id: 'answer', inputProfile: 'number', expected: 'sqrt(8)/2' }] });
+  docs.set('examSessions/E1', {
+    studentId: 'S2',
+    responses: {
+      i1: { grading: { isCorrect: false }, responsePayload: { responses: { answer: '\\sqrt{2}' } } },
+      i2: { grading: { isCorrect: false }, responsePayload: { responses: { answer: '1.41' } } },
+      i3: { unanswered: true, grading: { isCorrect: false } },
+    },
+  });
+  docs.set('examSessions/E1/items/i1', { item: storableItem({ questionInstanceId: 'i1', privateGrading: grading }) });
+  docs.set('examSessions/E1/items/i2', { item: storableItem({ questionInstanceId: 'i2', privateGrading: grading }) });
+  const recap = (value, key, isCorrect) => JSON.stringify({ grading: { isCorrect }, response: { kind: 'fields', entries: [{ label: 'Answer', value, format: 'math' }] }, correctAnswer: [{ label: 'Answer', value: key, format: 'rich' }] });
+  docs.set('pathSubmissions/P1', { studentId: 'S3', createdAt: 1, recapJson: recap('\\frac{1}{2}\\pi', 'pi/2', false) });
+  docs.set('pathSubmissions/P2', { studentId: 'S3', createdAt: 2, recapJson: recap('5', '5', true) });
+  docs.set('pathSubmissions/P3', { studentId: 'S3', createdAt: 3 });
+  // A recap whose answer and key do not name the same field cannot be paired.
+  docs.set('pathSubmissions/P4', { studentId: 'S3', createdAt: 4, recapJson: JSON.stringify({ grading: { isCorrect: false }, response: { kind: 'fields', entries: [{ label: 'Slope', value: '2' }] }, correctAnswer: [{ label: 'Answer', value: '2' }] }) });
+  return readOnlyStore(docs);
+};
+
+test('the regrade count: per surface, up and down by the wave-7 rule that explains it; reads masked; never a write', async () => {
+  const { db, attempts, reads, masks } = regradeSeed();
+  const report = await runGraderGaps2RegradeReport({ db, pageSize: 2, now: () => Date.UTC(2026, 9, 19) });
+  assert.equal(report.readOnly, true);
+  const { assignments, secure, path: pathCounts } = report.totals;
+  assert.deepEqual([assignments.read, assignments.regraded, assignments.notRegradable, assignments.unchanged], [7, 5, 2, 2]);
+  assert.equal(assignments.up.mixedNumber, 1, '3½ for 7/2, recorded wrong');
+  assert.equal(assignments.down.mixedNumber, 1, '3½ for 1.5, recorded right: listed, never applied (D8)');
+  assert.equal(assignments.up.textPairKey, 1, '(2,3) for the text key (2,3)');
+  assert.deepEqual([secure.read, secure.regraded, secure.up.exactNumber, secure.unchanged], [2, 2, 1, 1]);
+  assert.deepEqual([pathCounts.read, pathCounts.regraded, pathCounts.notRegradable, pathCounts.up.halfPi, pathCounts.unchanged], [3, 2, 1, 1, 1]);
+  assert.match(report.notCountable.liveChallenge, /no response is stored/);
+  assert.deepEqual(report.changes.map(({ surface, direction, rule }) => `${surface} ${direction} ${rule}`).sort(), [
+    'assignments down mixedNumber', 'assignments up mixedNumber', 'assignments up textPairKey', 'path up halfPi', 'secure up exactNumber',
+  ]);
+  assert.deepEqual(attempts, []);
+  assert.ok(reads.every((name) => ['group:responseInspectionEvidence', 'examSessions', 'pathSubmissions', 'getAll'].includes(name)), reads.join());
+  assert.ok(masks.some(([label, fields]) => label === 'group:responseInspectionEvidence' && JSON.stringify(fields) === JSON.stringify(EVIDENCE_FIELDS)));
+  assert.doesNotMatch(JSON.stringify(report), /per-student-secret|never read/);
+  const onlyPath = await runGraderGaps2RegradeReport({ db, surfaces: ['path'] });
+  assert.deepEqual(onlyPath.surfaces, ['path']);
+});
+
+test('the rule tags read the response and the key, never a guess', () => {
+  assert.equal(wave7Rule({ response: '-3 1/2', key: '-7/2' }), 'mixedNumber');
+  assert.equal(wave7Rule({ response: '\\frac{3}{4}\\pi', key: '3pi/4' }), 'halfPi');
+  assert.equal(wave7Rule({ response: '\\sqrt{2}', key: 'sqrt(8)/2', field: { inputProfile: 'number' } }), 'exactNumber');
+  assert.equal(wave7Rule({ response: '\\sqrt{2}', key: 'sqrt(8)/2', field: { inputProfile: 'expression' } }), 'other');
+  assert.equal(wave7Rule({ response: '(2,3)', key: '(2,3)', question: { type: 'orderedPair', answer: '(2,3)' } }), 'textPairKey');
+});
+
+test('the regrade script has no write mode, no Firestore write call, and writes only under release-reports/', () => {
+  const source = executableSource(readFileSync(path.join(repo, 'scripts/report-grader-gaps-2-regrade.mjs'), 'utf8'))
+    .replace(/\bapp\.delete\(\)/g, 'app-close()')
+    // Not Firestore: the in-memory Map of assignments read once each.
+    .replace(/\bassignments\.set\(/g, 'map-set(');
+  assert.doesNotMatch(source, /\.(set|update|delete|create|add|batch|runTransaction|bulkWriter|recursiveDelete)\(/);
+  assert.doesNotMatch(source, /--execute|--write|--apply|--out\b/);
+  assert.equal((source.match(/writeFileSync\(/g) || []).length, 1, 'one local file write');
+  assert.throws(() => parseRegradeArgs(['--project', 'p', '--execute']), /no write mode/);
+  assert.throws(() => parseRegradeArgs(['--project', 'p', '--surface', 'live']), /--surface must be one of/);
 });

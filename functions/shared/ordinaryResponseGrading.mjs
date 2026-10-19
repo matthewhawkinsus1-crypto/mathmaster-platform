@@ -75,8 +75,12 @@ const hasAnswerKey = (question = {}) => {
       return list(question.acceptedAnswers).length > 0;
     case 'multiAnswer':
       return list(question.answerFields).some((field) => field?.id);
-    case 'orderedPair':
-      return Array.isArray(question.answer || question.solution);
+    case 'orderedPair': {
+      // A key stored as pair text, '(2,3)', is a key too (orderedPairKey,
+      // student pass 3 wave 7): without this the server never marked it.
+      const pair = question.answer || question.solution;
+      return Array.isArray(pair) || Boolean(orderedPairKey(pair));
+    }
     case 'system':
       return Array.isArray(question.solution);
     case 'table':

@@ -23,7 +23,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { sameValue, mixedNumberValue, fieldValueOptions, normalizeAnswer } from '../../functions/shared/answerEquivalence.mjs';
 import { compareOrderedPair, matchesFieldAnswer, orderedPairKey } from '../../functions/shared/answerUtils.mjs';
-import { gradeFractionResponse, gradeOrderedPairResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { gradeFractionResponse, gradeOrderedPairResponse, gradeOrdinaryResponse, serverGradingSupport } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { fractionFormProblemForResponse } from '../../src/platform/interaction/answerShapeGuard.js';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
@@ -213,6 +213,11 @@ test('an orderedPair key written as text is a point: graded right, coordinate by
   // Not a pair: nothing can match it.
   for (const key of ['none', '(x,3)', '(1,2,3)', [2]]) assert.equal(orderedPairKey(key), null, JSON.stringify(key));
   assert.equal(gradeOrderedPairResponse({ answer: 'none' }, '(2,3)').isCorrect, false);
+  // The server marks it too (ingestion and the deadline finalizer): a text
+  // pair is a key, a text that is not a pair is not.
+  assert.deepEqual(serverGradingSupport(question), { supported: true, reason: null });
+  assert.equal(gradeOrdinaryResponse({ question, response: { kind: 'scalar', type: 'orderedPair', value: '(2,3)', fields: [] } }).isCorrect, true);
+  assert.equal(serverGradingSupport({ type: 'orderedPair', prompt: 'Where?', answer: 'none' }).reason, 'no-answer-key');
 });
 
 test('the V5 compile and the JSON import store a text pair key as [x, y]; a key that is not a pair is left for Pre-Flight', () => {
