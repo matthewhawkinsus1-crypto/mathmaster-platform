@@ -16,8 +16,9 @@
  * rule that explains it, or `other` (an earlier wave's change, or a key
  * edited since):
  *
- *   mixedNumber    3\frac{1}{2} or `3 1/2` read as a mixed number (up for 7/2,
- *                  down for 1.5: the product reading is gone);
+ *   mixedNumber    3\frac{1}{2} or `3 1/2` read as a mixed number, in the
+ *                  response or the key (up for 7/2, down for 1.5: the product
+ *                  reading is gone);
  *   halfPi         \frac{1}{2}\pi read as π/2;
  *   exactNumber    a number box keyed with an exact constant, compared by value;
  *   textPairKey    an orderedPair question keyed as text, '(2,3)'.
@@ -91,7 +92,8 @@ const HALF_PI = /\\frac\{?\d+\}?\{?\d+\}?\s*(?:\\pi|π)/;
 /** Which wave-7 rule explains a changed verdict on one response (by its text and the key). */
 export const wave7Rule = ({ response = '', key = '', field = {}, question = {} } = {}) => {
   const typed = String(response ?? '');
-  if (looksLikeMixedNumber(typed)) return 'mixedNumber';
+  // Either side (review S5): a key written `3 1/2` now takes 7/2 and 3.5.
+  if (looksLikeMixedNumber(typed) || looksLikeMixedNumber(key)) return 'mixedNumber';
   if (HALF_PI.test(typed)) return 'halfPi';
   if (clean(question?.type) === 'orderedPair' && typeof (question.answer ?? question.solution) === 'string') return 'textPairKey';
   if (fieldIsNumberBox(field) && asNumber(key) === null && exactConstantValue(normalizeAnswer(key))) return 'exactNumber';

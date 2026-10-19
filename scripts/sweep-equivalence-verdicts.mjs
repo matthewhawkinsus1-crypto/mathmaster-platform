@@ -31,7 +31,11 @@
  * as a near miss (or another option) is now accepted.
  *
  *   git worktree add /tmp/base <base-commit> && ln -s "$PWD/node_modules" /tmp/base/node_modules
- *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong]
+ *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong] [--allow-shallow]
+ *
+ * It reads every committed version of the seed files (the old keys, below),
+ * so it needs the whole history: on a shallow clone it stops (exit 2) unless
+ * --allow-shallow says to read only what the clone holds.
  *
  * Read-only: it writes only the --out file.
  */
@@ -51,7 +55,7 @@ const DRAWS = Math.max(1, Number(argOf('--draws', '3')) || 3);
 const OUT = argOf('--out', null);
 const CHECK_WRONG = process.argv.includes('--check-wrong');
 if (!BASE) {
-  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong]');
+  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong] [--allow-shallow]');
   process.exit(2);
 }
 
@@ -313,7 +317,8 @@ for (const p of [-4, -2, 0, 2, 4]) {
  * THE GRADER GAPS OF STUDENT PASS 3 WAVE 7, outright as wave 6's:
  *
  *   mixed numbers   3\frac{1}{2} and `3 1/2` are 7/2 against a number key,
- *                   the sign covering both parts, and never 3·½;
+ *                   the sign covering both parts, and never 3·½; so is a side
+ *                   or bound of an equation or inequality that is exactly one;
  *   ½π              \frac{1}{2}\pi is π/2; not after a whole number, not
  *                   with a power on π;
  *   number boxes    a key that is an exact constant written unsimplified is
@@ -338,6 +343,16 @@ for (const [whole, numerator, denominator] of [[3, 1, 2], [2, 3, 4], [1, 2, 3], 
   wave7Keys.push([`${(whole * numerator) / denominator}`, 'number', { right: [], wrong: [mixed, typed] }]);
 }
 wave7Keys.push(['3.5', 'number', { right: ['3\\frac{1}{2}', '3 1/2', '3\\frac{2}{4}'], wrong: ['3\\frac{5}{2}', '-3\\frac{1}{2}'] }]);
+// A side or bound that is exactly a mixed number (review S2): read as one,
+// never as 3·½; a side that is not exactly one keeps its reading.
+for (const [key, inputProfile, right, wrong] of [
+  ['x=7/2', 'equation', ['x=3\\frac{1}{2}', '3\\frac{1}{2}=x', 'x=3 1/2'], ['x=-3\\frac{1}{2}', 'x=3\\frac{1}{3}']],
+  ['x=1.5', 'equation', [], ['x=3\\frac{1}{2}']],
+  ['y=-9/4', 'equation', ['y=-2\\frac{1}{4}'], ['y=2\\frac{1}{4}']],
+  ['x<7/2', 'inequality', ['x<3\\frac{1}{2}'], ['x<=3\\frac{1}{2}', 'x>3\\frac{1}{2}']],
+  ['x<1.5', 'inequality', [], ['x<3\\frac{1}{2}']],
+  ['1<x<2.5', 'inequality', ['1<x<2\\frac{1}{2}'], ['1<x<2\\frac{1}{4}']],
+]) wave7Keys.push([key, inputProfile, { right, wrong }]);
 for (const [key, right, wrong] of [
   ['pi/2', ['\\frac{1}{2}\\pi', '\\frac{1}{2}π'], ['\\frac{1}{3}\\pi', '\\frac{1}{2}\\pi^2', '1.5707963']],
   ['3pi/4', ['\\frac{3}{4}\\pi'], ['\\frac{4}{3}\\pi', '2\\frac{3}{4}\\pi']],
@@ -404,8 +419,13 @@ const oldKeyCounts = { oldKeySnapshotsRead: 0, oldKeyTemplatesFound: 0, oldKeySp
 const oldKeyNotes = [];
 const oldKeyReasked = [];
 const historyAvailable = gitLines('rev-parse', '--is-shallow-repository');
+// A shallow clone holds only recent commits, so most old keys would be
+// silently missed (wave 7 review, N3): stop unless the run says it knows.
 if (!historyAvailable) console.warn('old keys: git is not available here, so no old key was tried');
-else if (historyAvailable[0] === 'true') console.warn('old keys: this clone is shallow; only the history it holds was read (git fetch --unshallow for all of it)');
+else if (historyAvailable[0] === 'true' && !process.argv.includes('--allow-shallow')) {
+  console.error('old keys: this clone is shallow, so the old keys would not be read. Run `git fetch --unshallow` first, or pass --allow-shallow to read only the history it holds.');
+  process.exit(2);
+} else if (historyAvailable[0] === 'true') console.warn('old keys: --allow-shallow: this clone is shallow; only the history it holds was read');
 const byFile = new Map();
 currentItems.forEach((entry) => {
   const list = byFile.get(entry.file) || [];

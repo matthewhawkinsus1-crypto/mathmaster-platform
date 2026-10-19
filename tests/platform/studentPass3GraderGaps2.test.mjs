@@ -24,7 +24,7 @@ import { readFileSync } from 'node:fs';
 import { sameValue, mixedNumberValue, fieldValueOptions, normalizeAnswer } from '../../functions/shared/answerEquivalence.mjs';
 import { compareOrderedPair, matchesFieldAnswer, orderedPairKey } from '../../functions/shared/answerUtils.mjs';
 import { gradeFractionResponse, gradeOrderedPairResponse, gradeOrdinaryResponse, serverGradingSupport } from '../../functions/shared/ordinaryResponseGrading.mjs';
-import { fractionFormProblemForResponse } from '../../src/platform/interaction/answerShapeGuard.js';
+import { formatProblemForResponse, fractionFormProblemForResponse } from '../../src/platform/interaction/answerShapeGuard.js';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { flattenV5Sections } from '../../src/platform/contract/assignmentSchemaV5.js';
@@ -265,4 +265,66 @@ test('Pre-Flight shows a text pair key and refuses, with a reason, a key that is
 test('the miss checks read a text pair key too (they still speak only once the item has closed)', () => {
   assert.equal(expectedForPart({ type: 'orderedPair', answer: '(2,3)' }, { id: 'ordered-x' }), 2);
   assert.equal(expectedForPart({ type: 'orderedPair', answer: '(2,3)' }, { id: 'ordered-y' }), 3);
+});
+
+/* ---------------------------------------------------------------------------
+ * The review of f7d0c17f.
+ * ------------------------------------------------------------------------- */
+
+test('S1: the equivalent-expression grading mode reads a mixed number against a number key too', () => {
+  const field = (answer) => ({ answer, gradingMode: 'equivalentExpression' });
+  assert.equal(matchesFieldAnswer('3\\frac{1}{2}', field('7/2')), true);
+  assert.equal(matchesFieldAnswer('3\\frac{1}{2}', field('1.5')), false);
+});
+
+test('S2: a side or bound that is exactly a mixed number is read as one, in every grader; any other side keeps its reading', async () => {
+  for (const [sent, key, right, profile] of [
+    ['x=3\\frac{1}{2}', 'x=3.5', true, 'equation'],
+    ['x=3\\frac{1}{2}', 'x=7/2', true, 'equation'],
+    ['3\\frac{1}{2}=x', 'x=3.5', true, 'equation'],
+    ['x=3\\frac{1}{2}', 'x=1.5', false, 'equation'],
+    ['x<3\\frac{1}{2}', 'x<3.5', true, 'inequality'],
+    ['x<3\\frac{1}{2}', 'x<1.5', false, 'inequality'],
+    ['x\\le-2\\frac{1}{4}', 'x<=-9/4', true, 'inequality'],
+    ['1<x<2\\frac{1}{2}', '1<x<2.5', true, 'inequality'],
+    ['x<2\\frac{1}{3}', 'x<7/3', true, 'inequality'],
+    ['x=2\\frac{1}{3}', 'x=2/3', false, 'equation'],
+  ]) {
+    assert.deepEqual(await verdicts(sent, key, profile), right ? ALL_RIGHT : ALL_WRONG, `${sent} for ${key}`);
+  }
+  // `x = 3½` typed in a number box keyed 7/2 (the variable-name rule).
+  assert.deepEqual(await verdicts('x=3\\frac{1}{2}', '7/2'), ALL_RIGHT);
+  // Not exactly a mixed number: today's reading.
+  assert.equal(sameValue('y=2\\frac{1}{2}x+1', 'y=5/2x+1'), false);
+  assert.equal(sameValue('x=3\\frac{x}{2}', 'x=3x/2'), true);
+  // An improper `3 5/2` is no mixed number: not read as 3 + 5/2.
+  assert.equal(sameValue('x=3\\frac{5}{2}', 'x=5.5'), false);
+});
+
+test('S6: a number box is what every surface stores, inputProfile first', async () => {
+  // inputMode is not kept with Path's private grading: it no longer decides.
+  const modeOnly = { answer: 'sqrt(8)/2', inputProfile: 'expression', inputMode: 'numeric' };
+  assert.equal(matchesFieldAnswer('\\sqrt{2}', modeOnly), false);
+  const graded = await mathPath.gradeResponse(mathPath.privateGradingDefinition({ responseFields: [{ id: 'a', expected: 'sqrt(8)/2', inputProfile: 'expression', inputMode: 'numeric' }] }), { responses: { a: '\\sqrt{2}' } });
+  assert.equal(graded.isCorrect, false, 'the assignment matcher and Path agree');
+  // A stray answerFormat does not beat the declared profile.
+  assert.equal(matchesFieldAnswer('\\sqrt{2}', { answer: 'sqrt(8)/2', inputProfile: 'expression', answerFormat: 'number' }), false);
+  assert.equal(matchesFieldAnswer('\\sqrt{2}', { answer: 'sqrt(8)/2', answerFormat: 'number' }), true, 'a field with no profile keeps its answerFormat');
+  assert.equal(matchesFieldAnswer('\\sqrt{2}', { answer: 'sqrt(8)/2', inputProfile: 'number' }), true);
+});
+
+test('S7: a Digital SAT number box says the SAT takes no mixed number, before a try is spent; the grader still reads it', () => {
+  const field = { id: 'v', label: 'Value', answer: '7/2', inputProfile: 'number', numberRules: 'digitalSAT' };
+  const reason = formatProblemForResponse(field, '3\\frac{1}{2}');
+  assert.equal(reason, 'The SAT doesn\'t take mixed numbers. Enter it as an improper fraction or a decimal.');
+  assert.equal(formatProblemForResponse(field, '4\\frac{2}{3}'), reason, 'any mixed number, right or wrong');
+  assert.equal(formatProblemForResponse(field, '7/2'), '');
+  assert.equal(formatProblemForResponse(field, '3.5'), '');
+  assert.equal(formatProblemForResponse({ ...field, numberRules: undefined }, '3\\frac{1}{2}'), '', 'only an SAT box');
+  assert.equal(matchesFieldAnswer('3\\frac{1}{2}', field), true, 'the value reading stays in the grader');
+});
+
+test('N1: ½π is not rewritten after a slash, where it reads (1/½)·π', () => {
+  assert.equal(normalizeAnswer('1/\\frac{1}{2}\\pi'), '1/\\frac{1}{2}π');
+  assert.equal(normalizeAnswer('\\frac{1}{2}\\pi'), '\\frac{π}{2}');
 });

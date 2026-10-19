@@ -193,9 +193,10 @@ const unitFractionPowers = (value) => value.replace(
  * editor's ½π was refused against `pi/2`. Run once spaces are gone, so a
  * number or a name before the fraction (`2\frac{1}{2}\pi`, a mixed number;
  * `x\frac{1}{2}\pi`) is seen and left alone, and nothing may follow π that
- * binds to it (`^`, `_`, a letter, a digit, a group).
+ * binds to it (`^`, `_`, a letter, a digit, a group). Nor after a `/`:
+ * `1/\frac{1}{2}\pi` is (1/½)·π = 2π as written, not 1/(π/2) (review N1).
  */
-const FRACTION_COEFFICIENT_PI = /(?<![\w})\]^_.\\|])\\frac\{(\d+)\}\{(\d+)\}π(?![A-Za-z0-9^_{(\\])/g;
+const FRACTION_COEFFICIENT_PI = /(?<![\w})\]^_.\\|/])\\frac\{(\d+)\}\{(\d+)\}π(?![A-Za-z0-9^_{(\\])/g;
 const fractionCoefficientPi = (value) => value.replace(FRACTION_COEFFICIENT_PI, (match, numerator, denominator) => (
   `\\frac{${numerator === '1' ? '' : numerator}π}{${denominator}}`));
 
@@ -1149,12 +1150,49 @@ const sameNumberWithVariableName = (student, key, tolerance) => {
  * and exactConstantValue refuses a \frac after a number, wave 6 review B2).
  */
 const MIXED_NUMBER = /^(-?)(\d+)\\frac\{(\d+)\}\{(\d+)\}$/;
+const exactDecimalOrFraction = (sign, numerator, denominator) => {
+  let rest = denominator;
+  for (const factor of [2, 5]) while (rest % factor === 0) rest /= factor;
+  return rest === 1 ? `${sign}${numerator / denominator}` : `${sign}\\frac{${numerator}}{${denominator}}`;
+};
 const mixedNumberShape = (value) => {
   const match = MIXED_NUMBER.exec(normalizeAnswer(value));
   if (!match) return null;
   const [whole, numerator, denominator] = [Number(match[2]), Number(match[3]), Number(match[4])];
   const proper = denominator > 0 && numerator > 0 && numerator < denominator;
-  return { value: proper ? (match[1] ? -1 : 1) * (whole + numerator / denominator) : null };
+  return {
+    value: proper ? (match[1] ? -1 : 1) * (whole + numerator / denominator) : null,
+    // The same number for a side of an equation or inequality: its exact
+    // decimal when it has one (3½ is 3.5, which every relation reader takes),
+    // else one fraction.
+    improper: proper ? exactDecimalOrFraction(match[1], whole * denominator + numerator, denominator) : null,
+  };
+};
+
+/*
+ * A SIDE OR BOUND THAT IS EXACTLY A MIXED NUMBER (wave 7 review, S2). The
+ * product reading survived inside a relation: `x=3\frac{1}{2}` was right for
+ * `x=1.5` and wrong for `x=3.5`, and `x<3\frac{1}{2}` right for `x<1.5`. A
+ * side that is exactly a proper mixed number becomes its improper fraction
+ * (`x=\frac{7}{2}`) before the relation comparisons; any other side —
+ * `2\frac{1}{2}x`, `x+3\frac{1}{2}`, an improper `3\frac{5}{2}` — keeps
+ * today's reading. Text with no relation sign is left alone (sameMixedNumber
+ * reads a lone number).
+ */
+const RELATION_SPLIT = /(<=|>=|≤|≥|≠|!=|\\(?:leq?|geq?|lt|gt|neq?)(?![A-Za-z])|<|>|=)/;
+const mixedSidesAsFractions = (value) => {
+  const text = String(value ?? '');
+  const pieces = text.split(new RegExp(RELATION_SPLIT.source, 'g'));
+  if (pieces.length < 3) return text;
+  let changed = false;
+  const rewritten = pieces.map((piece, index) => {
+    if (index % 2 === 1) return piece;
+    const improper = mixedNumberShape(piece)?.improper;
+    if (!improper) return piece;
+    changed = true;
+    return improper;
+  });
+  return changed ? rewritten.join('') : text;
 };
 
 /** Is this written as a whole number followed by a number fraction (`3\frac{1}{2}`, `3 1/2`)? */
@@ -1220,15 +1258,18 @@ const sameExactNumber = (student, key, tolerance) => {
 
 // The declared kinds of a single-number box (answerFormatHints' `number`).
 const NUMBER_FIELD_KINDS = new Set(['number', 'numeric', 'value', 'scalar']);
+// Only what every surface keeps: mathPath stores these four with a field's
+// private grading (FIELD_FORMAT_KEYS), so the assignment matcher reading
+// inputMode or inputContract would decide differently from Path, a test and
+// the simulation (wave 7 review, S6). The first one present is the field's
+// kind, inputProfile first: a stray `answerFormat: 'number'` does not turn an
+// expression field into a number box.
+const STORED_KIND_KEYS = ['inputProfile', 'answerFormat', 'notation', 'toolProfile'];
 /** Is this field declared a box for one number? */
-export const fieldIsNumberBox = (field = {}) => [
-  field?.answerFormat,
-  field?.inputContract?.format,
-  field?.notation,
-  field?.inputMode,
-  field?.inputProfile,
-  field?.toolProfile,
-].some((value) => NUMBER_FIELD_KINDS.has(String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+export const fieldIsNumberBox = (field = {}) => {
+  const declared = STORED_KIND_KEYS.map((key) => field?.[key]).find((value) => typeof value === 'string' && value.trim());
+  return NUMBER_FIELD_KINDS.has(String(declared ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ''));
+};
 
 /**
  * The sameValue options one response field asks for. Every field grader — the
@@ -1365,6 +1406,13 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // read 3½ as 3·½ (sameMixedNumber).
   const mixed = sameMixedNumber(left, right, tolerance);
   if (mixed !== null) return mixed;
+  // …and a side of an equation or inequality that is exactly a mixed number is
+  // read as one too: compared again with each such side as one fraction.
+  const leftSides = mixedSidesAsFractions(left);
+  const rightSides = mixedSidesAsFractions(right);
+  if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber });
+  }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
   if (sameNumericPair(left, right, tolerance)) return true;

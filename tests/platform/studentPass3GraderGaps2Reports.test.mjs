@@ -31,6 +31,9 @@ const seeded = () => {
       { type: 'orderedPair', questionId: 'p4', prompt: 'Name the point.', generator: { kind: 'orderedPair' } },
       { type: 'orderedPair', questionId: 'p5', prompt: 'Where?', answer: [1, 1], variants: [{ answer: '(1/2, 4)' }] },
       { type: 'literal', questionId: 'p6', acceptedAnswers: ['(2,3)'] },
+      // Shapes the grader cannot read as a point: refused by Pre-Flight too.
+      { type: 'orderedPair', questionId: 'p7', prompt: 'Where?', answer: ['', 3] },
+      { type: 'orderedPair', questionId: 'p8', prompt: 'Where?', answer: { x: 1, y: 2 } },
     ] }],
   });
   docs.set('assignments/B-clean', { title: 'Clean', schemaVersion: 5, archived: true, sections: [{ role: 'dol', questions: [{ type: 'orderedPair', answer: [0, 0] }] }] });
@@ -50,6 +53,11 @@ test('each key is classified the way the grader now reads it', () => {
   assert.equal(orderedPairKeyKind({ answer: '(2,3)' }), 'textPairNowGraded');
   assert.equal(orderedPairKeyKind({ solution: '(1/2, -3)' }), 'textPairNowGraded');
   assert.equal(orderedPairKeyKind({ answer: [2, 3] }), 'arrayKey');
+  // Every shape through the grader's reader (review S4).
+  assert.equal(orderedPairKeyKind({ answer: ['', 3] }), 'arrayNotAPair');
+  assert.equal(orderedPairKeyKind({ answer: [2, 3, 4] }), 'arrayNotAPair');
+  assert.equal(orderedPairKeyKind({ answer: ['a', 'b'] }), 'arrayNotAPair');
+  assert.equal(orderedPairKeyKind({ answer: { x: 2, y: 3 } }), 'objectKey');
   assert.equal(orderedPairKeyKind({ answer: 'none' }), 'textNotAPair');
   assert.equal(orderedPairKeyKind({ answer: '(1,2,3)' }), 'textNotAPair');
   assert.equal(orderedPairKeyKind({}), 'noKey');
@@ -60,13 +68,16 @@ test('the report counts text pair keys in sections, variants and legacy lists; r
   const report = await runOrderedPairTextKeysReport({ db, pageSize: 1, now: () => Date.UTC(2026, 9, 19, 12) });
   assert.equal(report.readOnly, true);
   assert.deepEqual(report.totals, {
-    assignmentsRead: 3, textPairNowGraded: 3, textNotAPair: 1, arrayKey: 3, noKey: 1, assignmentsWithTextKeys: 2, assignedWithTextKeys: 1,
+    assignmentsRead: 3, textPairNowGraded: 3, textNotAPair: 1, arrayKey: 3, arrayNotAPair: 1, objectKey: 1, noKey: 1,
+    assignmentsWithTextKeys: 2, assignedWithTextKeys: 1, assignmentsWithRefusedKeys: 1,
   });
   assert.deepEqual(report.assignments.map((entry) => entry.assignmentId), ['A-pairs', 'C-legacy']);
   assert.deepEqual(report.assignments[0].questions.map(({ questionId, variant, kind, key }) => ({ questionId, variant, kind, key })), [
     { questionId: 'p1', variant: null, kind: 'textPairNowGraded', key: '(2,3)' },
     { questionId: 'p3', variant: null, kind: 'textNotAPair', key: 'none' },
     { questionId: 'p5', variant: 0, kind: 'textPairNowGraded', key: '(1/2, 4)' },
+    { questionId: 'p7', variant: null, kind: 'arrayNotAPair', key: ['', 3] },
+    { questionId: 'p8', variant: null, kind: 'objectKey', key: { x: 1, y: 2 } },
   ]);
   assert.deepEqual(attempts, []);
   assert.ok(reads.every((name) => name === 'assignments'), reads.join());
@@ -172,6 +183,9 @@ test('the regrade count: per surface, up and down by the wave-7 rule that explai
 
 test('the rule tags read the response and the key, never a guess', () => {
   assert.equal(wave7Rule({ response: '-3 1/2', key: '-7/2' }), 'mixedNumber');
+  // A key written as a mixed number (review S5): 7/2 up, 31/2 down.
+  assert.equal(wave7Rule({ response: '7/2', key: '3 1/2' }), 'mixedNumber');
+  assert.equal(wave7Rule({ response: '\\frac{31}{2}', key: '3\\frac{1}{2}' }), 'mixedNumber');
   assert.equal(wave7Rule({ response: '\\frac{3}{4}\\pi', key: '3pi/4' }), 'halfPi');
   assert.equal(wave7Rule({ response: '\\sqrt{2}', key: 'sqrt(8)/2', field: { inputProfile: 'number' } }), 'exactNumber');
   assert.equal(wave7Rule({ response: '\\sqrt{2}', key: 'sqrt(8)/2', field: { inputProfile: 'expression' } }), 'other');

@@ -43,6 +43,12 @@ export const formatProblemForResponse = (field = {}, value = '') => {
   if (format === 'equation' && !hasEqualsSign(value) && keys.length && keys.every(hasEqualsSign)) {
     return 'Write the full equation, including the equals sign.';
   }
+  // A Digital SAT number box (numberRules, set by the CCMR hydration): the
+  // grader reads 3½ as 7/2, but the SAT itself does not take a mixed number,
+  // so the box says so at entry, for any mixed number (wave 7 review, S7).
+  if (field?.numberRules === 'digitalSAT' && looksLikeMixedNumber(value) && !keys.some(looksLikeMixedNumber)) {
+    return 'The SAT doesn\'t take mixed numbers. Enter it as an improper fraction or a decimal.';
+  }
   return '';
 };
 

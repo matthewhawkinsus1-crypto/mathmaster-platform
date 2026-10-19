@@ -123,7 +123,7 @@ words.
 | V5 compile | `authoringIntentV5Core` stores a text key as `[x, y]`. |
 | JSON import | `assignmentBlueprint.normalizeQuestionStorageShapes` stores a text key as `[x, y]`, with a repair line. It also runs for a portable export, which the compile never sees. |
 | Pre-Flight | `answerKeyResponse` shows the key. The `orderedPair` catalog entry, in the browser copy and the server copy (`functions/shared/questionTypeCatalog.mjs`), refuses a key that is not a pair: `answer "none" is not an ordered pair the grader can read: write the point as [x, y] or "(x, y)" with two numbers, for example [2, 5]`. A generated question has no key until it is drawn, so a missing key is not judged. |
-| Readers of the key | `SolutionReview`, `missDiagnosis.expectedForPart` and `OrderedPairGrader`'s details line read `orderedPairKey`. `OrderedPairGrader` passes a string to its effect, not a new array, so the effect does not re-run on every render. |
+| Readers of the key | `SolutionReview` and `missDiagnosis.expectedForPart` read `orderedPairKey`. `OrderedPairGrader`'s details line no longer names the key at all (review B1, below). |
 
 **Proof.** In `studentPass3GraderGaps2.test.mjs`: the harness fixture's key, every spelling, a fraction coordinate, a
 root, the server's key check, the compile, the import of a portable export, Pre-Flight (both catalogs), and the miss
@@ -355,31 +355,35 @@ Through the planner (`--execute`), never a raw `firebase deploy`. I deployed not
    refused instead. If you keep it, two follow-ups:
    - the secure number hint ("write a mixed number as a fraction or a decimal", `SECURE_ENTRY_HINTS.number`) is now
      stricter than the grader. It is still safe advice. Change its words only with a Spanish entry.
-   - **Digital SAT number boxes accept it too.** The SAT itself refuses mixed numbers. I followed #496's precedent for
-     thousands separators: an SAT entry rule belongs at entry (the box declining the keystroke), never as a right value
-     graded wrong. Say if you want the SAT rule at entry.
+   - **Digital SAT number boxes:** the grader reads 3½ as 7/2 there too (#496's precedent: a right value is never
+     graded wrong). The SAT itself takes no mixed number, so since the review (S7) an assignment's SAT box says so at
+     entry and holds Submit (below). Path's SAT boxes and secure tests do not yet (see "Not done").
 2. **A lowest-terms `fraction` question refuses 3½** and says why. Many middle-school teachers accept 3½ as simplest
    form. Say if a mixed number with a reduced fraction part should count as lowest terms.
-3. **Expression shapes where a mixed number could be meant.** All of these are refused today, and none is read as a
-   product either:
+3. **A key written as a mixed number now takes the improper fraction and the decimal** (review S3). For a key `3 2/5`,
+   17/5 and 3.4 are right (both wrong on the base). On a "Write 17/5 as a mixed number" field, copying the prompt would
+   then earn credit. No such content is in the repository. A possible rule: "a key written as a mixed number asks for
+   a mixed number". Say if you want it.
+4. **Where a mixed number could be meant inside an expression.** My first handoff said none of these is read as a
+   product; that was wrong (review S2). Today, after the review round:
 
-   | Field | Answer | Key |
-   | --- | --- | --- |
-   | expression | `2\frac{1}{2}x` (coefficient) | `5x/2` |
-   | expression | `2\frac{1}{2}\pi` | `5pi/2` |
-   | number | `x=3\frac{1}{2}` | `7/2` |
-   | equation | `x=3\frac{1}{2}` | `x=7/2` |
-   | equation | `y=2\frac{1}{2}x+1` | `y=5/2x+1` |
-   | inequality | `x<3\frac{1}{2}` | `x<7/2` |
-   | interval | `[1\frac{1}{2},3)` | `[3/2,3)` |
-   | set | `\{1\frac{1}{2},2\}` | `{3/2,2}` |
-   | ordered pair | `(1\frac{1}{2},4)` | `(3/2,4)` (wave 6 ruled this one wrong) |
-   | number | `3\frac{1}{2}\%` | `3.5%` |
+   | Field | Answer | Key | Verdict |
+   | --- | --- | --- | --- |
+   | expression | `2\frac{1}{2}x` (coefficient) | `5x/2` | refused |
+   | expression | `2\frac{1}{2}\pi` | `5pi/2` | refused |
+   | number | `x=3\frac{1}{2}` | `7/2` | **right** (S2) |
+   | equation | `x=3\frac{1}{2}` | `x=7/2` | **right** (S2); `x=1.5` is now refused (the base accepted it as 3·½) |
+   | equation | `y=2\frac{1}{2}x+1` | `y=5/2x+1` | refused |
+   | inequality | `x<3\frac{1}{2}` | `x<7/2` | **right** (S2); `x<1.5` is now refused (the base accepted it) |
+   | interval | `[1\frac{1}{2},3)` | `[3/2,3)` | refused |
+   | set | `\{1\frac{1}{2},2\}` | `{3/2,2}` | refused |
+   | ordered pair | `(1\frac{1}{2},4)` | `(3/2,4)` | refused (wave 6 ruled this one wrong) |
+   | number | `3\frac{1}{2}\%` | `3.5%` | refused |
 
-   Each would need its own rule if you want it read.
-4. **The 10 Algebra I fields re-asked without a version move** at `dc2ae1ad` (interval → inequality). Decide whether
+   Each refused shape would need its own rule if you want it read.
+5. **The 10 Algebra I fields re-asked without a version move** at `dc2ae1ad` (interval → inequality). Decide whether
    content changes like this must move `familyVersion`. The sweep now lists them.
-5. **The recorded-answer count:** run the two read-only scripts and decide whether to re-grade the `up` rows (D8: up
+6. **The recorded-answer count:** run the two read-only scripts and decide whether to re-grade the `up` rows (D8: up
    only).
 
 ## Outside my scope (touched, minimal)
@@ -394,6 +398,8 @@ Through the planner (`--execute`), never a raw `firebase deploy`. I deployed not
 - `src/platform/simulation/teacherPathRuntime.js`: the options call.
 - `tests/browser/fractionTemplateGrading.mjs` and its fixture: item 1's browser proof.
 - `tests/platform/secureMathAnswerRoundTrip.test.mjs`: one rewritten assertion (½π).
+- New test helpers `tests/platform/helpers/reactHookShim.mjs`, `shallowComponent.mjs`, `emptyModule.mjs` and
+  `readOnlyFirestore.mjs`.
 - **No change to `src/App.jsx`.**
 
 ## Not done, and found here
@@ -410,3 +416,42 @@ Through the planner (`--execute`), never a raw `firebase deploy`. I deployed not
   (only the last counted one is stored), or Path's accepted forms and number boxes.
 - `1+2` for a number key of 3 is right, on the base and here (the expanded-polynomial comparator). Wave 6 ruled
   unworked arithmetic wrong in pairs only.
+- **The SAT entry line does not reach Path's SAT boxes.** Path's public response fields do not carry `numberRules`,
+  so `PathResponseFields` cannot tell an SAT box. Secure tests keep `SECURE_ENTRY_HINTS` as they are. One idea there:
+  the secure keypad could decline a fraction template right after a whole number. Not done.
+- Found by the review, older than this branch (N5, N6):
+  - `3.5\frac{1}{2}` is right for 1.75 (a decimal times a fraction);
+  - `1,000\frac{1}{2}`, `3\frac12\%` and `\$3\frac12` are refused;
+  - the teacher simulation's field grader has no Digital SAT branch;
+  - the assignment matcher's tolerance is 1e-9, against 1e-6 on Path and secure tests.
+- From the W7-6 review, for the owner: a point-slope question keyed `y - 5 = 2(x - 1)` grades `y - 7 = 2(x - 2)` (the
+  same line through another point) wrong. Not touched here.
+
+## Review of `f7d0c17f`: the fixes
+
+The independent review (session_01BA3NiN78YatRVForSNpH4z, relayed by the integrator) found the grading change sound,
+with one blocker and several should-fixes. Each fix below was mutation-checked: broken once, seen red, then restored.
+
+| Finding | Fix | Proof |
+| --- | --- | --- |
+| **B1** The Work View "Current question" card showed the ordered-pair key before the student answered ("… Plotted coordinate: (2, 3). Response: blank."). Older than this branch; it was live on assignments, exit tickets included. | `OrderedPairGrader`'s details are the prompt and the student's answer only. | New `questionDetailsNeverShowKey.test.mjs`: nine fixtures with a distinctive key across OrderedPair (array, text, solution), System, Literal, MultiAnswer, Fraction, Table and NumberLine. Each grader is run once with its hooks (new helper `shallowComponent.mjs`: Vite's SSR loader with a synchronous-hook stand-in for React), and the details it publishes must not contain the key. Restoring the old line turns 3 tests red; leaking the key into MultiAnswer, NumberLine or System turns its test red. In the real App (teacher harness, Practice Q2, Work View → Scratchpad, before typing) the card now reads "Where do y = x + 1 and y = 3 meet? Response: blank." on a Chromebook and a phone (`screenshots/work-view-current-question-*.png`). |
+| **S1** The equivalent-expression mode's mixed-number rule had no test. | Test added: 3½ is right for 7/2 and wrong for 1.5 in that mode. | Dropping `sameMixedNumber(...) ??` is red. |
+| **S2** The product reading survived inside a relation: `x=3\frac{1}{2}` was right for `x=1.5` and wrong for `x=3.5`; `x<3\frac{1}{2}` was right for `x<1.5`. | A side or bound that is exactly a proper mixed number is written as its exact decimal (3½ is 3.5) or, when it has none, one fraction (2⅓ is 7/3), and the comparison runs again. Any other side (`2\frac{1}{2}x`, `x+3\frac{1}{2}`, an improper `3\frac{5}{2}`) keeps its reading. Text with no relation sign is untouched. | Tests on all three graders cover equations, inequalities, a chained inequality, thirds, and `x=3½` in a number box. The sweep's wave-7 block has the shapes outright. The handoff's owner table is corrected (decision 4). Breaking the rule, always writing a fraction (the chained inequality reads only decimals), or rewriting an improper side are each red. |
+| **S3** A key written as a mixed number now takes the improper fraction and the decimal. | No change; added as owner decision 3. | — |
+| **S4** The text-key count called every array "unaffected". | The count classifies arrays and objects through `orderedPairKey`: `arrayNotAPair` (e.g. `["", 3]`, which the base graded as (0, 3)), `objectKey`, and the assignments Pre-Flight will refuse on their next check. | The reports test seeds both; each mutation is red. |
+| **S5** The regrade count tagged `mixedNumber` only when the response was mixed. | Tagged when the response or the key is a mixed number. | Test with a key `3 1/2` (7/2 up, 31/2 down); response-only is red. |
+| **S6** `fieldIsNumberBox` read `inputMode` and `inputContract.format`, which mathPath does not store, and let any key win. | It reads only `inputProfile`, `answerFormat`, `notation` and `toolProfile` (what every surface stores), and the first one present decides, `inputProfile` first. | `{inputProfile:'expression', inputMode:'numeric'}` is now refused alike by the matcher and by Path; a stray `answerFormat:'number'` does not beat `inputProfile:'expression'`. The old rule is red. A sweep of this head against `f7d0c17f` moves nothing in the bank corpus (every counter 0); the only differences are the new synthetic S2 checks. |
+| **S7** The Digital SAT rule. | `formatProblemForResponse`: an assignment number box with `numberRules: 'digitalSAT'` shows "The SAT doesn't take mixed numbers. Enter it as an improper fraction or a decimal." for any mixed number, and `MultiAnswerGrader` holds Submit, as for its other shape lines. The grader still reads the value. Path's SAT boxes cannot tell (no `numberRules` in their public field), and secure tests are untouched: both are under "Not done". | Tests: the line, any mixed number, nothing for 7/2 or 3.5, nothing outside an SAT box, the grader unchanged. Turning the guard off is red. |
+| **N1** The ½π rewrite fired after `/`: `1/\frac{1}{2}\pi` became 1/(π/2). | `/` is in the look-behind. | Test; removing it is red. |
+| **N3** The old-key check graded nothing on the real corpus, and a shallow clone read no old keys without saying so. | On the real corpus `oldKeyTemplatesFound` is 10 and `oldKeySpellings` is 0: all 10 are the re-asked interval → inequality fields, so no old spelling was graded. The sweep now stops on a shallow clone (exit 2, with the reason) unless `--allow-shallow` is passed. | Run on a `--depth 1` clone: exit 2 with the message. The forced re-key check in item 4 is still the proof that the old-key check can fail. |
+| N5, N6, point-slope (W7-6) | Listed under "Not done, and found here". | — |
+
+**Sweep after the fixes** (against `530ac3cf`, `--draws 3 --check-wrong`, exit 0):
+
+```
+fields 10018, graded 289977
+rightToWrong 0, nearMissNowRight 0, stackedWrongAccepted 0, editorSpellingsRefused 0
+gapSpellingsRefused 0, gapWrongAccepted 0   (on the base: 112 and 15)
+oldKeySnapshotsRead 134, oldKeyTemplatesFound 10, oldKeySpellings 0, oldKeySpellingsRefused 0, oldKeysReasked 10
+wrongToRight 1009    nearMissNowRefused 66   (the same mixed-number spellings as before)
+```
