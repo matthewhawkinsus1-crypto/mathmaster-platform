@@ -445,13 +445,20 @@ export const updateDoc = async (ref, ...args) => { recordClientWrite('update', r
 export const addDoc = async (collectionRef, data) => { const ref = doc(collectionRef); recordClientWrite('add', ref.path, data); writeSet(ref, data); notify(); return ref; };
 export const deleteDoc = async (ref) => { recordClientWrite('delete', ref.path); remove(ref.path); notify(); };
 
+// harnessStore.failNextBatchCommit: the next batch commit is rejected, as
+// Firestore rejects a whole batch — none of its writes land.
+const failingBatchCommits = [];
 export const writeBatch = () => {
   const ops = [];
   return {
     set: (ref, data, options) => { ops.push(() => { recordClientWrite('set', ref.path, data); writeSet(ref, data, options); }); },
     update: (ref, ...args) => { ops.push(() => { recordClientWrite('update', ref.path, updatePayload(args)); writeUpdate(ref, args); }); },
     delete: (ref) => { ops.push(() => { recordClientWrite('delete', ref.path); remove(ref.path); }); },
-    commit: async () => { ops.forEach((op) => op()); notify(); },
+    commit: async () => {
+      if (failingBatchCommits.length) throw failingBatchCommits.shift();
+      ops.forEach((op) => op());
+      notify();
+    },
   };
 };
 
@@ -495,6 +502,10 @@ export const harnessStore = {
     };
   },
   resetStats: () => { Object.values(stats).forEach((map) => map.clear()); clientWrites.length = 0; },
+  failNextBatchCommit: (message = 'The harness rejected this batch.', code = 'unavailable') => {
+    failingBatchCommits.push(Object.assign(new Error(message), { code }));
+    return failingBatchCommits.length;
+  },
   // One document as stored, and back: how the draft journeys carry what one
   // "device" (browser context) saved to the server into another device's
   // already-open page, Timestamps intact.

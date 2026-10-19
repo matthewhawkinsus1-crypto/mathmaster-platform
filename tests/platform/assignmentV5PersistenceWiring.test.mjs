@@ -8,9 +8,11 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   assert.match(source, /schemaVersion:\s*5/);
   assert.doesNotMatch(source, /runtimeProjectionVersion:\s*1/);
   assert.match(source, /const reviewedQuestions = flattenV5Sections\(reviewedV5\)/);
-  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(reviewedV5, variantQuestions\)/);
+  // Rebuilt from the canonical V5 each destination was reviewed as.
+  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(sectionsSource, variantQuestions\)/);
+  assert.match(source, /sectionsSource: reviewedV5/);
   assert.doesNotMatch(source, /questions:\s*variantQuestions/);
-  assert.match(source, /return \{ id: assignmentRef\.id, \.\.\.payload \};/);
+  assert.match(source, /plannedWrites\.map\(\(\{ assignmentRef, payload \}\) => \(\{ id: assignmentRef\.id, \.\.\.payload \}\)\)/);
   assert.doesNotMatch(source, /hydrateAssignmentRuntime|assignmentRuntimeProjection/);
   assert.match(source, /variantPolicy:/);
   assert.match(source, /differentiationPolicy:/);

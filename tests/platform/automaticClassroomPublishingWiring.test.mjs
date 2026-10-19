@@ -7,7 +7,8 @@ const src = appAndTeacherWorkspaceSource();
 
 test('Preflight assignment creation automatically publishes V5 Classroom packages', () => {
   assert.match(src, /autoPublishAssignmentPackageToClassroom/);
-  assert.match(src, /createdAssignments\.push\(await writeAssignmentVariant/);
+  // Every assignment the publish committed is offered to Classroom.
+  assert.match(src, /await publishBatch\.commit\(\);[\s\S]*?const createdAssignments = plannedWrites\.map\([\s\S]*?for \(const createdAssignment of createdAssignments\)[\s\S]*?autoPublishAssignmentPackageToClassroom\(createdAssignment\)/);
   assert.match(src, /Google Classroom published/);
 });
 

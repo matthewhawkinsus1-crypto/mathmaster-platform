@@ -1,11 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { region } from './helpers/sourceContract.mjs';
+import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
+import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
+import { buildHonorsCcmrCandidate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
+
+const { replaceDirectCcmrQuestionsWithAuditedBank } = createRequire(import.meta.url)('../../functions/lib/ccmrAssignmentBank.js');
 
 const app = appAndTeacherWorkspaceSource();
 const service = fs.readFileSync('src/services/assignmentCcmrService.js', 'utf8');
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+const canonicalHydration = fs.readFileSync('src/platform/assignments/canonicalCcmrHydration.js', 'utf8');
+const bankSource = fs.readFileSync('functions/lib/ccmrAssignmentBank.js', 'utf8');
 
 test('pasted and uploaded Assignment V5 JSON is bank-hydrated before local compilation', () => {
   const start = app.indexOf('const handleAssignmentJsonReady');
@@ -47,39 +57,50 @@ test('bank hydration is resilient: an unavailable callable does not destroy an o
 });
 
 
-test('Honors destination creation requests the audited Practice target without changing Standard variants', () => {
-  const start = app.indexOf('const destinationGroups = buildDestinationGroups');
-  const end = app.indexOf('const createdAssignments = []', start);
-  const block = app.slice(start, end);
-  assert.match(block, /hasHonorsDestination/);
-  assert.match(block, /hydrateAssignmentCcmr\(reviewedV5, \{ ensurePracticeTarget: true \}\)/);
-  assert.match(block, /let honorsParsedQuestions = parsedQuestions/);
-  assert.match(block, /if \(destination\.courseLevel === 'honors'\)[\s\S]*destinationQuestions = honorsParsedQuestions/);
-  assert.match(block, /let destinationQuestions = parsedQuestions/);
+test('an Honors destination asks for the audited Practice target in Pre-Flight; Standard destinations keep the reviewed lesson', () => {
+  // The target is requested where its items can still be checked, shown and
+  // replaced — Assignment Review — never for the first time at Create.
+  const request = region(modal, 'const ccmrRequestKey = useMemo', 'const honorsSelectionKey', 'Honors plan request');
+  assert.match(request, /hydrateAssignmentCcmr\(requested, \{ ensurePracticeTarget: true, includeCandidates: true/);
+  assert.match(modal, /const honorsVersionNeeded = reviewMode !== 'update' && honorsSelected;/);
+  assert.match(modal, /const honorsCcmrNeeded = honorsVersionNeeded && !honorsReport\.isNarrowCheckpoint;/);
 
-  const honorsStart = block.indexOf("if (destination.courseLevel === 'honors')");
-  const honorsEnd = block.indexOf('return { destination, questions: destinationQuestions };', honorsStart);
-  const honorsBlock = block.slice(honorsStart, honorsEnd);
-  assert.match(
-    honorsBlock,
-    /normalizeAssignmentQuestions\(\[\s*\.\.\.honorsParsedQuestions,/,
-    'adding Honors depth must preserve the audited CCMR-hydrated Practice questions',
-  );
-  assert.doesNotMatch(
-    honorsBlock,
-    /normalizeAssignmentQuestions\(\[\s*\.\.\.parsedQuestions,/,
-    'Honors depth must never rebuild from the pre-hydration Standard question list',
-  );
+  const block = region(app, 'const destinationGroups = buildDestinationGroups', 'const createdAssignments', 'destination split');
+  assert.doesNotMatch(block, /hydrateAssignmentCcmr\(/, 'Create never sources an audited item');
+  assert.match(block, /hasHonorsDestination[\s\S]*?confirmHonorsCandidateForCreate\(/);
+  const split = region(block, 'const destinationVariants = destinationGroups.map', 'const plannedWrites', 'per-destination questions');
+  assert.match(split, /if \(destination\.courseLevel !== 'honors'\) \{\s*return \{ destination, questions: parsedQuestions, sectionsSource: reviewedV5 \};/);
+  assert.match(split, /return \{ destination, questions: honorsParsedQuestions, sectionsSource: honorsVersion\.assignmentV5 \};/);
 });
 
+test('adding Honors depth preserves the audited CCMR Practice: the extension joins the audited version, never the pre-hydration lesson', () => {
+  const compose = region(canonicalHydration, 'export const composeHonorsCcmrCandidate', 'const ccmrTargetRequired', 'composeHonorsCcmrCandidate');
+  const placementsAt = compose.indexOf('working = replaceAt(working');
+  const extensionAt = compose.indexOf('placeHonorsExtension(working, honorsEnrichmentQuestion)');
+  assert.ok(placementsAt > 0 && extensionAt > placementsAt, 'the extension is placed on the copy that already holds the audited items');
+  const day1 = buildAssignmentV5PreflightModel(parseAssignmentBlueprintText(fs.readFileSync('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', 'utf8')).assignmentV5);
+  const hydration = JSON.parse(JSON.stringify(replaceDirectCcmrQuestionsWithAuditedBank(JSON.parse(JSON.stringify(day1.assignmentV5)), { ensurePracticeTarget: true, includeCandidates: true })));
+  const extension = { ...day1.questions.find((question) => question.activityRole === 'classwork'), questionId: 'honors-extension-copy' };
+  delete extension.sectionId;
+  const candidate = buildHonorsCcmrCandidate({ baseAssignmentV5: day1.assignmentV5, hydration, honorsEnrichmentQuestion: extension });
+  const published = candidate.assignmentV5.sections.flatMap((section) => section.questions);
+  assert.ok(candidate.sourced.length > 0);
+  candidate.sourced.forEach((entry) => assert.ok(published.some((question) => question?.ccmrSource?.documentId === entry.documentId), `${entry.documentId} is still there`));
+  assert.ok(published.some((question) => question.questionId === 'honors-extension-copy'));
+});
 
-test('Honors creation honors the server short-Practice CCMR exemption', () => {
-  const start = app.indexOf('const destinationGroups = buildDestinationGroups');
-  const end = app.indexOf('const createdAssignments = []', start);
-  const block = app.slice(start, end);
-
-  assert.match(block, /let honorsCcmrTargetRequired = true/);
-  assert.match(block, /hydratedHonors\.audit\.targetCount/);
-  assert.match(block, /ccmrTargetRequired: honorsCcmrTargetRequired/);
-  assert.match(block, /sourceHonorsReport\.ccmrTargetRequired && !sourceHonorsReport\.checks\.ccmrEnrichment/);
+test('a short Practice section is exempt from the CCMR target, by the server’s count, all the way to Create', () => {
+  // ensureAuditedCcmrPractice sets no target below five Practice questions.
+  assert.match(bankSource, /if \(positions\.length < 5\) \{\s*resultAudit\.targetCount = 0;/);
+  // The certified Multiple Representations lesson: two Practice questions.
+  const short = buildAssignmentV5PreflightModel(parseAssignmentBlueprintText(fs.readFileSync('docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json', 'utf8')).assignmentV5).assignmentV5;
+  const { audit } = replaceDirectCcmrQuestionsWithAuditedBank(JSON.parse(JSON.stringify(short)), { ensurePracticeTarget: true, includeCandidates: true });
+  assert.equal(audit.targetCount, 0);
+  const candidate = buildHonorsCcmrCandidate({ baseAssignmentV5: short, hydration: { audit } });
+  assert.equal(candidate.status, 'notRequired');
+  assert.equal(candidate.ccmrTargetRequired, false);
+  assert.equal(candidate.honorsReport.ccmrTargetRequired, false);
+  // Create checks the Honors contract with the same requirement.
+  const confirm = region(canonicalHydration, 'export const confirmHonorsCandidateForCreate', 'export const honorsCcmrRecord', 'confirmHonorsCandidateForCreate');
+  assert.match(confirm, /ccmrTargetRequired: honorsCandidate\.ccmrTargetRequired !== false/);
 });

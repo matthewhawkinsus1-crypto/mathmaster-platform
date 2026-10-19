@@ -21924,9 +21924,17 @@ exports.hydrateAssignmentCcmr = onCall({
     throw new HttpsError("failed-precondition", "CCMR bank hydration requires Assignment V5 sections.");
   }
 
+  // Pre-Flight asks for the ranked alternatives behind each choice so it can
+  // validate them before the teacher creates anything; a teacher who set an
+  // audited item aside sends its document id so it is not offered again.
+  const excludeDocumentIds = (Array.isArray(request.data?.excludeDocumentIds) ? request.data.excludeDocumentIds : [])
+    .filter((value) => typeof value === "string" && value.trim())
+    .slice(0, 100);
   try {
     const result = ccmrAssignmentBank.replaceDirectCcmrQuestionsWithAuditedBank(assignment, {
       ensurePracticeTarget: request.data?.ensurePracticeTarget === true,
+      includeCandidates: request.data?.includeCandidates === true,
+      excludeDocumentIds,
     });
     await getFirestore().collection("assignmentCcmrHydrationAudit").add({
       teacherUid,
@@ -21936,6 +21944,9 @@ exports.hydrateAssignmentCcmr = onCall({
       autoSourced: Number(result.audit?.autoSourced || 0),
       targetCount: Number(result.audit?.targetCount || 0),
       missCount: Array.isArray(result.audit?.misses) ? result.audit.misses.length : 0,
+      // Pre-Flight's Honors version asks again whenever its questions change;
+      // those planning calls are told apart from an import's hydration.
+      preflightPlan: request.data?.includeCandidates === true,
       createdAt: FieldValue.serverTimestamp(),
     });
     return result;

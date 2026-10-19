@@ -171,7 +171,11 @@ test('existing-assignment Honors review has embedded, no-AI, and external-AI rep
   assert.match(preflight, /Copy outside-AI repair request/);
   assert.match(preflight, /Paste AI Honors result/);
   assert.match(preflight, /Upload Honors JSON/);
-  assert.match(preflight, /Audited CCMR Practice will be sourced from Fidelity V2\.1 at publish/);
+  // After any Honors repair the teacher is told the Honors version, with its
+  // audited CCMR Practice, is checked again in this review. It used to promise
+  // CCMR "at publish", where a failing item could only fail Create.
+  assert.match(preflight, /MathMaster is checking the Honors version again, with its audited CCMR Practice, below/);
+  assert.doesNotMatch(preflight, /at publish/);
 });
 
 test('provider boundary uses current Responses API and Structured Outputs', () => {
