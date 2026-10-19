@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
-import { SCREENS, VIEWPORTS, sceneLabel } from '../browser/accessibilityCertification.mjs';
+import { SCREENS, STUBBED_PROBE, VIEWPORTS, sceneLabel, servesStubbedServices } from '../browser/accessibilityCertification.mjs';
 
 const REQUIRED_SCREENS = [
   'student-home',
@@ -54,4 +54,24 @@ test('the run audits every viewport × every (selected) screen × every scene, i
   const verdict = region(source, 'const comparison = compare(', 'process.exitCode = 1;\n  } else', 'certification verdict');
   assert.match(verdict, /ratchetFailed\(comparison\)/);
   assert.match(verdict, /unreachable\.length/, 'an unreachable screen fails the run');
+});
+
+// The secure exam's screens need the emulator config's stubbed services. A
+// plain dev server on the audit port serves the same page wired to the real
+// ones, and its start screen never loaded ("could not reach the screen" after
+// 180 s, wave 6). The run recognises that server by how the Test Cycle card
+// imports its service, and then starts a stubbed one of its own.
+test('the certification tells the stubbed audit server from a plain one', () => {
+  assert.equal(STUBBED_PROBE, '/src/components/student/TestCycleCard.jsx');
+  // What each server serves for the card (Vite's import rewriting, as seen).
+  assert.equal(servesStubbedServices('import { getStudentTestCycle } from "/tests/browser/emulator/testCycleServiceStub.js";'), true);
+  assert.equal(servesStubbedServices('import { getStudentTestCycle } from "/src/services/testCycleService.js";'), false);
+  assert.equal(servesStubbedServices(''), false);
+  assert.equal(servesStubbedServices(undefined), false);
+  // The emulator config still swaps that service for that stub.
+  const config = readFileSync(new URL('../browser/emulator/vite.config.mjs', import.meta.url), 'utf8');
+  assert.match(config, /\[path\.join\(repo, 'src\/services\/testCycleService\.js'\), path\.join\(here, 'testCycleServiceStub\.js'\)\]/);
+  // And the card still imports the service the probe reads.
+  const card = readFileSync(new URL('../../src/components/student/TestCycleCard.jsx', import.meta.url), 'utf8');
+  assert.match(card, /from '\.\.\/\.\.\/services\/testCycleService\.js'/);
 });
