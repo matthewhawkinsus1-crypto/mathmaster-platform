@@ -68,7 +68,7 @@ is submitted and none of them is shown.
   | --- | --- | --- |
   | graphFeatureSelect, pointInput | nothing, for every miss | any line that differs between "has none", "has one" and a wrong point tells existence |
   | quantityRoles | "Check which quantity is independent and which is dependent." | review S1: naming the one wrong role among two names its answer |
-  | axisSetup | "Check each axis: its quantity and its unit." (", its unit and its scale" when a scale is asked) | the same for a field with two options; said less rather than put to the owner |
+  | axisSetup | "Check each axis: its quantity[, its unit][ and its scale]." — a unit only when the stage shows it and the rule grades it (`requireUnits` not false on either), a scale only when both ask for it (re-review N1) | the same for a field with two options; said less rather than put to the owner |
   | tableInput | against the student's own function: "N value(s) do not follow the function you wrote."; against an authored key: "Some values in your table do not match." | the first counts against the student's own work, not the key |
   | coordinatePlot, functionGraph | the workspace's fixed lines; a plotted-pair count becomes "Some points are not where the ordered pairs put them." | one sentence per branch |
   | mappingDiagram, valueSet, domainInput, rangeInput | their one fixed line | one sentence for any miss |
@@ -138,6 +138,11 @@ is submitted and none of them is shown.
 - **Proof:** `feedbackReasons2` (tools): every phrase through the real grader; browser and server parts identical; no
   reason in either result; mutations ×4 → red. Browser: `dataModeling.png`; withheld on a DOL.
 
+## Gate after the re-review (S2', N1; head after `58026f66`)
+
+`test:platform` 12,120/12,120; tools 1,734/1,734, 0 skipped; lint 0; browser `composedOutcomePolicy` and `feedbackReasons2`
+exit 0.
+
 ## Gate after the review round (head after `7793f19e`; base `530ac3cf`)
 
 | Check | Result |
@@ -194,8 +199,10 @@ is submitted and none of them is shown.
   `CheckRow`; in `MatrixLab.jsx` only the `UNTOUCHED_START` constant.
 - `src/tools/representationMatch/RepresentationMatch.jsx` (W7-2): one message line and one import.
 - `src/tools/transformations/TransformationsLab.jsx`: three step strings, a helper, the hook.
-- `src/components/student/MyMathPathProductionContainer.jsx` (review S2): the retry line says "press Submit again" — the
-  Path's QuestionEngine is given no host label, so its button reads "Submit — …" (`toolWordsMatchButton` + mutation).
+- `src/components/student/MyMathPathProductionContainer.jsx` (review S2, then S2'): the retry line said "press Check
+  again". It serves both Path routes — a tool question's QuestionEngine button ("Submit — …") and the player's own
+  "Check my answer" — so it now names no button: "…Check your connection and try again — MathMaster reuses the same
+  submission ID…" (`toolWordsMatchButton` covers both routes; mutations ×2).
 - Tests re-anchored per the playbook (behaviour asserted, then mutation-checked): `regressionCalculator202`,
   `regressionCalculatorSharedGrading`, `toolStudentWording`, `solverRuntimeOutcomePolicy`, `matrixLabFeedback` (tools),
   `signSolutionAnalyzerSolutionReview`, `toolDirectionsSplit`, `representationBridgeLinearSharedGrading`,
