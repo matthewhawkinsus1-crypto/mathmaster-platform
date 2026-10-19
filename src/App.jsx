@@ -29,8 +29,8 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
-import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
+import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -44,6 +44,7 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
+import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -868,8 +869,14 @@ function App() {
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
   const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
   useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
-  // A shared Chromebook: the next student never inherits this one's notice.
-  useEffect(() => () => { clearDraftSaveProblems(); }, [user?.id]);
+  // A shared Chromebook: the next student never inherits this one's notice,
+  // and a reload keeps this student's (accountChangeClearsDraftProblems).
+  const draftHealthAccountRef = useRef(null);
+  useEffect(() => {
+    const account = user?.id || null;
+    if (accountChangeClearsDraftProblems(draftHealthAccountRef.current, account)) clearDraftSaveProblems();
+    draftHealthAccountRef.current = account;
+  }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
@@ -3571,7 +3578,10 @@ function App() {
       } catch (error) {
         if (!cancelled) {
           setUser(null);
-          setSessionHydrationError(error.message || 'MathMaster could not load your account.');
+          // The error itself: SessionGate turns it into words for the person
+          // (studentErrorText.js) and the technical text stays here.
+          console.error('Could not load the signed-in account:', error);
+          setSessionHydrationError(error || new Error('MathMaster could not load your account.'));
         }
       } finally {
         if (!cancelled) setSessionHydrating(false);
@@ -7483,10 +7493,13 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded, so the step was not taken: the solver keeps it
+      // on the board unapplied and says so in its own alert, inside Work View
+      // where the student is (STEP_NOT_QUEUED). A toast here sat under Work
+      // View, and `null` let the solver apply the step as if it were saved.
       console.error('Could not durably queue this algebra step:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Step not queued', 'Your step is still in Work View. Keep this tab open and submit it again.');
-      return null;
+      return STEP_NOT_QUEUED;
     }
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
@@ -7580,10 +7593,11 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded: the question and its work stay, and the engine
+      // says so under its own button (REPLACEMENT_NOT_QUEUED). No toast.
       console.error('Could not durably queue a replacement question:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Replacement not queued', 'Keep this tab open and request the new question again.');
-      return;
+      return REPLACEMENT_NOT_QUEUED;
     }
     setTracker(updatedTracker);
     if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
@@ -10807,7 +10821,7 @@ function App() {
                 state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">
-                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} extraTimeFrom={extraTimeFrom(dolState)} />
               </div>
             )}
           </nav>
@@ -11243,7 +11257,15 @@ function App() {
     if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
   }, []);
   useEffect(() => {
-    if (!workspaceArrivalNotices.length || activeView !== 'assignment') return;
+    if (!workspaceArrivalNotices.length) return;
+    // A notice is queued in the same update that opens the workspace, so a
+    // screen committed without it means the workspace never opened (its code
+    // failed to load, or the student left first). The notice belonged to that
+    // opening: dropped, never shown over a later, unrelated one (W6-2, N6).
+    if (activeView !== 'assignment') {
+      setWorkspaceArrivalNotices([]);
+      return;
+    }
     // Once each, even where the effect runs twice for the same notices
     // (StrictMode, a suspended tree shown again).
     workspaceArrivalNotices.forEach((notice) => {

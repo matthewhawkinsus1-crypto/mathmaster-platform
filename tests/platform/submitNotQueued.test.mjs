@@ -56,7 +56,8 @@ test('the engine locks only on a verdict, so this result leaves the question ope
 });
 
 test('App.jsx: a failed queue returns "not submitted", never null', () => {
-  assert.match(app, /import \{ SUBMISSION_NOT_QUEUED \} from '\.\/platform\/student\/submissionNotQueued\.js';/, 'imported next to its use');
+  // The import also brings the step and new-problem results (pass 3, wave 7).
+  assert.match(app, /^import \{ (?:\w+, )*SUBMISSION_NOT_QUEUED(?:, \w+)* \} from '\.\/platform\/student\/submissionNotQueued\.js';$/m, 'imported next to its use');
   const submit = region(app, 'const handleGradeSubmit = async (', 'const handleStepGrade = async (');
   const enqueue = submit.indexOf("kind: 'ordinarySubmission'");
   assert.notEqual(enqueue, -1);
@@ -81,7 +82,7 @@ test('the save line has its own words for an unqueued change, never "saved"', ()
 });
 
 test('QuestionEngine never freezes a verdict for an attempt the device could not queue', () => {
-  assert.match(engine, /import \{ isSubmissionNotQueued \} from '\.\/platform\/student\/submissionNotQueued\.js';/);
+  assert.match(engine, /^import \{ (?:\w+, )*isSubmissionNotQueued(?:, \w+)* \} from '\.\/platform\/student\/submissionNotQueued\.js';$/m);
   // Ordinary Submit: before the graded-for-display copy and a composed
   // question's per-step submission review (its green/red step verdicts).
   const submit = region(engine, 'const performSubmit = async () => {', 'const handleSubmit = async () => {');

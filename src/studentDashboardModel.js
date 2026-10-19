@@ -13,6 +13,7 @@ import { firstOpenLiveQuestionIndex } from './platform/student/liveSectionEntry.
 import { questionIsTerminal } from './platform/student/studentWorkState.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
+import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -673,6 +674,9 @@ const resolveNextActionCore = ({ dashboard, weeklyProgress = null } = {}) => {
       // student's, so an extended window is the one named — not the lesson's
       // due date, which can be tomorrow while this closes in minutes.
       closesAt: liveWindowClosesAt(activeDol.state),
+      // That close is the student's own, later one (D7): from the class's own
+      // close, Home says so (extraTimeWords.js, review N7).
+      extraTimeFrom: extraTimeFrom(activeDol.state || {}),
       questionIndex: firstUnattempted ?? 0,
       headline: `Your ${exitTicketInSentence} (DOL) is open`,
       // This card is the screen's one spelling of "(DOL)" (D9).

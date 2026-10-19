@@ -31,6 +31,7 @@ import {
   submitGraphFeatureRushAttempts,
   timestampMillis,
 } from '../../platform/liveChallenge/liveChallengeService.js';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 /*
  * GRAPH FEATURE RUSH: A STUDENT'S ROUND.
@@ -357,11 +358,14 @@ export default function GraphFeatureRushRound({
       // client-side timeout with the same code mid-round is retried.
       const timeIsUp = rushRefusalIsTimeUp(code, timing.endMono - performance.now());
       if (isFinalRefusal(error) || timeIsUp) {
+        // The server's own words stay here, for support; the student reads
+        // a sentence written for them (studentErrorText.js).
+        if (!timeIsUp) console.warn('Round stopped taking answers:', error);
         stoppedRef.current = true;
         commit(dropQueue(sessionRef.current));
         setConnection('ok');
         if (timeIsUp) setTimeUp(true);
-        else if (!overRef.current) setAlert(error?.message || 'This round is no longer taking answers.');
+        else if (!overRef.current) setAlert(studentErrorSentence(error, 'This round is no longer taking answers.'));
       } else {
         retryDelayRef.current = Math.min(RETRY_MAX_MS, Math.max(RETRY_MIN_MS, retryDelayRef.current * 2));
         setConnection('retrying');
@@ -444,7 +448,8 @@ export default function GraphFeatureRushRound({
         } catch (error) {
           if (cancelled) return;
           if (isFinalRefusal(error)) {
-            setAlert(error?.message || 'This round could not be opened.');
+            console.warn('Round could not be opened:', error);
+            setAlert(studentErrorSentence(error, 'This round could not be opened.'));
             setPhase('closed');
             return;
           }

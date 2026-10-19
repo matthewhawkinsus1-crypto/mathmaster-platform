@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { UNFINISHED_WORK_LINE, formatTimeLeft, takeDueTimeAlert } from '../../platform/student/timeLeftAlerts.js';
+import { EXTRA_TIME_WORDS, saysExtraTime } from '../../platform/assessment/extraTimeWords.js';
 
 const toMillis = (value) => {
   if (!value) return null;
@@ -24,8 +25,13 @@ const toMillis = (value) => {
  * seconds in the last minute. `hideCountdown` (a student's support setting)
  * hides the ticking numbers, not the warnings: a warning is said once, and
  * missing it loses work.
+ *
+ * `extraTimeFrom` (extraTimeWords.js): from that moment — the class's own
+ * close, for a student whose close is later (D7) — the pill says "extra
+ * time", so a countdown that runs past the class's end reads as theirs.
+ * Before it, the pill reads as everyone's (review N7).
  */
-export default function SectionTimeLeft({ label, labelInSentence = label, endsAt, hideCountdown = false, className = '', compact = false }) {
+export default function SectionTimeLeft({ label, labelInSentence = label, endsAt, hideCountdown = false, className = '', compact = false, extraTimeFrom = null }) {
   const endMs = toMillis(endsAt);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [alert, setAlert] = useState(null);
@@ -56,16 +62,17 @@ export default function SectionTimeLeft({ label, labelInSentence = label, endsAt
 
   if (!endMs) return null;
   const urgent = remainingMs <= 120_000;
+  const extraTime = saysExtraTime(extraTimeFrom, nowMs);
   const time = formatTimeLeft(remainingMs);
   return (
     <span className={`mathmaster-section-time-left${urgent ? ' is-urgent' : ''}${className ? ` ${className}` : ''}`} data-section-time-left="">
       <span aria-hidden={compact ? undefined : 'true'}>
-        {compact ? null : `${label} open`}
+        {compact ? null : `${label} open${extraTime ? ` · ${EXTRA_TIME_WORDS}` : ''}`}
         {!hideCountdown && <strong>{compact ? `⏱ ${time}` : ` · ${time}`}</strong>}
         {compact && hideCountdown ? <strong>⏱ open</strong> : null}
       </span>
       {/* Screen readers get the time in words when asked, not a tick a second. */}
-      {!compact && <span style={SR_ONLY_STYLE}>{`${label} is open${hideCountdown ? '' : `, ${time} left`}.`}</span>}
+      {!compact && <span style={SR_ONLY_STYLE}>{`${label} is open${extraTime ? ` (${EXTRA_TIME_WORDS})` : ''}${hideCountdown ? '' : `, ${time} left`}.`}</span>}
       {urgent && !compact && <span className="mathmaster-section-time-left-line">{UNFINISHED_WORK_LINE.section}</span>}
       <span role="alert" style={SR_ONLY_STYLE}>
         {shownAlert ? `${shownAlert.words} on the ${labelInSentence}. ${UNFINISHED_WORK_LINE.section}` : ''}

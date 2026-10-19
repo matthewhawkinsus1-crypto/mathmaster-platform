@@ -58,6 +58,7 @@ import {
 import { relationDistributionCandidates } from './algebraRelationStructureModel.js';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
+import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -657,6 +658,7 @@ export default function MultiRelationAlgebra({
   const [dragCancellationKey, setDragCancellationKey] = useState(null);
   const [dragStroke, setDragStroke] = useState(null);
   const dragStrokeRef = useRef(null);
+  const persistingStepRef = useRef(false);
   const suppressCancellationClickUntil = useRef(0);
 
   const normalizedQuestionRecord = normalizeQuestionRecord(questionRecord);
@@ -952,8 +954,8 @@ export default function MultiRelationAlgebra({
   // (validateRelationTransition): it travels in the step's raw work so the
   // server re-runs the same check and derives the same credit.
   const persistStep = async (before, after, label, kind = 'relation-step', transition = { kind: 'equivalentRewrite' }) => {
-    if (!onStepGrade) return;
-    await onStepGrade({
+    if (!onStepGrade) return null;
+    return onStepGrade({
       stepGrade: relationStepGrade({ kind, label, before, after, question }),
       countsAttempt: stepActionCountsAttempt(STEP_ACTIONS.RELATION_STEP),
       statePatch: relationStatePatch(after),
@@ -974,6 +976,26 @@ export default function MultiRelationAlgebra({
       return false;
     }
 
+    /*
+     * Saved before it is applied (pass 3, wave 7). A step this device could
+     * not save (STEP_NOT_QUEUED, App.jsx handleStepGrade) is not taken: the
+     * relation, the history and everything the student staged stay as they
+     * were, the alert below says so, and the same control applies it again.
+     * Every caller already stops on `false`. One step at a time while saving.
+     */
+    if (persistingStepRef.current) return false;
+    persistingStepRef.current = true;
+    let saved;
+    try {
+      saved = await persistStep(before, next, label, kind, validationContext);
+    } finally {
+      persistingStepRef.current = false;
+    }
+    if (isStepNotQueued(saved)) {
+      setMessage({ tone: 'error', text: saved.message, notQueued: true, heldAt: Date.now() });
+      return false;
+    }
+
     setHistory((current) => [...current.slice(-59), { relationState: before, activeBranch }]);
     setRelationState(next);
     setRepresentationWork(null);
@@ -985,7 +1007,6 @@ export default function MultiRelationAlgebra({
     setRelationPicker(null);
     setPlacementByKey({});
     setActiveBranch((current) => Math.min(current, Math.max(0, (next.branches?.length || 1) - 1)));
-    await persistStep(before, next, label, kind, validationContext);
     return true;
   };
 
@@ -1185,7 +1206,9 @@ export default function MultiRelationAlgebra({
     const next = cloneRelationState(relationState);
     if (!next.branches?.[activeBranch]?.expressions || !Number.isInteger(index)) return false;
     next.branches[activeBranch].expressions[index] = result.expression;
-    // Armed before the save: the new expressions render while it is awaited.
+    // Armed before the step is committed: commitState saves first and then
+    // renders the new expressions, which must already find Simplify closing.
+    // A step that is not committed (not valid, or not saved) disarms it below.
     closeSimplifyWhenDoneRef.current = true;
     const committed = await commitState(
       next,
@@ -1375,18 +1398,34 @@ export default function MultiRelationAlgebra({
         setMessage({ tone: 'error', text: validation.reason });
         return;
       }
+      // Saved before the flip is taken, as commitState does (review B2): a
+      // step this device could not save (STEP_NOT_QUEUED) leaves the flip
+      // pending and this symbol unchosen, and says so; choosing the symbol
+      // again saves it again.
+      if (persistingStepRef.current) return;
+      persistingStepRef.current = true;
+      let saved;
+      try {
+        saved = await persistStep(
+          pending.before,
+          next,
+          pending.label,
+          'student-relation-direction',
+          pending.validationContext || { kind: 'equivalentRewrite' },
+        );
+      } finally {
+        persistingStepRef.current = false;
+      }
+      if (isStepNotQueued(saved)) {
+        setRelationState(relationState);
+        setMessage({ tone: 'error', text: saved.message, notQueued: true, heldAt: Date.now() });
+        return;
+      }
       setHistory((current) => [...current, {
         relationState: cloneRelationState(pending.before),
         activeBranch,
       }]);
       setPendingRelationFlip(null);
-      await persistStep(
-        pending.before,
-        next,
-        pending.label,
-        'student-relation-direction',
-        pending.validationContext || { kind: 'equivalentRewrite' },
-      );
       setMessage({
         tone: 'success',
         text: flipResults.length > 1
@@ -2554,7 +2593,9 @@ export default function MultiRelationAlgebra({
 
       {message && (
         <div
-          role="status"
+          key={message.notQueued ? message.heldAt : 'message'}
+          role={message.notQueued ? 'alert' : 'status'}
+          data-step-not-queued={message.notQueued ? '' : undefined}
           style={{
             marginTop: 10,
             padding: '10px 12px',

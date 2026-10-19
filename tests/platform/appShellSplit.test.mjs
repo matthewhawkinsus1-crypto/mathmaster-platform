@@ -170,7 +170,10 @@ test('the session gate renders for any screen that does not belong to the accoun
   assert.match(gate, /if \(authStatus === 'signedOut' \|\| authStatus === 'linking'\) return <LoginScreen launchAssignment=\{launchAssignment\} \/>;/);
   assert.match(gate, /^import LoginScreen from '\.\.\/\.\.\/LoginScreen\.jsx';$/m);
   assert.match(gate, /onClick=\{onSignOut\}/);
-  assert.match(gate, /if \(hydrationError\) \{[\s\S]*MathMaster could not load your account[\s\S]*\{hydrationError\}/);
+  // The error is shown in words written for the person, never as it came
+  // (pass 3, wave 7: studentErrorText.js; its own sentences are asserted in
+  // studentHonestFailures.test.mjs).
+  assert.match(gate, /if \(hydrationError\) \{[\s\S]*MathMaster could not load your account[\s\S]*\{studentErrorSentence\(hydrationError, ACCOUNT_LOAD_FALLBACK\)\}/);
   assert.match(gate, /\{hydrating \? 'Loading your MathMaster workspace…' : 'Finishing sign in…'\}/);
 });
 
