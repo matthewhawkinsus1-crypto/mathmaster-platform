@@ -129,6 +129,11 @@ words.
 root, the server's key check, the compile, the import of a portable export, Pre-Flight (both catalogs), and the miss
 checks.
 
+**In the real App:** a scratch probe opened the teacher harness (`questions=real`) and answered `(2,3)` on Practice Q2
+(key `'(2,3)'`), using the steps of `submitAndFinishJourneys`. The result was "Correct! This question is complete." on a
+Chromebook and on a phone. The probe is not committed. Screenshots:
+`docs/qa/student-experience-pass-3/screenshots/ordered-pair-text-key-{chromebook,phone}.png`.
+
 **The read-only count** is `scripts/report-ordered-pair-text-keys.mjs`.
 
 - It reads `assignments` only, field-masked, including variants and legacy root lists.
@@ -209,7 +214,8 @@ each case outright (below).
 
 ## The sweep against the base
 
-`node scripts/sweep-equivalence-verdicts.mjs --base <worktree of 530ac3cf> --draws 3 --check-wrong` (exit 0):
+`node scripts/sweep-equivalence-verdicts.mjs --base <worktree of 530ac3cf> --draws 3 --check-wrong`, on the final head
+(exit 0):
 
 ```
 fields 10012, drawn 10050, graded 289824
@@ -327,7 +333,9 @@ The sweep's new checks were mutation-checked as described in item 4.
 | Driver `fractionTemplateGrading` (Chromebook, phone) | pass (extended for item 1) |
 | Driver `mathEntryContract` | pass |
 | Driver `relationPlotGrading` | pass |
-| Drivers `questionFamilyCases`, `secureAccessParity`, `submitAndFinishJourneys` | see the last section |
+| Driver `questionFamilyCases` | 36 journeys pass |
+| Driver `secureAccessParity` (emulator Vite config, port 5203) | 26 checks pass; no production contact |
+| Driver `teacherWorkflow/submitAndFinishJourneys` (harness on 5188) | all checks pass (it covers OrderedPairGrader) |
 
 ## Deploy targets
 
