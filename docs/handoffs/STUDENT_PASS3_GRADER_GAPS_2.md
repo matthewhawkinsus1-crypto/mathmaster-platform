@@ -312,15 +312,15 @@ variant questions, which the shared support check already refuses.
 
 The sweep's new checks were mutation-checked as described in item 4.
 
-## Gate (on `HEAD`, all run here)
+## Gate (on the final head after the review round, all run here)
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 12,137 pass, 0 fail |
+| `npm run test:platform` | 12,151 pass, 0 fail |
 | `node --test tests/tools/*.test.mjs` | 1,710 pass, 0 fail |
-| `npm run lint` | exit 0, 0 errors. A needless escape I added was fixed; I did not compare the other warnings with the base |
+| `npm run lint` | exit 0, 0 errors |
 | `npm run build`, `npm run build:firebase` | pass; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs --report` | **studentHome 840.7 KB** gzip (base 839.3, so **+1.4 KB**, inside this branch's 1.5 KB); **signIn 291.9 KB**; within baseline. Baseline file not touched |
+| `node scripts/check-first-load-budget.mjs --report` | **studentHome 840.8 KB** gzip, **signIn 291.9 KB**; within baseline; baseline file not touched. The base built here measures 839.4 KB (the brief says 839.3), so this branch adds 1.4 KB (1.5 against the brief's figure). The review round's fixes first took it to 841.0; trimming my own grading code, with no behaviour change, brought it back. The build-info chunk moves 0.1 KB between builds with the commit hash. |
 | `npm run test:authoring-v5` | 686 pass |
 | `npm run test:challenge-finish` (every `tests/integration/*.test.mjs`, including my two) | 490 pass |
 | `npm run test:canonical-persistence` | 35 pass |
@@ -328,14 +328,13 @@ The sweep's new checks were mutation-checked as described in item 4.
 | `npm run test:grade-authority` | 14 pass |
 | `npm run test:classroom-regrade-report:emulator` | 5 pass |
 | `npm run audit:answer-acceptance` | 27,257 known-correct variants, 0 false negatives |
-| Sweep against the base | exit 0; counts above |
-| Grader unit suites (`answerEquivalence`, `stackDivisions`, `secureMathAnswerRoundTrip`, `thousandsSeparatorGrading`, every `*Equivalence*`) | in `test:platform`, all pass |
-| Driver `fractionTemplateGrading` (Chromebook, phone) | pass (extended for item 1) |
+| Sweep against the base | exit 0; counts in the review section |
+| Grader unit suites (`answerEquivalence`, `stackDivisions`, `secureMathAnswerRoundTrip`, `thousandsSeparatorGrading`, every `*Equivalence*`) and the new `questionDetailsNeverShowKey` | in `test:platform`, all pass |
+| Driver `fractionTemplateGrading` (Chromebook, phone) | pass |
 | Driver `mathEntryContract` | pass |
-| Driver `relationPlotGrading` | pass |
 | Driver `questionFamilyCases` | 36 journeys pass |
 | Driver `secureAccessParity` (emulator Vite config, port 5203) | 26 checks pass; no production contact |
-| Driver `teacherWorkflow/submitAndFinishJourneys` (harness on 5188) | all checks pass (it covers OrderedPairGrader) |
+| Earlier on this branch (first round): `relationPlotGrading`, `teacherWorkflow/submitAndFinishJourneys` | pass |
 
 ## Deploy targets
 
