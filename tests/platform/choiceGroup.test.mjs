@@ -57,8 +57,26 @@ test('arrows move focus AND select, wrapping; Home and End go to the ends', () =
   g.press(3, 'ArrowLeft');
   g.press(1, 'End');
   g.press(2, 'Home');
-  assert.deepEqual(g.selected, [['b', 1], ['b', 1], ['d', 3], ['c', 2], ['d', 3], ['a', 0]]);
+  // The fixture's value stays 'a': Home onto 'a' moves focus and selects nothing.
+  assert.deepEqual(g.selected, [['b', 1], ['b', 1], ['d', 3], ['c', 2], ['d', 3]]);
   assert.deepEqual(g.focused, [1, 1, 3, 2, 3, 0]);
+});
+
+// Review B1: Figure Match's select toggles (pressing the chosen chip clears
+// it), so a key that re-selected the checked option deleted the answer.
+test('Home / End / Space on the checked option, or an arrow in a one-option group, calls nothing', () => {
+  const first = group({ value: 'a' });
+  assert.equal(first.press(0, 'Home'), true, 'the key is still the group\'s (no page scroll)');
+  assert.equal(first.press(0, ' '), true);
+  assert.deepEqual(first.selected, []);
+  const last = group({ value: 'd' });
+  last.press(3, 'End');
+  last.press(3, ' ');
+  assert.deepEqual(last.selected, []);
+  assert.deepEqual(last.focused, [3], 'End still puts focus on the last option');
+  const one = group({ ids: ['only'], value: 'only' });
+  for (const key of ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', ' ']) one.press(0, key);
+  assert.deepEqual(one.selected, []);
 });
 
 test('Space selects where focus is; Enter, Tab and letters are left alone; nothing submits', () => {

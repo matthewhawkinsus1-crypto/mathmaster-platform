@@ -20,6 +20,9 @@
  *   - the tab stop follows the checked option;
  *   - no key the group takes grades anything (choosing is not checking).
  *
+ * And Figure Match (the real FigureMatchStage on toolChoiceGroups.html), whose
+ * select toggles: Home, End and Space on the checked chip keep the answer.
+ *
  * Exits non-zero on any failure. On the base before TOOL-6 the arrow keys did
  * nothing and every option was a tab stop.
  */
@@ -108,6 +111,48 @@ const runScene = async (page, { tool, spec, group: groupName }) => {
   await page.screenshot({ path: path.join(artifacts, `${tool}-${spec ? [spec.mode, spec.task].filter(Boolean).join('-') : 'default'}.png`) }).catch(() => {});
 };
 
+// Figure Match, the real FigureMatchStage (toolChoiceGroups.html). Its select
+// toggles: pressing the chosen chip clears it, as a pointer may. A key that
+// lands on the checked chip — Home on the first, End on the last, Space —
+// must leave the answer alone (review B1: it cleared it, and an exit ticket
+// then sent the figure as unanswered).
+const runFigureMatch = async (page) => {
+  const label = 'figureMatch';
+  console.log(`\n${label}`);
+  await page.goto(`${ORIGIN}/tests/browser/toolChoiceGroups.html`, { timeout: 180_000 });
+  const group = page.getByRole('radiogroup', { name: 'Category for Figure 1', exact: true });
+  await group.waitFor({ timeout: 60_000 });
+  const answer = () => page.evaluate(() => {
+    const changes = window.__fm.changes;
+    return { count: changes.length, f1: changes.length ? changes[changes.length - 1].assignments.f1 ?? null : null, cleared: changes.filter((change) => !change.assignments.f1).length };
+  });
+  const press = async (key) => { await page.keyboard.press(key); await page.waitForTimeout(120); return answer(); };
+  await group.locator('[role="radio"]').first().focus();
+  let state = await press('Space');
+  check(state.f1 === 'linear' && state.count === 1, `${label}: Space on the first chip answers Linear (${JSON.stringify(state)})`);
+  const holds = async (key, expected, why) => {
+    const before = await answer();
+    const after = await press(key);
+    check(after.count === before.count && after.f1 === expected, `${label}: ${key} ${why} — the answer stays ${expected} (${before.count} -> ${after.count} change(s), now ${after.f1})`);
+  };
+  await holds('Home', 'linear', 'on the checked first chip');
+  await holds('Space', 'linear', 'on the checked chip');
+  state = await press('End');
+  check(state.f1 === 'exponential', `${label}: End answers the last category (${state.f1})`);
+  await holds('End', 'exponential', 'on the checked last chip');
+  await holds('Space', 'exponential', 'on the checked chip');
+  state = await press('ArrowRight');
+  check(state.f1 === 'linear', `${label}: ArrowRight wraps to Linear (${state.f1})`);
+  await holds('Home', 'linear', 'on the checked first chip, again');
+  state = await answer();
+  check(state.cleared === 0, `${label}: no key ever reported Figure 1 unanswered (${state.cleared} cleared value(s))`);
+  // Pointer parity: Enter is the button's click, and a click on the chosen
+  // chip still clears it on purpose.
+  state = await press('Enter');
+  check(state.f1 === null, `${label}: Enter (a click) on the chosen chip still clears it, as a pointer does (${state.f1})`);
+  await page.screenshot({ path: path.join(artifacts, 'figureMatch.png') }).catch(() => {});
+};
+
 const main = async () => {
   mkdirSync(artifacts, { recursive: true });
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -122,6 +167,12 @@ const main = async () => {
         ? route.continue() : route.abort()
     ));
     const page = await context.newPage();
+    try {
+      await runFigureMatch(page);
+    } catch (error) {
+      check(false, `figureMatch: could not finish — ${error.message.split('\n')[0]}`);
+      await page.screenshot({ path: path.join(artifacts, 'FAIL-figureMatch.png'), fullPage: true }).catch(() => {});
+    }
     for (const scene of SCENES) {
       try {
         await runScene(page, scene);

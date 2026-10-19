@@ -9,6 +9,7 @@
  *   - one tab stop: the checked option, else the first;
  *   - arrow keys move AND select, wrapping; Home / End go to the ends;
  *   - Space selects; Enter is left to the native button (its click selects).
+ *   - a key that lands on the option already checked selects nothing again.
  *
  * Selecting is never answering: no key here submits, checks or spends a try.
  *
@@ -35,7 +36,11 @@ export const choiceOptionProps = ({ refs, ids = [], value, onSelect, disabled = 
       const action = radioGroupKeyAction(event.key, index, ids.length);
       if (!action) return;
       event.preventDefault();
-      onSelect?.(ids[action.index], action.index);
+      // Only a CHANGE selects. A group whose select toggles (Figure Match:
+      // pressing the chosen chip clears it) would otherwise lose its answer to
+      // Home / End / Space on the checked option (review B1). Enter is a click,
+      // and still toggles as a pointer does.
+      if (String(ids[action.index]) !== String(value ?? '')) onSelect?.(ids[action.index], action.index);
       if (action.type === 'move') refs.current[action.index]?.focus?.();
     },
   });
