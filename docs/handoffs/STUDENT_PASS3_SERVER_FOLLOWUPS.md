@@ -78,7 +78,39 @@ cell is three runs.
 | --- | --- | --- | --- |
 | Base `530ac3cf` | 10–12 ms | — | 1.7–2.8 ms |
 | `c6c8f08f` (import inside) | 538–562 ms; 4465 ms on the first run of all, with a cold disk cache | — | 2.2–3.7 ms |
-| Now (loaded first) | 10–13 ms | 528–554 ms, once per instance, holding no lock | 2.1–2.6 ms |
+| `7fd33d11` (loaded first) | 10–13 ms | 528–554 ms, once per instance, holding no lock | 2.1–2.6 ms |
+
+**Second review round (N1): started at entry, awaited before the
+transaction.** Each of the four grading paths now starts `loadMissEvidence()`
+before its first `await`, without awaiting it; the load never rejects, so a
+floating promise is safe. It awaits the load just before its transaction, so
+the import overlaps whatever reads come first. A proctor action other than
+force-submit never starts it.
+
+That overlap is real on `finalizeSecureExam` (the session read and the
+reset check), on the abandoned-test finalizer, and on force-submit (teacher
+auth, the session read, scope checks). **`submitSecureExamResponse` has no read
+before its transaction**, so there is nothing for the import to overlap there.
+
+Measured end to end against the emulator. Each run is a fresh `node` process
+(start, issue, then time the first `submitSecureExamResponse`), three runs per
+row. "Stub" resolves the load at once with no import: the base's cost.
+
+| First submit on a cold process | Stub (as the base) | Real import | Import itself |
+| --- | --- | --- | --- |
+| Correct answer | 95–122 ms | 502–1006 ms | 427–928 ms |
+| Wrong answer | 543–589 ms | 524–578 ms | 446–499 ms |
+
+- **A cold miss costs no more than the base.** That path already loads the
+  modules the import shares, so the import is hidden behind it.
+- **A cold correct submit pays the import once per instance,** before its
+  transaction: about 0.4–0.9 s. Nothing holds the session while it loads, and
+  it is a one-off: warm, the cost is noise, about 2 ms per record.
+- **To remove even that,** submit could wait for the load only when the answer
+  is a miss. That would mean awaiting it inside the transaction, after its
+  reads, which the brief rules out, so it is not done; it is the integrator's
+  call. A cold miss already pays about 0.5 s in the base, so the import would
+  hide behind that cost there too.
 
 ### Proof
 
@@ -133,9 +165,10 @@ cell is three runs.
   - undeclare `path:relationMapping`;
   - the helper no longer passing responses and the item (contract);
   - drop the `unanswered` guard (review N4);
-  - drop the load before the submit transaction (contract
-    `testCycleClassSittingsWiring.test.mjs`, which also pins all four loads and
-    that the four are every grading transaction).
+  - the load awaited where it starts, started after the path's first await, never
+    awaited before the transaction, started for every proctor action, or able
+    to reject (contract `testCycleClassSittingsWiring.test.mjs`, which also pins
+    that the four paths are every grading transaction).
 
 ## Item 2: a Test day the class sat — record-only
 
@@ -269,9 +302,10 @@ untouched since:
 
 ## Cloud Functions whose behaviour changes (for the planner)
 
-- **Item 1, loading** (review S1): `submitSecureExamResponse`,
+- **Item 1, loading** (review S1 and N1): `submitSecureExamResponse`,
   `finalizeSecureExam`, `proctorExamAction` (force-submit) and
-  `finalizeAbandonedSecureExams` load the diagnosis before their transaction.
+  `finalizeAbandonedSecureExams` start loading the diagnosis at entry and await
+  it before their transaction.
 - **Item 1, recording:**
   - `submitSecureExamResponse`;
   - `finalizeSecureExam` (student submit and the verified timer);
