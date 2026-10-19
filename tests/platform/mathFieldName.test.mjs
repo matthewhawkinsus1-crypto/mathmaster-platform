@@ -147,3 +147,14 @@ test('no caller names a MathInput with an aria-label prop it ignores', async () 
     .map((match) => `${relative(root, file)}: ${match[0].slice(0, 80)}…`));
   assert.deepEqual(offenders, []);
 });
+
+// Review: two boxes students reach (QuestionEngine renders both graders) fell
+// back to a generic name. Each is named by what is on screen beside it.
+test('the fraction and literal-equation boxes have their own names', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
+  const box = (source) => source.match(/<MathInput\b[\s\S]*?\/>/)?.[0] || '';
+  assert.match(box(read('src/FractionGrader.jsx')), /\bariaLabel="Fraction answer"/);
+  // The visible label is "x =" (the variable solved for): the name says the same.
+  assert.match(box(read('src/LiteralGrader.jsx')), /\bariaLabel=\{`\$\{solveFor\} =`\}/);
+});

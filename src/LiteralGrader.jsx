@@ -43,7 +43,7 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
         <div style={{ fontSize: 'calc(24 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
           <MathDisplay value={`${displayedSolveFor} =`} format={solveForLatex ? 'latex' : 'ascii-math'} inline ariaLabel={`${solveFor} equals`} />
         </div>
-        <MathInput value={answer} onChange={setAnswer} placeholder={`type expression for ${solveFor}`} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+        <MathInput value={answer} onChange={setAnswer} placeholder={`type expression for ${solveFor}`} ariaLabel={`${solveFor} =`} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
       )}
       <QuestionVisual question={question} />
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+        <MathInput value={answer} onChange={setAnswer} ariaLabel="Fraction answer" onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
     </div>
