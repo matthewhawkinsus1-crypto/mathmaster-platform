@@ -237,17 +237,18 @@ would use, from this deploy on.
 
 ## Gate
 
-Gated at `6d727b70` (the code; later commits change only this handoff). The browser drivers were run one at a time.
+**Review round.** Gated at `0e04677d`: the code at `2b1c28e1` plus the
+handoff. The drivers were run one at a time.
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 12131 / 12131 |
+| `npm run test:platform` | 12132 / 12132 |
 | `node --test tests/tools/*.test.mjs` | 1710 / 1710, 0 skipped |
 | `npm run lint` | exit 0, 0 errors; 496 warnings, the same count as the base |
 | `npm run build` / `npm run build:firebase` | ok; no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs --report` | studentHome **839.6 KB** gzip (base 839.3: **+0.3 KB**, the registry entries in `misconceptionCodes.mjs` and the sitting helpers in `testCycleAvailability.mjs`, both on the first load); signIn 291.9 KB; within baseline. `first-load-baseline.json` not edited. |
-| `npm run test:rules` | 248 / 248 and 224 / 224 (adds `testCycleClassSittingsRules`) |
-| `npm run test:test-cycle-certification` | 40 / 40 (adds M and N) |
+| `node scripts/check-first-load-budget.mjs --report` | **studentHome:** 839.6 KB gzip, against 839.4 KB for the base `530ac3cf` built in the same environment. The chunk this branch changes, `misconceptionCodes`, goes from 4936 to 4996 B gzip: **about +0.06 KB**, as the review measured. The rest is rounding and build-hash noise. `testCycleAvailability` now adds only the two pure record helpers. **signIn:** 291.9 KB. Within baseline; `first-load-baseline.json` not edited. |
+| `npm run test:rules` | 248 / 248 and 224 / 224 (includes `testCycleClassSittingsRules`) |
+| `npm run test:test-cycle-certification` | 40 / 40 (M record-only, N) |
 | `npm run test:challenge-finish` (every integration file) | 490 / 490 |
 | `npm run test:secure-exam-navigation` | 25 / 25 |
 | `npm run test:secure-exam-auto-finalize` | 11 / 11 |
@@ -255,15 +256,22 @@ Gated at `6d727b70` (the code; later commits change only this handoff). The brow
 | `npm run test:canonical-persistence` | 35 / 35 |
 | `npm run test:test-cycle-device` | all 12 device × stage combinations |
 | Browser `secureResults` | 324 passed, 0 failed |
-| Browser `secureAccessParity` (Vite on 5199, `AUDIT_ORIGIN`) | 26 / 26 |
-| Browser `secureExamNavigation` | 387 passed, 2 failed, twice. Both failures are in the practice-SAT list ("Escape inside the list closes it", "practiceJourney ran to the end"). The base `530ac3cf` gives **the same 387 / 2**, so they are pre-existing and outside this item. |
 | Browser `testCycleRichToolQa` (its own servers) | 490 checks, 0 findings |
-| Teacher harness (5188) `dolExtraTimeJourneys` | all passed |
-| Teacher harness (5188) `recoveryHoldJourneys` | 450 checks, no findings |
-| `node scripts/release-firebase.mjs --since 530ac3cf` | plans functions (all groups), `functions:path-admin`, `firestore:rules`, Hosting; see Deploy targets |
+| `node scripts/release-firebase.mjs --since 530ac3cf` | Still plans all 28 function groups, `functions:path-admin`, `firestore:rules` and Hosting. The planner works from changed files. The functions whose *behaviour* changes are fewer (next section). |
+
+**First round** (`6d727b70`, the c6c8f08f report). Also run then, and
+untouched since:
+- `secureAccessParity` 26 / 26;
+- `dolExtraTimeJourneys` all passed;
+- `recoveryHoldJourneys` 450 checks, no findings;
+- `secureExamNavigation` 387 / 2 — the same 387 / 2 on the base (the
+  practice-SAT list; pre-existing).
 
 ## Cloud Functions whose behaviour changes (for the planner)
 
+- **Item 1, loading** (review S1): `submitSecureExamResponse`,
+  `finalizeSecureExam`, `proctorExamAction` (force-submit) and
+  `finalizeAbandonedSecureExams` load the diagnosis before their transaction.
 - **Item 1, recording:**
   - `submitSecureExamResponse`;
   - `finalizeSecureExam` (student submit and the verified timer);
