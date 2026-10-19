@@ -257,3 +257,51 @@ test('HELP-19: "Let\'s back up" is said once — the region names it, the questi
   assert.match(overlay, /role="region" aria-label="Let's back up"/);
   assert.match(overlay, /<h2[^>]*>\{backUpQuestionText\(scaffold\.prompt\)\}<\/h2>/, 'the heading is the question, not "Let\'s back up" again');
 });
+
+/* ------------------------------------- what a tool draws on the shared plane */
+
+test('a tool names what it draws itself; the plane says its kinds while open and its features once closed', async () => {
+  const { describeCoordinatePlane } = await import('../../src/platform/language/graphDescription.js');
+  const base = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, hasUndescribedMarks: true, toolMarks: { kinds: '1 curve.', features: '1 curve, opening to the right.' } };
+  const open = describeCoordinatePlane(base).description;
+  assert.match(open, /1 curve\. Positions are not read out while this question can be answered\.$/, open);
+  assert.doesNotMatch(open, /opening|not listed/);
+  assert.match(describeCoordinatePlane({ ...base, detail: 'features' }).description, /1 curve, opening to the right\.$/);
+  assert.match(describeCoordinatePlane({ ...base, detail: 'features', toolMarks: { kinds: 'A segment joins the origin to each point.' } }).description, /A segment joins the origin to each point\.$/, 'features falls back to kinds');
+  assert.match(describeCoordinatePlane({ ...base, toolMarks: null }).description, /marks drawn by the activity that are not listed here\.$/, 'without words, the plane says so');
+});
+
+test('the student\'s inequality graph is said as drawn — line styles, shaded sides, the overlap — never where', async () => {
+  const { inequalityGraphMarksText } = await import('../../src/tools/systemsWorkspace/inequalityGraphMarks.js');
+  const { boundaryFromSlopeIntercept, feasibleRegionPolygon, boundaryWithChosenSide } = await import('../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js');
+  const bounds = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
+  const lines = [boundaryFromSlopeIntercept(1, 2, '>='), boundaryFromSlopeIntercept(-1, 6, '<')];
+  const build = [{ style: 'solid', shadePoint: [0, 9] }, { style: null, shadePoint: [0, 0] }];
+  const polygon = feasibleRegionPolygon([boundaryWithChosenSide(lines[0], 1, false), boundaryWithChosenSide(lines[1], -1, true)], bounds);
+  const said = inequalityGraphMarksText({ build, effectiveLines: lines, buildConfig: { lineStyle: true, shading: true }, workingConstraints: [], bounds, combined: true, studentPolygon: polygon.length >= 3 ? polygon : [[0, 0], [1, 0], [0, 1]] });
+  assert.equal(said, 'Boundary line 1: solid. Boundary line 2: its style is not chosen yet. One side of each of boundary lines 1 and 2 is shaded. The overlap of the shaded sides is hatched.');
+  assert.doesNotMatch(said, /\d\s*,\s*[−-]?\d|\(|above|below|left|right/, 'no position and no side named');
+  // The relation's own style when the step does not ask for one.
+  assert.equal(inequalityGraphMarksText({ build: [{}, { visible: false }], effectiveLines: lines, buildConfig: {}, workingConstraints: [{ relation: '<' }], bounds }), 'Boundary line 1: dashed.');
+  assert.equal(inequalityGraphMarksText({}), 'No boundary line is drawn yet.');
+});
+
+test('the Complex Plane, the sideways parabola and the inequality region pass their words to the plane', async () => {
+  assert.match(code('src/tools/complexPlane/ComplexPlaneLab.jsx'), /toolMarks=\{\{ kinds: 'A segment joins the origin to each point\.' \}\}\s*>\s*\{\(\{ sx, sy \}\) => <>\{items\.map\(\(item\) => <line/);
+  const parabola = code('src/tools/parabolaGeometry/ParabolaGeometryLab.jsx');
+  assert.match(parabola, /toolMarks=\{\{ kinds: '1 curve\.', features: `1 curve, opening to the \$\{spec\.p>0\?'right':'left'\}\.` \}\}>[^<]*?\{spec\.orientation==='horizontal' \? \(\{sx,sy\}\)=> <path/, 'only a sideways parabola draws (and names) its own curve');
+  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /toolMarks=\{\{ kinds: shownPolygon\.length >= 3 \? `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}\.` : 'No region is shaded yet\.' \}\}/);
+  assert.match(code('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /toolMarks=\{\{ kinds: inequalityGraphMarksText\(\{ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon \}\) \}\}/);
+  const plane = code('src/tools/shared/CoordinatePlane.jsx');
+  assert.match(plane, /hasUndescribedMarks: hasToolMarks,\s*toolMarks: hasToolMarks \? toolMarks : null,/);
+
+  // Rendered: the plane's own description carries the tool's words.
+  const { default: CoordinatePlane } = await vite.ssrLoadModule('/src/tools/shared/CoordinatePlane.jsx');
+  const markup = renderToStaticMarkup(React.createElement(CoordinatePlane, {
+    xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 3, y: 2, label: 'z₁' }], enlargeable: false,
+    toolMarks: { kinds: 'A segment joins the origin to each point.' },
+    children: () => React.createElement('line', { x1: 0, y1: 0, x2: 1, y2: 1 }),
+  }));
+  const description = /<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/.exec(markup)?.[1] || '';
+  assert.match(description, /1 point labelled z₁\. A segment joins the origin to each point\. Positions are not read out/, description);
+});

@@ -224,6 +224,10 @@ export default function CoordinatePlane({
   // terminal). A screen that asks nothing (a report, a solution review) passes
   // true; an authored `description` always wins.
   describeFeatures = null,
+  // What the tool draws as `children`, in its own words: { kinds, features }
+  // (graphDescription.js `toolMarks`). The plane says `kinds` while the
+  // question can be answered and `features` once it may state values.
+  toolMarks = null,
   // The "Show data table" disclosure under a read-only plane. Only where
   // feature values may be stated, never where the plane withholds coordinates
   // (revealCoordinates or pointHoverEnabled false), and left out automatically
@@ -570,11 +574,12 @@ export default function CoordinatePlane({
     horizontalLines: describedHorizontals,
     label: ariaLabel,
     hasUndescribedMarks: hasToolMarks,
+    toolMarks: hasToolMarks ? toolMarks : null,
     emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarks?.kinds, toolMarks?.features,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const spokenDescription = authoredDescription || generatedDescription.description;

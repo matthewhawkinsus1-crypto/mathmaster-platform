@@ -48,6 +48,8 @@ function ComplexVisual({ values = [], title = 'Complex plane' }) {
       yMin={-bound}
       yMax={bound}
       points={items.map((item) => ({ x: item.value.re, y: item.value.im, label: item.label, fill: item.color }))}
+      // The segments it draws below, said by the plane with its points.
+      toolMarks={{ kinds: 'A segment joins the origin to each point.' }}
     >
       {({ sx, sy }) => <>{items.map((item) => <line key={item.label} x1={sx(0)} y1={sy(0)} x2={sx(item.value.re)} y2={sy(item.value.im)} stroke={item.color} strokeWidth="2" opacity="0.7" />)}</>}
     </CoordinatePlane>
