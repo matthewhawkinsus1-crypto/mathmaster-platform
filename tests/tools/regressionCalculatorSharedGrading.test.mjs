@@ -27,6 +27,7 @@ import {
 } from '../../functions/shared/pathRegressionCalculatorGrading.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
+import { REGRESSION_FEEDBACK, regressionFeedbackText } from '../../src/tools/regressionCalculator/regressionFeedback.js';
 
 /*
  * REGRESSION CALCULATOR: ONE VERDICT, WHEREVER IT IS COMPUTED.
@@ -593,8 +594,43 @@ test('the live work reported for a deadline is the same object Submit sends', ()
 test('stage feedback reads the shared parts by stage id', () => {
   const code = executableSource(componentText);
   const feedback = region(code, 'const feedbackParts', 'return (', 'the feedback text');
-  assert.match(feedback, /feedbackParts\[0\]\?\.isCorrect !== true[\s\S]*Data entry\/table does not match/);
-  assert.match(feedback, /stagePassed\('linear-regression'\)[\s\S]*Regression setup is incomplete/);
-  assert.match(feedback, /stagePassed\('correlation-produced'\)[\s\S]*A correlation value has not been produced/);
-  assert.match(feedback, /part\.id === 'interpretation'\) && !stagePassed\('interpretation'\)[\s\S]*Check the direction\/strength interpretation/);
+  // The sentence is the pure module's, from the grader's parts on the
+  // tool's feedback (null wherever outcome feedback is withheld).
+  assert.match(feedback, /const feedbackText = feedback && regressionFeedbackText\(feedbackParts\);/);
+  assert.match(code, /import \{ regressionFeedbackText \} from '\.\/regressionFeedback\.js';/);
+  assert.match(code, /\{feedbackText \? <p role="status">\{feedbackText\}<AttemptOutcome inline \/><\/p> : null\}/);
+});
+
+/*
+ * TOOL-5 (student pass 3): each sentence is what the grader found, through the
+ * real grader. "A correlation value has not been produced." was said when r
+ * was on screen; "Regression setup is incomplete or invalid." covered both
+ * "never run" and "run on another table".
+ */
+test('the feedback sentence says what the grader found, stage by stage', () => {
+  const question = dataQuestion();
+  const points = POINTS;
+  const stats = regressionCalculatorStats(points);
+  const say = (work) => regressionFeedbackText(gradeToolCheck(regressionCalculatorGrader, question, buildRegressionCalculatorWork(work)).parts);
+  const right = { table: points, regressionRun: { operation: 'linearRegression', table: points, ...stats }, direction: 'positive', strength: 'strong' };
+  assert.equal(say(right), REGRESSION_FEEDBACK.complete);
+  assert.equal(say({ ...right, table: points.slice(0, 2), regressionRun: null }), REGRESSION_FEEDBACK.tableIncomplete);
+  assert.equal(say({ ...right, table: [...points.slice(0, -1), [99, 99]] }), REGRESSION_FEEDBACK.tableWrong);
+  assert.equal(say({ ...right, regressionRun: null }), REGRESSION_FEEDBACK.runMissing);
+  // Run on an earlier table: the run is there, on other rows.
+  const earlier = points.slice(0, -1);
+  assert.equal(say({ ...right, regressionRun: { operation: 'linearRegression', table: earlier, ...regressionCalculatorStats(earlier) } }), REGRESSION_FEEDBACK.runStale);
+  // r is on screen but not this table's: never "not produced".
+  const stale = say({ ...right, regressionRun: { ...right.regressionRun, r: stats.r - 0.2 } });
+  assert.equal(stale, REGRESSION_FEEDBACK.rStale);
+  assert.doesNotMatch(stale, /not been produced|no r value/);
+  assert.equal(say({ ...right, regressionRun: { ...right.regressionRun, r: null } }), REGRESSION_FEEDBACK.rMissing);
+  assert.equal(say({ ...right, direction: '', strength: 'strong' }), REGRESSION_FEEDBACK.interpretationIncomplete);
+  assert.equal(say({ ...right, direction: 'negative' }), REGRESSION_FEEDBACK.interpretationWrong);
+  // Without a required interpretation there is no such stage to fail.
+  const noInterpretation = regressionFeedbackText(gradeToolCheck(regressionCalculatorGrader, dataQuestion({ requireInterpretation: false }), buildRegressionCalculatorWork({ ...right, direction: '', strength: '' })).parts);
+  assert.equal(noInterpretation, REGRESSION_FEEDBACK.complete);
+  assert.equal(regressionFeedbackText([]), '');
+  // No sentence names a value the student has to find.
+  Object.values(REGRESSION_FEEDBACK).forEach((sentence) => assert.doesNotMatch(sentence, /\d\.\d|positive|negative|strong|moderate|weak/, sentence));
 });

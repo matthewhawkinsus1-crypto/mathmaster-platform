@@ -686,6 +686,9 @@ test('RepresentationBridge marks Submit, live stage checks and deadline work wit
   });
   assert.doesNotMatch(workMemo, /stageChecks|staging|selectedRows/, 'gating state is not work');
 
-  // The on-screen "Recheck" list reads the shared grader's part array.
-  assert.match(source, /feedback\.metadata\.parts : \[\]\)\.filter\(\(part\) => !part\.isCorrect\)/);
+  // The on-screen "Recheck" list reads the shared grader's part array: one
+  // line for each part it marked wrong (bridgeFeedback.js; wave 7 names each
+  // stage as its panel does — tests/tools/feedbackReasons2).
+  assert.match(source, /bridgeFeedbackLines\(feedback\.metadata\?\.parts\)\.map\(/);
+  assert.match(readFileSync(new URL('../../src/tools/representationBridge/bridgeFeedback.js', import.meta.url), 'utf8'), /\.filter\(\(part\) => part && typeof part === 'object' && part\.isCorrect !== true\)/);
 });

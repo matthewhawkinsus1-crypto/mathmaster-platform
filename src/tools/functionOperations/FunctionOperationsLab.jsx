@@ -14,6 +14,7 @@ import {
   normalizeFunctionOperations,
 } from './functionOperationsMath';
 import { SubmitText } from '../shared/ToolRuntimeContext';
+import { functionOperationsFeedbackText } from './functionOperationsFeedback.js';
 
 const inputStyle = {
   width: '100%',
@@ -159,9 +160,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
         {feedback ? (
           <div style={{ marginTop: 12 }}>
             <ResultPill ok={feedback.isCorrect}>
-              {feedback.isCorrect
-                ? 'All requested function operations and restrictions are correct.'
-                : 'Some parts are correct. Review the operation panels and try the remaining parts.'}
+              {functionOperationsFeedbackText({ isCorrect: feedback.isCorrect, parts: feedback.metadata?.parts })}
             </ResultPill>
           </div>
         ) : null}

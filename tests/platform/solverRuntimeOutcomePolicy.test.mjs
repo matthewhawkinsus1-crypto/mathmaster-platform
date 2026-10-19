@@ -87,7 +87,8 @@ const relation = executableSource(componentSource('src/MultiRelationAlgebraCore.
 const engine = executableSource(componentSource('src/QuestionEngine.jsx'));
 
 test('the relation solver decides completion and correctness of the stage through the status, fed by the runtime policy', () => {
-  assert.match(relation, /import \{ useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
+  // (Wave 7 imports useSubmitActionName beside it, for the recorded notice.)
+  assert.match(relation, /import \{ (?:useSubmitActionName, )?useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
   // The solver reads the activity's outcome permission (and, since secure
   // Rich Tool delivery, its hint permission) from the runtime context.
   assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse(?:, [^}]*)? \} = useToolRuntimeContext\(\);/);

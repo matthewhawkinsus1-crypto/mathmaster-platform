@@ -4,7 +4,7 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
-import { useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { useSubmitActionName, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { normalizeQuestionRecord } from './attemptPolicy';
@@ -683,6 +683,9 @@ export default function MultiRelationAlgebra({
   // a DOL, quiz or test: there the number-line stage below is recorded when
   // the student checks it, not passed only once it is right.
   const { showImmediateFeedback, onHintUsed: reportHintUse, hintsAllowed: contextHintsAllowed } = useToolRuntimeContext();
+  // What the number line's button says ("Check", or a secure host's
+  // "Record answer"), so the recorded notice names that button (D9).
+  const representationActionName = useSubmitActionName('Check');
   const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
@@ -2859,8 +2862,8 @@ export default function MultiRelationAlgebra({
             // The same line for a right and a wrong graph.
             <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>
               {requiresIntervalNotation
-                ? 'Your graph and interval notation are recorded. They are graded when you submit — if you change either, press Check again.'
-                : 'Your graph is recorded. It is graded when you submit — if you change it, press Check again.'}
+                ? `Your graph and interval notation are recorded. They are graded when you submit — if you change either, press ${representationActionName} again.`
+                : `Your graph is recorded. It is graded when you submit — if you change it, press ${representationActionName} again.`}
             </p>
           ) : null}
         </div>

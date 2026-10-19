@@ -15,6 +15,7 @@
 //   - "Your checked graph" appeared on the later steps only when the graph
 //     was right (live QA, Algebra I DOL #2 saw it on the domain step).
 // Practice keeps every one of those, because there they are the feedback.
+// Since wave 7 a red step also says why it missed, in practice only.
 //
 // Exits non-zero on any failure.
 
@@ -201,6 +202,51 @@ for (const role of ['dol', 'quiz', 'practice']) {
   await page.getByRole('button', { name: 'Check', exact: true }).first().click();
   await page.waitForTimeout(400);
   check(/1 of 2 steps answered/.test(await bodyText(page)), `${role} mapping: and the next Check records the changed arrows`);
+  await page.close();
+}
+
+// WHY A STEP IS RED (student pass 3, wave 7). After the whole question is
+// submitted, each red step says the grader's reason under it — in practice
+// only. A DOL, quiz or test before release shows no reason, no red step and
+// no outcome, though the submission is made.
+for (const role of ['practice', 'dol', 'quiz', 'test']) {
+  const page = await open(role, 'mapping');
+  const arrow = async (x, y) => {
+    await page.getByRole('button', { name: `Domain value ${x}` }).first().click();
+    await page.getByRole('button', { name: `Range value ${y}` }).first().click();
+  };
+  await arrow(1, 2);
+  await arrow(2, 6);
+  await arrow(3, 4);
+  await page.getByRole('button', { name: 'Check', exact: true }).first().click();
+  await page.waitForTimeout(300);
+  // Waits on the field itself, not a fixed time: under load MathLive can be
+  // slow to mount (review N8).
+  const domainField = page.locator('.workflow-stage math-field').first();
+  await domainField.waitFor({ state: 'visible', timeout: 60000 });
+  await domainField.click();
+  await page.keyboard.type('1,2');
+  await page.waitForFunction(() => /1/.test(document.querySelector('.workflow-stage math-field')?.value || ''), null, { timeout: 15000 }).catch(() => {});
+  check(await page.locator('[data-stage-reason]').count() === 0, `${role} reasons: nothing before the question is submitted`);
+  const submit = page.getByRole('button', { name: /^(Submit|Record answer|Save answer)\b/ }).first();
+  await submit.click();
+  await page.waitForFunction(() => window.__mmGraded !== null, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => window.__mmGraded?.isCorrect === false), `${role} reasons: the wrong question was submitted`);
+  const reasons = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-stage-reason]')].map((element) => [element.dataset.stageReason, element.textContent.trim()])));
+  const text = await bodyText(page);
+  if (role === 'practice') {
+    check(reasons.mapping === 'The arrows do not match the relation — check which value each one is joined to.', 'practice reasons: the mapping step says why it is red', JSON.stringify(reasons));
+    check(reasons.domain === 'That is not the set of values in this relation — list each one once.', 'practice reasons: the domain step says why it is red', JSON.stringify(reasons));
+    // Each reason sits in its own step.
+    const placed = await page.evaluate(() => [...document.querySelectorAll('[data-stage-reason]')].every((element) => element.closest('.workflow-stage--incorrect')));
+    check(placed, 'practice reasons: each reason is inside its red step');
+    check(/MathMaster moved you to the first one\. Each one says what to check\./.test(text), 'practice reasons: the outcome says the red steps say why');
+  } else {
+    check(Object.keys(reasons).length === 0, `${role} reasons: no step says why it missed`, JSON.stringify(reasons));
+    check(!/arrows do not match|not the set of values|says what to check|red steps|Not quite/.test(text), `${role} reasons: no reason, red step or outcome anywhere`, (text.match(/arrows do not match[^\n]*|not the set of values[^\n]*|says what to check|red steps[^\n]*|Not quite[^\n]*/) || [''])[0]);
+    check(await page.locator('.workflow-stage--incorrect').count() === 0, `${role} reasons: no step is marked red`);
+  }
   await page.close();
 }
 

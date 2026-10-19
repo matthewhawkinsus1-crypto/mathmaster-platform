@@ -38,6 +38,7 @@ import {
 } from './representationMath';
 import { DEFAULT_LINEAR_GRAPH_BOUNDS, LINEAR_KIND_LABELS, spokenLinearCard } from './linearCardLabels.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
+import { linearMismatchFeedbackText } from './linearMismatchFeedback.js';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -515,7 +516,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     ? 'That graph does not match. Check the y-intercept first, then the overall shape.'
                     : mode === 'linearConnections' && linearTask === 'group'
                       ? `${(feedback.metadata?.parts || []).find((part) => part.id === 'pairings')?.response || '0 of 0'} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
-                      : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
+                      : linearMismatchFeedbackText(feedback.metadata?.parts);
           return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect} message={message}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>;
         })() : null}
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />

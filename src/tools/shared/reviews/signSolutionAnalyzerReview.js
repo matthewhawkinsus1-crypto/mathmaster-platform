@@ -267,7 +267,7 @@ const buildSignChartReview = (question, mode) => {
   });
   const selectStep = selected.length
     ? `Select exactly the intervals where the expression is ${signWord(wantSign)}: ${selected.join(' ∪ ')}.`
-    : `No interval has a ${signWord(wantSign)} expression, so select no interval and press Check.`;
+    : `No interval has a ${signWord(wantSign)} expression, so the answer is no interval: leave every interval unselected.`;
   const endpointStep = inclusive
     ? [
       definedZeros.length
@@ -417,7 +417,7 @@ const buildRadicalReview = (question) => {
       ...checks.map((check) => check.step),
       genuine.length
         ? `Select exactly the genuine ${plural(genuine, 'solution', 'solutions')}: ${genuineText}.`
-        : 'No candidate makes the original equation true, so select no candidate and press Check.',
+        : 'No candidate makes the original equation true, so the answer is no candidate: leave every candidate unselected.',
     ],
     why: [
       `Check: squaring both sides of ${equation} gives ${squared}.`,

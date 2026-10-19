@@ -16,7 +16,7 @@ import {
   buildInitialEquationState,
   describeRewriteGap,
 } from './rewriteLinearFormMath';
-import { SubmitText } from '../shared/ToolRuntimeContext';
+import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
 
 /*
  * REWRITING A LINE IS DONE IN THE SAME STEP ALGEBRA WORKSPACE AS EVERYTHING ELSE.
@@ -135,6 +135,9 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   const work = useMemo(() => rewriteLinearFormWork(equationState, history), [equationState, history]);
   useReportToolWork(work);
 
+  // The finishing step names the button as it reads: "Submit" where the
+  // press spends a try (D9), "Check equation" where it does not.
+  const finishAction = useSubmitActionName('Check equation');
   const check = () => {
     const result = gradeToolCheck(stepAlgebra2Grader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'rewriteLinearForm', gap, parts: result.parts });
@@ -168,8 +171,9 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
           test keeps them. The plain strings are the route the item measures
           (isolate y; when to split and cancel; how to factor out what every
           term shares) and go there. The finishing step names the target form,
-          which the goal chips already show on every activity, and says
-          "submit": the button is a Submit (D9), never "Check equation". */}
+          which the goal chips already show on every activity, and names the
+          button as it reads: "Submit" where the press spends a try (D9),
+          "Check equation" where it does not (a composed stage, the tools lab). */}
       <TaskCard
         question={questionData}
         task={`Rewrite the given equation in ${formName} form (${formLatexText}).`}
@@ -178,13 +182,13 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
           'Get y alone on the left with balanced operations.',
           'Use Factor: choose the terms, write them as primes, choose the factors every term shares, and pull them out.',
           'Write what is left of each term inside the parentheses.',
-          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
+          controlStep(`When the equation reads ${formLatexText}, press ${finishAction}. Undo takes back the last step.`),
         ] : [
           controlStep('+ − × ÷ do the same thing to both sides. The Rewrite menu changes the shape of a part without changing its value.'),
           'Get y alone on the left with balanced operations and cancellation.',
           'If a whole numerator sits over one denominator, use Split fraction, then Cancel factors in each fraction.',
           'Optionally Arrange terms into mx + b.',
-          controlStep(`When the equation reads ${formLatexText}, submit it. Undo takes back the last step.`),
+          controlStep(`When the equation reads ${formLatexText}, press ${finishAction}. Undo takes back the last step.`),
         ]}
       />
 
