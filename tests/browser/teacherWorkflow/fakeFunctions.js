@@ -752,6 +752,24 @@ const handlers = {
     }
     return { success: true, goal: harnessStore.get(`weeklyPathGoalSnapshots/${studentId}__${key}`) || null };
   },
+  // A student entering a Live Challenge they were invited to (functions/index.js
+  // joinLiveChallenge), as far as a lobby needs it: only the room on their own
+  // invite; their row is marked joined and the invite says joined (running
+  // once the game has started). Rounds, roster and time multipliers are the
+  // real callable's (the Live Challenge drivers run it against the emulator).
+  joinLiveChallenge: ({ roomId: rawRoomId } = {}) => {
+    const studentId = requireStudent();
+    const roomId = String(rawRoomId || '').trim();
+    const invite = harnessStore.get(`liveChallengeInvites/${studentId}`);
+    if (!invite || invite.roomId !== roomId) throw rejection('permission-denied', 'This Live Challenge was not assigned to you.');
+    const room = harnessStore.get(`liveChallengeRooms/${roomId}`);
+    if (!room) throw rejection('not-found', 'That Live Challenge has ended.');
+    const playerPath = `liveChallengeRooms/${roomId}/players/${invite.playerKey}`;
+    const rejoined = harnessStore.get(playerPath)?.joined === true;
+    harnessStore.update(playerPath, { joined: true });
+    harnessStore.update(`liveChallengeInvites/${studentId}`, { status: room.status === 'running' ? 'running' : 'joined' });
+    return { roomId, joined: true, playerKey: invite.playerKey, rejoined };
+  },
   // The signed-in student's weekly Path completions (functions/index.js
   // getMyWeeklyPathCompletions): the shared completion rule
   // (weeklyPathCompletion.mjs) over the student's own pathSessions documents —

@@ -34,7 +34,12 @@
 //               inside the lesson, away from Home: a Chromebook shows the
 //               invite banner, a phone's status chip says "Challenge lobby
 //               open"; either way "Enter Challenge Lobby" takes the student
-//               to the lobby (NAV-25).
+//               to the lobby (NAV-25). The game's screen reads snapshot
+//               metadata the plain harness does not fake, so this journey
+//               runs on the accessibility App harness (the same App and
+//               fixture, metadata filled in):
+//                 TEACHER_HARNESS_PORT=5189 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs
+//               (LIVE_CHALLENGE_HARNESS_ORIGIN, default http://127.0.0.1:5189).
 //
 // ONLY=room,warmup runs some. Exit code 1 on any failure.
 
@@ -43,7 +48,7 @@ import { newSchoolContext } from './schoolClock.mjs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
-const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
+const LIVE_CHALLENGE_ORIGIN = process.env.LIVE_CHALLENGE_HARNESS_ORIGIN || 'http://127.0.0.1:5189';
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const STUDENT = '910002';
 // A classmate in the same class with no extra time (fixture: no profile).
@@ -69,12 +74,12 @@ const wanted = (name) => !ONLY || ONLY.includes(name);
  * Signs the student in on a fresh school, applies `prepare` to the harness
  * database (before the lesson opens), and opens today's lesson.
  */
-const openLesson = async (device, { params = {}, prepare = null, prepareArgs = {}, button = /^(Continue|Resume Question|Start)/, group = null, student = STUDENT } = {}) => {
+const openLesson = async (device, { params = {}, prepare = null, prepareArgs = {}, button = /^(Continue|Resume Question|Start)/, group = null, student = STUDENT, origin = ORIGIN } = {}) => {
   const context = await newSchoolContext(browser, { viewport: device.viewport, isMobile: device.isMobile, hasTouch: device.hasTouch });
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device.name}: page error ${error.message}`));
   const search = new URLSearchParams({ reset: '1', as: 'student', studentId: student, questions: 'real', ...params });
-  await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
+  await page.goto(`${origin}/tests/browser/teacherWorkflow/index.html?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
   await page.waitForTimeout(800);
   if (prepare) {
@@ -438,9 +443,14 @@ if (wanted('lobbyInvite')) {
     await button.click();
     const waiting = await page.getByText('Waiting for your teacher to start').first().waitFor({ timeout: 30000 }).then(() => true, () => false);
     check(waiting, `${device.name}: "Enter Challenge Lobby" from inside the lesson opens the lobby`);
+    const lobby = await page.evaluate(() => ({ text: document.body.innerText, unimplemented: window.__mmHarness?.unimplementedCalls || [] }));
+    // (Background calls the harness does not fake, such as clock calibration,
+    // are not the join.)
+    check(!lobby.unimplemented.includes('joinLiveChallenge') && !/no fake for the callable|Cannot read properties|Could not join/.test(lobby.text), `${device.name}: the lobby opens without an error`, JSON.stringify(lobby.unimplemented));
+    check(await page.getByRole('button', { name: 'Back to your assignment' }).count() > 0, `${device.name}: the lobby's way out goes back to the assignment`);
   };
 
-  const desktop = await openLesson(CHROMEBOOK);
+  const desktop = await openLesson(CHROMEBOOK, { origin: LIVE_CHALLENGE_ORIGIN });
   check(!(await desktop.page.locator('[data-live-challenge-invite]').count()), `${CHROMEBOOK.name}: no lobby invite before the lobby opens`);
   await desktop.page.evaluate(openLobby, { student: STUDENT });
   const banner = desktop.page.locator('[data-live-challenge-invite]');
@@ -448,13 +458,13 @@ if (wanted('lobbyInvite')) {
   check(shown, `${CHROMEBOOK.name}: the lobby invite shows inside the lesson`);
   check(/Your teacher opened the Live Challenge lobby/.test(await banner.innerText().catch(() => '')), `${CHROMEBOOK.name}: the invite says the teacher opened the lobby`, (await banner.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 120));
   const enter = banner.getByRole('button', { name: 'Enter Challenge Lobby' });
-  const enterBox = await enter.boundingBox();
+  const enterBox = await enter.boundingBox({ timeout: 5000 }).catch(() => null);
   check(enterBox && enterBox.height >= 44, `${CHROMEBOOK.name}: "Enter Challenge Lobby" is at least 44px tall`, JSON.stringify(enterBox && Math.round(enterBox.height)));
   if (process.env.SCREENSHOTS) await desktop.page.screenshot({ path: `${process.env.SCREENSHOTS}/lobby-invite-chromebook.png` });
-  await entersLobby(desktop.page, CHROMEBOOK, enter);
+  if (enterBox) await entersLobby(desktop.page, CHROMEBOOK, enter);
   await desktop.context.close();
 
-  const phone = await openLesson(PHONE);
+  const phone = await openLesson(PHONE, { origin: LIVE_CHALLENGE_ORIGIN });
   await phone.page.evaluate(openLobby, { student: STUDENT });
   const chip = phone.page.locator('.mathmaster-assignment-status-chip');
   let chipText = '';
@@ -468,7 +478,8 @@ if (wanted('lobbyInvite')) {
   const panel = phone.page.locator('#mathmaster-assignment-status-panel');
   check(/Your teacher opened the Live Challenge lobby/.test(await panel.innerText().catch(() => '')), `${PHONE.name}: the chip opens the invite line`);
   if (process.env.SCREENSHOTS) await phone.page.screenshot({ path: `${process.env.SCREENSHOTS}/lobby-invite-phone.png` });
-  await entersLobby(phone.page, PHONE, panel.getByRole('button', { name: 'Enter Challenge Lobby' }));
+  const phoneEnter = panel.getByRole('button', { name: 'Enter Challenge Lobby' });
+  if (check(await phoneEnter.count() > 0, `${PHONE.name}: the invite line offers "Enter Challenge Lobby"`)) await entersLobby(phone.page, PHONE, phoneEnter);
   await phone.context.close();
 }
 
