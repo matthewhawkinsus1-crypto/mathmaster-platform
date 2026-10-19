@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T21:55:39.148Z",
+  "generatedAt": "2026-10-18T10:48:38.706Z",
   "source": "tests/browser/secureAccessParity.mjs",
   "trials": [
     {
@@ -111,6 +111,116 @@
     },
     {
       "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "2pi",
+      "serialized": "2\\pi",
+      "keys": [
+        "2pi",
+        "2π"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "π"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "pi/2",
+      "serialized": "\\frac{\\pi}{2}",
+      "keys": [
+        "pi/2",
+        "π/2"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "π"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "3pi/4",
+      "serialized": "\\frac{3\\pi}{4}",
+      "keys": [
+        "3pi/4"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "π"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "3sqrt2",
+      "serialized": "3\\sqrt2",
+      "keys": [
+        "3sqrt(2)"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "√"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "25%",
+      "serialized": "25\\%",
+      "keys": [
+        "25%",
+        "25"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "%"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "$25.50",
+      "serialized": "\\$25.50",
+      "keys": [
+        "$25.50",
+        "25.50"
+      ],
+      "equivalence": null,
+      "field": {
+        "answerFormat": "currency"
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
       "profile": "set",
       "editor": "math",
       "entry": "keyboard",
@@ -177,10 +287,10 @@
     {
       "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "(3, 0)",
-      "serialized": "(3, 0)",
+      "serialized": "(3,0)",
       "keys": [
         "(3,0)"
       ],
@@ -190,10 +300,10 @@
     {
       "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "(0, -8)",
-      "serialized": "(0, -8)",
+      "serialized": "(0,-8)",
       "keys": [
         "(0,-8)"
       ],
@@ -203,12 +313,13 @@
     {
       "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "(1/2, 3)",
-      "serialized": "(1/2, 3)",
+      "serialized": "(\\frac12,3)",
       "keys": [
-        "(1/2,3)"
+        "(1/2,3)",
+        "(0.5,3)"
       ],
       "equivalence": null,
       "gradedCorrect": true
@@ -216,10 +327,10 @@
     {
       "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "(-1/2, 3)",
-      "serialized": "(-1/2, 3)",
+      "serialized": "(-\\frac12,3)",
       "keys": [
         "(-1/2,3)"
       ],
@@ -229,12 +340,13 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "x >= 4",
-      "serialized": "x >= 4",
+      "serialized": "x>=4",
       "keys": [
-        "x>=4"
+        "x>=4",
+        "4<=x"
       ],
       "equivalence": null,
       "gradedCorrect": true
@@ -242,10 +354,10 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "-3 < x <= 5",
-      "serialized": "-3 < x <= 5",
+      "serialized": "-3<x<=5",
       "keys": [
         "-3<x<=5"
       ],
@@ -255,12 +367,13 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "0<=h and h<=12",
-      "serialized": "0<=h and h<=12",
+      "serialized": "0<=h\\operatorname{\\mathrm{and}}h<=12",
       "keys": [
-        "0<=h and h<=12"
+        "0<=h and h<=12",
+        "0<=h<=12"
       ],
       "equivalence": null,
       "gradedCorrect": true
@@ -268,10 +381,23 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "x<-2 or x>3",
+      "serialized": "x<-2\\operatorname{\\mathrm{or}}x>3",
+      "keys": [
+        "x<-2 or x>3"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "inequality",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "|x-5|<=4",
-      "serialized": "|x-5|<=4",
+      "serialized": "\\left|x-5\\right|<=4",
       "keys": [
         "|x-5|<=4"
       ],
@@ -281,10 +407,10 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "x^2 + 1 > 5",
-      "serialized": "x^2 + 1 > 5",
+      "serialized": "x^2+1>5",
       "keys": [
         "x^2+1>5"
       ],
@@ -294,12 +420,26 @@
     {
       "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
+      "editor": "math",
       "entry": "keyboard",
       "typed": "y <= -2x + 3",
-      "serialized": "y <= -2x + 3",
+      "serialized": "y<=-2x+3",
       "keys": [
         "y<=-2x+3"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "chromebook",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keyboard",
+      "typed": "x >= 3/4",
+      "serialized": "x>=\\frac34",
+      "keys": [
+        "x>=3/4",
+        "x>=0.75"
       ],
       "equivalence": null,
       "gradedCorrect": true
@@ -384,131 +524,40 @@
       "gradedCorrect": true
     },
     {
-      "device": "phone-390",
+      "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "(3, 0)",
-      "serialized": "(3, 0)",
+      "editor": "math",
+      "entry": "keyboard+keypad",
+      "typed": "keys: \"(3\" √ \"2\" ↷ out \",1)\"",
+      "serialized": "(3\\sqrt2,1)",
       "keys": [
-        "(3,0)"
+        "(3sqrt(2),1)"
       ],
       "equivalence": null,
       "gradedCorrect": true
     },
     {
-      "device": "phone-390",
+      "device": "chromebook",
       "profile": "orderedPair",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "(0, -8)",
-      "serialized": "(0, -8)",
+      "editor": "math",
+      "entry": "keyboard+keypad",
+      "typed": "keys: \"(1-\" √ \"2\" ↷ out \",5-2\" √ \"2\" ↷ out \")\"",
+      "serialized": "(1-\\sqrt2,5-2\\sqrt2)",
       "keys": [
-        "(0,-8)"
+        "((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)"
       ],
       "equivalence": null,
       "gradedCorrect": true
     },
     {
-      "device": "phone-390",
-      "profile": "orderedPair",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "(1/2, 3)",
-      "serialized": "(1/2, 3)",
-      "keys": [
-        "(1/2,3)"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "orderedPair",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "(-1/2, 3)",
-      "serialized": "(-1/2, 3)",
-      "keys": [
-        "(-1/2,3)"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
+      "device": "chromebook",
       "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "x >= 4",
-      "serialized": "x >= 4",
-      "keys": [
-        "x>=4"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "-3 < x <= 5",
-      "serialized": "-3 < x <= 5",
-      "keys": [
-        "-3<x<=5"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "0<=h and h<=12",
-      "serialized": "0<=h and h<=12",
+      "editor": "math",
+      "entry": "keyboard+keypad",
+      "typed": "keys: \"0\" ≤ \"h\" and \"h\" ≤ \"12\"",
+      "serialized": "0\\le h\\operatorname{\\mathrm{and}}h\\le12",
       "keys": [
         "0<=h and h<=12"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "|x-5|<=4",
-      "serialized": "|x-5|<=4",
-      "keys": [
-        "|x-5|<=4"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "x^2 + 1 > 5",
-      "serialized": "x^2 + 1 > 5",
-      "keys": [
-        "x^2+1>5"
-      ],
-      "equivalence": null,
-      "gradedCorrect": true
-    },
-    {
-      "device": "phone-390",
-      "profile": "inequality",
-      "editor": "text",
-      "entry": "soft-keyboard",
-      "typed": "y <= -2x + 3",
-      "serialized": "y <= -2x + 3",
-      "keys": [
-        "y<=-2x+3"
       ],
       "equivalence": null,
       "gradedCorrect": true
@@ -623,6 +672,78 @@
     },
     {
       "device": "phone-390",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: 2 π",
+      "serialized": "2\\pi",
+      "keys": [
+        "2pi"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "π"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: a⁄b 3 π ▾ 4",
+      "serialized": "\\frac{3\\pi}{4}",
+      "keys": [
+        "3pi/4"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "π"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: 3 √ 2",
+      "serialized": "3\\sqrt2",
+      "keys": [
+        "3sqrt(2)"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "√"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "number",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: a⁄b √ 3 ↷ out ▾ 2",
+      "serialized": "\\frac{\\sqrt3}{2}",
+      "keys": [
+        "sqrt(3)/2"
+      ],
+      "equivalence": null,
+      "field": {
+        "requiredSymbols": [
+          "√"
+        ]
+      },
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
       "profile": "set",
       "editor": "math",
       "entry": "keypad",
@@ -697,6 +818,203 @@
         "(0,400]"
       ],
       "equivalence": "interval",
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( 3 , 0 )",
+      "serialized": "(3,0)",
+      "keys": [
+        "(3,0)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( 0 , − 8 )",
+      "serialized": "(0,-8)",
+      "keys": [
+        "(0,-8)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( a⁄b − 1 ▾ 2 ↷ out , 3 )",
+      "serialized": "(\\frac{-1}{2},3)",
+      "keys": [
+        "(-1/2,3)",
+        "(-0.5,3)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( 3 √ 2 ↷ out , 1 )",
+      "serialized": "(3\\sqrt2,1)",
+      "keys": [
+        "(3sqrt(2),1)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( 1 − √ 2 ↷ out , 5 − 2 √ 2 ↷ out )",
+      "serialized": "(1-\\sqrt2,5-2\\sqrt2)",
+      "keys": [
+        "((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "orderedPair",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: ( a⁄b √ 3 ↷ out ▾ 2 ↷ out , a⁄b 1 ▾ 2 ↷ out )",
+      "serialized": "(\\frac{\\sqrt3}{2},\\frac12)",
+      "keys": [
+        "(sqrt(3)/2,1/2)"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: x ≥ 4",
+      "serialized": "x\\ge4",
+      "keys": [
+        "x>=4"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: − 3 < x ≤ 5",
+      "serialized": "-3<x\\le5",
+      "keys": [
+        "-3<x<=5"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: 0 ≤ h and h ≤ 1 2",
+      "serialized": "0\\le h\\operatorname{\\mathrm{and}}h\\le12",
+      "keys": [
+        "0<=h and h<=12",
+        "0<=h<=12"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: 0 ≤ h ≤ 1 2",
+      "serialized": "0\\le h\\le12",
+      "keys": [
+        "0<=h and h<=12"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: x < − 2 or x > 3",
+      "serialized": "x<-2\\operatorname{\\mathrm{or}}x>3",
+      "keys": [
+        "x<-2 or x>3"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: |x| x − 5 ↷ out ≤ 4",
+      "serialized": "\\left|x-5\\right|\\le4",
+      "keys": [
+        "|x-5|<=4"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: x xⁿ 2 ↷ out + 1 > 5",
+      "serialized": "x^2+1>5",
+      "keys": [
+        "x^2+1>5"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: x ≥ a⁄b 3 ▾ 4",
+      "serialized": "x\\ge\\frac34",
+      "keys": [
+        "x>=3/4"
+      ],
+      "equivalence": null,
+      "gradedCorrect": true
+    },
+    {
+      "device": "phone-390",
+      "profile": "inequality",
+      "editor": "math",
+      "entry": "keypad",
+      "typed": "keypad: x > √ 2",
+      "serialized": "x>\\sqrt2",
+      "keys": [
+        "x>sqrt(2)"
+      ],
+      "equivalence": null,
       "gradedCorrect": true
     }
   ]

@@ -478,14 +478,45 @@ test('a question the server does not hold as delivered keeps the sanitized path,
   assert.equal(built.record.serverGradingReason, 'generated-question');
 });
 
-test('rejected moves spend attempts on the server; once expired, a step changes nothing', () => {
+// Decision D1 (docs/qa/student-experience-pass-3.md, RUN-2): a rejected
+// cancellation or simplification is a slip, recorded but never charged. Three
+// of them used to close the question.
+test('D1 — rejected moves are recorded on the server and spend no attempt, however many', () => {
   const s = linearSession();
   const move = applyBalancedOperation({ equationState: s.equation, operation: 'subtract', operand: '6' });
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const built = honestStep(s, rejectedPayload(s, move), `rejection ${attempt}`);
-    assert.equal(built.record.attemptCount, attempt);
+  for (let slip = 1; slip <= MAX_ATTEMPTS + 1; slip += 1) {
+    const built = honestStep(s, rejectedPayload(s, move), `slip ${slip}`);
+    assert.equal(built.record.attemptCount, 0, `slip ${slip} spent an attempt`);
+    assert.equal(built.record.stepGrades.length, slip, 'the slip is still recorded');
   }
-  assert.equal(s.server.status, 'expired');
+  assert.equal(s.server.status, 'attempted');
+});
+
+test('D1 — a step an older workspace charged for is not charged again by the server', () => {
+  // A browser built before D1 queued a rejected move (and an inefficient one)
+  // with countsAttempt: true. The server derives the attempt itself.
+  const s = linearSession();
+  const slip = applyBalancedOperation({ equationState: s.equation, operation: 'subtract', operand: '6' });
+  const { built } = submitStep(s, { ...rejectedPayload(s, slip), countsAttempt: true });
+  assert.equal(built.gradedBy, 'server');
+  assert.equal(built.record.attemptCount, 0);
+  const longWay = { ...applyBalancedOperation({ equationState: s.equation, operation: 'add', operand: '7', placementBySide: {} }), placementBySide: {} };
+  const inefficient = submitStep(s, {
+    stepGrade: equationMoveStepGrade({ action: STEP_ACTIONS.INEFFICIENT_MOVE, move: longWay, supportLevel: 3, before: s.equation, question: s.workspaceQuestion }),
+    countsAttempt: true,
+    statePatch: equationStatePatch({ equation: s.equation, supportLevel: 3, stepNumber: 1 }),
+    stepWork: equationStepWork({ action: STEP_ACTIONS.INEFFICIENT_MOVE, before: s.equation, move: longWay, supportLevel: 3 }),
+  }).built;
+  assert.equal(inefficient.gradedBy, 'server');
+  assert.equal(inefficient.record.serverGradingReason, null, 'the longer route is still read as a valid move');
+  assert.equal(inefficient.record.attemptCount, 0);
+  assert.equal(inefficient.record.status, 'attempted');
+});
+
+test('once expired, a step changes nothing', () => {
+  const s = linearSession();
+  s.server = { ...emptyQuestionRecord(), status: 'expired', attemptCount: MAX_ATTEMPTS, totalAttempts: MAX_ATTEMPTS };
+  s.browser = s.server;
   const frozen = academic(s.server);
   const { built } = submitStep(s, balancedPayload(s, 'subtract', '6').payload);
   assert.deepEqual(academic(built.record), frozen, 'an expired version takes no more credit');

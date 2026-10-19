@@ -16,7 +16,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
@@ -27,6 +27,8 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
+import { describeThreePlaneModel } from './threePlaneDescription.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
@@ -291,6 +293,21 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     return projectPolygon([point3D], camera).points[0];
   }, [shownType, showResult, shownSolution, variables, camera]);
 
+  // WHAT THE MODEL SHOWS, IN WORDS (student pass 3, Q-8): the planes by their
+  // equations, which are shown, the dashed crossings and a marked point. While
+  // the question can be answered it never says which planes cross or classifies
+  // the system (threePlaneDescription.js); a closed question names each pair.
+  const modelDescriptionId = `${instructionId}-model`;
+  const { positionsReadable: questionClosed } = useQuestionLifecycle();
+  const modelDescription = useMemo(() => describeThreePlaneModel({
+    variables,
+    equations,
+    visible: visiblePlanes,
+    crossings: intersectionLines.map((line) => line.key.split('-').map(Number)),
+    detail: questionClosed ? 'features' : 'kinds',
+    markedPoint: solutionMarker ? orderedTripleText(shownSolution, variables) : null,
+  }), [variables, equations, visiblePlanes, intersectionLines, questionClosed, solutionMarker, shownSolution]);
+
   // Painter's algorithm: farthest (most negative screen depth toward the
   // viewer's back) first, nearest last, so overlapping translucent planes
   // layer the way a person looking at the model would expect.
@@ -341,7 +358,8 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
       enlargeLabel="Enlarge three-plane systems workspace"
       style={{ width: '100%' }}
       capabilities={{
-        instruction: { text: 'Rotate the model, show or hide each plane, and explore how the three planes relate.' },
+        // The model's controls (W6-4): kept on a DOL.
+        instruction: { text: 'Rotate the model, show or hide each plane, and explore how the three planes relate.', controlsOnly: true },
         primaryActions: answerFields.length ? [{ id: 'check-spatial-interpretation', label: 'Check my answer', onAction: check }] : [],
       }}
     >
@@ -372,14 +390,15 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           <span id={instructionId} className="mathmaster-threeplane-sr-only">
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
+          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true">{modelDescription}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg
             ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="application"
             tabIndex={0}
-            aria-label="Three planes in 3D. Drag or use the arrow keys to rotate."
-            aria-describedby={instructionId}
+            aria-label="Three planes in 3D"
+            aria-describedby={`${modelDescriptionId} ${instructionId}`}
             onKeyDown={handleModelKeyDown}
             style={{ touchAction: 'none', background: 'var(--mm-surface-sunken)', borderRadius: 12, border: '1px solid var(--mm-border)', cursor: 'grab', width: '100%', height: 'auto', maxWidth: 560, aspectRatio: '1 / 1' }}
             onPointerDown={handlePointerDown}
@@ -387,13 +406,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           >
-            {/* The drawing itself, named as the image it is (the name the
-                model has always had, which the browser gates find it by);
-                the svg around it is the focusable control. */}
-            <g role="img" aria-label="Interactive 3D view of the three planes. Drag to rotate.">
+            {/* The drawing itself, named as the image it is and described by
+                what it shows; the svg around it is the focusable control. */}
+            <g role="img" aria-label="3D view of the three planes" aria-describedby={modelDescriptionId}>
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                <path d="M0,0 L7,3.5 L0,7 z" fill="#5f6368" />
+                <path d="M0,0 L7,3.5 L0,7 z" style={{ fill: 'var(--mm-graph-axis)' }} />
               </marker>
             </defs>
             {cubeFrame.map((edge) => (
@@ -409,7 +427,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 <line
                   x1={toScreen(axis.from, scale, [0, 0])[0]} y1={toScreen(axis.from, scale, [0, 0])[1]}
                   x2={toScreen(axis.to, scale, [0, 0])[0]} y2={toScreen(axis.to, scale, [0, 0])[1]}
-                  stroke="#5f6368" strokeWidth={1.5}
+                  // Theme tokens through style: the fixed greys were 1.7:1 on
+                  // the dark model (A11Y-4).
+                  style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth={1.5}
                   markerEnd="url(#mathmaster-threeplane-axis-arrow)"
                 />
                 <text
@@ -417,7 +437,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   // the edge and its name was drawn off the model (#361).
                   x={clampLabel(toScreen(axis.to, scale, [0, 0])[0], 14)}
                   y={clampLabel(toScreen(axis.to, scale, [0, 0])[1] + (axis.to[1] > 0 ? AXIS_LABEL_OFFSET : -AXIS_LABEL_OFFSET / 2), 18)}
-                  fontSize={16} fontWeight={700} fill="#3c4043" textAnchor="middle"
+                  fontSize={16} fontWeight={700} textAnchor="middle"
+                  data-axis-name=""
+                  style={{ fill: 'var(--mm-graph-label)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
                 >
                   {axis.name}
                 </text>
@@ -427,8 +449,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
               cx={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[0]}
               cy={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[1]}
               r={3.5}
-              fill="#202124"
-              stroke="#fff"
+              style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }}
               strokeWidth={1.5}
             />
             {orderedPolygons.map((plane) => {
@@ -463,12 +484,15 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 key={line.key}
                 x1={toScreen(line.from, scale, [0, 0])[0]} y1={toScreen(line.from, scale, [0, 0])[1]}
                 x2={toScreen(line.to, scale, [0, 0])[0]} y2={toScreen(line.to, scale, [0, 0])[1]}
-                stroke="#202124" strokeWidth={2.5} strokeDasharray="6 4"
+                data-intersection-line=""
+                // The legend promises these: drawn in the strongest text
+                // colour, which the dark theme turns light (#202124 vanished).
+                style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth={2.5} strokeDasharray="6 4"
               />
             ))}
             {solutionMarker ? (
               <g>
-                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} fill="#202124" stroke="#fff" strokeWidth={2} />
+                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} />
                 {/* The coordinates sit on the point itself, so the ordered
                     triple and the place in space are read together. */}
                 <text
@@ -476,10 +500,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   y={clampLabel(toScreen(solutionMarker, scale, [0, 0])[1] - 10, 18)}
                   fontSize={15}
                   fontWeight={800}
-                  fill="#202124"
-                  stroke="#fff"
-                  strokeWidth={4}
-                  paintOrder="stroke"
+                  style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
                 >
                   {orderedTripleText(shownSolution, variables)}
                 </text>
@@ -567,7 +588,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             </label>
           )))}
           <button type="button" onClick={check} style={{ marginTop: 14, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 }}>
-            Check my answer
+            <SubmitText>Check my answer</SubmitText>
           </button>
           {feedback ? (
             <div style={{ marginTop: 14 }}>

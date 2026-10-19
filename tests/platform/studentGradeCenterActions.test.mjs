@@ -211,7 +211,7 @@ test('the model still computes no question weight or credit of its own', () => {
 const gradeRow = region(gradeCenterSource, 'function GradeRow(', 'function PeriodGroup(', 'GradeRow');
 const screen = region(gradeCenterSource, 'export default function StudentGradeCenter(', null, 'StudentGradeCenter');
 
-test('GradeRow draws Start, View Results and the no-credit re-try from entry.actions only', () => {
+test('GradeRow draws Start, See results and the no-credit re-try from entry.actions only', () => {
   const code = executableSource(gradeRow);
   // entry.actions, narrowed only by the model's applyTodayToGradeActions (the
   // one "Today" rule, tests/platform/studentVerifyFixes.test.mjs).
@@ -220,8 +220,8 @@ test('GradeRow draws Start, View Results and the no-credit re-try from entry.act
   assert.match(code, /onClick=\{pressStart\}[^]*?\{actions\.start\.label\}/);
   const press = region(code, 'const pressStart = () => {', '};', 'pressStart');
   assert.match(press, /onStart\?\.\(entry\.assignmentId\)/);
-  assert.match(code, /\{actions\.viewResults && \([^]*?onOpenResult\?\.\(entry\.assignmentId\)[^]*?View Results/);
-  assert.match(code, /\{actions\.practiceNoCredit && \([^]*?onPractice\?\.\(entry\.assignmentId\)[^]*?Try it again — no credit/);
+  assert.match(code, /\{actions\.viewResults && \([^]*?onOpenResult\?\.\(entry\.assignmentId\)[^]*?\{SEE_RESULTS\}/);
+  assert.match(code, /\{actions\.practiceNoCredit && \([^]*?onPractice\?\.\(entry\.assignmentId\)[^]*?\{CLOSED_WORK\.tryAgain\}/);
   // The row does not re-decide: no status or lifecycle test drives a button.
   assert.doesNotMatch(code, /entry\.practiceAvailable|entry\.status === |lifecycle/);
   // "Practice" alone is never a button label on Grades.
@@ -269,8 +269,12 @@ test('the What changed panel sits right after the summary and renders nothing wh
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, 'summary, What changed, ways, then the rows');
 });
 
-test('Grades keeps its "← Home" button', () => {
-  assert.match(screen, /onClick=\{\(\) => onBackToHome\?\.\(\)\}[\s\S]{0,600}?← Home\s*</);
+// NAV-20: one way home. The shared nav (Home on every size, phone included)
+// is the way back; a second "← Home" under it said the same thing twice.
+test('Grades reaches Home through the shared nav, with no second "← Home"', () => {
+  assert.match(screen, /<StudentGlobalNav\s+current=\{STUDENT_DESTINATION\.GRADES\}\s+onNavigate=\{onNavigate\}/);
+  assert.doesNotMatch(executableSource(screen), /← Home/);
+  assert.doesNotMatch(executableSource(screen), /onBackToHome/);
 });
 
 test('the section breakdown prints each section\'s share only from the shares it was handed', () => {

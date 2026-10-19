@@ -223,7 +223,8 @@ test('the plane svg is described by the generated (or authored) summary paragrap
 test('the plane states feature values only once the question is closed, or when told', () => {
   // Fails closed: null decides from the question lifecycle; anything but an
   // explicit true is 'kinds' while answerable.
-  assert.match(planeCode, /const \{ terminal: questionClosed \} = useQuestionLifecycle\(\);/);
+  // Positions only once the outcome is shown and the question finished (W5-2 review S1).
+  assert.match(planeCode, /const \{ positionsReadable: questionClosed \} = useQuestionLifecycle\(\);/);
   assert.match(planeCode, /const descriptionDetail = \(describeFeatures == null \? questionClosed : describeFeatures === true\) \? 'features' : 'kinds';/);
   const memo = region(planeCode, 'useMemo(() => describeCoordinatePlane(', '\n  const ', 'description memo');
   assert.match(memo, /detail: descriptionDetail,/);

@@ -36,6 +36,8 @@
 //   simplify-undo       Undo walks back one Simplify decision at a time.
 //   legacy-drafts       Drafts saved with Simplify arithmetic or Combine like
 //                       terms open still open, without losing committed work.
+//   divide-negative     -2x = -10 ÷ -2 reads (-10)/(-2), and -2x has no gap
+//                       (pass 3, Q-13, Q-31).
 //
 // Exit code 1 on any finding. Screenshots land in
 // tests/browser/artifacts/stepAlgebraStructureTools/.
@@ -403,11 +405,11 @@ async function slopeTwoFourEight(context) {
   const route = await page.locator('[data-algebra-route]').first().getAttribute('data-algebra-route');
   if (route === 'stepAlgebra2.rewriteLinearForm') {
     expect(journey, (await page.locator('text=✓ Written as y = mx + b').count()) === 1, 'slope-intercept goal chip not complete');
-    await page.getByRole('button', { name: 'Check equation' }).click();
+    await page.getByRole('button', { name: /^(Check equation|Submit — )/ }).first().click();
     await settle(page, 500);
   } else {
     expect(journey, route === 'stepAlgebra', `the stored record reached ${route}, not the consolidated Step Algebra engine`);
-    expect(journey, (await page.locator('button:visible', { hasText: 'Submit Solved Equation' }).count()) >= 1, 'the engine did not report the slope-intercept form as finished');
+    expect(journey, (await page.locator('button.mathmaster-bar-submit:visible', { hasText: /^Submit/ }).count()) >= 1, 'the engine did not report the slope-intercept form as finished');
   }
   const grades = await page.evaluate(() => window.__mmStructure.grades());
   report.push({ journey, route, split, final, gradeCount: grades.length });
@@ -724,8 +726,30 @@ async function legacyDrafts(context) {
   await page.close();
 }
 
+// Pass 3 Q-13 / Q-31: -2x = -10 divided by -2 draws the right side as the
+// student wrote it, (-10)/(-2), not -(10/-2); and -2x is drawn without the
+// TeX tie that showed as a gap ("-2 x"). The term's text is unchanged.
+async function divideNegative(context) {
+  const journey = 'divide-negative';
+  const page = await open(context, 8);
+  const host = page.locator('body');
+  const latexOf = (locator) => locator.evaluate((element) => [...element.querySelectorAll('math-span, math-div')].map((math) => math.getAttribute('value') || math.textContent).join(' '));
+  const start = await latexOf(host.locator('.algebra-equation-box').first());
+  expect(journey, !/~/.test(start) && /-2\s*x/.test(start), `the starting side: ${start}`);
+  await balancedMove(page, host, 'Divide by', '-2');
+  await settle(page, 900);
+  const right = host.locator('.algebra-equation-box').nth(1).locator('[data-term-text]').first();
+  const text = await right.getAttribute('data-term-text');
+  const shown = compact(await latexOf(right));
+  expect(journey, text === '-10 / -2', `the term's text changed: ${text}`);
+  expect(journey, shown.startsWith('\\frac{-10}{-2}'), `the right side is drawn as ${shown}`);
+  await page.screenshot({ path: path.join(ARTIFACTS, 'divide-negative.png') });
+  report.push({ journey, start, shown });
+  await page.close();
+}
+
 const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, subtractedGroup, undoOneDecision, legacyDrafts]) {
+for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, subtractedGroup, undoOneDecision, legacyDrafts, divideNegative]) {
   try {
     await journey(context);
   } catch (error) {

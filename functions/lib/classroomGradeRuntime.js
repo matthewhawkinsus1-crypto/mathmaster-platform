@@ -181,17 +181,34 @@ function progressCheckpointStage(progress, { late = false } = {}) {
   return `${late ? "late-progress" : "progress"}-${checkpoint}`;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now() }) {
-  const reason = releaseSignalReason(releaseSignal);
-  if (reason === "final-deadline") return "final-deadline";
-  if (reason === "due-checkpoint") return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+// The later of the class's date and the student's own (never earlier).
+function laterDate(classValue, studentValue) {
+  const classDate = toDate(classValue);
+  const studentDate = toDate(studentValue);
+  if (!classDate) return studentDate;
+  if (!studentDate) return classDate;
+  return studentDate.getTime() > classDate.getTime() ? studentDate : classDate;
+}
 
+// `studentFinalCutoff` / `studentDueAt` are the student's own individual
+// final cutoff and due time (their private extension and extra-time dates,
+// lib/classroomStudentCheckpoints.js), or null. Absent, every answer is the
+// class's, exactly as before.
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null, studentDueAt = null }) {
+  const reason = releaseSignalReason(releaseSignal);
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
-  const lateDueAt = toDate(
-    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
+  const dueAt = laterDate(assignment?.dueAt || assignment?.dueDate, studentDueAt);
+  const lateDueAt = laterDate(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+    studentFinalCutoff
   );
+  // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
+  // roster at the CLASS's cutoff and due time. They speak for this student
+  // only once THEIR own has arrived; before it the grade is ordinary progress
+  // (not returned), and the scheduler wakes them again at their own time.
+  if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
+  if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -210,9 +227,35 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() }) {
+/**
+ * H-116: did this class-wide wake-up arrive before THIS student's own time?
+ *
+ * Returns `{ kind: 'final' | 'due', atMs }` — the student's own final cutoff
+ * or due time, when a "final-deadline" / "due-checkpoint" signal reached them
+ * before it — or null. The trigger records it so the checkpoint scheduler
+ * wakes them again at `atMs` (lib/classroomStudentCheckpoints.js); without
+ * that nothing would ever call their grade final.
+ */
+function deferredClassCheckpoint({ assignment, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null, studentDueAt = null }) {
+  const reason = releaseSignalReason(releaseSignal);
   const now = Number(nowValue) || Date.now();
-  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  if (reason === "final-deadline") {
+    const own = laterDate(
+      assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+      studentFinalCutoff
+    );
+    return own && now < own.getTime() ? { kind: "final", atMs: own.getTime() } : null;
+  }
+  if (reason === "due-checkpoint") {
+    const own = laterDate(assignment?.dueAt || assignment?.dueDate, studentDueAt);
+    return own && now < own.getTime() ? { kind: "due", atMs: own.getTime() } : null;
+  }
+  return null;
+}
+
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
+  const now = Number(nowValue) || Date.now();
+  const dueAt = laterDate(assignment?.dueAt || assignment?.dueDate, studentDueAt);
   const explicitlyStudentVisible = [
     "due-checkpoint",
     "final-complete",
@@ -248,4 +291,5 @@ module.exports = {
   progressCheckpointStage,
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
+  deferredClassCheckpoint,
 };

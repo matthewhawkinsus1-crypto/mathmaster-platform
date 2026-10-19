@@ -152,6 +152,23 @@ export const shouldShowChallengeHandoffBanner = ({ invite = null, warmupDecision
 };
 
 /**
+ * Should the assignment show the LOBBY invite — the teacher opened the Live
+ * Challenge lobby, the game has not started (student pass 3, NAV-25)?
+ *
+ * The invite used to show only on Home, so a student working in an assignment
+ * saw nothing until the game was running. It is now offered inside the
+ * assignment too, on the same terms as the running banner: not when the room
+ * is this assignment's own Warm-Up game, which has its own lobby on screen.
+ */
+export const shouldShowChallengeLobbyInvite = ({ invite = null, warmupDecision = null } = {}) => {
+  const status = trimmedId(invite?.status).toLowerCase();
+  if (status !== 'invited' && status !== 'joined') return false;
+  const roomId = trimmedId(invite?.roomId);
+  if (warmupDecision && roomId && trimmedId(warmupDecision.roomId) === roomId) return false;
+  return true;
+};
+
+/**
  * Should the "stay on this screen, it starts when your teacher opens it" panel
  * be shown?
  *

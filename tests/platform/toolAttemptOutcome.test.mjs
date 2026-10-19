@@ -69,7 +69,9 @@ test('a tool question with an earlier attempt keeps the outcome of its new one',
 
 test('every verdict pill offers the slot except a stage check, and a live verdict joins it inline', () => {
   const pill = region(shell, 'export const ResultPill', '\n};', 'ResultPill');
-  assert.match(pill, /\{stageCheck \? null : <AttemptOutcome \/>\}/);
+  // Since student pass 3 (A11Y-1) the pill also hands the slot the words it
+  // shows; tests/platform/toolAttemptOutcomeOffers covers what is said.
+  assert.match(pill, /\{stageCheck \? null : <AttemptOutcome\b[^>]*\/>\}/);
   const slot = region(shell, 'export const AttemptOutcome', 'export const ResultPill', 'the slot');
   // It joins the registry while mounted, and leaves it when unmounted.
   assert.match(slot, /const token = attemptOutcomeSlots\.register\(\);[\s\S]*return \(\) => attemptOutcomeSlots\.unregister\(token\);/);

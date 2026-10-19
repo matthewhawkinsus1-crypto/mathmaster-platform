@@ -9,6 +9,7 @@
  *     typed  y=-2/3x+4      became  y = −2 / (3x + 4)     (PQ-040)
  *     typed  6/3+1          became  6 / (3 + 1)           (calculator: 1.5)
  *     typed  (1/2,3)        became  (1 / (2,3))
+ *     typed  y-2=-1/2(x-6)  became  y − 2 = −1 / (2(x − 6))
  *
  * The student can see the fraction bar spanning "3x + 4", but nothing tells
  * them it is wrong until it is graded wrong.
@@ -19,8 +20,9 @@
  * (3/2)x in algebraicForm, stackDivisions and mathjs alike). So:
  *
  *   - once the denominator holds a plain number (3, 12, 0.5, −2), a letter, an
- *     operator, a relation, a comma or a closing bracket starts AFTER the
- *     fraction: 2/3x → (2/3)x, 6/3+1 → (6/3) + 1, (1/2,3) → (1/2, 3);
+ *     operator, a relation, a comma, an opening or a closing bracket starts
+ *     AFTER the fraction: 2/3x → (2/3)x, 6/3+1 → (6/3) + 1,
+ *     (1/2,3) → (1/2, 3), −1/2(x−6) → −(1/2)(x − 6) — point-slope form;
  *   - anything else is left exactly as MathLive builds it. A denominator that
  *     starts with a letter or a bracket is the student building it on purpose
  *     (1/x−2, 1/(2x)); an empty denominator takes a sign (1/−2) or a letter
@@ -45,8 +47,10 @@ const OPENING = Object.freeze({ phase: 'opening' });
 const PASSIVE_KEYS = new Set(['Shift', 'CapsLock', 'NumLock']);
 
 const DENOMINATOR_CHARACTER = /^[0-9.]$/;
-// Begins the next term, factor, side or list item.
-const AFTER_FRACTION_KEY = /^(?:[A-Za-z+\-*×·=<>≤≥≠,;)\]|]|−)$/;
+// Begins the next term, factor, side or list item. `(` is a factor exactly like
+// a letter: 1/2(x−6) is (1/2)(x−6). It only reaches this test once a digit is
+// in the denominator, so `/(` straight after the slash still groups on purpose.
+const AFTER_FRACTION_KEY = /^(?:[A-Za-z+\-*×·=<>≤≥≠,;()\]|]|−)$/;
 const PLAIN_NUMBER = /^-?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 const PLACEHOLDER = /\\placeholder\{\}/g;

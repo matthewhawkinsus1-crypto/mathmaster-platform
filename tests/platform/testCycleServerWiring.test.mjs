@@ -148,10 +148,12 @@ test('waiving corrections or unlocking a retest opens it immediately', () => {
 });
 
 test('a student is never handed the families or seeds behind their corrections', () => {
+  // The function itself: the server-side helpers after it (which read the
+  // private grading to diagnose a miss) are not the student payload.
   const visible = region(
     functionsIndex,
     'function studentVisibleCorrectionPlan(',
-    'exports.issueTestCycleCorrectionQuestion',
+    '\n}\n',
     'studentVisibleCorrectionPlan',
   );
   for (const secret of ['practiceFamilyIds', 'forbiddenInstanceIds', 'privateGrading', 'evidence:']) {

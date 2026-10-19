@@ -154,7 +154,10 @@ const normalizeActions = (question = {}) => {
 };
 
 const copyCommon = (source, target = {}) => {
-  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `misconceptions` ([{ match, message }]) is the teacher's feedback keyed to
+  // one wrong answer; missFeedback (attemptFeedbackPlan.js) reads it off the
+  // compiled question, so dropping it here silenced it for every student.
+  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -739,6 +742,24 @@ const latestStageSource = (workflow = [], preferredKinds = []) => {
   return null;
 };
 
+/*
+ * The equation stage of a function workflow asks for the RULE that the table
+ * and graph are then built from, so it accepts that rule under any name:
+ * `g(n) = 2n`, `y = 2x` and a bare `2x` are all `f(x) = 2x` (the grader's
+ * `acceptEquivalentFunctionRule`, as the relationship-model recipe sets it).
+ *
+ * The exception is a prompt that asks for a particular FORM. With the flag the
+ * grader compares function rules algebraically, so `f(x) = 2(x+1)` would pass
+ * for `f(x) = 2x + 2`; "write it in slope-intercept form" must keep refusing
+ * that. An authored boolean `acceptEquivalentFunctionRule` decides either way.
+ */
+const REQUESTED_FORM = /\b(?:slope[-\s]?intercept|point[-\s]?slope|standard|vertex|factored|intercept|expanded|general|simplest|simplified|exponential|logarithmic)\s+form\b|\bin\s+the\s+form\b|\by\s*=\s*mx\s*\+\s*b\b|\bsimplif(?:y|ied)\b/i;
+
+const acceptsEquivalentFunctionRule = (q = {}) => {
+  if (typeof q.acceptEquivalentFunctionRule === 'boolean') return q.acceptEquivalentFunctionRule;
+  return ![q.equationPrompt, q.prompt].some((text) => REQUESTED_FORM.test(String(text ?? '')));
+};
+
 const compileFunctionWorkflow = (q, actions) => {
   const publicFunctionSpec = functionSpecFromIntentQuestion(q);
   const tableInfo = normalizeIntentTable(q.table);
@@ -803,6 +824,7 @@ const compileFunctionWorkflow = (q, actions) => {
       kind: 'equationInput',
       prompt: q.equationPrompt || 'Write the equation or function rule.',
       functionNotationKeys: functionNotationKeysFromPrompt(q.prompt),
+      acceptEquivalentFunctionRule: acceptsEquivalentFunctionRule(q),
     });
     const expected = expectedEquation(q);
     if (expected !== undefined) grading.equation = expected;
@@ -2099,6 +2121,7 @@ const compileOne = (q, index, repairs) => {
         variableMeanings: q.variableMeanings,
         showEquations: q.showEquations,
         technology: q.technology,
+        justifySingular: q.justifySingular,
       });
       break;
     }

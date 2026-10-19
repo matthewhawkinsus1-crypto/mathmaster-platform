@@ -25,6 +25,7 @@
 import React from 'react';
 import MathInput from '../../MathInput';
 import { exactNumberText } from './algebraicSystemsEngine.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 // The elimination screens' button styles, defined once: EliminationReductionMode
 // uses these too instead of keeping its own copy.
@@ -98,7 +99,7 @@ export function EliminationStackRow({
               className={`mathmaster-elim-term is-target is-markable${cancelled ? ' is-cancelled' : ''}`}
               onClick={onToggleCancel}
               aria-pressed={cancelled}
-              aria-label={`${cancelled ? 'Unmark' : 'Mark'} the ${name} term ${text.replace(/\s+/g, '')} in ${label} as cancelling`}
+              aria-label={`${cancelled ? 'Unmark' : 'Mark'} the ${name} term ${spokenMathValue(text.replace(/\s+/g, ''))} in ${label} as cancelling`}
             >
               {text}
             </button>

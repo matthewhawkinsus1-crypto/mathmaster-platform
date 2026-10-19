@@ -27,13 +27,18 @@
  * "workable" in the workspace; the Recovery lives on the result page.
  */
 
+import { STUDENT_SECTION_LABEL } from './studentWords.js';
+import { formatWhenDateKey, formatWhenDateTime, formatWhenTime } from './studentWhen.js';
+
 export const SECTION_ORDER = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
 
+// The student's names for the sections (studentWords.js, D9): the exit
+// ticket is "Exit ticket" here, and a screen spells out "(DOL)" once.
 export const SECTION_LABEL = Object.freeze({
-  warmup: 'Warm-Up',
-  classwork: 'Classwork',
-  practice: 'Practice',
-  dol: 'DOL',
+  warmup: STUDENT_SECTION_LABEL.warmup,
+  classwork: STUDENT_SECTION_LABEL.classwork,
+  practice: STUDENT_SECTION_LABEL.practice,
+  dol: STUDENT_SECTION_LABEL.dol,
   review: 'Review',
   quiz: 'Quiz',
   test: 'Test',
@@ -267,10 +272,33 @@ export const describeLessonSections = ({
 };
 
 /**
- * "DOL opens at 2:15 PM" / "Classwork — your teacher opens it in class".
+ * NAV-26: the lesson is done except its exit ticket, which has not opened yet
+ * (later today, on its class day, or when the teacher starts it). Home said
+ * "Not open yet" about a lesson that was mostly finished; this is what lets it
+ * say what is waiting instead. A closed exit ticket is not waiting.
+ */
+export const onlyExitTicketWaits = (sections = []) => {
+  const list = Array.isArray(sections) ? sections : [];
+  const unfinished = list.filter((section) => !section.finished);
+  return list.some((section) => section.finished && section.state !== SECTION_STATE.EXCUSED)
+    && unfinished.length > 0
+    && unfinished.every((section) => section.role === 'dol'
+      && (section.state === SECTION_STATE.OPENS_LATER
+        // Locked until earlier classwork is finished is not "opens in class":
+        // the wait line under the chip says what to finish first.
+        || (section.state === SECTION_STATE.LOCKED && section.reason !== 'prerequisite')));
+};
+
+/**
+ * "Exit ticket opens at 2:15 PM" / "Classwork — your teacher opens it in class".
  * Student copy for a section that cannot be worked yet.
  */
-export const describeSectionWait = (section, { formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), formatDay = (date) => date.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), nowValue = Date.now() } = {}) => {
+// A class day's date key ("2026-10-21") as a student reads it: "Wed, Oct 21"
+// (student pass 3: the wait line printed the raw key). One formatter for every
+// student wait line (studentWhen.js, NAV-19).
+const formatClassDayKey = (dateKey) => formatWhenDateKey(dateKey);
+
+export const describeSectionWait = (section, { formatTime = formatWhenTime, formatDay = (date) => formatWhenDateTime(date), formatDateKey = formatClassDayKey, nowValue = Date.now() } = {}) => {
   if (!section) return null;
   const label = section.label || sectionLabel(section.role);
   if (section.state === SECTION_STATE.OPENS_LATER) {
@@ -278,7 +306,7 @@ export const describeSectionWait = (section, { formatTime = (date) => date.toLoc
       const sameDay = new Date(nowValue).toDateString() === section.opensAt.toDateString();
       return `${label} opens ${sameDay ? `at ${formatTime(section.opensAt)}` : formatDay(section.opensAt)}`;
     }
-    if (section.opensOn) return `${label} opens in class on ${section.opensOn}`;
+    if (section.opensOn) return `${label} opens in class on ${formatDateKey(section.opensOn)}`;
     return `${label} opens later`;
   }
   if (section.state === SECTION_STATE.LOCKED) {

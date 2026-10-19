@@ -504,7 +504,11 @@ test('assignment-level draft clearing also evicts parsed tool workspace caches',
 test('the shared hook refreshes question-specific initializers before a draft-key change', () => {
   const source = stripComments(read('src/tools/shared/usePersistentToolState.js'));
   const assign = source.indexOf('initialRef.current = initialValue');
-  const effect = source.indexOf('useEffect(() => {', assign);
+  // The key-change restore runs during render since pass 3's review (a late
+  // re-read in an effect handed Universal Undo the previous question's answer:
+  // tests/tools/undoQuestionSwap.test.mjs). It must still read the initializer
+  // the CURRENT render assigned.
+  const effect = source.indexOf('if (renderedKey !== key) {', assign);
   assert.ok(assign >= 0, 'the hook must keep the latest initializer');
   assert.ok(effect > assign, 'the latest initializer must be available before key-change restoration');
   // The restore reads the LATEST initializer (initialRef.current), whatever

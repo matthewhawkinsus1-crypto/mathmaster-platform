@@ -102,9 +102,11 @@ test('QA round 2: no "Compare your work with the solution." over no solution', (
   assert.doesNotMatch(legacy, /\|\| completeAnswerDetails\.length \|\| graph \|\|/);
   // Nothing to show: the panel renders nothing, framed or embedded.
   assert.match(legacy, /if \(!content \|\| !content\.hasContent\) return null;/);
-  // Review My Work says the solution is not available instead.
+  // Review My Work says the solution is not available instead — asked of the
+  // whole review (authored, family, tool, legacy) since it renders the closed
+  // question's panel (student pass 3, HELP-12).
   const page = executableSource(read('src/components/student/ReviewMyWork.jsx'));
-  assert.match(page, /import SolutionReview, \{ legacySolutionReviewContent \} from '\.\.\/\.\.\/SolutionReview\.jsx';/);
-  assert.match(page, /try \{ return !legacySolutionReviewContent\(question\)\?\.hasContent; \} catch \{ return false; \}/, 'a check that throws never breaks the page');
-  assert.match(page, /if \(!usesToolReview && legacyHasNothing\) \{\s*return <p[^>]*>\{SOLUTION_UNAVAILABLE_TEXT\}<\/p>;/);
+  assert.match(page, /import \{ legacySolutionReviewContent \} from '\.\.\/\.\.\/SolutionReview\.jsx';/);
+  assert.match(page, /try \{ return !closedQuestionHasReview\(\{ question, isToolQuestion, legacyContent: legacySolutionReviewContent \}\); \} catch \{ return false; \}/, 'a check that throws never breaks the page');
+  assert.match(page, /if \(nothingToShow\) \{\s*return <p[^>]*>\{SOLUTION_UNAVAILABLE_TEXT\}<\/p>;/);
 });

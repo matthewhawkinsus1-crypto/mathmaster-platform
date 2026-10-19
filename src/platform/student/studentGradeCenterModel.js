@@ -10,6 +10,7 @@ import {
   splitGradesBySection,
 } from '../teacher/gradeEvidence.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
+import { CLOSED_WORK } from './studentWords.js';
 import {
   buildTestCycleGradeState,
   isTestCycleAssignment,
@@ -22,6 +23,7 @@ import {
 import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { heldSectionRecoveries } from '../../../functions/shared/sectionRecoveryProjection.mjs';
 import { assignmentGradeOverrideFor } from '../grading/canonicalGradeProjection.js';
+import { teacherClosedNotice, teacherClosedState } from './studentOpenGate.js';
 
 /*
  * THE STUDENT GRADE CENTER, AS A MODEL.
@@ -117,7 +119,8 @@ export const GRADE_STATUS_LABEL = Object.freeze({
   [GRADE_STATUS.LATE]: 'Late',
   [GRADE_STATUS.EXCUSED]: 'Excused',
   [GRADE_STATUS.REOPENED]: 'Reopened',
-  [GRADE_STATUS.PRACTICE_ONLY]: 'Practice Only',
+  // Closed with nothing recorded: left out of the average, and says so.
+  [GRADE_STATUS.PRACTICE_ONLY]: CLOSED_WORK.notCountedLabel,
   [GRADE_STATUS.LOCKED]: 'Not Open Yet',
 });
 
@@ -354,6 +357,23 @@ const IN_PROGRESS_STATUSES = new Set([GRADE_STATUS.IN_PROGRESS, GRADE_STATUS.LAT
 const formatPoints = (value) => {
   const rounded = Math.round((Number(value) || 0) * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+};
+
+/**
+ * The line under the big number when work is missing (student pass 3, NAV-2,
+ * decision D4). The number keeps its rule — missing work is not in this
+ * average — but the student reads the caveat where they read the number, not
+ * at the end of a folded panel: after the due date Google Classroom may post
+ * that work as 0. Null when nothing is missing.
+ */
+export const missingGradeWarning = (summary = {}) => {
+  const missing = Math.max(0, Math.floor(Number(summary?.missing) || 0));
+  if (!missing) return null;
+  return {
+    count: missing,
+    text: `${missing} missing — your Classroom grade may be lower`,
+    actionLabel: missing === 1 ? 'Show the missing assignment' : `Show the ${missing} missing assignments`,
+  };
 };
 
 /**
@@ -618,6 +638,9 @@ export const buildStudentGradeCenter = ({
       ? prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue })
       : { open: true, reason: null };
     const locked = lifecycle.isScheduled || access?.open === false;
+    // Paused or archived by the teacher (NAV-4): the grade stays readable,
+    // nothing opens, and the row says so instead of offering Start.
+    const closedByTeacher = teacherClosedState(assignment);
 
     /*
      * A Test Cycle row shows the recorded assessment grade, not the tracker.
@@ -745,9 +768,12 @@ export const buildStudentGradeCenter = ({
       // The row's buttons (Start/Continue, View Results, Try it again — no
       // credit), decided once here.
       // A teacher-set grade offers results only: no work can change it.
-      actions: gradeOverride
-        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
-        : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
+      closedByTeacher,
+      actions: closedByTeacher
+        ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null, practiceNoCredit: false, waitText: teacherClosedNotice(assignment).text }
+        : gradeOverride
+          ? { ...resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }), start: null }
+          : resolveGradeRowActions({ status, overall: effectiveOverall, lifecycle, locked, excused }),
       // Each section's share of this assignment's grade, or null when the
       // shares would not add up to the grade shown.
       sectionShares: testCycle || gradeOverride ? null : sectionWeightShares({

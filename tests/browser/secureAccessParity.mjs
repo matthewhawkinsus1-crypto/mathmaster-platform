@@ -83,9 +83,18 @@ const DEVICES = [
  *            itself to put the caret in a denominator).
  *   mixed    a Chromebook: digits from the keyboard, symbols from the keypad.
  */
-const typed = (profile, text, keys, equivalence = null) => ({ profile, entry: 'keyboard', text, keys, equivalence });
-const keypad = (profile, steps, keys, equivalence = null) => ({ profile, entry: 'keypad', steps, keys, equivalence });
-const mixed = (profile, steps, keys, equivalence = null) => ({ profile, entry: 'keyboard+keypad', steps, keys, equivalence });
+// `field` adds public entry metadata (requiredSymbols, answerFormat) and
+// `prompt` the item's prompt, whose letters an inequality's keypad offers.
+const typed = (profile, text, keys, equivalence = null, extra = {}) => ({ profile, entry: 'keyboard', text, keys, equivalence, ...extra });
+const keypad = (profile, steps, keys, equivalence = null, extra = {}) => ({ profile, entry: 'keypad', steps, keys, equivalence, ...extra });
+const mixed = (profile, steps, keys, equivalence = null, extra = {}) => ({ profile, entry: 'keyboard+keypad', steps, keys, equivalence, ...extra });
+const H_PROMPT = { prompt: 'A pool is filled to a height of $h$ feet. Which values of $h$ are possible?' };
+const PI_FIELD = { field: { requiredSymbols: ['π'] } };
+const ROOT_FIELD = { field: { requiredSymbols: ['√'] } };
+const OUT = '↷ out';
+
+// mm_A2_3C_v2_quadratic-formula-exact as drawn: y = 2x + 3 and y = x^2 + 0x + 2.
+const QUADRATIC_FORMULA_PAIR = '((-(-2)-sqrt(8))/2,2*((-(-2)-sqrt(8))/2)+3)';
 
 const TRIALS = [
   typed('number', '3/4', ['3/4', '0.75']),
@@ -96,22 +105,32 @@ const TRIALS = [
   typed('number', '.75', ['0.75']),
   typed('number', '1200', ['1200']),
   typed('number', '-8', ['-8']),
+  // A field that names π, a root, % or $ (student pass 3, H-13: these were
+  // typed text until the grader read the editor's form of each).
+  typed('number', '2pi', ['2pi', '2π'], null, PI_FIELD),
+  typed('number', 'pi/2', ['pi/2', 'π/2'], null, PI_FIELD),
+  typed('number', '3pi/4', ['3pi/4'], null, PI_FIELD),
+  typed('number', '3sqrt2', ['3sqrt(2)'], null, ROOT_FIELD),
+  typed('number', '25%', ['25%', '25'], null, { field: { requiredSymbols: ['%'] } }),
+  typed('number', '$25.50', ['$25.50', '25.50'], null, { field: { answerFormat: 'currency' } }),
   typed('set', '{41.95, 66.9, 91.85}', ['{41.95,66.9,91.85}'], 'numericSet'),
   typed('set', '{-4, -3, -2}', ['{-4,-3,-2}']),
   typed('interval', '(0, 400]', ['(0,400]'], 'interval'),
   typed('interval', '[-5, inf)', ['[-5,inf)'], 'interval'),
   typed('interval', '[-3,5)', ['[-3,5)'], 'interval'),
-  // Typed text: what the student types is what is graded.
   typed('orderedPair', '(3, 0)', ['(3,0)']),
   typed('orderedPair', '(0, -8)', ['(0,-8)']),
-  typed('orderedPair', '(1/2, 3)', ['(1/2,3)']),
+  typed('orderedPair', '(1/2, 3)', ['(1/2,3)', '(0.5,3)']),
   typed('orderedPair', '(-1/2, 3)', ['(-1/2,3)']),
-  typed('inequality', 'x >= 4', ['x>=4']),
+  typed('inequality', 'x >= 4', ['x>=4', '4<=x']),
   typed('inequality', '-3 < x <= 5', ['-3<x<=5']),
-  typed('inequality', '0<=h and h<=12', ['0<=h and h<=12']),
+  typed('inequality', '0<=h and h<=12', ['0<=h and h<=12', '0<=h<=12'], null, H_PROMPT),
+  typed('inequality', 'x<-2 or x>3', ['x<-2 or x>3']),
   typed('inequality', '|x-5|<=4', ['|x-5|<=4']),
   typed('inequality', 'x^2 + 1 > 5', ['x^2+1>5']),
   typed('inequality', 'y <= -2x + 3', ['y<=-2x+3']),
+  typed('inequality', 'x >= 3/4', ['x>=3/4', 'x>=0.75']),
+  // Typed text: what the student types is what is graded.
   typed('equation', 'log_2(32)=5', ['log_2(32)=5']),
   typed('expression', '2A/h-b_2', ['2A/h-b_2']),
   // A phone: the keypad and nothing else.
@@ -121,18 +140,55 @@ const TRIALS = [
   keypad('number', ['−', 'a⁄b', '1', 'denominator', '2'], ['-1/2', '-0.5']),
   keypad('number', ['.', '7', '5'], ['0.75']),
   keypad('number', ['1', '2', '0', '0'], ['1200']),
+  keypad('number', ['2', 'π'], ['2pi'], null, PI_FIELD),
+  keypad('number', ['a⁄b', '3', 'π', 'denominator', '4'], ['3pi/4'], null, PI_FIELD),
+  keypad('number', ['3', '√', '2'], ['3sqrt(2)'], null, ROOT_FIELD),
+  keypad('number', ['a⁄b', '√', '3', OUT, 'denominator', '2'], ['sqrt(3)/2'], null, ROOT_FIELD),
   keypad('set', ['{', '−', '4', ',', '−', '3', ',', '−', '2', '}'], ['{-4,-3,-2}']),
   keypad('set', ['{', '4', '1', '.', '9', '5', ',', '6', '6', '.', '9', '}'], ['{41.95,66.9}'], 'numericSet'),
   keypad('set', ['∅'], ['{}']),
   keypad('interval', ['[', '−', '5', ',', '∞', ')'], ['[-5,inf)'], 'interval'),
   keypad('interval', ['(', '−∞', ',', '3', ']', '∪', '[', '5', ',', '∞', ')'], ['(-inf,3]U[5,inf)'], 'interval'),
   keypad('interval', ['(', '0', ',', '4', '0', '0', ']'], ['(0,400]'], 'interval'),
+  keypad('orderedPair', ['(', '3', ',', '0', ')'], ['(3,0)']),
+  keypad('orderedPair', ['(', '0', ',', '−', '8', ')'], ['(0,-8)']),
+  keypad('orderedPair', ['(', 'a⁄b', '−', '1', 'denominator', '2', OUT, ',', '3', ')'], ['(-1/2,3)', '(-0.5,3)']),
+  keypad('orderedPair', ['(', '3', '√', '2', OUT, ',', '1', ')'], ['(3sqrt(2),1)']),
+  keypad('orderedPair', ['(', '1', '−', '√', '2', OUT, ',', '5', '−', '2', '√', '2', OUT, ')'], [QUADRATIC_FORMULA_PAIR]),
+  keypad('orderedPair', ['(', 'a⁄b', '√', '3', OUT, 'denominator', '2', OUT, ',', 'a⁄b', '1', 'denominator', '2', OUT, ')'], ['(sqrt(3)/2,1/2)']),
+  keypad('inequality', ['x', '≥', '4'], ['x>=4']),
+  keypad('inequality', ['−', '3', '<', 'x', '≤', '5'], ['-3<x<=5']),
+  keypad('inequality', ['0', '≤', 'h', 'and', 'h', '≤', '1', '2'], ['0<=h and h<=12', '0<=h<=12'], null, H_PROMPT),
+  keypad('inequality', ['0', '≤', 'h', '≤', '1', '2'], ['0<=h and h<=12'], null, H_PROMPT),
+  keypad('inequality', ['x', '<', '−', '2', 'or', 'x', '>', '3'], ['x<-2 or x>3']),
+  keypad('inequality', ['|x|', 'x', '−', '5', OUT, '≤', '4'], ['|x-5|<=4']),
+  keypad('inequality', ['x', 'xⁿ', '2', OUT, '+', '1', '>', '5'], ['x^2+1>5']),
+  keypad('inequality', ['x', '≥', 'a⁄b', '3', 'denominator', '4'], ['x>=3/4']),
+  keypad('inequality', ['x', '>', '√', '2'], ['x>sqrt(2)']),
   // A Chromebook: the keypad's own symbols between typed digits.
   mixed('interval', ['(', '−∞', { type: ',3]' }, '∪', { type: '[5,' }, '∞', { type: ')' }], ['(-inf,3]U[5,inf)'], 'interval'),
   mixed('set', ['{', { type: '-4,-3' }, '}'], ['{-4,-3}']),
   mixed('set', ['∅'], ['{}']),
   mixed('number', ['a⁄b', { type: '-1' }, 'denominator', { type: '2' }], ['-1/2', '-0.5']),
+  mixed('orderedPair', [{ type: '(3' }, '√', { type: '2' }, OUT, { type: ',1)' }], ['(3sqrt(2),1)']),
+  // Algebra II quadratic-formula-exact keys a pair as unsimplified generator
+  // text; the simplified exact pair grades by its value (student pass 3, wave
+  // 6). Typed straight through, `sqrt2,` keeps the caret in the root (√(2,…)),
+  // so the root is left with the arrow, as a student sees they must.
+  mixed('orderedPair', [{ type: '(1-' }, '√', { type: '2' }, OUT, { type: ',5-2' }, '√', { type: '2' }, OUT, { type: ')' }], [QUADRATIC_FORMULA_PAIR]),
+  mixed('inequality', [{ type: '0' }, '≤', { type: 'h' }, 'and', { type: 'h' }, '≤', { type: '12' }], ['0<=h and h<=12'], null, H_PROMPT),
 ];
+
+// Answers whose value, if anything on the page showed it, would be an
+// evaluation the student did not type.
+const EVALUATIONS = {
+  '3/4': ['0.75'],
+  'pi/2': ['1.57', '1.5708'],
+  '3pi/4': ['2.35', '2.356'],
+  'x >= 3/4': ['0.75'],
+  '3sqrt2': ['4.24', '4.2426'],
+  'keypad: a⁄b √ 3 ↷ out ▾ 2': ['0.866'],
+};
 
 // The keypad's keys by what they show (MathInput.jsx; digits are "Insert 7").
 const KEY_NAMES = {
@@ -140,8 +196,11 @@ const KEY_NAMES = {
   '{': 'Insert opening set brace', '}': 'Insert closing set brace', '∅': 'Insert empty set',
   '(': 'Insert open parenthesis', ')': 'Insert close parenthesis', '[': 'Insert open bracket', ']': 'Insert close bracket',
   '∞': 'Insert positive infinity', '−∞': 'Insert negative infinity', '∪': 'Insert union',
+  '<': 'Insert less than', '≤': 'Insert less than or equal to', '>': 'Insert greater than', '≥': 'Insert greater than or equal to',
+  '+': 'Insert plus sign', 'π': 'Insert pi', '√': 'Insert square root', '|x|': 'Insert absolute value', 'xⁿ': 'Insert exponent',
+  and: 'Insert and', or: 'Insert or', '↷ out': 'Move the cursor out of the fraction, exponent or bracket',
 };
-const keyName = (label) => KEY_NAMES[label] || (/^\d$/.test(label) ? `Insert ${label}` : null);
+const keyName = (label) => KEY_NAMES[label] || (/^\d$/.test(label) || /^[a-z]$/.test(label) ? `Insert ${label}` : null);
 const describeSteps = (trial) => `${trial.entry === 'keypad' ? 'keypad' : 'keys'}: ${trial.steps.map((step) => (typeof step === 'string' ? (step === 'denominator' ? '▾' : step) : `"${step.type}"`)).join(' ')}`;
 
 /** Does this trial run on this device, given the box the field gets there? */
@@ -318,7 +377,7 @@ for (const device of DEVICES) {
 
     for (const trial of TRIALS) {
       const { profile, keys, equivalence } = trial;
-      await page.evaluate((field) => window.__mmSetField(field), { id: 'answer', label: 'Answer', inputProfile: profile });
+      await page.evaluate(([field, prompt]) => window.__mmSetField(field, prompt), [{ id: 'answer', label: 'Answer', inputProfile: profile, ...trial.field }, trial.prompt || '']);
       await page.waitForFunction((p) => document.querySelector(`[data-profile="${p}"] [data-secure-answer-editor]`) !== null, profile);
       const box = await page.evaluate(() => {
         const element = document.querySelector('[data-secure-answer-editor]');
@@ -343,7 +402,7 @@ for (const device of DEVICES) {
         await page.waitForTimeout(150);
         emitted = await page.evaluate(() => window.__mmEmitted.at(-1) ?? '');
         // A keystroke lost to focus timing leaves a fragment: type it again.
-        if (trial.entry === 'keyboard' && emitted.replace(/\\[a-z]+|[{}\s]/g, '').length < Math.min(2, trial.text.replace(/\s/g, '').length)) emitted = '';
+        if (trial.entry === 'keyboard' && emitted.replace(/\\(?:pi|sqrt|%|\$)/g, '#').replace(/\\[a-z]+|[{}\s]/g, '').length < Math.min(2, trial.text.replace(/\s/g, '').length)) emitted = '';
         if (!emitted) {
           await page.evaluate(() => window.__mmReset());
           await page.waitForTimeout(150);
@@ -353,11 +412,27 @@ for (const device of DEVICES) {
       if (failure) problems.push(`${profile} ${label}: ${failure}`);
       const shown = await page.evaluate(() => document.querySelector('math-field')?.value ?? document.querySelector('input[data-secure-answer-editor]')?.value ?? '');
       if (shown !== emitted) problems.push(`${profile} "${label}": the field shows ${JSON.stringify(shown)} but emitted ${JSON.stringify(emitted)}`);
+      // THE EDITOR EVALUATES NOTHING. Whatever the box holds, nothing on the
+      // page (or spoken to a screen reader through a live region) shows its
+      // value, a simplification or a verdict: on a test that is the answer.
+      const evaluates = EVALUATIONS[label];
+      if (evaluates) {
+        const shown = await page.evaluate(() => {
+          const scene = document.querySelector('fieldset').cloneNode(true);
+          const live = [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')].map((node) => node.textContent).join(' ');
+          return `${scene.innerText} ${live}`;
+        });
+        evaluates.filter((value) => shown.includes(value)).forEach((value) => problems.push(`${profile} "${label}": the page shows ${value}, a value the student did not type`));
+        if (/correct|incorrect|not yet|right|wrong/i.test(shown)) problems.push(`${profile} "${label}": the page shows a verdict`);
+      }
+      // A key that left the caret typing words would put the rest of the
+      // answer in a \text{} the student sees as prose.
+      if (editor === 'math' && /\\text|\\textbackslash/.test(emitted)) problems.push(`${profile} "${label}": the editor left math mode (${JSON.stringify(emitted)})`);
       const verdicts = [];
       for (const key of keys) verdicts.push([key, await gradeAgainst(profile, key, emitted, equivalence)]);
       verdicts.filter(([, ok]) => !ok).forEach(([key]) => problems.push(`${profile} "${label}" sent ${JSON.stringify(emitted)}, which the server grader does not accept for ${key}`));
       const entry = trial.entry === 'keyboard' && device.mobile ? 'soft-keyboard' : trial.entry;
-      recorded.push({ device: device.id, profile, editor, entry, typed: label, serialized: emitted, keys, equivalence: equivalence || null, gradedCorrect: verdicts.every(([, ok]) => ok) });
+      recorded.push({ device: device.id, profile, editor, entry, typed: label, serialized: emitted, keys, equivalence: equivalence || null, ...(trial.field ? { field: trial.field } : {}), gradedCorrect: verdicts.every(([, ok]) => ok) });
       if (device.mobile && trial.entry === 'keypad' && label === describeSteps(TRIALS.find((entry) => entry.entry === 'keypad'))) await shot(page, device, 'answer-keypad-3-4');
     }
     // What a screen reader hears on landing in each box: MathLive hands only
@@ -366,7 +441,7 @@ for (const device of DEVICES) {
     {
       const cdp = await context.newCDPSession(page);
       await cdp.send('Accessibility.enable');
-      for (const [profile, hint] of [['number', /Type only the number/], ['orderedPair', /ordered pair/]]) {
+      for (const [profile, hint] of [['number', /Type only the number/], ['orderedPair', /ordered pair/], ['inequality', /as an inequality/], ['expression', /for a power/]]) {
         await page.evaluate((field) => window.__mmSetField(field), { id: 'answer', label: 'Answer', inputProfile: profile });
         await page.waitForTimeout(250);
         await page.locator('[data-secure-answer-editor] math-field, input[data-secure-answer-editor]').first().focus();
@@ -378,13 +453,45 @@ for (const device of DEVICES) {
       }
       await cdp.detach();
     }
+    // THE KEYPAD SAYS NOTHING ABOUT THE ANSWER (H-13). Outside a test a
+    // field's own symbols sit in a row captioned "Needed for this answer";
+    // on a secure item that row must be the same as on a field naming
+    // nothing (only the profile's own generic symbols), while the field's
+    // keys are in the keypad itself.
     if (device.mobile) {
-      await page.evaluate((field) => window.__mmSetField(field), { id: 'answer', label: 'Answer', inputProfile: 'inequality' });
-      await page.waitForTimeout(250);
-      await page.locator('input[data-secure-answer-editor]').tap();
-      await page.keyboard.insertText('0<=h and h<=12');
-      await page.waitForTimeout(150);
-      await shot(page, device, 'answer-inequality-text');
+      const keypadFor = async (field, prompt = '') => {
+        await page.evaluate(([next, text]) => window.__mmSetField(next, text), [{ id: 'answer', label: 'Answer', ...field }, prompt]);
+        await page.waitForTimeout(250);
+        const box = await page.locator('math-field').first().boundingBox();
+        await page.touchscreen.tap(box.x + 30, box.y + box.height / 2);
+        await page.waitForTimeout(250);
+        return page.evaluate(() => ({
+          needed: [...document.querySelectorAll('.mathmaster-required-answer-keys button')].map((button) => button.textContent.trim()).sort(),
+          keypad: [...document.querySelectorAll('.mathmaster-math-input-tools button')].map((button) => button.textContent.trim()),
+          inputMode: document.querySelector('math-field')?.getAttribute('inputmode') ?? null,
+        }));
+      };
+      for (const [field, prompt, expectKeys] of [
+        [{ inputProfile: 'number', requiredSymbols: ['π', 'a⁄b', '−'] }, '', ['π', 'a⁄b']],
+        [{ inputProfile: 'number', answerFormat: 'simplest radical' }, '', ['√']],
+        [{ inputProfile: 'orderedPair', requiredSymbols: ['√', '(', ','] }, '', ['√', 'π', '(', ')']],
+        [{ inputProfile: 'inequality', requiredSymbols: ['h', '≤'] }, H_PROMPT.prompt, ['h', 'and', 'or', '≤', '≥', 'a⁄b']],
+      ]) {
+        const bare = await keypadFor({ inputProfile: field.inputProfile });
+        const rich = await keypadFor(field, prompt);
+        if (JSON.stringify(rich.needed) !== JSON.stringify(bare.needed)) problems.push(`${field.inputProfile} ${JSON.stringify(field)}: "Needed for this answer" shows ${JSON.stringify(rich.needed)}, not the profile's own ${JSON.stringify(bare.needed)}`);
+        const all = [...rich.keypad, ...rich.needed];
+        expectKeys.filter((label) => !all.includes(label)).forEach((label) => problems.push(`${field.inputProfile}: no ${label} key on the phone keypad`));
+        if (rich.inputMode !== 'none') problems.push(`${field.inputProfile}: the phone math field asks for a keyboard (${rich.inputMode})`);
+      }
+      // A symbol no key types (°) keeps the phone's own keyboard, and the
+      // field never says "Additional symbol needed: °" (H-13 review S2).
+      const unserved = await keypadFor({ inputProfile: 'number', requiredSymbols: ['°'] });
+      if (unserved.inputMode === 'none') problems.push('number naming °: the phone keyboard is shut, with no key for it');
+      const caption = await page.evaluate(() => /Additional symbol needed|Needed for this answer/.test(document.querySelector('[data-secure-answer-editor]')?.closest('fieldset')?.innerText || ''));
+      if (caption) problems.push('number naming °: the field names a symbol the answer needs');
+      await keypadFor({ inputProfile: 'inequality' }, H_PROMPT.prompt);
+      await shot(page, device, 'answer-inequality-keypad');
     }
 
     await closePage(page, problems);
@@ -479,6 +586,9 @@ for (const device of DEVICES) {
     await shot(page, device, 'sat-item');
 
     // Supports: prompt only.
+    // Translate shows once the item's translation resolves (the language pack
+    // loads on demand), which can outlast the settle above on a busy machine.
+    await page.waitForSelector('[data-support-tool="translate"]', { timeout: 15000 }).catch(() => {});
     const buttons = await page.evaluate(() => [...document.querySelectorAll('[data-support-tool]')].map((element) => element.getAttribute('data-support-tool')));
     for (const tool of ['translate', 'vocabulary', 'read-aloud']) if (!buttons.includes(tool)) problems.push(`no ${tool} button for an entitled student`);
     for (const tool of ['break-it-down', 'say-it']) if (buttons.includes(tool)) problems.push(`${tool} offered on a secure item`);
@@ -663,7 +773,7 @@ for (const device of DEVICES) {
       await shot(page, device, 'sat-both-tools');
     }
 
-    // "Enlarge question" opened with a tool already open: the tool stays on
+    // "Open Work View" opened with a tool already open: the tool stays on
     // top of Work View (2147483000), under the layers that must cover it.
     await page.evaluate(() => window.__mmSetWorkView(true));
     await page.waitForTimeout(250);

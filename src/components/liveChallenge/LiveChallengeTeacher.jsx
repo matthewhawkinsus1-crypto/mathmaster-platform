@@ -472,8 +472,11 @@ export default function LiveChallengeTeacher({
   // after a refresh). Asked again a few times while it knows fewer names than
   // the room invited: a second tab can open a lobby whose roster is still being
   // written, and a single empty answer used to leave game names up for good.
+  // And again when the room invites someone new (a student added to the class
+  // mid-game), so they are named, and counted as not joined, at once.
   const rosterWanted = Boolean(room) && room.status !== 'cancelled';
-  const eligibleRef = useLatest(Number(room?.eligibleCount) || 0);
+  const invitedCount = Number(room?.eligibleCount) || 0;
+  const eligibleRef = useLatest(invitedCount);
   useEffect(() => {
     if (!roomId || !rosterWanted) return undefined;
     let cancelled = false;
@@ -496,7 +499,7 @@ export default function LiveChallengeTeacher({
     };
     load();
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [roomId, rosterWanted, eligibleRef]);
+  }, [roomId, rosterWanted, eligibleRef, invitedCount]);
   // A recovery notice is news for a moment, not a fixture.
   useEffect(() => {
     if (!recoveredNotice) return undefined;

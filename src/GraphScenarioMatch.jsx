@@ -454,7 +454,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
       </div>
 
       <p className="graph-scenario-submit-note">
-        Match every scenario, then use <strong>Submit Answer</strong> below to check the complete set.
+        Match every scenario, then use <strong>Submit</strong> below to check the complete set.
       </p>
 
       {zoomedGraph && (

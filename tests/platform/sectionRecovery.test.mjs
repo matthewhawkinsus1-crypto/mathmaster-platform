@@ -857,7 +857,11 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // The original is compared after teacher overrides and BEFORE any Recovery.
   assert.match(summaryMemo, /projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
   assert.doesNotMatch(summaryMemo, /gradeDisplayTracker|projectSectionRecoveries/);
-  assert.match(summaryMemo, /studentProfile: user\.profile \|\| null/, 'the browser decides with the same support profile as the server');
+  // The server decides with the grade document's own `profile` field
+  // (gradeData.profile || null); the browser holds exactly that as
+  // user.timingProfile (D7), not the normalized copy, which falls back to the
+  // whole grade document.
+  assert.match(summaryMemo, /studentProfile: user\.timingProfile \|\| null/, 'the browser decides with the same support profile as the server');
   const startHandler = region(app, 'const startStudentRecovery = async', '};', 'start handler');
   assert.match(startHandler, /await startSectionRecovery\(\{ assignmentId, section \}\)/);
   assert.match(startHandler, /recoveryErrorCode\(error\)/);
@@ -925,7 +929,11 @@ test('the Recovery runner requires the pinned question and keeps its drafts apar
   assert.match(assessmentRunner, /resolveQuestionMaximumAttempts\(\{ question: currentQuestion, activityPolicy: policy \}\)/);
   assert.match(assessmentRunner, /onStepGrade=\{handleStepGrade\}/);
   const practiceRunner = region(runner, 'function PracticeRunner(', 'function AssessmentRunner(', 'practice runner');
-  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts \}\)/);
+  // Practice: the step bookkeeping keeps the Practice policy's tries, even
+  // though every practice question is shown one answer (HELP-19,
+  // recoveryPracticeAttempts.test.mjs).
+  assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts \}\)/);
+  assert.match(practiceRunner, /const stepMaximumAttempts = resolveQuestionMaximumAttempts\(\{ question, activityPolicy: PRACTICE_POLICY \}\);/);
   assert.match(practiceRunner, /forfeit: true/);
   assert.doesNotMatch(runner, /onStepGrade=\{async \(\) => null\}/, 'a step tool must never get a no-op step grader');
 });

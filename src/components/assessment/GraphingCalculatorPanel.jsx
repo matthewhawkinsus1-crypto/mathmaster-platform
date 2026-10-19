@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, formatNumber,
+  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, formatNumber,
   panViewport, parseGraphEntries, readNumberEntry, tableOfValues, zoomViewport,
 } from '../../platform/assessment/graphingCalculatorModel.js';
 import {
@@ -47,6 +47,14 @@ import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js'
  * Which items offer it is the exam policy's decision
  * (src/platform/assessment/secureExamTools.js `graphingCalculator`); pass that
  * as `available`. The calculator knows nothing about the question.
+ *
+ * ON ORDINARY ASSIGNMENTS TOO (pass 3, PR-26). Where an assignment's or a
+ * question's calculator is "graphing", QuestionEngine opens this panel from
+ * its own Calculator control, loaded lazily (src/components/calculator/
+ * AssignmentGraphingCalculator.jsx). That host passes `open` and
+ * `showLauncher={false}`, and `keyPoints` for the zeros, minimum and maximum
+ * of a line in the view. The secure exam passes none of the three, so its
+ * panel is exactly as it was.
  */
 
 const TOOL = EXAM_TOOL_IDS.GRAPHING_CALCULATOR;
@@ -187,10 +195,17 @@ export default function GraphingCalculatorPanel({
   launcherStyle = null,
   defaultOpen = false,
   prefetch = true,
+  // Optional, for a host with its own control (QuestionEngine's work bar):
+  // a boolean makes the open state the host's; false hides the launcher.
+  open: openProp = undefined,
+  showLauncher = true,
+  // Optional: list the zeros, minimum and maximum of a line in the view.
+  keyPoints = false,
 }) {
   const baseId = `mm-graphing-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const narrow = useNarrowScreen();
-  const [open, setOpenState] = useState(Boolean(defaultOpen));
+  const [open, setOpenState] = useState(Boolean(typeof openProp === 'boolean' ? openProp : defaultOpen));
+  const [featureLine, setFeatureLine] = useState(null);
   const [lines, setLines] = useState(() => [newLine('')]);
   const [angleMode, setAngleMode] = useState(ANGLE_MODES.RADIANS);
   const [view, setView] = useState(() => [...DEFAULT_VIEWPORT]);
@@ -217,16 +232,26 @@ export default function GraphingCalculatorPanel({
   onOpenChangeRef.current = onOpenChange;
   const openRef = useRef(open);
   openRef.current = open;
+  // Without a launcher, closing hands focus back to whatever opened the panel —
+  // also when the panel first arrives already open (its lazy chunk loaded after
+  // the student pressed the control), when focus is still on that control.
+  const returnFocusRef = useRef(open && typeof document !== 'undefined' ? document.activeElement : null);
   const toolbarOffset = useExamToolbarOffset(launcherRef, open);
 
   const setOpen = useCallback((next) => {
     if (next === openRef.current) return;
+    if (next && typeof document !== 'undefined') returnFocusRef.current = document.activeElement;
     openRef.current = next;
     setOpenState(next);
     onOpenChangeRef.current?.(next);
     // The reference sheet steps aside where the two cannot share the screen.
     if (next && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(EXAM_TOOL_OPEN_EVENT, { detail: { tool: TOOL } }));
   }, []);
+
+  // A host that owns the open state opens and closes the panel.
+  useEffect(() => {
+    if (typeof openProp === 'boolean') setOpen(openProp);
+  }, [openProp, setOpen]);
 
   // The reference sheet opened where there is no room for both: close,
   // leaving focus with the sheet the student just opened.
@@ -424,8 +449,9 @@ export default function GraphingCalculatorPanel({
   };
 
   const close = () => {
+    const returnTo = showLauncher ? launcherRef.current : returnFocusRef.current;
     setOpen(false);
-    window.requestAnimationFrame?.(() => launcherRef.current?.focus?.({ preventScroll: true }));
+    window.requestAnimationFrame?.(() => returnTo?.focus?.({ preventScroll: true }));
   };
 
   if (!available) return null;
@@ -436,6 +462,9 @@ export default function GraphingCalculatorPanel({
   const tableRows = tableEntry
     ? tableOfValues(tableEntry.entry, { start: readNumberEntry(tableStart, { angleMode }), step: readNumberEntry(tableStep, { angleMode }), rows: 7 })
     : [];
+  const featureEntry = graphable.find(({ line }) => line.id === featureLine) || graphable[0] || null;
+  const features = keyPoints && featureEntry ? findGraphFeatures(featureEntry.entry, { xMin: view[0], xMax: view[2] }) : null;
+  const point = ({ x, y }) => `(${formatNumber(x)}, ${formatNumber(y)})`;
   const traceTyped = String(traceX).trim() !== '';
   const traceNumber = traceTyped ? readNumberEntry(traceX, { angleMode }) : null;
   const traceValue = traceTyped ? (traceNumber ?? NaN) : null;
@@ -459,7 +488,7 @@ export default function GraphingCalculatorPanel({
 
   return (
     <>
-      <button
+      {showLauncher && <button
         ref={launcherRef}
         type="button"
         aria-haspopup="dialog"
@@ -473,7 +502,7 @@ export default function GraphingCalculatorPanel({
         style={{ ...LAUNCHER, ...(open ? { background: 'var(--mm-primary-soft)' } : null), ...launcherStyle }}
       >
         <span aria-hidden="true">📈</span> {label}
-      </button>
+      </button>}
       {/* Portalled to the body: inside a sticky toolbar the panel would be held
           in the toolbar's stacking context, under Work View whatever its own
           layer says. */}
@@ -485,6 +514,11 @@ export default function GraphingCalculatorPanel({
           aria-labelledby={`${baseId}-title`}
           tabIndex={-1}
           data-graphing-calculator={narrow ? 'sheet' : 'drawer'}
+          // Opened from a question's own control, it is a floating tool above
+          // Work View, whose dialog then lets focus into it (src/ui/Dialog.jsx),
+          // as it does the keypad drawer. Not in the secure exam: there no
+          // dialog of the exam's lets focus out to the calculator.
+          data-work-view-floating-tool={showLauncher ? undefined : 'graphing-calculator'}
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
@@ -668,6 +702,47 @@ export default function GraphingCalculatorPanel({
                 </ul>
               )}
             </div>
+
+            {keyPoints && (
+              <div data-graphing-key-points="">
+                <div id={`${baseId}-key-points-label`} style={SECTION_LABEL}>Zeros, minimum and maximum</div>
+                {featureEntry ? (
+                  <div style={{ marginTop: 4, display: 'grid', gap: 6 }}>
+                    <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
+                      For the part of the graph on screen. Minimum and maximum are the line&apos;s turning points, not the ends of what is on screen. Move or zoom the graph to look somewhere else.
+                    </p>
+                    {graphable.length > 1 && (
+                      <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, maxWidth: 200 }}>
+                        Line
+                        <select
+                          value={featureEntry.line.id}
+                          onChange={(event) => setFeatureLine(Number(event.target.value))}
+                          style={{ ...INPUT, marginTop: 4 }}
+                        >
+                          {graphable.map(({ line, index }) => <option key={line.id} value={line.id}>Line {index + 1}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {features && (
+                      <dl aria-labelledby={`${baseId}-key-points-label`} style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: '4px 10px', fontSize: 'calc(14.5 * var(--mm-px))' }}>
+                        <dt style={{ fontWeight: 800 }}>Zeros</dt>
+                        <dd data-graphing-zeros="" style={{ margin: 0 }}>
+                          {features.zeros.length ? features.zeros.map((x) => `x = ${formatNumber(x)}`).join('; ') : 'None on screen'}{features.more.zeros ? '; and more' : ''}
+                        </dd>
+                        <dt style={{ fontWeight: 800 }}>Minimum</dt>
+                        <dd data-graphing-minima="" style={{ margin: 0 }}>
+                          {features.minima.length ? features.minima.map(point).join('; ') : 'No turn on screen'}{features.more.minima ? '; and more' : ''}
+                        </dd>
+                        <dt style={{ fontWeight: 800 }}>Maximum</dt>
+                        <dd data-graphing-maxima="" style={{ margin: 0 }}>
+                          {features.maxima.length ? features.maxima.map(point).join('; ') : 'No turn on screen'}{features.more.maxima ? '; and more' : ''}
+                        </dd>
+                      </dl>
+                    )}
+                  </div>
+                ) : <p style={{ margin: '4px 0 0', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Graph a line first.</p>}
+              </div>
+            )}
 
             <details>
               <summary style={{ ...SECTION_LABEL, cursor: 'pointer', padding: '8px 0' }}>Table of values</summary>

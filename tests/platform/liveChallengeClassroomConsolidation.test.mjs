@@ -63,15 +63,14 @@ test('Live Challenge opts rich tools into a real no-expiration policy only in th
   assert.match(student, /<QuestionEngine[\s\S]*attemptsDoNotExpire/);
   assert.doesNotMatch(student, /maximumAttempts=\{1\}/);
   assert.match(engine, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
-  // An inefficient move's attempt honours the host's no-expiration policy:
-  // the workspace reports it as INEFFICIENT_MOVE and asks the shared attempt
-  // rule with the host's flag, and that rule spends nothing when attempts do
-  // not expire (and one when they do).
-  assert.match(algebra, /saveStep\(\{ move, action: STEP_ACTIONS\.INEFFICIENT_MOVE \}\)/);
+  // A step's attempt use comes from the shared rule, asked with the host's
+  // flag. Since decision D1 that rule spends nothing for any step, with or
+  // without expiring attempts, so Live Challenge needs no footnote of its own.
   assert.match(algebra, /countsAttempt:\s*stepActionCountsAttempt\(action, \{ attemptsDoNotExpire \}\)/);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: true }), false);
-  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: false }), true);
-  assert.match(algebra, /Live Challenge work does not expire from intermediate moves/);
+  Object.values(STEP_ACTIONS).forEach((action) => {
+    assert.equal(stepActionCountsAttempt(action, { attemptsDoNotExpire: true }), false, action);
+    assert.equal(stepActionCountsAttempt(action, { attemptsDoNotExpire: false }), false, action);
+  });
   assert.match(ordinary, /maximumAttempts=\{questionInstance\.attemptsAllowed\}/,
     'ordinary assignment attempt limits remain unchanged');
 });

@@ -41,6 +41,10 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'absolute-value-negated-solution': 'For the second case, set the expression inside the bars equal to the negative value and solve again — the second solution is not just the first one with its sign changed.',
   'absolute-value-one-case-only': 'An absolute value equation usually has two cases: the inside equals the positive value, and the inside equals the negative value. Solve both cases.',
   'vertex-x-sign-reversed': 'Check the sign of the vertex x-coordinate. In y = a(x − h)² + k the vertex x-coordinate is h, which has the opposite sign of the number written inside the parentheses; from standard form, x = −b/(2a).',
+  // Right line, wrong form (R-3): the form is named, the line is not touched.
+  'line-wrong-form-slope-intercept': 'Right line, wrong form: write it as y = mx + b.',
+  'line-wrong-form-point-slope': 'Right line, wrong form: write it as y − y₁ = m(x − x₁).',
+  'line-wrong-form-standard': 'Right line, wrong form: write it as Ax + By = C.',
   'zeros-sign-reversed': 'Check the signs of your zeros. A zero is the x-value that makes a factor equal 0, so set each factor equal to 0 and solve.',
 });
 

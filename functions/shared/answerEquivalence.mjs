@@ -15,6 +15,7 @@ import {
   splitEquationSides,
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
+import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
@@ -22,7 +23,24 @@ export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
-export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
+// A word group's contents, however deep: MathLive writes an inserted
+// \operatorname{and} back as \operatorname{\mathrm{and}} (the secure
+// inequality keypad's "and" key, student pass 3 H-13), which one pass left
+// as \mathrm{and}. A group that is just "and" or "or" keeps a space either
+// side, so the compound-inequality reader still finds the word in
+// `0\le h\mathrm{and}h\le12`.
+const WORD_GROUP = /\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g;
+const unwrapWordGroups = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 4 && WORD_GROUP.test(text); guard += 1) {
+    WORD_GROUP.lastIndex = 0;
+    text = text.replace(WORD_GROUP, (match, body) => (/^\s*(?:and|or)\s*$/i.test(body) ? ` ${body.trim()} ` : body));
+  }
+  WORD_GROUP.lastIndex = 0;
+  return text;
+};
+
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value, { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
   // MathLive/IME combinations may insert them between otherwise identical
@@ -37,7 +55,7 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
   .replace(/\\lparen/g, '(')
   .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
-  .replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
+  .replace(/[\s\S]+/, unwrapWordGroups)
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
   // \rbrace, or the same tokens wrapped in \left/\right. They are the same
   // mathematical delimiters as authored literal { ... } braces.
@@ -63,7 +81,9 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
  * `\frac` before any text comparison is what makes them agree — and it costs
  * nothing, because a division that cannot be read confidently is left alone.
  */
-const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false });
+// π and a square root count as numbers here (stackDivisions.mjs, H-13), so
+// the editor's `\frac{\pi}{2}` and the key `pi/2` meet on one spelling.
+const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
 
 /** `abs(...)` as the bars it means, with the call's own parentheses matched. */
 const absCallsAsBars = (value) => {
@@ -86,6 +106,38 @@ const absCallsAsBars = (value) => {
   return text;
 };
 
+/*
+ * `^{…}` as the group it is: a single number, letter, π or square root
+ * unbraced (`^{2}` is `^2`, `^{\pi}` is `^π`), anything else in brackets (`^{n-1}` is `^(n-1)`).
+ * Braces inside the exponent are matched, so the editor's
+ * `e^{\frac{\sqrt2}{2}}` meets the key `e^(sqrt(2)/2)` (H-13 review): a
+ * flat-brace pattern left a nested exponent braced and the two apart.
+ */
+const SIMPLE_EXPONENT = /^\s*(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})\s*$/;
+// `^{-3}` and `^{-x}`: unbraced once the divisions are stacked, the spelling
+// every comparison read before (N2), and kept braced until then.
+const NEGATED_TOKEN = /^\s*-[A-Za-z0-9]\s*$/;
+const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => {
+  let text = value;
+  for (let index = text.indexOf('^{'); index >= 0; index = text.indexOf('^{', index + 1)) {
+    let depth = 0;
+    let close = -1;
+    for (let cursor = index + 1; cursor < text.length; cursor += 1) {
+      if (text[cursor] === '{') depth += 1;
+      else if (text[cursor] === '}') { depth -= 1; if (depth === 0) { close = cursor; break; } }
+    }
+    if (close < 0) break;
+    const body = text.slice(index + 2, close);
+    // Left braced until the divisions are stacked (normalizeAnswer): a braced
+    // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
+    // written with keeps the reading the renderer shows (H-13 review).
+    if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
+    const group = SIMPLE_EXPONENT.test(body) || NEGATED_TOKEN.test(body) ? body.trim() : `(${body})`;
+    text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /**
  * One spelling for the same symbol, for the comparisons that read text
  * (Job P). Each rewrite names exactly the same mathematics:
@@ -99,27 +151,42 @@ const absCallsAsBars = (value) => {
  * the same answer agree. It is not applied before the structural parsers
  * (polynomials, intervals, radicals), which keep reading what they always read.
  */
-const canonicalSymbolSpellings = (value, { asciiPi = true } = {}) => {
+const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = false } = {}) => {
   let text = absCallsAsBars(String(value ?? '')
     .replace(/\\(?:lvert|rvert|vert)(?![A-Za-z])/g, '|')
     // `2sqrt(3)` is the keypad's `2\sqrt{3}`; `\sqrt3` is `\sqrt{3}`.
     .replace(/(?<![A-Za-z\\])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
     .replace(/\\sqrt\s*([A-Za-z0-9])/g, '\\sqrt{$1}')
+    // ASCIIMath's nth root: `root(3)(2)` is the editor's `\sqrt[3]{2}`.
+    .replace(/(?<![A-Za-z\\])root\s*\((\d+)\)\s*\(([^()]*)\)/g, (match, index, body) => (index === '2' ? `\\sqrt{${body}}` : `\\sqrt[${index}]{${body}}`))
+    // A power and a subscript on one base, in either order: `x^{2}_{1}` is
+    // `x_1^2`. Only a number power, so `e^x_1` keeps whatever it meant.
+    .replace(/\^(\d|\{\d+\})_(\{[^{}]*\}|[A-Za-z0-9])/g, '_$2^$1')
     // `\pi r^2` loses its space to some comparisons (`\pir^2`): \pi is the
     // constant whatever letter follows (only \pitchfork is another command).
     .replace(/\\pi(?!tchfork)/g, 'π')
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = text.replace(/\^\{([^{}]+)\}/g, (match, body) => (
-    /^\s*(?:\d+(?:\.\d+)?|[A-Za-z])\s*$/.test(body) ? `^${body.trim()}` : `^(${body})`
-  ));
+  text = bracedExponentsAsGroups(text, { keepCompoundBraced });
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
-  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]))\)/g, '^$1');
+  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
 };
 
-export const normalizeAnswer = (value) => canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value))), { asciiPi: false })
+/*
+ * A power of a unit fraction as one over the power: `(1/2)^π` and `1/2^π` are
+ * the same number, and so are the editor's `\left(\frac12\right)^{\pi}` and
+ * `\frac{1}{2^{\pi}}` (student pass 3). Only a positive number denominator,
+ * where (1/b)^e = 1/b^e for every exponent; `(1/x)^n` and `(2/3)^n` are left
+ * as written.
+ */
+const unitFractionPowers = (value) => value.replace(
+  /\(\\frac\{1\}\{(?!0+(?:\.0+)?\})(\d+(?:\.\d+)?)\}\)\^(\d+(?:\.\d+)?|[A-Za-z]|π|\([^()]*\))(?!\^)/g,
+  '\\frac{1}{$1^$2}',
+);
+
+export const normalizeAnswer = (value) => unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -184,19 +251,89 @@ export const sameNumber = (left, right, tolerance = 1e-6) => {
 
 export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnswer(right);
 
-// A number written with thousands separators: 8,050 for 8050, $2,086.25 for
-// 2086.25 (Oct 2026 matrices walkthrough, WU 1: "Total money collected …
-// in dollars" answered 8,050 was graded wrong). Only the strict grouping — one
-// to three digits, then groups of exactly three, nothing between a comma and
-// its digits — and only the STUDENT's side, against a key that is one number.
-// A comma that could start a pair, a list, a set or a decimal (8,05) is never
-// read this way, and a key is read exactly as before.
-const THOUSANDS_GROUPED = /^(-?\\?\$?)(\d{1,3}(?:,\d{3})+)(\.\d+)?(\\?%)?$/;
+/**
+ * One number written with US thousands separators: `8,050`, `-12,000`,
+ * `$8,050`, `1,234.5`, `12,000%` (and MathLive's `8{,}050`, which
+ * normalizeAnswer already reads as `8,050`). Returns the same text with the
+ * separators removed, or null when the text is not a correctly grouped number.
+ *
+ * The grouping must be exact — a first group of one to three digits with no
+ * leading zero, then groups of exactly three — so `8,05`, `80,50`, `1,2345`
+ * and `0,500` are never read as numbers. Anything with a bracket or a space
+ * between entries is not touched either.
+ *
+ * This is NOT applied inside asNumber or normalizeAnswer. A comma is a
+ * separator in ordered pairs, intervals, sets and lists, and `1,234` in a list
+ * field is two numbers. Callers use it only where one number is expected
+ * (sameNumberWithThousandsSeparators, and the field/literal/table graders
+ * that decide that).
+ */
+const GROUPED_NUMBER = /^-?(?:\\?\$)?[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?(?:\\?%)?$/;
+export const withoutThousandsSeparators = (value) => {
+  // `1, 250` is a list of two numbers, whatever the normaliser does to the space.
+  if (/,\s/.test(String(value ?? ''))) return null;
+  const text = normalizeAnswer(value);
+  return GROUPED_NUMBER.test(text) ? text.replace(/,/g, '') : null;
+};
+
+/**
+ * The same number, when at least one side is written with thousands
+ * separators: `8,050` for a key of 8050, `8050` for a key authored `8,050`.
+ * Unit signs keep their meaning (sameNumber): `$8,050` is 8050 but not 8050%.
+ * False when neither side is grouped, so it never changes another verdict.
+ */
+export const sameNumberWithThousandsSeparators = (left, right, tolerance = 1e-6) => {
+  const a = withoutThousandsSeparators(left);
+  const b = withoutThousandsSeparators(right);
+  if (a === null && b === null) return false;
+  return sameNumber(a ?? left, b ?? right, tolerance);
+};
+
+// Field declarations whose answer is several values separated by commas. In
+// these, `1,234` is two entries, never one thousand two hundred thirty-four.
+const COMMA_SEPARATED_FORMATS = new Set([
+  'orderedpair', 'coordinate', 'coordinates', 'point', 'tuple', 'vector',
+  'interval', 'intervalnotation', 'set', 'setnotation', 'setbuilder',
+  'numericset', 'list', 'roster', 'sequence', 'matrix',
+]);
+
+/**
+ * Does this field expect ONE number, so a thousands separator in it (or in its
+ * key) is grouping rather than a separator between values?
+ *
+ * Refused for anything declared comma-separated and for opt-in element
+ * partial credit (a roster). A Digital SAT number box accepts a correctly
+ * grouped number, as it has since #496: `1,280` is right by value, and if the
+ * SAT's own no-comma entry rule is wanted it belongs at entry (the box
+ * declining the keystroke), never as a right value graded wrong. The
+ * assignment matcher (answerUtils), the Path grader (functions/lib/mathPath.js)
+ * and the teacher's Path simulation all ask it, and pass its answer to
+ * sameValue.
+ */
+export const fieldAcceptsThousandsSeparators = (field = {}) => {
+  if (field?.partialCredit === 'matchedElements') return false;
+  return ![
+    field?.equivalence,
+    field?.answerFormat,
+    field?.inputContract?.format,
+    field?.notation,
+    field?.inputMode,
+    field?.inputProfile,
+    field?.toolProfile,
+  ].some((value) => COMMA_SEPARATED_FORMATS.has(String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+};
+
+// #496 (main): the same rule inside sameValue, so every surface that compares
+// one number with sameValue reads the student's grouped number. Only the
+// STUDENT's side (left), only against a key that is one number with no comma,
+// and never across a comma followed by a space (a list). The grouping is the
+// strict one above (no leading zero: `0,500` is not 500). A caller that knows
+// its field is a list, a pair or a roster turns it off
+// (`sameValue(a, b, tolerance, { thousandsSeparators: false })`).
 const sameThousandsGroupedNumber = (student, key, tolerance) => {
-  if (/,\s/.test(String(student ?? ''))) return false;
-  const match = THOUSANDS_GROUPED.exec(normalizeAnswer(student));
-  if (!match || normalizeAnswer(key).includes(',') || asNumber(key) === null) return false;
-  return sameNumber(`${match[1]}${match[2].replace(/,/g, '')}${match[3] || ''}${match[4] || ''}`, key, tolerance);
+  const plain = withoutThousandsSeparators(student);
+  if (plain === null || normalizeAnswer(key).includes(',') || asNumber(key) === null) return false;
+  return sameNumber(plain, key, tolerance);
 };
 
 /** Parse interval notation only when a caller has declared interval semantics. */
@@ -921,10 +1058,49 @@ const numericPair = (value) => {
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
 
+/*
+ * A coordinate with a square root, compared by its exact value (student pass
+ * 3): `1-\sqrt{2}`, `\frac{2-\sqrt{8}}{2}` and a generator's unsimplified
+ * `(-(-2)-sqrt(8))/2` are one number. Only exact constants are read
+ * (exactConstantValue.mjs), and only for a pair with a root on both sides: a
+ * pair of plain numbers keeps numericPair's reading, so `(1+2,4)` is still not
+ * `(3,4)`. When one coordinate has a root, its partner must too: a decimal or
+ * a long fraction is not the exact value an irrational coordinate asks for.
+ */
+const exactCoordinate = (part) => {
+  const exact = exactConstantValue(part);
+  if (exact) return exact;
+  const number = asNumber(part);
+  return number === null ? null : { value: number, radical: false };
+};
+
+const exactPair = (value) => {
+  const text = normalizeAnswer(value);
+  if (!/^\(.*\)$/.test(text)) return null;
+  const parts = splitTopLevelCommaList(text.slice(1, -1));
+  if (parts.length !== 2 || parts.some((part) => /[%$]/.test(part))) return null;
+  const coordinates = parts.map(exactCoordinate);
+  return coordinates.every(Boolean) ? coordinates : null;
+};
+
+const sameExactCoordinate = (a, b, tolerance) => {
+  if (a.radical || b.radical) {
+    // (A coordinate with a root is never a decimal: exactConstantValue refuses
+    // a decimal point, so both sides here came from it.)
+    if (!(a.radical && b.radical)) return false;
+    return Math.abs(a.value - b.value) <= 1e-9 * Math.max(1, Math.abs(a.value), Math.abs(b.value));
+  }
+  return Math.abs(a.value - b.value) <= tolerance;
+};
+
 export const sameNumericPair = (left, right, tolerance = 1e-6) => {
   const a = numericPair(left);
   const b = numericPair(right);
-  return Boolean(a && b) && a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
+  if (a && b) return a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
+  const exactA = exactPair(left);
+  const exactB = exactPair(right);
+  if (!exactA?.some((coordinate) => coordinate.radical) || !exactB?.some((coordinate) => coordinate.radical)) return false;
+  return exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
 };
 
 /**
@@ -1052,14 +1228,14 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6) => {
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true } = {}) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
   if (leftSet !== null || rightSet !== null) {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
-  if (sameThousandsGroupedNumber(left, right, tolerance)) return true;
+  if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
   if (sameNumericPair(left, right, tolerance)) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;

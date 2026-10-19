@@ -43,6 +43,15 @@ export const SHARED_EXTENSION_KEYS = Object.freeze(['dateKey', 'grantedAt']);
 export const PLATFORM_FLAGS_COLLECTION = 'platformFlags';
 export const ASSIGNMENT_READ_SCOPE_FLAG = 'assignmentReadScope';
 export const STUDENT_LIST_SCOPED_FIELD = 'studentListScoped';
+/*
+ * The second switch on the same document (D10 Phase 0, P0-3): when true, a
+ * student may open one assignment by id only if it is their class's or they
+ * have it in their own grades (firestore.rules `studentMayOpenAssignment`).
+ * It removes access, so it ships off, and it may be turned on only while the
+ * class-scoped list is on: a narrowed get protects nothing while the whole
+ * collection can still be listed.
+ */
+export const STUDENT_GET_SCOPED_FIELD = 'studentGetScoped';
 
 const MAX_DATE_KEYS = 120;
 const MAX_MEETINGS = 180;

@@ -8,6 +8,8 @@
 //   ?role=practice|dol|quiz|test   the activity policy (default practice)
 //   ?tool=inverse         Inverse & Composition (restriction), a ResultPill verdict
 //   ?tool=investigation   Function Investigation (domain and range), a ResultPill verdict
+//   ?tool=graphing        Graphing 2 (2x + y = 4), a ResultPill verdict with
+//                         coaching, plotted on the shared coordinate plane
 //   ?tool=regression      Regression Calculator, whose verdict is its own live region
 //   ?tool=board           the Linear Multiple Representations board, whose
 //                         Submit verdict is its own live region
@@ -41,6 +43,7 @@ const maximumAttempts = policy.attempts;
 
 const QUESTIONS = {
   inverse: { id: 'attempt-outcome-inverse', type: 'inverseCompositionLab', prompt: 'Restrict the domain so f has an inverse, then undo it.', ...SAMPLE_SPECS.inverseCompositionLab },
+  graphing: { id: 'attempt-outcome-graphing', type: 'graphing2', prompt: 'Graph 2x + y = 4.', ...SAMPLE_SPECS.graphing2 },
   investigation: { id: 'attempt-outcome-investigation', type: 'functionInvestigation2', prompt: 'Give the domain and range of this function.', ...SAMPLE_SPECS.functionInvestigation2 },
   regression: { id: 'attempt-outcome-regression', type: 'regressionCalculator', ...SAMPLE_SPECS.regressionCalculator },
   board: {

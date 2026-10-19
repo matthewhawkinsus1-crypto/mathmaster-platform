@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import SecureExamContainer from './SecureExamContainer.jsx';
 import SecureExamReview from './SecureExamReview.jsx';
 import { listStudentSecureExamSessions } from '../../services/secureExamService.js';
+import { getStudentTestCycle } from '../../services/testCycleService.js';
+import { assignedTestCycleRow, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
+import { formatDateTime } from '../../assignmentLifecycle.js';
 import { resultsTimingText, sessionWasReplaced, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
 
 const terminalStatuses = new Set(['submitted', 'force_submitted', 'time_expired']);
@@ -35,22 +38,60 @@ const STATUS_TONE = {
   neutral: { background: 'var(--mm-surface-muted)', color: 'var(--mm-text)' },
 };
 
-export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCourseTest = null, onPracticeSkill = null }) => {
+/*
+ * `testCycles` — the student's own Test Cycle assignments, each with THEIR due
+ * and final late dates ({ assignment, dueAt, lateDueAt }) — lets "My Course
+ * Tests" list a Test whose secure session the teacher has not opened yet
+ * (assignedTestCyclesModel.js). Each is described from a read-only look at its
+ * card; nothing is opened from here.
+ */
+export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = null, onPracticeSkill = null, testCycles = [] }) => {
   const [sessions, setSessions] = useState([]);
+  const [assignedTests, setAssignedTests] = useState([]);
   const [active, setActive] = useState(null);
   const [reviewing, setReviewing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Only the latest look writes the screen. Two can overlap: the screen opens
+  // before the Test Cycles arrive, then looks again when they do, and an older
+  // look that answers last would put back its empty list.
+  const loadGeneration = useRef(0);
   const load = async () => {
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
     setLoading(true);
-    try { const result = await listStudentSecureExamSessions(); setSessions(result.sessions || []); setError(''); }
-    catch (loadError) { setError(loadError.message || 'Could not load your tests.'); }
-    finally { setLoading(false); }
+    try {
+      const result = await listStudentSecureExamSessions();
+      if (!current()) return;
+      const listed = result.sessions || [];
+      setSessions(listed);
+      setError('');
+      const waiting = testCyclesWithoutSession({ assignments: (testCycles || []).map((entry) => entry.assignment), sessions: listed });
+      // One that cannot be described (not assigned after all, deleted) is left
+      // off rather than shown as an error: the Assignments page still has it.
+      // One whose record has a session the capped list did not show gets no
+      // row either (assignedTestCycleRow reads `hasSecureSession`).
+      const looks = await Promise.allSettled(waiting.map((assignment) => getStudentTestCycle({ assignmentId: assignment.id, preview: true })));
+      if (!current()) return;
+      setAssignedTests(waiting.map((assignment, index) => {
+        if (looks[index].status !== 'fulfilled') return null;
+        const own = (testCycles || []).find((entry) => entry.assignment?.id === assignment.id) || {};
+        return assignedTestCycleRow({
+          card: looks[index].value, assignment, dueAt: own.dueAt || null, lateDueAt: own.lateDueAt || null,
+          classLateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
+        });
+      }).filter(Boolean));
+    } catch (loadError) { if (current()) setError(loadError.message || 'Could not load your tests.'); }
+    finally { if (current()) setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  // Again when the student's Test Cycles arrive or change (a URL arrival can
+  // open this screen before the lessons are loaded), dates and schedule included.
+  const testCycleKey = testCycleRowsKey(testCycles);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [testCycleKey]);
 
-  if (reviewing) return <SecureExamReview examSessionId={reviewing.examSessionId} onBack={() => { setReviewing(null); load(); }} onPracticeSkill={onPracticeSkill} />;
+  if (reviewing) return <SecureExamReview examSessionId={reviewing.examSessionId} onBack={() => { setReviewing(null); load(); }} studentSupportProfile={studentProfile} onPracticeSkill={onPracticeSkill} />;
 
   // There is intentionally no dashboard/back control while an exam is live.
   // Leaving through a convenient app button would unmount the integrity logger
@@ -74,21 +115,54 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}><h1 style={{ margin: '0 0 4px', fontSize: 'clamp(calc(26 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))', lineHeight: 1.2, color: 'var(--mm-text-strong)' }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Your secure course tests and your college &amp; career practice tests</p></div>
-          <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>← Home</button>
+          {/* No "← Home" here (NAV-20): the shared nav above this screen has Home. */}
         </header>
         {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
         {loading ? <p>Loading…</p> : (
           <div style={{ display: 'grid', gap: 26 }}>
             {[
-              { id: 'courseTests', title: 'My Course Tests', hint: 'Secure Tests and Retests your teacher assigned. These count toward your grade.', rows: sessions.filter(isCourseTest) },
-              { id: 'simulations', title: 'College & Career Practice Tests', hint: 'SAT, ACT, TSIA2 and ASVAB practice under real test conditions.', rows: sessions.filter((session) => !isCourseTest(session)) },
+              { id: 'courseTests', title: 'My Course Tests', hint: 'Secure Tests and Retests your teacher assigned. These count toward your grade.', rows: sessions.filter(isCourseTest), assigned: assignedTests },
+              { id: 'simulations', title: 'College & Career Practice Tests', hint: 'SAT, ACT, TSIA2 and ASVAB practice under real test conditions.', rows: sessions.filter((session) => !isCourseTest(session)), assigned: [] },
             ].map((group) => (
               <section key={group.id} aria-labelledby={`exam-group-${group.id}`} style={{ display: 'grid', gap: 12 }}>
                 <div>
                   <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))' }}>{group.title}</h2>
                   <p style={{ margin: '3px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{group.hint}</p>
                 </div>
-                {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nothing here yet.</div>}
+                {!group.rows.length && !group.assigned.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nothing here yet.</div>}
+                {/* An assigned Test with no session yet: what it is and when, and
+                    the way to its card. Never a Start button — the session does
+                    not exist, and only the card knows which stage is open. */}
+                {group.assigned.map((row) => (
+                  <article key={`assigned-${row.assignmentId}`} data-assigned-test-cycle={row.assignmentId} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0, textAlign: 'left', display: 'grid', gap: 6 }}>
+                      <strong style={{ fontSize: 'calc(18 * var(--mm-px))', overflowWrap: 'anywhere' }}>{row.title}</strong>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
+                        <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...STATUS_TONE.neutral }}>{row.statusLabel}</span>
+                        {row.delivery && <span>{row.delivery}</span>}
+                      </div>
+                      {row.when && (
+                        <div data-assigned-test-window="" style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
+                          <strong>{row.when.headline}</strong>{row.when.detail ? ` ${row.when.detail}` : ''}{row.when.home ? ` ${row.when.home}` : ''}
+                        </div>
+                      )}
+                      {!row.when && row.detail && <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{row.detail}</div>}
+                      {row.dueAt && (
+                        <div data-assigned-test-due="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                          Due {formatDateTime(row.dueAt)}.{row.finalLateDueAt ? ` Late work is still open: final late due ${formatDateTime(row.finalLateDueAt)}.` : ''}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenCourseTest?.(row.assignmentId)}
+                      disabled={!onOpenCourseTest}
+                      style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}
+                    >
+                      Open in Assignments
+                    </button>
+                  </article>
+                ))}
                 {group.rows.map((session) => {
                   const done = terminalStatuses.has(session.status);
                   // A replaced attempt's results are not offered here: the card has the current one.

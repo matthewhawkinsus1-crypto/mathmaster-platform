@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
-import { RESULT_STEP, describeResultNextStep, tryAgainLabel } from '../../platform/student/studentResultNextStep.js';
-import { formatDateTime } from '../../assignmentLifecycle';
+import { PRACTICE_SKILL_LABEL, RESULT_STEP, describeResultNextStep, resultTryAgainLabel } from '../../platform/student/studentResultNextStep.js';
+import { OPEN_NOTICE, describeOpenNotice } from '../../platform/student/studentOpenGate.js';
+import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
 
 /*
  * ONE ASSIGNMENT'S RESULT — AND WHAT TO DO NEXT.
@@ -29,7 +30,7 @@ import { formatDateTime } from '../../assignmentLifecycle';
  * TRYING CLOSED WORK AGAIN IS AN ACTION, NOT AN ARRIVAL.
  *
  * The grade shown here is the frozen one, read from the canonical tracker. The
- * "Try it again — no credit" button starts a session against a SEPARATE
+ * "Try these questions again — no credit" button starts a session against a SEPARATE
  * practice tracker, which this screen never reads. That is why retrying cannot
  * move the number above it — not because the button is careful, but because
  * the two are different data and only one of them is a grade. (It is never
@@ -66,10 +67,24 @@ export default function StudentAssignmentResult({
   sectionLabel = null,
   supportPresentation = {},
   onReviewWork = null,
+  // "Try these questions again — no credit": reopens this assignment.
   onPractice = null,
+  // "Practice this skill": My Math Path on the skill it teaches, or null when
+  // it teaches none (NAV-8).
+  onPracticeSkill = null,
+  // Why a start landed here instead of opening (studentOpenGate.js:
+  // { kind, title, text }), shown where the page says what opens when.
+  notice = null,
+  // This assignment's "What changed" items (whatChangedModel.js), with a grade
+  // change's fixed reason: shown here and on Grades, never on Home (NAV-7).
+  changes = [],
   onViewAllGrades = null,
   onViewAllAssignments = null,
   onBackToHome = null,
+  // The lesson's questions as a printable worksheet (NAV-20 review N3): Home's
+  // finished cards no longer carry it, so a student who wants to study a done
+  // lesson on paper finds it here, with the results. Returns a promise.
+  onExportPdf = null,
   /*
    * WHICH LIST SENT THE STUDENT HERE.
    *
@@ -103,10 +118,27 @@ export default function StudentAssignmentResult({
   // The label comes from the navigation model, which owns the rule that a Back
   // control names its destination rather than its direction.
   const back = resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin });
-  // "← Assignments" / "← Grades": the destination's name, as the global nav
-  // spells it.
+  // "← Home" / "← Assignments" / "← Grades": the destination's name, as the
+  // global nav spells it — and the handler that opens that same place (NAV-9).
   const backLabel = `← ${back?.navLabel || back?.shortLabel || 'Back'}`;
-  const onBackToOrigin = cameFromGrades ? onViewAllGrades : onViewAllAssignments;
+  const onBackToOrigin = back?.level === LEVEL.GRADES
+    ? onViewAllGrades
+    : back?.level === LEVEL.HOME
+      ? onBackToHome
+      : onViewAllAssignments;
+  // Paused or archived: nothing here opens, so nothing offers to (NAV-4) —
+  // known from the entry itself (the Grades model), not only from a start
+  // that bounced, so the page says it up front however it was reached.
+  const closedByTeacher = notice?.kind === OPEN_NOTICE.PAUSED || notice?.kind === OPEN_NOTICE.ARCHIVED
+    || Boolean(entry?.closedByTeacher);
+  const shownNotice = notice || (entry?.closedByTeacher ? describeOpenNotice({ kind: entry.closedByTeacher }) : null);
+  // A start that bounced here (a new notice object each time) puts focus on
+  // why, so the press is never silent — even when the page did not change.
+  const noticeHeadingRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  useEffect(() => {
+    if (notice) noticeHeadingRef.current?.focus({ preventScroll: false });
+  }, [notice]);
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
@@ -148,7 +180,7 @@ export default function StudentAssignmentResult({
     ? `Assignment closed ${formatDateTime(entry.lateDueAt)}`
     : entry.lifecycle?.isLate
       ? `Late work open until ${formatDateTime(entry.lateDueAt)}`
-      : `Due ${formatDateTime(entry.dueAt)}`;
+      : studentDueText(entry.dueAt);
 
   return (
     <main
@@ -193,9 +225,20 @@ export default function StudentAssignmentResult({
         </h1>
         <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{statusLine}</div>
 
+        {/* Why this opened here instead of the work (NAV-4, NAV-10): read
+            right after the title, for as long as the student needs. */}
+        {shownNotice && (
+          <div data-result-notice={shownNotice.kind} style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)' }}>
+            <h2 ref={noticeHeadingRef} tabIndex={-1} data-result-notice-heading style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-warning-text)' }}>{shownNotice.title}</h2>
+            <p style={{ margin: '6px 0 0', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{shownNotice.text}</p>
+          </div>
+        )}
+
         <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
           <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
-            {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
+            {/* "closed", like the status line above — not the teacher word
+                "frozen" (student pass 3). */}
+            {entry.frozen ? 'Your grade · closed' : 'Your grade'}
           </div>
           <div style={{ marginTop: 4, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
@@ -253,6 +296,20 @@ export default function StudentAssignmentResult({
           </ul>
         )}
 
+        {Array.isArray(changes) && changes.length > 0 && (
+          <section aria-labelledby="result-what-changed-heading" data-result-what-changed style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
+            <h2 id="result-what-changed-heading" style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', letterSpacing: 'normal', lineHeight: 1.3, fontWeight: 900, color: 'var(--mm-text-strong)' }}>What changed</h2>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 4, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text)' }}>
+              {changes.map((item) => (
+                <li key={item.key} style={{ overflowWrap: 'anywhere' }}>
+                  {item.text}
+                  {item.reasonText ? <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Reason: {item.reasonText}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <GradeSectionBreakdown sections={entry.sections} />
         <TestCycleGradeBreakdown entry={entry} />
         {recoveryPanel}
@@ -281,12 +338,12 @@ export default function StudentAssignmentResult({
 
         {entry.frozen && !reviewPanel && (
           <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
+            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade or your Google Classroom score.
           </p>
         )}
         {entry.frozen && reviewPanel && (
           <p style={{ margin: '14px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade, your mastery, or your Google Classroom score.
+            This assignment is past its final deadline, so the grade above can no longer change. Trying it again changes nothing here — not this grade or your Google Classroom score.
           </p>
         )}
 
@@ -325,14 +382,34 @@ export default function StudentAssignmentResult({
               Back to Home
             </button>
           )}
-          {entry.reviewAvailable && !reviewPanel && (
+          {entry.reviewAvailable && !reviewPanel && !closedByTeacher && (
             <button type="button" style={actionStyle(false)} onClick={() => onReviewWork?.(entry.assignmentId)}>
               Review My Work
             </button>
           )}
-          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && (
-            <button type="button" style={actionStyle(!step.offerHome && !step.upNext)} onClick={() => onPractice?.(entry.assignmentId)}>
-              {tryAgainLabel(sectionLabel)}
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && !closedByTeacher && (
+            <button type="button" data-result-try-again style={actionStyle(!step.offerHome && !step.upNext)} onClick={() => onPractice?.(entry.assignmentId)}>
+              {resultTryAgainLabel(sectionLabel)}
+            </button>
+          )}
+          {entry.practiceAvailable && step.kind !== RESULT_STEP.EXCUSED && onPracticeSkill && (
+            <button type="button" data-result-practice-skill style={actionStyle(false)} onClick={() => onPracticeSkill()}>
+              {PRACTICE_SKILL_LABEL}
+            </button>
+          )}
+          {/* Never for a Test Cycle (review R3): Home never offered one there. */}
+          {onExportPdf && !closedByTeacher && !entry.isTestCycle && (
+            <button
+              type="button"
+              data-result-export-pdf
+              style={actionStyle(false)}
+              disabled={exportingPdf}
+              onClick={() => {
+                setExportingPdf(true);
+                Promise.resolve(onExportPdf(entry.assignmentId)).finally(() => setExportingPdf(false));
+              }}
+            >
+              {exportingPdf ? 'Preparing PDF…' : 'Export PDF'}
             </button>
           )}
           {/* The other list. The Back control above already names the list the

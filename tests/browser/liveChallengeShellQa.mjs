@@ -1478,8 +1478,11 @@ await run('endurance', async (S) => {
       await session.detach().catch(() => {});
     }
   }
-  // Leaving the game: the student goes back to the dashboard.
-  for (const student of [s1, s2]) await student.page.getByRole('button', { name: 'Back to Dashboard' }).last().click().catch(() => {});
+  // Leaving the game: the student goes back Home. A missing button is a finding, not a silent stay in the game.
+  for (const student of [s1, s2]) {
+    const left = await student.page.getByRole('button', { name: 'Back to Home' }).last().click({ timeout: 5_000 }).then(() => true, () => false);
+    check(S, left, `${student.studentId}: the final screen offers Back to Home`);
+  }
   await wait(1_000);
   await sample('students left the final screen');
   const gamesDone = samples.filter((row) => row.label.startsWith('after game'));

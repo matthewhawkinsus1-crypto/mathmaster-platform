@@ -136,9 +136,13 @@ test('the teacher workspace is App\'s teacher branch, given every input it reads
   assert.ok(signature, 'the workspace destructures its props by name');
   const props = signature[1].split('\n').map((line) => line.trim().replace(/,$/, ''));
   assert.ok(props.length > 200 && props.every((name) => /^[A-Za-z_$][\w$]*$/.test(name)), 'one plain name per line');
-  const branch = appCode.match(/\n {2}if \(user\.role === 'teacher'\) \{\s*return \(\s*<TeacherWorkspace\n([\s\S]*?)\n {6}\/>\s*\);\s*\}\n/);
+  const branch = appCode.match(/\n {2}if \(user\.role === 'teacher'\) \{\n([\s\S]*?)\n {4}return \(\s*<TeacherWorkspace\n([\s\S]*?)\n {6}\/>\s*\);\s*\}\n/);
   assert.ok(branch, 'App\'s teacher branch renders the workspace and nothing else');
-  const passed = branch[1].split('\n').map((line) => line.trim());
+  // Before the workspace, only the wait for the teacher kit (first load 2,
+  // app/teacher/teacherKit.js): a failed load goes to AppErrorBoundary, and
+  // until the kit is here the teacher sees AppShell's own loading state.
+  assert.match(branch[1].trim(), /^if \(teacherKitError\) throw teacherKitError;\s*if \(!teacherKit\) \{\s*return <SessionGate authStatus="loading" hydrationError=\{null\} hydrating launchAssignment=\{null\} onSignOut=\{[^\n]*\} \/>;\s*\}$/, 'the teacher branch waits for the teacher kit and nothing else');
+  const passed = branch[2].split('\n').map((line) => line.trim());
   assert.deepEqual(passed, props.map((name) => `${name}={${name}}`), 'App passes exactly the props the workspace reads, each under its own name');
   // The branch's position is unchanged: after the preview, before the student screens.
   assert.ok(appCode.indexOf('if (isTeacherPreview) {') < branch.index);

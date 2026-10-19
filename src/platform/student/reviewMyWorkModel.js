@@ -1,3 +1,4 @@
+import { EXIT_TICKET } from './studentWords.js';
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
 import { getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
 
@@ -38,6 +39,34 @@ export const RECORDED_WORK_TEXT = 'Your work on this question was a graph or a d
 export const SOLUTION_UNAVAILABLE_TEXT = 'The worked solution for your version of this question is not available.';
 export const LOAD_ERROR_TEXT = 'Your answers could not be loaded right now. Try again.';
 
+/*
+ * WHY THE PANEL IS EMPTY (student pass 3, NAV-1).
+ *
+ * The server refuses on purpose — not closed for the whole class yet (a
+ * classmate's extra time), feedback held, put away — and says so in words
+ * written for the student (functions/lib/reviewMyWork.js). Those refusals are
+ * shown as they are, with no "Try again": pressing it for days changes
+ * nothing. Only a failure to reach the server keeps the retry line. A refusal
+ * the server marks `details.retry` (it could not check the class right now)
+ * keeps its own words and the retry button.
+ */
+const REFUSAL_CODES = new Set(['failed-precondition', 'permission-denied', 'not-found', 'invalid-argument']);
+export const SIGN_IN_AGAIN_TEXT = 'Sign in again to see your answers and solutions.';
+
+export const describeReviewLoadError = (error) => {
+  const code = String(error?.code || '').replace(/^functions\//, '');
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+  const details = isObject(error?.details) ? error.details : {};
+  // A bare code ("internal", "failed-precondition") is not a sentence.
+  const sentence = message && /\s/.test(message) && message.length <= 300 ? message : '';
+  // Signed out underneath the page: the server's sentence names another screen.
+  if (code === 'unauthenticated') return { kind: 'refused', text: SIGN_IN_AGAIN_TEXT, retry: false };
+  if (REFUSAL_CODES.has(code) && sentence) {
+    return { kind: 'refused', text: sentence, retry: details.retry === true };
+  }
+  return { kind: 'network', text: LOAD_ERROR_TEXT, retry: true };
+};
+
 // functions/lib/reviewMyWork.js SOLUTION_SOURCE, minus 'unavailable'.
 const SOLUTION_SOURCES_SHOWN = new Set(['delivered', 'family', 'assignment']);
 
@@ -45,7 +74,7 @@ const SECTION_ROLE_LABEL = Object.freeze({
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
-  dol: 'DOL',
+  dol: EXIT_TICKET,
   quiz: 'Quiz',
   review: 'Review',
   test: 'Test',
@@ -188,6 +217,9 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
         index: Number(row.index),
         number: questionNumber(row, position),
         section: sectionLabel(row, storedQuestion),
+        // The section's role, for what a row may offer beside its solution
+        // ("Try one like this" only on Classwork and Practice).
+        role: String(row?.sectionRole || storedQuestion?.activityRole || '').trim().toLowerCase() || null,
         prompt: rowPrompt(row, storedQuestion),
         outcome,
         outcomeLabel: OUTCOME_LABEL[outcome],

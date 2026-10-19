@@ -10,9 +10,15 @@ const lifecycle = componentSource('src/platform/question/QuestionLifecycleContex
 const mobileViewport = componentSource('src/components/student/MobileViewportContainer.jsx');
 
 test('QuestionEngine publishes its authoritative terminal state above every tool route', () => {
-  const questionTree = region(engine, '<QuestionLifecycleProvider', '</QuestionLifecycleProvider>', 'complete question lifecycle tree');
+  // The whole question's tree is terminal when the question is locked. The
+  // only other provider is the open practice beside a closed question
+  // (student pass 3: its boxes keep their keypad), which says terminal={false}.
+  // (The question tree's provider also says whether positions may be read:
+  // `positionsReadable`, W5-2 review S1. `terminal` is still the lock.)
+  const questionTree = region(engine, '<QuestionLifecycleProvider terminal={locked}', '</QuestionLifecycleProvider>', 'complete question lifecycle tree');
   assert.match(engine, /import \{ QuestionLifecycleProvider \} from/);
-  assert.match(questionTree, /terminal=\{locked\}/);
+  assert.deepEqual([...engine.matchAll(/<QuestionLifecycleProvider terminal=\{([^}]*)\}/g)].map((match) => match[1]), ['false', 'locked']);
+  assert.match(region(engine, '<QuestionLifecycleProvider terminal={false}>', '</QuestionLifecycleProvider>', 'the practice'), /^<QuestionLifecycleProvider terminal=\{false\}>\s*<PracticeLikeThis\b[^>]*\/>\s*$/);
   assert.match(questionTree, /\{renderModule\(\)\}/);
   assert.match(lifecycle, /terminal:\s*Boolean\(terminal\)/);
   assert.match(runtime, /questionTerminal:\s*Boolean\(questionTerminal\)/);

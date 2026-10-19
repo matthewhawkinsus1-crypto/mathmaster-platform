@@ -199,7 +199,9 @@ test('Play Again is a fresh match with the same settings; its name settings are 
  */
 test('names reach the console only — in the lobby, during the game and after it', () => {
   assert.match(teacher, /const rosterWanted = Boolean\(room\) && room\.status !== 'cancelled';/);
-  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef]);', 'roster read');
+  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef, invitedCount]);', 'roster read');
+  // Read again when the room invites a student added to the class mid-game.
+  assert.match(teacher, /const invitedCount = Number\(room\?\.eligibleCount\) \|\| 0;\n  const eligibleRef = useLatest\(invitedCount\);/);
   assert.match(rosterEffect, /if \(!roomId \|\| !rosterWanted\) return undefined;/);
   assert.match(rosterEffect, /getLiveChallengeHostRoster\(\{ roomId \}\)/);
   assert.match(rosterEffect, /names\.length < eligibleRef\.current && attempts < 4/);

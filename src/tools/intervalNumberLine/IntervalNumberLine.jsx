@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
@@ -12,6 +12,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import intervalNumberLineGrader from '../../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
+import { describeNumberLine } from '../../platform/language/numberLineDescription.js';
 import {
   intervalsToNotation,
   normalizeIntervals,
@@ -247,6 +248,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [inequality, setInequality] = usePersistentToolState('inequality', '');
   const [exactEndpoint, setExactEndpoint] = usePersistentToolState('exactEndpoint', '');
   const [endpointError, setEndpointError] = useState('');
+  const endpointHelpId = useId();
+  const lineDescriptionId = useId();
+  const lineInstructionsId = useId();
   const [dragging, setDragging] = useState(null);
   const restoreMath = useCallback((state) => {
     setPending(state.pending); setBuilt(state.built); setClosedEnd(state.closedEnd);
@@ -558,6 +562,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
   const drawn = normalizeIntervals(built);
   const snapLabel = rationalLabel(snapStep);
+  // WHAT IS DRAWN, NOT HOW TO DRAW (student pass 3, Q-8). The line's name is
+  // short; its description reads the student's dots and shading first, then
+  // the operating instructions. Never notation (numberLineDescription.js).
+  const lineDescription = describeNumberLine({ min, max, labelStep: majorStep, pieces: drawn, pending });
 
   return (
     <ToolShell
@@ -568,6 +576,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={questionData.prompt || `Graph the solution on the number line${asksInterval ? ' and write it in interval notation' : asksInequality ? ' and write the matching inequality' : ''}.`}
+        stepsAreControls
         steps={[
           'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',
@@ -655,6 +664,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 }}
                 placeholder="Exact endpoint, e.g. -13/8"
                 aria-label="Exact endpoint value"
+                // The error (or the hint) under the box is its description, and
+                // a typed value it cannot read marks the box invalid (A11Y-8).
+                aria-invalid={endpointError ? 'true' : undefined}
+                aria-describedby={endpointHelpId}
                 style={{
                   width: '100%',
                   minHeight: 40,
@@ -677,16 +690,19 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </button>
             </div>
 
-            <div style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
+            <div id={endpointHelpId} data-endpoint-help={endpointError ? 'error' : 'hint'} style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
               {endpointError || `Click/drag snap: ${snapLabel}. Exact entry is not limited to visible tick marks.`}
             </div>
+            {/* Said when it appears: the typed value could not be placed. */}
+            <span role="alert" data-endpoint-error-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{endpointError}</span>
           </div>
 
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
             tabIndex={0}
-            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}. Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
+            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}`}
+            aria-describedby={`${lineDescriptionId} ${lineInstructionsId}`}
             onFocus={handleLineFocus}
             onBlur={handleLineBlur}
             onKeyDown={handleLineKeyDown}
@@ -939,6 +955,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </button>
           </div>
 
+          {/* Read through the line's aria-describedby, and hidden from browse
+              mode so it is not heard a second time as a loose paragraph. */}
+          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
+          <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
+            {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
+          </p>
           <p role="status" aria-live="polite" data-number-line-endpoint-announcement="true" style={srOnly}>
             {endpointAnnouncement}
           </p>
@@ -995,12 +1017,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>
+              <ResultPill ok={feedback.isCorrect} message={message()}>
                 {feedback.isCorrect ? 'Correct' : 'Not yet'}
               </ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>
-                {message()}
-              </p>
             </div>
           ) : null}
 

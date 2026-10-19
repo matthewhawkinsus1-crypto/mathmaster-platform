@@ -123,7 +123,7 @@ test('non-ACT frameworks preserve their real public identifier systems instead o
 test('path chooser, CCMR hub, teacher inspector, and simulator surface the same reference layer', () => {
   assert.match(practiceMenuSource, /See standard connection/);
   assert.match(practiceMenuSource, /referenceLabel\(primary\)/);
-  assert.match(hubSource, /Find practice by CCMR standard or skill/);
+  assert.match(hubSource, /Find practice by skill or test standard/);
   assert.match(hubSource, /Dig deeper into the standard connection/);
   assert.match(inspectorSource, /Official assessment reference/);
   assert.match(simulatorSource, /Search CCMR standards and official assessment skills/);

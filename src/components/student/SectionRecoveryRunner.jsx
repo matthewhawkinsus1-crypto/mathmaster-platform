@@ -56,6 +56,9 @@ import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/
 import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { RECOVERY_ANSWER_SAVED_WHERE, describeSavedRecoveryAnswer } from '../../platform/recovery/recoveryAnswerDrafts.js';
 import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
+import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER } from '../../platform/recovery/recoveryPracticeAttempts.js';
+import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
+import { RECOVERY_HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -172,6 +175,8 @@ function PinnedQuestion({
   // Told when this question cannot be shown here (classified), so the
   // Recovery can tell the server it was never the student's to answer.
   onUnavailable = null,
+  // Practice: what a hint costs here (HELP-4). The assessment withholds hints.
+  hintCostNote = null,
 }) {
   // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
   // pin from another build, a damaged record) is null here. Reading
@@ -232,6 +237,7 @@ function PinnedQuestion({
       activityPolicy={activityPolicy}
       assignmentId={assignmentId}
       showStandardBadge={false}
+      hintCostNote={hintCostNote}
     />
   );
 }
@@ -290,8 +296,12 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
 
   const question = item ? entry.questionsByIndex?.[item.storageIndex] : null;
   const fingerprint = item?.pin?.fingerprint || '';
-  const maximumAttempts = resolveQuestionMaximumAttempts({ question, activityPolicy: PRACTICE_POLICY });
+  // The answer is one graded submission, so the engine is told one try, step
+  // items included (recoveryPracticeAttempts.js). The step bookkeeping keeps
+  // the Practice policy's count, which no step spends.
+  const stepMaximumAttempts = resolveQuestionMaximumAttempts({ question, activityPolicy: PRACTICE_POLICY });
   const stepRecord = stepRecords[fingerprint] || null;
+  const maximumAttempts = RECOVERY_PRACTICE_ANSWERS;
 
   const recordOutcome = useCallback((result) => {
     nextDealtRef.current = dealtItem(result?.nextPracticeItem);
@@ -328,9 +338,9 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         attemptCount: maximumAttempts,
         remainingAttempts: 0,
         expired: !isCorrect,
-        message: isCorrect
-          ? 'Correct! Nice work.'
-          : 'Not quite. That one still counts as practice — review it, then try a fresh question.',
+        // A correct answer given with help does not move the meter, and
+        // says so (HELP-4).
+        message: recoveryPracticeOutcomeMessage({ isCorrect, supportUsage }),
       };
     } catch (error) {
       const code = recoveryErrorCode(error);
@@ -360,10 +370,10 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   // Rejected steps spend tries exactly as they do in ordinary Practice.
   const handleStepGrade = useCallback(async ({ stepGrade, countsAttempt, statePatch, supportUsage }) => {
     if (!fingerprint) return null;
-    const next = recordQuestionStep({ record: stepRecords[fingerprint], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts });
+    const next = recordQuestionStep({ record: stepRecords[fingerprint], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts });
     setStepRecords((current) => ({ ...current, [fingerprint]: next.record }));
     return next.result;
-  }, [fingerprint, maximumAttempts, stepRecords]);
+  }, [fingerprint, stepMaximumAttempts, stepRecords]);
 
   // Every try used before an answer was submitted: the item is recorded as
   // incorrect so Practice can continue. Never a free skip.
@@ -403,9 +413,14 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
     : stepRecord;
   return (
     <div style={shellStyle} data-recovery-runner="practice" data-recovery-section={entry.section}>
-      <RecoveryHeader label={`${entry.label} practice`} subtitle="Show what you know. Each fresh question counts once." onExit={onExit} />
+      <RecoveryHeader label={`${entry.label} practice`} subtitle={`Show what you know. ${RECOVERY_PRACTICE_ONE_ANSWER} Each fresh question counts once.`} onExit={onExit} />
       <div style={{ ...panelStyle, display: 'grid', gap: 8 }}>
         <RecoveryMasteryMeter percent={entry.masteryPercent} />
+        {/* The meter's rule, beside the meter (HELP-4): help is fine to use,
+            it just does not count toward unlocking. */}
+        <p data-recovery-meter-rule="" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+          {recoveryMeterRule({ requiredCorrect: entry.masteryRequired, windowSize: entry.masteryWindow })}
+        </p>
         <p aria-live="polite" style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))' }}>
           {unlocked
             ? `${entry.label} Unlocked — you can start it whenever you are ready.`
@@ -434,6 +449,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
           draftIndex={item.practiceIndex}
           activityRole="practice"
           activityPolicy={PRACTICE_POLICY}
+          hintCostNote={RECOVERY_HINT_COST_SENTENCE}
           maximumAttempts={maximumAttempts}
           questionRecord={engineRecord}
           onRendered={(delivery, rendered) => { renderedRef.current[delivery.fingerprint] = rendered; }}

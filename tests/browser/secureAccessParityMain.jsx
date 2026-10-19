@@ -63,13 +63,14 @@ try { Object.defineProperty(window, 'speechSynthesis', { value: fakeSpeech, conf
 
 function AnswerScene() {
   const [field, setField] = useState({ id: 'answer', label: 'Answer', inputProfile: 'number' });
+  const [prompt, setPrompt] = useState('');
   const [value, setValue] = useState('');
   const [readOnly, setReadOnly] = useState(false);
   // A fresh field per trial, as answerRoundTrip does: clearing a MathLive
   // field by keystroke is unreliable.
   const [nonce, setNonce] = useState(0);
 
-  window.__mmSetField = (next) => { setField(next); setValue(''); window.__mmEmitted = []; setNonce((current) => current + 1); };
+  window.__mmSetField = (next, nextPrompt = '') => { setField(next); setPrompt(nextPrompt); setValue(''); window.__mmEmitted = []; setNonce((current) => current + 1); };
   window.__mmReset = () => { setValue(''); window.__mmEmitted = []; setNonce((current) => current + 1); };
   window.__mmSetReadOnly = (next) => setReadOnly(Boolean(next));
   window.__mmSetValue = (next) => setValue(next);
@@ -89,6 +90,7 @@ function AnswerScene() {
             value={value}
             readOnly={readOnly}
             autoFocus
+            prompt={prompt}
             onChange={(next) => { window.__mmEmitted.push(next); setValue(next); }}
           />
         </fieldset>
@@ -195,7 +197,7 @@ function ItemScene() {
           </section>
         </main>
       </div>
-      {/* QuestionEngine's "Enlarge question" layer, with its real stylesheet. */}
+      {/* QuestionEngine's "Open Work View" layer, with its real stylesheet. */}
       {workView && <div className="mathmaster-work-view-host" data-open="true" data-harness-work-view><div style={{ gridRow: 3, padding: 24 }}>Enlarged question</div></div>}
     </div>
   );

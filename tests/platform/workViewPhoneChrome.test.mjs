@@ -117,7 +117,8 @@ test('the Work View header is the task, not "Question Work View"', () => {
   // for a figure that has no task; the dialog keeps its name either way.
   const header = region(figure, '<header className="mathmaster-work-view-header">', '</header>', 'the Work View header');
   assert.match(header, /\{task \? null : <strong className="mathmaster-work-view-title">\{label\}<\/strong>\}/);
-  assert.match(figure, /aria-label=\{enlarged \? `\$\{label\}, Work View` : undefined\}/);
+  // The dialog's name says "Work View" once (TOOL-13; tests/platform/workViewClosedReview.test.mjs).
+  assert.match(figure, /aria-label=\{enlarged \? workViewDialogName\(label\) : undefined\}/);
   // Whole lines: 3.2em was two lines and a third cut through its words.
   const persistent = region(header, 'className="mathmaster-work-view-persistent-task"', '>', 'the persistent task');
   assert.doesNotMatch(persistent, /maxHeight/, 'the height lives in the stylesheet, in whole lines');

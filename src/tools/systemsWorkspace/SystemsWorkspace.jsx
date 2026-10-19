@@ -126,12 +126,14 @@ function LinearMode({ questionData, onAction }) {
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
       <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>{checkSystemLabel}</button>
       {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
       <HintPanel
         hints={[
           'The solution of a system is the point that makes both equations true at once — on a graph, that is where the lines cross.',
           'Compare the slopes. Different slopes cross exactly once. Equal slopes are parallel: no solution, unless the intercepts also match, which makes them the same line.',
-          `Equation 1 has slope ${system.m1} and Equation 2 has slope ${system.m2}. ${Number(system.m1) === Number(system.m2) ? 'They are equal, so check the intercepts.' : 'They differ, so trace across to where the two lines meet and read both coordinates.'}`,
+          // Read the slopes and compare them yourself: a rung that said "they
+          // differ" or "they are equal" answered "how many solutions" (HELP-10).
+          'Read the slope of each equation, compare them, and use that rule to decide how many solutions there are. If there is exactly one, trace across to where the two lines meet and read both coordinates.',
         ]}
         onHintUsed={() => onAction?.('HINT_USED')}
       />
@@ -502,7 +504,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
       {Number(count) >= 1 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x₁"><input type="number" inputMode="decimal" step="0.1" value={values.x1} onChange={update('x1')} style={inputStyle}/></Field><Field label="y₁"><input type="number" inputMode="decimal" step="0.1" value={values.y1} onChange={update('y1')} style={inputStyle}/></Field></div> : null}
       {Number(count) >= 2 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}><Field label="x₂"><input type="number" inputMode="decimal" step="0.1" value={values.x2} onChange={update('x2')} style={inputStyle}/></Field><Field label="y₂"><input type="number" inputMode="decimal" step="0.1" value={values.y2} onChange={update('y2')} style={inputStyle}/></Field></div> : null}
       <button data-mm-enter-action="submit" type="button" onClick={check} disabled={count === ''} style={{ ...actionStyle, opacity: count === '' ? 0.5 : 1 }}>{checkIntersectionsLabel}</button>
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
       <HintPanel
         hints={[
           'An intersection is a point that lies on both graphs at once.',
@@ -656,7 +658,7 @@ function MatrixMode({ questionData, onAction }) {
         {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : checkMatrixLabel}
       </button>
       {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
-      {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div>:null}
+      {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>:null}
       <HintPanel
         hints={isMatrix3 ? [
           'Enter the augmented matrix into matrix-capable technology and run RREF.',
@@ -743,7 +745,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     badge={modeLabel}
     workspaceWidth={(mode === 'algebraic' || mode === 'spatial') ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
   >
-    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
+    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} stepsAreControls={taskKey === 'inequalitiesConstruct'} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>

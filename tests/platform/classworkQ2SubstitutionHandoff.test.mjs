@@ -77,15 +77,19 @@ const assertOneVariableEquationForY = (substituted, label) => {
   );
 };
 
-test('Step Algebra really does serialise the student-typed 2y as LaTeX with a ~ spacing command', () => {
+test('Step Algebra really does serialise the student-typed 2y as LaTeX with a spacing between its factors', () => {
   // Not a pin on wording: this is the precondition the rest of the file is
   // about. If a future toTex stops emitting `~` the tests below still hold.
+  // (It did: the tie drew as a gap on the balance board, pass 3 Q-31, and is
+  // now a plain space, which math mode ignores. The captured runtime value
+  // below still carries the `~` the browser recorded.)
   const state = parseEquationInput({ equation: normalizeEquationForStepAlgebra(EQUATION_1), solveFor: 'x' });
   const move = applyBalancedOperation({ equationState: state, operation: 'add', operand: '2y' });
   const operandProduct = parse(move.operandExpression);
   assert.equal(operandProduct.type, 'OperatorNode');
   assert.equal(operandProduct.implicit, true, 'the typed operand 2y stays an implicit product');
-  assert.match(equationToLatex(RUNTIME.stepAlgebraSolvedState), /2~\s*y/);
+  assert.match(equationToLatex(RUNTIME.stepAlgebraSolvedState), /2(?:~|\s)\s*y/);
+  assert.match(RUNTIME.solvedResponse, /~/, 'the recorded response is the old tie, still read below');
 });
 
 test('latexToExpression turns the LaTeX ~ space into a space MathJS reads as implicit multiplication', () => {

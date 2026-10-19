@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
@@ -12,6 +12,7 @@ import {
 import useToolSubmission from '../shared/useToolSubmission';
 import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import dataModelingGrader from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
 import {
@@ -26,7 +27,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
-import { useHintsAllowed, useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -75,9 +76,32 @@ const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals
 const SECURE_MODE_STEPS = {
   'full': ['Adjust the slope and intercept to fit a line to the data.', 'Read the correlation and describe the association.', 'Compare the model families, then predict and classify.'],
   'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Use the residual plot to judge your line.'],
-  'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Classify the direction and strength of the association.'],
-  'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Classify the prediction.'],
+  // Box instructions since W6-4 (review S3): "Run a correlation calculation …
+  // using statistical technology" and "Use the model to compute the predicted
+  // y" named how the answer is found, and these lists are control steps.
+  'correlation': ['Enter r, to at least the thousandths place, in the Correlation coefficient r box.', 'Classify the direction and strength of the association.'],
+  'prediction': ['Enter the x-value you are predicting at.', 'Enter the predicted y in the Predicted y box.', 'Classify the prediction.'],
   'modelCompare': ['Look at each candidate model against the data.', 'Select the best model.'],
+  // The regression modes (student pass 3, W6-4) had no list here, so a test
+  // showed no steps at all. Each step names a box and what the screen does;
+  // none says how the coefficients are found (the route the item measures:
+  // the teaching list's "Run a linear regression" stays out), how to judge
+  // the residuals, or which way to classify a prediction.
+  ...Object.fromEntries([
+    ['linearFit', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFit', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFit', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['linearFitPrediction', 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.'],
+    ['quadraticFitPrediction', 'Enter a, b and c of y = ax² + bx + c in the three boxes.'],
+    ['exponentialFitPrediction', 'Enter a and the base b of y = a(b)^x in the two boxes.'],
+    ['squareRootFitPrediction', 'Enter a, h and k of y = a√(x-h)+k in the three boxes.'],
+  // (No "the residual table redraws from your numbers": that pointed at the
+  // tune-against-the-residuals loop a test does not offer; review S3.)
+  ].map(([mode, entry]) => [mode, [
+    entry,
+    ...(mode.endsWith('Prediction') ? ['Enter your predicted y in the Predicted y box, then classify the prediction.'] : []),
+  ]])),
+  'association': ['Choose the direction and the strength of the association.', 'Choose what this observational data can justify.'],
 };
 // A host that names the final action ("Record answer") is the only check.
 const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/ and check\.$/, '.'));
@@ -88,7 +112,7 @@ function ResidualPlot({ rows, xMin, xMax }) {
   return (
     <CoordinatePlane xMin={xMin} xMax={xMax} yMin={scale.min} yMax={scale.max} height={250}
       points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
-      horizontalLines={[0]} enlargeable={false} />
+      horizontalLines={[0]} enlargeable={false} ariaLabel="Residual plot" />
   );
 }
 
@@ -172,17 +196,64 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
   const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // Universal Undo over every answer in the lab (TOOL-2, useFieldUndoHistory.js):
+  // a stepper press, a choice, a typed value, or running regression (which
+  // writes the line and keeps the estimate) is one step. An Undo clears the
+  // verdict as an edit does.
+  useFieldUndoHistory({
+    questionData,
+    fields: {
+      m: [m, setM],
+      b: [b, setB],
+      direction: [direction, setDirection],
+      strength: [strength, setStrength],
+      causation: [causation, setCausation],
+      modelChoice: [modelChoice, setModelChoice],
+      predictionX: [predictionX, setPredictionX],
+      predictionY: [predictionY, setPredictionY],
+      predictionType: [predictionType, setPredictionType],
+      correlationEntry: [correlationEntry, setCorrelationEntry],
+      regressionTechnologyRun: [regressionTechnologyRun, setRegressionTechnologyRun],
+      regressionEstimate: [regressionEstimate, setRegressionEstimate],
+      quadraticA: [quadraticA, setQuadraticA],
+      quadraticB: [quadraticB, setQuadraticB],
+      quadraticC: [quadraticC, setQuadraticC],
+      exponentialA: [exponentialA, setExponentialA],
+      exponentialBase: [exponentialBase, setExponentialBase],
+      squareRootA: [squareRootA, setSquareRootA],
+      squareRootH: [squareRootH, setSquareRootH],
+      squareRootK: [squareRootK, setSquareRootK],
+    },
+    onRestore: () => clearFeedback(),
+  });
   // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
   const submitActionLabel = useSubmitLabel('Check data model');
   // The lab's teaching notes (how to read r, what a residual plot should look
   // like, how to choose a model) answer parts it asks. They are hints: shown
   // where hints are, withheld on a secure item.
-  const teachingNotes = useHintsAllowed();
+  // Withheld wherever the method is (W6-4 review N3): hints off, or verdicts
+  // withheld with hints on.
+  const methodWithheld = useMethodWithheld();
+  const teachingNotes = !methodWithheld;
+  // THE ERROR READOUTS ARE A VERDICT (student pass 3, W6-4; found on the base).
+  // The live MAE · RMSE under the student's model let them tune until the
+  // numbers bottomed out, and each candidate's RMSE · MAE in modelCompare
+  // ranks the candidates — nearly the answer to "Select the best model".
+  // Where the activity withholds verdicts and the method (an exit ticket,
+  // quiz or test before release) neither is shown; practice keeps both.
+  const errorReadouts = !methodWithheld;
   const hostSubmitLabel = useHostSubmitLabel();
   const guideSteps = teachingNotes
     ? (MODE_STEPS[mode] || MODE_STEPS.full)
     : (SECURE_MODE_STEPS[mode] || MODE_STEPS[mode] || SECURE_MODE_STEPS.full);
-  const taskSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
+  // A secure list says only how to work the boxes, so each of its steps is a
+  // control step and stays on a test; the teaching list is the method and
+  // goes wherever the method is withheld (W6-4). Marked step by step rather
+  // than `stepsAreControls`, so the directions sentence ("Use linear
+  // regression technology…", which names the route) never comes back with it.
+  const secureSteps = !teachingNotes && Boolean(SECURE_MODE_STEPS[mode]);
+  const wordedSteps = hostSubmitLabel ? withoutCheckInvitation(guideSteps) : guideSteps;
+  const taskSteps = secureSteps ? wordedSteps.map(controlStep) : wordedSteps;
 
   const studentPredict = useMemo(() => {
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -312,10 +383,15 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
+      {/* The secure lists were written to say what to do, never how to judge
+          it, so they are shown where the method is withheld (R-10). A mode
+          with no secure list falls back to its teaching steps, which are not. */}
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={taskSteps} />
       <ToolGrid min={350}>
         <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane
+            // Named for what it is (student pass 3, Q-8): it read "Coordinate plane".
+            ariaLabel="Scatter plot of the data and your model"
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
@@ -417,7 +493,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
                         : <>y = {shownSlope}x {Number(b) >= 0 ? '+' : '−'} {shownInterceptMagnitude}</>}
-                  <br/><span style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
+                  {errorReadouts ? <><br/><span data-model-error-readout="" style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span></> : null}
                 </div>
               ) : (
                 <p style={{margin:'10px 0 0',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
@@ -497,7 +573,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             {candidateModels.map((entry) => (
               <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:modelChoice===entry.id?'var(--mm-primary-subtle)':'var(--mm-surface)' }}>
                 <input type="radio" name="modelChoice" checked={modelChoice===entry.id} onChange={()=>setModelChoice(entry.id)} />
-                <span><strong>{entry.label}</strong><br/><span style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
+                <span><strong>{entry.label}</strong>{errorReadouts ? <><br/><span data-model-error-readout="" style={{fontSize:'calc(12 * var(--mm-px))',color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></> : null}</span>
               </label>
             ))}
           </div>
@@ -521,7 +597,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
               {(() => {
                 const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
                 const missed = parts.filter((part) => !part.isCorrect).map((part) => part.id);
@@ -529,7 +604,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
-                return <p style={{ margin:'9px 0 0', color:'var(--mm-text)', lineHeight:1.55 }}>{text}</p>;
+                return <ResultPill ok={feedback.isCorrect} message={text}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>;
               })()}
               <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
                 <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.

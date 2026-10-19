@@ -169,13 +169,16 @@ test('the model is a focusable, named application wired to the keys', () => {
   const svg = region(component, '<svg\n            ref={modelRef}', '>\n            { }', 'model svg');
   assert.match(svg, /role="application"/);
   assert.match(svg, /tabIndex=\{0\}/);
-  assert.match(svg, /aria-label="[^"]*arrow keys[^"]*"/);
-  assert.match(svg, /aria-describedby=\{instructionId\}/);
+  // Named by what it is; described by what it shows, then by its keys
+  // (student pass 3, Q-8: the name used to be the operating instructions).
+  assert.match(svg, /aria-label="Three planes in 3D"/);
+  assert.match(svg, /aria-describedby=\{`\$\{modelDescriptionId\} \$\{instructionId\}`\}/);
   assert.match(svg, /onKeyDown=\{handleModelKeyDown\}/);
   assert.match(svg, /onPointerDown=\{handlePointerDown\}\s*onPointerMove=\{handlePointerMove\}\s*onPointerUp=\{handlePointerUp\}/);
-  // Inside the control, the drawing keeps the image role and name the model
-  // always had (the assessment-leak and Day 2 browser gates find it by them).
-  assert.match(component, /onPointerLeave=\{handlePointerUp\}\s*>\s*\{ \}\s*<g role="img" aria-label="Interactive 3D view of the three planes\. Drag to rotate\.">/);
+  // Inside the control, the drawing keeps the image role (the assessment-leak
+  // and Day 2 browser gates find it by "3D view of the three planes") and is
+  // described by the same text as the control.
+  assert.match(component, /onPointerLeave=\{handlePointerUp\}\s*>\s*\{ \}\s*<g role="img" aria-label="3D view of the three planes" aria-describedby=\{modelDescriptionId\}>/);
   assert.match(component, /<span id=\{instructionId\} className="mathmaster-threeplane-sr-only">\s*Arrow keys rotate/);
   const imports = component.match(/import \{([^}]*)\} from '\.\/threePlaneControls\.js';/);
   assert.ok(imports, 'the component imports its control helpers');

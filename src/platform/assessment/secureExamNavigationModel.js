@@ -446,7 +446,7 @@ export function studentSessionStatus(session) {
   const done = TERMINAL.has(status);
   const released = session?.feedbackReleased === true;
   const make = (label, tone) => ({ status, label, tone, done, released });
-  if (sessionWasReplaced(session)) return make('Replaced by a new attempt', 'neutral');
+  if (sessionWasReplaced(session)) return make('Replaced by a new try', 'neutral');
   if (done && released) return make('Results ready', 'ready');
   switch (status) {
     case SESSION_STATUS.NOT_STARTED: return make('Not started', 'neutral');

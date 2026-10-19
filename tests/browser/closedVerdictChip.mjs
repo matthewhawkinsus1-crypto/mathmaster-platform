@@ -9,8 +9,8 @@
 //
 //   practice  while attempts remain there is no verdict chip; the third miss
 //             closes the question and shows "Incorrect — review below" as a
-//             role="status" chip whose rectangle intersects no visible button
-//             (the "⤢ Enlarge question" opener among them) and no heading
+//             chip whose rectangle intersects no visible button
+//             (the "⤢ Open Work View" opener among them) and no heading
 //             ("Complete Each Part" among them).
 //   dol       a submitted DOL item never shows the chip (no outcome feedback).
 //
@@ -63,7 +63,9 @@ const submit = async (page) => {
   await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
   await page.waitForTimeout(500);
 };
-const chip = (page) => page.locator('[role="status"]').filter({ hasText: /^(Incorrect|Almost)( — review below)?$/ });
+// Not a live region since student pass 3 (one announcement per result: the
+// closed card's verdict says it), so it is found by its class.
+const chip = (page) => page.locator('.mathmaster-closed-verdict').filter({ hasText: /^(Incorrect|Almost)( — review below)?$/ });
 
 // Every visible button and heading whose rectangle meets the chip's.
 //
@@ -113,9 +115,11 @@ for (const device of DEVICES) {
   {
     const { page, context } = await open(device, 'q=multi&role=practice');
     const heading = page.locator('.mathmaster-multipart-heading');
-    check(await heading.isVisible() && /Complete Each Part/.test(await heading.textContent()), `${device.name}: the multi-part heading is shown`);
-    const opener = page.getByRole('button', { name: /Enlarge question/ });
-    check(await opener.isVisible(), `${device.name}: the Enlarge question opener is shown`);
+    // One box: "Your answer", not "Complete Each Part" over a single box
+    // (student pass 3, RUN-16).
+    check(await heading.isVisible() && (await heading.textContent()).trim() === 'Your answer', `${device.name}: the answer heading is shown, in the student's words`, (await heading.textContent()).trim());
+    const opener = page.getByRole('button', { name: /Open Work View/ });
+    check(await opener.isVisible(), `${device.name}: the Open Work View opener is shown`);
 
     await answer(page, '-\\frac{3}{4}');
     await submit(page);
@@ -129,7 +133,9 @@ for (const device of DEVICES) {
     const verdict = chip(page);
     check(await verdict.count() === 1 && await verdict.isVisible(), `${device.name}: the closed question shows its verdict chip`);
     check((await verdict.textContent()).trim() === 'Incorrect — review below', `${device.name}: worded "Incorrect — review below"`, (await verdict.textContent()).trim());
-    check(await verdict.getAttribute('aria-label') === 'Incorrect', `${device.name}: still labelled for a screen reader`);
+    // A screen reader hears the verdict once: from the closed card's region,
+    // not again from the chip.
+    check(await verdict.getAttribute('role') === null && await page.locator('[data-closed-question-card] [role="status"]').count() === 1, `${device.name}: the verdict is announced once, by the closed card`);
     // Centred in its scroller: the phone's sticky work bar (Undo, Reset,
     // Scratchpad) floats over whatever scrolls beneath it, chip or heading
     // alike — that is scrolling, not the chip's placement.
@@ -139,7 +145,7 @@ for (const device of DEVICES) {
     check(hits.length === 0, `${device.name}: the chip intersects no button and no heading`, hits.join('; '));
     // The two named in the QA report, measured directly as well.
     const box = await verdict.boundingBox();
-    for (const [name, other] of [['Enlarge question', opener], ['Complete Each Part', heading]]) {
+    for (const [name, other] of [['Open Work View', opener], ['the answer heading', heading]]) {
       const b = await other.boundingBox();
       const overlap = Boolean(box && b)
         && Math.min(box.x + box.width, b.x + b.width) - Math.max(box.x, b.x) > 0.5

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
-import { evaluateCalculatorExpressionExact } from '../platform/policies/calculatorExpression';
+import { evaluateCalculatorExpressionExact, groupBuiltFractions } from '../platform/policies/calculatorExpression';
 import {
   calculatorCornerPosition, clampCalculatorPosition, nextCalculatorCorner, nudgeCalculatorPosition, settleCalculatorPosition,
 } from './calculatorPanelGeometry.js';
@@ -10,39 +10,17 @@ import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import { revealMathFieldHost } from '../platform/layout/pinchZoomReveal.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
+import { calculatorButtonsFor, calculatorErrorMessage, calculatorResultAnnouncement, deleteKeyClearsError, keypadGraphingNote, typedKeyReplacesPlaceholder, valueWithoutPlaceholder } from './calculatorKeys.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
-const buttonSpec = (raw) => {
-  const value = String(raw ?? '');
-  if (value === 'C') return { label: 'C', action: 'clear' };
-  if (value === '=') return { label: '=', action: 'equals' };
-  if (value === '÷') return { label: '÷', action: 'fractionize' };
-  if (value === '×') return { label: '×', command: '\\times' };
-  if (value === '^') return { label: 'xʸ', command: '#@^{#?}' };
-  if (value === 'sin(') return { label: 'sin', command: '\\sin\\left(#0\\right)' };
-  if (value === 'cos(') return { label: 'cos', command: '\\cos\\left(#0\\right)' };
-  if (value === 'tan(') return { label: 'tan', command: '\\tan\\left(#0\\right)' };
-  if (value === 'sqrt(' || value === '√(') return { label: '√', command: '\\sqrt{#0}' };
-  if (value === 'log(') return { label: 'log', command: '\\log\\left(#0\\right)' };
-  if (value === 'ln(') return { label: 'ln', command: '\\ln\\left(#0\\right)' };
-  if (value === 'π') return { label: 'π', command: '\\pi' };
-  return { label: value === '-' ? '−' : value, command: value };
-};
-
-const calculatorButtonsForPolicy = (mode) => {
-  const specs = getCalculatorButtonsForMode(mode).map(buttonSpec);
-  const equalsIndex = specs.findIndex((button) => button.action === 'equals');
-  const fraction = { label: 'a⁄b', command: '\\frac{#0}{#?}' };
-  if (equalsIndex >= 0) specs.splice(equalsIndex, 0, fraction);
-  else specs.push(fraction);
-  return specs;
-};
+const calculatorButtonsForPolicy = (mode) => calculatorButtonsFor(getCalculatorButtonsForMode(mode));
 
 const expressionFromMathField = (mathField, fallback = '') => {
   try {
     const ascii = mathField?.getValue?.('ascii-math');
-    if (String(ascii ?? '').trim()) return String(ascii).trim();
+    // Each built fraction stays one factor (groupBuiltFractions).
+    if (String(ascii ?? '').trim()) return groupBuiltFractions(String(ascii).trim());
   } catch {
     // Fall through to the visible value if this MathLive build cannot emit ASCIIMath.
   }
@@ -58,7 +36,11 @@ export const CalculatorPanel = ({
   onOpenChange = null,
   showLauncher = true,
   launcherStyle = null,
+  // True where the keypad stands in for a graphing calculator that could not
+  // load (QuestionEngine); it says so instead of offering graphs (W6-4).
+  graphingUnavailable = false,
 }) => {
+  const graphingNote = keypadGraphingNote({ mode: policy?.mode, graphingUnavailable });
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen == null ? internalOpen : Boolean(controlledOpen);
   const setOpen = useCallback((nextValue) => {
@@ -73,6 +55,15 @@ export const CalculatorPanel = ({
   // evaluateCalculatorExpressionExact). Shown only while the display still
   // holds that result, so any further typing hides it.
   const [exactResult, setExactResult] = useState(null);
+  // What the calculator could not read, shown under "Error" while the display
+  // still holds it (TOOL-8) and said by the result announcement.
+  const [errorText, setErrorText] = useState('');
+  // What "=" (or Enter) produced, said once in a polite region. The count makes
+  // the same answer twice in a row a new announcement.
+  const [resultAnnouncement, setResultAnnouncement] = useState({ text: '', count: 0 });
+  const announceResult = useCallback((outcome) => {
+    setResultAnnouncement((current) => ({ text: calculatorResultAnnouncement(outcome), count: current.count + 1 }));
+  }, []);
   const [panelPosition, setPanelPosition] = useState(null);
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
@@ -90,6 +81,21 @@ export const CalculatorPanel = ({
   // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
   // 6/3+1 is (6/3) + 1 = 3, not 6/(3 + 1) = 1.5.
   const typedFractionRef = useRef(null);
+  // True while the field shows only the panel's own "0" (on opening, after
+  // Clear) or "Error". The keypad already replaces it; a typed key now does
+  // too, so "(2+3" after Clear is (2+3), not 0(2+3) = 0.
+  const placeholderShownRef = useRef(true);
+  // Text after the placeholder "0" or "Error" (calculatorKeys.js
+  // valueWithoutPlaceholder), dropped when it arrives (input) and again just
+  // before evaluating: MathLive reports committed text a moment late, so an
+  // Enter can be read before the input that would have repaired it.
+  const repairPlaceholder = useCallback((mathField) => {
+    if (!mathField) return;
+    const repaired = valueWithoutPlaceholder(mathField.value, { placeholderShown: placeholderShownRef.current });
+    if (repaired === null) return;
+    mathField.value = repaired;
+    mathField.executeCommand?.('moveToMathfieldEnd');
+  }, []);
 
   useEffect(() => {
     setEstimate('');
@@ -118,6 +124,13 @@ export const CalculatorPanel = ({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
+      // Pasted or committed text (no keydown) that landed after the
+      // placeholder "0" or "Error" (calculatorKeys.js valueWithoutPlaceholder).
+      repairPlaceholder(mathField);
+      // MathLive can report an input while the field still holds only the
+      // placeholder (committed text arrives as several inputs, the first
+      // before any character lands): that is not the student's own 0 yet.
+      if (mathField.value !== '0') placeholderShownRef.current = false;
       typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
       setDisplay(mathField.value || '0');
     };
@@ -125,6 +138,21 @@ export const CalculatorPanel = ({
       const step = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
       typedFractionRef.current = step.state;
       if (step.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    };
+    // Before MathLive inserts the key: a typed character replaces the
+    // placeholder "0" or "Error" instead of following it.
+    const replacePlaceholder = (event) => {
+      if (deleteKeyClearsError(event, mathField.value)) {
+        event.preventDefault();
+        event.stopPropagation();
+        mathField.value = '0';
+        placeholderShownRef.current = true;
+        setDisplay('0');
+        return;
+      }
+      if (!typedKeyReplacesPlaceholder(event, { value: mathField.value, placeholderShown: placeholderShownRef.current })) return;
+      mathField.value = '';
+      placeholderShownRef.current = false;
     };
     const forgetTypedFraction = () => { typedFractionRef.current = null; };
     const handleKeyDown = (event) => {
@@ -142,32 +170,38 @@ export const CalculatorPanel = ({
       event.stopPropagation();
       divisionPendingRef.current = false;
       try {
+        repairPlaceholder(mathField);
         const expression = expressionFromMathField(mathField, mathField.value || display);
         const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
         const result = evaluated.decimal;
         mathField.value = result;
         setDisplay(result);
         setExactResult(evaluated.fraction ? { decimal: result, fraction: evaluated.fraction } : null);
-      } catch {
+        announceResult({ decimal: result, fraction: evaluated.fraction });
+      } catch (error) {
         mathField.value = 'Error';
         setDisplay('Error');
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
     // Capture, so the cursor leaves the fraction before MathLive inserts the key.
+    mathField.addEventListener('keydown', replacePlaceholder, { capture: true });
     mathField.addEventListener('keydown', leaveTypedFraction, { capture: true });
     mathField.addEventListener('keydown', handleKeyDown);
     mathField.addEventListener('pointerdown', forgetTypedFraction);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', replacePlaceholder, { capture: true });
       mathField.removeEventListener('keydown', leaveTypedFraction, { capture: true });
       mathField.removeEventListener('keydown', handleKeyDown);
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [isOpen, estimateUnlocked, policy.mode]);
+  }, [isOpen, estimateUnlocked, policy.mode, announceResult, repairPlaceholder]);
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
@@ -303,8 +337,11 @@ export const CalculatorPanel = ({
     onEstimationComplete?.(value);
   };
 
-  const setCalculatorValue = useCallback((value) => {
+  // `placeholder`: only Clear writes the panel's own "0" (review N1); a 0
+  // that "=" computed is a result, exactly as one Enter computed.
+  const setCalculatorValue = useCallback((value, { placeholder = false } = {}) => {
     const next = String(value ?? '0');
+    placeholderShownRef.current = placeholder;
     divisionPendingRef.current = false;
     typedFractionRef.current = null;
     setDisplay(next);
@@ -367,17 +404,21 @@ export const CalculatorPanel = ({
 
   const handleCalculatorButton = useCallback((button) => {
     if (button.action === 'clear') {
-      setCalculatorValue('0');
+      setCalculatorValue('0', { placeholder: true });
       return;
     }
     if (button.action === 'equals') {
       try {
+        repairPlaceholder(mathFieldRef.current);
         const expression = expressionFromMathField(mathFieldRef.current, display);
         const evaluated = evaluateCalculatorExpressionExact(expression, policy.mode);
         setCalculatorValue(evaluated.decimal);
         setExactResult(evaluated.fraction ? { decimal: evaluated.decimal, fraction: evaluated.fraction } : null);
-      } catch {
+        announceResult({ decimal: evaluated.decimal, fraction: evaluated.fraction });
+      } catch (error) {
         setCalculatorValue('Error');
+        setErrorText(calculatorErrorMessage(error));
+        announceResult({ error: calculatorErrorMessage(error) });
       }
       return;
     }
@@ -386,7 +427,7 @@ export const CalculatorPanel = ({
       return;
     }
     insertCalculatorCommand(button.command);
-  }, [display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
+  }, [announceResult, display, insertCalculatorCommand, insertStackedDivision, policy.mode, repairPlaceholder, setCalculatorValue]);
 
   const startDrag = (event) => {
     // The ↕ Move button is still the grip it always was for a pointer: the
@@ -536,13 +577,13 @@ export const CalculatorPanel = ({
                 title="Move calculator: arrow keys, or Enter for the next corner"
                 onClick={moveToNextCorner}
                 onKeyDown={handleMoveKeyDown}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34, color: 'inherit', fontSize: 'inherit' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44, color: 'inherit', fontSize: 'inherit' }}
               >↕</button>
               {getCalculatorDrawerLabel(policy.mode)} CALCULATOR
             </span>
             <span id={moveHelpId} hidden>Arrow keys move the calculator. Enter moves it to the next corner.</span>
             <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{moveAnnouncement}</span>
-            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
+            <button type="button" aria-label="Close calculator" onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 44, minHeight: 44 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
             <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: 'calc(13 * var(--mm-px))' }}>
@@ -561,17 +602,28 @@ export const CalculatorPanel = ({
                 style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: 'calc(24 * var(--mm-px))', marginBottom: '12px' }}
               />
               {exactResult && exactResult.decimal === display ? (
-                <p data-calculator-exact="" role="status" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                // Shown; spoken by the result announcement below, with the decimal.
+                <p data-calculator-exact="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
                   Exact: {exactResult.fraction}
                 </p>
               ) : null}
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
+              {display === 'Error' && errorText ? (
+                // Shown; spoken by the result announcement below.
+                <p data-calculator-error="" style={{ margin: '-6px 0 10px', textAlign: 'right', color: 'var(--mm-error-text)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700 }}>
+                  {errorText}
+                </p>
+              ) : null}
+              <span data-calculator-result-announcement="" role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                {resultAnnouncement.text ? `${resultAnnouncement.text}${resultAnnouncement.count % 2 ? '' : '\u00a0'}` : ''}
+              </span>
+              {graphingNote ? <p data-calculator-graphing-note="" style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{graphingNote}</p> : null}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button
                     key={`${button.label}-${button.action || button.command}`}
                     type="button"
                     onClick={() => handleCalculatorButton(button)}
+                    aria-label={button.ariaLabel}
                     style={{
                       padding: '10px 5px',
                       minHeight: '42px',

@@ -3,6 +3,7 @@ import MathText from './MathText.jsx';
 import {
   WorkViewCapabilityPortProvider,
   combinePublishedCapabilities,
+  instructionShown,
   toggleWorkViewDrawer,
   useHasParentWorkView,
   usePublishWorkViewCapabilities,
@@ -15,6 +16,8 @@ import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../plat
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
+import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
+import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -79,6 +82,62 @@ const writeDismissed = (key) => {
   }
 };
 
+// One control in the Work View rail. An action that runs out of things to do
+// on its own press (Start over, Fit View) keeps keyboard focus instead of
+// dropping it to the top of the page (pass 3, A11Y-2; useFocusSafeDisabled),
+// and a press while it is unavailable does nothing.
+function WorkViewActionButton({ action, primary, onInvoke }) {
+  const availability = useFocusSafeDisabled(!action.disabled);
+  return (
+    <button
+      type="button"
+      // Named so the browser gate can find the registered controls and
+      // measure them. A capability that registered but rendered off the
+      // bottom of a phone is not a control the student has.
+      data-work-view-action={action.id || action.label}
+      className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
+      data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
+      // Fit, pan and zoom move the camera and nothing else. Marked in
+      // the DOM so the state-integrity gate can press them and assert
+      // that the mathematics and the Undo depth are unchanged.
+      data-camera-only={action.cameraOnly ? 'true' : undefined}
+      data-action-emphasis={primary ? 'primary' : undefined}
+      {...availability}
+      onClick={() => { if (!action.disabled) onInvoke(action); }}
+      title={action.title}
+      // A phone row fits four controls only with short labels ("Reset"
+      // for "Reset Question"); the full label stays the accessible name.
+      aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
+      >
+      {action.icon ? <>{action.icon}{' '}</> : null}
+      {action.shortLabel ? (
+        <>
+          <span className="mathmaster-work-view-action-full">{action.label}</span>
+          <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
+        </>
+      ) : action.label}
+    </button>
+  );
+}
+
+// A tool's capabilities without its rail actions (a closed question in review).
+export const withoutRailActions = (capabilities) => {
+  if (!capabilities || typeof capabilities !== 'object') return capabilities;
+  if (!('primaryActions' in capabilities) && !('secondaryActions' in capabilities)) return capabilities;
+  const rest = { ...capabilities };
+  delete rest.primaryActions;
+  delete rest.secondaryActions;
+  return rest;
+};
+
+// The dialog's name says "Work View" once (TOOL-13): "Question Work View,
+// Work View" was the label with the suffix added again.
+export const workViewDialogName = (label) => {
+  const text = String(label || '').trim();
+  if (!text) return 'Work View';
+  return /\bwork view\b/i.test(text) ? text : `${text}, Work View`;
+};
+
 export default function EnlargeableFigure({
   children,
   label = 'graph',
@@ -88,6 +147,12 @@ export default function EnlargeableFigure({
   dismissKey = null,
   presentationKey = null,
   forceClosed = false,
+  // A CLOSED QUESTION CAN STILL BE ENLARGED TO LOOK AT (TOOL-13). Closing still
+  // closes an open Work View (the grading transition below), but the opener
+  // stays: a student can enlarge their own graded graph to review it. The work
+  // area inside stays exactly as closed as it is inline (inert, no Submit,
+  // Reset or Undo), so Work View shows nothing the page does not.
+  reviewWhenClosed = false,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
   //
   // It is a full-window modal over the page holding the task, so a student who
@@ -116,6 +181,10 @@ export default function EnlargeableFigure({
   // hosts, while the shared lifecycle closes every direct or nested figure in
   // the current question without relying on a tool to forward that prop.
   const shouldForceClose = forceClosed || questionTerminal || nestedWorkView;
+  // Whether the opener works: never in a nested figure (the question's own
+  // shell is the one host), and on a closed question only for review.
+  const openerBlocked = nestedWorkView || (shouldForceClose && !reviewWhenClosed);
+  const reviewingClosed = shouldForceClose && !openerBlocked;
   const [enlarged, setEnlarged] = useState(() => !shouldForceClose && openEnlarged && !readDismissed(dismissKey));
   const [drawer, setDrawer] = useState(null);
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
@@ -147,7 +216,21 @@ export default function EnlargeableFigure({
     () => combinePublishedCapabilities(publishedByChild),
     [publishedByChild],
   );
-  const registeredCapabilities = useWorkViewCapabilities(capabilities, publishedCapabilities);
+  // Inside a registry tool, its final action in the rail carries the same
+  // words as its button: Submit and its cost, or the host's (RUN-4, D9).
+  const { submitLabel: hostSubmitLabel, submitCost } = useToolRuntimeContext();
+  const methodWithheld = useMethodWithheld();
+  const toolCapabilities = useMemo(
+    () => relabelToolPrimaryActions(capabilities, { submitLabel: hostSubmitLabel, submitCost }),
+    [capabilities, hostSubmitLabel, submitCost],
+  );
+  // Reviewing a closed question (TOOL-13 review R2): no tool's own actions in
+  // the rail — nothing there can be checked or changed, and a tool's live-looking
+  // "Check" pressed nothing. The question's own (platform) actions stay as they
+  // are: Submit already gone, Undo and Reset disabled.
+  const railToolCapabilities = useMemo(() => (reviewingClosed ? withoutRailActions(toolCapabilities) : toolCapabilities), [reviewingClosed, toolCapabilities]);
+  const railPublishedCapabilities = useMemo(() => (reviewingClosed ? withoutRailActions(publishedCapabilities) : publishedCapabilities), [reviewingClosed, publishedCapabilities]);
+  const registeredCapabilities = useWorkViewCapabilities(railToolCapabilities, railPublishedCapabilities);
 
   // CLOSING AN AUTO-OPENED PANEL MEANS IT.
   //
@@ -227,8 +310,12 @@ export default function EnlargeableFigure({
     return () => window.cancelAnimationFrame(frame);
   }, [enlarged]);
 
+  // Set while a closed question is open for review, so closing it gives focus
+  // back to the opener (a grading transition's close never does).
+  const reviewOpenRef = useRef(false);
   const openWorkView = () => {
-    if (shouldForceClose) return;
+    if (openerBlocked) return;
+    reviewOpenRef.current = reviewingClosed;
     // The host is `display: contents` while closed; the surface has the box.
     const hold = captureWorkViewScrollHold(hostRef.current?.querySelector?.('.mathmaster-work-view-surface'));
     scrollHoldRef.current = hold;
@@ -252,7 +339,9 @@ export default function EnlargeableFigure({
     }
     if (!wasEnlargedRef.current) return;
     wasEnlargedRef.current = false;
-    if (!shouldForceClose) openerRef.current?.focus?.({ preventScroll: true });
+    const reviewed = reviewOpenRef.current;
+    reviewOpenRef.current = false;
+    if (!shouldForceClose || reviewed) openerRef.current?.focus?.({ preventScroll: true });
   }, [enlarged, shouldForceClose]);
 
   useEffect(() => {
@@ -404,8 +493,42 @@ export default function EnlargeableFigure({
   const presentation = useMemo(() => ({ enlarged, shortHeight }), [enlarged, shortHeight]);
 
   const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
-  const help = registeredCapabilities.help?.content || registeredCapabilities.help?.text;
-  const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
+  // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
+  // description and steps (its TaskCard, which Work View hides), then the
+  // platform's Help — the hint ladder and "Ask my teacher", never replaced —
+  // then the tool's own. On a phone this drawer is the only way to them.
+  const helpPart = (capability) => capability?.content || capability?.text || null;
+  const directionsHelp = helpPart(registeredCapabilities.directions);
+  const platformHelp = helpPart(registeredCapabilities.help);
+  const toolHelp = helpPart(registeredCapabilities.toolHelp);
+  // Each part is a labelled group, so a screen reader can tell them apart.
+  // The directions arrive folded (TaskCardDirections), which keeps "Show a
+  // hint" and "Ask my teacher" on a phone's first screen of the drawer.
+  const help = directionsHelp || platformHelp || toolHelp ? (
+    <>
+      {directionsHelp ? <div role="group" aria-label="How to do this" data-work-view-directions="">{typeof directionsHelp === 'string' ? <MathText>{directionsHelp}</MathText> : directionsHelp}</div> : null}
+      {platformHelp ? <div role="group" aria-label="Hints and help" data-work-view-platform-help="">{platformHelp}</div> : null}
+      {toolHelp ? <div role="group" aria-label="This tool's help" data-work-view-tool-help="">{toolHelp}</div> : null}
+    </>
+  ) : null;
+  // "INFORMATION YOU NEED" IS PART OF THE QUESTION (student pass 3, TOOL-12).
+  // Work View hid it with the task card around it, so a student who enlarged
+  // the work lost the numbers the question gives. It is the question's own
+  // content, not help: it stays on a DOL, quiz or test. It gets its own header
+  // button and drawer; on a phone, where a fourth header button squeezes the
+  // task (see Support tools below), it opens inside the Task drawer instead,
+  // as its own labelled group.
+  const reference = helpPart(registeredCapabilities.reference);
+  const referenceInTask = Boolean(reference && task && viewport.mode === 'mobile');
+  // Only while enlarged: the page under Work View already shows the card.
+  const referenceNode = reference && enlarged
+    ? <div role="group" aria-label="Information you need" data-work-view-reference="">{typeof reference === 'string' ? <MathText>{reference}</MathText> : reference}</div>
+    : null;
+  // A tool's own banner on an exit ticket, quiz or test: only one marked
+  // `controlsOnly` (W6-4; instructionShown). Under QuestionEngine the merge
+  // has already decided; this covers a tool shell with no question around it.
+  const shownInstruction = instructionShown(registeredCapabilities.instruction, methodWithheld);
+  const instruction = shownInstruction?.content || shownInstruction?.text;
   // Task, Help and the current instruction have their own places in the shell,
   // and anything with an `onAction` becomes a button below. What is left is the
   // set of things this workspace can do that have no control of their own —
@@ -424,7 +547,8 @@ export default function EnlargeableFigure({
   // tray inside is its own group, "Support tools".
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
-    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
+    .filter((name) => !['task', 'help', 'directions', 'toolHelp', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
+    .filter((name) => name !== 'reference')
     .filter((name) => !shellActionNames.includes(name));
   const shellActions = [
     registeredCapabilities.undo,
@@ -476,7 +600,7 @@ export default function EnlargeableFigure({
     >
       {shortHeight ? null : instructionNode}
       {!enlarged ? (
-        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
+        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
@@ -546,7 +670,7 @@ export default function EnlargeableFigure({
       // inside the modal would make the button do almost nothing.
       role={enlarged ? 'dialog' : undefined}
       aria-modal={enlarged ? 'true' : undefined}
-      aria-label={enlarged ? `${label}, Work View` : undefined}
+      aria-label={enlarged ? workViewDialogName(label) : undefined}
       // Clicking the backdrop closes; clicking the figure must not. Plotting a
       // point is a click on the plane, and it would be maddening for the panel
       // to vanish underneath it.
@@ -580,7 +704,8 @@ export default function EnlargeableFigure({
           ) : null}
           {shortHeight ? instructionNode : null}
         </div>
-        {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
+        {task ? <button type="button" data-work-view-reference={referenceInTask ? '' : undefined} aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
+        {reference && !referenceInTask ? <button type="button" data-work-view-reference="" aria-expanded={drawer === 'reference'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'reference'))}>Reference</button> : null}
         {help ? (
           <button
             type="button"
@@ -596,7 +721,13 @@ export default function EnlargeableFigure({
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
         {task ? (typeof task === 'string' ? <MathText>{task}</MathText> : task) : null}
+        {referenceInTask ? referenceNode : null}
       </section>
+      {reference && !referenceInTask ? (
+        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'reference' ? 'true' : 'false'} aria-label="Reference">
+          {referenceNode}
+        </section>
+      ) : null}
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
         {help || null}
         {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}
@@ -610,35 +741,12 @@ export default function EnlargeableFigure({
         {figure}
         <aside ref={actionsRef} className="mathmaster-work-view-actions" aria-label="Work View controls">
           {shellActions.map((action, index) => (
-            <button
+            <WorkViewActionButton
               key={action.id || `${action.label}-${index}`}
-              type="button"
-              // Named so the browser gate can find the registered controls and
-              // measure them. A capability that registered but rendered off the
-              // bottom of a phone is not a control the student has.
-              data-work-view-action={action.id || action.label}
-              className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
-              data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
-              // Fit, pan and zoom move the camera and nothing else. Marked in
-              // the DOM so the state-integrity gate can press them and assert
-              // that the mathematics and the Undo depth are unchanged.
-              data-camera-only={action.cameraOnly ? 'true' : undefined}
-              data-action-emphasis={primaryShellActions.has(action) ? 'primary' : undefined}
-              onClick={() => invokeAction(action)}
-              disabled={action.disabled}
-              title={action.title}
-              // A phone row fits four controls only with short labels ("Reset"
-              // for "Reset Question"); the full label stays the accessible name.
-              aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
-            >
-              {action.icon ? <>{action.icon}{' '}</> : null}
-              {action.shortLabel ? (
-                <>
-                  <span className="mathmaster-work-view-action-full">{action.label}</span>
-                  <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
-                </>
-              ) : action.label}
-            </button>
+              action={action}
+              primary={primaryShellActions.has(action)}
+              onInvoke={invokeAction}
+            />
           ))}
           {/* A CAPTION, NOT MORE BUTTONS. Each of these used to be its own grey
               chip under the real actions, and "Pan and zoom" or "Plot and edit

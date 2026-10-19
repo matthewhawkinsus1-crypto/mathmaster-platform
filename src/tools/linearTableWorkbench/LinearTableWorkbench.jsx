@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -16,6 +16,8 @@ import linearTableWorkbenchGrader, {
 } from '../../../functions/shared/serverGrading/tools/linearTableWorkbench.mjs';
 import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
+import { SubmitText } from '../shared/ToolRuntimeContext';
+import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -269,14 +271,25 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       subtitle="Select two rows to build an interval, record what you calculate, and repeat until you can prove whether the rate of change is constant."
       badge="Rate-of-change evidence"
     >
+      {/* One list, each step marked (student pass 3, W6-4). Control steps
+          name a control and what it unlocks, and stay on an exit ticket,
+          quiz or test; the plain strings are the method and go there:
+          - "Tap two rows…": the row buttons. Control.
+          - "Enter Δx, Δy and Δy/Δx…, then record it": the three boxes and
+            Record, by their on-screen labels. Control.
+          - "Work out each value yourself…": how the values are found. Method.
+          - "Record N different intervals…": the tool's lock on the questions
+            below the table. Control.
+          - the last step says what to decide or derive (linear or not, the
+            row that breaks the pattern, m and b). Method. */}
       <TaskCard
         question={questionData}
         task="Select pairs of rows, compute Δx, Δy, and the rate for each interval you record, then classify the table."
         steps={[
-          'Tap two rows to form an interval.',
-          'Compute Δx, Δy, and Δy/Δx for that interval yourself and enter them below.',
-          'Record the interval as evidence, then repeat with a different pair of rows.',
-          `Record at least ${requiredComparisons} different intervals before classifying the table.`,
+          controlStep('Tap two rows to form an interval.'),
+          controlStep('Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.'),
+          'Work out each value yourself from the two rows, then repeat with a different pair of rows.',
+          controlStep(`Record ${requiredComparisons} different intervals; the questions below the table open after that.`),
           mode === 'repairValue'
             ? 'One row breaks the pattern. Identify it and enter its corrected value, then confirm the repaired table is linear.'
             : mode === 'deriveEquation'
@@ -369,8 +382,8 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                     </span>
                   ) : null}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
-                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 9px' }}>Remove</button>
+                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
+                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 44, padding: '4px 9px' }}>Remove</button>
                   </div>
                 </li>
               );
@@ -436,8 +449,8 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       ) : null}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={undo} disabled={!undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</button>
-        <button type="button" onClick={redo} disabled={!redoDepth} style={{ ...button }} aria-label="Redo">↷ Redo</button>
+        <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</FocusSafeButton>
+        <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} style={{ ...button }} aria-label="Redo">↷ Redo</FocusSafeButton>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="linear-table-workbench-submit"
@@ -447,7 +460,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           disabled={!readyToClassify || !classification}
           style={{ ...button, background: '#1a73e8', color: '#fff', border: 0 }}
         >
-          Check my work
+          <SubmitText>Check my work</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>

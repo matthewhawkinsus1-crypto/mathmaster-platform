@@ -63,7 +63,10 @@ const result = {
 
 const SCENES = {
   ready: { load: () => new Promise((resolve) => setTimeout(() => resolve(result), 50)) },
-  error: { load: () => Promise.reject(Object.assign(new Error('refused'), { code: 'failed-precondition' })) },
+  // What the Firebase SDK raises when the callable cannot be reached.
+  error: { load: () => Promise.reject(Object.assign(new Error('internal'), { code: 'functions/internal' })) },
+  // A refusal in the server's own words (functions/lib/reviewMyWork.js): no retry (NAV-1).
+  refused: { load: () => Promise.reject(Object.assign(new Error('Your answers and solutions appear here once this assignment has closed for your whole class.'), { code: 'functions/failed-precondition' })) },
   loading: { load: () => new Promise(() => {}) },
 };
 

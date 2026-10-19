@@ -1,5 +1,6 @@
 import { evaluate, fraction, parse } from '../math/mathjs.js';
 import { calculatorModeAllowsExpression } from './calculatorPolicy.js';
+import { bracketProblem, firstUnreadable } from './calculatorErrorReasons.js';
 
 const SAFE_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs']);
 // The calculator shows 12 significant digits.
@@ -32,37 +33,107 @@ const replaceLatexFractions = (value) => {
   return text;
 };
 
+/*
+ * A BUILT FRACTION IS ONE FACTOR. MathLive writes \frac{6}{2} as `(6)/(2)`, so
+ * the fraction six-halves followed by (1 + 2) — 9 on the screen — reached
+ * mathjs as `(6)/(2)(1+2)`, where the implicit product binds first: 6/(2·3),
+ * 1. Typing `6/2(1+2)` builds exactly that since a bracket ends a typed
+ * fraction (typedFractionEntry.js), and `\frac{1}{2}\pi` was read as 1/(2π)
+ * already. Every `(…)/(…)` in MathLive's ASCII is a built fraction (a typed `/`
+ * always builds one, and ÷ is written `-:`), so each is wrapped once, and the
+ * calculator computes what it shows. Already-wrapped fractions are left alone.
+ */
+const matchingClose = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+const matchingOpen = (text, close) => {
+  let depth = 0;
+  for (let index = close; index >= 0; index -= 1) {
+    if (text[index] === ')') depth += 1;
+    else if (text[index] === '(') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+export const groupBuiltFractions = (ascii) => {
+  let text = String(ascii ?? '');
+  for (let guard = 0; guard < 64; guard += 1) {
+    let wrapped = false;
+    for (let index = 1; index < text.length - 1 && !wrapped; index += 1) {
+      if (text[index] !== '/' || text[index - 1] !== ')' || text[index + 1] !== '(') continue;
+      const open = matchingOpen(text, index - 1);
+      const close = matchingClose(text, index + 1);
+      if (open < 0 || close < 0) continue;
+      if (open > 0 && text[open - 1] === '(' && matchingClose(text, open - 1) === close + 1) continue;
+      text = `${text.slice(0, open)}(${text.slice(open, close + 1)})${text.slice(close + 1)}`;
+      wrapped = true;
+    }
+    if (!wrapped) break;
+  }
+  return text;
+};
+
+/*
+ * WHY THE CALCULATOR REFUSED (student pass 3, TOOL-8). Each refusal carries a
+ * `reason` and, where there is one, the `detail` it could not read, so the
+ * screen can say "It could not read “=”." instead of a bare "Error"
+ * (calculatorKeys.js calculatorErrorMessage). The thrown message is unchanged.
+ */
+const refusal = (message, reason, detail = null) => Object.assign(new Error(message), { reason, detail });
+
 const prepareCalculatorExpression = (expression, mode = null) => {
   const raw = String(expression ?? '').trim();
-  if (!raw || raw.length > 180) throw new Error('Enter a shorter calculation.');
+  if (!raw) throw refusal('Enter a shorter calculation.', 'empty');
+  if (raw.length > 180) throw refusal('Enter a shorter calculation.', 'tooLong');
   const normalized = replaceLatexFractions(raw)
     .replace(/\\left|\\right/g, '')
     .replace(/\\div/g, '/')
     .replace(/\bdiv\b/gi, '/')
     .replace(/\\times|\\cdot/g, '*')
     .replace(/×/g, '*')
+    // A pasted "*" reaches the field as ∗ (U+2217, MathLive's asterisk), and a
+    // dot operator ⋅ (U+22C5) is the same multiplication.
+    .replace(/[∗⋅]/g, '*')
     .replace(/÷/g, '/')
     .replace(/\\pi/g, 'pi')
     .replace(/π/g, 'pi')
     .replace(/\\sqrt\s*\{([^{}]+)\}/g, 'sqrt($1)')
     .replace(/√/g, 'sqrt');
   if (!/^[0-9a-zA-Z+\-*/^().,\s]+$/.test(normalized) || /[=;[\]{}:_]/.test(normalized)) {
-    throw new Error('Unsupported calculator input.');
+    throw refusal('Unsupported calculator input.', 'symbol', firstUnreadable(normalized));
   }
   if (!calculatorModeAllowsExpression(normalized, mode)) {
-    throw new Error('Unsupported calculator input for this mode.');
+    throw refusal('Unsupported calculator input for this mode.', 'mode');
   }
   const names = normalized.match(/[A-Za-z]+/g) || [];
-  if (names.some((name) => !SAFE_FUNCTIONS.has(name) && !['pi', 'e'].includes(name))) {
-    throw new Error('Unsupported calculator function.');
+  const unknown = names.find((name) => !SAFE_FUNCTIONS.has(name) && !['pi', 'e'].includes(name));
+  if (unknown) {
+    throw refusal('Unsupported calculator function.', 'name', unknown);
   }
   return normalized;
 };
 
 export const evaluateCalculatorExpression = (expression, mode = null) => {
   const normalized = prepareCalculatorExpression(expression, mode);
-  const result = Number(evaluate(normalized));
-  if (!Number.isFinite(result)) throw new Error('The calculation did not produce a finite number.');
+  let value;
+  try {
+    value = evaluate(normalized);
+  } catch (error) {
+    const brackets = bracketProblem(normalized);
+    throw refusal(String(error?.message || 'Unreadable calculation.'), brackets ? `bracket-${brackets}` : 'syntax');
+  }
+  const result = Number(value);
+  if (!Number.isFinite(result)) throw refusal('The calculation did not produce a finite number.', 'notFinite');
   return Number(result.toPrecision(DISPLAY_DIGITS));
 };
 

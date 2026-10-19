@@ -51,7 +51,10 @@ export const supportToolsForItem = ({ entitlement, prompt = '', question = null,
     const base = { tool, supportId, label: studentFacingLabel(supportId) || supportId, ...(universal ? { universal: true } : {}) };
     if (tool === SUPPORT_TOOL.TRANSLATE) return { ...base, state: TOOL_STATE.PENDING, language: entitlement.language };
     if (tool === SUPPORT_TOOL.VOCABULARY) {
-      const termIds = vocabularyForContext({ text, toolType });
+      // A secure test item lists the PROMPT's words only (`promptTermsOnly`):
+      // a tool's own list — distribute, elimination, shade — defines its
+      // method, which a test must not hand over (student pass 3, H-16 review).
+      const termIds = vocabularyForContext({ text, toolType: entitlement.promptTermsOnly ? '' : toolType });
       return { ...base, state: termIds.length ? TOOL_STATE.AVAILABLE : TOOL_STATE.NOT_APPLICABLE, termIds, reason: termIds.length ? null : 'no-vocabulary' };
     }
     if (tool === SUPPORT_TOOL.READ_ALOUD) {

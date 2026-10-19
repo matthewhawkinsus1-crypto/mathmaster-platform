@@ -100,30 +100,6 @@
   max-width:100%;
   touch-action:pan-y pinch-zoom;
 }
-.regression-graph-controls {
-  position:absolute;
-  top:10px;
-  right:10px;
-  display:grid;
-  overflow:hidden;
-  border:1px solid var(--mm-border);
-  border-radius:4px;
-  background:var(--mm-surface-control);
-  box-shadow:0 1px 3px rgba(0,0,0,.1);
-  font-size:1.25rem;
-  font-weight:700;
-  color:var(--mm-text-muted);
-}
-.regression-graph-controls span {
-  display:grid;
-  place-items:center;
-  width:40px;
-  height:38px;
-}
-.regression-graph-controls span + span {
-  border-top:1px solid var(--mm-border);
-}
-
 .regression-toolbar {
   grid-column:1;
   grid-row:2;
@@ -168,6 +144,11 @@
 }
 .regression-tool-icon:disabled {
   opacity:.28;
+}
+/* Undo/Redo after their last step, while focus is still on them
+   (FocusSafeButton): focusable, announced unavailable, does nothing. */
+.regression-tool-icon[aria-disabled="true"] {
+  cursor:not-allowed;
 }
 .regression-add {
   font-size:1.9rem;
@@ -716,10 +697,6 @@
     width:auto;
     max-width:100%;
     height:100%;
-  }
-  .regression-graph-controls {
-    top:8px;
-    right:8px;
   }
   .regression-toolbar {
     order:2;

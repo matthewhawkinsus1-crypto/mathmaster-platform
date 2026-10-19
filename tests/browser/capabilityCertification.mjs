@@ -254,7 +254,7 @@ await journey('work-view', 'balanced-solve', async (page, step) => {
   await subtractSeven(page, step);
   const moved = await state(page);
   step('open Work View');
-  const opener = page.locator('.mathmaster-work-view-host[data-open="false"] button').filter({ hasText: /enlarge/i }).first();
+  const opener = page.locator('.mathmaster-work-view-host[data-open="false"] button').filter({ hasText: /enlarge|work view/i }).first();
   await opener.click();
   const shell = page.locator('.mathmaster-work-view-host[data-open="true"]').first();
   await shell.waitFor({ timeout: 10000 });
@@ -326,7 +326,7 @@ await journey('history-notation', 'inequality-reversal', async (page, step) => {
   await divideRelationByNegativeTwo(page, step);
   await chooseSymbol(page, '<');
   step('open Work View and its Help panel to read the work history');
-  await page.locator('.mathmaster-work-view-host[data-open="false"] button:visible').filter({ hasText: /enlarge/i }).first().click();
+  await page.locator('.mathmaster-work-view-host[data-open="false"] button:visible').filter({ hasText: /enlarge|work view/i }).first().click();
   await page.locator('.mathmaster-work-view-host[data-open="true"]').first().waitFor({ timeout: 10000 });
   await visibleButton(page, /^Help$/).click();
   await settle(page, 500);

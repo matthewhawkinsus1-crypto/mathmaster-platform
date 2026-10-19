@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
+import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import signSolutionGrader from '../../../functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs';
 import {
@@ -37,6 +38,8 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
   const expectedIdx = analysis.intervals.map((interval, index) => interval.included ? index : null).filter((value) => value !== null);
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (index) => setSelected((old) => old.includes(index) ? old.filter((value) => value !== index) : [...old, index]);
+  // Universal Undo over the chosen intervals (TOOL-2, useFieldUndoHistory.js).
+  useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
 
   // The verdict comes from the shared grader the server runs; this chart only
   // shows it. The same work is reported live so a deadline can finalize it.
@@ -117,8 +120,8 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
             Teacher preview — correct solution: {expectedPieces.length ? expectedPieces.map(formatSolutionPiece).join(' ∪ ') : '∅'}
           </p>
         ) : null}
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check selected intervals</SubmitText></button>
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[
             'The critical points split the number line into intervals. Inside one interval the expression cannot change sign.',
@@ -139,6 +142,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
   const expected = validRadicalCandidates(spec, candidates);
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (value) => setSelected((old) => old.includes(value) ? old.filter((entry) => entry !== value) : [...old, value]);
+  useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
   const work = { selected };
   useReportToolWork(work);
   const check = () => {
@@ -193,8 +197,8 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           <li>Substitute into the <strong>original</strong> equation, before any squaring.</li>
           <li>Reject any value that squaring introduced.</li>
         </ol>
-        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check candidates</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check candidates</SubmitText></button>
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
         <HintPanel
           hints={[
             'Squaring both sides of an equation can create solutions the original never had. That is why every candidate must be checked.',

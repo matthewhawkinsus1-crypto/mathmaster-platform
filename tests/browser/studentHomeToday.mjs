@@ -134,7 +134,7 @@ for (const viewport of VIEWPORTS) {
   check(yNext > 0 && yNext < yGroup && yGroup < yChanged, tag(`today: order next=${yNext} groups=${yGroup} changed=${yChanged}`));
 
   const chip = async (id) => (await page.locator(`[data-assignment-card="${id}"] [data-status-chip]`).textContent())?.trim();
-  for (const [id, expected] of [['finished', 'Finished'], ['excused', 'Excused'], ['closed', 'Closed'], ['pastdue-started', 'Late'], ['pastdue', 'Late'], ['locked', 'Not open yet'], ['dolwait', 'Not open yet']]) {
+  for (const [id, expected] of [['finished', 'Finished'], ['excused', 'Excused'], ['closed', 'Closed'], ['pastdue-started', 'Late'], ['pastdue', 'Late'], ['locked', 'Not open yet'], ['dolwait', 'Exit ticket opens in class']]) {
     check(await chip(id) === expected, tag(`today: ${id} chip is "${await chip(id)}", expected "${expected}"`));
   }
   for (const id of ['finished', 'excused', 'closed']) {
@@ -152,8 +152,14 @@ for (const viewport of VIEWPORTS) {
   check(/Practice opens when your teacher/.test(waitLocked || ''), tag(`today: locked wait line "${waitLocked}"`));
   check(/Classwork 1\/1 ✓/.test(await page.locator('[data-assignment-card="locked"]').innerText()), tag('today: locked card has no "Classwork 1/1 ✓" chip'));
   const waitDol = await page.locator('[data-assignment-card="dolwait"] [data-wait-line]').textContent();
-  check(/^DOL opens at \d{1,2}:\d{2}/.test(waitDol || ''), tag(`today: DOL wait line "${waitDol}"`));
+  check(/^Exit ticket opens at \d{1,2}:\d{2}/.test(waitDol || ''), tag(`today: DOL wait line "${waitDol}"`));
   check(/Classwork · Practice/.test(await page.locator('[data-assignment-card="inprog"], [data-assignment-card="later"]').first().innerText()), tag('today: section makeup line missing'));
+  // D9: Home spells the exit ticket out once ("Exit ticket (DOL)"), then
+  // says "Exit ticket"; "DOL" alone is never printed (NAV-17).
+  const homeText = await page.locator('body').innerText();
+  const spelled = (homeText.match(/Exit ticket \(DOL\)/gi) || []).length;
+  check(spelled === 1, tag(`today: "Exit ticket (DOL)" is spelled out ${spelled} times, expected once`));
+  check(!/\bDOL\b/.test(homeText.replace(/Exit ticket \(DOL\)/gi, '')), tag(`today: a bare "DOL" is printed: ${(homeText.match(/.{0,30}\bDOL\b.{0,30}/) || [''])[0]}`));
 
   // Presses land where the model said.
   const expectIndex = (id) => today.entries.find((entry) => entry.id === id).nextQuestionIndex ?? 0;

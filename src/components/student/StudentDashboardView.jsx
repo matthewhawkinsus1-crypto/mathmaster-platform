@@ -8,8 +8,8 @@ import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/st
 import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
-import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
-import { SECTION_STATE, describeSectionWait } from '../../platform/student/lessonSections.js';
+import { formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
+import { SECTION_STATE, describeSectionWait, onlyExitTicketWaits } from '../../platform/student/lessonSections.js';
 import { firstOpenLiveQuestionIndex } from '../../platform/student/liveSectionEntry.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { testCycleHasUnseenChange } from '../../platform/student/testCycleDiscovery.js';
@@ -26,6 +26,11 @@ const TEST_CYCLE_TONE = {
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 import { questionAddressLabel } from '../../app/routes/questionAddress.js';
+import { whatChangedUpdatesLabel } from '../../platform/student/whatChangedModel.js';
+import {
+  CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_WAITS, SEE_RESULTS, firstExitTicketMention, studentPeriodLabel, studentSectionLabel,
+} from '../../platform/student/studentWords.js';
+import { whenDateTimeText } from '../../platform/student/studentWhen.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -46,6 +51,13 @@ const formatClock = (value) => {
   const date = value instanceof Date ? value : value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return null;
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+// A lesson behind earlier classwork: "…, or on Wed, Oct 21, 2:15 PM." in the
+// student's date words (NAV-19), and no "or on Not set." when it has no date.
+const earlierWorkWaitLine = (releaseAt) => {
+  const at = whenDateTimeText(releaseAt);
+  return at ? `Opens after you finish the earlier classwork, or on ${at}.` : 'Opens after you finish the earlier classwork.';
 };
 
 // Next-action kinds whose assignment Home would otherwise ALSO show as its own
@@ -137,6 +149,9 @@ export default function StudentDashboardView({
   saveStatus = null,
   // The read-only "What changed" list, rendered after the assignment groups.
   whatChangedPanel = null,
+  // How many of its items are new: "2 updates →" under Do this next goes to
+  // the list (NAV-6). 0 draws nothing.
+  whatChangedUnseenCount = 0,
   // { count } ways to raise a grade (Recoveries, retests). The link opens
   // Grades through the shared onNavigate — Home owns no per-destination
   // props (studentGlobalNavigation.test.mjs).
@@ -191,6 +206,19 @@ export default function StudentDashboardView({
   const secondaryDols = activeDols.filter(({ assignment }) => assignment.id !== carriedAssignmentId);
   const showResumeCard = Boolean(resumeAssignment) && resumeAssignment.id !== carriedAssignmentId;
 
+  // D9: "Exit ticket (DOL)" once on Home, then "Exit ticket". The next-action
+  // card or a live exit-ticket card spells it out when it names one; if
+  // neither does, the first lesson card that lists an exit ticket does.
+  const exitTicketSpelledOutOn = (() => {
+    const ordered = BUCKET_ORDER.flatMap((bucket) => (groups && groups[bucket]) || []);
+    const index = firstExitTicketMention(
+      ordered,
+      (entry) => !entry.testCycle && (entry.lesson?.sections || []).some((section) => section.role === 'dol'),
+      { alreadySpelledOut: Boolean(nextAction?.spellsOutExitTicket) || secondaryDols.length > 0 },
+    );
+    return index >= 0 ? ordered[index].assignment?.id ?? null : null;
+  })();
+
   const resumeGradeText = resumeAssignment && resumeQuestionsAttempted > 0
     ? (resumeFeedbackHeld && !resumeLifecycle?.isClosed ? 'Grade: waiting for your teacher' : `Grade so far: ${resumeRecordedGrade}%`)
     : null;
@@ -233,7 +261,7 @@ export default function StudentDashboardView({
             {isNew && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NEW</span>}
           </div>
           <div style={{ color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>{testCycle.detail}</div>
-          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLabel}: {dates.dueText}</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 4 }}>{dates.dueLine}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {testCycle.recordedGrade !== null && (
@@ -267,6 +295,7 @@ export default function StudentDashboardView({
    */
   const renderAssignmentCard = (entry) => {
     if (entry.testCycle) return renderTestCycleCard(entry);
+    const spellsOutExitTicket = Boolean(entry.assignment?.id) && entry.assignment.id === exitTicketSpelledOutOn;
     const {
       assignment, lifecycle, access = {}, recordedGrade, dol = {}, lesson = null,
       feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0, bucket,
@@ -284,20 +313,21 @@ export default function StudentDashboardView({
     const status = excused
       ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Excused' }
       : closed
-        ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Closed' }
+        ? { border: 'var(--mm-border)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: CLOSED_WORK.label }
         : finished
           ? { border: 'var(--mm-success-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'Finished' }
           : late
             ? { border: '#f9ab00', bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', label: 'Late' }
             : waiting
-              ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Not open yet' }
+              // NAV-26: a lesson done except its exit ticket says what waits.
+              ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: onlyExitTicketWaits(lesson?.sections) ? EXIT_TICKET_WAITS : 'Not open yet' }
               : { border: 'var(--mm-border)', bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', label: 'Open now' };
 
     // What the card is waiting for, in the student's words. Never "Locked"
     // alone: the reason is the whole point.
     const waitLine = waiting
       ? entry.waitText
-        || (access.open === false ? `Opens after you finish the earlier classwork, or on ${formatDateTime(assignment.releaseAt)}.` : 'Not open yet — your teacher will open it.')
+        || (access.open === false ? earlierWorkWaitLine(assignment.releaseAt) : 'Not open yet — your teacher will open it.')
       : null;
     // A lesson with no section list still says when its DOL really opens.
     const dolOpensAt = !lesson?.sections?.length && dol.enabled && ['waiting', 'beforeClass'].includes(dol.status)
@@ -327,7 +357,7 @@ export default function StudentDashboardView({
           {sections.length > 0 && (
             <>
               <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>
-                {sections.map((section) => section.label).join(' · ')}
+                {sections.map((section) => (section.role === 'dol' ? studentSectionLabel('dol', { spelledOut: spellsOutExitTicket }) : section.label)).join(' · ')}
               </div>
               <ul aria-label="Sections" style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {sections.map((section) => {
@@ -339,10 +369,10 @@ export default function StudentDashboardView({
           )}
           <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 6 }}>
             {waitLine && <strong data-wait-line style={{ display: 'block', color: 'var(--mm-text)' }}>{waitLine}</strong>}
-            {!finished && <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>}
-            {finished && !excused && <>{dates.dueLabel}: {dates.dueText}</>}
+            {!finished && <>{dates.dueLine}{dates.finalLine ? ` · ${dates.finalLine}` : ''}</>}
+            {finished && !excused && dates.dueLine}
             {late && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work is still open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}
-            {dolOpensAt && !waitLine && <><br />DOL opens at {dolOpensAt}.</>}
+            {dolOpensAt && !waitLine && <><br />{EXIT_TICKET} opens at {dolOpensAt}.</>}
           </div>
           {questionsTotal > 0 && !finished && (
             <div style={{ marginTop: '10px', maxWidth: '340px' }}>
@@ -370,7 +400,10 @@ export default function StudentDashboardView({
               )}
             </div>
           )}
-          {onExportAssignmentPdf && !waiting && (
+          {/* A paper copy helps while there is work to do (NAV-20). A
+              finished or closed card's action is its results, so it no
+              longer also offers Export PDF beside See results and Try again. */}
+          {onExportAssignmentPdf && actionable && (
             <button
               type="button"
               disabled={exportingAssignmentId === assignment.id}
@@ -380,8 +413,8 @@ export default function StudentDashboardView({
               {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
             </button>
           )}
-          {finished && primaryButton('See results', () => openResult(assignment.id), 'results')}
-          {closed && primaryButton('Try it again — no credit', () => onStartAssignment?.(assignment.id), 'again')}
+          {finished && primaryButton(SEE_RESULTS, () => openResult(assignment.id), 'results')}
+          {closed && primaryButton(CLOSED_WORK.tryAgain, () => onStartAssignment?.(assignment.id), 'again')}
           {isRecovery && primaryButton('Open Recovery', () => openResult(assignment.id), 'recovery')}
           {actionable && !isRecovery && primaryButton(
             questionsAttempted > 0 ? 'Continue' : 'Start',
@@ -405,7 +438,7 @@ export default function StudentDashboardView({
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 30px)', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: saveStatus ? '8px' : '20px', gap: '16px', flexWrap: 'wrap' }}>
           {/* Name and class period only. Nothing about a support plan is ever
               shown here: Home is the screen most often read over a shoulder. */}
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: 'calc(25 * var(--mm-px))' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}</p></div>
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: 'calc(25 * var(--mm-px))' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1>{studentPeriodLabel(student.classPeriod) && <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{studentPeriodLabel(student.classPeriod)}</p>}</div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math
@@ -448,6 +481,31 @@ export default function StudentDashboardView({
           />
         )}
 
+        {/* NAV-6: what is new, one line under the next action; the list
+            itself stays below the work and is marked seen once it is read. */}
+        {whatChangedPanel && whatChangedUpdatesLabel(whatChangedUnseenCount) && (
+          <p style={{ margin: '-8px 0 16px', textAlign: 'left' }}>
+            <button
+              type="button"
+              data-what-changed-updates={whatChangedUnseenCount}
+              onClick={() => {
+                const heading = typeof document !== 'undefined' ? document.getElementById('mm-what-changed-heading') : null;
+                if (!heading) return;
+                try { heading.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { heading.scrollIntoView(); }
+                heading.focus({ preventScroll: true });
+              }}
+              style={{
+                appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                minHeight: 44, padding: '8px 12px', borderRadius: 10, cursor: 'pointer',
+                border: '2px solid var(--mm-primary-border)', background: 'var(--mm-surface)',
+                color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))',
+              }}
+            >
+              {whatChangedUpdatesLabel(whatChangedUnseenCount)} <span aria-hidden="true">→</span>
+            </button>
+          </p>
+        )}
+
         {raiseCount > 0 && openGrades && (
           <button type="button" data-ways-to-raise onClick={openGrades} style={{ display: 'block', minHeight: 44, margin: '-10px 0 18px', padding: '8px 4px', border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 'calc(14.5 * var(--mm-px))', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
             {raiseCount} {raiseCount === 1 ? 'way' : 'ways'} to raise your grade →
@@ -469,11 +527,11 @@ export default function StudentDashboardView({
         {secondaryDols.map(({ assignment, state, records = [] }) => (
           <section key={`dol-${assignment.id}`} data-secondary-live="dol" style={{ marginBottom: '14px', padding: '14px 18px', borderRadius: '12px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>DOL open now</div>
+              <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Exit ticket (DOL) open now</div>
               <div style={{ fontWeight: 900, overflowWrap: 'anywhere' }}>{assignment.title}</div>
               {!hideCountdowns && <div style={{ fontWeight: 900 }}><DOLCountdown endsAt={state.endsAt} /> left</div>}
             </div>
-            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start DOL</button>
+            <button type="button" onClick={() => onStartAssignment(assignment.id, firstOpenLiveQuestionIndex({ indices: state.questionIndices || [state.questionIndex], records, section: 'dol' }) ?? 0)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid #681da8', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Start the exit ticket</button>
           </section>
         ))}
 
@@ -498,7 +556,7 @@ export default function StudentDashboardView({
               <div style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                 Continue at {resumeQuestionLabel}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
-                {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}
+                {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : studentDueDateLines(resumeAssignment, resumeLifecycle).dueLine}
               </div>
             </div>
             <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid var(--mm-primary-border)', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>Continue</button>
@@ -509,7 +567,7 @@ export default function StudentDashboardView({
           <EmptyState
             icon="🎉"
             title="Nothing assigned yet"
-            message={`No assignments have been given to ${student.classPeriod} yet. Anything your teacher publishes will show up here automatically.`}
+            message="No assignments have been given to your class yet. Anything your teacher publishes will show up here automatically."
           />
         ) : (
           <>

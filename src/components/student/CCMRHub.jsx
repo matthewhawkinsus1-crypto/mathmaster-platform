@@ -383,7 +383,7 @@ export default function CCMRHub({
       />
 
       <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}>
-        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>Find practice by CCMR standard or skill</label>
+        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>Find practice by skill or test standard</label>
         <input
           id="ccmr-standard-search"
           type="search"
@@ -393,7 +393,7 @@ export default function CCMRHub({
           style={{ width: '100%', minHeight: TAP, boxSizing: 'border-box', padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, font: 'inherit' }}
         />
         <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.5 }}>
-          Search uses the official identifier each assessment actually publishes. ACT has numbered CCRS standards; Digital SAT and TSIA2 use official skill names; ASVAB uses AR/MK subtest codes.
+          Type a skill, or the name the test itself uses: an ACT standard number (like F 502), a Digital SAT or TSIA2 skill name, or ASVAB AR or MK.
         </p>
       </div>
 
@@ -405,7 +405,7 @@ export default function CCMRHub({
           </div>
           {searchResults.length
             ? searchResults.map((item) => <SkillRow key={`search:${item.framework}:${item.skillId}`} item={item} onPractise={onPractise} showFramework readOnly={readOnly} />)
-            : <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>No course skill matches that standard or skill. Try a broader term or another assessment identifier.</p>}
+            : <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>No course skill matches that. Try a shorter word, or the name the test uses.</p>}
         </section>
       )}
 

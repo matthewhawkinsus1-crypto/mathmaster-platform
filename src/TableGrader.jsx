@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
@@ -6,6 +6,7 @@ import { resolveLabelFormat } from './labelFormat';
 import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
 import useUndoHistory from './useUndoHistory';
 import { FRACTION_ENTRY_PROPS } from './platform/interaction/numberEntry.js';
+import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
 // `compact` is for a table embedded in a larger question, where the step
 // already carries its own heading and directions. Repeating "Function Table"
@@ -35,6 +36,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
   // this screen: the deadline finalizer has to reach the same set to decide a
   // table is complete.
   const editableKeys = useMemo(() => tableEditableKeys({ table: { answers, blanks } }), [answers, blanks]);
+  const markIdBase = useId();
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:table` : null);
   const studentAnswers = history.value;
 
@@ -94,7 +96,10 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
                   return (
                     <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: 'calc(19 * var(--mm-px))' }}>
                       {isBlank ? (
-                        <input {...FRACTION_ENTRY_PROPS} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} />
+                        <>
+                        <input {...FRACTION_ENTRY_PROPS} {...gradedEntryInputProps(grade, `${markIdBase}-${answerKey}`)} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: 'calc(18 * var(--mm-px))', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} />
+                        <GradedEntryMark grade={grade} id={`${markIdBase}-${answerKey}`} />
+                        </>
                       ) : <MathDisplay value={String(row[column.key])} inline />}
                     </td>
                   );
@@ -106,7 +111,9 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       </div>
       <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-subtle)', marginTop: '14px' }}>
         {graded.gradedHere
-          ? 'Incorrect blanks are outlined after submission so you can focus only on those entries.'
+          // Not every activity shows results after a submit (an exit ticket holds
+          // them), so the note says when the marks appear, not that they will.
+          ? 'When results are shown, each entry is marked ✓ Correct or ✗ Check this, so you can focus on the ones to check.'
           : question.checkedAgainstStudentFunction === false
             // A table in a multi-step question that is not built from the
             // student's own function: there is no "function you wrote".

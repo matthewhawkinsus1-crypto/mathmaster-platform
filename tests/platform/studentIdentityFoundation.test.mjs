@@ -15,7 +15,9 @@ test('authenticated student render paths use the identity shell with the student
   assert.match(shell, /onLogout=\{preview \? null : handleLogout\}/);
 
   const studentRoutes = region(app, "if (user.role === 'student' && activeView === 'dashboard')", 'return null;', 'student route rendering');
-  assert.match(studentRoutes, /renderStudentIdentityShell\([\s\S]*LiveChallengeStudent/);
+  // renderStudentScreen is the identity shell with a main landmark (NAV-15).
+  assert.match(app, /const renderStudentScreen = \(content\) => renderStudentIdentityShell\(content, \{ main: true \}\);/);
+  assert.match(studentRoutes, /renderStudent(?:IdentityShell|Screen)\(\s*<>[\s\S]{0,300}<LiveChallengeStudent/);
   assert.match(studentRoutes, /renderStudentIdentityShell\(renderAssignmentWorkspace\(false\)\)/);
 });
 
@@ -37,16 +39,40 @@ test('identity bar shows a full natural name, period, and normal not-you logout 
 test('classroom alerts stack below the measured identity bar instead of competing at top zero', () => {
   const app = read('src/App.jsx');
   const identity = read('src/components/student/StudentIdentityBar.jsx');
-  const packUp = region(app, 'const renderStudentPackUpBanner =', 'const renderStudentWarmupBanner =', 'Pack-Up alert');
+  const packUp = region(app, 'const renderStudentPackUpNotice =', 'const renderStudentWarmupBanner =', 'Pack-Up line');
   const warmUp = region(app, 'const renderStudentWarmupBanner =', 'const renderIdleOverlay =', 'Warm-Up alert');
 
   assert.match(identity, /STUDENT_IDENTITY_STACK_OFFSET/);
   assert.match(identity, /ResizeObserver\(publishHeight\)/, 'the offset must follow wrapped mobile identity height');
   assert.match(identity, /zIndex: STUDENT_IDENTITY_Z_INDEX/);
-  assert.match(packUp, /position: 'fixed',[\s\S]*top: `var\(\$\{STUDENT_IDENTITY_STACK_OFFSET\}, 38px\)`/);
   assert.match(warmUp, /position: 'sticky',[\s\S]*top: `var\(\$\{STUDENT_IDENTITY_STACK_OFFSET\}, 38px\)`/);
-  assert.doesNotMatch(packUp, /top: 0/);
   assert.doesNotMatch(warmUp, /top: 0/);
+
+  // NAV-24: the pack-up line is a row of the pinned identity stack, not a
+  // fixed layer over the screen. It sticks right under the bar, and its height
+  // joins the stack offset, so the sticky assignment navigator (section tabs,
+  // Previous/Next) and the Warm-Up banner sit below it instead of under it.
+  assert.doesNotMatch(packUp, /position: 'fixed'/);
+  const publish = region(identity, 'const publishHeight = () => {', '};', 'stack height');
+  assert.match(publish, /const noticeHeight = noticeRef\.current\?\.offsetHeight \|\| 0;/);
+  assert.match(publish, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
+  assert.match(publish, /setProperty\(STUDENT_IDENTITY_BAR_HEIGHT, `\$\{bar\.offsetHeight\}px`\)/);
+  assert.match(identity, /if \(noticeRef\.current\) observer\?\.observe\(noticeRef\.current\);/);
+  const noticeRow = region(identity, '{notice && (', ')}', 'notice row');
+  assert.match(noticeRow, /ref=\{noticeRef\}/);
+  assert.match(noticeRow, /position: 'sticky', top: `var\(\$\{STUDENT_IDENTITY_BAR_HEIGHT\}, 38px\)`/);
+  // Every student screen gets it through the one shell, never a teacher preview.
+  const shell = region(app, 'const renderStudentIdentityShell = ', 'const renderStudentScreen = ', 'identity shell');
+  assert.match(shell, /notice=\{preview \? null : renderStudentPackUpNotice\(\)\}/);
+  assert.doesNotMatch(app, /renderStudentPackUpBanner/);
+  // Work saves itself, so it says so, unless this device still holds unsent work.
+  // Its words come from the save status Home shows (review B2; packUpLine.test.mjs has the cases).
+  assert.match(packUp, /const workLine = packUpWorkLine\(studentSaveStatusNow\(\)\);/);
+  assert.match(packUp, /data-pack-up-notice=\{workLine\.kind\}/);
+  assert.match(packUp, /<strong role="alert" style=\{\{ fontWeight: 900 \}\}>\s*\{workLine\.sentence\}\s*<\/strong>/);
+  // A student mid-Test is never interrupted by it.
+  const guards = region(app, 'const renderStudentPackUpNotice =', 'return (', 'Pack-Up guards');
+  assert.match(guards, /if \(secureExamActive\) return null;/);
 });
 
 test('historical support sessions and events resolve ids through the current roster', () => {

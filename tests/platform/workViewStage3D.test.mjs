@@ -5,7 +5,8 @@ import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import { WORK_VIEW_INVENTORY, STAGE_3D_WORK_VIEW_IDS } from '../../src/tools/workViewInventory.js';
 import { WORK_VIEW_CAPABILITIES } from '../../src/platform/workView/workViewCapabilities.js';
 import { selectActiveUndoOwner } from '../../src/platform/workView/useMathUndoHistory.js';
-import { region } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
 
 const source = (path) => readFileSync(path, 'utf8');
 
@@ -48,7 +49,20 @@ test('Scratchpad temporarily owns Undo and removes its duplicate control', () =>
   const workViewCss = source('src/components/common/WorkViewShell.css');
   assert.match(workViewCss, /data-undo-overlay-owner="scratchpad"[\s\S]*data-work-view-action\*="Undo"/);
   const engine = source('src/QuestionEngine.jsx');
-  assert.match(engine, /!scratchpadOpen\s*\?\s*<UniversalUndoButton/, 'covered work-bar Undo is hidden');
+  // Hidden while the scratchpad covers it, and (pass 3, TOOL-2) whenever no
+  // history is registered at all: a greyed Undo that can never work is not
+  // shown. Bound to the work bar, so the Work View rail cannot satisfy it.
+  const workBar = region(engine, 'const questionWorkBar = (', '\n  );', 'the work bar');
+  assert.match(workBar, /\{!scratchpadOpen && undoController \? <UniversalUndoButton /, 'covered or history-less work-bar Undo is hidden');
+  // Undo may not change the work while a submission is being graded, or in a
+  // tab paused because the question is open in another (pass 3 review): its
+  // restore would write over what was graded, or over the newer tab's draft.
+  // Both Undo controls read the one rule.
+  assert.match(engine, /const undoUnavailable = locked \|\| submitting \|\| pausedByAnotherTab;/);
+  assert.match(workBar, /<UniversalUndoButton [^>]*controller=\{undoController\} disabled=\{undoUnavailable\}/);
+  const railUndo = region(engine, '  const workspaceActions = {\n    undo: {', '\n    },', 'the Work View Undo');
+  assert.match(railUndo, /onClick: \(\) => \{ if \(!undoUnavailable\) undoController\?\.onUndo\?\.\(\); \}/);
+  assert.match(railUndo, /disabled: !undoController\?\.canUndo \|\| undoUnavailable,/);
 
   const tool = { priority: 0, order: 1, controller: { label: 'tool' } };
   const overlay = { priority: 100, order: 2, controller: { label: 'scratchpad' } };
@@ -58,30 +72,35 @@ test('Scratchpad temporarily owns Undo and removes its duplicate control', () =>
 });
 
 test('Undo inventory declarations correspond to real shared histories', () => {
-  const undoSources = {
-    systemsWorkspace: 'src/tools/systemsWorkspace/SystemsWorkspace.jsx',
-    sequenceExplorer: 'src/tools/sequenceExplorer/SequenceExplorer.jsx',
-    transformationsLab: 'src/tools/transformations/TransformationsLab.jsx',
-    functionInvestigation2: 'src/tools/functionInvestigation2/FunctionInvestigation2.jsx',
-    graphing2: 'src/tools/graphing2/Graphing2.jsx',
-    constraintFunctionBuilder: 'src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx',
-    stepAlgebra2: 'src/tools/stepAlgebra2/StepAlgebra2.jsx',
-    intervalNumberLine: 'src/tools/intervalNumberLine/IntervalNumberLine.jsx',
-    relationMapping: 'src/tools/relationMapping/RelationMapping.jsx',
-  };
-  const declaredUndo = Object.entries(WORK_VIEW_INVENTORY)
-    .filter(([, entry]) => entry.capabilities.includes('undo'))
-    .map(([id]) => id).sort();
-  assert.deepEqual(declaredUndo, Object.keys(undoSources).sort());
-  for (const [id, file] of Object.entries(undoSources)) {
-    assert.match(source(file), /useMathUndoHistory\(\{/, `${id} has a real shared history source`);
+  // Pass 3 (TOOL-2): ten tools had no history while the work bar showed a
+  // greyed ↶ Undo. Every migrated tool now keeps one, through the platform
+  // hook directly or through useFieldUndoHistory (which is that hook over a
+  // tool's answer fields). A declaration is held to the tool's own sources
+  // (TOOL_STATE_PERSISTENCE names them), so the inventory can neither claim an
+  // inert Undo nor miss a real one.
+  const fieldHook = source('src/tools/shared/useFieldUndoHistory.js');
+  assert.match(fieldHook, /return useMathUndoHistory\(\{/, 'the field helper is the platform history');
+  const hasHistory = (id) => TOOL_STATE_PERSISTENCE[id].sources
+    .map((file) => executableSource(source(`src/tools/${file}`)))
+    .some((text) => /\buse(?:Math|Field)UndoHistory\(\{/.test(text));
+  for (const [id, entry] of Object.entries(WORK_VIEW_INVENTORY)) {
+    if (entry.status !== 'migrated') continue;
+    assert.equal(entry.capabilities.includes('undo'), hasHistory(id), `${id}: declared Undo must match a real history in its source`);
   }
-  const stage3DUndo = declaredUndo.filter((id) => WORK_VIEW_INVENTORY[id].stage === '3D');
-  assert.deepEqual(stage3DUndo, ['intervalNumberLine', 'relationMapping']);
+  // Every migrated tool, including the ten that had none.
+  for (const id of ['dataModelingLab', 'inverseCompositionLab', 'functionOperationsLab', 'parabolaGeometryLab', 'polynomialWorkshop', 'signSolutionAnalyzer', 'complexPlaneLab', 'exponentialLogBridge', 'representationMatch', 'openSortBoard']) {
+    assert.ok(WORK_VIEW_INVENTORY[id].capabilities.includes('undo'), `${id} has Universal Undo`);
+  }
   assert.doesNotMatch(source('src/tools/shared/RegisteredToolWorkView.jsx'), /undo:\s*true|undo:\s*descriptor/);
-  for (const id of ['parabolaGeometryLab', 'functionOperationsLab', 'openSortBoard']) {
-    assert.equal(WORK_VIEW_INVENTORY[id].capabilities.includes('undo'), false, `${id} does not advertise inert Undo`);
-  }
+});
+
+test('the inverse derivation lab has one Undo: the platform one', () => {
+  // It had its own Undo beside the work bar's permanently greyed one.
+  const lab = executableSource(source('src/tools/inverseComposition/InverseDerivationLab.jsx'));
+  assert.match(lab, /useMathUndoHistory\(\{/);
+  assert.match(region(lab, 'const undoState = useMemo(', ';', 'the recorded state'), /derivation, operation, operand/);
+  assert.doesNotMatch(lab, />\s*(?:↶\s*)?Undo\s*</, 'no local Undo button');
+  assert.doesNotMatch(lab, /'undo'\)/, 'no second history popped by a local button');
 });
 
 test('nested coordinate graphs automatically defer to the activity Work View', () => {

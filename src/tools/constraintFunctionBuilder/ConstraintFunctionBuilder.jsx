@@ -2,10 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { useOwnHintLadder, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import constraintFunctionGrader from '../../../functions/shared/serverGrading/tools/constraintFunctionBuilder.mjs';
@@ -51,7 +51,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const [model, setModel] = usePersistentToolState('model', initial);
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
-  const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own: hints allowed, and no platform ladder to hand
+  // them to (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
   // The checklist reads the AUTHORED wording, exactly as the grader does: a
   // translated prompt never changes which constraints are checked.
   const effectiveConstraints = useMemo(
@@ -126,11 +128,13 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     undo: undoHistory.capability,
     numericControls: { label: 'Family and parameters', studentState: true },
     equationInput: { label: builderEquation(model), studentState: true },
-    instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
+    // The controls and the finish line, no route (W6-4): kept on a DOL.
+    instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.', controlsOnly: true },
     task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
     // The hints ARE this Help: published only where the activity allows them,
-    // so a DOL does not show a Help button over an empty drawer.
-    help: hintsAllowed ? {
+    // so a DOL does not show a Help button over an empty drawer — and only
+    // where the host has no hint ladder, which is otherwise the Help (HELP-10).
+    help: ownHintLadder ? {
       content: (
         <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
       ),
@@ -143,13 +147,17 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
       <TaskCard
         question={questionData}
         task="Choose a family and adjust its parameters until the graph satisfies every constraint. Then submit your constructed model."
+        // Each step marked (student pass 3, W6-4). Choosing and setting the
+        // family's parameters, and submitting, name the controls: kept on an
+        // exit ticket, quiz or test. Ruling families out from the
+        // characteristics, and how to read the checklist, are the method.
         steps={[
           'Read the characteristics first — identify which families are even possible.',
-          'Choose a family, then adjust the coefficients/parameters while watching the graph update.',
+          controlStep('Choose a family, then adjust the coefficients/parameters while watching the graph update.'),
           showImmediateFeedback !== false
             ? 'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.'
             : 'Use the constraint checklist as your target: every characteristic on it must be true of your model. It is checked when you submit.',
-          'Submit when every constraint is satisfied.',
+          controlStep('Submit when every constraint is satisfied.'),
         ]}
       />
 
@@ -209,7 +217,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
               cursor: hasEdited ? 'pointer' : 'not-allowed',
             }}
           >
-            Submit this model
+            <SubmitText>Submit this model</SubmitText>
           </button>
           {!hasEdited && (
             <div style={{ marginTop: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'center' }}>

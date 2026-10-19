@@ -28,6 +28,10 @@
  * callable is not proven reachable, the path-admin codebase, rules and Hosting
  * are NOT deployed: the new client may call code that is not there, or that it
  * cannot reach. The report says exactly what to re-run.
+ * A functions step planned after the checks (`afterChecks`,
+ * releasePlan.mjs#DEPLOY_LAST_FUNCTIONS) deploys only when every function
+ * shipped and both checks passed. Otherwise it is held, even with
+ * --continue-after-function-failure, which is about rules and Hosting.
  */
 
 import {
@@ -60,6 +64,8 @@ export const executeReleasePlan = async ({
 }) => {
   const results = [];
   const failedFunctions = [];
+  // Functions planned after the checks that did not deploy because the checks did not pass.
+  const heldFunctions = [];
   const queue = steps.map((step) => ({ ...step }));
   let stoppedBeforeTargets = null;
   let previousWasFunctions = false;
@@ -82,9 +88,17 @@ export const executeReleasePlan = async ({
     const isAccess = step.target === ACCESS_FUNCTIONS;
     const functionsUnproven = failedFunctions.length > 0 || verification?.status === 'failed' || access?.status === 'failed';
 
+    if (isFunctions && step.afterChecks
+      && (failedFunctions.length > 0 || verification?.status !== 'passed' || access?.status !== 'passed')) {
+      heldFunctions.push(...step.group);
+      log(`${step.label}: holding ${step.group.join(', ')}; it ships only after every other function is proven to serve this commit.`);
+      continue;
+    }
+
     if (!isFunctions && functionsUnproven && !continueAfterFunctionFailure) {
       queue.unshift(step);
       skipVerification(`${failedFunctions.length} function(s) did not deploy`);
+      heldFunctions.push(...queue.filter((next) => next.target === RELEASE_TARGETS.FUNCTIONS).flatMap((next) => next.group || []));
       const held = queue.map((next) => next.target).filter((target) => !notDeployTarget(target));
       stoppedBeforeTargets = held.length ? held : null;
       const before = held.length ? ` before ${held.join(', ')}` : '';
@@ -206,13 +220,14 @@ export const executeReleasePlan = async ({
     skipVerification(`${step.target} failed`);
     stoppedBeforeTargets = queue.map((next) => next.target).filter((target) => target !== VERIFY_FUNCTIONS && target !== ACCESS_FUNCTIONS);
     log(`${step.label} failed (${lastFailure}); stopping.`);
-    return { ok: false, results, failedFunctions, verification, access, failedStep: step.target, stoppedBeforeTargets };
+    return { ok: false, results, failedFunctions, heldFunctions, verification, access, failedStep: step.target, stoppedBeforeTargets };
   }
 
   return {
-    ok: failedFunctions.length === 0 && verification?.status !== 'failed' && access?.status !== 'failed' && !stoppedBeforeTargets,
+    ok: failedFunctions.length === 0 && heldFunctions.length === 0 && verification?.status !== 'failed' && access?.status !== 'failed' && !stoppedBeforeTargets,
     results,
     failedFunctions,
+    heldFunctions,
     verification,
     access,
     failedStep: null,

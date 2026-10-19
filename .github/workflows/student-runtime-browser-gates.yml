@@ -19,17 +19,41 @@ name: Student Runtime Browser Gates
 #                       names a wrong point; a point plot is graded as placed
 #   undoTyping          one platform Undo takes back a run of typing, not one
 #                       character; a math field's own Ctrl+Z agrees with it
+#   toolFocusAndUndo    every tool that gained Universal Undo (pass 3, TOOL-2)
+#                       walks back to exactly what the student had, after a
+#                       reload too, and never makes an attempt; a button that
+#                       disables or removes itself never throws focus to the
+#                       page (A11Y-2); the Regression Calculator's how-to and
+#                       zoom (TOOL-9)
 #   composedOutcomePolicy  a multi-step question on a DOL, quiz or test reveals
 #                       nothing in any step (registry-tool steps, table->graph,
 #                       "Your graph"), while practice keeps its feedback
 #   toolPolicyGates     registry tools: no stage verdict and no hint where the
 #                       activity withholds them; hints reveal and record
+#   workViewHelpReach   on a 390x844 phone Work View's Help holds the tool's
+#                       steps, "Show a hint" and "Ask my teacher"; on a DOL it
+#                       holds Ask and no hint, no method card (TOOL-3, R-10)
 #   relationPlotGrading a correct relation plot is graded correct, either way
 #                       round for same-x cards; a DOL plot has no check
 #   mathFontsProduction a PRODUCTION build serves the fonts its math fields
 #                       draw with (the dev server hid that they were missing)
 #   toolAttemptOutcome  after a tool's Check the attempt outcome is beside its
 #                       verdict, on screen, announced once; none on a DOL (PQ-022)
+#   assignmentGraphingCalculator  an assignment's calculator setting reaches the
+#                       student: "graphing" opens a graphing calculator (enter
+#                       f(x), trace, zeros, min, max) from the work bar and over
+#                       Work View, records calculatorUsed, never submits on
+#                       Enter; an exit ticket keeps the stricter rule; secure
+#                       items and no setting unchanged (pass 3, PR-25/PR-26)
+#   figureDescriptions  number lines, the 3D planes, the static question graph,
+#                       the legacy graph workspace and the story sketch say what
+#                       they show in the accessibility tree, follow the student's
+#                       changes, and name nothing that answers a DOL (pass 3, Q-8);
+#                       on a phone Undo and Reset keep their word (A11Y-10)
+#   mathKeypadToolbar   MathInput's keypads are one Tab stop each: arrows, Home,
+#                       End, named keys, focus back to the field (pass 3, PR-27)
+#   workViewReference   "Information you need" is in Work View: its own drawer,
+#                       inside Task on a phone, on a DOL too (pass 3, TOOL-12)
 #   assessmentLeakGates nothing before Submit says whether work is right on a
 #                       DOL, quiz or test (systems, inequalities, intercepts,
 #                       relation solver, constraint builder); practice unchanged
@@ -44,7 +68,15 @@ name: Student Runtime Browser Gates
 #                       is it a factor) opens on "Choose…" and earns nothing
 #                       unanswered
 #   graphKeyboardRoute  the graph workspace's analysis fields are named by their
-#                       part, and its keyboard route offers only what is there
+#                       part, and its keyboard route offers only what is there;
+#                       a function graph and its inverse are finished by
+#                       keyboard alone with "Connect my points" (TOOL-1)
+#   planePhoneReach     on a phone the plane's text renders at 12 px or more, a
+#                       press beside a point picks it up, and a third point keeps
+#                       the line (pass 3, TOOL-11)
+#   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
+#                       targets keep keyboard focus when they disable themselves
+#                       (pass 3, A11Y-2)
 #   stagedQuestion      every step of a staged graph question, reached as a
 #                       student reaches it on six screens: its question and its
 #                       answer control on screen together, a plane big enough
@@ -62,6 +94,12 @@ name: Student Runtime Browser Gates
 #                       Family version, a Path-style template) is graded by one
 #                       rule for every student: lowest terms or the key's own
 #                       form, never the fraction the question showed (B-57)
+#   moduleRecoveryLock  a closed question stays closed after its module fails:
+#                       "Start this question fresh" can be pressed, and the
+#                       fresh module, or the next item under one engine (My
+#                       Math Path's mount, items with no id), closes again
+#   closedQuestionEnter on a closed question Enter goes on only from the page:
+#                       a summary, a button or an ARIA widget keeps its Enter
 
 on:
   pull_request:
@@ -78,21 +116,33 @@ on:
       - "tests/browser/algebra1Module2Topic2*"
       - "teacher-import-jsons/algebra1-module2-topic2/**"
       - "tests/browser/undoTyping*"
+      - "tests/browser/toolFocusAndUndo*"
       - "tests/browser/composedOutcomePolicy*"
       - "tests/browser/toolPolicyGates*"
+      - "tests/browser/hintsThatFit*"
+      - "tests/browser/workViewHelpReach*"
       - "tests/browser/relationPlotGrading*"
       - "tests/browser/mathFontsProduction.mjs"
       - "tests/browser/toolAttemptOutcome*"
       - "tests/browser/assessmentLeakGates*"
+      - "tests/browser/assignmentGraphingCalculator*"
       - "tests/browser/systemsWorkspaceStudio*"
       - "tests/browser/relationWorkspaceDriver.mjs"
       - "tests/browser/clickMapLetterbox*"
+      - "tests/browser/figureDescriptions*"
+      - "tests/browser/mathKeypadToolbar*"
+      - "tests/browser/workViewReference*"
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
+      - "tests/browser/planePhoneReach*"
+      - "tests/browser/focusSafeToolControls*"
       - "tests/browser/composedDraftRestore*"
       - "tests/browser/draftEditTime.mjs"
       - "tests/browser/fractionTemplateGrading*"
+      - "tests/browser/moduleRecoveryLock*"
+      - "tests/browser/closedQuestionEnter*"
+      - "tests/browser/feedbackTeaches*"
       - "tests/browser/draftPersistence*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
@@ -167,6 +217,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/undoTyping.mjs
+      - name: Every tool's Undo, and no press throws focus to the page
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolFocusAndUndo.mjs
       - name: A composed question follows the feedback policy in every step
         if: always()
         env:
@@ -179,6 +235,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolPolicyGates.mjs
+      - name: Hints that fit — a teacher's quoted hint is shown, the fallback fits and points to Ask, a DOL offers neither
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/hintsThatFit.mjs
+      - name: Work View Help reaches the steps, the hints and Ask on a phone; a DOL shows no hint and no method
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workViewHelpReach.mjs
       - name: Relation plots are graded by their points
         if: always()
         env:
@@ -197,6 +265,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assessmentLeakGates.mjs
+      - name: An assignment's calculator setting reaches the student (graphing calculator)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/assignmentGraphingCalculator.mjs
       - name: The inequality workspace takes a student through every step without hunting
         if: always()
         env:
@@ -227,6 +301,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphKeyboardRoute.mjs
+      - name: On a phone, plane text is readable and a missed drag keeps the line
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planePhoneReach.mjs
+      - name: Self-disabling tool controls keep keyboard focus
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/focusSafeToolControls.mjs
       - name: A composed question with a graph step survives a Chromebook swap
         if: always()
         env:
@@ -245,6 +331,36 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/fractionTemplateGrading.mjs
+      - name: A closed question stays closed after its module fails
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/moduleRecoveryLock.mjs
+      - name: Enter on a closed question goes on only from the page
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/closedQuestionEnter.mjs
+      - name: Figures say what they show, from the accessibility tree
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/figureDescriptions.mjs
+      - name: Each math keypad is one Tab stop
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathKeypadToolbar.mjs
+      - name: Information you need stays reachable in Work View
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workViewReference.mjs
       - name: A production build serves the math fonts
         if: always()
         env:

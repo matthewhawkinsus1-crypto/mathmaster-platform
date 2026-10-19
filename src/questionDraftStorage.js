@@ -1,5 +1,5 @@
 import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js';
-import { reportDraftSaveProblem, clearDraftSaveProblem, DRAFT_SAVE_PROBLEM } from './platform/persistence/draftSaveHealth.js';
+import { reportDraftSaveProblem, clearDraftSaveProblem, clearDraftSaveProblemsForFamily, DRAFT_SAVE_PROBLEM } from './platform/persistence/draftSaveHealth.js';
 import {
   fieldRecordDraftKind,
   fieldRecordGroups,
@@ -655,6 +655,9 @@ export const readQuestionDraftFamily = (prefix) => {
 export const removeQuestionDraftFamily = (prefix) => {
   if (!prefix) return;
   forgetPageView((key) => key === prefix || key.startsWith(`${prefix}:`));
+  // The work is gone on purpose (a new problem, a finished session): nothing
+  // of it is still waiting to be saved.
+  clearDraftSaveProblemsForFamily(prefix);
   if (!storageAvailable()) return;
   try {
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
@@ -699,6 +702,9 @@ export const resetQuestionDraftFamily = (prefix) => {
   // The student (or teacher) asked for this: the reset is the newest thing
   // that happened to every one of these drafts, wherever they were last edited.
   keys.forEach((key) => writeQuestionDraft(key, null, { edit: true }));
+  // Started over: the work that could not be saved is gone on purpose, and a
+  // tombstone this device could not store is not the student's work either.
+  clearDraftSaveProblemsForFamily(prefix);
   return keys.size;
 };
 
@@ -791,6 +797,7 @@ export const removeAssignmentDrafts = ({ studentId, assignmentId }) => {
   const assignmentPart = normalizeKeyPart(assignmentId || 'assignment');
   const prefix = `${DRAFT_PREFIX}:${studentPart}:${assignmentPart}:`;
   forgetPageView((key) => key.startsWith(prefix));
+  clearDraftSaveProblemsForFamily(prefix.slice(0, -1));
   if (!storageAvailable()) return;
   try {
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {

@@ -15,11 +15,20 @@
  * So those two fields are stored as ONE canonical JSON string each
  * (`privateGradingJson`, `toolJson`) — the same choice the durable tool
  * response contract made for student work — and decoded where they are read.
- * Every other field of the item is untouched, and a document written before
- * this encoding (plain `privateGrading`/`tool`) reads back exactly as it was.
+ * A document written before this encoding (plain `privateGrading`/`tool`)
+ * reads back exactly as it was.
+ *
+ * ANY OTHER TOP-LEVEL FIELD THAT NESTS ARRAYS IS STORED THE SAME WAY. An item
+ * spreads its whole authored question onto the document, and authored content
+ * nests arrays too: a 3×3 RREF item's `matrix.rows` (Algebra II A2.3B), a
+ * table stimulus's rows, a regression item's `points`. Such a field becomes
+ * `<field>Json` and its name is listed in `jsonEncodedFields`, so a reader
+ * decodes exactly the fields the writer encoded — never a field that merely
+ * happens to end in "Json". `privateGrading` and `tool` keep the form above
+ * (and are listed too), so documents written before this read back unchanged.
  *
  * ONLY A FIELD THAT NEEDS IT IS ENCODED: one holding an array inside an array.
- * Everything else — every field-graded item, every SAT/ACT/TSIA2/ASVAB item,
+ * Everything else — most field-graded items, every SAT/ACT/TSIA2/ASVAB item,
  * most tool items — is stored exactly as before, so a function instance that
  * predates the codec (a deploy window, a rollback) reads it the way it always
  * did.
@@ -37,6 +46,9 @@
  */
 
 const ENCODED_FIELDS = Object.freeze(["privateGrading", "tool"]);
+
+/** Names every field a document stores as `<field>Json`. Decoded, then dropped. */
+const ENCODED_FIELD_LIST = "jsonEncodedFields";
 
 /** What an encoded item's `privateGrading` reads as to code that predates the codec. */
 const ENCODED_GRADING_STAND_IN = Object.freeze({ pathToolId: "__stored_as_json__", fields: Object.freeze([null]) });
@@ -57,13 +69,20 @@ function holdsNestedArray(value, insideArray = false, depth = 0) {
 function storableItem(item) {
   if (!isObject(item)) return item;
   const stored = { ...item };
-  ENCODED_FIELDS.forEach((field) => {
-    if (holdsNestedArray(stored[field])) {
-      stored[`${field}Json`] = JSON.stringify(stored[field]);
-      if (field === "privateGrading") stored[field] = { ...ENCODED_GRADING_STAND_IN, fields: [null] };
-      else delete stored[field];
-    }
+  // Storing an item that is already stored keeps what it already encoded.
+  const encoded = Array.isArray(item[ENCODED_FIELD_LIST]) ? [...item[ENCODED_FIELD_LIST]] : [];
+  Object.keys(item).forEach((field) => {
+    if (field === ENCODED_FIELD_LIST || !holdsNestedArray(item[field])) return;
+    const key = `${field}Json`;
+    // Never overwrite a field the item already has under that name: storing
+    // would silently lose it. Refusing is the same outcome Firestore gave.
+    if (Object.prototype.hasOwnProperty.call(item, key)) throw new Error(`secureItemStorage: cannot encode "${field}", the item already has "${key}".`);
+    stored[key] = JSON.stringify(item[field]);
+    if (field === "privateGrading") stored[field] = { ...ENCODED_GRADING_STAND_IN, fields: [null] };
+    else delete stored[field];
+    if (!encoded.includes(field)) encoded.push(field);
   });
+  if (encoded.length) stored[ENCODED_FIELD_LIST] = encoded;
   return stored;
 }
 
@@ -71,7 +90,11 @@ function storableItem(item) {
 function readStoredItem(item) {
   if (!isObject(item)) return item;
   const read = { ...item };
-  ENCODED_FIELDS.forEach((field) => {
+  const listed = Array.isArray(read[ENCODED_FIELD_LIST]) ? read[ENCODED_FIELD_LIST].filter((field) => typeof field === "string") : [];
+  delete read[ENCODED_FIELD_LIST];
+  // `privateGrading`/`tool` are decoded unlisted too: documents written before
+  // the list existed carry their `…Json` without it.
+  [...new Set([...ENCODED_FIELDS, ...listed])].forEach((field) => {
     const key = `${field}Json`;
     if (typeof read[key] !== "string") return;
     try {
@@ -86,4 +109,4 @@ function readStoredItem(item) {
   return read;
 }
 
-module.exports = { ENCODED_FIELDS, ENCODED_GRADING_STAND_IN, holdsNestedArray, readStoredItem, storableItem };
+module.exports = { ENCODED_FIELDS, ENCODED_FIELD_LIST, ENCODED_GRADING_STAND_IN, holdsNestedArray, readStoredItem, storableItem };

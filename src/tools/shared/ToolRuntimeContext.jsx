@@ -22,6 +22,13 @@ const DEFAULT_RUNTIME = {
   // see — the Work View Help drawer. QuestionEngine passes its hint recorder;
   // outside an activity there is nobody to tell.
   onHintUsed: null,
+  // ONE HINT LADDER PER QUESTION (student pass 3, HELP-10). Where the host
+  // carries the platform's hint ladder (QuestionEngine's 💡 Hint), a tool's
+  // HintPanel hands its rungs to it through this (toolHintChannel.js publish)
+  // and shows no ladder of its own: the platform's release rule and leak guard
+  // then apply to them. Null where the host has no ladder (the tools lab, a
+  // server-graded host), and the tool keeps its own panel.
+  publishHints: null,
   // THE PLATFORM'S OUTCOME FOR THE LATEST ATTEMPT, SHOWN BESIDE THE TOOL'S OWN
   // VERDICT (PQ-022; see attemptOutcomeSlots.js). `attemptOutcomeSlots` is the
   // registry a verdict area joins while mounted; `attemptOutcome` is
@@ -44,6 +51,14 @@ const DEFAULT_RUNTIME = {
   // the item. A secure host names the action ("Record answer"); null keeps
   // each tool's own wording everywhere else.
   submitLabel: null,
+  // WHAT THE TOOL'S FINAL ACTION COSTS, when it spends one of the question's
+  // tries (student pass 3, RUN-4; decision D9: "Submit" always spends a try,
+  // "Check" never does). QuestionEngine passes the phrase ("uses 1 of 3
+  // tries", "last try", "your only try") to a standalone registry tool, whose
+  // final action records an attempt; the tool's button then reads "Submit —
+  // uses 1 of 3 tries". A composed question's stage check records nothing, so
+  // it is given no cost and keeps its own "Check …". A host label wins.
+  submitCost: null,
   // WHETHER THE ACTIVITY WITHHOLDS VERDICTS, as the activity says it.
   //
   // `showImmediateFeedback` above is false for two different reasons: the
@@ -53,11 +68,20 @@ const DEFAULT_RUNTIME = {
   // equation it was applied to) needs only the first: on Corrections and My
   // Math Path practice it keeps its move coaching. Defaults to not withheld.
   verdictsWithheld: false,
+  // WHETHER A TEACHER IS THE ONE LOOKING (a lesson or test preview). Teacher
+  // policy copy, such as Step Algebra's "Support 3 · Standard" and its level
+  // sentence, is for them; a student reads student words or nothing (pass 3,
+  // Q-12). Defaults to a student, so no surface shows policy by accident.
+  teacherView: false,
+  // WHAT A HINT COSTS, in the host's words (HELP-17): the platform's sentence,
+  // or Recovery's own ("…this question then won't count toward unlocking").
+  // Null outside a question; the tool then says the platform's sentence.
+  hintCost: null,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, verdictsWithheld = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, publishHints = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, submitLabel = null, submitCost = null, verdictsWithheld = false, teacherView = false, hintCost = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -66,11 +90,15 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     // gives the policy field (`hintsAllowed !== false`).
     hintsAllowed: hintsAllowed !== false,
     onHintUsed: typeof onHintUsed === 'function' ? onHintUsed : null,
+    publishHints: typeof publishHints === 'function' ? publishHints : null,
     attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
     attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
     submitLabel: typeof submitLabel === 'string' && submitLabel.trim() ? submitLabel.trim() : null,
+    submitCost: typeof submitCost === 'string' && submitCost.trim() ? submitCost.trim() : null,
     verdictsWithheld: verdictsWithheld === true,
+    teacherView: teacherView === true,
+    hintCost: typeof hintCost === 'string' && hintCost.trim() ? hintCost.trim() : null,
   }}>
     {children}
   </ToolRuntimeContext.Provider>
@@ -82,12 +110,42 @@ export const useToolRuntimeContext = () => useContext(ToolRuntimeContext);
 // answer may be shown. Defaults to hidden outside a provider.
 export const useRevealAnswers = () => useContext(ToolRuntimeContext).revealAnswers === true;
 
+// Whether a teacher is the one looking (teacher policy copy is shown only
+// then). Defaults to a student outside a provider.
+export const useTeacherView = () => useContext(ToolRuntimeContext).teacherView === true;
+
 // Convenience for every hint affordance. Defaults to allowed outside a provider.
 export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;
 
-// The label of a tool's final Check action: the host's (a secure "Record
-// answer") where one is set, the tool's own everywhere else.
-export const useSubmitLabel = (ownLabel) => useContext(ToolRuntimeContext).submitLabel || ownLabel;
+// The label of a tool's final action: the host's (a secure "Record answer")
+// where one is set; "Submit — <cost>" where the action spends one of the
+// question's tries (D9); the tool's own everywhere else (a composed stage's
+// free check, the tools lab).
+export const useSubmitLabel = (ownLabel) => {
+  const { submitLabel, submitCost } = useContext(ToolRuntimeContext);
+  if (submitLabel) return submitLabel;
+  return submitCost ? `Submit — ${submitCost}` : ownLabel;
+};
+
+// The same words on a JSX button: <SubmitText>Check my sort</SubmitText>
+// reads "Submit — uses 1 of 3 tries" where that press spends a try, and the
+// tool's own words everywhere else.
+export const SubmitText = ({ children }) => useSubmitLabel(children);
+
+/*
+ * A tool's Work View rail carries its final action as `primaryActions`, under
+ * the tool's own words ("Check graph"). Where the host names that action or it
+ * spends a try, the rail says what the button says. An action that does not
+ * record an attempt opts out with `spendsTry: false`.
+ */
+export const relabelToolPrimaryActions = (capabilities, { submitLabel = null, submitCost = null } = {}) => {
+  if (!capabilities || typeof capabilities !== 'object' || (!submitLabel && !submitCost)) return capabilities;
+  const actions = capabilities.primaryActions;
+  if (!actions) return capabilities;
+  const label = submitLabel || `Submit — ${submitCost}`;
+  const relabel = (action) => (action && typeof action === 'object' && action.spendsTry !== false ? { ...action, label } : action);
+  return { ...capabilities, primaryActions: Array.isArray(actions) ? actions.map(relabel) : relabel(actions) };
+};
 
 // The host's label alone (null when the tool keeps its own), for a tool whose
 // wording around that action — a panel title — must not say "Check" either.
@@ -95,5 +153,28 @@ export const useHostSubmitLabel = () => useContext(ToolRuntimeContext).submitLab
 
 // The activity's hint recorder, or null. Defaults to null outside a provider.
 export const useHintUseReporter = () => useContext(ToolRuntimeContext).onHintUsed || null;
+
+// Where a tool's rungs go when the host carries the platform ladder, or null.
+export const useToolHintPublisher = () => useContext(ToolRuntimeContext).publishHints || null;
+
+// Whether a tool shows a hint ladder of its own: hints allowed, and no
+// platform ladder to hand them to. Every tool-owned hint surface (the panel,
+// a Work View Help that is only hints) reads this.
+export const useOwnHintLadder = () => {
+  const runtime = useContext(ToolRuntimeContext);
+  return runtime.hintsAllowed !== false && !runtime.publishHints;
+};
+
+// WHETHER THE TOOL MAY SHOW ITS METHOD (student pass 3, R-10).
+//
+// A TaskCard's "How to do this" steps are the method the item measures —
+// Matrix Lab's exit ticket listed the singular-matrix decision rule. Where the
+// activity withholds hints or verdicts (a DOL, quiz or test, a section
+// recovery), the method is withheld with them: only directions that say how
+// to work the controls stay. Defaults to shown outside a provider.
+export const useMethodWithheld = () => {
+  const runtime = useContext(ToolRuntimeContext);
+  return runtime.hintsAllowed === false || runtime.verdictsWithheld === true;
+};
 
 export default ToolRuntimeContext;

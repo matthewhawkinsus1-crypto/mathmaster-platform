@@ -476,12 +476,16 @@ if (wanted('practice')) {
     await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
     await page.waitForTimeout(600);
   };
-  // The first Warm-Up question as the question navigator states it.
-  const warmUp = (page) => page.evaluate(() => (
-    [...document.querySelectorAll('.mathmaster-question-number')]
+  // The first Warm-Up question as the question navigator states it. Since pass
+  // 3 the navigator starts compact; its question numbers are behind "Show
+  // progress", which this opens (once — it stays open).
+  const warmUp = (page) => page.evaluate(() => {
+    const toggle = document.querySelector('.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button');
+    if (toggle) toggle.click();
+    return [...document.querySelectorAll('.mathmaster-question-number')]
       .map((button) => button.getAttribute('aria-label') || '')
-      .find((label) => label.startsWith('Warm-Up question 1:')) || ''
-  ));
+      .find((label) => label.startsWith('Warm-Up question 1:')) || '';
+  });
   const showsWarmUp = async (page, pattern, ms = 6000) => {
     const deadline = Date.now() + ms;
     let label = await warmUp(page);
@@ -501,7 +505,7 @@ if (wanted('practice')) {
   const P = await openDevice('P practises');
   await openPractice(P.page);
   await typeInto(P.page, 0, '5');
-  await P.page.getByRole('button', { name: /^Submit Answer/ }).first().click();
+  await P.page.getByRole('button', { name: /^Submit — / }).first().click();
   await showsWarmUp(P.page, /: correct/);
   let rows = await savedPractice(P.page);
   for (let wait = 0; wait < 40 && !practiced(rows); wait += 1) {

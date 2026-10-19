@@ -486,8 +486,8 @@
           ],
           "hints": [
             "B has a row for each width and a column for each size.",
-            "Size 10E: width E is row 3, size 10 is column 1.",
-            "b₄₂ and b₂₄ are different elements: the first number is always the row."
+            "For size 10E, find width E down the side and size 10 across the top. Which row and which column are they?",
+            "In matrix notation the first number after b is always the row, and the second is the column."
           ]
         },
         {
@@ -685,7 +685,7 @@
           "hints": [
             "Compare the INNER numbers: columns of the first, rows of the second.",
             "If they match, the product has the OUTER numbers.",
-            "(4 × 1) · (1 × 4): the inner 1s match, so the product is 4 × 4."
+            "For example, (3 × 1) · (1 × 5): the inner 1s match, so the product is 3 × 5."
           ]
         },
         {
@@ -913,8 +913,8 @@
           },
           "hints": [
             "Is each equation of the form Ax + By + Cz = D?",
-            "Move 5z to the left side: 2x − 4y − 5z = −1.",
-            "Equation 2 becomes −x − 5y + 3z = 0."
+            "Equation 1 has 5z on the right side. When you move it to the left side, what happens to its sign?",
+            "Equation 2 has its y and z terms on the right and no constant. Move the terms to the left: what is left on the right side?"
           ]
         },
         {
@@ -972,6 +972,7 @@
           "dok": 3,
           "difficultyBand": 3,
           "prompt": "Nia solved this system with technology and got an error message: the coefficient matrix is noninvertible. Write the matrix equation, run the calculator, and decide what the error means for the system.",
+          "justifySingular": true,
           "equations": [
             "x + 2y - z = 1",
             "2x - 2y - z = 2",
@@ -1210,8 +1211,8 @@
             "-x + 2y = 12 + z"
           ],
           "hints": [
-            "5x = −4y becomes 5x + 4y + 0z = 0.",
-            "−x + 2y = 12 + z becomes −x + 2y − z = 12."
+            "In 5x = −4y, move the y term to the left side. Which variable is missing from this equation, and what is its coefficient?",
+            "In −x + 2y = 12 + z, move the z term to the left side and keep the constant on the right."
           ]
         },
         {
@@ -1310,6 +1311,7 @@
           "dok": 3,
           "difficultyBand": 3,
           "prompt": "Solve the system using technology with matrices. If the calculator cannot, decide why from the equations.",
+          "justifySingular": true,
           "equations": [
             "5x + y + 3z = 9",
             "-x - 2y - z = -16",
@@ -1391,7 +1393,7 @@
           },
           "hints": [
             "One equation counts baskets, one counts dollars, and one compares large and small baskets.",
-            "“Twice as many large as small”: z = 2x, which is 2x − z = 0 in standard form.",
+            "“Twice as many large as small” compares two of the variables. Which is twice which? Write that as an equation, then move every variable to the left side.",
             "Then press [A]⁻¹·[B]."
           ]
         },
@@ -1428,7 +1430,7 @@
             "z": "adult tickets"
           },
           "hints": [
-            "“The same number of student tickets as adult tickets”: y = z, or y − z = 0.",
+            "“The same number of student tickets as adult tickets” is an equation between two of the variables. Which two? Then move both to the left side.",
             "The money equation uses the three prices."
           ]
         },
@@ -1632,6 +1634,7 @@
           "dok": 3,
           "difficultyBand": 3,
           "prompt": "Write the matrix equation and use technology. Then classify the system.",
+          "justifySingular": true,
           "equations": [
             "x - 2y + 3z = 4",
             "2x + y - z = 1",

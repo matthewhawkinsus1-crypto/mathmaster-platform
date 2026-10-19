@@ -17,8 +17,9 @@ export default function UniversalUndoButton({ controller, disabled = false, styl
       style={style}
     >
       {/* Icon and word are separate so a phone's one-row bar can show the
-          icon alone; the word stays in the accessible name either way. */}
-      <span aria-hidden="true">↶</span><span className="mathmaster-action-label"> Undo</span>
+          icon alone; the word stays in the accessible name either way, and
+          under the icon as a caption there (A11Y-10: ↶ beside ↺). */}
+      <span aria-hidden="true">↶</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Undo</span>
     </button>
   );
 }

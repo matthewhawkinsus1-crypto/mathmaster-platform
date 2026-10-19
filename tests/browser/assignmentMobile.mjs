@@ -274,7 +274,7 @@ const ENLARGE = () => {
     return r.width > 0 && r.height > 0;
   };
   const opener = [...document.querySelectorAll('button')].filter(visible)
-    .find((el) => /enlarge/i.test(el.textContent || ''));
+    .find((el) => /enlarge|work view/i.test(el.textContent || ''));
   if (!opener) return { opener: false, opened: false };
   opener.click();
   return new Promise((resolve) => setTimeout(() => {

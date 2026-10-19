@@ -23,7 +23,12 @@ test('Escape in the panel closes it, in the capture phase, and returns focus', (
 
 test('the opener is captured when the panel opens, before focus moves into it', () => {
   const capture = region(source, "if (!isOpen || typeof document === 'undefined') return;", '}, [isOpen]);', 'opener capture');
-  assert.ok(source.indexOf("if (!isOpen || typeof document === 'undefined') return;") < source.indexOf('moveToMathfieldEnd'), 'declared before the effect that focuses the field');
+  // The effect that focuses the field on opening is the one that calls
+  // focus({ preventScroll: true }) (moveToMathfieldEnd also appears in the
+  // input handler, which repairs pasted text, so it is no landmark).
+  const focusOnOpen = region(source, 'const frame = window.requestAnimationFrame(() => {', 'return () => window.cancelAnimationFrame(frame);', 'focus on opening');
+  assert.match(focusOnOpen, /mathField\.focus\(\{ preventScroll: true \}\);/);
+  assert.ok(source.indexOf("if (!isOpen || typeof document === 'undefined') return;") < source.indexOf('const frame = window.requestAnimationFrame(() => {'), 'declared before the effect that focuses the field');
   assert.match(capture, /openerRef\.current = active && active !== document\.body && !panelRef\.current\?\.contains\(active\) \? active : null;/);
 });
 

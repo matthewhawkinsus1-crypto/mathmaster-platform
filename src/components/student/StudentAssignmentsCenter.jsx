@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
@@ -8,8 +8,10 @@ import {
   buildStudentAssignmentsCenter,
 } from '../../platform/student/studentAssignmentsCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
-import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { formatDateTime, formatRemainingTime, studentDueText } from '../../assignmentLifecycle';
 import { RecoveryInlineNotice } from './RecoveryOpportunities.jsx';
+import { readAssignmentsView, writeAssignmentsView } from '../../platform/student/assignmentsCenterMemory.js';
+import { SEE_RESULTS } from '../../platform/student/studentWords.js';
 
 /*
  * THE ASSIGNMENTS CENTER.
@@ -62,7 +64,8 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          {/* Under the screen's h1 with nothing between: h2 (NAV-23; it was an h3). */}
+          <h2 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h2>
           {/* Named as one thing, because it is one thing. A student who sees
               four stages listed as four assignments starts asking which of
               them counts. */}
@@ -77,7 +80,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
             </div>
           )}
           <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
-            Due {formatDateTime(row.dueAt)}
+            {studentDueText(row.dueAt)}
             {row.frozen
               ? ` · Closed ${formatDateTime(row.lateDueAt)}`
               : row.lifecycle?.isLate
@@ -141,7 +144,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
         )}
         {row.canViewResults && (
           <button type="button" style={control(!row.canContinue && !row.canRecover)} onClick={() => onOpenResult?.(row.assignmentId)}>
-            View Results
+            {SEE_RESULTS}
           </button>
         )}
         {row.canPractice && (
@@ -159,6 +162,10 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
   );
 }
 
+// The category tabs and the one panel they control (NAV-23).
+const ASSIGNMENTS_PANEL_ID = 'assignments-panel';
+const assignmentsTabId = (categoryId) => `assignments-tab-${categoryId}`;
+
 export default function StudentAssignmentsCenter({
   dashboard,
   gradeCenter,
@@ -175,9 +182,17 @@ export default function StudentAssignmentsCenter({
   studentId = null,
   onOpenRecovery = null,
 }) {
-  const [search, setSearch] = useState('');
-  const [periodId, setPeriodId] = useState(null);
-  const [category, setCategory] = useState(ASSIGNMENT_CATEGORY.ACTIVE);
+  // As the student left them, when they come Back (assignmentsCenterMemory.js).
+  const [remembered] = useState(() => readAssignmentsView(studentId));
+  const [search, setSearch] = useState(remembered.search || '');
+  const [periodId, setPeriodId] = useState(remembered.periodId || null);
+  const [category, setCategory] = useState(
+    Object.values(ASSIGNMENT_CATEGORY).includes(remembered.category) ? remembered.category : ASSIGNMENT_CATEGORY.ACTIVE,
+  );
+  useEffect(() => { writeAssignmentsView(studentId, { search, category, periodId }); }, [studentId, search, category, periodId]);
+  // On a phone the search and the marking period fold behind one button
+  // (NAV-13, index.css); a search in progress keeps them open.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const center = useMemo(() => buildStudentAssignmentsCenter({
     dashboard, gradeCenter, gradingPeriodSettings, search, periodId, category, recoveryByAssignment,
@@ -185,6 +200,19 @@ export default function StudentAssignmentsCenter({
 
   const { categories, activeCategory, activePeriodId, periodOptions, isSearching, visibleEntries, totalCount } = center;
   const activeGroup = categories.find((group) => group.id === activeCategory) || null;
+  // Left/Right (and Up/Down), Home and End select the neighbouring tab and
+  // move focus to it.
+  const moveBetweenTabs = (event) => {
+    const index = categories.findIndex((group) => group.id === activeCategory);
+    if (index < 0 || !categories.length) return;
+    const last = categories.length - 1;
+    const next = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const target = categories[(next + categories.length) % categories.length];
+    setCategory(target.id);
+    document.getElementById(assignmentsTabId(target.id))?.focus();
+  };
 
   return (
     <div
@@ -211,7 +239,40 @@ export default function StudentAssignmentsCenter({
           </p>
         </header>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {/* Phone only (index.css): one row instead of two until the student
+            asks for the search. Laptops always show the search and period. */}
+        <button
+          type="button"
+          className="mm-assignments-filters__toggle"
+          aria-expanded={filtersOpen || Boolean(search)}
+          aria-controls="assignments-filters"
+          onClick={() => {
+            if (search) return; // a search in progress stays open
+            const opening = !filtersOpen;
+            setFiltersOpen(opening);
+            if (opening && typeof window !== 'undefined') {
+              window.requestAnimationFrame(() => document.getElementById('assignments-search')?.focus());
+            }
+          }}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            width: '100%', minHeight: MIN_TOUCH_TARGET_PX, marginBottom: 12, padding: '9px 13px',
+            borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
+            fontWeight: 800, fontSize: 'calc(14 * var(--mm-px))', textAlign: 'left', cursor: 'pointer',
+            justifyContent: 'space-between', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+            <span aria-hidden="true">🔍 </span>Search · {periodOptions.find((option) => option.id === activePeriodId)?.label || 'All marking periods'}
+          </span>
+          <span aria-hidden="true">{filtersOpen || search ? '▴' : '▾'}</span>
+        </button>
+        <div
+          id="assignments-filters"
+          className="mm-assignments-filters"
+          data-open={filtersOpen || Boolean(search) ? 'true' : 'false'}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}
+        >
           <label htmlFor="assignments-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             Search assignments
           </label>
@@ -258,15 +319,21 @@ export default function StudentAssignmentsCenter({
             {visibleEntries.length} result{visibleEntries.length === 1 ? '' : 's'} across every tab and marking period.
           </p>
         ) : (
-          <div role="tablist" aria-label="Assignment categories" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          // Real tabs (NAV-23): each controls the one panel below; the selected
+          // tab is the one Tab stop, and the arrow keys, Home and End move
+          // between them (and select, as the pattern's automatic activation).
+          <div role="tablist" aria-label="Assignment categories" onKeyDown={moveBetweenTabs} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {categories.map((group) => {
               const active = group.id === activeCategory;
               return (
                 <button
                   key={group.id}
+                  id={assignmentsTabId(group.id)}
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-controls={ASSIGNMENTS_PANEL_ID}
+                  tabIndex={active ? 0 : -1}
                   onClick={() => setCategory(group.id)}
                   style={{
                     appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
@@ -284,6 +351,11 @@ export default function StudentAssignmentsCenter({
           </div>
         )}
 
+        <div
+          id={ASSIGNMENTS_PANEL_ID}
+          role={isSearching ? undefined : 'tabpanel'}
+          aria-labelledby={isSearching ? undefined : assignmentsTabId(activeCategory)}
+        >
         {!isSearching && activeGroup?.hint && (
           <p style={{ margin: '0 0 12px', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
         )}
@@ -309,6 +381,7 @@ export default function StudentAssignmentsCenter({
             />
           ))
         )}
+        </div>
 
         <BuildStamp />
       </div>

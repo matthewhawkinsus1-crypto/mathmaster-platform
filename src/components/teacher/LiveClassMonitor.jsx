@@ -10,8 +10,10 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentSpotlightView from './StudentSpotlightView.jsx';
 import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
+import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
+import { dolExtraTimeForClass } from '../../platform/teacher/dolExtraTimeRoster.js';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
 import {
   assignmentIsForStudent,
@@ -175,6 +177,8 @@ function StudentTile({
   onSpotlight = null,
   classPoints = null,
   showStudentId = true,
+  // "Seen" / "On my way" for a raised hand (HelpAcknowledgeControls.jsx).
+  teacherEmail = '',
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   // One line for assistive tech: the name, or "Name unavailable · ID 101410".
@@ -270,6 +274,9 @@ function StudentTile({
           {integritySignal && <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
         </div>
       )}
+      {!roomMode && row.flags.includes(LIVE_FLAGS.HELP_REQUESTED) && (
+        <HelpAcknowledgeControls studentId={row.id} live={live} teacherEmail={teacherEmail} />
+      )}
 
       {onSupportAction && (row.flags.length > 0 || integritySignal) && !roomMode && (
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(95,99,104,.18)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -311,7 +318,7 @@ function withClassworkStates(roster, selectedAssignment, progressPositions) {
   });
 }
 
-function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) {
+function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null, teacherEmail = '' }) {
   const style = WALKTHROUGH_STYLE[row.status] || WALKTHROUGH_STYLE[WALKTHROUGH_STATUS.ELSEWHERE];
   const attendanceMark = normalizeLiveAttendance(row.attendance).mark;
   return (
@@ -354,6 +361,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
           <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
         )}
       </div>
+      {row.helpRequested && <HelpAcknowledgeControls studentId={row.id} live={row.live} teacherEmail={teacherEmail} />}
     </div>
   );
 }
@@ -939,10 +947,17 @@ export default function LiveClassMonitor({
         const timers = [];
         if (warmup.status === 'active' && warmup.endsAt) timers.push({ kind: 'Warm-Up', assignment, endsAt: warmup.endsAt, remaining: warmup.millisecondsRemaining });
         if (dol.status === 'active' && dol.endsAt) timers.push({ kind: 'DOL', assignment, endsAt: dol.endsAt, remaining: dol.millisecondsRemaining });
+        // Students whose extra time (decision D7) keeps their DOL open past the
+        // class's. Never on the projector: it would tell the room who has an
+        // accommodation.
+        const extraTime = projecting ? null : dolExtraTimeForClass({ assignment, schedule: classSchedule, classContext: timerContext, roster: monitoredRoster, nowValue });
+        if (extraTime) {
+          timers.push({ kind: 'DOL extra time', assignment, endsAt: extraTime.endsAt, remaining: extraTime.millisecondsRemaining, students: extraTime.students });
+        }
         return timers;
       })
       .sort((left, right) => Number(left.remaining || 0) - Number(right.remaining || 0));
-  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue]);
+  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue, projecting, monitoredRoster]);
 
   const suggestions = useMemo(() => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }), [visibleRows, learningProfilesByStudentId]);
   const integrityByStudentId = useMemo(() => Object.fromEntries(
@@ -1172,9 +1187,15 @@ export default function LiveClassMonitor({
       {activeSectionTimers.length > 0 && (
         <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
-          {activeSectionTimers.map(({ kind, assignment, endsAt }) => {
-            const isDol = kind === 'DOL';
-            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
+          {activeSectionTimers.map(({ kind, assignment, endsAt, students: extraTimeStudents }) => {
+            const isDol = kind !== 'Warm-Up';
+            const label = extraTimeStudents
+              ? `${kind} · ${extraTimeStudents.length} ${extraTimeStudents.length === 1 ? 'student' : 'students'}`
+              : kind;
+            const title = extraTimeStudents
+              ? `${assignment.title || 'DOL'}: still working with extra time — ${extraTimeStudents.map((student) => student.name).join(', ')}`
+              : assignment.title || kind;
+            return <span key={`${assignment.id}:${kind}`} data-dol-extra-time={extraTimeStudents ? extraTimeStudents.length : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={title}>{label} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
         </div>
       )}
@@ -1256,7 +1277,7 @@ export default function LiveClassMonitor({
               <div style={{ padding: 18, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nobody is in this group right now.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: 10 }}>
-                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} />)}
+                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} teacherEmail={teacherEmail} />)}
               </div>
             )}
           </div>
@@ -1283,6 +1304,7 @@ export default function LiveClassMonitor({
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
               classPoints={classPointsForRow(row)}
+              teacherEmail={teacherEmail}
             />
           ))}
         </div>

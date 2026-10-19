@@ -20,6 +20,10 @@ name: Student and Teacher Journeys
 #                          every Grade Export file — update, re-export, new
 #                          lesson — then carries the corrected ID; a second
 #                          student cannot take it; she signs in as before)
+#   extra time on the DOL  tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
+#                          (D7: a student with extra time keeps working after
+#                          the class's DOL closed and reads their own close;
+#                          a classmate's is closed; Live view lists who)
 #   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 #                          (its own job: one own-controls listener per student,
 #                          one class listener per teacher; a shared Chromebook
@@ -67,12 +71,24 @@ name: Student and Teacher Journeys
 #                          the server accepts the answer; Warm-Up and DOL stay
 #                          shut; without it the lesson still opens later)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
+#   submit and finish      tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
+#                          (its own job: Submit names the try it spends, the
+#                          last try and one try; the save line calls a draft a
+#                          draft and an answer an answer, also after a reload,
+#                          and its live region stays silent unless the student
+#                          must act; finishing lands on the results page; a
+#                          skipped question is the way back; Enter and focus
+#                          after a closed question; Chromebook and phone)
 #   real URLs              tests/browser/teacherWorkflow/appUrlJourneys.mjs
 #                          (its own job: refresh on every student screen and
 #                          question, Back/Forward Home -> question -> Grades,
 #                          a deep link through sign-in, another class's or
 #                          student's address shows nothing, Log Out returns
 #                          to /, a teacher's tab and monitor; desktop, phone)
+#   screen changes         tests/browser/teacherWorkflow/studentScreenChange.mjs
+#                          (same job: focus and the spoken name on a screen
+#                          change, one main per screen, Back by origin, the
+#                          one-row phone nav, Assignments' filters kept)
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
 # nightly and on demand. Read-only: this workflow writes nothing back.
@@ -90,6 +106,7 @@ on:
       - "tests/browser/warmupReopenDraft*"
       - "tests/browser/familyPinContainment*"
       - "tests/browser/feedbackTeaches*"
+      - "tests/browser/readAloudTranslate*"
       - "tests/browser/reviewMyWork*"
       - "package.json"
       - "package-lock.json"
@@ -157,6 +174,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/prerequisiteEarlyJourneys.mjs
+      - name: Extra time on the exit ticket (D7) — the student's own window, and the teacher's Live view
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
@@ -205,6 +227,28 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1440x900,390x844"
         run: node tests/browser/teacherWorkflow/districtIdJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. One journey,
+  # 1366x768 and 390x844.
+  submit-and-finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Submit names its cost, the save line tells draft from answer, finishing lands on the results
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit, and these journeys
   # run every device size in both storage states (mirrored, retired).
@@ -284,6 +328,15 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1366x768,390x844"
         run: node tests/browser/teacherWorkflow/appUrlJourneys.mjs
+      # Student pass 3 (NAV-3, NAV-9, NAV-13, NAV-15): focus and the spoken
+      # name on every screen change, one main per screen, Back by origin,
+      # the one-row phone nav, Assignments' filters kept for Back.
+      - name: Screen changes, landmarks and the phone nav
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/studentScreenChange.mjs
 
   student:
     runs-on: ubuntu-latest
@@ -339,6 +392,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackTeaches.mjs
+      # Read aloud says the whole question (choices, matrices, parts heard
+      # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
+      - name: Read aloud and Translate (heard and seen)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/readAloudTranslate.mjs
       # Review My Work on a closed assignment (answers, outcomes, worked solutions).
       - name: Review My Work
         if: always()

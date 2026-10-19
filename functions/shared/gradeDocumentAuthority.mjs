@@ -81,14 +81,17 @@ export const GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE = Object.freeze([
  * EVERYTHING A ROW A STUDENT CREATES FOR THEMSELVES MAY CONTAIN.
  *
  * The update rule's allow-list, for the one moment there is no prior document
- * to diff against: the roster placement a student create has always carried
- * (pinned by the update rule from then on), the support-profile slot (which
- * must be empty), the client-owned engagement field, and the grade maps above
- * (which must be empty). Any other field — a projection added later, a
- * misspelling, a name nothing reads yet — is refused on create too.
+ * to diff against: `status`, the support-profile slot (which must be empty),
+ * the client-owned engagement field, and the grade maps above (which must be
+ * empty). Any other field — a projection added later, a misspelling, a name
+ * nothing reads yet — is refused on create too.
+ *
+ * Roster placement (classId, classPeriod, assignedTeacherEmail) is NOT here:
+ * it authorizes reads (a class's assignments, a teacher's roster), and only the
+ * Admin SDK callables place a student. No client creates its own row.
  */
 export const STUDENT_CREATE_FIELDS = Object.freeze([
-  'classId', 'classPeriod', 'assignedTeacherEmail', 'status', 'profile',
+  'status', 'profile',
   ...STUDENT_CLIENT_OWNED_GRADE_FIELDS,
   ...GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE,
 ]);

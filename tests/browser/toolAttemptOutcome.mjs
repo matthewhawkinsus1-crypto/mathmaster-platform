@@ -24,6 +24,13 @@
 //   literal   an ordinary question keeps the engine's box — exactly one.
 //   dol, quiz, test  nothing about correctness or attempts appears anywhere,
 //             in the tool or below it, until feedback is released.
+//   offers    (student pass 3, HELP-7 / A11Y-1) the live region also says the
+//             tool's own coaching, and from the second miss offers the hint
+//             the platform has ready, which opens the hint panel.
+//   plotting  on Graphing, Enter on the plane says what it plotted, the count,
+//             and which point a third plot replaced (since pass 3, TOOL-11, the
+//             nearest one — the line is no longer restarted); Check's coaching
+//             ("…other one is not…") is said with the outcome.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -43,7 +50,8 @@ const DEVICES = {
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
 const run = Date.now();
-const OUTCOME = /attempts? remaining on this version|final allowed attempt|Correct! This question is complete/;
+// The engine's words (student pass 3, D9): "tries", never "attempts … on this version".
+const OUTCOME = /You have \d tr(?:y|ies) left|That was your (?:last|only) try|Correct! This question is complete/;
 
 const open = async (device, role, tool, prior = 0) => {
   const context = await browser.newContext(DEVICES[device]);
@@ -59,7 +67,8 @@ const open = async (device, role, tool, prior = 0) => {
 const attemptWrong = async (page, tool) => {
   if (tool === 'board') {
     // Submit the board with its parts still empty; it asks first.
-    const submitBoard = page.getByRole('button', { name: 'Submit board' });
+    // The board's Submit says its cost (student pass 3, D9): "Submit — uses 1 of 3 tries".
+    const submitBoard = page.getByRole('button', { name: /^Submit — / }).first();
     await submitBoard.scrollIntoViewIfNeeded();
     await submitBoard.click();
     const anyway = page.getByRole('button', { name: 'Submit anyway' });
@@ -104,7 +113,7 @@ const outcomeState = (page) => page.evaluate((source) => {
   const pattern = new RegExp(source);
   const shell = document.querySelector('.mathmaster-tool-shell');
   const submit = shell?.querySelector('button[data-mm-enter-action="submit"], button[data-primary-answer-action="true"]')
-    || [...(shell?.querySelectorAll('button') || [])].find((button) => (button.textContent || '').trim() === 'Submit board')
+    || [...(shell?.querySelectorAll('button') || [])].find((button) => /^Submit — /.test((button.textContent || '').trim()))
     || document.querySelector('button.mathmaster-bar-submit');
   const visible = (element) => {
     const rect = element.getBoundingClientRect();
@@ -124,7 +133,12 @@ const outcomeState = (page) => page.evaluate((source) => {
   const submitRect = submit?.getBoundingClientRect();
   return {
     count: innermost.length,
-    text: (first?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 140),
+    text: (first?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 600),
+    liveText: (live[0]?.textContent || '').trim().replace(/\s+/g, ' '),
+    // The offer line also carries "See a similar problem worked" (HELP-9):
+    // the hint offer is its "Show a hint" button.
+    hintOffer: [...(shell?.querySelectorAll('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button') || [])].some((button) => button.textContent.trim() === 'Show a hint'),
+    similarOffer: Boolean(shell?.querySelector('.mathmaster-tool-attempt-outcome .mathmaster-tool-attempt-hint button[data-similar-offer]')),
     inTool: Boolean(first && shell?.contains(first)),
     top: rect ? Math.round(rect.top) : null,
     bottom: rect ? Math.round(rect.bottom) : null,
@@ -142,26 +156,40 @@ const waitForOutcome = (page) => page.waitForFunction((source) => new RegExp(sou
 // ------------------------------------------------------------------ practice
 for (const device of ['chromebook', 'phone']) {
   const { context, page } = await open(device, 'practice', 'inverse');
-  for (const [attempt, left] of [[1, '2 attempts'], [2, '1 attempt']]) {
+  for (const [attempt, left] of [[1, '2 tries left.'], [2, '1 try left — your last one.']]) {
     await attemptWrong(page, 'inverse');
     await waitForOutcome(page);
     await page.waitForTimeout(300);
     const state = await outcomeState(page);
-    check(state.text.includes(`You have ${left} remaining on this version`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
+    check(state.text.includes(`You have ${left}`), `${device} practice inverse, wrong attempt ${attempt}: the outcome counts the attempt`, state.text);
     check(state.inTool, `${device} practice inverse, wrong attempt ${attempt}: the outcome is in the tool's result area`, `in tool: ${state.inTool}`);
-    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, visible to ${state.visibleBottom}`);
+    check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, bottom ${state.bottom}, visible to ${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice inverse, wrong attempt ${attempt}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
     // The tool knows four parts but this question asks two: only those are
     // named, and by names a student reads (toolSubmissionParts.js).
     check(/Focus on: [^.]*Domain restriction/.test(state.text) && !/\b(fog|gof)\b|∘/.test(state.text),
       `${device} practice inverse, wrong attempt ${attempt}: "Focus on" names only the asked parts, readably`, state.text);
+    // The tool's own words are said with the outcome (A11Y-1).
+    check(/tr(?:y|ies) left(?: — your last one)?\. (Neither composition|The arithmetic is right|The inverse value is off|\(g ∘ f\) is right|\(f ∘ g\) is right)/.test(state.liveText),
+      `${device} practice inverse, wrong attempt ${attempt}: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
+    // From the second miss the hint the platform has ready is offered here (HELP-7).
+    check(state.hintOffer === (attempt >= 2), `${device} practice inverse, wrong attempt ${attempt}: the hint offer ${attempt >= 2 ? 'is' : 'is not yet'} in the tool`, `offer: ${state.hintOffer}`);
+    // Beside it on every miss, the worked sibling (HELP-9): this item has one.
+    check(state.similarOffer, `${device} practice inverse, wrong attempt ${attempt}: "See a similar problem worked" is offered in the tool`);
+    if (attempt === 2) {
+      await page.locator('.mathmaster-tool-attempt-hint').getByRole('button', { name: 'Show a hint' }).click();
+      await page.waitForTimeout(500);
+      const panelOpen = await page.evaluate(() => [...document.querySelectorAll('[data-hint-panel] li[data-hint-source]')]
+        .some((element) => element.getBoundingClientRect().height > 0));
+      check(panelOpen, `${device} practice inverse, wrong attempt 2: "Show a hint" opens the first hint`);
+    }
   }
   await attemptWrong(page, 'inverse');
   await waitForOutcome(page);
   await page.waitForTimeout(300);
   const closed = await outcomeState(page);
-  check(/final allowed attempt \(3 total\)/.test(closed.text) && closed.count === 1 && closed.liveRegions === 1, `${device} practice inverse, final attempt: the engine's closing box, once`, `${closed.text} (${closed.count} shown, ${closed.liveRegions} live)`);
-  check(!/remaining on this version/.test(closed.pageText), `${device} practice inverse, final attempt: no stale "remaining" sentence is left in the tool`);
+  check(/That was your last try \(3 in all\)/.test(closed.text) && closed.count === 1 && closed.liveRegions === 1, `${device} practice inverse, final attempt: the engine's closing box, once`, `${closed.text} (${closed.count} shown, ${closed.liveRegions} live)`);
+  check(!/tr(?:y|ies) left/.test(closed.pageText), `${device} practice inverse, final attempt: no stale "remaining" sentence is left in the tool`);
   await context.close();
 }
 
@@ -172,12 +200,53 @@ for (const tool of ['investigation', 'regression', 'board']) {
     await waitForOutcome(page);
     await page.waitForTimeout(300);
     const state = await outcomeState(page);
-    check(state.text.includes('Not quite. You have 2 attempts remaining on this version') && state.inTool && state.onScreen,
+    check(state.text.includes('Not quite. You have 2 tries left.') && state.inTool && state.onScreen,
       `${device} practice ${tool}: the outcome is in the tool, on screen`, `${state.text} — in tool ${state.inTool}, ${state.belowCheck}px below Check, top ${state.top}/${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice ${tool}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
     if (tool === 'board') check(!/Focus on/.test(state.text), `${device} practice board: the parts to revisit are not listed twice`, state.text);
     await context.close();
   }
+}
+
+// ------------------------------------------------------------------ plotting
+for (const device of ['chromebook', 'phone']) {
+  const { context, page } = await open(device, 'practice', 'graphing');
+  const plane = page.locator('svg[role="application"]').first();
+  await plane.scrollIntoViewIfNeeded();
+  await plane.focus();
+  const said = () => page.evaluate(() => (document.querySelector('.mathmaster-tool-shell p[aria-live="polite"].mm-sr-only')?.textContent || '').trim());
+  // The crosshair starts at the origin: Enter plots (0, 0).
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  let words = await said();
+  check(words === 'Plotted (0, 0). 1 of 2 points plotted.', `${device} graphing: Enter says what it plotted`, words);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(100);
+  words = await said();
+  check(/^Plot \(1, 0\)/.test(words), `${device} graphing: moving the crosshair reads its position again`, words);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  words = await said();
+  check(words === 'Plotted (1, 0). 2 of 2 points plotted.', `${device} graphing: the second point is counted`, words);
+  // y = 0 is not 2x + y = 4: Check, and the coaching is said with the outcome.
+  // The construction's final action: "Submit — uses 1 of 3 tries" (D9).
+  const checkButton = page.locator('.mathmaster-tool-shell button', { hasText: /^Submit — / }).first();
+  await checkButton.scrollIntoViewIfNeeded();
+  await checkButton.click();
+  await waitForOutcome(page);
+  await page.waitForTimeout(300);
+  const state = await outcomeState(page);
+  check(state.inTool && state.liveRegions === 1 && /tr(?:y|ies) left(?: — your last one)?\. \S/.test(state.liveText) && !/tr(?:y|ies) left(?: — your last one)?\.\s*$/.test(state.liveText),
+    `${device} graphing, a wrong line: the live region says the tool's coaching with the outcome`, state.liveText.slice(0, 220));
+  // A third plot replaces the nearest point, keeps the other, and says which went.
+  await plane.focus();
+  for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  words = await said();
+  check(words === 'Plotted (0, 4). It replaced (0, 0). 2 of 2 points plotted.', `${device} graphing: a third point replaces the nearest one and says so`, words);
+  await context.close();
 }
 
 // ------------------------------------------------------------ a right answer
@@ -214,7 +283,7 @@ for (const tool of ['investigation', 'regression', 'board']) {
   await waitForOutcome(page);
   await page.waitForTimeout(1500);
   const state = await outcomeState(page);
-  check(state.text.includes('You have 1 attempt remaining on this version') && state.inTool && state.count === 1,
+  check(state.text.includes('You have 1 try left — your last one.') && state.inTool && state.count === 1,
     'chromebook practice inverse, a question with an earlier attempt: the outcome arrives and stays', `${state.text || '(nothing)'} — ${state.count} shown`);
   await context.close();
 }
@@ -226,7 +295,7 @@ for (const tool of ['server', 'literal']) {
   await waitForOutcome(page);
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
-  check(/Not quite\. You have \d attempts? remaining on this version/.test(state.text) && !state.inTool && state.count === 1 && state.liveRegions === 1,
+  check(/Not quite\. You have \d tr(?:y|ies) left/.test(state.text) && !state.inTool && state.count === 1 && state.liveRegions === 1,
     `chromebook practice ${tool}: the engine's own box, once`, `${state.text || '(nothing)'} — in tool ${state.inTool}, ${state.count} shown, ${state.liveRegions} live`);
   if (tool === 'server') check(!state.verdictPill, 'chromebook practice server: the tool shows no verdict of its own');
   await context.close();
@@ -236,18 +305,18 @@ for (const tool of ['server', 'literal']) {
 for (const role of ['dol', 'quiz', 'test']) {
   const { context, page } = await open('chromebook', role, 'inverse');
   await attemptWrong(page, 'inverse');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Not yet|Correct!/.test(state.pageText) && !state.verdictPill,
     `chromebook ${role} inverse: nothing about correctness or attempts left, in the tool or below it`, state.count ? state.text : '');
-  check(/Your response is recorded/.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
+  check(/Your answer is saved\. You will see whether it is right when /.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
   await context.close();
 }
 {
   const { context, page } = await open('chromebook', 'dol', 'board');
   await attemptWrong(page, 'board');
-  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   const state = await outcomeState(page);
   check(state.count === 0 && !/Not quite|attempts? remaining|Correct!/.test(state.pageText),

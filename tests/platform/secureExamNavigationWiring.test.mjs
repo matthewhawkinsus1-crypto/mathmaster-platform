@@ -109,7 +109,10 @@ test('field items lose the record button in navigation mode; a Rich Tool\'s "Sav
   const toolItem = region(runtime, 'const ToolItem = (', 'export default function RichQuestionRuntime(', 'tool item');
   assert.match(toolItem, /submitLabel=\{policy\.secure \? \(navigationMode \? 'Save answer' : 'Record answer'\) : null\}/);
   const saveBranch = region(toolItem, 'if (navigationModeRef.current) {', 'return (await onSubmitRef.current', 'navigation-mode save');
-  assert.match(saveBranch, /workspaceDrafts: draftKey \? readQuestionDraftFamily\(draftKey\) : \[\]/, 'the construction travels with the draft');
+  // The item's whole draft family travels with the save — less only this
+  // device's Undo history, which is not work (pass 3 review; behaviour in
+  // tests/tools/persistedUndoNotSent.test.mjs).
+  assert.match(saveBranch, /workspaceDrafts: draftKey \? withoutPersistedUndo\(readQuestionDraftFamily\(draftKey\)\) : \[\]/, 'the construction travels with the draft');
   // null is the engine feedback that shows nothing and locks nothing.
   assert.match(saveBranch, /\n\s*return null;\s*\}\s*$/);
   assert.doesNotMatch(executableSource(saveBranch), /isCorrect|status:|expired|blocked/);

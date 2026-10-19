@@ -35,7 +35,7 @@ const SURFACE_SELECTOR = {
   interval: 'svg[aria-label^="Number line"]',
   relation: 'svg[aria-label="Coordinate plane for plotting the relation"]',
   'relation-question': 'svg[aria-label="Coordinate plane for plotting the relation"]',
-  story: 'svg[aria-label="Blank coordinate plane for graph story"]',
+  story: 'svg[aria-label="Graph story sketch"]',
 };
 window.__clickMap = { surface, selector: SURFACE_SELECTOR[surface], capped: null };
 

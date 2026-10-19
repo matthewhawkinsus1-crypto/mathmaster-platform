@@ -17,7 +17,36 @@ test('the registry covers every platform Work View capability', () => {
     // The student's Support tools, as a header drawer (a render function, so
     // the tray mounts only while the drawer is open).
     'supports',
+    // The Help drawer's first and third parts (student pass 3, TOOL-3): the
+    // TaskCard's description and steps, and a tool's own Help kept below the
+    // platform's.
+    'directions', 'toolHelp',
+    // The question's "Information you need" card, its own drawer (student
+    // pass 3, TOOL-12: tests/platform/workViewReference.test.mjs).
+    'reference',
   ]);
+});
+
+// STUDENT PASS 3, TOOL-3: the platform's Help (the hint ladder and "Ask my
+// teacher", or the Ask-only panel on a DOL) is never replaced by a tool's.
+test('an authoritative platform Help keeps its place and a tool Help goes below it', () => {
+  const platform = { help: { content: 'PLATFORM ASK', authoritative: true } };
+  const published = mergeWorkViewCapabilities(platform, { help: { content: 'TOOL GENERIC' }, directions: { content: 'STEPS' } });
+  assert.equal(published.help.content, 'PLATFORM ASK');
+  assert.equal(published.toolHelp.content, 'TOOL GENERIC');
+  assert.equal(published.directions.content, 'STEPS');
+  // A further layer (the shell's own capabilities) cannot take it either.
+  const local = mergeWorkViewCapabilities(published, { help: { content: 'LOCAL' } });
+  assert.equal(local.help.content, 'PLATFORM ASK');
+  assert.equal(local.toolHelp.content, 'LOCAL');
+  // With no tool Help, the one published earlier stays.
+  assert.equal(mergeWorkViewCapabilities(published, {}).toolHelp.content, 'TOOL GENERIC');
+});
+
+test('outside a question a tool Help is the Help, as before', () => {
+  const merged = mergeWorkViewCapabilities({ help: { content: 'FALLBACK' } }, { help: { content: 'TOOL' } });
+  assert.equal(merged.help.content, 'TOOL');
+  assert.equal(merged.toolHelp, undefined);
 });
 
 test('Task and Help behave as mutually exclusive toggle drawers', () => {
@@ -121,4 +150,31 @@ test('QuestionEngine registers Universal Undo beside the tool call site', async 
   assert.match(provider, /primaryActions:/);
   assert.match(provider, /secondaryActions:/);
   assert.match(provider, /\{renderModule\(\)\}/);
+});
+
+// R-10 (integrator review B1): on an activity that withholds the method, a
+// tool's own Help is usually the method ("Use inverse operations in reverse
+// order"). The platform Help says so, and the tool's Help stays out of the
+// drawer unless the tool marks it controls-only (a solver's work history).
+test('a tool Help is withheld where the platform Help withholds the method, unless it is controls-only', () => {
+  const dol = { help: { text: 'ASK ONLY', authoritative: true, withholdsMethod: true } };
+  const method = mergeWorkViewCapabilities(dol, { help: { content: 'Use inverse operations in reverse order.' } });
+  assert.equal(method.help.text, 'ASK ONLY');
+  assert.equal(method.toolHelp, undefined);
+  const history = mergeWorkViewCapabilities(dol, { help: { content: 'WORK HISTORY', controlsOnly: true } });
+  assert.equal(history.toolHelp.content, 'WORK HISTORY');
+  // Practice keeps it, below the platform's.
+  const practice = mergeWorkViewCapabilities({ help: { content: 'LADDER', authoritative: true, withholdsMethod: false } }, { help: { content: 'BRIDGE' } });
+  assert.equal(practice.toolHelp.content, 'BRIDGE');
+  // A Help with nothing to show still carries the rule (a contentless
+  // platform Help on a withheld activity).
+  assert.equal(mergeWorkViewCapabilities({ help: { authoritative: true, withholdsMethod: true } }, { help: { content: 'METHOD' } }).toolHelp, undefined);
+});
+
+// Integrator review N1: a composed question with fewer than four stages mounts
+// every stage, and each stage's TaskCard publishes its directions.
+test('two stages\' directions are both kept, in order', () => {
+  const merged = mergeWorkViewCapabilities({ directions: { content: 'MAPPING STEPS' } }, { directions: { content: 'NUMBER LINE STEPS' } });
+  assert.deepEqual(merged.directions.content.props.children, ['MAPPING STEPS', 'NUMBER LINE STEPS']);
+  assert.equal(mergeWorkViewCapabilities({}, { directions: { content: 'ONE' } }).directions.content, 'ONE');
 });

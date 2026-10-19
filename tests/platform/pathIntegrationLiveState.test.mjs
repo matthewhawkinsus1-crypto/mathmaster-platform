@@ -19,6 +19,7 @@ import { buildWeeklyPathPlan, evaluatedRetentionSchedules } from '../../src/plat
 import { buildStudentPathOptions } from '../../src/platform/path/studentPathOptions.js';
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 import { evaluateStudentRetentionSchedule } from '../../src/platform/retention/retentionScheduler.js';
+import { loadStudentMasteryState } from '../../src/platform/mastery/studentMasteryState.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -62,15 +63,23 @@ test('stored entries the scheduler does not evaluate pass through, keyed by disp
   assert.equal(planner['A.5A'].status, 'concern');
 });
 
-test('My Math Path re-derives its mastery from the live server profile App.jsx subscribes to', () => {
+test('My Math Path re-derives its mastery from the live server profile App.jsx subscribes to', async () => {
   const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
   const live = region(app, 'const liveMasteryData = useMemo(() => {', '}, [masteryData, liveServerMasteryProfiles]);', 'live mastery');
   assert.match(live, /buildUnifiedMasteryProfiles\(\{\s*\.\.\.masteryData\.fallbackInputs,\s*serverProfiles: liveServerMasteryProfiles,/);
   assert.match(app, /const liveServerMasteryProfiles = props\.serverMasteryProfiles \|\| null;/);
   assert.match(region(app, '<MyMathPathExperience', '/>', 'the live element'), /masteryData=\{liveMasteryData\}/);
   assert.match(app, /import \{ buildUnifiedMasteryProfiles \} from '..\/..\/platform\/mastery\/unifiedMastery.js';/);
-  const service = executableSource(read('src/services/masteryStateService.js'));
-  assert.match(service, /fallbackInputs: \{ student, assignments \}/);
+  // The fetch hands back the very inputs it built from, so the live profile
+  // is merged over the same assignment evidence without fetching it again
+  // (asserted on what the loader returns; D10 P0-1 moved it there).
+  const supplied = [{ id: 'a1', questions: [] }];
+  const fetched = await loadStudentMasteryState('s-live', {
+    assignments: supplied,
+    reads: { grade: async () => ({ classId: 'c', gradesByAssignment: {} }), retention: async () => null, serverMastery: async () => null, scopedAssignments: async () => { throw new Error('supplied assignments are not re-read'); } },
+  });
+  assert.equal(fetched.fallbackInputs.assignments, supplied);
+  assert.deepEqual(fetched.fallbackInputs.student, { id: 's-live', classId: 'c', gradesByAssignment: {} });
   // App.jsx hands the live profile over.
   assert.match(executableSource(read('src/App.jsx')), /serverMasteryProfiles=\{studentServerMasteryProfiles\}/);
 });

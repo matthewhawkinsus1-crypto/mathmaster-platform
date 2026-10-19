@@ -6,7 +6,7 @@ import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useOwnHintLadder, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import functionInvestigationGrader from '../../../functions/shared/serverGrading/tools/functionInvestigation2.mjs';
@@ -42,26 +42,31 @@ const MODE_STEPS = {
   compare: ['Find the dashed vertical line — that is the input both functions share.', 'Read each function’s height at that line.', 'Choose which is greater, then check.'],
 };
 
-const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) => {
+// THE RUNGS NAME THE MOVE, NEVER THE ANSWER (student pass 3, HELP-10). The
+// last rungs used to read the hidden parameters off the function ("h = 1 …
+// k = −2", "a = 2"), count the x-intercepts, or say "the answer is none":
+// the graph is all the student is given, and the values are what they find.
+// The signature is unchanged so every caller passes the same arguments.
+export const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) => {
   if (mode === 'domainRange') {
     return [
       'Domain is about x: can you slide all the way left and right along the graph without lifting your finger?',
       'Range is about y: what heights does the graph actually reach?',
-      `This is ${FUNCTION_FAMILY_LABELS[spec.type]}. Look for a value the graph never touches — that is what gets excluded, and it comes from h = ${spec.h} or k = ${spec.k}.`,
+      `This is ${FUNCTION_FAMILY_LABELS[spec.type]}. Look for a value the graph never touches — that is what gets excluded. It comes from how far the graph is shifted across or up and down.`,
     ];
   }
   if (mode === 'intercepts') {
     return [
       'An x-intercept has y = 0. A y-intercept has x = 0.',
       'Substitute 0 for y to find x-intercepts, and 0 for x to find the y-intercept.',
-      intercepts.x.length ? `There ${intercepts.x.length === 1 ? 'is 1 x-intercept' : `are ${intercepts.x.length} x-intercepts`} here.` : 'This graph never crosses the x-axis — the answer is none.',
+      'Count every place the graph meets the x-axis. If it never does, type none.',
     ];
   }
   if (mode === 'behavior') {
     return [
       'Read the graph left to right, like reading a sentence.',
       'A graph that turns around has a highest or lowest point; one that never turns is only increasing or only decreasing.',
-      `${FUNCTION_FAMILY_LABELS[spec.type]} with a = ${spec.a}: the sign of a tells you which way it opens or which direction it runs.`,
+      `For ${FUNCTION_FAMILY_LABELS[spec.type]}, the sign of a tells you which way it opens or which direction it runs — read it from the graph's shape.`,
     ];
   }
   if (mode === 'compare') {
@@ -74,7 +79,7 @@ const hintsForMode = (mode, spec, features, domainRange, intercepts, compareX) =
   return [
     `Every ${FUNCTION_FAMILY_LABELS[spec.type]} is organized around one defining feature: its ${features.anchor.label}.`,
     'Find that feature on the graph before typing anything — count gridlines across, then up or down.',
-    `The parameters give it away: h = ${spec.h} shifts it horizontally and k = ${spec.k} shifts it vertically.`,
+    'Its horizontal shift (h) and vertical shift (k) put that feature where it is: count gridlines from the origin to find them.',
   ];
 };
 
@@ -95,7 +100,9 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const [behavior, setBehavior] = usePersistentToolState('behavior', '');
   const [comparison, setComparison] = usePersistentToolState('comparison', '');
   const { feedback, submit } = useToolSubmission(onAction);
-  const hintsAllowed = useHintsAllowed();
+  // A ladder of the tool's own: hints allowed, and no platform ladder to hand
+  // them to (HELP-10).
+  const ownHintLadder = useOwnHintLadder();
 
   /*
    * UNIVERSAL UNDO, ON A TOOL THAT HAD NO UNDO AT ALL.
@@ -223,8 +230,9 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
     instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.features)[0] },
     task: { text: questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features },
     // The hints ARE this Help: published only where the activity allows them,
-    // so a DOL does not show a Help button over an empty drawer.
-    help: hintsAllowed ? {
+    // so a DOL does not show a Help button over an empty drawer — and only
+    // where the host has no hint ladder, which is otherwise the Help (HELP-10).
+    help: ownHintLadder ? {
       content: (
         <HintPanel
           hints={hintsForMode(mode, spec, features, domainRange, intercepts, compareX)}
@@ -306,7 +314,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
             </div>
             {features.verticalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Vertical asymptote x =<input type="number" inputMode="decimal" value={verticalAsymptote} onChange={(event) => setVerticalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
             {features.horizontalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Horizontal asymptote y =<input type="number" inputMode="decimal" value={horizontalAsymptote} onChange={(event) => setHorizontalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
-            <button data-mm-enter-action="submit" type="button" onClick={checkFeatures} style={{ ...buttonStyle, marginTop: 14 }}>Check features</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkFeatures} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check features</SubmitText></button>
           </> : null}
 
           {mode === 'domainRange' ? <>
@@ -316,21 +324,21 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
             <label style={{ display: 'block', marginTop: 12, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Range — the y-values this function produces
               <select value={rangeCode} onChange={(event) => setRangeCode(event.target.value)} style={inputStyle}><option value="">Choose…</option>{rangeChoices.map((code) => <option value={code} key={code}>{relationLabel(code, spec)}</option>)}</select>
             </label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkDomainRange} style={{ ...buttonStyle, marginTop: 14 }}>Check domain and range</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkDomainRange} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check domain and range</SubmitText></button>
           </> : null}
 
           {mode === 'intercepts' ? <>
             <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Separate multiple x-intercepts with commas. Type <strong>none</strong> when an intercept does not exist.</p>
             <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} aria-label="x-intercept values" /></label>
             <label style={{ display: 'block', marginTop: 12, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} aria-label="y-intercept value" /></label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}>Check intercepts</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check intercepts</SubmitText></button>
           </> : null}
 
           {mode === 'behavior' ? <>
             <label style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>Which statement best describes this function?
               <select value={behavior} onChange={(event) => setBehavior(event.target.value)} style={inputStyle}><option value="">Choose…</option>{behaviorChoices.map((code) => <option value={code} key={code}>{behaviorLabel(code)}</option>)}</select>
             </label>
-            <button data-mm-enter-action="submit" type="button" onClick={checkBehavior} style={{ ...buttonStyle, marginTop: 14 }}>Check behavior</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkBehavior} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check behavior</SubmitText></button>
           </> : null}
 
           {mode === 'compare' ? <>
@@ -342,13 +350,12 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
               <option value="equal">They are equal</option>
               <option value="undefined">At least one is undefined here</option>
             </select>
-            <button data-mm-enter-action="submit" type="button" onClick={checkComparison} style={{ ...buttonStyle, marginTop: 14 }}>Check comparison</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkComparison} style={{ ...buttonStyle, marginTop: 14 }}><SubmitText>Check comparison</SubmitText></button>
           </> : null}
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>
           ) : null}
 

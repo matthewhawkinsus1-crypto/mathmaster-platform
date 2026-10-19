@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { selfCheckCostSentence } from './platform/supports/hints/hintCopy.js';
 import { zoomedWindow } from './graphWorkspaceViewport.js';
 import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
 import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
+import { describeGraphWorkspace } from './platform/language/graphWorkspaceDescription.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -48,6 +50,9 @@ import {
 import graphWorkspaceGrader from '../functions/shared/serverGrading/tools/graphWorkspace.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.js';
+import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
+import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
 // in one assignment do not have different-looking controls for the same act.
@@ -218,6 +223,9 @@ export default function InteractiveGraphWorkspace({
   // an author cannot switch it on for an exit ticket by adding a field.
   selfCheckAllowed = false,
   onSelfCheck = null,
+  // The host's sentence for what a hint costs (Recovery's), else the
+  // platform's (hintCopy.js, HELP-17).
+  hintCostNote = null,
   // WHETHER "CHECK POINT PLACEMENTS" MAY SAY WHICH POINTS ARE WRONG.
   //
   // The engine passes whether the activity shows outcomes immediately. On a
@@ -237,6 +245,11 @@ export default function InteractiveGraphWorkspace({
   // ends a stroke moved the selected point to where the stroke ended and threw
   // the stroke away.
   const strokeJustEndedRef = useRef(false);
+  // "Check Point Placements" / "Check Reflected Points" leave the page when they
+  // pass, and a keyboard student's focus went with them to <body>. It goes to
+  // "Connect my points" instead, the next thing to do (pass 3, TOOL-1, A11Y-2).
+  const connectButtonRef = useRef(null);
+  const connectFocusPendingRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [draggingTaskId, setDraggingTaskId] = useState(null);
@@ -251,6 +264,8 @@ export default function InteractiveGraphWorkspace({
   const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
   const lastMarkerFeedbackRef = useRef('');
   const [selfCheckReport, setSelfCheckReport] = useState(null);
+  // "Check Point Placements" just found a point off (until a point moves).
+  const [pointMissShown, setPointMissShown] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(
     () => (typeof window === 'undefined' ? 0 : Number(window.innerWidth) || 0),
   );
@@ -428,6 +443,7 @@ export default function InteractiveGraphWorkspace({
   const zoomed = Boolean(zoomView);
   // One id per mount, so two workspaces on a page cannot share a clip path.
   const clipId = useMemo(() => `mm-plot-clip-${Math.random().toString(36).slice(2, 9)}`, []);
+  const workspaceDescriptionId = `${clipId}-description`;
 
   const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, renderWindow]);
   const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, renderWindow]);
@@ -487,6 +503,7 @@ export default function InteractiveGraphWorkspace({
     setDropCandidate(null);
     setDropMagneticTarget(null);
     setPointFeedback('');
+    setPointMissShown(false);
     setDrawFeedback('');
     setActiveMarker(null);
     setActiveAnalysisPartId(analysisParts.find((part) => ['inversePoint', 'point'].includes(part.kind))?.id || analysisParts[0]?.id || null);
@@ -584,8 +601,16 @@ export default function InteractiveGraphWorkspace({
       return;
     }
     analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
-    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them.');
+    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them, or press Connect my reflected points.');
+    connectFocusPendingRef.current = true;
   };
+
+  useEffect(() => {
+    if (!connectFocusPendingRef.current) return;
+    connectFocusPendingRef.current = false;
+    const active = typeof document === 'undefined' ? null : document.activeElement;
+    if (connectButtonRef.current && (!active || active === document.body || !active.isConnected)) connectButtonRef.current.focus();
+  }, [construction.pointsValidated, analysis.inversePointsValidated]);
 
   useEffect(() => {
     if (!feedback || feedback.isCorrect !== false || !Array.isArray(feedback.partGrades)) return;
@@ -672,6 +697,31 @@ export default function InteractiveGraphWorkspace({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [typedX, setTypedX] = useState('');
   const [typedY, setTypedY] = useState('');
+  const typedXRef = useRef(null);
+  const typedYRef = useRef(null);
+  // An empty box is not 0 (graphTypedCoordinate.js).
+  // The x a selected point card states, which the student need not type.
+  const typedStatedX = () => {
+    if (stage !== 'construct' || pointsLocked || !activeTaskId || (construction.snapped && activeMarker)) return null;
+    const task = tasks.find((item) => item.id === activeTaskId);
+    return taskStatesX(task) ? Number(task.x) : null;
+  };
+  const placeTypedCoordinate = () => {
+    const point = typedCoordinate(typedX, typedY, { statedX: typedStatedX() });
+    if (!point) {
+      setKeyboardAnnouncement('Enter a number for both x and y.');
+      return;
+    }
+    if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
+  };
+  const handleTypedEnter = (event, box) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const action = typedEntryEnterAction({ box, typedX, typedY, statedX: typedStatedX() });
+    if (action === 'focus-y') typedYRef.current?.focus();
+    else if (action === 'focus-x') typedXRef.current?.focus();
+    else placeTypedCoordinate();
+  };
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
   // Whether the typed x / y entry is on screen. One condition renders it and
   // decides whether an announcement offers it: end markers are placed after
@@ -709,6 +759,7 @@ export default function InteractiveGraphWorkspace({
     // A verdict about a point the student has since moved is worse than no
     // verdict: it reads as the platform disagreeing with what is on screen.
     setSelfCheckReport(null);
+    setPointMissShown(false);
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
     setActiveTaskId(null);
     setDraggingTaskId(null);
@@ -865,29 +916,38 @@ export default function InteractiveGraphWorkspace({
     }
   };
 
-  // Compare what the student plotted against the function, and say how far off
-  // each point is. Reported through onSelfCheck so the engine discounts mastery
-  // weight exactly as it does for a revealed hint.
+  // Compare what the student plotted against the function, and say which way
+  // each point is off (graphSelfCheck.js). Only on the student's own press,
+  // reported through onSelfCheck so the engine discounts mastery weight
+  // exactly as it does for a revealed hint.
+  const selfCheckReportFor = () => checkPlottedPoints({
+    placements: construction.placements,
+    tasks,
+    evaluate: (x) => evaluateGraphFunction(functionSpec, x),
+  });
   const runSelfCheck = () => {
     if (!selfCheckAllowed || construction.pointsValidated) return;
-    const report = checkPlottedPoints({
-      placements: construction.placements,
-      tasks,
-      evaluate: (x) => evaluateGraphFunction(functionSpec, x),
-    });
+    const report = selfCheckReportFor();
     setSelfCheckReport(report);
     if (report.checked > 0) onSelfCheck?.(report);
   };
 
+  // "Check Point Placements" is free and never charged: it commits the points
+  // or names the ones to revise. Which WAY a point is off is help the student
+  // asks for (HELP-22; HELP-10, D5): after a miss — or while the plot is
+  // still partial — the opt-in check below offers it, and only that press is
+  // charged as a hint.
   const checkPoints = () => {
     const correct = placementsMatchTasks(tasks, construction.placements, model.pointTolerance, functionSpec, construction.chosenXValues);
+    setPointMissShown(!correct);
     if (correct) {
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
+      connectFocusPendingRef.current = true;
       // Only reachable where outcomes are shown (the check is not offered
       // otherwise); the wording is gated anyway so it can never leak.
       setPointFeedback(!revealPointCorrectness
         ? 'Your points are placed.'
-        : pointOnly ? 'All point placements are correct.' : 'All point placements are correct. The drawing layer is unlocked.');
+        : pointOnly ? 'All point placements are correct.' : 'All point placements are correct. Draw the curve through them, or press Connect my points.');
     } else {
       const incorrect = revealPointCorrectness ? pointParts.filter((part) => !part.isCorrect).map((part) => part.label) : [];
       const centerX = Number(functionSpec.h ?? 0);
@@ -952,59 +1012,134 @@ export default function InteractiveGraphWorkspace({
      * points instead (constructionSketchThroughOwnPoints), and the grader
      * marks the curve against the function at submission, never here.
      */
-    const sketchCamera = {
-      xMin: Number(renderWindow.xMin),
-      xMax: Number(renderWindow.xMax),
-      yMin: Number(renderWindow.yMin),
-      yMax: Number(renderWindow.yMax),
-    };
+    const sketchCamera = currentSketchCamera();
 
     if (stage === 'analysis' && inverseReflectionEnabled) {
-      const completed = boundSketchStrokes([...(analysis.inverseStrokes || []), finished], SKETCH_LIMITS.inversePoints);
-      if (outcomesWithheld && !analysis.inversePointsValidated) {
-        // Through the student's own reflected points; judged at submission.
-        const passes = inverseSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, selections: analysis.selections });
-        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: passes }));
-        setDrawFeedback(passes
-          ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
-          : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.');
-        return;
-      }
-      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera }));
-      const matches = inverseSketchMatches(model, { strokes: completed, camera: sketchCamera });
-      if (matches) {
-        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: true }));
-        setDrawFeedback('The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.');
-      } else {
-        setDrawFeedback('The inverse line must pass through both reflected points. Clear the inverse sketch and try again.');
-      }
+      commitInverseStrokes(boundSketchStrokes([...(analysis.inverseStrokes || []), finished], SKETCH_LIMITS.inversePoints), sketchCamera);
       return;
     }
+    commitConstructionStrokes(boundSketchStrokes([...construction.strokes, finished], SKETCH_LIMITS.constructionPoints), sketchCamera);
+  };
 
-    const completed = boundSketchStrokes([...construction.strokes, finished], SKETCH_LIMITS.constructionPoints);
+  const currentSketchCamera = () => ({
+    xMin: Number(renderWindow.xMin),
+    xMax: Number(renderWindow.xMax),
+    yMin: Number(renderWindow.yMin),
+    yMax: Number(renderWindow.yMax),
+  });
+
+  /*
+   * WHAT A FINISHED SKETCH MEETS, HOWEVER IT WAS MADE.
+   *
+   * A stroke drawn by hand (endDrawing) and the stroke "Connect my points"
+   * builds (connectMyPoints) are checked by exactly the same code: the
+   * grader's own function, on bounded strokes, under the camera stored with
+   * them. Each returns the feedback it gave, so the keyboard route can also
+   * announce it.
+   */
+  const commitInverseStrokes = (completed, sketchCamera) => {
+    if (outcomesWithheld && !analysis.inversePointsValidated) {
+      // Through the student's own reflected points; judged at submission.
+      const passes = inverseSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, selections: analysis.selections });
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: passes }));
+      const message = passes
+        ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
+        : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.';
+      setDrawFeedback(message);
+      return message;
+    }
+    analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera }));
+    const matches = inverseSketchMatches(model, { strokes: completed, camera: sketchCamera });
+    if (matches) {
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: true }));
+      const message = 'The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.';
+      setDrawFeedback(message);
+      return message;
+    }
+    const message = 'The inverse line must pass through both reflected points. Clear the inverse sketch and try again.';
+    setDrawFeedback(message);
+    return message;
+  };
+
+  const commitConstructionStrokes = (completed, sketchCamera) => {
     constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera }));
     if (completed.length < requiredStrokeCount) {
-      setDrawFeedback(`Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`);
-      return;
+      const message = `Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`;
+      setDrawFeedback(message);
+      return message;
     }
     if (outcomesWithheld && !construction.pointsValidated) {
       // Through the student's own points; marked against the function by the
       // grader at submission, never here.
       const passes = constructionSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, placements: construction.placements });
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: passes }));
-      setDrawFeedback(passes
+      const message = passes
         ? `Your curve passes through your points. It is graded when you submit.${endpointRequirements.length ? ` Add the ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} at the ends of your curve.` : ''}`
-        : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.');
-      return;
+        : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.';
+      setDrawFeedback(message);
+      return message;
     }
     const matches = constructionSketchMatches(model, { strokes: completed, camera: sketchCamera, chosenXValues: construction.chosenXValues });
     if (matches) {
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: true }));
-      setDrawFeedback(endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.');
-    } else setDrawFeedback('The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.');
+      const message = endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.';
+      setDrawFeedback(message);
+      return message;
+    }
+    const message = 'The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.';
+    setDrawFeedback(message);
+    return message;
+  };
+
+  /*
+   * "CONNECT MY POINTS" (pass 3, TOOL-1). The curve, without a mouse or a
+   * finger: a smooth stroke through the student's OWN placed points
+   * (graphConnectPoints.js), replacing any partial sketch, then the very checks
+   * above. Wrong points give a curve through wrong points, which those checks
+   * treat exactly as they treat a wrong drawn curve. After it, the endpoint
+   * markers are placed as before: choose one, arrow keys on the plane, Enter.
+   */
+  const connectMyPoints = () => {
+    const sketchCamera = currentSketchCamera();
+    let message;
+    if (stage === 'analysis' && inverseReflectionEnabled) {
+      if (!inversePointsCommitted || analysis.inverseSnapped) return;
+      const strokes = connectPointsStrokes({ points: inversePointsToConnect(model, analysis.selections), camera: sketchCamera });
+      message = commitInverseStrokes(boundSketchStrokes(strokes, SKETCH_LIMITS.inversePoints), sketchCamera);
+    } else {
+      if (pointOnly || !pointsCommitted || construction.snapped) return;
+      const strokes = connectPointsStrokes({
+        points: constructionPointsToConnect(model, construction.placements),
+        camera: sketchCamera,
+        splitX: constructionBranchSplitX(model, construction.placements),
+      });
+      message = commitConstructionStrokes(boundSketchStrokes(strokes, SKETCH_LIMITS.constructionPoints), sketchCamera);
+    }
+    setKeyboardAnnouncement(message);
   };
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || (construction.snapped && !curveAcceptedOwnPoints));
+  // What the plane shows, in words (student pass 3, Q-8): the student's own
+  // points, strokes, graph ends and selections; a given graph only as drawn.
+  // Never whether any of it is right (graphWorkspaceDescription.js).
+  const workspaceDescription = describeGraphWorkspace({
+    window: renderWindow,
+    givenGraph: mode === 'analysis' && !pointOnly,
+    placedPoints: constructionEnabled
+      ? tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => ({ label: toPlainMath(task.label), point: construction.placements[task.id] }))
+      : [],
+    strokeCount: (!construction.snapped || curveAcceptedOwnPoints) ? construction.strokes.length : 0,
+    curveDrawn: Boolean(construction.snapped),
+    markers: construction.snapped
+      ? endpointRequirements.map((requirement) => {
+        const placement = construction.markerPlacements[requirement.id];
+        return placement ? { type: markerValue(placement), point: markerPoint(placement) || requirement.point } : null;
+      })
+      : [],
+    selectedPoints: stage === 'analysis'
+      ? analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => analysis.selections[part.id] || [])
+      : [],
+  });
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
@@ -1081,7 +1216,9 @@ export default function InteractiveGraphWorkspace({
       ? { label: 'Place and move points', studentState: true }
       : null,
     tableData: studentChoosesX && constructionEnabled ? { label: 'Chosen x-values' } : null,
-    instruction: { text: currentInstruction },
+    // The stage the workspace has opened (plot, draw, mark the ends, an
+    // analysis part's own label): controls, kept on a DOL (W6-4).
+    instruction: { text: currentInstruction, controlsOnly: true },
     task: { text: String(question.prompt || '').trim() || (pointOnly ? 'Plot every point from your table.' : 'Construct the function and complete every requested analysis part.') },
   };
 
@@ -1206,37 +1343,6 @@ export default function InteractiveGraphWorkspace({
                 })}
                   </div>
                   {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>Not Real / Undefined</button>}
-                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT.
-                      On paper a student checks a point against the rule; here
-                      there was nothing between guessing and committing. This
-                      says how far each plotted point is from the function and
-                      moves nothing — the student still has to fix it. */}
-                  {selfCheckAllowed && !construction.pointsValidated && (
-                    <div style={{ marginTop: '12px' }}>
-                      <button
-                        type="button"
-                        onClick={runSelfCheck}
-                        disabled={!Object.keys(construction.placements).length}
-                        title="Compares your plotted points with the function. Recorded for your teacher, like a hint."
-                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
-                      >
-                        Check my points
-                      </button>
-                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>
-                      {selfCheckReport && (
-                        <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-subtle)' }}>
-                          <strong style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
-                          <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
-                            {selfCheckReport.results.map((entry) => (
-                              <li key={entry.id} style={{ color: entry.correct ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
-                                {pointLabel(entry.point)} — {entry.text}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   {!construction.pointsValidated && outcomesWithheld && (
                     <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
                       {pointOnly
@@ -1245,7 +1351,44 @@ export default function InteractiveGraphWorkspace({
                       {pointOnly && analysisEnabled && ` When they are all placed, go on to ${inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}.`}
                     </p>
                   )}
-                  {!construction.pointsValidated && !outcomesWithheld && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                  {!construction.pointsValidated && !outcomesWithheld && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', minHeight: 44, marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT — on
+                      request, and charged as a hint. On paper a student checks
+                      a point against the rule; this says which way each point
+                      is off and what to work out, never by how much. Offered
+                      where outcomes are withheld, while the plot is partial
+                      (when "Check Point Placements" cannot run yet), and after
+                      that check finds a point off. */}
+                  {selfCheckAllowed && !construction.pointsValidated && Object.keys(construction.placements).length > 0
+                    && (outcomesWithheld || Object.keys(construction.placements).length < tasks.length || pointMissShown) && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={runSelfCheck}
+                        title={`Compares your plotted points with the function. ${selfCheckCostSentence(hintCostNote)}`}
+                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(16 * var(--mm-px))' }}
+                      >
+                        {outcomesWithheld ? 'Check my points' : 'Which way is each point off?'}
+                      </button>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-warning-text)' }} data-hint-cost-note="">{selfCheckCostSentence(hintCostNote)}</span>
+                    </div>
+                  )}
+                  {/* The report: "(3, 4) — too high — find f(3) and compare". It
+                      moves nothing; the student still has to fix it. Where
+                      outcomes are shown, only the points that are off are
+                      listed ("Revise: …" already names them). */}
+                  {selfCheckReport && !construction.pointsValidated && (
+                    <div role="status" data-self-check-report="" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-subtle)', fontSize: 'calc(16 * var(--mm-px))', lineHeight: 1.45 }}>
+                      <strong style={{ display: 'block', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
+                      <ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--mm-warning-text)' }}>
+                        {selfCheckReport.results.filter((entry) => outcomesWithheld || !entry.correct).map((entry) => (
+                          <li key={entry.id} style={{ color: entry.correct ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
+                            {pointLabel(entry.point)} — {entry.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </>
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
@@ -1334,7 +1477,8 @@ export default function InteractiveGraphWorkspace({
             the embedded page does not move. */}
         <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
-            aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
+            aria-label="Coordinate plane"
+            aria-describedby={`${workspaceDescriptionId} ${workspaceDescriptionId}-keys`}
             tabIndex={0}
             onKeyDown={handleGridKeyDown}
             onFocus={() => { if (!keyboardCursor) { const start = defaultCursor(); setKeyboardCursor(start); setKeyboardAnnouncement(`Cursor at ${pointLabel(start)}. Arrow keys move, Enter places.`); } }}
@@ -1415,6 +1559,9 @@ export default function InteractiveGraphWorkspace({
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
             </g>
           </svg>
+          {/* Read through the plane's aria-describedby: what is on it, then its keys. */}
+          <span id={workspaceDescriptionId} data-graph-workspace-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{workspaceDescription}</span>
+          <span id={`${workspaceDescriptionId}-keys`} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor.</span>
           <figcaption style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>
@@ -1424,7 +1571,7 @@ export default function InteractiveGraphWorkspace({
         {stage === 'construct' ? (
           <>
             {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} Or press Connect my points.</p>}
             {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? 'var(--mm-primary-text)' : construction.snapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
@@ -1448,9 +1595,15 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
+                  // These two boxes own their Enter (TOOL-1): it moves on to the
+                  // other box while that one is empty, and places the point once
+                  // both hold a number (graphTypedCoordinate.js). The question's
+                  // Enter contract must not take it as "next box" or "submit".
+                  ref={typedXRef}
+                  data-mm-enter-owner="true"
                   value={typedX}
                   onChange={(event) => setTypedX(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  onKeyDown={(event) => handleTypedEnter(event, 'x')}
                   style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
@@ -1459,23 +1612,18 @@ export default function InteractiveGraphWorkspace({
                 <input
                   type="number"
                   inputMode="decimal"
+                  ref={typedYRef}
+                  data-mm-enter-owner="true"
                   value={typedY}
                   onChange={(event) => setTypedY(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  onKeyDown={(event) => handleTypedEnter(event, 'y')}
                   style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
               <button
                 id="graph-exact-place"
                 type="button"
-                onClick={() => {
-                  const point = [Number(typedX), Number(typedY)];
-                  if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
-                    setKeyboardAnnouncement('Enter a number for both x and y.');
-                    return;
-                  }
-                  if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
-                }}
+                onClick={placeTypedCoordinate}
                 style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}
               >
                 Place at this coordinate
@@ -1483,6 +1631,16 @@ export default function InteractiveGraphWorkspace({
             </div>
           )}
 
+          {/* The curve by keyboard (TOOL-1): through the student's own points,
+              checked like a drawn one. It stays, done, once the curve is in, so
+              the press that completes it does not throw focus to the page; the
+              end markers come next. */}
+          {stage === 'construct' && !pointOnly && pointsCommitted && (
+            <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="construction" enabled={!construction.snapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: construction.snapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.snapped ? '✓ Curve drawn' : 'Connect my points'}</FocusSafeButton>
+          )}
+          {stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
+            <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="inverse" enabled={!analysis.inverseSnapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: analysis.inverseSnapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>{analysis.inverseSnapped ? '✓ Inverse drawn' : 'Connect my reflected points'}</FocusSafeButton>
+          )}
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
             <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Clear Sketch</button>
           )}

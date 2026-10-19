@@ -89,7 +89,11 @@ const scenario = async (label, body) => {
 };
 
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
-const button = (page, name) => page.getByRole('button', { name, exact: true }).first();
+// The tool's final action spends a try: under QuestionEngine it reads "Submit —
+// uses 1 of 3 tries" (student pass 3, D9) where it once read "Check my work".
+const button = (page, name) => (name === 'Check my work'
+  ? page.getByRole('button', { name: /^Submit — / }).first()
+  : page.getByRole('button', { name, exact: true }).first());
 const press = async (page, name) => {
   await button(page, name).click();
   await settle(page, 350);
@@ -308,7 +312,7 @@ const rewrite = async () => {
 
 const workview = async () => {
   const page = await open('build');
-  await page.getByRole('button', { name: /Enlarge question/ }).first().click();
+  await page.getByRole('button', { name: /Open Work View/ }).first().click();
   await settle(page, 1000);
   const dialog = page.getByRole('dialog').first();
   check((await dialog.innerText()).includes('Constraint 1: tap the grid to plot two points on the boundary line.'), 'workview: the enlarged view says what the graph is waiting for');

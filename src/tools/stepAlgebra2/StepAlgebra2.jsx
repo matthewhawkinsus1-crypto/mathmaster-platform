@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
+import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import { exactFractionText, nearlyEqual } from '../shared/toolMath';
@@ -14,6 +15,7 @@ import stepAlgebra2Grader, {
 } from '../../../functions/shared/serverGrading/tools/stepAlgebra2.mjs';
 import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -138,6 +140,9 @@ function BalanceSolver({ questionData = {}, onAction }) {
   };
 
   const startOver = () => { clearFeedback(); setState({ ...original }); setHistory([]); setOperand(''); setInputError(''); };
+  // Start over empties the history and so disables itself: it keeps the focus
+  // it had instead of dropping it to the page (A11Y-2).
+  const startOverAvailability = useFocusSafeDisabled(history.length > 0);
 
   const check = () => {
     const result = gradeToolCheck(stepAlgebra2Grader, questionData, work);
@@ -169,10 +174,11 @@ function BalanceSolver({ questionData = {}, onAction }) {
       <TaskCard
         question={questionData}
         task={`Solve ${formatEquation(original)} for x.`}
+        stepsAreControls
         steps={[
           'Pick an operation and a number for the move you want to make.',
           'Apply it. Repeat until the equation reads x = a number.',
-          'Press Check solution when x is by itself.',
+          'When x is by itself, submit your solution.',
         ]}
         note="Every operation is applied to both sides at once — that is what keeps the equation true."
       />
@@ -219,17 +225,16 @@ function BalanceSolver({ questionData = {}, onAction }) {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={apply} disabled={!operandIsUsable} style={{ ...primaryButton, opacity: operandIsUsable ? 1 : 0.5, cursor: operandIsUsable ? 'pointer' : 'not-allowed' }}>Apply to both sides</button>
-            <button className="mm-button-neutral" type="button" onClick={startOver} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
+            <button className="mm-button-neutral" type="button" onClick={() => { if (history.length) startOver(); }} {...startOverAvailability} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
           </div>
 
           <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 12, width: '100%', background: solved ? '#137333' : '#1a73e8' }}>
-            Check solution
+            <SubmitText>Check solution</SubmitText>
           </button>
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>
           ) : null}
         </Panel>
@@ -254,7 +259,9 @@ function BalanceSolver({ questionData = {}, onAction }) {
             hints={[
               'Look at the side with the x. What is being done to x, and in what order?',
               `Undo the addition or subtraction first. Here that means ${Number(original.b) >= 0 ? 'subtracting' : 'adding'} ${Math.abs(Number(original.b))} ${Number(original.b) >= 0 ? 'from' : 'to'} both sides.`,
-              `After that the equation is ${formatEquation(applyOperation(original, Number(original.b) >= 0 ? 'subtract' : 'add', Math.abs(Number(original.b))))}. Divide both sides by ${exact(Number(original.a))} to get x alone.`,
+              // Not the equation that step makes: one division from x, it was
+              // the answer (HELP-10).
+              'After that step, divide both sides by the number multiplying x to get x alone.',
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}
           />
@@ -273,7 +280,8 @@ function BalanceSolver({ questionData = {}, onAction }) {
         undo: undoHistory.capability,
         equationInput: { label: 'Both sides of the equation', studentState: true },
         numericControls: { label: 'Operation controls', studentState: true },
-        instruction: { text: 'Choose an operation, apply it to both sides, and simplify until x is isolated.' },
+        // The balance controls, as the controls-only steps say them (W6-4).
+        instruction: { text: 'Choose an operation, apply it to both sides, and simplify until x is isolated.', controlsOnly: true },
         task: { text: `Solve ${formatEquation(original)} for x.` },
         help: { content: 'Use inverse operations in reverse order. Every committed operation changes both sides equally.' },
         primaryActions: [{ id: 'check-step-algebra', label: 'Check solution', onAction: check }],

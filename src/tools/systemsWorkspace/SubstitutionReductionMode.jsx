@@ -38,6 +38,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import AlgebraicSystemMode, {
@@ -94,6 +95,7 @@ import {
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
+import { SubmitText } from '../shared/ToolRuntimeContext';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -629,7 +631,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
                 {readyToSubmit ? <AlgebraicOutcome questionData={questionData} solution={solution} onAction={onAction} /> : null}
-                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
+                {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
                     <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
@@ -714,7 +716,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
               expression={`${name} = ${exactNumberText(reducedSolution[name])}`}
               label="Solved value"
               onArm={() => setArmedToken({ kind: 'back', variable: name })}
-              ariaLabel={`Pick up solved value ${exactNumberText(reducedSolution[name])} for ${name}`}
+              ariaLabel={`Pick up solved value ${spokenMathValue(exactNumberText(reducedSolution[name]))} for ${name}`}
             />
           ))}
         </div>

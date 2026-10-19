@@ -5,7 +5,9 @@ import {
   resolveAssessmentAvailability,
 } from '../assessment/testCycle.js';
 import { normalizeQuestionRecord } from '../../../functions/shared/attemptPolicy.mjs';
+import { opensWhenPhrase } from './studentWhen.js';
 import { studentSkillName } from '../assessment/secureExamResultsModel.js';
+import { studentMisconceptionMessage } from '../../../functions/shared/misconceptionStudentMessages.mjs';
 
 /*
  * WHERE IS THIS STUDENT IN THIS TEST CYCLE — AS A LIST CAN SAY IT.
@@ -140,8 +142,13 @@ export const describeTestCycleForStudent = ({
   });
 
   if (!availability.open && availability.reason === 'scheduled') {
+    // The opening moment is known (availability.opensAt): say it (NAV-19),
+    // "Review and Test open at 2:15 PM." / "… open on Wed, Oct 21, 2:15 PM.".
+    const when = opensWhenPhrase(availability.opensAt, { nowValue });
     return result(TEST_CYCLE_DISCOVERY.OPENS_LATER, {
-      label: 'Opens later', detail: 'Review and Test open at the scheduled time.', tone: 'locked', started: false, actionLabel: 'Not open yet',
+      label: 'Opens later',
+      detail: when ? `Review and Test open ${when}.` : 'Review and Test open at the time your teacher set.',
+      tone: 'locked', started: false, actionLabel: 'Not open yet',
     });
   }
   if (!availability.open) {
@@ -294,11 +301,29 @@ export const describeCorrectionTargetForStudent = (target = {}) => {
   const what = missed > 0
     ? `You missed ${missed} Test question${missed === 1 ? '' : 's'} on this skill.`
     : 'This skill needs another look before your Retest.';
-  const why = target?.diagnosis === 'misconception'
-    ? ' Your answers showed a specific mistake pattern, and these questions practise exactly that.'
-    : '';
+  const named = correctionTargetMistakePattern(target);
+  const why = named
+    ? ' Your answers showed the mistake named below, and these questions practise exactly that.'
+    : target?.diagnosis === 'misconception'
+      ? ' Your answers showed a specific mistake pattern, and these questions practise exactly that.'
+      : '';
   return `${what}${why} Practise it here on new questions — never the Test questions themselves.`;
 };
+
+/*
+ * THE MISTAKE PATTERN, NAMED (QA pass 3, HELP-13).
+ *
+ * "Your answers showed a specific mistake pattern" used to stop there. The plan
+ * records the canonical code the server proved (`misconception`, through the
+ * registry's trust gate — testCycleCorrections.mjs), and every code has one
+ * student message: fixed text that names the error as a thing to check and
+ * never contains an answer or a value (misconceptionStudentMessages.mjs). Only
+ * a recorded code is named; a `standard` diagnosis, or a code this build has
+ * no message for, names nothing.
+ */
+export const correctionTargetMistakePattern = (target = {}) => (
+  target?.diagnosis === 'misconception' ? studentMisconceptionMessage(target?.misconception) : null
+);
 
 /**
  * The skill a correction target names, as a heading. The plan copies the
@@ -526,4 +551,30 @@ export const testCycleDueFacts = ({ dueAt = null, lateDueAt = null, now = Date.n
   const late = lateDueAt ? new Date(lateDueAt).getTime() : NaN;
   const lateOpen = Number.isFinite(late) && late > due && now > due && now <= late;
   return { dueAt: new Date(due).toISOString(), finalLateDueAt: lateOpen ? new Date(late).toISOString() : null };
+};
+
+/**
+ * The card's dates, for the stage the student is at.
+ *
+ * Ahead of the Test, THIS student's own dates (an attendance extension or
+ * extra time, from getAssignmentLifecycle). In Corrections and the Retest —
+ * and for a student who missed the Test — the server closes them at the
+ * home-window close it enforces (resolveFollowUpWindow), which does not follow
+ * an individual extension; so the card says that close, or the class's final
+ * date when no home window is enforced, and never a later date the server
+ * would refuse. (Whether the home window should follow the student's own date
+ * is an open policy question: docs/handoffs/STUDENT_PASS3_TEST_CYCLE_DATES.md.)
+ */
+export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
+  const stage = clean(card?.stage);
+  // Finished: there is no late work left to be open.
+  if ([S.PASSED, S.COMPLETE, S.RETEST_CLOSED, S.RETEST_SUBMITTED].includes(stage)) {
+    return testCycleDueFacts({ dueAt: dueAt || card?.dueAt || null, lateDueAt: null, now });
+  }
+  const followUp = card?.schedule?.missedTest === true || [S.CORRECTIONS, S.RETEST_READY, S.RETEST].includes(stage);
+  const enforced = card?.schedule?.followUp?.enforced === true;
+  const late = !followUp
+    ? lateDueAt
+    : enforced ? (card.schedule.followUp.closesAt ?? null) : classLateDueAt;
+  return testCycleDueFacts({ dueAt: dueAt || card?.dueAt || null, lateDueAt: late, now });
 };
