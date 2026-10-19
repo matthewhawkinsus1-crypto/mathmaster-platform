@@ -30,6 +30,11 @@
 //               against their own close, decision D7) in an
 //               assertive region, shows seconds in its last minute and says
 //               unfinished answers are not turned in (RUN-10).
+//   lobbyInvite the teacher opens a Live Challenge lobby while the student is
+//               inside the lesson, away from Home: a Chromebook shows the
+//               invite banner, a phone's status chip says "Challenge lobby
+//               open"; either way "Enter Challenge Lobby" takes the student
+//               to the lobby (NAV-25).
 //
 // ONLY=room,warmup runs some. Exit code 1 on any failure.
 
@@ -408,6 +413,63 @@ if (wanted('dolTimer')) {
     }
     await extended.context.close();
   }
+}
+
+/* --------------------------------------------------------- lobbyInvite */
+if (wanted('lobbyInvite')) {
+  // What the teacher's "Open lobby" writes for this student (as the
+  // accessibility certification's live-challenge scene does), once the
+  // student is already inside the lesson.
+  const openLobby = ({ student }) => {
+    const roomId = 'chrome-lobby-room';
+    const playerKey = 'chrome-lobby-player';
+    window.__mmHarnessStore.set(`liveChallengeRooms/${roomId}`, {
+      schemaVersion: 2, roomId, title: 'Period 3 Live Challenge', status: 'lobby',
+      roundCount: 2, roundSeconds: 30, currentRound: -1, currentQuestion: null, roundStartedAt: null, roundEndsAt: null,
+    });
+    window.__mmHarnessStore.set(`liveChallengeRooms/${roomId}/players/${playerKey}`, {
+      playerKey, alias: 'Swift Otter', joined: false, score: 0, correctCount: 0, roundsAnswered: 0, streak: 0, answeredRound: -1,
+    });
+    window.__mmHarnessStore.set(`liveChallengeInvites/${student}`, {
+      roomId, title: 'Period 3 Live Challenge', alias: 'Swift Otter', playerKey, status: 'invited',
+    });
+  };
+  const entersLobby = async (page, device, button) => {
+    await button.click();
+    const waiting = await page.getByText('Waiting for your teacher to start').first().waitFor({ timeout: 30000 }).then(() => true, () => false);
+    check(waiting, `${device.name}: "Enter Challenge Lobby" from inside the lesson opens the lobby`);
+  };
+
+  const desktop = await openLesson(CHROMEBOOK);
+  check(!(await desktop.page.locator('[data-live-challenge-invite]').count()), `${CHROMEBOOK.name}: no lobby invite before the lobby opens`);
+  await desktop.page.evaluate(openLobby, { student: STUDENT });
+  const banner = desktop.page.locator('[data-live-challenge-invite]');
+  const shown = await banner.first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+  check(shown, `${CHROMEBOOK.name}: the lobby invite shows inside the lesson`);
+  check(/Your teacher opened the Live Challenge lobby/.test(await banner.innerText().catch(() => '')), `${CHROMEBOOK.name}: the invite says the teacher opened the lobby`, (await banner.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 120));
+  const enter = banner.getByRole('button', { name: 'Enter Challenge Lobby' });
+  const enterBox = await enter.boundingBox();
+  check(enterBox && enterBox.height >= 44, `${CHROMEBOOK.name}: "Enter Challenge Lobby" is at least 44px tall`, JSON.stringify(enterBox && Math.round(enterBox.height)));
+  if (process.env.SCREENSHOTS) await desktop.page.screenshot({ path: `${process.env.SCREENSHOTS}/lobby-invite-chromebook.png` });
+  await entersLobby(desktop.page, CHROMEBOOK, enter);
+  await desktop.context.close();
+
+  const phone = await openLesson(PHONE);
+  await phone.page.evaluate(openLobby, { student: STUDENT });
+  const chip = phone.page.locator('.mathmaster-assignment-status-chip');
+  let chipText = '';
+  for (let waited = 0; waited < 15 && !/Challenge lobby open/.test(chipText); waited += 1) {
+    await phone.page.waitForTimeout(1000);
+    chipText = await chip.innerText().catch(() => '');
+  }
+  check(/Challenge lobby open/.test(chipText), `${PHONE.name}: the status chip says the Challenge lobby is open`, chipText);
+  await chip.click();
+  await phone.page.waitForTimeout(300);
+  const panel = phone.page.locator('#mathmaster-assignment-status-panel');
+  check(/Your teacher opened the Live Challenge lobby/.test(await panel.innerText().catch(() => '')), `${PHONE.name}: the chip opens the invite line`);
+  if (process.env.SCREENSHOTS) await phone.page.screenshot({ path: `${process.env.SCREENSHOTS}/lobby-invite-phone.png` });
+  await entersLobby(phone.page, PHONE, panel.getByRole('button', { name: 'Enter Challenge Lobby' }));
+  await phone.context.close();
 }
 
 await browser.close();
