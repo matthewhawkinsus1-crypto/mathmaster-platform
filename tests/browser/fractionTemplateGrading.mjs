@@ -70,7 +70,7 @@ let pageCount = 0;
  * way a student does and submit it. Returns what was on screen and what the
  * engine graded.
  */
-const answerOnce = async (context, device, { kind, seat }, answer) => {
+const answerOnce = async (context, device, { kind, seat }, answer, { screenshot = null } = {}) => {
   pageCount += 1;
   const page = await context.newPage();
   const errors = [];
@@ -97,6 +97,10 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
   await page.keyboard.type(answer, { delay: 30 });
   await page.waitForTimeout(250);
   const typed = await field.evaluate((element) => element.value);
+  // What the screen says about the answer before it is submitted (a shape
+  // or form reason, answerShapeGuard).
+  const notice = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].map((node) => node.textContent.trim()).filter(Boolean).join(' | '));
+  if (screenshot && process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${screenshot}`, fullPage: false });
   const submit = page.getByRole('button', { name: /^Submit — / }).first();
   if (device.touch) await submit.tap();
   else await submit.click();
@@ -104,7 +108,7 @@ const answerOnce = async (context, device, { kind, seat }, answer) => {
   const graded = await page.evaluate(() => window.__mmGraded);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   await page.close();
-  return { prompt, typed, graded, errors, overflow };
+  return { prompt, typed, notice, graded, errors, overflow };
 };
 
 for (const device of DEVICES) {
@@ -138,6 +142,20 @@ for (const device of DEVICES) {
     check(result.prompt.endsWith('Simplify ⟨\\frac{4}{8}⟩.'), `${device.name} authored: the prompt reads "Simplify 4/8." with the full stop after the fraction`, result.prompt);
     check(result.graded?.isCorrect === expected, `${device.name} authored "Simplify 4/8." (key 2/4): ${answer} is ${expected ? 'right' : 'wrong'}`, `graded ${JSON.stringify(result.graded?.isCorrect)}, typed ${JSON.stringify(result.typed)}`);
   }
+  // A mixed number, typed as a student types 3½ with the fraction template
+  // (student pass 3, wave 7). "Simplify 14/4." asks for one fraction in lowest
+  // terms: the screen says so and no try is spent. An authored sum takes 3½.
+  const REASON = 'Write your answer as one fraction in lowest terms, not as a whole number and a fraction.';
+  const mixed = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, '3 1/2', { screenshot: `mixed-number-reason-${device.name.toLowerCase()}.png` });
+  check(/^3\\frac\{?1\}?\{?2\}?$/.test(mixed.typed), `${device.name} "Simplify 14/4.": the editor holds 3½ as a whole number and a fraction`, JSON.stringify(mixed.typed));
+  check(mixed.notice.includes(REASON), `${device.name} "Simplify 14/4.": 3½ shows why before a try is spent`, JSON.stringify(mixed.notice));
+  check(mixed.graded === null, `${device.name} "Simplify 14/4.": Submit spends no try on 3½`, JSON.stringify(mixed.graded));
+  check(!mixed.errors.length, `${device.name} "Simplify 14/4.": no page errors`, mixed.errors.slice(0, 2).join(' | '));
+  const improper = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, '7/2');
+  check(improper.graded?.isCorrect === true && !improper.notice.includes(REASON), `${device.name} "Simplify 14/4.": 7/2 is right, with no reason shown`, `graded ${JSON.stringify(improper.graded?.isCorrect)}`);
+  const sum = await answerOnce(context, device, { kind: 'sum', seat: 0 }, '3 1/2');
+  check(sum.graded?.isCorrect === true, `${device.name} 3/2 + 2: 3½ is 7/2`, `graded ${JSON.stringify(sum.graded?.isCorrect)}, typed ${JSON.stringify(sum.typed)}`);
+  check(!sum.notice.includes(REASON), `${device.name} 3/2 + 2: no form reason where any answer worth the sum is right`, JSON.stringify(sum.notice));
   await context.close();
 }
 
