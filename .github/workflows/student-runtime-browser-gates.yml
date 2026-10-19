@@ -114,10 +114,9 @@ name: Student Runtime Browser Gates
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
 #     secureResults, secureExamNavigation, secureAccessParity
-#   pass3-test-cycle-rich-tools, pass3-live-challenge-shell (long; one job
-#     each; each starts the Firestore emulator, a bridge to the real
-#     callables and Vite itself)
-#     testCycleRichToolQa, liveChallengeShellQa
+#   (testCycleRichToolQa and liveChallengeShellQa, which run the real
+#   callables on the Firestore emulator, are in
+#   student-pass3-emulator-journeys.yml: their own paths, and nightly)
 
 on:
   pull_request:
@@ -188,11 +187,15 @@ on:
       - "tests/browser/secureResults*"
       - "tests/browser/secureExamNavigation*"
       - "tests/browser/secureAccessParity*"
+      - "tests/browser/keyboardSweep.html"
       - "tests/browser/emulator/**"
-      - "tests/browser/testCycleRichToolQa*"
-      - "tests/browser/liveChallengeShellQa*"
-      - "tests/browser/support/**"
-      - "functions/**"
+      # secureAccessParity grades with the server's own code (functions/shared
+      # is above): these files and what they require.
+      - "functions/lib/mathPath.js"
+      - "functions/lib/pathContentCompiler.js"
+      - "functions/lib/pathFirestoreShape.js"
+      - "functions/lib/secureItems.js"
+      - "functions/lib/secureItemStorage.js"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-runtime-browser-gates.yml"
@@ -571,43 +574,3 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5203"
         run: node tests/browser/secureAccessParity.mjs
-
-  # The secure Rich Tool runtime on Chromebook, iPad and phone, light and dark,
-  # against the real callables on the Firestore emulator. Long: its own job.
-  # About 5 minutes locally.
-  pass3-test-cycle-rich-tools:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      # The bridge runs the real handlers, and firebase-admin lives in functions/.
-      - run: npm --prefix functions ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
-      - name: Every certified Rich Tool on a secure Test, on every device
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/testCycleRichToolQa.mjs
-
-  # The Live Challenge shell (host console, projector, student screens) played
-  # whole against the real callables on the Firestore emulator: a classic
-  # game, scoring, Graph Feature Rush, reconnects, a class of 40 launching, a
-  # big class, Play Again and five games in a row. Long: its own job.
-  pass3-live-challenge-shell:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm --prefix functions ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
-      - name: Live Challenge played whole, on every screen
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/liveChallengeShellQa.mjs

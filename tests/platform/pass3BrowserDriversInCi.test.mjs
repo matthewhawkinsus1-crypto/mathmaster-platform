@@ -14,7 +14,7 @@
 // A step that only runs on a schedule counts only where it is meant to.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (name) => readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8');
@@ -55,8 +55,8 @@ const DRIVERS = [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
-  ['student-runtime-browser-gates.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],
-  ['student-runtime-browser-gates.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
+  ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],
+  ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -78,6 +78,11 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
         assert.match(step, /if: always\(\)/, `${driver} runs even when an earlier driver fails`);
       }
       assert.doesNotMatch(step, /github\.event_name == 'schedule'/, `${driver} runs on pull requests, not only at night`);
+      // The emulator drivers load the real callables, whose dependencies
+      // (firebase-admin) live only in functions/.
+      if (workflow === 'student-pass3-emulator-journeys.yml') {
+        assert.ok(steps.slice(0, index).some((earlier) => /run: npm --prefix functions ci\s*$/m.test(earlier)), `${job} installs functions/ before ${driver}`);
+      }
       const pattern = SERVERS[server];
       if (!pattern) return;
       const start = steps.slice(0, index).find((earlier) => pattern.test(earlier));
@@ -99,15 +104,48 @@ test('the lobby invite journey enters the game on the accessibility App harness'
   assert.match(steps[chrome], new RegExp(`LIVE_CHALLENGE_HARNESS_ORIGIN: "http://127\\.0\\.0\\.1:${port}"`));
 });
 
-test('a pull request that changes one of these drivers runs its workflow', () => {
+test('a pull request that changes one of these drivers, or a page it opens, runs its workflow', () => {
   const gates = read('student-runtime-browser-gates.yml');
-  ['submitNotQueued', 'toolDraftSyncSweep', 'matrixLabFeedback', 'afterLastMiss', 'day1Systems', 'day2Nonunique',
-    'assignmentMobile', 'studentHomeToday', 'studentGradesRaise', 'studentResultUpNext', 'studentWhatChanged',
-    'gradeCenterMobile', 'secureResults', 'secureExamNavigation', 'secureAccessParity', 'testCycleRichToolQa',
-    'liveChallengeShellQa'].forEach((driver) => {
+  ['submitNotQueued', 'toolDraftSyncSweep', 'toolOpenAudit', 'matrixLabFeedback', 'algebra2MatricesLesson',
+    'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
+    'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
+    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups'].forEach((driver) => {
     assert.match(gates, new RegExp(`- "tests/browser/${driver}\\*"`), `${driver} is in the gates' paths`);
   });
-  assert.match(read('student-teacher-journeys.yml'), /- "tests\/browser\/teacherWorkflow\/\*\*"/);
+  // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
+  assert.match(gates, /- "tests\/browser\/keyboardSweep\.html"/);
+  const journeys = read('student-teacher-journeys.yml');
+  assert.match(journeys, /- "tests\/browser\/teacherWorkflow\/\*\*"/);
+  assert.match(journeys, /- "tests\/browser\/accessibilityAppHarness\*"/);
+  assert.match(journeys, /- "tests\/browser\/accessibilityFakeFirestore\.js"/);
+  const emulator = read('student-pass3-emulator-journeys.yml');
+  ['functions/\\*\\*', 'tests/browser/emulator/\\*\\*', 'tests/browser/support/\\*\\*', 'tests/browser/testCycleRichToolQa\\*',
+    'tests/browser/liveChallengeShellQa\\*', 'src/components/liveChallenge/\\*\\*', 'src/platform/liveChallenge/\\*\\*'].forEach((glob) => {
+    assert.match(emulator, new RegExp(`- "${glob}"`), `${glob} is in the emulator journeys' paths`);
+  });
+});
+
+// The two long emulator drivers have a workflow of their own (wave 7 review,
+// S3): only a change that can reach them runs them on a pull request, and they
+// run nightly and on demand. The gates no longer run on every functions/
+// change: only on the server files secureAccessParity grades with.
+test('the emulator journeys run on their own paths, nightly and on demand; the gates skip functions-only changes', () => {
+  const emulator = read('student-pass3-emulator-journeys.yml');
+  assert.match(emulator, /^ {2}schedule:\n {4}- cron: "[^"]+"$/m);
+  assert.match(emulator, /^ {2}workflow_dispatch:$/m);
+  assert.doesNotMatch(emulator, /\$\{\{\s*secrets\./, 'no secrets');
+  const gates = read('student-runtime-browser-gates.yml');
+  assert.doesNotMatch(gates, /- "functions\/\*\*"/);
+  ['mathPath', 'pathContentCompiler', 'pathFirestoreShape', 'secureItems', 'secureItemStorage'].forEach((name) => {
+    assert.match(gates, new RegExp(`- "functions/lib/${name}\\.js"`), `${name}.js triggers the gates (secureAccessParity)`);
+  });
+  assert.doesNotMatch(gates, /pass3-(test-cycle-rich-tools|live-challenge-shell):/, 'the long jobs left the gates');
+});
+
+test('no workflow here runs on pull_request_target', () => {
+  ['student-runtime-browser-gates.yml', 'student-teacher-journeys.yml', 'student-pass3-emulator-journeys.yml'].forEach((name) => {
+    assert.doesNotMatch(read(name), /pull_request_target/, name);
+  });
 });
 
 // Wave 7's other branches add five drivers. Until each merges, its step skips
@@ -124,6 +162,10 @@ for (const [workflow, job, driver] of GUARDED) {
   test(`${job} runs ${driver} once its branch merges, and skips cleanly before`, () => {
     const steps = stepsOf(jobsOf(read(workflow))[job]);
     const file = `tests/browser/${driver}.mjs`;
+    // A guard that outlives its file would skip forever if the file were
+    // renamed. Once the driver is here: drop the guard and pin it in DRIVERS
+    // (the handoff, "Converting a guarded step", says how).
+    if (existsSync(new URL(`../../${file}`, import.meta.url))) assert.fail(`${file} is here: drop its guard and pin it in DRIVERS`);
     const step = steps.find((candidate) => candidate.includes(`if [ -f ${file} ]; then node ${file}; else echo`));
     assert.ok(step, `${job} has a guarded step for ${file}`);
     assert.match(step, /if: always\(\)/);

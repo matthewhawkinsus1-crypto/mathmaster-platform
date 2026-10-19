@@ -111,6 +111,7 @@ on:
       - "functions/shared/**"
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/accessibilityAppHarness*"
+      - "tests/browser/accessibilityFakeFirestore.js"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/linearMultipleRepresentations*"
       - "tests/browser/lmrProcess*"

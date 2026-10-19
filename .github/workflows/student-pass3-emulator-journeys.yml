@@ -1,0 +1,101 @@
+name: Student Pass 3 Emulator Journeys
+
+# Student pass 3's two long browser drivers, which play the real student and
+# teacher screens against the real callables (functions/platformEntry.js) on
+# the Firestore emulator. Each starts the emulator, a bridge and Vite itself.
+#
+#   pass3-test-cycle-rich-tools   testCycleRichToolQa: every certified Rich
+#                                 Tool on a secure Test, Chromebook, iPad and
+#                                 phone, light and dark; a student's session
+#                                 autosaved, reloaded and submitted
+#   pass3-live-challenge-shell    liveChallengeShellQa: the Live Challenge
+#                                 shell played whole (console, projector,
+#                                 students), a class of 40 launching, five
+#                                 games in a row
+#
+# Their own workflow, so that only a change that can reach them runs them on a
+# pull request (about 15 runner-minutes together); every night, and on demand,
+# they run whatever changed. Read-only: this workflow writes nothing back and
+# uses no secrets.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - "src/firebase.js"
+      - "src/components/liveChallenge/**"
+      - "src/platform/liveChallenge/**"
+      - "src/components/rewards/**"
+      - "src/components/student/rewards/**"
+      - "src/platform/rewards/**"
+      - "src/components/student/TestCycle*"
+      - "src/components/assessment/**"
+      - "src/components/question/**"
+      - "src/services/testCycleService.js"
+      - "src/services/secureExamService.js"
+      - "src/platform/assessment/**"
+      # The tools the rich-tool QA drives, and the engine that hosts them
+      - "src/tools/**"
+      - "src/QuestionEngine.jsx"
+      - "tests/browser/emulator/**"
+      - "tests/browser/support/**"
+      - "tests/browser/testCycleRichToolQa*"
+      - "tests/browser/testCycleLifecycleQa*"
+      - "tests/browser/liveChallengeShellQa*"
+      - "tests/browser/graphFeatureRushStudent*"
+      - "tests/browser/graphFeatureRushTeacher*"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/student-pass3-emulator-journeys.yml"
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-pass3-emulator-journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The secure Rich Tool runtime on Chromebook, iPad and phone, light and dark,
+  # against the real callables on the Firestore emulator. Long: its own job.
+  # About 5 minutes locally.
+  pass3-test-cycle-rich-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      # The bridge runs the real handlers, and firebase-admin lives in functions/.
+      - run: npm --prefix functions ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Every certified Rich Tool on a secure Test, on every device
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/testCycleRichToolQa.mjs
+
+  # The Live Challenge shell (host console, projector, student screens) played
+  # whole against the real callables on the Firestore emulator: a classic
+  # game, scoring, Graph Feature Rush, reconnects, a class of 40 launching, a
+  # big class, Play Again and five games in a row. Long: its own job.
+  pass3-live-challenge-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm --prefix functions ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Live Challenge played whole, on every screen
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/liveChallengeShellQa.mjs
