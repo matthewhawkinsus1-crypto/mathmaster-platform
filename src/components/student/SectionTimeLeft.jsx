@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { UNFINISHED_WORK_LINE, formatTimeLeft, takeDueTimeAlert } from '../../platform/student/timeLeftAlerts.js';
-import { EXTRA_TIME_WORDS } from '../../platform/assessment/extraTimeWords.js';
+import { EXTRA_TIME_WORDS, saysExtraTime } from '../../platform/assessment/extraTimeWords.js';
 
 const toMillis = (value) => {
   if (!value) return null;
@@ -26,11 +26,12 @@ const toMillis = (value) => {
  * hides the ticking numbers, not the warnings: a warning is said once, and
  * missing it loses work.
  *
- * `extraTime` (getDOLState().extendedTime): this close is the student's own,
- * later one, and the pill says so — "extra time" — so a countdown that runs
- * past the class's end reads as theirs (D7).
+ * `extraTimeFrom` (extraTimeWords.js): from that moment — the class's own
+ * close, for a student whose close is later (D7) — the pill says "extra
+ * time", so a countdown that runs past the class's end reads as theirs.
+ * Before it, the pill reads as everyone's (review N7).
  */
-export default function SectionTimeLeft({ label, labelInSentence = label, endsAt, hideCountdown = false, className = '', compact = false, extraTime = false }) {
+export default function SectionTimeLeft({ label, labelInSentence = label, endsAt, hideCountdown = false, className = '', compact = false, extraTimeFrom = null }) {
   const endMs = toMillis(endsAt);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [alert, setAlert] = useState(null);
@@ -61,6 +62,7 @@ export default function SectionTimeLeft({ label, labelInSentence = label, endsAt
 
   if (!endMs) return null;
   const urgent = remainingMs <= 120_000;
+  const extraTime = saysExtraTime(extraTimeFrom, nowMs);
   const time = formatTimeLeft(remainingMs);
   return (
     <span className={`mathmaster-section-time-left${urgent ? ' is-urgent' : ''}${className ? ` ${className}` : ''}`} data-section-time-left="">

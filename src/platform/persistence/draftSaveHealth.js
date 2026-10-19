@@ -158,6 +158,16 @@ export const clearDraftSaveProblemsForFamily = (prefix) => {
   return changed;
 };
 
+/*
+ * A shared Chromebook: the next student never inherits this one's notice.
+ * Cleared when a signed-in account gives way (sign-out, another student),
+ * never when one arrives: after a reload what was kept for this tab must
+ * survive the account loading again (null → the same student).
+ */
+export const accountChangeClearsDraftProblems = (previousAccount, nextAccount) => (
+  Boolean(previousAccount) && previousAccount !== (nextAccount || null)
+);
+
 /** `{ 'device-full': n, 'backup-refused': n, 'backup-full': n }`. */
 export const currentDraftSaveProblems = () => snapshot();
 

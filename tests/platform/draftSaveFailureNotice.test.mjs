@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import {
   DRAFT_SAVE_PROBLEM,
   DRAFT_SAVE_PROBLEM_TEXT,
+  accountChangeClearsDraftProblems,
   clearDraftSaveProblems,
   currentDraftSaveProblems,
   describeDraftSaveProblems,
@@ -145,6 +146,15 @@ test('the store hands back what the caps left out', () => {
   assert.match(region(app, 'flush: async ({ document }) => {', '},'), /const result = await writeWorkspaceDraft\(document\);[\s\S]*return result;/);
 });
 
+test('a shared Chromebook: the next student starts clean, and a reload keeps this student\'s notice', () => {
+  assert.equal(accountChangeClearsDraftProblems('stu-a', 'stu-b'), true, 'another student signs in');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', null), true, 'sign-out');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', undefined), true, 'signed out (no id)');
+  assert.equal(accountChangeClearsDraftProblems(null, 'stu-a'), false, 'the account loading after a reload');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', 'stu-a'), false, 'the same student');
+  assert.equal(accountChangeClearsDraftProblems(null, null), false);
+});
+
 test('App.jsx shows the notice on the assignment screen, for this student and assignment', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   assert.match(app, /import \{[^}]*\bdescribeDraftSaveProblems\b[^}]*\bdraftSaveProblemsFor\b[^}]*\bsubscribeDraftSaveHealth\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/,
@@ -159,7 +169,11 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   // Not gated on the outbox status: a draft can fail while nothing is queued.
   assert.doesNotMatch(notice, /studentPersistenceStatus/);
   assert.doesNotMatch(problem, /studentPersistenceStatus/);
-  assert.match(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/, 'a shared Chromebook\'s next student starts clean');
+  // A shared Chromebook's next student starts clean; a reload keeps this
+  // student's (pass 3, wave 7: the effect no longer clears on null → student).
+  const account = region(app, 'const draftHealthAccountRef = useRef(null);', '}, [user?.id]);');
+  assert.match(account, /if \(accountChangeClearsDraftProblems\(draftHealthAccountRef\.current, account\)\) clearDraftSaveProblems\(\);\s*draftHealthAccountRef\.current = account;/, 'a shared Chromebook\'s next student starts clean');
+  assert.match(app, /^import \{[^}]*\baccountChangeClearsDraftProblems\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';$/m);
 });
 
 /*

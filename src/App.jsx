@@ -29,7 +29,7 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
@@ -44,6 +44,7 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
+import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -868,14 +869,12 @@ function App() {
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
   const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
   useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
-  // A shared Chromebook: the next student never inherits this one's notice.
-  // Cleared when a signed-in account gives way (sign-out, another student),
-  // not when one arrives: after a reload the notice kept for this tab
-  // (draftSaveHealth.js) must survive the account loading again.
+  // A shared Chromebook: the next student never inherits this one's notice,
+  // and a reload keeps this student's (accountChangeClearsDraftProblems).
   const draftHealthAccountRef = useRef(null);
   useEffect(() => {
     const account = user?.id || null;
-    if (draftHealthAccountRef.current && draftHealthAccountRef.current !== account) clearDraftSaveProblems();
+    if (accountChangeClearsDraftProblems(draftHealthAccountRef.current, account)) clearDraftSaveProblems();
     draftHealthAccountRef.current = account;
   }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
@@ -10822,7 +10821,7 @@ function App() {
                 state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">
-                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} extraTime={dolState.extendedTime === true} />
+                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} extraTimeFrom={extraTimeFrom(dolState)} />
               </div>
             )}
           </nav>

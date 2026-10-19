@@ -856,9 +856,35 @@ export default function StepByStepAlgebra({
    * "Apply the step again" repeats the same step while the equation is
    * still the one it was taken on. True when the caller must stop.
    */
+  // Everything the student has staged. A held step belongs to the staging it
+  // was taken with (review S1): any change — a tile or an operand armed,
+  // Simplify, a Rewrite tool, a distribution, a typed simplification, a
+  // cancellation mark — retires its alert and button, so "Apply the step
+  // again" can never apply an older step over newer staging.
+  const stagingKey = useMemo(() => {
+    try {
+      return JSON.stringify([
+        equation?.left, equation?.right, pendingMove, armedTile, operand, placedOperationSides,
+        placedOperationPositions, tapPlacementArmed, simplifyTool, structureTool, rewriteMenuOpen, distributionState,
+        simplificationAnswers, crossedSides, cancelledPairIds, selectedCancellationIndices,
+      ]);
+    } catch {
+      return '';
+    }
+  }, [equation, pendingMove, armedTile, operand, placedOperationSides, placedOperationPositions, tapPlacementArmed,
+    simplifyTool, structureTool, rewriteMenuOpen, distributionState, simplificationAnswers, crossedSides, cancelledPairIds,
+    selectedCancellationIndices]);
+  const stagingKeyRef = useRef(stagingKey);
+  stagingKeyRef.current = stagingKey;
+  useEffect(() => {
+    setMessage((current) => (current?.notQueued && current.stagingKey !== stagingKey ? null : current));
+  }, [stagingKey]);
+
   const holdUnsavedStep = (result, retry) => {
     if (!isStepNotQueued(result)) return false;
-    setMessage({ tone: 'error', text: result.message, notQueued: true, retry, equationKey: equationKey(equation), heldAt: Date.now() });
+    // The staging as it stands now (the latest render), not as this commit's
+    // closure saw it: a cancellation's last mark lands before the commit.
+    setMessage({ tone: 'error', text: result.message, notQueued: true, retry, stagingKey: stagingKeyRef.current, heldAt: Date.now() });
     return true;
   };
 
@@ -2898,8 +2924,8 @@ export default function StepByStepAlgebra({
         if (message.notQueued) {
           // Its own element, new each time (a second failure is said again),
           // so the alert is read when it appears; the button sits outside it
-          // and only while the board is the one the step was taken on.
-          const retryable = typeof message.retry === 'function' && equation && message.equationKey === equationKey(equation);
+          // and only while the staging is the one the step was taken with.
+          const retryable = typeof message.retry === 'function' && message.stagingKey === stagingKey;
           return (
             <div style={{ marginTop: '16px' }}>
               <div key={message.heldAt} role="alert" data-step-not-queued="" data-message-tone={tone} style={{ padding: '13px 15px', borderRadius: '10px', background, color, fontWeight: 'bold' }}>{message.text}</div>

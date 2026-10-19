@@ -9,6 +9,7 @@
  *   ?scene=step         a Step Algebra question (3x + 6 = 21); the host's
  *                       onStepGrade answers STEP_NOT_QUEUED while failing
  *   ?scene=relation     an inequality (2x + 3 < 11), the relation solver
+ *   ?scene=flip         -2x < 6: dividing by -2 asks for the relation symbol
  *   ?scene=replacement  a closed question offering a new problem; the host's
  *                       onRequestNewQuestion answers REPLACEMENT_NOT_QUEUED
  *
@@ -38,6 +39,7 @@ const ASSIGNMENT = `asg-${scene}-not-queued`;
 const QUESTIONS = {
   step: { questionId: 'q-step', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '3x + 6 = 21', solveFor: 'x', activityRole: 'classwork' },
   relation: { questionId: 'q-relation', type: 'stepAlgebra', prompt: 'Solve the inequality.', equation: '2x + 3 < 11', solveFor: 'x', activityRole: 'classwork' },
+  flip: { questionId: 'q-flip', type: 'stepAlgebra', prompt: 'Solve the inequality.', equation: '-2x < 6', solveFor: 'x', activityRole: 'classwork' },
   replacement: {
     questionId: 'q-replace',
     type: 'multiAnswer',

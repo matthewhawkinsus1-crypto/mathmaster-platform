@@ -1206,7 +1206,9 @@ export default function MultiRelationAlgebra({
     const next = cloneRelationState(relationState);
     if (!next.branches?.[activeBranch]?.expressions || !Number.isInteger(index)) return false;
     next.branches[activeBranch].expressions[index] = result.expression;
-    // Armed before the save: the new expressions render while it is awaited.
+    // Armed before the step is committed: commitState saves first and then
+    // renders the new expressions, which must already find Simplify closing.
+    // A step that is not committed (not valid, or not saved) disarms it below.
     closeSimplifyWhenDoneRef.current = true;
     const committed = await commitState(
       next,
@@ -1396,18 +1398,34 @@ export default function MultiRelationAlgebra({
         setMessage({ tone: 'error', text: validation.reason });
         return;
       }
+      // Saved before the flip is taken, as commitState does (review B2): a
+      // step this device could not save (STEP_NOT_QUEUED) leaves the flip
+      // pending and this symbol unchosen, and says so; choosing the symbol
+      // again saves it again.
+      if (persistingStepRef.current) return;
+      persistingStepRef.current = true;
+      let saved;
+      try {
+        saved = await persistStep(
+          pending.before,
+          next,
+          pending.label,
+          'student-relation-direction',
+          pending.validationContext || { kind: 'equivalentRewrite' },
+        );
+      } finally {
+        persistingStepRef.current = false;
+      }
+      if (isStepNotQueued(saved)) {
+        setRelationState(relationState);
+        setMessage({ tone: 'error', text: saved.message, notQueued: true, heldAt: Date.now() });
+        return;
+      }
       setHistory((current) => [...current, {
         relationState: cloneRelationState(pending.before),
         activeBranch,
       }]);
       setPendingRelationFlip(null);
-      await persistStep(
-        pending.before,
-        next,
-        pending.label,
-        'student-relation-direction',
-        pending.validationContext || { kind: 'equivalentRewrite' },
-      );
       setMessage({
         tone: 'success',
         text: flipResults.length > 1

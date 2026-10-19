@@ -12,13 +12,17 @@
 //                the step is complete, one alert says it was not saved, and
 //                "Apply the step again" takes it once the device can save.
 //   relation     2x + 3 < 11 on the relation solver: the same.
+//   flip         -2x < 6, Divide by -2, choose ">": the flip stays pending and
+//                the symbol unchosen; choosing it again takes it (review B2).
+//   staging      a held step, then Undo and Divide by: the alert and its button
+//                go, and nothing older can be applied over the new staging (S1).
 //   replacement  a closed question's "Request New Question": the question
 //                and its saved work stay, one alert says no new problem yet;
 //                asking again once the device can save gives the new problem.
 //   defect       `?host=null` (the old host's answer) applies the step anyway.
 //
 // At 1366×768 and 390×844. Exit code 1 on any finding.
-import { balancedMove, cancellationLabels, mathState, settle, termSelector } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancellationLabels, chooseOperation, mathState, settle, termSelector } from './stepAlgebraDriver.mjs';
 import { balanced, relationState } from './relationWorkspaceDriver.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -114,6 +118,66 @@ for (const [label, viewport] of [['Chromebook', { width: 1366, height: 768 }], [
     const retried = compact(await relationState(page));
     expect(retried !== before && (await calls(page)) === 2, 'the same step is applied, saved once more', { before, retried });
     expect(await notSavedAlerts(page).count() === 0, 'the alert is gone');
+    expect(errors.length === 0, 'no page errors', errors);
+    await context.close();
+  }
+
+  console.log(`\n${label}: a relation-symbol flip the device cannot save (review B2)`);
+  {
+    const { context, page, errors } = await open(viewport, 'flip');
+    await balanced(page, 'divide', '-2');
+    const pending = compact(await relationState(page));
+    const pick = async () => {
+      await page.getByRole('button', { name: 'Choose relation symbol' }).first().click();
+      await settle(page, 300);
+      await page.locator('button:visible', { hasText: /^>$/ }).first().click();
+      await settle(page, 900);
+    };
+    await pick();
+    const afterFail = compact(await relationState(page));
+    expect((await calls(page)) === 1, 'the flip reached the host once', await page.evaluate(() => window.__calls));
+    expect(afterFail === pending && afterFail.includes('<'), 'the symbol is left unchosen (the flip is still pending)', { pending, afterFail });
+    expect(await notSavedAlerts(page).count() === 1, 'one alert says the step was not saved');
+    expect(!/Relation symbols? accepted/i.test(await page.locator('[data-question-stage]').innerText()), 'nothing says the symbol was accepted');
+    expect(await page.getByRole('button', { name: 'Choose relation symbol' }).count() >= 1, 'the symbol can be chosen again');
+
+    console.log(`${label}: the device can save again; choosing the symbol takes it`);
+    await page.evaluate(() => { window.__hostFails = false; });
+    await pick();
+    const taken = compact(await relationState(page));
+    expect(taken.includes('>') && !taken.includes('<') && (await calls(page)) === 2, 'the flip is taken and saved once more', { taken });
+    expect(await notSavedAlerts(page).count() === 0, 'the alert is gone');
+    expect(errors.length === 0, 'no page errors', errors);
+    await context.close();
+  }
+
+  console.log(`\n${label}: new staging retires a held step (review S1)`);
+  {
+    const { context, page, errors } = await open(viewport, 'step');
+    const before = compact(await mathState(page.locator('body')));
+    await subtractSix(page);
+    expect(await notSavedAlerts(page).count() === 1 && await applyAgain(page).count() === 1, 'the step is held, with its button');
+    // The held move keeps the rails busy, as any pending move does: Undo
+    // takes it back, and that is already new staging.
+    await page.locator('.mathmaster-universal-undo:not([data-work-view-action])').first().click();
+    await settle(page, 500);
+    expect(await notSavedAlerts(page).count() === 0 && await applyAgain(page).count() === 0, 'Undo retires the held Subtract 6 and its button');
+    // Back to an empty board (each Undo takes back one staged action), then a new move is staged.
+    const divide = page.locator('button[aria-label="Choose Divide by operation"]').first();
+    for (let guard = 0; guard < 5 && await divide.count() && await divide.isDisabled(); guard += 1) {
+      await page.locator('.mathmaster-universal-undo:not([data-work-view-action])').first().click();
+      await settle(page, 400);
+    }
+    if (await divide.count() && await divide.isEnabled()) {
+      await chooseOperation(page, page.locator('body'), 'Divide by');
+      await settle(page, 400);
+      expect(await applyAgain(page).count() === 0, 'and with Divide by chosen there is nothing to apply again');
+    } else {
+      console.log('  · the operation rail is not on this screen now; Undo alone was the new staging');
+    }
+    await page.evaluate(() => { window.__hostFails = false; });
+    await settle(page, 300);
+    expect(compact(await mathState(page.locator('body'))) === before, 'nothing older is applied over the new staging');
     expect(errors.length === 0, 'no page errors', errors);
     await context.close();
   }

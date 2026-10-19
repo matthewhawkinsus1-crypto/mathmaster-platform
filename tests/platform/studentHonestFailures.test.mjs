@@ -35,6 +35,7 @@ import {
 import { STUDENT_ERROR_TEXT, describeStudentError, studentErrorSentence } from '../../src/platform/student/studentErrorText.js';
 import { buildWhatChanged, WHAT_CHANGED_KIND } from '../../src/platform/student/whatChangedModel.js';
 import { EXTRA_TIME_WORDS, describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
+import { extraTimeFrom, saysExtraTime } from '../../src/platform/assessment/extraTimeWords.js';
 import { resolveNextAction } from '../../src/studentDashboardModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -93,9 +94,9 @@ test('the solver applies no step it could not save: every commit stops between t
   assert.match(solver, /^import \{ isStepNotQueued \} from '\.\/platform\/student\/submissionNotQueued\.js';$/m);
   const helper = region(solver, 'const holdUnsavedStep = (result, retry) => {', '\n  };');
   assert.match(helper, /if \(!isStepNotQueued\(result\)\) return false;/);
-  assert.match(helper, /setMessage\(\{ tone: 'error', text: result\.message, notQueued: true, retry, equationKey: equationKey\(equation\), heldAt: Date\.now\(\) \}\);\s*return true;/);
+  assert.match(helper, /setMessage\(\{ tone: 'error', text: result\.message, notQueued: true, retry, stagingKey: stagingKeyRef\.current, heldAt: Date\.now\(\) \}\);\s*return true;/);
   const sites = [
-    ['commitMove', 'const commitMove = async (', 'const hasPartialCancellationSelection', /const saved = await saveStep\(\{ move, action: STEP_ACTIONS\.BALANCED_MOVE/, /holdUnsavedStep\(saved, \(\) => commitMove\(move, \{ resolution, crossedSidesOverride \}\)\)/],
+    ['commitMove', 'const commitMove = async (', 'const hasPartialCancellationSelection', /const saved = await saveStep\(\{ move, action: STEP_ACTIONS\.BALANCED_MOVE/, /if \(holdUnsavedStep\(saved, \(\) => commitMove\(move, \{ resolution, crossedSidesOverride \}\)\)\) \{/],
     ['Simplify', 'const commitSimplifyResult = async (', 'const distributable = useMemo(', /const saved = await persistStudentRewrite\(/, /if \(holdUnsavedStep\(saved, \(\) => commitSimplifyResult\(result\)\)\) return false;/],
     ['Distribute', 'const commitDistributionStep = async () => {', 'const cancellationActiveSides = useMemo(', /const saved = await onStepGrade\(rewriteStepPayload\(/, /if \(holdUnsavedStep\(saved, \(\) => commitDistributionStep\(\)\)\) return;/],
     ['Rewrite tools', 'const commitStructureToolStep = async (', 'const resetQuestionWork = ', /const saved = await persistStudentRewrite\(/, /if \(holdUnsavedStep\(saved, \(\) => commitStructureToolStep\(tool\)\)\) return;/],
@@ -115,10 +116,22 @@ test('the solver applies no step it could not save: every commit stops between t
 test('the solver says it once, in an alert of its own, and offers the same step again only on the same board', () => {
   const render = region(solver, 'if (message.notQueued) {', '\n        }\n');
   assert.match(render, /<div key=\{message\.heldAt\} role="alert" data-step-not-queued=""[^>]*>\{message\.text\}<\/div>/);
-  assert.match(render, /const retryable = typeof message\.retry === 'function' && equation && message\.equationKey === equationKey\(equation\);/);
+  assert.match(render, /const retryable = typeof message\.retry === 'function' && message\.stagingKey === stagingKey;/);
   assert.match(render, /\{retryable && \(\s*<button type="button"[^>]*disabled=\{disabled \|\| savingStep \|\| cancelAnimating\} onClick=\{\(\) => message\.retry\(\)\}[^>]*>\s*Apply the step again\s*<\/button>/);
   // An alert is not a correctness verdict: it stays red where verdicts are withheld.
   assert.match(solver, /const tone = !verdictsShown && message\.tone !== 'error' \? 'neutral' : message\.tone;/);
+});
+
+test('a held step belongs to its staging: any change of staging retires the alert and the button (review S1)', () => {
+  const staging = region(solver, 'const stagingKey = useMemo(() => {', 'const holdUnsavedStep = (result, retry) => {');
+  // Everything a student can stage is in the key.
+  for (const piece of ['equation?.left', 'equation?.right', 'pendingMove', 'armedTile', 'operand', 'placedOperationSides', 'placedOperationPositions',
+    'tapPlacementArmed', 'simplifyTool', 'structureTool', 'rewriteMenuOpen', 'distributionState', 'simplificationAnswers', 'crossedSides',
+    'cancelledPairIds', 'selectedCancellationIndices']) {
+    assert.ok(staging.slice(0, staging.indexOf(']);')).includes(piece), `${piece} is part of the staging`);
+  }
+  assert.match(staging, /stagingKeyRef\.current = stagingKey;/);
+  assert.match(staging, /useEffect\(\(\) => \{\s*setMessage\(\(current\) => \(current\?\.notQueued && current\.stagingKey !== stagingKey \? null : current\)\);\s*\}, \[stagingKey\]\);/);
 });
 
 test('the relation solver saves before it applies, and an unsaved step changes nothing', () => {
@@ -134,6 +147,19 @@ test('the relation solver saves before it applies, and an unsaved step changes n
   }
   assert.match(commit, /if \(persistingStepRef\.current\) return false;/, 'one step at a time while it is saved');
   assert.match(relation, /role=\{message\.notQueued \? 'alert' : 'status'\}/);
+});
+
+test('a relation-symbol flip is saved before it is taken; unsaved, the flip stays pending and the symbol unchosen (review B2)', () => {
+  const choose = region(relation, 'const chooseRelationSymbol = async (', 'const applyAbsoluteSplitChoice = async (');
+  const saveAt = choose.search(/saved = await persistStep\(\s*pending\.before,\s*next,/);
+  const stopAt = choose.search(/if \(isStepNotQueued\(saved\)\) \{\s*setRelationState\(relationState\);\s*setMessage\(\{ tone: 'error', text: saved\.message, notQueued: true, heldAt: Date\.now\(\) \}\);\s*return;\s*\}/);
+  assert.ok(saveAt > 0 && stopAt > saveAt, 'saved, then stopped, back to the pending relation');
+  // The complete flip's history entry and "accepted" come only after it is saved.
+  const complete = choose.slice(choose.indexOf('if (complete) {'));
+  assert.ok(complete.indexOf('setHistory(') > complete.search(/if \(isStepNotQueued\(saved\)\)/), 'history after the save');
+  assert.ok(complete.search(/setPendingRelationFlip\(null\);\s*setMessage\(\{\s*tone: 'success'/) > complete.indexOf('setHistory('), 'the flip ends, accepted, after that');
+  // Every solver path that saves a step reads its answer: commitState and the flip are persistStep's only callers.
+  assert.equal([...relation.matchAll(/await persistStep\(/g)].length, 2);
 });
 
 test('a new problem the device could not queue keeps the question and its work, and says so under its button', () => {
@@ -165,6 +191,29 @@ test('words no person wrote for a student are never shown; the screen\'s own sen
   // An unanswered request still reads as one, and a bare code never shows.
   assert.equal(studentErrorSentence(sdkError('unavailable', 'Failed to get document because the client is offline.'), 'Could not load.'), STUDENT_ERROR_TEXT.offline);
   assert.equal(studentErrorSentence({ code: 'functions/not-found', message: 'not-found' }, 'This round could not be opened.'), 'This round could not be opened.');
+});
+
+test('a callable refusal with our sentence keeps it, whatever its code; the SDK\'s own words never pass for ours (review B1)', () => {
+  const late = sdkError('functions/deadline-exceeded', 'Time was up before your answer arrived, so it was not counted.');
+  assert.equal(studentErrorSentence(late, 'Your answer could not be submitted.'), 'Time was up before your answer arrived, so it was not counted.');
+  assert.equal(describeStudentError(late).retry, false, 'the server answered: asking again will not change it');
+  assert.equal(studentErrorSentence(sdkError('functions/deadline-exceeded', 'Time is up for this round.'), 'x y'), 'Time is up for this round.');
+  // The SDK's own timeout, and a bare code: no answer came, so it is the connection.
+  assert.equal(studentErrorSentence(sdkError('functions/deadline-exceeded', 'deadline-exceeded'), 'Could not submit.'), STUDENT_ERROR_TEXT.offline);
+  assert.equal(studentErrorSentence(sdkError('functions/internal', 'internal'), 'Could not submit.'), STUDENT_ERROR_TEXT.offline);
+  assert.equal(studentErrorSentence(sdkError('functions/internal', 'INTERNAL'), 'Could not submit.'), STUDENT_ERROR_TEXT.offline);
+  // Sentences the Functions SDK writes itself (@firebase/functions): never ours, never "Wi-Fi".
+  for (const [code, message] of [
+    ['functions/internal', 'Response is not valid JSON object.'],
+    ['functions/internal', 'Response is missing data field.'],
+    ['functions/cancelled', 'Request was cancelled.'],
+    ['functions/cancelled', 'Request was cancelled'],
+    ['functions/cancelled', 'Firebase Functions instance was deleted.'],
+  ]) {
+    assert.equal(studentErrorSentence(sdkError(code, message), 'Your answer could not be submitted.'), 'Your answer could not be submitted.', message);
+  }
+  // A dropped connection still reads as one, whatever the error says.
+  assert.equal(studentErrorSentence(new TypeError('Failed to fetch'), 'Could not submit.'), STUDENT_ERROR_TEXT.offline);
 });
 
 test('the words half imports nothing, so the sign-in path can say it; the full translator says the same words', () => {
@@ -217,20 +266,33 @@ test('an extension whose date has passed is no longer listed as more time', () =
   assert.match(live.find((item) => item.kind === WHAT_CHANGED_KIND.EXTENDED)?.text || '', /^You have more time on Lesson a1 — now due \w{3}, Oct 9,/);
 });
 
-test('a student\'s own later close says "extra time" on the pill, on Home and in the open notice', () => {
+test('a student\'s own later close says "extra time" only once the class\'s own window has ended (review N7)', () => {
   assert.equal(EXTRA_TIME_WORDS, 'extra time');
+  const classEndsAt = new Date(NOW + 10 * 60 * 1000);
   const endsAt = new Date(NOW + 25 * 60 * 1000);
   assert.match(describeDolClose({ status: 'active', extendedTime: true, endsAt }).openNotice, /— extra time\./);
-  const dashboard = (extendedTime) => ({ activeDols: [{ assignment: { id: 'a1', title: 'Lesson a1' }, questionIndices: [3], openQuestionIndices: [3], state: { status: 'active', endsAt, extendedTime } }] });
-  assert.equal(resolveNextAction({ dashboard: dashboard(true) }).extraTime, true);
-  assert.equal(resolveNextAction({ dashboard: dashboard(false) }).extraTime, false);
+  // The moment, from the student's own DOL state: only with extra time.
+  assert.equal(extraTimeFrom({ extendedTime: true, classEndsAt }), classEndsAt.getTime());
+  assert.equal(extraTimeFrom({ extendedTime: false, classEndsAt }), null, 'a classmate never reads it');
+  assert.equal(extraTimeFrom({ extendedTime: true, classEndsAt: null }), null);
+  // Both sides of the class's close: before it a neighbour reads nothing about an accommodation.
+  assert.equal(saysExtraTime(classEndsAt.getTime(), NOW), false, 'while the class still has time');
+  assert.equal(saysExtraTime(classEndsAt.getTime(), classEndsAt.getTime() - 1), false);
+  assert.equal(saysExtraTime(classEndsAt.getTime(), classEndsAt.getTime()), true, 'from the class\'s close');
+  assert.equal(saysExtraTime(classEndsAt.getTime(), classEndsAt.getTime() + 60_000), true);
+  assert.equal(saysExtraTime(null, NOW), false);
+  const dashboard = (extendedTime) => ({ activeDols: [{ assignment: { id: 'a1', title: 'Lesson a1' }, questionIndices: [3], openQuestionIndices: [3], state: { status: 'active', endsAt, classEndsAt, extendedTime } }] });
+  assert.equal(resolveNextAction({ dashboard: dashboard(true) }).extraTimeFrom, classEndsAt.getTime());
+  assert.equal(resolveNextAction({ dashboard: dashboard(false) }).extraTimeFrom, null);
   const home = read('src/components/student/WhatShouldIDoNow.jsx');
   const closes = region(home, '<div data-next-action-closes', '</div>');
-  assert.match(closes, /\{describeClosesAt\(nextAction\.closesAt\)\}\s*(?:\{\s*\}\s*)?\{nextAction\.extraTime \? ` — \$\{EXTRA_TIME_WORDS\}` : ''\}/);
+  assert.match(closes, /\{describeClosesAt\(nextAction\.closesAt\)\}\s*(?:\{\s*\}\s*)?\{saysExtraTime\(nextAction\.extraTimeFrom\) \? ` — \$\{EXTRA_TIME_WORDS\}` : ''\}/);
   const pill = read('src/components/student/SectionTimeLeft.jsx');
+  assert.match(pill, /const extraTime = saysExtraTime\(extraTimeFrom, nowMs\);/, 'the pill decides on its own one-second clock');
   assert.match(pill, /\{compact \? null : `\$\{label\} open\$\{extraTime \? ` · \$\{EXTRA_TIME_WORDS\}` : ''\}`\}/);
   assert.match(pill, /`\$\{label\} is open\$\{extraTime \? ` \(\$\{EXTRA_TIME_WORDS\}\)` : ''\}/, 'and in the words a screen reader is given');
-  assert.match(app, /<SectionTimeLeft label=\{EXIT_TICKET\}[^>]*extraTime=\{dolState\.extendedTime === true\} \/>/);
+  assert.match(app, /<SectionTimeLeft label=\{EXIT_TICKET\}[^>]*extraTimeFrom=\{extraTimeFrom\(dolState\)\} \/>/);
+  assert.match(app, /^import \{ extraTimeFrom \} from '\.\/platform\/assessment\/extraTimeWords\.js';$/m);
 });
 
 /* ---- 4. "not being saved" across a reload of the tab ---------------------- */
@@ -286,7 +348,7 @@ test('a backup problem is kept across a reload while the draft is still on the d
 
 test('App clears the kept problems when an account gives way, never when one arrives (a reload)', () => {
   const effect = region(app, 'const draftHealthAccountRef = useRef(null);', '}, [user?.id]);');
-  assert.match(effect, /const account = user\?\.id \|\| null;\s*if \(draftHealthAccountRef\.current && draftHealthAccountRef\.current !== account\) clearDraftSaveProblems\(\);\s*draftHealthAccountRef\.current = account;/);
+  assert.match(effect, /const account = user\?\.id \|\| null;\s*if \(accountChangeClearsDraftProblems\(draftHealthAccountRef\.current, account\)\) clearDraftSaveProblems\(\);\s*draftHealthAccountRef\.current = account;/);
   // The old cleanup ran on every change of user?.id, null → student included,
   // which wiped what was kept for the reload as the account loaded.
   assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/);
