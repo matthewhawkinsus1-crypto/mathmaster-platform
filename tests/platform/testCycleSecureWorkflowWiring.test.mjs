@@ -408,9 +408,7 @@ test('the windows panel is told each class\'s sittings, so a stranded class is f
   const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
   assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(test, classSittings\.get\(classId\)\),/);
   assert.match(schedule, /describeTestWindow\(test, \{ timeZone, audience: "teacher", classSittings: classSittings\.get\(classId\) \|\| null \}\)/);
-  // The call also carries the assignment id (wave 7), so the panel can read a
-  // class's recorded sittings for a day that no longer resolves.
-  assert.match(server, /testSchedule: await teacherTestCycleSchedule\(db, shared, \{ assignment, assignmentId, [^}]*classSittings: classSittingsOf\(shared, rows\) \}\),/);
+  assert.match(server, /testSchedule: await teacherTestCycleSchedule\(db, shared, \{ assignment, policy, classSizes, bell, now, classSittings: classSittingsOf\(shared, rows\) \}\),/);
   const counts = region(server, 'function classSittingsOf(shared, rows) {', '\n}\n', 'classSittingsOf');
   assert.match(counts, /const classId = row\.sitsWithClassId \|\| row\.classId;/);
   assert.match(counts, /if \(!notStarted\.includes\(row\.test\?\.state \|\| shared\.record\.SESSION_STATE\.NONE\)\) entry\.started \+= 1;/);

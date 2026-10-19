@@ -1393,14 +1393,15 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
 });
 
 /*
- * M (server follow-up to PR-21): a class-period day the class SAT stays a
- * real window after it stops resolving. The first Test start inside it
- * records the times it resolved to (testCycleClassSittings, create-if-absent);
- * when the bell schedule no longer gives that day a period, the window closes
- * at the recorded bell, so the absent student is marked missed instead of
- * waiting — and without the recording the same data waits, as before.
+ * M (student pass 3, wave 7, item 2 — RECORD-ONLY): the first fresh Test
+ * start inside a class-period window records the times that day resolved to
+ * (testCycleClassSittings, create-if-absent), and NOTHING READS IT. One
+ * student starting the Test looks exactly like a class sitting it (the
+ * reviewer's snow day), so a day that stops resolving behaves exactly as on
+ * the base: absent students wait, never missed, and a day that has passed
+ * flags the class for a new day.
  */
-test('M: the first Test start records the class sitting, and a day the class sat closes even after it stops resolving', async (t) => {
+test('M: the first Test start records the class sitting, and nothing reads it: a day that stops resolving still waits', async (t) => {
   const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay, classSittingId, TEST_CYCLE_CLASS_SITTINGS } = await import('../../functions/shared/testCycleAvailability.mjs');
@@ -1415,18 +1416,21 @@ test('M: the first Test start records the class sitting, and a day the class sat
     return;
   }
   const today = zonedDateKey(startedMinute, SCHOOL_TIME_ZONE);
+  const lastWeek = zonedDateKey(startedMinute - 7 * 86400000, SCHOOL_TIME_ZONE);
   const ASSIGNMENT = `${CERT_PREFIX}sittingm`;
   const CLASS = 'cert-sittingm-class';
   const PERIOD = 'CERT SITTINGM Period';
   const SAT = 'CERT_SITTINGM_SAT';
   const ABSENT = 'CERT_SITTINGM_ABSENT';
   const sittingRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: today }));
+  const pastRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: lastWeek }));
   t.after(async () => {
     const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
     await Promise.allSettled([
       db.collection('assignments').doc(ASSIGNMENT).delete(),
       db.collection('classes').doc(CLASS).delete(),
       sittingRef.delete(),
+      pastRef.delete(),
       removeOwnSchedule(PERIOD),
       ...sessions.docs.map((doc) => doc.ref.delete()),
       ...[SAT, ABSENT].flatMap((studentId) => [
@@ -1471,26 +1475,31 @@ test('M: the first Test start records the class sitting, and a day the class sat
   await fns.startSecureExamSession.run(studentRequest(SAT, { examSessionId: satCard.examSessionId }));
   assert.equal((await sittingRef.get()).data().recordedAt, sitting.recordedAt);
 
-  // The day stops resolving: the bell schedule no longer has the period that day.
+  // Today's day stops resolving (the period is taken off the bell schedule)
+  // and the meeting ends. The sitting is not read: the absent student is back
+  // on the Test, waiting, not missed.
   await removeOwnSchedule(PERIOD);
   while (Date.now() <= sitting.closesAt + 500) {
     // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => { setTimeout(resolve, 1000); });
   }
-
-  const absent = await cardOf(ABSENT);
-  assert.equal(absent.schedule.test.state, 'closed', 'the class\'s window is the one it sat');
-  assert.equal(absent.schedule.missedTest, true, 'the absent student is marked missed, not left waiting');
-  assert.equal(absent.stage, 'retest');
-  const row = await classRow();
-  assert.deepEqual([row.test.state, row.test.needsNewDay], ['closed', false], 'the teacher is not asked for a new day');
-  assert.equal(row.windows[0].label.includes('times not on the bell schedule'), false, 'the window shows the times the class sat');
-
-  // Without the recording, the same data waits, as before: the day no longer
-  // has times, so the absent student is back on the Test, not missed.
-  await sittingRef.delete();
   const waiting = await cardOf(ABSENT);
   assert.deepEqual([waiting.stage, waiting.schedule.test.state, waiting.schedule.missedTest], ['test', 'upcoming', false]);
+  assert.equal((await readRecord(ASSIGNMENT, ABSENT)).retest.examSessionId || null, null, 'no stand-in Retest');
+
+  // A PAST day with a recorded sitting that no longer resolves (the
+  // reviewer's snow day: one start, then the day entered as a closure): it
+  // is stranded exactly as on the base, the absent student is not missed,
+  // and the panel asks the teacher for a new day.
+  await pastRef.set({ ...sitting, dateKey: lastWeek, opensAt: sitting.opensAt - 7 * 86400000, closesAt: sitting.closesAt - 7 * 86400000 });
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: lastWeek, at: sitting.opensAt - 8 * 86400000 }),
+  });
+  const stranded = await cardOf(ABSENT);
+  assert.deepEqual([stranded.schedule.test.state, stranded.schedule.test.stranded, stranded.schedule.missedTest], ['upcoming', true, false]);
+  assert.equal(stranded.schedule.test.headline, 'Waiting for a new Test day');
+  const row = await classRow();
+  assert.deepEqual([row.test.state, row.test.needsNewDay], ['upcoming', true], 'the teacher is asked for a new day');
 });
 
 /*

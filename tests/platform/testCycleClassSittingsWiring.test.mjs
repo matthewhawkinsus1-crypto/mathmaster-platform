@@ -2,13 +2,12 @@
  * A TEST DAY THE CLASS SAT STAYS A CLOSED WINDOW — the server wiring (student
  * pass 3, wave 7, item 2; docs/handoffs/STUDENT_PASS3_SERVER_FOLLOWUPS.md).
  *
- * The rule is pure and proved in testCycleAvailability.test.mjs; the real
- * callables are run against the emulator in testCycleCertification scenario
- * M (the first start records the sitting; the day stops resolving; the absent
- * student is missed; the teacher row is closed). What those cannot see
- * without running every path is that EVERY reader of a class's windows is
- * handed the sittings, and that the write can never fail a start. That is
- * pinned here, bound to the statement that does the work.
+ * RECORD-ONLY in wave 7: the first fresh Test start writes the sitting and
+ * nothing reads it (an owner decision decides whether anything ever may; see
+ * the handoff). The record is proved in testCycleAvailability.test.mjs and
+ * against the emulator in testCycleCertification scenario M. Pinned here:
+ * the write happens only after a fresh Test start, can never fail it, and is
+ * the only place the collection is touched.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,22 +38,34 @@ test('the write is create-if-absent and a failure is logged, never thrown', () =
   assert.doesNotMatch(write, /throw /);
 });
 
-test('every reader of a class\'s windows is handed its recorded sittings', () => {
-  const student = region(server, 'async function studentTestCycleSchedule(', '\n}\n', 'studentTestCycleSchedule');
-  assert.match(student, /const sittings = followsBell\s*\? await classTestSittingsIfNeeded\(db, shared, \{/);
-  assert.match(student, /assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone, sittings,/);
-  assert.match(student, /classId: classId \|\| null,/);
-  const teacher = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
-  assert.match(teacher, /const sittings = await classTestSittingsIfNeeded\(db, shared, \{/);
-  assert.match(teacher, /shared\.schedule\.resolveClassWindows\(\{ availability: assignment\?\.testAvailability, classId, classPeriod, schedule: bell, timeZone, sittings \}\)/);
-  const bulk = region(server, '} else if (action === "setTestDayForClasses") {', 'const first = classPeriod', 'setTestDayForClasses');
-  assert.match(bulk, /const sittings = await classTestSittingsIfNeeded\(db, shared, \{ assignment, assignmentId, classId, classPeriod, schedule: bell \}\);/);
-  assert.match(bulk, /sched\.resolveClassWindows\(\{ availability: assignment\?\.testAvailability, classId, classPeriod, schedule: bell, timeZone, sittings \}\)/);
+test('record-only: nothing on the server reads a sitting, and no window resolver takes one', () => {
+  // The collection is named in exactly one write and nowhere else.
+  const uses = server.split('TEST_CYCLE_CLASS_SITTINGS').length - 1;
+  assert.equal(uses, 1, 'one reference: the create in recordClassTestSitting');
+  assert.doesNotMatch(server, /testCycleClassSittings/, 'never named as a literal path either');
+  // Every resolver call passes the same arguments as before: no sittings.
+  [...server.matchAll(/resolve(?:ClassWindows|StudentTestCycleSchedule)\(\{[^}]*\}\)/g)].forEach(([call]) => assert.doesNotMatch(call, /sittings/, call));
+  const shared = executableSource(readFileSync(new URL('../../functions/shared/testCycleAvailability.mjs', import.meta.url), 'utf8'));
+  const resolver = region(shared, 'export const resolveClassWindows = (', '\n};\n', 'resolveClassWindows');
+  assert.doesNotMatch(resolver, /sitting/i);
 });
 
-test('the sittings are read only when a class window does not resolve', () => {
-  const read = region(server, 'async function classTestSittingsIfNeeded(', '\n}\n', 'classTestSittingsIfNeeded');
-  const gate = read.indexOf('if (!shared.schedule.classWindowsNeedSittings(live)) return null;');
-  assert.ok(gate > 0, 'the gate');
-  assert.ok(read.indexOf('.where("assignmentId", "==", id).get()') > gate, 'the query comes after it');
+test('the mistake diagnosis is loaded before every transaction that grades, never inside it', () => {
+  const preload = 'await secureExamItems.loadMissEvidence();';
+  const before = (source, label) => {
+    const at = source.indexOf(preload);
+    assert.ok(at >= 0, `${label}: loads it`);
+    assert.ok(at < source.indexOf('db.runTransaction('), `${label}: before its transaction`);
+  };
+  before(region(server, 'exports.submitSecureExamResponse = onCall(', '\n});\n', 'submit'), 'submitSecureExamResponse');
+  before(region(server, 'exports.finalizeSecureExam = onCall(', '\n});\n', 'finalize'), 'finalizeSecureExam');
+  before(region(server, 'async function autoFinalizeSecureSession(', '\n}\n', 'auto finalize'), 'autoFinalizeSecureSession');
+  const proctor = region(server, 'exports.proctorExamAction = onCall(', '\n});\n', 'proctor');
+  const at = proctor.indexOf('if (action === "forceSubmit") await secureExamItems.loadMissEvidence();');
+  assert.ok(at >= 0 && at < proctor.indexOf('db.runTransaction('), 'proctorExamAction: before a force-submit\'s transaction');
+  // Every caller that grades inside a transaction is one of those four.
+  const graders = [...server.matchAll(/(?<!function )finalizeSecureSessionInTransaction\(transaction|secureExamItems\.buildResponseRecord\(/g)].length;
+  assert.equal(graders, 4);
+  const items = executableSource(readFileSync(new URL('../../functions/lib/secureExamItems.js', import.meta.url), 'utf8'));
+  assert.doesNotMatch(items.slice(0, items.indexOf('function loadMissEvidence')), /correctionMissDiagnosis/, 'not a module-level import');
 });

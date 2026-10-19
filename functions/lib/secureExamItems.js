@@ -158,13 +158,34 @@ function safeSupportUsage(source) {
  * no browser reads, and no payload before release carries it (publicSession
  * strips responses; publicReview copies only the score).
  */
+/*
+ * LOADED BEFORE THE TRANSACTION, NEVER INSIDE IT. The diagnosis module pulls
+ * in the classifiers; its first import on a cold instance takes about a
+ * second. Every caller that grades inside a session transaction
+ * (submitSecureExamResponse, finalizeSecureExam, proctorExamAction's
+ * force-submit, the abandoned-test finalizer) awaits `loadMissEvidence()`
+ * first, so the transaction only ever meets a loaded module. Not a
+ * module-level import: that would load it at every function's cold start.
+ * A failed import is forgotten (the next call tries again) and is no evidence.
+ */
 let diagnosisModule = null;
+function loadMissEvidence() {
+  if (!diagnosisModule) {
+    diagnosisModule = import('../shared/correctionMissDiagnosis.mjs').catch(() => {
+      diagnosisModule = null;
+      return null;
+    });
+  }
+  return diagnosisModule;
+}
+
 async function missEvidenceOf(item, grading, responsePayload) {
   try {
     if (!grading || grading.isCorrect === true || grading.rejected === true || !isObject(item?.privateGrading)) return null;
-    if (!diagnosisModule) diagnosisModule = await import('../shared/correctionMissDiagnosis.mjs');
+    const diagnosis = await loadMissEvidence();
+    if (!diagnosis) return null;
     const raw = item.privateGrading.pathToolId ? await secureItems.rawWorkOf(responsePayload || {}) : null;
-    return diagnosisModule.pathMisconceptionEvidence({
+    return diagnosis.pathMisconceptionEvidence({
       privateGrading: item.privateGrading,
       grading,
       raw,
@@ -322,6 +343,7 @@ async function finalizeOpenItems(session, openItems, now) {
 
 module.exports = {
   buildResponseRecord,
+  loadMissEvidence,
   correctAnswerDisplay,
   draftStampOf,
   finalizeOpenItems,

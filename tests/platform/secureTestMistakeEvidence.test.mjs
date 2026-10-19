@@ -170,6 +170,12 @@ test('2. a secure miss records its evidence where it is graded; a right, blank o
   assert.deepEqual(right.grading, { score: 1, isCorrect: true });
   const blank = await record(stored, { responses: {} }, { unanswered: true });
   assert.equal(blank.grading.misconceptionEvidence, undefined);
+  // An item recorded as unanswered is never read for a mistake, whatever its
+  // payload holds (the data lab's detector reads the work, not the parts).
+  const lab = await issue(DATA, { questionInstanceId: 'q-2' });
+  const reversed = tool({ choicesOpenUnanswered: true, direction: 'negative', strength: 'strong', r: '-0.99' });
+  assert.ok((await record(lab, reversed)).grading.misconceptionEvidence, 'the premise: answered, it is named');
+  assert.equal((await record(lab, reversed, { unanswered: true })).grading.misconceptionEvidence, undefined);
   const other = await record(stored, tool({ domain: [7], range: [8] }));
   assert.deepEqual(other.grading, { score: 0, isCorrect: false }, 'an unmodeled miss is recorded exactly as before');
   // The same miss finalized from a saved draft is recorded the same way.

@@ -17660,8 +17660,8 @@ exports.startSecureExamSession = onCall(async (request) => {
     return next;
   });
   // The first Test start inside a class-period window records that window's
-  // times, so the day stays a real window for the class if it later stops
-  // resolving. After the start is committed, and it never fails the start.
+  // times (record-only: nothing reads them yet; see recordClassTestSitting).
+  // After the start is committed, and it never fails the start.
   if (entry?.schedule && entry.isRetest === false && entrySession.status === "not_started" && session.status === "in_progress") {
     await recordClassTestSitting(db, entry.shared, { assignmentId: entry.assignmentId, schedule: entry.schedule });
   }
@@ -18309,6 +18309,8 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("examSessions").doc(examSessionId);
   const markerRef = db.collection("examSubmissions").doc(mathPath.opaqueId("examsub", examSessionId, submissionId));
+  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
+  await secureExamItems.loadMissEvidence();
   const result = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, marker] = await Promise.all([transaction.get(sessionRef), transaction.get(markerRef)]);
     // The idempotency marker answers a retry from the SAME student. Anyone else
@@ -18450,6 +18452,8 @@ exports.finalizeSecureExam = onCall(async (request) => {
     && !(await courseTestSessionIsCurrent(db, finalizeSession))) {
     throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
   }
+  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
+  await secureExamItems.loadMissEvidence();
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
@@ -18533,6 +18537,8 @@ async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly
   const replaced = secureExam.isCourseTestSession(before)
     && !secureExam.TERMINAL_STATES.has(before.status)
     && !(await courseTestSessionIsCurrent(db, before));
+  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
+  await secureExamItems.loadMissEvidence();
   const result = await db.runTransaction(async (transaction) => {
     const fresh = await transaction.get(ref);
     if (!fresh.exists) return { outcome: "missing" };
@@ -18786,6 +18792,8 @@ exports.proctorExamAction = onCall(async (request) => {
       "This secure session was replaced by a reset. Release the student's current session instead.",
     );
   }
+  // Loaded before the transaction: a force-submit grades inside it (secureExamItems.loadMissEvidence).
+  if (action === "forceSubmit") await secureExamItems.loadMissEvidence();
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
@@ -18930,14 +18938,9 @@ async function studentTestCycleSchedule(db, shared, {
   const classPeriod = followsBell
     ? await resolveCheckpointClassPeriod(db, classId, classId === ownClassId ? gradeData : {}, periodCache)
     : null;
-  const sittings = followsBell
-    ? await classTestSittingsIfNeeded(db, shared, {
-      assignment, assignmentId: record?.assignmentId || assignment?.id, classId, classPeriod, schedule, cache: periodCache,
-    })
-    : null;
   return {
     ...shared.schedule.resolveStudentTestCycleSchedule({
-      assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone, sittings,
+      assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
     }),
     // The class whose windows this student follows: a Test start records its sitting.
     classId: classId || null,
@@ -18945,41 +18948,20 @@ async function studentTestCycleSchedule(db, shared, {
 }
 
 /*
- * A CLASS-PERIOD DAY THE CLASS SAT STAYS A REAL WINDOW.
+ * RECORD THE CLASS SITTING A TEST START HAPPENED IN — RECORD-ONLY.
  *
- * The first Test start inside a class-period window records the times that
- * day resolved to (create-if-absent, one server-only document per assignment,
- * class and day; testCycleAvailability.mjs `classSittingToRecord`). When that
- * day later stops resolving — a rotation flip, a renamed or cleared period,
- * an `at` an older server rewrote — `resolveClassWindows` reads the recorded
- * times, so the Test is closed for the class and an absent student is marked
- * missed instead of waiting for a day the class already had.
+ * The first fresh Test start inside a class-period window writes the times
+ * that day resolved to (create-if-absent, one server-only document per
+ * assignment, class and day; testCycleAvailability.mjs `classSittingToRecord`).
+ * NOTHING READS IT YET. One student starting the Test — from home on a snow
+ * day, say — looks exactly like a class sitting it, so whether a recorded
+ * sitting may ever mark absent students missed is an owner decision
+ * (docs/handoffs/STUDENT_PASS3_SERVER_FOLLOWUPS.md). A day that stops
+ * resolving behaves exactly as before: absent students wait, the panel flags
+ * the class. What is recorded from this deploy on is what that decision uses.
  *
- * Read only when one of the class's bell-schedule windows does not resolve,
- * so a cycle whose days resolve costs no extra read.
- */
-async function classTestSittingsIfNeeded(db, shared, { assignment, assignmentId, classId, classPeriod, schedule, cache = null }) {
-  const id = String(assignmentId || "").trim();
-  if (!classId || !id) return null;
-  const live = shared.schedule.resolveClassWindows({
-    availability: assignment?.testAvailability, classId, classPeriod, schedule, timeZone: shared.timeZone,
-  });
-  if (!shared.schedule.classWindowsNeedSittings(live)) return null;
-  // A teacher's bulk pass resolves every student of a class: one read per assignment.
-  const key = `testCycleClassSittings:${id}`;
-  let documents = cache?.get(key);
-  if (!documents) {
-    documents = db.collection(shared.schedule.TEST_CYCLE_CLASS_SITTINGS).where("assignmentId", "==", id).get()
-      .then((snapshot) => snapshot.docs.map((entry) => entry.data() || {}));
-    cache?.set(key, documents);
-  }
-  return shared.schedule.classSittingsByDateKey(await documents, classId);
-}
-
-/**
- * Record the class sitting a Test start happened in, once. Never fails the
- * start: a write that loses the race finds the document already there, and
- * any other failure is logged — the next start in the window records it.
+ * Never fails the start: a write that loses the race finds the document
+ * already there, and any other failure is logged — the next start records it.
  */
 async function recordClassTestSitting(db, shared, { assignmentId, schedule, now = Date.now() }) {
   try {
@@ -20925,7 +20907,7 @@ function classSittingsOf(shared, rows) {
   return byClass;
 }
 
-async function teacherTestCycleSchedule(db, shared, { assignment, assignmentId = null, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
+async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
   if (policy.externalAssessment) return null;
   const timeZone = shared.timeZone;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -20934,15 +20916,11 @@ async function teacherTestCycleSchedule(db, shared, { assignment, assignmentId =
     ? await db.getAll(...classIds.map((classId) => db.collection(CLASS_COLLECTION).doc(classId)))
     : [];
   const todayKey = schoolTodayKey(shared, now);
-  const sittingsCache = new Map();
-  const classes = await Promise.all(classSnapshots.map(async (classSnapshot) => {
+  const classes = classSnapshots.map((classSnapshot) => {
     const classRecord = classSnapshot.exists ? classSnapshot.data() || {} : {};
     const classId = classSnapshot.id;
     const classPeriod = String(classRecord.period || "") || null;
-    const sittings = await classTestSittingsIfNeeded(db, shared, {
-      assignment, assignmentId, classId, classPeriod, schedule: bell, cache: sittingsCache,
-    });
-    const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone, sittings });
+    const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
     const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
     const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
     const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
@@ -21000,7 +20978,7 @@ async function teacherTestCycleSchedule(db, shared, { assignment, assignmentId =
       })),
       hasPeriodOnSchedule: Boolean(classPeriod),
     };
-  }));
+  });
   const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);
   return {
     timeZone,
@@ -21191,7 +21169,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
-    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, assignmentId, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
     // Who this Test is for: its classes, anyone added on their own, and the
     // record of every addition.
     audience: {
@@ -26244,10 +26222,7 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       // A class whose window has already opened (it sat the Test, or is
       // sitting it) is kept: moving it would put its Corrections back behind a
       // new window and un-miss its absent students. Its own row moves it.
-      // A day the class sat counts even if it no longer resolves (its recorded sitting).
-      // eslint-disable-next-line no-await-in-loop
-      const sittings = await classTestSittingsIfNeeded(db, shared, { assignment, assignmentId, classId, classPeriod, schedule: bell });
-      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone, sittings })
+      const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
         .filter((window) => window.resolved && window.opensAt <= now)
         .sort((left, right) => right.opensAt - left.opensAt)[0];
       if (ran) {
