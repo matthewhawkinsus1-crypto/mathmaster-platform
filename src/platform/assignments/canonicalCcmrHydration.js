@@ -181,6 +181,23 @@ const placedAuditedQuestion = (baseQuestion, compiled) => keepExplicitQuestionVa
   teacherExcluded: false,
 });
 
+/*
+ * A first look that costs one question, not the whole assignment: the checks
+ * an item fails on its own (a graph or table its prompt promises and it lacks
+ * — most of the bank's failures), seen on the candidate alone in its section
+ * as Pre-Flight sees it (its runtime view), under its real number. It can only
+ * refuse; whatever it passes is still proven in place.
+ */
+const failsOnItsOwn = (assignment, sectionIndex, placed, questionNumber, classSize = null) => {
+  try {
+    const section = asArray(assignment.sections)[sectionIndex] || {};
+    const probe = buildAssignmentV5PreflightModel({ ...assignment, sections: [{ ...section, questions: [placed] }] }, { classSize });
+    return probe.questions[0] ? validateQuestionSemantics(probe.questions[0], { label: `Question ${questionNumber}` }).errors : [];
+  } catch {
+    return [];
+  }
+};
+
 const describeSourced = ({ slot, baseQuestion, question, questionNumber }) => ({
   kind: slot.kind,
   sectionIndex: slot.sectionIndex,
@@ -286,20 +303,6 @@ export const selectHonorsCcmrItems = ({
   const failedEverywhere = new Set();
   const used = new Set(asArray(base.sections).flatMap((section) => asArray(section?.questions)).map(bankDocumentId).filter(Boolean));
 
-  // A first look that costs one question, not the whole assignment: the
-  // checks an item fails on its own (a graph or table its prompt promises and
-  // it lacks — most of the bank's failures) seen on the candidate alone in its
-  // section, as Pre-Flight sees it (its runtime view), under its real number.
-  // It can only refuse; whatever it passes is still proven in place below.
-  const failsOnItsOwn = (sectionIndex, placed, questionNumber) => {
-    try {
-      const section = asArray(working.sections)[sectionIndex] || {};
-      const probe = buildAssignmentV5PreflightModel({ ...working, sections: [{ ...section, questions: [placed] }] }, { classSize });
-      return probe.questions[0] ? validateQuestionSemantics(probe.questions[0], { label: `Question ${questionNumber}` }).errors : [];
-    } catch {
-      return [];
-    }
-  };
 
   const tryPlace = (slot) => {
     const baseQuestion = questionAt(working, slot.sectionIndex, slot.questionIndex);
@@ -328,7 +331,7 @@ export const selectHonorsCcmrItems = ({
         selection.skipped.push({ ...record, errors: [`Question ${questionNumber} could not be built from this audited item: ${String(error?.message || error)}`] });
         continue;
       }
-      const ownErrors = failsOnItsOwn(slot.sectionIndex, placed, questionNumber);
+      const ownErrors = failsOnItsOwn(working, slot.sectionIndex, placed, questionNumber, classSize);
       if (ownErrors.length) {
         failedEverywhere.add(documentId);
         selection.skipped.push({ ...record, errors: ownErrors, question: placed });
@@ -567,6 +570,111 @@ export const honorsCcmrRecord = (candidate = null) => {
     })),
     skippedDocumentIds: [...new Set(asArray(candidate.skipped).filter((entry) => !entry.depthOnly).map((entry) => entry.documentId).filter(Boolean))],
     ...(candidate.status === HONORS_CCMR_STATUS.KEPT_AUTHORED ? { teacherDecision: 'keepAuthoredPractice', explanation: candidate.explanation || '' } : {}),
+  };
+};
+
+/*
+ * IMPORT: DIRECT EXAM-STYLE CLAIMS, PROVEN BEFORE THEY ENTER THE LESSON.
+ *
+ * Pasted or uploaded JSON can hold questions written as SAT, ACT or TSIA2
+ * practice. Import replaces each with the audited item it imitates, for every
+ * class, before Review compiles the lesson. That used to be the server's
+ * first choice, unchecked, so an item promising a graph it lacks arrived in
+ * Review as a blocker the teacher had not caused. Here each claim keeps the
+ * first audited item offered for it (the server's plan) that the assignment
+ * passes MathMaster's checks with where it sits; a claim no offered item
+ * passes for stays as written, and the audit says so.
+ *
+ * It edits the raw JSON the import compiles next, so the item proven is the
+ * item Review sees. `authoredAssignmentV5` is that JSON compiled as written.
+ * Without it (the JSON does not compile) or without a plan (an older server),
+ * the server's own answer is kept, as before.
+ */
+export const proveImportedCcmrClaims = ({
+  rawAssignment,
+  authoredAssignmentV5 = null,
+  hydration = null,
+  classSize = null,
+} = {}) => {
+  const audit = isObject(hydration?.audit) ? { ...hydration.audit } : null;
+  const plan = isObject(audit?.plan) ? audit.plan : null;
+  if (audit) delete audit.plan;
+  if (!plan || !isObject(rawAssignment) || !isObject(authoredAssignmentV5)) {
+    return { assignment: isObject(hydration?.assignment) ? hydration.assignment : rawAssignment, audit, proven: false };
+  }
+
+  const raw = JSON.parse(JSON.stringify(rawAssignment));
+  let working = normalizeAssignmentV5(authoredAssignmentV5);
+  let workingModel = buildAssignmentV5PreflightModel(working, { classSize });
+  const used = new Set(asArray(working.sections).flatMap((section) => asArray(section?.questions)).map(bankDocumentId).filter(Boolean));
+  const failed = new Set();
+  const replaced = [];
+  const skipped = [];
+  const misses = [...asArray(audit?.misses)];
+
+  for (const slot of asArray(plan.slots).filter((entry) => isObject(entry) && entry.kind === 'directClaim')) {
+    const authored = questionAt(working, slot.sectionIndex, slot.questionIndex);
+    const rawQuestion = raw.sections?.[slot.sectionIndex]?.questions?.[slot.questionIndex];
+    if (!isObject(authored) || !isObject(rawQuestion)) continue;
+    // The plan names the question it was made for, written and compiled alike.
+    if (clean(slot.questionId) && (clean(slot.questionId) !== clean(authored.questionId) || clean(slot.questionId) !== clean(rawQuestion.questionId))) continue;
+    const questionNumber = flatNumber(working, slot.sectionIndex, slot.questionIndex);
+    const offered = asArray(slot.candidates).filter((intent) => bankDocumentId(intent));
+    let accepted = null;
+    for (const intent of offered) {
+      const documentId = bankDocumentId(intent);
+      if (used.has(documentId) || failed.has(documentId)) continue;
+      const record = {
+        sectionIndex: slot.sectionIndex,
+        questionIndex: slot.questionIndex,
+        questionNumber,
+        documentId,
+        framework: clean(intent?.ccmrSource?.framework || intent?.assessmentContext?.framework) || null,
+        prompt: clean(intent?.prompt),
+      };
+      let compiled;
+      try {
+        compiled = compileAuditedCandidate(working, slot.sectionIndex, intent);
+      } catch (error) {
+        failed.add(documentId);
+        skipped.push({ ...record, errors: [`Question ${questionNumber} could not be built from this audited item: ${String(error?.message || error)}`] });
+        continue;
+      }
+      const ownErrors = failsOnItsOwn(working, slot.sectionIndex, compiled, questionNumber, classSize);
+      const trial = ownErrors.length ? null : replaceAt(working, slot.sectionIndex, slot.questionIndex, compiled);
+      const trialModel = trial ? buildAssignmentV5PreflightModel(trial, { classSize }) : null;
+      const errors = ownErrors.length ? ownErrors : newlyIntroducedPreflightErrors(workingModel.errors, trialModel.errors);
+      if (errors.length) {
+        failed.add(documentId);
+        skipped.push({ ...record, errors });
+        continue;
+      }
+      accepted = { intent, documentId, framework: record.framework, trial, trialModel };
+      break;
+    }
+    if (accepted) {
+      working = accepted.trial;
+      workingModel = accepted.trialModel;
+      used.add(accepted.documentId);
+      raw.sections[slot.sectionIndex].questions[slot.questionIndex] = accepted.intent;
+      replaced.push({ questionNumber, questionId: clean(rawQuestion.questionId) || null, documentId: accepted.documentId, framework: accepted.framework });
+    } else if (offered.length) {
+      misses.push({
+        sectionIndex: slot.sectionIndex,
+        questionIndex: slot.questionIndex,
+        questionNumber,
+        framework: clean(slot.framework) || null,
+        domainId: clean(slot.domainId) || null,
+        teksCodes: asArray(slot.teksCodes),
+        reason: 'no_audited_item_passed_checks',
+      });
+    }
+  }
+
+  return {
+    assignment: raw,
+    audit: { ...audit, replaced: replaced.length, misses, directClaims: { replaced, skipped } },
+    proven: true,
   };
 };
 

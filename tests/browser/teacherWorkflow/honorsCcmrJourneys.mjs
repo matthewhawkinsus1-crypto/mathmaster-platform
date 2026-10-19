@@ -111,7 +111,8 @@ const auditedServer = (scenario) => {
       .filter((value) => typeof value === 'string' && value.trim())
       .slice(0, 100);
     state.requests.push({ includeCandidates: data.includeCandidates === true, ensurePracticeTarget: data.ensurePracticeTarget === true, excludeDocumentIds });
-    if (data.includeCandidates === true && state.failNext > 0) {
+    // Review's Honors request (import asks for candidates too, without a target).
+    if (data.includeCandidates === true && data.ensurePracticeTarget === true && state.failNext > 0) {
       state.failNext -= 1;
       // What functions/index.js throws when the bank pass fails.
       return { error: { code: 'internal', message: 'MathMaster could not prepare audited CCMR Practice for this assignment.' } };

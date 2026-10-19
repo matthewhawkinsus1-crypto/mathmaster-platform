@@ -50,7 +50,7 @@ import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePo
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../platform/assessment/testCycleContractEdit.js';
 import { currentGradingPeriodStamp } from '../../platform/student/gradingPeriods.js';
 import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStoredAssignmentForReuse } from '../../platform/assignments/libraryAssignmentReuse.js';
-import { confirmHonorsCandidateForCreate } from '../../platform/assignments/canonicalCcmrHydration.js';
+import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
@@ -405,9 +405,23 @@ export default function TeacherWorkspace({
         && Array.isArray(raw.sections)
         && !isCanonicalSelfExport
       ) {
-        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false });
-        sourceText = JSON.stringify(hydrated.assignment);
-        ccmrAudit = hydrated.audit;
+        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false, includeCandidates: true });
+        // A question written as exam practice becomes the audited item it
+        // imitates only when MathMaster's checks pass with that item in its
+        // place; one no offered item passes for stays as written
+        // (canonicalCcmrHydration.js). Compiled as written only when there is
+        // such a question to prove.
+        let authoredAssignmentV5 = null;
+        if ((hydrated.audit?.plan?.slots || []).some((slot) => slot?.kind === 'directClaim')) {
+          try {
+            authoredAssignmentV5 = parseAssignmentBlueprintText(String(text || '')).assignmentV5;
+          } catch {
+            // Not compilable as written: the server's own answer, as before.
+          }
+        }
+        const proven = proveImportedCcmrClaims({ rawAssignment: raw, authoredAssignmentV5, hydration: hydrated });
+        sourceText = JSON.stringify(proven.assignment);
+        ccmrAudit = proven.audit;
       }
     } catch (error) {
       console.warn('CCMR assignment hydration was skipped', error);
