@@ -31,6 +31,7 @@ import {
   trustedMisconceptionFindings,
 } from '../../functions/shared/misconceptionCodes.mjs';
 import { IMPLEMENTED_MISCONCEPTION_CLASSIFIERS, classifyMisconceptions } from '../../functions/shared/misconceptionClassifiers.mjs';
+import { IMPLEMENTED_PATH_MISCONCEPTION_CLASSIFIERS } from '../../functions/shared/correctionMissDiagnosis.mjs';
 import { recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
 import { buildAttemptEvidenceEvent } from '../../functions/shared/attemptEvidenceEvent.mjs';
 import { buildIngestedAttempt, buildSubmissionEnvelope, normalizeSubmissionEnvelope } from '../../functions/shared/submissionIngestion.mjs';
@@ -134,7 +135,13 @@ test('the registry is one versioned catalog: every code is defined in full, and 
     // Codes describe mathematical thinking, never the student.
     assert.doesNotMatch(`${entry.label} ${entry.teacherMeaning}`, /\b(careless|lazy|confused student|weak|low|struggling)\b/i, entry.id);
   });
-  assert.deepEqual([...IMPLEMENTED_MISCONCEPTION_CLASSIFIERS].sort(), MISCONCEPTION_CLASSIFIERS.map((entry) => entry.id).sort(), 'declared = implemented');
+  // Assignment questions are classified in misconceptionClassifiers.mjs; Path
+  // items (secure Test, Retest, Corrections) in correctionMissDiagnosis.mjs.
+  assert.deepEqual(
+    [...IMPLEMENTED_MISCONCEPTION_CLASSIFIERS, ...IMPLEMENTED_PATH_MISCONCEPTION_CLASSIFIERS].sort(),
+    MISCONCEPTION_CLASSIFIERS.map((entry) => entry.id).sort(),
+    'declared = implemented',
+  );
   MISCONCEPTION_CLASSIFIERS.forEach((entry) => entry.codes.forEach((code) => assert.ok(ids.includes(code), `${entry.id} may emit ${code}`)));
   const emittable = new Set(MISCONCEPTION_CLASSIFIERS.flatMap((entry) => entry.codes));
   ids.forEach((id) => assert.ok(emittable.has(id), `${id} has a classifier — no code exists only on paper`));

@@ -2199,6 +2199,11 @@ service cloud.firestore {
     // authenticated Test Cycle callables, never from a client.
     match /testCycleRecords/{docId} { allow read, write: if false; }
     match /testCycleCorrectionPlans/{docId} { allow read, write: if false; }
+    // A class-period Test day's resolved times, recorded by the first Test
+    // start inside it (testCycleAvailability.mjs classSittingToRecord) and read
+    // back only when that day no longer resolves. It decides who missed the
+    // Test, so no browser may write one, and none needs to read one.
+    match /testCycleClassSittings/{docId} { allow read, write: if false; }
     // Secure Test manifests include blueprint family ids and issuance metadata.
     // Assignments expose only an opaque reference; Functions resolve it.
     match /secureTestManifests/{docId} { allow read, write: if false; }

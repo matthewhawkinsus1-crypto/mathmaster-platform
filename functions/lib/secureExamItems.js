@@ -145,6 +145,37 @@ function safeSupportUsage(source) {
   };
 }
 
+/*
+ * THE MISTAKE A SECURE MISS PROVES, RECORDED WHERE IT IS GRADED.
+ *
+ * Corrections names the mistake a student made on the Test only from trusted
+ * server evidence on the Test's responses (testCycleCorrections.mjs), and
+ * secure grading wrote none, so every plan said "standard". The provenance
+ * block is built here from the item's own definition, the grader's per-part
+ * verdict and the bounded work (correctionMissDiagnosis.mjs), after grading
+ * and apart from it: it changes no score, and a failure is no evidence, never
+ * a failed submission. It is stored with the response on the session, which
+ * no browser reads, and no payload before release carries it (publicSession
+ * strips responses; publicReview copies only the score).
+ */
+let diagnosisModule = null;
+async function missEvidenceOf(item, grading, responsePayload) {
+  try {
+    if (!grading || grading.isCorrect === true || grading.rejected === true || !isObject(item?.privateGrading)) return null;
+    if (!diagnosisModule) diagnosisModule = await import('../shared/correctionMissDiagnosis.mjs');
+    const raw = item.privateGrading.pathToolId ? await secureItems.rawWorkOf(responsePayload || {}) : null;
+    return diagnosisModule.pathMisconceptionEvidence({
+      privateGrading: item.privateGrading,
+      grading,
+      raw,
+      responses: isObject(responsePayload?.responses) ? responsePayload.responses : null,
+      question: item,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * One recorded response, graded by the server.
  *
@@ -158,6 +189,7 @@ async function buildResponseRecord(storedItem, { session, responsePayload, suppo
     ? navigationRules.unansweredMarker().grading
     : await secureItems.gradeIssuedItem(storedItem, responsePayload || {});
   const snapshot = await reviewSnapshotOf(storedItem, session);
+  const misconceptionEvidence = unanswered ? null : await missEvidenceOf(item, grading, responsePayload);
   return {
     questionInstanceId: item.questionInstanceId,
     bankQuestionId: item.bankQuestionId || null,
@@ -173,7 +205,13 @@ async function buildResponseRecord(storedItem, { session, responsePayload, suppo
     slotId: item.slotId || null,
     targetId: item.targetId || null,
     planWeight: item.planWeight ?? null,
-    grading: { score: Number(grading.score) || 0, isCorrect: grading.isCorrect === true },
+    // `misconceptionEvidence`: the mistake a miss's work proves (missEvidenceOf),
+    // server-only like every response here. Corrections reads it after release.
+    grading: {
+      score: Number(grading.score) || 0,
+      isCorrect: grading.isCorrect === true,
+      ...(misconceptionEvidence ? { misconceptionEvidence } : {}),
+    },
     supportUsage: safeSupportUsage(supportUsage),
     // Stored server-side while feedback is held. `publicSession` strips the
     // whole responses map; `publicReview` releases the sanitized snapshot and

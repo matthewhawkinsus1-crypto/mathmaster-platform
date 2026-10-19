@@ -128,15 +128,17 @@ test('(b) a number-line graph with a wrong endpoint, or the ray reversed, is nam
   }), null);
 });
 
-test('(b) the diagnosis is fixed text: no value from the item, never a refused or field item, never throws', async () => {
+test('(b) the diagnosis is fixed text: no value from the item, never a refused item or an unmodeled answer, never throws', async () => {
   for (const code of ['ordered-pair-reversed', 'endpoint-inclusion-error', 'inequality-direction-reversed']) {
     assert.doesNotMatch(studentMisconceptionMessage(code), /\b[35]\b/, `${code} carries no value from the item`);
   }
-  assert.deepEqual([...CORRECTION_MISS_DIAGNOSIS_TOOLS].sort(), ['intervalNumberLine', 'system']);
+  // Wave 7 extends the tools to every Path shape a platform classifier's rule
+  // reads (tests/platform/secureTestMistakeEvidence.test.mjs proves each one).
+  assert.deepEqual([...CORRECTION_MISS_DIAGNOSIS_TOOLS].sort(), ['dataModelingLab', 'fields', 'graphing2', 'intervalNumberLine', 'multiAnswer', 'relationMapping', 'system', 'systemsWorkspace']);
   // A refused (unfinished) answer is not a miss.
   assert.equal(diagnoseCorrectionMiss({ privateGrading: { pathToolId: 'system', definition: { solution: [5, 3] } }, grading: { isCorrect: false, rejected: true, parts: [{ id: 'solution', isCorrect: false }] }, raw: { x: 3, y: 5 } }), null);
-  // A field item has no tool work to read.
-  assert.equal(diagnoseCorrectionMiss({ privateGrading: { fields: [{ id: 'a', expected: '5' }] }, grading: { isCorrect: false, parts: [{ id: 'a', isCorrect: false }] }, raw: null }), null);
+  // A field item names only a right line in the wrong form: a wrong number names nothing.
+  assert.equal(diagnoseCorrectionMiss({ privateGrading: { fields: [{ id: 'a', expected: '5' }] }, grading: { isCorrect: false, parts: [{ id: 'a', isCorrect: false }] }, raw: null, responses: { a: '3' } }), null);
   assert.equal(diagnoseCorrectionMiss({ privateGrading: { pathToolId: 'system', definition: null }, grading: { isCorrect: false, parts: null }, raw: { x: {} } }), null);
 });
 
@@ -162,8 +164,12 @@ test('(b) the corrections callable diagnoses a miss from the stored item and han
   const support = region(submit, 'const support = await mathPath.attemptSupport({', '});', 'attempt support');
   assert.match(support, /\n\s*diagnosis,\n/);
   const helper = executableSource(region(functionsIndex, 'async function correctionMissDiagnosisFor(', '\n}\n', 'diagnosis helper'));
-  assert.match(helper, /secureItems\.readStoredItem\(storedItem\)\?\.privateGrading/);
+  // The stored item is the authority: its private grading, the bounded tool
+  // work or the typed responses, and the item itself (a field's own words say
+  // which line form it asks for).
+  assert.match(helper, /const item = secureItems\.readStoredItem\(storedItem\) \|\| \{\};/);
+  assert.match(helper, /const privateGrading = item\.privateGrading \|\| null;/);
   assert.match(helper, /await secureItems\.rawWorkOf\(responsePayload \|\| \{\}\)/);
   assert.match(helper, /import\("\.\/shared\/correctionMissDiagnosis\.mjs"\)/);
-  assert.match(helper, /return diagnoseCorrectionMiss\(\{ privateGrading, grading, raw \}\);/);
+  assert.match(helper, /return diagnoseCorrectionMiss\(\{ privateGrading, grading, raw, responses, question: item \}\);/);
 });
