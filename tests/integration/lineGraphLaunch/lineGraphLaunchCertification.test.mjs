@@ -89,6 +89,13 @@ const waitUntil = async (label, predicate, timeoutMs = 30_000, pollMs = 200) => 
   }
 };
 const at = (whenMs, fn) => sleep(whenMs - Date.now()).then(fn);
+// The room reads closed as soon as a close commits; the host's own call
+// returns a moment later (about 0.2 s once release 2's Live Challenge changes
+// are in). A close is read once its call has returned, never while it is in
+// flight: an entry still at ok === null is a call that has not answered yet.
+const closeReturned = (host, label, roundIndex) => waitUntil(`${label}: the host's close returned`, async () => (
+  host.closes.some((entryOfClose) => entryOfClose.roundIndex === roundIndex && entryOfClose.ok !== null) ? true : null
+), 10_000);
 const percentiles = (values) => {
   const sorted = [...values].sort((left, right) => left - right);
   const pick = (fraction) => sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))] ?? null;
@@ -304,6 +311,7 @@ test(`Graph the Line Sprint, ${SPRINT_CLASS} students: their own lines, every on
     // The reload lost nothing: what it drew offline was sent from storage.
     assert.ok(lineRecord(views.get(reloads), roomId, 0).resentFromStorage >= 1, `the reloaded page resent what it stored: ${JSON.stringify(lineRecord(views.get(reloads), roomId, 0))}`);
     // Closed by the console's rule, once everyone had finished, long before the clock.
+    await closeReturned(host, 'sprint', 0);
     const close = host.closes.find((entryOfClose) => entryOfClose.roundIndex === 0 && entryOfClose.ok);
     assert.equal(close?.reason, 'allFinished', `the round closed because everyone finished: ${JSON.stringify(host.closes)}`);
     const lastAnswerAt = await lastAnswerAtMs(roomId, 0);
@@ -378,6 +386,8 @@ test(`Graph the Line Classic, ${CLASSIC_CLASS} students: one line for the class,
       const commonLines = new Set(records.filter((_, index) => plans[index] === LINE_PLAN.COMMON).map((record) => record.byItem[0]?.wrongLines?.[0]));
       assert.equal(commonLines.size, 1, `${label}: the common mistake is one line`);
       const [commonLine] = commonLines;
+      // eslint-disable-next-line no-await-in-loop
+      await closeReturned(host, label, roundIndex);
       const close = host.closes.find((entryOfClose) => entryOfClose.roundIndex === roundIndex && entryOfClose.ok);
       assert.equal(close?.reason, 'allFinished', `${label}: closed because everyone finished: ${JSON.stringify(host.closes)}`);
       // eslint-disable-next-line no-await-in-loop
@@ -433,6 +443,7 @@ test(`Graph the Line Rush, ${RUSH_CLASS} students: as many as the clock allows, 
     await waitForClose(roomId, 0, 90_000, farm);
     // Nobody finishes a Rush: it ended on its clock, not before.
     assert.ok(host.closes.every((entryOfClose) => entryOfClose.reason === 'deadline'), `a Rush closes only on its clock: ${JSON.stringify(host.closes)}`);
+    await closeReturned(host, 'rush', 0);
     assert.ok(host.closes.find((entryOfClose) => entryOfClose.ok)?.at >= endsAtMs, 'the close came after the deadline');
     const views = await farm.views();
     const states = await assertRoundRecorded({ label: 'rush', entry, roomId, roundIndex: 0, poolSize: 150, plans, views });
