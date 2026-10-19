@@ -90,6 +90,10 @@ test('1. relation mapping: domain and range exchanged is named; a partly exchang
   assert.equal((await answer(stored, tool({ domain: [4, 5, 6], range: [4, 5, 6] }))).code, null, 'only the domain is the other set');
   assert.equal((await answer(stored, tool({ domain: [4, 5, 'six'], range: [1, 2, 3] }))).code, null, 'a formatting slip is never a reversal');
   assert.equal((await answer(stored, tool({ domain: [1, 2, 3], range: [4, 5, 6] }))).code, null, 'correct');
+  // A blank entry is never read as 0 (a range that holds 0).
+  const withZero = await issue({ ...RELATION, pairs: [{ x: 1, y: 0 }, { x: 2, y: 5 }, { x: 3, y: 6 }] });
+  assert.equal((await answer(withZero, tool({ domain: [0, 5, 6], range: [1, 2, 3] }))).code, 'domain-range-swapped', 'the premise');
+  assert.equal((await answer(withZero, tool({ domain: ['', 5, 6], range: [1, 2, 3] }))).code, null);
 });
 
 test('1. graphing: a line through the anchor with slope 1/m or −m is named; −1/m, or a line missing the anchor, is not', async () => {
@@ -99,6 +103,9 @@ test('1. graphing: a line through the anchor with slope 1/m or −m is named; �
   assert.equal((await answer(stored, tool({ points: [[0, 1], [2, 0]] }))).code, null, '−1/m is two errors at once');
   assert.equal((await answer(stored, tool({ points: [[0, 3], [2, 4]] }))).code, null, 'misses the y-intercept');
   assert.equal((await answer(stored, tool({ points: [[0, 1], [1, 3]] }))).code, null, 'correct');
+  // With m = 1, a slope of −1 is both −m and −1/m: two explanations, no code.
+  const unit = await issue({ ...GRAPH, prompt: 'Graph y = x + 1.', line: { m: 1, b: 1 } });
+  assert.equal((await answer(unit, tool({ points: [[0, 1], [1, 0]] }))).code, null);
   // Point-slope: the anchor is the given point, read from the stored item.
   const pointSlope = await issue(POINT_SLOPE);
   assert.equal((await answer(pointSlope, tool({ points: [[1, 3], [3, 4]] }))).code, 'slope-run-over-rise');
@@ -126,6 +133,12 @@ test('1. typed fields: the right line in the wrong form is named, as the field a
   assert.equal(wrongForm.code, 'line-wrong-form-slope-intercept');
   assert.equal((await answer(field, { responses: { answer: 'y = 2x + 3' } })).code, null, 'correct');
   assert.equal((await answer(field, { responses: { answer: '7' } })).code, null, 'not a line');
+  // Only the FORM is named: an answer already in the asked form names nothing,
+  // whatever the grader said about it.
+  const item = secureItems.readStoredItem(field);
+  assert.equal(diagnoseCorrectionMiss({
+    privateGrading: item.privateGrading, grading: { isCorrect: false, parts: [{ id: 'answer', isCorrect: false }] }, responses: { answer: 'y = 2x + 3' }, question: item,
+  }), null);
 });
 
 test('1. every finding is fixed text and trusted server provenance under its own path classifier', async () => {
