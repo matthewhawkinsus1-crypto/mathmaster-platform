@@ -50,22 +50,36 @@ test('record-only: nothing on the server reads a sitting, and no window resolver
   assert.doesNotMatch(resolver, /sitting/i);
 });
 
-test('the mistake diagnosis is loaded before every transaction that grades, never inside it', () => {
-  const preload = 'await secureExamItems.loadMissEvidence();';
-  const before = (source, label) => {
-    const at = source.indexOf(preload);
-    assert.ok(at >= 0, `${label}: loads it`);
-    assert.ok(at < source.indexOf('db.runTransaction('), `${label}: before its transaction`);
+test('the mistake diagnosis starts loading at entry and is awaited before every grading transaction, never inside it', () => {
+  // Started before the path's first await (so its cold import overlaps the
+  // reads before the transaction), awaited after them and before the
+  // transaction (so the transaction never meets an unloaded module).
+  const overlapped = (source, label, { start = /const missEvidenceReady = secureExamItems\.loadMissEvidence\(\);/, wait = 'await missEvidenceReady;' } = {}) => {
+    const started = source.search(start);
+    const firstAwait = source.indexOf('await ');
+    const awaited = source.indexOf(wait);
+    const transaction = source.indexOf('db.runTransaction(');
+    assert.ok(started >= 0, `${label}: starts the load`);
+    assert.ok(started < firstAwait, `${label}: before the first await on the path`);
+    assert.ok(awaited >= 0 && awaited < transaction, `${label}: awaited before its transaction`);
+    assert.ok(source.indexOf(wait) === source.lastIndexOf(wait), `${label}: awaited once`);
   };
-  before(region(server, 'exports.submitSecureExamResponse = onCall(', '\n});\n', 'submit'), 'submitSecureExamResponse');
-  before(region(server, 'exports.finalizeSecureExam = onCall(', '\n});\n', 'finalize'), 'finalizeSecureExam');
-  before(region(server, 'async function autoFinalizeSecureSession(', '\n}\n', 'auto finalize'), 'autoFinalizeSecureSession');
+  overlapped(region(server, 'exports.submitSecureExamResponse = onCall(', '\n});\n', 'submit'), 'submitSecureExamResponse');
+  overlapped(region(server, 'exports.finalizeSecureExam = onCall(', '\n});\n', 'finalize'), 'finalizeSecureExam');
+  overlapped(region(server, 'async function autoFinalizeSecureSession(', '\n}\n', 'auto finalize'), 'autoFinalizeSecureSession');
+  // Only a force-submit grades: no other proctor action starts the load.
   const proctor = region(server, 'exports.proctorExamAction = onCall(', '\n});\n', 'proctor');
-  const at = proctor.indexOf('if (action === "forceSubmit") await secureExamItems.loadMissEvidence();');
-  assert.ok(at >= 0 && at < proctor.indexOf('db.runTransaction('), 'proctorExamAction: before a force-submit\'s transaction');
+  overlapped(proctor, 'proctorExamAction', {
+    start: /const missEvidenceReady = String\(request\.data\?\.action \|\| ""\)\.trim\(\) === "forceSubmit" \? secureExamItems\.loadMissEvidence\(\) : null;/,
+    wait: 'if (missEvidenceReady) await missEvidenceReady;',
+  });
+  // Nowhere is the load awaited at its call: every use is started, then awaited.
+  assert.doesNotMatch(server, /await secureExamItems\.loadMissEvidence\(\)/);
   // Every caller that grades inside a transaction is one of those four.
   const graders = [...server.matchAll(/(?<!function )finalizeSecureSessionInTransaction\(transaction|secureExamItems\.buildResponseRecord\(/g)].length;
   assert.equal(graders, 4);
   const items = executableSource(readFileSync(new URL('../../functions/lib/secureExamItems.js', import.meta.url), 'utf8'));
   assert.doesNotMatch(items.slice(0, items.indexOf('function loadMissEvidence')), /correctionMissDiagnosis/, 'not a module-level import');
+  // A floating promise is safe only because the load never rejects.
+  assert.match(region(items, 'function loadMissEvidence() {', '\n}\n', 'loadMissEvidence'), /import\('\.\.\/shared\/correctionMissDiagnosis\.mjs'\)\.catch\(\(\) => \{/);
 });

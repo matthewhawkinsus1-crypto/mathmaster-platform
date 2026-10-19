@@ -163,10 +163,12 @@ function safeSupportUsage(source) {
  * in the classifiers; its first import on a cold instance takes about a
  * second. Every caller that grades inside a session transaction
  * (submitSecureExamResponse, finalizeSecureExam, proctorExamAction's
- * force-submit, the abandoned-test finalizer) awaits `loadMissEvidence()`
- * first, so the transaction only ever meets a loaded module. Not a
+ * force-submit, the abandoned-test finalizer) starts `loadMissEvidence()` at
+ * entry, so the import overlaps the reads before the transaction, and awaits
+ * it just before the transaction, which only ever meets a loaded module. Not a
  * module-level import: that would load it at every function's cold start.
- * A failed import is forgotten (the next call tries again) and is no evidence.
+ * It NEVER REJECTS, so a started load may float safely: a failed import is
+ * forgotten (the next call tries again) and is no evidence.
  */
 let diagnosisModule = null;
 function loadMissEvidence() {

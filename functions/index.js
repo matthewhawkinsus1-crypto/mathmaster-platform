@@ -18301,6 +18301,9 @@ async function autoReleaseSecureSession(db, session) {
  * longer be edited. Correctness stays server-only.
  */
 exports.submitSecureExamResponse = onCall(async (request) => {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
@@ -18309,8 +18312,7 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("examSessions").doc(examSessionId);
   const markerRef = db.collection("examSubmissions").doc(mathPath.opaqueId("examsub", examSessionId, submissionId));
-  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
-  await secureExamItems.loadMissEvidence();
+  await missEvidenceReady;
   const result = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, marker] = await Promise.all([transaction.get(sessionRef), transaction.get(markerRef)]);
     // The idempotency marker answers a retry from the SAME student. Anyone else
@@ -18437,6 +18439,9 @@ async function finalizeSecureSessionInTransaction(transaction, ref, session, { s
 
 /** Student submit / verified timer autosubmit. */
 exports.finalizeSecureExam = onCall(async (request) => {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const { studentId } = requireStudent(request);
   const examSessionId = secureExamSessionId(request);
   const reason = request.data?.reason === "timeExpired" ? "timeExpired" : "studentSubmit";
@@ -18452,8 +18457,7 @@ exports.finalizeSecureExam = onCall(async (request) => {
     && !(await courseTestSessionIsCurrent(db, finalizeSession))) {
     throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
   }
-  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
-  await secureExamItems.loadMissEvidence();
+  await missEvidenceReady;
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
@@ -18528,6 +18532,9 @@ async function settleAutoFinalizedSecureSession(db, ref, session) {
 }
 
 async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly = false } = {}) {
+  // Started now, awaited just before the grading transaction: its cold import
+  // overlaps the reads before it and never holds the session (secureExamItems.loadMissEvidence; it never rejects).
+  const missEvidenceReady = secureExamItems.loadMissEvidence();
   const snapshot = await ref.get();
   if (!snapshot.exists) return "missing";
   const before = snapshot.data() || {};
@@ -18537,8 +18544,7 @@ async function autoFinalizeSecureSession(db, ref, { now = Date.now(), legacyOnly
   const replaced = secureExam.isCourseTestSession(before)
     && !secureExam.TERMINAL_STATES.has(before.status)
     && !(await courseTestSessionIsCurrent(db, before));
-  // Loaded before the transaction: its cold import must not hold the session (secureExamItems.loadMissEvidence).
-  await secureExamItems.loadMissEvidence();
+  await missEvidenceReady;
   const result = await db.runTransaction(async (transaction) => {
     const fresh = await transaction.get(ref);
     if (!fresh.exists) return { outcome: "missing" };
@@ -18767,6 +18773,10 @@ function releaseSessionFeedbackInTransaction(transaction, db, { ref, session, ex
 
 /** Authenticated proctor controls replace the insecure client-side PIN draft. */
 exports.proctorExamAction = onCall(async (request) => {
+  // A force-submit grades inside its transaction: the diagnosis it may record
+  // starts loading now and is awaited just before (secureExamItems.loadMissEvidence;
+  // it never rejects). No other action grades, so no other action loads it.
+  const missEvidenceReady = String(request.data?.action || "").trim() === "forceSubmit" ? secureExamItems.loadMissEvidence() : null;
   const teacherUid = await requireTeacher(request);
   const examSessionId = secureExamSessionId(request);
   const action = String(request.data?.action || "").trim();
@@ -18792,8 +18802,7 @@ exports.proctorExamAction = onCall(async (request) => {
       "This secure session was replaced by a reset. Release the student's current session instead.",
     );
   }
-  // Loaded before the transaction: a force-submit grades inside it (secureExamItems.loadMissEvidence).
-  if (action === "forceSubmit") await secureExamItems.loadMissEvidence();
+  if (missEvidenceReady) await missEvidenceReady;
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
