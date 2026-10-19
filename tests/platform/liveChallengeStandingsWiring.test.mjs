@@ -49,3 +49,27 @@ test('both stop asking once the match is over', () => {
   assert.match(publisher, /if \(ended\) \{ pacerRef\.current\?\.stop\(\); return; \}/);
   assert.match(mirror, /if \(room\.status === 'finished' \|\| room\.status === 'cancelled'\) \{ pacer\.stop\(\); return; \}/);
 });
+
+// With autoClose the simulated console also paces rounds (the Graph the Line
+// launch runs certify early close with it): the same finished rule, the same
+// close-due rule and the same round-scoped close as LiveChallengeTeacher.jsx.
+test('both decide who has finished, and close a round when it is due, the same way', () => {
+  const finished = /new Set\(roundOpen && !roundsEndOnTheClock\s*\? (?:host\.)?players\.filter\(\(player\) => player\?\.joined !== false && \(questionSetRoom\s*\? raceRoundFinished\(player, currentRound\)\s*: Number\(player\.answeredRound\) === currentRound\)\)\.map\(\(player\) => String\(player\.playerKey\)\)/;
+  assert.match(teacher, finished);
+  assert.match(mirror, finished);
+  const everyone = /const everyoneFinished = roundOpen && !roundsEndOnTheClock && joinedCount > 0 && answeredCount >= joinedCount;/;
+  assert.match(teacher, everyone);
+  assert.match(mirror, everyone);
+  assert.match(teacher, /const joinedCount = leaderboard\.length;/);
+  assert.match(mirror, /const joinedCount = leaderboard\.length;/);
+  const due = /roundCloseDue\(\{\s*room,\s*joinedCount,\s*finishedCount: answeredCount,\s*allFinishedSinceMs: everyoneFinished && allFinishedSince\.key === roundKey \? allFinishedSince\.at : null,\s*\}\)/;
+  assert.match(teacher, due);
+  assert.match(mirror, due);
+  // The close: round-scoped, and "still running" is looked at again in three seconds.
+  assert.match(teacher, /const expectation = ROUND_SCOPED_CONTROLS\.includes\(key\) && room\?\.status === 'running'\s*\? \{ expectedRoundIndex: Number\(room\.currentRound\), expectedRoundVersion: Number\(room\.roundVersion\) \|\| 0 \}/);
+  assert.match(mirror, /const expected = \{ expectedRoundIndex: Number\(room\.currentRound\), expectedRoundVersion: Number\(room\.roundVersion\) \|\| 0 \};/);
+  assert.match(mirror, /call\('closeLiveChallengeRound', \{ roomId, \.\.\.expected \}\)/);
+  assert.match(teacher, /if \(error\?\.details\?\.lifecycle === 'round_in_progress'\) return null;/);
+  assert.match(region(teacher, "control('close', closeRoundOnTime).then((result) => {", '}, 3_000);'), /if \(autoClosedRef\.current === key\) autoClosedRef\.current = '';/);
+  assert.match(mirror, /if \(error\?\.details\?\.lifecycle === 'round_in_progress'\) \{\s*setTimeout\(\(\) => \{ if \(autoClosed === key\) autoClosed = ''; evaluate\(\); \}, 3_000\);/);
+});

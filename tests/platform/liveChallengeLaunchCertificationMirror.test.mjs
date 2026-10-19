@@ -16,6 +16,9 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 const screen = executableSource(await readFile(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8'));
 const mirror = executableSource(await readFile(new URL('../integration/support/liveChallengeSimStudent.mjs', import.meta.url), 'utf8'));
 const screenRoot = region(screen, 'export default function LiveChallengeStudent', null, 'the student screen');
+// Graph the Line: the round screen, and the device's round that mirrors it.
+const lineScreen = executableSource(await readFile(new URL('../../src/components/liveChallenge/LineGraphRound.jsx', import.meta.url), 'utf8'));
+const lineMirror = executableSource(await readFile(new URL('../integration/support/liveChallengeSimLineRound.mjs', import.meta.url), 'utf8'));
 
 test('both listen to the room with metadata changes, so cache and reconnect are visible', () => {
   assert.match(region(screenRoot, 'return watchLiveChallengeRoom(roomId', '}, [roomId]);'), /\{ includeMetadataChanges: true \}/);
@@ -50,7 +53,7 @@ test('both count the clock ready the same way, and put the round on screen only 
 
 test('both send launch milestones as one best-effort batch a second after the game mounts', () => {
   assert.match(region(screenRoot, "collectLaunchEvent('game_mounted', room);", '}, [room?.status'), /setTimeout\(\(\) => \{ sendLaunchDiagnostics\(\)\.catch\(\(\) => \{\}\); \}, 1_000\)/);
-  assert.match(region(mirror, "collectLaunchEvent('game_mounted', room);", 'if (room.challengeMode'), /later\(\(\) => \{ sendLaunchDiagnostics\(\)\.catch\(\(\) => \{\}\); \}, 1_000\)/);
+  assert.match(region(mirror, "collectLaunchEvent('game_mounted', room);", 'const game = questionSetGameOf(room);'), /later\(\(\) => \{ sendLaunchDiagnostics\(\)\.catch\(\(\) => \{\}\); \}, 1_000\)/);
   // One entry per event: the first observation, never re-collected once sent.
   const firstOnly = /if \([\w.]*milestones\[(?:launchEvent|event)\] \|\| [\w.]*reported\[(?:launchEvent|event)\]\) return;/;
   assert.match(region(screenRoot, 'const collectLaunchEvent', 'const sendLaunchDiagnostics'), firstOnly);
@@ -118,14 +121,19 @@ test('both listen to their own row and the standings snapshot, and never to the 
   assert.match(mirror, /standingsClient: 'projection'/, "the device's default is the screen's way");
 });
 
-test('both pause both standings listeners while a rush round is open', () => {
-  const pause = /rushRoundOpen = [\w?.]*(?:challengeMode|rushRoom)[^;]*roundState !== 'closed'/;
-  assert.match(screenRoot, /const rushRoundOpen = rushRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
-  assert.match(region(screenRoot, 'useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
-  assert.match(region(screenRoot, 'useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, rushRoundOpen]);'), /if \(rushRoundOpen\) return undefined;/);
+// A question-set round (Graph Feature Rush, Graph the Line) pauses them; both
+// decide which rooms those are with the same helper.
+test('both pause both standings listeners while a question-set round is open', () => {
+  assert.match(screenRoot, /const questionSetRoom = questionSetGame !== null;/);
+  assert.match(screenRoot, /const questionSetGame = questionSetGameOf\(room\);/);
+  assert.match(screenRoot, /const questionSetRoundOpen = questionSetRoom && room\?\.status === 'running' && room\?\.roundState !== 'closed';/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setSelfFresh(false);', '}, [roomId, playerKey, questionSetRoundOpen]);'), /if \(questionSetRoundOpen\) return undefined;/);
+  assert.match(region(screenRoot, 'useEffect(() => {\n    setProjectionFresh(false);', '}, [roomId, questionSetRoundOpen]);'), /if \(questionSetRoundOpen\) return undefined;/);
+  const pause = /const questionSetRoundOpen = roomRunsQuestionSets\(device\.room\) && device\.room\?\.status === 'running' && device\.room\?\.roundState !== 'closed';/;
   const listeners = region(mirror, 'const syncStandingsListeners = () => {', 'const alreadyJoined');
   assert.match(listeners, pause);
-  assert.match(listeners, /const wantedRoom = device\.roomId && !rushRoundOpen \? device\.roomId : null;/);
+  assert.match(listeners, /const wantedRoom = device\.roomId && !questionSetRoundOpen \? device\.roomId : null;/);
+  assert.match(region(mirror, 'const syncPlayersListener = () => {', 'device.stops.players?.();'), pause);
 });
 
 test('both know their answer is on the server from their own row, never from the snapshot', () => {
@@ -144,4 +152,65 @@ test('both decode the snapshot with the same functions and take their own place 
   assert.match(derive, /device\.ownFinal = summaryFinal\(device\.summary, \{ roomId: device\.roomId \}\)/);
   assert.match(derive, /projectionBoardRows\(device\.standingsView, \{ selfKey: myKey\(\), alias: device\.invite\?\.alias, own: device\.ownFinal \}\)/);
   assert.match(region(mirror, 'const wantedSummary =', 'const alreadyJoined'), /device\.service\.watchLiveChallengePlayerSummary\(summaryRoom, studentId, /);
+});
+
+/* ------------------------------ Graph the Line ----------------------------- */
+
+// The device plays a Graph the Line round as LineGraphRound.jsx does (its
+// session is the screen's own module; the rest is mirrored, held here).
+test('a line room is played on its own round, which mirrors the screen\'s timings and refusal rule', () => {
+  const mounted = region(mirror, 'const render = () => {', 'let tickTimer');
+  assert.match(mounted, /if \(game === QUESTION_SET_GAME\.LINE_GRAPH\) \{ startLineRound\(room\); return; \}/);
+  assert.match(region(mirror, 'async goOnline() {', '\n    },'), /device\.lineRound\?\.flushNow\(\);/);
+  assert.match(lineScreen, /window\.addEventListener\('online', now\)/, 'the screen sends what is waiting when the connection returns');
+  for (const name of ['COALESCE_MS', 'RETRY_MIN_MS', 'RETRY_MAX_MS', 'JOIN_WAIT_MS']) {
+    const declared = new RegExp(`const ${name} = ([\\d_]+);`);
+    assert.equal(lineMirror.match(declared)?.[1], lineScreen.match(declared)?.[1], `${name} is the screen's`);
+  }
+  const finalRefusal = /const isFinalRefusal = \(error\) => \/failed-precondition\|not-found\|permission-denied\|invalid-argument\/\.test\(String\(error\?\.code \|\| ''\)\);/;
+  assert.match(lineScreen, finalRefusal);
+  assert.match(lineMirror, finalRefusal);
+});
+
+test('both start from what they stored, then from where the server says the student is', () => {
+  for (const [label, source] of [['screen', lineScreen], ['mirror', lineMirror]]) {
+    assert.match(source, /clearStaleLineQueues\(/, `${label}: other rounds' queues are forgotten`);
+    const resume = region(source, 'let pending = readQueue(', 'count: LINE_PREFETCH.batch', `${label}: the stored queue`);
+    assert.match(resume, /submitLineGraphAttempts|services\.submitAttempts/, `${label}: the stored attempts go first`);
+    assert.match(resume, /if \(isFinalRefusal\(error\) \|\| rushRefusalIsTimeUp\(/, `${label}: dropped only when final or out of time`);
+    assert.match(resume, /writeQueue\((?:queueKey, )?pending\)/);
+    assert.match(source, /count: LINE_PREFETCH\.batch \}\)/, `${label}: the next items with the student's place`);
+    assert.match(source, /if \(reply\?\.joined === false\) \{[\s\S]{0,140}wait\(JOIN_WAIT_MS\)/, `${label}: a join on its way is waited for`);
+    assert.match(source, /createLineSession\(\{ roundIndex, serverState: reply\?\.state \|\| \{\}, questions(?:: reply\?\.questions \|\| \[\])?, poolSize: reply\?\.poolSize \?\? null, rules \}\)/);
+  }
+});
+
+test('both send gathered, one request at a time, and take the server\'s word on the reply', () => {
+  for (const [label, source] of [['screen', lineScreen], ['mirror', lineMirror]]) {
+    const flush = region(source, label === 'screen' ? 'flushRef.current = async () => {' : 'const flush = async () => {', label === 'screen' ? 'prefetchRef.current = async () => {' : 'const prefetch = async () => {', `${label}: sending`);
+    assert.match(flush, /const batch = nextBatch\((?:current|session)\);/);
+    assert.match(flush, /acknowledge\((?:sessionRef\.current|session), \{ sent: batch, reply \}\)/);
+    assert.match(flush, /const timeIsUp = rushRefusalIsTimeUp\(code, /);
+    assert.match(flush, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
+    assert.match(flush, /Math\.min\(RETRY_MAX_MS, Math\.max\(RETRY_MIN_MS, retryDelay(?:Ref\.current)? \* 2\)\)/, `${label}: anything else is sent again, later`);
+  }
+  // An answer: the session records it with the same clock readings and a new id.
+  assert.match(lineScreen, /record\(current, \{ nowMs: at, elapsedMs: at - timing\.startMono, attemptId: newLineAttemptId\(\) \}\)/);
+  assert.match(lineMirror, /const context = \{ nowMs: at, elapsedMs: at - startMono, attemptId: newLineAttemptId\(\) \};/);
+  // Both anchor the round once, at mount, on the monotonic clock: a calibration
+  // that moves afterwards moves neither its start nor its deadline.
+  assert.match(lineScreen, /const startMono = monotonicRoundOrigin\(\{\s*monotonicNow: performance\.now\(\),\s*serverNowMs: Number\(room\.serverNowAtRender\) \|\| Date\.now\(\),\s*startsAtMs,\s*\}\);/);
+  assert.match(lineMirror, /const startMono = monotonicRoundOrigin\(\{\s*monotonicNow: performance\.now\(\),\s*serverNowMs: serverNow\(\),\s*startsAtMs,\s*\}\);/);
+  assert.match(lineMirror, /const over = \(\) => performance\.now\(\) >= endMono \|\| roundClosed\(\);/);
+  // Every change to the queue is stored, under the screen's key.
+  assert.match(lineScreen, /const queueKey = persist \? lineQueueKey\(roomId, roundIndex, roundVersion\) : null;/);
+  assert.match(lineMirror, /const queueKey = lineQueueKey\(roomId, roundIndex, roundVersion\);/);
+  assert.match(region(lineMirror, 'const commit = (next) => {', '\n  };'), /if \(previous\?\.queue !== next\.queue\) writeQueue\(next\.queue\);/);
+  // Items ahead; a finished set at once; at the buzzer, what is left.
+  assert.match(lineScreen, /if \(phase === 'ready' && session && prefetchRequest\(session\)\) prefetchRef\.current\(\);/);
+  assert.match(lineMirror, /if \(prefetchRequest\(session\)\) prefetch\(\);/);
+  assert.match(lineScreen, /if \(finished\) flushRef\.current\(\);/);
+  assert.match(region(lineMirror, 'if (input === LINE_INPUT.FINISHED) {', 'return;'), /flush\(\);/);
+  assert.match(lineScreen, /if \(over\) flushRef\.current\(\);/);
+  assert.match(lineMirror, /if \(over\(\)\) \{ flush\(\); return; \}/);
 });

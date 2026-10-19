@@ -276,6 +276,11 @@ const graphPoint = async (student, view, point) => {
   return { x: box.x + unitX(view, point.x) * box.width, y: box.y + unitY(view, point.y) * box.height };
 };
 
+// The graph's outline: its own keyboard ring, or none.
+const gridOutline = async (student) => student.page.locator('svg.mm-rush-graph').evaluate((svg) => ({
+  style: getComputedStyle(svg).outlineStyle,
+  focused: document.activeElement === svg,
+}));
 const tapGraph = async (student, view, point) => {
   const at = await graphPoint(student, view, point);
   if (student.touch) await student.page.touchscreen.tap(at.x, at.y);
@@ -473,6 +478,9 @@ await run('two-player-grand-prix', async () => {
   await tapGraph(a, first.view, cornerOf(first.view));
   await wait(120);
   check(S, /try again/i.test(await textOf(a)), 'A: a miss did not say "try again"');
+  // A graph focused when play began, then tapped with the mouse: no ring.
+  const ring = await gridOutline(a);
+  check(S, ring.style === 'none', `A: a keyboard ring on a graph tapped with the mouse (${JSON.stringify(ring)})`);
   await tapGraph(a, first.view, cornerOf(first.view));
   await wait(120);
   check(S, (await a.page.locator('.mm-rush-cooldown').count()) === 1, 'A: two misses in a row did not start the cooldown');
@@ -488,8 +496,10 @@ await run('two-player-grand-prix', async () => {
   const keyed = await questionOnScreen(a, roomId);
   if (keyed?.targets.length) {
     await a.page.locator('svg.mm-rush-graph').focus();
+    let keyRing = null;
     for (const target of keyed.targets) {
       await a.page.keyboard.press('Home');
+      keyRing ||= await gridOutline(a);
       const stepsX = Math.round(target.x / 0.5);
       const stepsY = Math.round(target.y / 0.5);
       for (let step = 0; step < Math.abs(stepsX); step += 1) await a.page.keyboard.press(stepsX > 0 ? 'ArrowRight' : 'ArrowLeft');
@@ -498,6 +508,7 @@ await run('two-player-grand-prix', async () => {
       await wait(80);
     }
     check(S, await waitForQuestionChange(a, keyed.questionIndex), 'A: keyboard play did not complete a graph');
+    check(S, keyRing?.focused && keyRing.style === 'solid', `A: no keyboard ring while playing with the keys (${JSON.stringify(keyRing)})`);
     await a.page.keyboard.press('ArrowRight');
     const spoken = await a.page.evaluate(() => ({
       active: `${document.activeElement?.tagName}.${document.activeElement?.getAttribute('class') || ''}`,

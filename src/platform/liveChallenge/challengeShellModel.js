@@ -27,6 +27,7 @@
 import { MATCH_STATE, deriveMatchState, roomRoundState } from '../../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { LINE_GRAPH_MODE_ID, LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 
 export const CHALLENGE_STAGE = MATCH_STATE;
@@ -49,8 +50,37 @@ export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 // id because the student bundle does not carry the mode registry
 // (liveChallengeModes.mjs brings Solver Race and the rush catalog with it); a
 // test holds this set to the registry's question-set modes.
-const QUESTION_SET_MODES = new Set([RUSH_MODE_ID]);
+const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
 export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String(room?.challengeMode || ''));
+
+/*
+ * THE GAME A QUESTION-SET ROOM PLAYS on a student's device — each its own
+ * full-screen surface, loaded only for its rooms. The one place the client
+ * names these modes; every screen asks here rather than comparing ids.
+ */
+export const QUESTION_SET_GAME = Object.freeze({
+  GRAPH_FEATURE_RUSH: 'graphFeatureRush',
+  LINE_GRAPH: 'lineGraph',
+});
+
+export const questionSetGameOf = (room = {}) => {
+  const modeId = String(room?.challengeMode || '');
+  if (modeId === RUSH_MODE_ID) return QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  if (LINE_GRAPH_MODE_IDS.includes(modeId)) return QUESTION_SET_GAME.LINE_GRAPH;
+  return null;
+};
+
+/*
+ * Question-set rounds that hold more than anyone finishes — Graph Feature
+ * Rush, and Graph the Line's Rush — end on the clock alone. A Classic or
+ * Sprint round of Graph the Line is over for a student who has worked
+ * through it, and closes early once everyone has (the server agrees:
+ * liveChallengeRoundCompletion reads the same receipts). A test holds this
+ * set to the registry: the question-set modes whose pool is the engine's
+ * largest.
+ */
+const CLOCK_ONLY_MODES = new Set([RUSH_MODE_ID, LINE_GRAPH_MODE_ID.RUSH]);
+export const roomRoundsEndOnTheClock = (room = {}) => CLOCK_ONLY_MODES.has(String(room?.challengeMode || ''));
 
 const integerOr = (value, fallback) => {
   const numeric = Number(value);
@@ -169,11 +199,12 @@ export const provisionalRoundFor = (room = {}, nowMs = Date.now()) => (
  * When the host should close the open round, or null.
  *
  * `finishedCount` is how many joined players have completed this round (a
- * classic round: answered it). `allFinishedSinceMs` is when the host first saw
- * everyone finished — the caller remembers it. Question-set rounds (every
- * player their own questions against the clock) close on the deadline.
- * Closing early is the same idempotent close command the teacher can press;
- * the server checks readiness again inside its transaction.
+ * classic round: answered it; a Classic or Sprint round of Graph the Line:
+ * worked through every item). `allFinishedSinceMs` is when the host first saw
+ * everyone finished — the caller remembers it. A round played against the
+ * clock (a rush) closes on the deadline only. Closing early is the same
+ * idempotent close command the teacher can press; the server checks
+ * readiness again inside its transaction.
  */
 export const roundCloseDue = ({
   room = {},
@@ -186,9 +217,9 @@ export const roundCloseDue = ({
   if (timer.pausedAtMs) return null;
   const options = [];
   if (timer.endsAtMs) options.push({ dueAtMs: timer.endsAtMs + ROUND_CLOSE_AFTER_DEADLINE_MS, reason: 'deadline' });
-  // A question-set round (a rush) is played against the clock: nobody is ever
-  // "finished" before it, so only the deadline closes it.
-  const everyoneDone = !roomRunsQuestionSets(room) && Number(joinedCount) > 0 && Number(finishedCount) >= Number(joinedCount);
+  // A rush is played against the clock: nobody is ever "finished" before it,
+  // so only the deadline closes it.
+  const everyoneDone = !roomRoundsEndOnTheClock(room) && Number(joinedCount) > 0 && Number(finishedCount) >= Number(joinedCount);
   if (everyoneDone && Number.isFinite(Number(allFinishedSinceMs)) && Number(allFinishedSinceMs) > 0) {
     options.push({
       dueAtMs: Math.max(Number(allFinishedSinceMs), timer.startsAtMs || 0) + ROUND_CLOSE_AFTER_ALL_DONE_MS,
@@ -236,10 +267,21 @@ export const hostPrimaryAction = ({
       return Object.freeze({ command: null, label: null, disabled: true, hint: `Round ${counts.roundNumber} is about to start.` });
     case MATCH_STATE.ROUND_ACTIVE:
     case MATCH_STATE.ROUND_PAUSED: {
-      // A question-set round (Graph Feature Rush) has more graphs than anyone
-      // can finish: it ends on the clock, never because everyone answered.
-      if (roomRunsQuestionSets(room)) {
+      // A rush has more graphs than anyone can finish: it ends on the clock,
+      // never because everyone answered.
+      if (roomRoundsEndOnTheClock(room)) {
         return Object.freeze({ command: null, label: null, disabled: true, hint: 'Students solve as many graphs as they can until time runs out. Results show automatically.' });
+      }
+      // Every student works through their own set (a Sprint) or line (Classic).
+      if (roomRunsQuestionSets(room)) {
+        return Object.freeze({
+          command: null,
+          label: null,
+          disabled: true,
+          hint: Number(joinedCount) > 0 && Number(finishedCount) >= Number(joinedCount)
+            ? 'Everyone has finished. Results are coming up.'
+            : 'The round ends when time runs out or everyone has finished. Results show automatically.',
+        });
       }
       return Object.freeze({
         command: null,

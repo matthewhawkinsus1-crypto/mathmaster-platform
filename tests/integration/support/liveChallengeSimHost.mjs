@@ -11,10 +11,18 @@
  * the pacer. Its requests go to the real publishLiveChallengeStandings under
  * the teacher's identity (`call`). tests/platform/liveChallengeStandings
  * Wiring.test.mjs holds this mirror to the console.
+ *
+ * With `autoClose`, it also paces rounds as the console does: who has
+ * finished (their public row; a Graph the Line Classic or Sprint player by
+ * working through the round), when everyone has (roundCloseDue), and the same
+ * round-scoped close the teacher can press — a close the server says is
+ * premature (round_in_progress) is looked at again three seconds later. The
+ * launch certification's own classic scenarios close rounds themselves.
  */
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
-import { CHALLENGE_STAGE, challengeClock, roomRunsQuestionSets } from '../../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, challengeClock, roomRoundsEndOnTheClock, roomRunsQuestionSets, roundCloseDue, stageHasOpenRound } from '../../../src/platform/liveChallenge/challengeShellModel.js';
+import { raceRoundFinished } from '../../../src/platform/liveChallenge/rushStandingsModel.js';
 import { createStandingsPublishPacer, hostStandingsSignature, roomPublishesLiveStandings } from '../../../src/platform/liveChallenge/standingsPublishPacer.js';
 import { importClientService } from './registerClientFirebase.mjs';
 
@@ -25,8 +33,9 @@ let hostSeq = 0;
  * @param {string} options.roomId
  * @param {(name: string, data: object) => Promise<object>} options.call  the teacher's callable
  * @param {boolean} [options.paused]  start without publishing (a host whose pacer is gone)
+ * @param {boolean} [options.autoClose]  close each round when it is due, as the console does
  */
-export async function createSimHost({ roomId, call, paused = false }) {
+export async function createSimHost({ roomId, call, paused = false, autoClose = false }) {
   hostSeq += 1;
   const id = `sim-host-${hostSeq}`;
   // The emulator, never the production config: the test's own thread has no
@@ -44,6 +53,8 @@ export async function createSimHost({ roomId, call, paused = false }) {
     log: [],
     signature: null,
     closed: false,
+    // With autoClose: every close request, why it was due and how it went.
+    closes: [],
   };
   const makePacer = () => createStandingsPublishPacer({
     publish: async () => {
@@ -61,6 +72,59 @@ export async function createSimHost({ roomId, call, paused = false }) {
   });
   let pacer = makePacer();
 
+  // ROUND PACING (LiveChallengeTeacher.jsx): who has finished the round now
+  // running, everyone since when, and the close when roundCloseDue says so.
+  let allFinishedSince = { key: '', at: null };
+  let autoClosed = '';
+  let closeTimer = null;
+  let closeDueAt = null;
+  const paceRound = (room, stage, leaderboard) => {
+    const roundOpen = stageHasOpenRound(stage);
+    const roundsEndOnTheClock = roomRoundsEndOnTheClock(room);
+    const questionSetRoom = roomRunsQuestionSets(room);
+    const currentRound = Number(room.currentRound);
+    const finishedKeys = new Set(roundOpen && !roundsEndOnTheClock
+      ? host.players.filter((player) => player?.joined !== false && (questionSetRoom
+        ? raceRoundFinished(player, currentRound)
+        : Number(player.answeredRound) === currentRound)).map((player) => String(player.playerKey))
+      : []);
+    const joinedCount = leaderboard.length;
+    const answeredCount = finishedKeys.size;
+    const roundKey = roundOpen ? `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}` : '';
+    const everyoneFinished = roundOpen && !roundsEndOnTheClock && joinedCount > 0 && answeredCount >= joinedCount;
+    if (everyoneFinished && roundKey && !(allFinishedSince.key === roundKey && allFinishedSince.at !== null)) allFinishedSince = { key: roundKey, at: Date.now() };
+    const closeDue = roundCloseDue({
+      room,
+      joinedCount,
+      finishedCount: answeredCount,
+      allFinishedSinceMs: everyoneFinished && allFinishedSince.key === roundKey ? allFinishedSince.at : null,
+    });
+    if (!closeDue || !roundKey) return;
+    const key = `${roundKey}:${closeDue.reason}`;
+    if (autoClosed === key || (closeTimer && closeDueAt === key)) return;
+    clearTimeout(closeTimer);
+    closeDueAt = key;
+    closeTimer = setTimeout(async () => {
+      closeTimer = null;
+      if (host.closed) return;
+      autoClosed = key;
+      const expected = { expectedRoundIndex: Number(room.currentRound), expectedRoundVersion: Number(room.roundVersion) || 0 };
+      const entry = { reason: closeDue.reason, roundIndex: expected.expectedRoundIndex, dueAtMs: closeDue.dueAtMs, at: Date.now(), ok: null };
+      host.closes.push(entry);
+      try {
+        await call('closeLiveChallengeRound', { roomId, ...expected });
+        entry.ok = true;
+      } catch (error) {
+        entry.ok = false;
+        entry.code = error?.details?.lifecycle || error?.code || String(error);
+        // Not closed: the server says the round is still running. Look again in a moment.
+        if (error?.details?.lifecycle === 'round_in_progress') {
+          setTimeout(() => { if (autoClosed === key) autoClosed = ''; evaluate(); }, 3_000);
+        }
+      }
+    }, Math.max(0, closeDue.dueAtMs - Date.now()));
+  };
+
   // The console's board: ranked as the room's strategy ranks a match, with
   // work in progress only while the round takes answers.
   const evaluate = () => {
@@ -70,6 +134,7 @@ export async function createSimHost({ roomId, call, paused = false }) {
     const stage = challengeClock(room, Date.now()).stage;
     const activeRound = stage === CHALLENGE_STAGE.ROUND_ACTIVE ? Number(room.currentRound) : null;
     const leaderboard = publicLeaderboard(host.players, { activeRound, ...leaderboardOptionsFor(room.scoringStrategyId || null) });
+    if (autoClose) paceRound(room, stage, leaderboard);
     const signature = hostStandingsSignature(leaderboard);
     if (signature === host.signature) return;
     host.signature = signature;
@@ -107,6 +172,7 @@ export async function createSimHost({ roomId, call, paused = false }) {
     async close() {
       host.closed = true;
       clearInterval(tick);
+      clearTimeout(closeTimer);
       pacer.stop();
       stopRoom?.();
       stopPlayers?.();

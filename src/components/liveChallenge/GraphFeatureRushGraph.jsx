@@ -28,7 +28,9 @@ const LABEL_GAP = 6;
 
 // How the student last used the page. A graph focused when play begins shows
 // its keyboard ring only to a student who has been using the keyboard; a
-// finger or a mouse never sees it.
+// finger or a mouse never sees it. The svg opts out of the page's own
+// :focus-visible ring (data-focus-ring="own"), which that focus would
+// otherwise leave on through every press of a mouse or a finger.
 let lastModality = 'pointer';
 let modalityListeners = false;
 const watchModality = () => {
@@ -218,6 +220,7 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
         aria-label={label}
         aria-disabled={paused}
         tabIndex={0}
+        data-focus-ring="own"
         width={side}
         height={side}
         viewBox={`0 0 ${side} ${side}`}

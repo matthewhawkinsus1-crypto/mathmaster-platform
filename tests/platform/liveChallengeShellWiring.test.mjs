@@ -33,7 +33,7 @@ test('a student\'s screen is a function of the match\'s stage, read at its calib
   // open), the round's results (only once it closed), the end.
   assert.match(studentMain, /\{room\.status === 'lobby' && \(\s*<StudentLobbyCard /);
   assert.match(studentMain, /const roundOpen = room\.status === 'running' && room\.roundState !== 'closed';/);
-  assert.match(studentMain, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
+  assert.match(studentMain, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
   assert.match(studentMain, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
   const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'final screen');
   assert.match(finished, /<StudentFinalCard/);

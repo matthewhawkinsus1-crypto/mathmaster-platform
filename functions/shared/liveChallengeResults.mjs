@@ -343,11 +343,21 @@ export const playerRoundOutcomes = (player = {}, { mode = null } = {}) => {
 
 const tally = () => ({ questions: 0, completed: 0, attempts: 0, hits: 0 });
 
+// A mode's own report tags (receipt.reportTags): short names to short values,
+// a handful at most — Graph the Line records { form, itemType, variant }.
+const REPORT_TAG_NAME = /^[A-Za-z][A-Za-z0-9]{0,23}$/;
+const MAX_REPORT_TAGS = 6;
+const reportTagsOf = (receipt) => Object.entries(receipt?.reportTags && typeof receipt.reportTags === 'object' ? receipt.reportTags : {})
+  .filter(([name, value]) => REPORT_TAG_NAME.test(name) && typeof value === 'string' && value && value.length <= 40)
+  .slice(0, MAX_REPORT_TAGS);
+
 /**
  * One player's whole match in a question-set mode, for the teacher's report:
  * totals, and the same counts broken down by the tags each attempt recorded
- * (the feature asked, the function family, the difficulty tier). Built from
- * the receipt log alone.
+ * (the feature asked, the function family, the difficulty tier — and any
+ * report tags of the mode's own, `byTag`). `mistakes` counts the diagnosis a
+ * wrong attempt recorded, when the mode records one. Built from the receipt
+ * log alone; a mode without report tags or diagnoses gets them empty.
  */
 export const questionSetMatchSummary = (player = {}) => {
   const receipts = player?.submissionReceipts || {};
@@ -364,6 +374,7 @@ export const questionSetMatchSummary = (player = {}) => {
         feature: receipt.feature ? String(receipt.feature) : null,
         family: receipt.family ? String(receipt.family) : null,
         tier: receipt.tier ? String(receipt.tier) : null,
+        tags: reportTagsOf(receipt),
       });
     }
   });
@@ -371,6 +382,8 @@ export const questionSetMatchSummary = (player = {}) => {
   const byFeature = {};
   const byFamily = {};
   const byTier = {};
+  const byTag = {};
+  const mistakes = {};
   const bump = (bucket, key, progress) => {
     if (!key) return;
     const entry = bucket[key] || tally();
@@ -395,13 +408,22 @@ export const questionSetMatchSummary = (player = {}) => {
     bump(byFeature, question.feature, progress);
     bump(byFamily, question.family, progress);
     bump(byTier, question.tier, progress);
+    question.tags.forEach(([name, value]) => {
+      byTag[name] = byTag[name] || {};
+      bump(byTag[name], value, progress);
+    });
   });
   attempts.forEach(([, receipt]) => {
+    // A wrong answer's diagnosis counts even on the miss that used up the
+    // last try (it ends the item: forfeit); a skip records no diagnosis.
+    if (receipt.isCorrect !== true && typeof receipt.diagnosis === 'string' && REPORT_TAG_NAME.test(receipt.diagnosis)) {
+      mistakes[receipt.diagnosis] = (mistakes[receipt.diagnosis] || 0) + 1;
+    }
     if (receipt.attemptKind !== 'dne') return;
     totals.dnePresses += 1;
     if (receipt.isCorrect === true) totals.dneCorrect += 1;
   });
-  return Object.freeze({ ...totals, byFeature, byFamily, byTier });
+  return Object.freeze({ ...totals, byFeature, byFamily, byTier, byTag, mistakes });
 };
 
 /** Hits over attempts across the whole match, or null with no attempts. */

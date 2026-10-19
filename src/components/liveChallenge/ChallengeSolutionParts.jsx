@@ -1,4 +1,5 @@
 import { MathText } from '../common/MathText.jsx';
+import RevealedLine from './RevealedLine.jsx';
 import { SOLUTION_STATE, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { normalizeSolutionReview } from '../../platform/liveChallenge/challengeRecapModel.js';
 
@@ -26,8 +27,12 @@ const panel = {
 };
 const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)' };
 
-/** One worked solution: headline, the steps, the common slip, the answer. */
-export function RoundSolutionCard({ review, prompt = null, title = 'Worked solution', compact = false }) {
+/**
+ * One worked solution: headline, the steps, the common slip, the answer — and
+ * for a Graph the Line round the class played together, its line
+ * (`lineGraph`, LineRevealGraph — loaded only when a round has one).
+ */
+export function RoundSolutionCard({ review, prompt = null, title = 'Worked solution', compact = false, lineGraph = null }) {
   const solution = normalizeSolutionReview(review);
   if (!solution) return null;
   return (
@@ -35,6 +40,7 @@ export function RoundSolutionCard({ review, prompt = null, title = 'Worked solut
       <span style={label}>{title}</span>
       {prompt && <MathText as="p" style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)' }}>{prompt}</MathText>}
       {solution.headline && <MathText as="p" style={{ margin: '8px 0 0', fontWeight: 900, fontSize: compact ? 'calc(16 * var(--mm-px))' : 'calc(18 * var(--mm-px))' }}>{solution.headline}</MathText>}
+      {lineGraph && <div style={{ marginTop: 10 }}><RevealedLine lineGraph={lineGraph} size={compact ? 200 : 240} /></div>}
       {solution.reasoning.length > 0 && (
         <ol style={{ margin: '8px 0 0', paddingLeft: 22, display: 'grid', gap: 4 }}>
           {solution.reasoning.map((step, index) => (
@@ -65,7 +71,7 @@ export function RoundSolutionCard({ review, prompt = null, title = 'Worked solut
  */
 export function RoundSolutionPanel({ state, solution = null }) {
   if (state === SOLUTION_STATE.READY) {
-    return <RoundSolutionCard review={solution?.solutionReview} prompt={solution?.prompt || null} />;
+    return <RoundSolutionCard review={solution?.solutionReview} prompt={solution?.prompt || null} lineGraph={solution?.lineGraph || null} />;
   }
   const message = solutionStateMessage(state);
   if (!message) return null;

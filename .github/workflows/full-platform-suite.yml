@@ -93,6 +93,14 @@ jobs:
         timeout-minutes: 12
         run: npm run test:live-challenge-launch:emulator
 
+      # Graph the Line at class scale: a 30-student Sprint, a 35-student
+      # Classic with its reveal, a 30-student Rush — whole classes playing
+      # through the real callables and listeners, rounds closed by the
+      # console's own rule. Its own emulator run, for the reason above.
+      - name: Certify Graph the Line at class scale against Firestore
+        timeout-minutes: 10
+        run: npm run test:line-graph-launch:emulator
+
       # A Warm-Up question through the real ingestion, the real deadline
       # finalizer and a teacher reopen, then the real QuestionEngine rendering
       # the record those functions wrote (the lmr-wu-1 incident). It runs in

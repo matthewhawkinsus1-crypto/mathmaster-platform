@@ -45,6 +45,11 @@ test('the worked solution is drawn only on a closed round\'s results', () => {
   // The solution's math is typeset.
   const panel = region(projector, 'function ProjectorSolution(', '\n/** A closed round:', 'projector solution');
   assert.match(panel, /<MathText>\{step\}<\/MathText>/);
+  // Numbered steps read down a left edge, though the page around them is
+  // centred (#root): every list of steps on the projector says so.
+  const lists = executableSource(panel).match(/<ol style=\{\{[^}]*\}\}>/g) || [];
+  assert.ok(lists.length >= 2, 'a bank question\'s steps and a revealed line\'s');
+  lists.forEach((list) => assert.match(list, /textAlign: 'left'/, list));
   assert.match(panel, /solutionStateMessage\(state\)/, 'a held solution says why');
 });
 

@@ -157,7 +157,12 @@ export const solutionHeldForReplay = ({ roundIndex, revealed = [] } = {}) => {
   return !list(revealed).map(Number).includes(round);
 };
 
-/** The public document for one revealed round. Names a question, never a student. */
+/**
+ * The public document for one revealed round. Names a question, never a
+ * student. A Graph the Line round the class played together also carries its
+ * line (`lineGraph`: the line, its key points, and the class's counts —
+ * lineGraphReveal.mjs) for the screens that draw it.
+ */
 export const publicSolutionDocument = ({ roundIndex, record = null, originalRoundIndex = null, revealedAtMs = null } = {}) => {
   const review = record?.solutionReview || null;
   return Object.freeze({
@@ -167,6 +172,7 @@ export const publicSolutionDocument = ({ roundIndex, record = null, originalRoun
     teksCode: record?.teksCode || null,
     available: Boolean(review),
     solutionReview: review,
+    ...(record?.lineGraph ? { lineGraph: record.lineGraph } : {}),
     revealedAtMs: Number.isFinite(Number(revealedAtMs)) ? Number(revealedAtMs) : null,
   });
 };

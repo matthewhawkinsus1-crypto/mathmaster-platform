@@ -10884,13 +10884,28 @@ async function graphFeatureRushRules() {
   return graphFeatureRushModules;
 }
 
+// GRAPH THE LINE: the mode's own pure rules (attempts, generation, config).
+let lineGraphModuleSet = null;
+async function lineGraphModules() {
+  if (!lineGraphModuleSet) {
+    const [attempts, generator, config, rules] = await Promise.all([
+      import("./shared/lineGraphAttempts.mjs"),
+      import("./shared/lineGraphGenerator.mjs"),
+      import("./shared/lineGraphConfig.mjs"),
+      import("./shared/lineGraphRules.mjs"),
+    ]);
+    lineGraphModuleSet = { attempts, generator, config, rules };
+  }
+  return lineGraphModuleSet;
+}
+
 // THE ENGINE CONTRACTS every Live Challenge callable runs through. They are
 // pure modules shared with the browser; see docs/architecture/
 // live-challenge-engine.md for what each owns.
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10906,10 +10921,13 @@ async function liveChallengeEngine() {
       import("./shared/liveChallengePrivacy.mjs"),
       import("./shared/liveChallengeRecognitions.mjs"),
       import("./shared/liveChallengePlayerSummary.mjs"),
+      // A Graph the Line round the class graphed together is published by the
+      // same reveal as a shared question, with the class's own mistake added.
+      import("./shared/lineGraphReveal.mjs"),
       import("./shared/liveChallengeServerSweep.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, serverSweep,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep,
     };
   }
   return liveChallengeEngineModules;
@@ -11221,10 +11239,105 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
   },
 });
 
+/*
+ * GRAPH THE LINE draws nothing up front either: each student's items are
+ * generated from the room's private seed as they reach them
+ * (getLineGraphRound) and regenerated to grade an attempt. A round is a
+ * placeholder id with no standard — a question-set round feeds no mastery
+ * evidence until its outcomes can (docs/architecture/graph-the-line.md §11)
+ * — and its public question is a card, never an equation.
+ */
+const lineGraphRoundPrompt = (format, itemCount) => {
+  if (format === "classic") return "Graph the line on your own screen";
+  if (format === "sprint") return `Work through your ${itemCount} lines`;
+  return "Graph as many lines as you can";
+};
+
+/*
+ * A CLASSIC GAME THE CLASS PLAYS TOGETHER (`sameEquations`, Classic's
+ * default): every student's item in a round is the same line, so the round
+ * has a solution to show at its close (lineGraphReveal.mjs). The shared item
+ * is the generator's for any student; '*' names none.
+ */
+const lineGraphSharesRounds = (config = {}) => config.format === "classic" && config.sameEquations === true;
+const sharedLineItem = (generator, { seed, config, roundIndex }) => generator.generateLineQuestion({
+  seed, studentKey: "*", roundIndex, questionIndex: 0, config,
+});
+
+const LINE_GRAPH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await lineGraphModules();
+    const { lineReveal } = await liveChallengeEngine();
+    const config = modeConfig.lineGraph;
+    const generatorVersion = generator.LINE_GRAPH_GENERATOR_VERSION;
+    // The seed never leaves the server: it is what makes a student's items
+    // theirs and reproducible.
+    const seed = crypto.randomUUID();
+    // A shared round's line is held back while a later round asks the same
+    // line (the reveal's rule for every shared question), so the schedule's
+    // lines are known from the start — privately.
+    const sharedLineKeys = lineGraphSharesRounds(config)
+      ? Array.from({ length: roundCount }, (_, roundIndex) => lineReveal.lineRevealKey(sharedLineItem(generator, { seed, config, roundIndex })))
+      : null;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `lineGraph:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      privateFields: { lineGraph: { seed, config, generatorVersion, ...(sharedLineKeys ? { sharedLineKeys } : {}) } },
+      roomFields: { lineGraph: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Graph the Line items are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const { config: configRules, generator } = await lineGraphModules();
+    const config = privateState.lineGraph?.config || room.lineGraph?.config || {};
+    const itemCount = Math.min(configRules.lineRoundQuestionCount(config.format, config), mode.questionSpecs.length);
+    // The round's shared line, captured privately like a bank question's
+    // solution (published only once nobody can answer it).
+    const lineState = privateState.lineGraph || {};
+    const shared = lineGraphSharesRounds(config) && lineState.seed
+      && Number(lineState.generatorVersion) === generator.LINE_GRAPH_GENERATOR_VERSION;
+    const solution = shared
+      ? engine.lineReveal.lineRoundSolutionRecord(sharedLineItem(generator, { seed: lineState.seed, config, roundIndex }))
+      : null;
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "lineGraph",
+        format: config.format || null,
+        challengeRound: roundIndex,
+        prompt: lineGraphRoundPrompt(config.format, itemCount),
+        itemTypes: Array.isArray(config.itemTypes) ? config.itemTypes : [],
+        forms: Array.isArray(config.forms) ? config.forms : [],
+        difficulty: config.difficulty || null,
+        roundQuestionCount: itemCount,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      solution,
+    };
+  },
+});
+
+// The per-player generated sources, beside the shared-question planners.
+const GENERATED_QUESTION_PLANNERS = Object.freeze({
+  graphFeatureGenerator: GRAPH_FEATURE_RUSH_PLANNER,
+  lineGraphGenerator: LINE_GRAPH_PLANNER,
+});
+
 function liveChallengeQuestionPlanner(mode) {
-  const planner = mode?.questionSource === "graphFeatureGenerator"
-    ? GRAPH_FEATURE_RUSH_PLANNER
-    : LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
+  const source = String(mode?.questionSource || "");
+  const planner = Object.hasOwn(GENERATED_QUESTION_PLANNERS, source)
+    ? GENERATED_QUESTION_PLANNERS[source]
+    : (Object.hasOwn(LIVE_CHALLENGE_QUESTION_PLANNERS, source) ? LIVE_CHALLENGE_QUESTION_PLANNERS[source] : null);
   if (!planner) throw new HttpsError("failed-precondition", `The ${mode?.label || "selected"} game has no question source on this server.`);
   return planner;
 }
@@ -11515,6 +11628,9 @@ async function requireOwnedChallenge(db, request, roomId) {
   return { teacherEmail, roomRef, room };
 }
 
+// A mode's own settings errors: each carries a sentence a teacher can act on.
+const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "LineGraphConfigError"]);
+
 exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -11580,6 +11696,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   // An unknown mode is the standard game, which is what it always was.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  // A mode not yet offered to teachers (its screens are still being built)
+  // launches for the platform administrator only, to preview it. The create
+  // panel never offers one; this holds for a request that names it anyway.
+  if (!mode.teacherSelectable && !authLib.isRootAdminEmail(teacherEmail)) {
+    throw new HttpsError("failed-precondition", `${mode.label} is still in preview and cannot be launched for a class yet.`);
+  }
   if (assignmentId && !mode.capabilities.warmupLink) {
     throw new HttpsError("failed-precondition", `${mode.label} cannot run as an assignment's Warm-Up yet. Launch it from Live Challenge instead.`);
   }
@@ -11609,7 +11731,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   try {
     modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
   } catch (error) {
-    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    if (LIVE_CHALLENGE_CONFIG_ERRORS.has(error?.name)) throw new HttpsError("invalid-argument", error.message);
     throw error;
   }
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
@@ -12597,8 +12719,23 @@ function liveChallengeSecondChancePossible(room = {}, mode = {}) {
  */
 function liveChallengeRevealableRounds({ challenge, engine, room, privateState, players, closedThrough, finished = false }) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  // A per-player round (Graph Feature Rush) has no shared question to solve.
-  if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) return [];
+  // A per-player round (Graph Feature Rush) has no shared question to solve —
+  // unless the class played it together: a Graph the Line Classic round with
+  // the same line for everyone, published at its close (no Second Chance in
+  // these modes), held while a later round asks the same line.
+  if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    const sharedLineKeys = privateState.lineGraph?.sharedLineKeys;
+    if (!Array.isArray(sharedLineKeys)) return [];
+    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+    return engine.solutionReveal.revealableRounds({
+      closedThrough,
+      scheduledRoundCount: sharedLineKeys.length,
+      secondChancePossible: false,
+      replayOf: {},
+      finished,
+      questionKeys: sharedLineKeys.map((key) => (key ? [key] : null)),
+    }).filter((round) => round <= reached);
+  }
   const questionIds = Array.isArray(privateState.questionIds) ? privateState.questionIds : [];
   const scheduledRoundCount = Number(privateState.scheduledRoundCount) || questionIds.length;
   // The same condition planNextLiveChallengeRound replays under, so a room
@@ -12621,18 +12758,25 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   return rounds.filter((round) => round <= reached);
 }
 
-/** Publish the newly revealable rounds' solutions inside the caller's transaction. */
-function applyLiveChallengeSolutionReveals(transaction, { engine, roomRef, room, privateState, rounds, nowMs }) {
+/**
+ * Publish the newly revealable rounds' solutions inside the caller's
+ * transaction. `players` are the private player records: a Graph the Line
+ * round the class played together publishes what the class drew most often
+ * (counts only), now that nobody can answer it.
+ */
+function applyLiveChallengeSolutionReveals(transaction, { engine, roomRef, room, privateState, rounds, nowMs, players = [] }) {
   const already = Array.isArray(room.revealedSolutionRounds) ? room.revealedSolutionRounds : [];
   const fresh = engine.solutionReveal.newlyRevealedRounds(rounds, already);
   if (!fresh.length) return already;
   const secondChanceOf = privateState.secondChanceOf || {};
   fresh.forEach((round) => {
     const original = secondChanceOf[String(round)];
+    const stored = privateState.roundSolutions?.[String(round)] || null;
+    const record = stored?.lineGraph ? engine.lineReveal.withClassLineFacts({ record: stored, players, roundIndex: round }) : stored;
     transaction.set(roomRef.collection(engine.solutionReveal.SOLUTIONS_COLLECTION).doc(String(round)), {
       ...engine.solutionReveal.publicSolutionDocument({
         roundIndex: round,
-        record: privateState.roundSolutions?.[String(round)] || null,
+        record,
         originalRoundIndex: original === undefined ? null : original,
         revealedAtMs: nowMs,
       }),
@@ -12785,6 +12929,7 @@ function applyLiveChallengeMatchFinalization(transaction, {
         challenge: null, engine, room, privateState, players, closedThrough: Number(room.currentRound), finished: true,
       }),
       nowMs,
+      players,
     });
   }
   // The final standings and podium every screen shows ARE the match result's:
@@ -12832,6 +12977,17 @@ async function updateLiveChallengeInvitesForRoom(db, { roomId, studentIds = [], 
  * facts about the mathematics and the score is partly a fact about reaction
  * time.
  */
+/*
+ * A question-set mode's own report, and the key the report document stores it
+ * under. Chosen by the mode's question source, as its planner is.
+ */
+async function questionSetModeReport(mode, result) {
+  if (mode.questionSource === "lineGraphGenerator") {
+    return { key: "lineGraph", report: (await lineGraphModules()).attempts.buildLineGraphReport(result) };
+  }
+  return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
+}
+
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
   const challengeRules = await liveChallengeRules();
@@ -12857,16 +13013,18 @@ async function writeLiveChallengeReportFromResult(db, result) {
   });
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
   // A question-set game has no one question per round and no standard per
-  // round: its report is the breakdown by feature and family, and its class
-  // accuracy is every tap.
+  // round: its report is its mode's own breakdown (by feature and family for
+  // the rush; by form, item type and mistake for Graph the Line), stored
+  // under the mode's key, and its class accuracy is every attempt.
   const { modes } = await liveChallengeEngine();
-  const questionSet = modes.roundStructureFor(modes.getChallengeMode(result.modeId)).id === modes.ROUND_STRUCTURE.QUESTION_SET;
-  const rushReport = questionSet ? (await graphFeatureRushRules()).rush.buildRushReport(result) : null;
+  const resultMode = modes.getChallengeMode(result.modeId);
+  const questionSet = modes.roundStructureFor(resultMode).id === modes.ROUND_STRUCTURE.QUESTION_SET;
+  const modeReport = questionSet ? await questionSetModeReport(resultMode, result) : null;
   await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
     ...report,
-    ...(rushReport ? {
-      graphFeatureRush: rushReport,
-      classAccuracyPercent: rushReport.accuracyPercent,
+    ...(modeReport ? {
+      [modeReport.key]: modeReport.report,
+      classAccuracyPercent: modeReport.report.accuracyPercent,
       rounds: [],
       standards: [],
       weakestStandard: null,
@@ -13517,6 +13675,7 @@ async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = f
         challenge, engine, room: currentRoom, privateState, players: roundPlayers, closedThrough: plan.roundIndex,
       }),
       nowMs,
+      players: roundPlayers,
     });
     // Every screen's standings, exact as of the close.
     writeExactStandingsProjection(transaction, {
@@ -13808,6 +13967,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
         challenge, engine, room: currentRoom, privateState: next.privateState, players: roundPlayers, closedThrough: plan.roundIndex,
       }),
       nowMs,
+      players: roundPlayers,
     });
     // The drafted question is reused unless the transaction saw a different
     // next round (a late answer changed which question the class missed most).
@@ -14369,8 +14529,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
   if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   const room = roomSnapshot.data() || {};
-  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
-    throw new HttpsError("failed-precondition", "This game is played by tapping graphs, not by submitting an answer.");
+  const roomMode = engine.modes.getChallengeMode(room.challengeMode);
+  if (roomMode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    throw new HttpsError("failed-precondition", `${roomMode.label} is played on its own game screen, not by submitting an answer.`);
   }
   const submittedVersion = requestedVersion ?? Number(room.roundVersion || 0);
   const submittedToken = requestedToken ?? String(room.roundToken || "");
@@ -14892,6 +15053,249 @@ exports.previewGraphFeatureRush = onCall(async (request) => {
   const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
   const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicRushQuestion(generator.generateRushQuestion({
     seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
+  })));
+  return { config: normalized, questions };
+});
+
+// ---------------------------------------------------------------------------
+// GRAPH THE LINE (docs/architecture/graph-the-line.md)
+//
+// Classic, Sprint and Rush open, close and finish through the same lifecycle
+// commands as every mode, on the room's authoritative clock. What the game
+// adds is how a student gets items and answers them — the rush's shape:
+//
+//   getLineGraphRound        where the student stands in the round, read
+//                            from their receipts, and their next items,
+//                            generated from the room's private seed. Writes
+//                            nothing.
+//   submitLineGraphAttempts  a batch of drawn lines, chosen options, typed
+//                            equations and skips, graded in ONE transaction
+//                            against the server's own regenerated items
+//                            (lineGraphAttempts.applyLineGraphAttempts) and
+//                            recorded as targetAttempt receipts. A retried
+//                            batch replays by attempt id; an item completes
+//                            once.
+//   previewLineGraph         sample items for a teacher's settings.
+//
+// The device checks each answer the moment it is complete with the same
+// functions; the server's verdict is the one that counts, and the device
+// resynchronizes to it.
+// ---------------------------------------------------------------------------
+
+async function loadLineGraphContext(db, { studentId, roomId }) {
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) {
+    throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  }
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
+    throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const room = roomSnapshot.data() || {};
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (mode.questionSource !== engine.modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR) {
+    throw new HttpsError("failed-precondition", "This Live Challenge is not a Graph the Line game.");
+  }
+  const modules = await lineGraphModules();
+  const lineState = (privateSnapshot.data() || {}).lineGraph || {};
+  // A room is graded with the generator it was created under, or not at all:
+  // regenerating under different rules would grade a line against an
+  // equation the student never saw.
+  if (!lineState.seed || Number(lineState.generatorVersion) !== modules.generator.LINE_GRAPH_GENERATOR_VERSION) {
+    throw new HttpsError("failed-precondition", "This Graph the Line game was created before an update. Ask your teacher to start a new game.");
+  }
+  // The format is the mode's; a Sprint's length is the room's own (never
+  // more than the mode declares).
+  const config = { ...lineState.config, format: modules.rules.lineGraphFormatOfMode(mode.id) };
+  const poolSize = Math.min(modules.config.lineRoundQuestionCount(config.format, config), mode.questionSpecs.length);
+  return {
+    engine, modules, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, lineState, config, poolSize,
+  };
+}
+
+/** Item k of one student's round: deterministic, generated once per call. */
+function lineGraphIssuer({ modules, lineState, config, studentId, roundIndex }) {
+  const issued = new Map();
+  return (questionIndex) => {
+    if (!issued.has(questionIndex)) {
+      issued.set(questionIndex, modules.generator.generateLineQuestion({
+        seed: lineState.seed, studentKey: studentId, roundIndex, questionIndex, config,
+      }));
+    }
+    return issued.get(questionIndex);
+  };
+}
+
+exports.getLineGraphRound = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || Number.isNaN(roundVersion)) {
+    throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+  }
+  const { engine, modules, room, player, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
+  const state = modules.attempts.lineRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  const roundOpen = lifecycle.planLifecycleCommand({
+    command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
+    room,
+    expected: { roundIndex, roundVersion, roundToken },
+  }).outcome === lifecycle.LIFECYCLE_OUTCOME.APPLY;
+  // Items only for an open round the student has joined, starting no earlier
+  // than where they are and no further ahead than two batches.
+  const requested = Number(request.data?.fromIndex);
+  const fromIndex = Number.isInteger(requested)
+    ? Math.min(Math.max(requested, state.cursor), state.cursor + 2 * modules.rules.LINE_LIMITS.issueBatch)
+    : state.cursor;
+  const count = Math.max(0, Math.min(modules.rules.LINE_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
+  const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
+  const joined = player.joined === true;
+  const questions = roundOpen && joined
+    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => modules.generator.publicLineQuestion(issue(fromIndex + offset)))
+    : [];
+  // `poolSize` is where the round's items end (a Sprint's length); `joined`
+  // tells a device whose join is still on its way to ask again.
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+});
+
+exports.submitLineGraphAttempts = onCall(async (request) => {
+  const requestArrivedAt = Date.now();
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  const attempts = Array.isArray(request.data?.attempts) ? request.data.attempts : [];
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
+    throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
+  }
+  const { engine, modules, mode, room, roomRef, privatePlayerRef, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle, timer: roundTimer } = engine;
+  const expected = { roundIndex, roundVersion, roundToken };
+  // Cheap refusals before the transaction: a stale round, a closed one, or a
+  // request that arrived after the deadline's bounded grace.
+  const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
+  if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+    throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
+  }
+  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
+    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  }
+  const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) {
+      throw new HttpsError("not-found", "That Live Challenge ended before your answers could be saved.");
+    }
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const player = latestPlayerSnapshot.data() || {};
+    const plan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room: latestRoom, expected });
+    if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+      throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
+    }
+    const latestTimer = roundTimer.timerFromRoom(latestRoom);
+    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
+    const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
+    const applied = modules.attempts.applyLineGraphAttempts({
+      player,
+      roundIndex,
+      roundVersion,
+      attempts,
+      questionFor: issue,
+      config,
+      arrivedAtMs: requestArrivedAt,
+      arrivalElapsedMs: arrival.elapsedMs,
+      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      strategy,
+      poolSize,
+    });
+    // Replays, repeated answers and resolved items record nothing, so a batch
+    // of only those writes nothing either. Never `answeredRound`: it would
+    // mark the player finished with the round (liveChallengeRoundCompletion).
+    if (applied.recorded > 0) {
+      const { totals } = applied;
+      transaction.set(privatePlayerRef, {
+        submissionReceipts: applied.receipts,
+        attemptSequence: applied.attemptSequence,
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        answeredRounds: totals.answeredRounds,
+        targetAttempts: totals.targetAttempts,
+        targetHits: totals.targetHits,
+        matchAccuracy: totals.matchAccuracy,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      // The player's own public row: the board's numbers and the host's
+      // "racing now" signal, in the race fields the rush's board already
+      // reads — and whether they have worked through the whole round, which
+      // the host's early close of a Classic or Sprint round counts (the
+      // server's close guard reads the same receipts). No student id, no
+      // answers.
+      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        matchAccuracy: totals.matchAccuracy,
+        rushRound: roundIndex,
+        rushRoundCompleted: applied.state.questionsCorrect,
+        rushRoundFinished: applied.state.finished === true,
+        rushActiveAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    return {
+      verdicts: applied.verdicts,
+      state: applied.state,
+      recorded: applied.recorded,
+      score: applied.totals.score,
+      correctCount: applied.totals.correctCount,
+    };
+  });
+  return { roomId, roundIndex, ...outcome };
+});
+
+exports.previewLineGraph = onCall(async (request) => {
+  await requireTeacher(request);
+  const { generator, config: configRules, rules } = await lineGraphModules();
+  const format = String(request.data?.format || "");
+  if (!rules.LINE_GRAPH_FORMAT_IDS.includes(format)) throw new HttpsError("invalid-argument", "Choose Classic, Sprint or Rush.");
+  let normalized;
+  try {
+    normalized = configRules.normalizeLineGraphConfig(request.data?.lineGraph || {}, { format });
+  } catch (error) {
+    if (error?.name === "LineGraphConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time: the teacher sees what a student might get, and
+  // nothing is written anywhere. A Classic game's items run across rounds.
+  // Up to a whole Sprint (its longest set), so practice plays the real length.
+  const seed = crypto.randomUUID();
+  const classic = format === rules.LINE_GRAPH_FORMAT.CLASSIC;
+  const count = Math.max(1, Math.min(configRules.LINE_SPRINT_MAX_POOL, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, index) => generator.publicLineQuestion(generator.generateLineQuestion({
+    seed,
+    studentKey: "preview",
+    roundIndex: classic ? index : 0,
+    questionIndex: classic ? 0 : index,
+    config: normalized,
   })));
   return { config: normalized, questions };
 });

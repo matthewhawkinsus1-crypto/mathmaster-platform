@@ -3,6 +3,7 @@ import { PRESENCE } from '../../platform/liveChallenge/challengePresenceModel.js
 import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import MathText from '../common/MathText.jsx';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
+import RevealedLine from './RevealedLine.jsx';
 
 /*
  * THE TEACHER'S CONSOLE DURING A GAME.
@@ -212,6 +213,8 @@ export function HostSolutionPanel({ solution = null, state = SOLUTION_STATE.NONE
         <div style={{ display: 'grid', gap: 8, lineHeight: 1.5 }}>
           {solution?.prompt && <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'var(--mm-text-muted)' }}>{solution.prompt}</MathText>}
           {review.headline && <MathText as="div" style={{ fontWeight: 900, fontSize: 'calc(17 * var(--mm-px))' }}>{review.headline}</MathText>}
+          {/* A Graph the Line round the class played together: its line, and the class's most common mistake. */}
+          {solution?.lineGraph && <RevealedLine lineGraph={solution.lineGraph} size={260} />}
           {steps.length > 0 && <ol style={{ margin: 0, paddingLeft: 22 }}>{steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}</ol>}
           {review.answerSummary && <div><strong>{answerSummaryLabel(review.answerSummary)}:</strong> <MathText>{review.answerSummary}</MathText></div>}
           {review.commonError && <div><strong>Watch out:</strong> <MathText>{review.commonError}</MathText></div>}

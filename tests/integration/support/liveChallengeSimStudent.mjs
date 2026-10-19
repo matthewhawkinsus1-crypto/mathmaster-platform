@@ -25,7 +25,9 @@
  * submission id (and resends one the server refused before GO, at GO, by the
  * screen's own rule: challengeAnswerRefusal.js), and when the round counts as
  * on screen (status running, the round open, a question, a ready clock, stage
- * roundActive). The device never
+ * roundActive). A Graph the Line round is played as LineGraphRound.jsx plays
+ * it (liveChallengeSimLineRound.mjs: the screen's own session, its queue,
+ * storage and resume). The device never
  * learns the stage from a countdown event: it re-derives it from the room it
  * holds and its clock, on its own render tick.
  *
@@ -38,8 +40,7 @@ import { performance } from 'node:perf_hooks';
 import { calibrateChallengeClock, acceptChallengeSnapshot, challengePhaseAt } from '../../../functions/shared/liveChallengeParity.mjs';
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { CHALLENGE_STAGE, challengeClock } from '../../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, QUESTION_SET_GAME, challengeClock, questionSetGameOf, roomRunsQuestionSets } from '../../../src/platform/liveChallenge/challengeShellModel.js';
 import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../../../src/platform/liveChallenge/challengeAnswerRefusal.js';
 import { timestampToMillis } from '../../../functions/shared/liveChallengeTimer.mjs';
 import { studentConnectionState } from '../../../src/platform/liveChallenge/challengePresenceModel.js';
@@ -48,6 +49,7 @@ import { standingsFromProjection } from '../../../functions/shared/liveChallenge
 import { summaryFinal } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { documentWireBytes, SNAPSHOT_OVERHEAD_BYTES } from './firestoreWireBytes.mjs';
 import { importClientService } from './registerClientFirebase.mjs';
+import { createSimLineRound } from './liveChallengeSimLineRound.mjs';
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, Math.max(0, ms)); });
 let deviceSeq = 0;
@@ -113,6 +115,10 @@ export const DEFAULT_PROFILE = Object.freeze({
   standingsClient: 'projection',
   // Keep a per-delivery and per-answer log for the standings profile.
   trace: false,
+  // A Graph the Line round: what this student does with each item
+  // (liveChallengeSimLineRound.LINE_PLAN), and how long they look first (up to).
+  linePlan: 'right',
+  lineThinkMs: 400,
 });
 
 // A small seeded generator per device, so a run's jitter is repeatable.
@@ -182,6 +188,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     // first is racing the student, not testing the server).
     answering: 0,
     scheduledAnswers: 0,
+    // This page (a refresh opens a new one) and its Graph the Line round.
+    pageId: 0,
+    lineRound: null,
   };
 
   const later = (fn, ms) => {
@@ -361,12 +370,12 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     return board;
   };
 
-  // The standings listener pauses while a rush round is open (as the screen does).
+  // The standings listener pauses while a question-set round is open (as the screen does).
   let playersListenerFor = null;
   const rowSignatures = new Map();
   const syncPlayersListener = () => {
-    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
-    const wanted = device.roomId && !rushRoundOpen && profile.standingsClient !== 'off' ? device.roomId : null;
+    const questionSetRoundOpen = roomRunsQuestionSets(device.room) && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wanted = device.roomId && !questionSetRoundOpen && profile.standingsClient !== 'off' ? device.roomId : null;
     if (wanted === playersListenerFor) return;
     device.stops.players?.();
     device.stops.players = null;
@@ -451,8 +460,8 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
   };
   const syncStandingsListeners = () => {
     if (profile.standingsClient === 'legacy' || profile.standingsClient === 'off') { syncPlayersListener(); return; }
-    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
-    const wantedRoom = device.roomId && !rushRoundOpen ? device.roomId : null;
+    const questionSetRoundOpen = roomRunsQuestionSets(device.room) && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wantedRoom = device.roomId && !questionSetRoundOpen ? device.roomId : null;
     const wantedSelf = wantedRoom && myKey() ? `${wantedRoom}/${myKey()}` : null;
     if (wantedRoom !== standingsFor) {
       device.stops.standings?.();
@@ -663,6 +672,26 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     }
   };
 
+  // A Graph the Line round, as LineGraphRound.jsx plays it, for as long as
+  // this page shows this room.
+  const startLineRound = (room) => {
+    const page = device.pageId;
+    const record = {};
+    seenFor().rounds[room.currentRound].line = record;
+    device.lineRound = createSimLineRound({
+      room,
+      request,
+      storage,
+      wait: pageTimer,
+      alive: () => !device.closed && device.pageId === page && device.roomId === room.roomId,
+      roomNow: () => device.room,
+      serverNow: () => Date.now() + device.clock.offsetMs,
+      random,
+      profile,
+      record,
+    });
+  };
+
   const render = () => {
     if (device.closed || device.frozen || !device.room || device.room.roomId !== device.roomId) return;
     const { room } = device;
@@ -680,10 +709,13 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     // game_mounted, then one best-effort batch a second later (never awaited).
     collectLaunchEvent('game_mounted', room);
     later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
-    if (room.challengeMode === RUSH_MODE_ID) fetchRushGraphs(room);
-    else retryPending(); // a locked answer from before a refresh is sent again, same id
-    if (room.challengeMode !== RUSH_MODE_ID) { device.answering += 1; device.scheduledAnswers += 1; }
-    if (room.challengeMode !== RUSH_MODE_ID) later(() => { device.answering -= 1; device.scheduledAnswers -= 1; answerRound(room).catch((error) => device.errors.push(`answer: ${error?.message}`)); }, answerDelayMs());
+    const game = questionSetGameOf(room);
+    if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) { fetchRushGraphs(room); return; }
+    if (game === QUESTION_SET_GAME.LINE_GRAPH) { startLineRound(room); return; }
+    retryPending(); // a locked answer from before a refresh is sent again, same id
+    device.answering += 1;
+    device.scheduledAnswers += 1;
+    later(() => { device.answering -= 1; device.scheduledAnswers -= 1; answerRound(room).catch((error) => device.errors.push(`answer: ${error?.message}`)); }, answerDelayMs());
   };
 
   let tickTimer = null;
@@ -827,6 +859,7 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
       collectLaunchEvent('connection_restored');
       later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
       retryPending();
+      device.lineRound?.flushNow(); // LineGraphRound's 'online' handler
     },
     freeze() { device.frozen = true; },
     thaw() {
@@ -855,6 +888,9 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
     },
     async shutdown() {
       device.closed = true;
+      // This page is gone: its Graph the Line round with it (its queue stays stored).
+      device.pageId += 1;
+      device.lineRound = null;
       calibrationRun += 1;
       for (const timer of device.timers) clearTimeout(timer);
       device.timers.clear();

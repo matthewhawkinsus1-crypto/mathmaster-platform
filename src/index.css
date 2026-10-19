@@ -254,14 +254,18 @@ math-field:focus-within {
  * matters most. This ring wins over inline styles for KEYBOARD focus only:
  * :focus-visible never matches a mouse or touch press, so nothing changes for
  * a pointer user. A control that draws its focus on a wrapper (the search
- * field's :focus-within ring) opts out with data-focus-ring="container".
+ * field's :focus-within ring) opts out with data-focus-ring="container". One
+ * that draws its own keyboard ring, shown only after keyboard use and taken
+ * away by a press (the Graph Feature Rush and Graph the Line grids), opts
+ * out with data-focus-ring="own": this rule's ring, matched by a focus given
+ * in code, would otherwise stay on through every press of a mouse or a finger.
  * Portalled dialogs live outside #root, hence body. */
 body :is(
   a[href], button, input, select, textarea, summary, math-field,
   [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"],
   [role="radio"], [role="checkbox"], [role="switch"], [role="slider"], [role="gridcell"], [role="treeitem"],
   [tabindex]:not([tabindex="-1"])
-):not([data-focus-ring="container"]):focus-visible {
+):not([data-focus-ring="container"]):not([data-focus-ring="own"]):focus-visible {
   outline: 3px solid var(--mm-focus) !important;
   outline-offset: 2px !important;
 }

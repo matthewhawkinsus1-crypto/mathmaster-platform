@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
 import { RushRaceBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { lineSettingsLine } from './LineGraphHost.jsx';
+import RevealedLine from './RevealedLine.jsx';
 import {
   ChallengeClockText,
   ChallengeCountdown,
@@ -12,8 +14,9 @@ import {
 } from './ChallengeShellParts.jsx';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { LINE_GRAPH_FORMAT, lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
 import { rushPlayingCount, rushRaceRows } from '../../platform/liveChallenge/rushStandingsModel.js';
-import { CHALLENGE_STAGE, HOST_COMMAND, formatChallengeClock } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, formatChallengeClock, questionSetGameOf, roomRunsQuestionSets } from '../../platform/liveChallenge/challengeShellModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
 import { amountText, rewardSummaryLines, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import {
@@ -61,7 +64,9 @@ import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../
  * THE WORKED SOLUTION arrives as a prop (`solution`, `solutionState`): the
  * console reads it once the server has published it, and this screen draws it
  * only on a closed round's results — never in a countdown or an open round.
- * The projector stays presentation-only: no Firebase, no callables.
+ * For a Graph the Line round the class played together that solution is its
+ * line, drawn, with the wrong answer most of the class gave (a count, never a
+ * name). The projector stays presentation-only: no Firebase, no callables.
  *
  * Every view derives from the room's lifecycle (useChallengeClock):
  * lobby → countdown → round → Time! → results → … → final standings. The
@@ -464,15 +469,25 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
   );
 }
 
+// What the room is told while the countdown runs.
+const countdownDetail = (room) => {
+  const game = questionSetGameOf(room);
+  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) return 'Everyone gets their own graphs';
+  if (game === QUESTION_SET_GAME.LINE_GRAPH) {
+    const together = lineGraphFormatOfMode(room?.challengeMode) === LINE_GRAPH_FORMAT.CLASSIC && room?.lineGraph?.config?.sameEquations === true;
+    return together ? 'Everyone graphs the same line' : 'Everyone gets their own lines';
+  }
+  return 'Eyes on your own screen';
+};
+
 function CountdownView({ room, clock }) {
-  const rush = room?.challengeMode === RUSH_MODE_ID;
   return (
     <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center' }}>
       <ChallengeCountdown
         clock={clock}
         look="projector"
         title={clock.isReplay ? `Second Chance · Final round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}
-        detail={rush ? 'Everyone gets their own graphs' : 'Eyes on your own screen'}
+        detail={countdownDetail(room)}
       />
     </section>
   );
@@ -583,9 +598,79 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
 }
 
 /*
+ * GRAPH THE LINE ON THE PROJECTOR. The room sees the race — lines right this
+ * round, and in a Classic or Sprint round who has finished — and never an
+ * equation or a line while the round is open: the room's public card carries
+ * neither, and each student may have their own. The line the class graphed
+ * together comes after the round closes (ProjectorSolution).
+ */
+const LINE_FORMAT_LABELS = Object.freeze({
+  [LINE_GRAPH_FORMAT.CLASSIC]: 'Classic',
+  [LINE_GRAPH_FORMAT.SPRINT]: 'Sprint',
+  [LINE_GRAPH_FORMAT.RUSH]: 'Rush',
+});
+
+function LineRunningView({ room, clock, clockOffsetMs, players, joinedCount, rows }) {
+  const roundIndex = Number(room?.currentRound) || 0;
+  const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
+  const format = lineGraphFormatOfMode(room?.challengeMode);
+  const finishes = format !== LINE_GRAPH_FORMAT.RUSH;
+  const race = rushRaceRows(players, roundIndex);
+  const playing = rushPlayingCount(players, roundIndex);
+  const finished = race.filter((row) => row.finished).length;
+  const right = race.reduce((sum, row) => sum + row.completed, 0);
+  const config = room?.lineGraph?.config || {};
+  const together = format === LINE_GRAPH_FORMAT.CLASSIC && config.sameEquations === true;
+  // Ranked by lines right this round; the public rule keeps everyone tied at
+  // the bottom — at GO, everyone — off the board.
+  const raceBoard = publicStandingsRows(room, rushRaceRanked(race), { spaceForRows: rows });
+  let headline = 'Everyone has their own lines. Graph as many as you can!';
+  if (locked) headline = 'Saving the last answers — results next.';
+  else if (together) headline = 'Everyone has the same line. Place two points — let go to check.';
+  else if (format === LINE_GRAPH_FORMAT.SPRINT) headline = `Everyone works through ${config.sprintLength || 'their'} lines. Accuracy breaks ties.`;
+  else if (format === LINE_GRAPH_FORMAT.CLASSIC) headline = 'Everyone has their own line. Place two points — let go to check.';
+  return (
+    <div className="mm-arena-running-grid" data-mm-line-running={format || 'line'} style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(min(100%, 320px),1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+      <section style={{ ...glassPanel, padding: 'clamp(16px, 2.4vw, 32px)', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr) auto', gap: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+          <ArenaBadge accent="#5ee7ff">{`Round ${clock.roundNumber} / ${clock.roundCount}`}</ArenaBadge>
+          {LINE_FORMAT_LABELS[format] && <ArenaBadge accent="#8df7c9">{LINE_FORMAT_LABELS[format]}</ArenaBadge>}
+        </div>
+        <div style={{ alignSelf: 'center' }}>
+          <div style={labelStyle}>{locked ? 'Time is up' : 'Graph the line'}</div>
+          <div style={{ marginTop: 10, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(5vh * var(--mm-text-scale, 1)), calc(48 * var(--mm-px)))', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>{headline}</div>
+          <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(19 * var(--mm-px)))' }}>{lineSettingsLine(room)}</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: 'rgba(236,241,255,.78)', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>
+          <span>{playing} of {joinedCount} graphing</span>
+          <span data-mm-line-progress={finishes ? 'finished' : 'right'}>{finishes ? `${finished} of ${joinedCount} finished` : `${right} ${right === 1 ? 'line' : 'lines'} right`}</span>
+        </div>
+      </section>
+      <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
+        <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
+        <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · lines right this round</div>
+          {raceBoard.rows.length > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={raceBoard.rows.length} look="projector" label="Lines right this round" />}
+          {raceBoard.moreText && (
+            <div data-mm-board-more="line" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>{raceBoard.moreText}</div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// The revealed line's side on this screen: big enough to read from the back.
+const revealGraphSize = () => (typeof window === 'undefined'
+  ? 320
+  : Math.max(220, Math.min(460, Math.round(window.innerHeight * 0.42))));
+
+/*
  * THE WORKED SOLUTION, as the class reads it from the back of the room: the
  * question, the key idea, the steps and the answer, in MathText. Only ever
- * rendered by ResultsView (a closed round), from the console's prop.
+ * rendered by ResultsView (a closed round), from the console's prop. A Graph
+ * the Line round the class played together shows its line, and the wrong
+ * answer most of the class gave (LineRevealGraph: counts, never names).
  */
 function ProjectorSolution({ solution, state }) {
   if (state !== SOLUTION_STATE.READY) {
@@ -598,6 +683,20 @@ function ProjectorSolution({ solution, state }) {
   }
   const review = solution?.solutionReview || {};
   const steps = (Array.isArray(review.reasoning) ? review.reasoning : []).filter(Boolean).slice(0, 5);
+  if (solution?.lineGraph) {
+    return (
+      <section data-mm-projector-solution="ready" data-mm-projector-line="1" aria-label="The line" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)', fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.4vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>
+        <div style={labelStyle}>The line</div>
+        <RevealedLine lineGraph={solution.lineGraph} size={revealGraphSize()} dark />
+        {review.headline && <MathText as="div" style={{ color: '#fff', fontWeight: 1000, lineHeight: 1.25, textAlign: 'left' }}>{review.headline}</MathText>}
+        {steps.length > 0 && (
+          <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, lineHeight: 1.35, textAlign: 'left' }}>
+            {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
+          </ol>
+        )}
+      </section>
+    );
+  }
   return (
     <section data-mm-projector-solution="ready" aria-label="Worked solution" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)' }}>
       <div style={labelStyle}>Worked solution</div>
@@ -606,7 +705,8 @@ function ProjectorSolution({ solution, state }) {
       )}
       {review.headline && <MathText as="div" style={{ color: '#fff', fontWeight: 1000, fontSize: 'clamp(calc(22 * var(--mm-px)), calc(3.4vh * var(--mm-text-scale, 1)), calc(32 * var(--mm-px)))', lineHeight: 1.25 }}>{review.headline}</MathText>}
       {steps.length > 0 && (
-        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(2.7vh * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', lineHeight: 1.35 }}>
+        // Steps read down a numbered left edge; the page around them is centred.
+        <ol style={{ margin: 0, paddingLeft: '1.4em', display: 'grid', gap: 6, color: '#f7f9ff', fontWeight: 800, fontSize: 'clamp(calc(18 * var(--mm-px)), calc(2.7vh * var(--mm-text-scale, 1)), calc(26 * var(--mm-px)))', lineHeight: 1.35, textAlign: 'left' }}>
           {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
         </ol>
       )}
@@ -769,7 +869,7 @@ export default function LiveChallengeArenaProjector({
     try { if (document.fullscreenElement) await document.exitFullscreen?.(); } catch { /* CSS viewport remains active */ }
   };
   const stage = room ? clock.stage : null;
-  const presentation = presentationProp || scorePresentation({ scoringStrategyId: room?.scoringStrategyId, questionSet: room?.challengeMode === RUSH_MODE_ID });
+  const presentation = presentationProp || scorePresentation({ scoringStrategyId: room?.scoringStrategyId, questionSet: roomRunsQuestionSets(room) });
   const gameLabel = room ? projectorGameLabel(room) : 'Live Challenge';
   const accent = familyAccent(room);
   const title = room?.title || 'MathMaster Live Challenge';
@@ -899,7 +999,8 @@ export default function LiveChallengeArenaProjector({
           {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
           {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}
           {!loading && openRound && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
-          {!loading && openRound && room?.challengeMode !== RUSH_MODE_ID && <RunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} leaderboard={leaderboard} presentation={presentation} joinedCount={joinedCount} answeredCount={answeredCount} rows={rows} />}
+          {!loading && openRound && questionSetGameOf(room) === QUESTION_SET_GAME.LINE_GRAPH && <LineRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
+          {!loading && openRound && !roomRunsQuestionSets(room) && <RunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} leaderboard={leaderboard} presentation={presentation} joinedCount={joinedCount} answeredCount={answeredCount} rows={rows} />}
           {!loading && stage === CHALLENGE_STAGE.ROUND_RESULTS && <ResultsView room={room} clock={clock} roundView={roundView} presentation={presentation} leaderboard={leaderboard} rows={rows} solution={solution} solutionState={solutionState} solutionHidden={solutionHidden} />}
           {!loading && stage === CHALLENGE_STAGE.COMPLETED && (
             <>

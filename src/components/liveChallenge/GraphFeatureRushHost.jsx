@@ -59,18 +59,22 @@ export function rushSettingsLine(room = {}) {
   ].filter(Boolean).join(' · ');
 }
 
-/** Graphs completed this round, as bars. */
-export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look = 'console' }) {
+/**
+ * Graphs completed this round, as bars. A player who has worked through
+ * their whole round (a Graph the Line Classic or Sprint round; never a rush)
+ * is marked done — in words as well as the mark.
+ */
+export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look = 'console', label = 'Graphs completed this round' }) {
   const style = LOOKS[look] || LOOKS.console;
   const rows = rushRaceRows(players, roundIndex).slice(0, limit);
   const top = Math.max(1, ...rows.map((row) => row.completed));
   if (!rows.length) return <p style={{ margin: 0, color: style.muted }}>Players appear here as they join.</p>;
   return (
-    <ol aria-label="Graphs completed this round" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 7, textAlign: 'left' }}>
+    <ol aria-label={label} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 7, textAlign: 'left' }}>
       {rows.map((row) => (
-        <li key={row.playerKey} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '7px 10px', borderRadius: 10, background: style.row, border: `1px solid ${style.rowBorder}`, color: style.text, fontSize: style.size }}>
+        <li key={row.playerKey} data-mm-race-finished={row.finished ? '1' : undefined} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '7px 10px', borderRadius: 10, background: style.row, border: `1px solid ${style.rowBorder}`, color: style.text, fontSize: style.size }}>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
-          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{row.completed}</strong>
+          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{row.finished && <span style={{ color: style.good, marginRight: 8 }}>✓ done</span>}{row.completed}</strong>
           <span aria-hidden="true" style={{ gridColumn: '1 / -1', height: 6, borderRadius: 999, background: style.track, overflow: 'hidden' }}>
             <span style={{ display: 'block', height: '100%', width: `${Math.round((row.completed / top) * 100)}%`, background: style.bar, transition: 'width 300ms ease' }} />
           </span>

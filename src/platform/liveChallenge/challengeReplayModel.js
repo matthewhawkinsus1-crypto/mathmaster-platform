@@ -24,8 +24,9 @@
  * Pure: tested in node.
  */
 
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
 import { normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
+import { QUESTION_SET_GAME, questionSetGameOf } from './challengeShellModel.js';
 
 const integerOr = (value, fallback) => {
   const numeric = Number(value);
@@ -51,7 +52,8 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
     // default (top few) applies.
     standingsDisplay: room.standingsDisplay === undefined || room.standingsDisplay === null ? undefined : normalizeStandingsDisplay(room.standingsDisplay),
   };
-  if (room.challengeMode === RUSH_MODE_ID) {
+  const game = questionSetGameOf(room);
+  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) {
     const config = room.graphFeatureRush?.config;
     if (!config) return null;
     request.graphFeatureRush = {
@@ -59,6 +61,25 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
       families: Array.isArray(config.families) ? [...config.families] : [],
       features: Array.isArray(config.features) ? [...config.features] : [],
       difficulty: text(config.difficulty),
+    };
+  } else if (game === QUESTION_SET_GAME.LINE_GRAPH) {
+    // The room's own question settings, as the server normalized them; the
+    // format is the mode's, so it rides on challengeMode, not here.
+    const config = room.lineGraph?.config;
+    if (!config) return null;
+    request.lineGraph = {
+      presetId: text(config.presetId) || 'custom',
+      itemTypes: Array.isArray(config.itemTypes) ? [...config.itemTypes] : [],
+      forms: Array.isArray(config.forms) ? [...config.forms] : [],
+      specialLines: config.specialLines === true,
+      difficulty: text(config.difficulty),
+      nameStyle: text(config.nameStyle),
+      // Absent, never null: the server reads a null tries as 0, "until right".
+      ...(Number.isInteger(config.triesPerItem) ? { triesPerItem: config.triesPerItem } : {}),
+      ...(Number.isInteger(config.sprintLength) ? { sprintLength: config.sprintLength } : {}),
+      sameEquations: config.sameEquations === true,
+      showMethod: config.showMethod === true,
+      slopeHelper: config.slopeHelper === true,
     };
   } else {
     Object.assign(request, {
@@ -81,15 +102,21 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
 
 /** The display settings configureLiveChallengeExperience secures after create. */
 export const replayExperienceFromRoom = (room = {}) => Object.freeze({
-  speedInfluencePercent: room.challengeMode === RUSH_MODE_ID ? 0 : integerOr(room.speedInfluencePercent, 20),
+  // A question-set game has no speed setting.
+  speedInfluencePercent: questionSetGameOf(room) ? 0 : integerOr(room.speedInfluencePercent, 20),
   playerDisplayMode: text(room.playerDisplayMode) || 'codeName',
 });
 
 /** One line saying what "Play again" will run. */
 export const replaySummary = (room = {}) => {
   const rounds = integerOr(room.requestedRoundCount, integerOr(room.roundCount, 0));
+  const game = questionSetGameOf(room);
+  const LINE_FORMAT_WORDS = { classic: 'Graph the Line (Classic)', sprint: 'Graph the Line Sprint', rush: 'Graph the Line Rush' };
+  let label = room.challengeMode === 'solverRace' ? 'Solver Race' : 'Standard Challenge';
+  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) label = 'Graph Feature Rush';
+  else if (game === QUESTION_SET_GAME.LINE_GRAPH) label = LINE_FORMAT_WORDS[lineGraphFormatOfMode(room.challengeMode)] || 'Graph the Line';
   const parts = [
-    room.challengeMode === RUSH_MODE_ID ? 'Graph Feature Rush' : room.challengeMode === 'solverRace' ? 'Solver Race' : 'Standard Challenge',
+    label,
     rounds ? `${rounds} round${rounds === 1 ? '' : 's'}` : null,
     room.timingMode === 'pace' ? 'Pace Race' : (integerOr(room.roundSeconds, 0) ? `${room.roundSeconds}s each` : null),
     room.scoringStrategyId === 'grandPrix' ? 'Grand Prix' : room.scoringStrategyId === 'correctCount' ? 'Correct Count' : null,

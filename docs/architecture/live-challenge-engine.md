@@ -40,6 +40,8 @@ durable match result.
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
 | `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
+| `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush and Graph the Line) | yes |
+| `lineGraph*.mjs` | Graph the Line — three modes (Classic, Sprint, Rush), offered to every teacher since its class-scale certification: exact lines, how equations are written and read, the generator, auto-check grading and hints, the attempt pipeline (see `graph-the-line.md`) | yes |
 | `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
 `functions/index.js` loads the pure modules once through `liveChallengeEngine()`.
@@ -293,7 +295,11 @@ milestone never overwrites a receipt already there. Progress reports
 A **forfeit** receipt (`forfeit: true`) gives a question up: it completes the
 question, not correctly, keeping any targets already found. Each attempt on a
 multi-target question records its `targetCount`, so a per-player round's
-question specs are rebuilt from the log alone. Round score totals are kept in
+question specs are rebuilt from the log alone. An attempt may also record
+`roundQuestionCount` — the round's own length when a room chooses it (a
+Graph the Line Sprint of 5–20, in a mode that declares only the longest) —
+and the round's specs are then that long, so a student who has worked
+through it is finished. Round score totals are kept in
 **exact score units** (`SCORE_UNIT`, the least common multiple of 1–20 target
 counts), so equal work compares equal whatever order fractions were added in.
 A round holds at most `MAX_QUESTIONS_PER_ROUND` (150) questions. A

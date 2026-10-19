@@ -118,7 +118,7 @@ test('extended time: the round counts down to, and buzzes at, the student\'s own
   assert.match(main, /const timeMultiplier = joinedTimeMultiplier \?\? \(invite\?\.roomId === roomId \? storedTimeMultiplier\(invite\?\.timeMultiplier\) : 1\);/);
   assert.doesNotMatch(executableSource(student), /maxTimeMultiplier|extendedTimeInPlay/, 'the room\'s flag says nothing about this student');
   // The round stays mounted after the class's deadline until the room closes it.
-  assert.match(main, /\{!rushRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
+  assert.match(main, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
 });
 
 test('Read aloud is offered only to a student whose plan grants it, and stops with the round', () => {
