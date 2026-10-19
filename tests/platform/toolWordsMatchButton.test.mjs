@@ -36,3 +36,14 @@ test('no student sentence in the systems workspace says "token form"', () => {
   const parse = region(mode, "slotAttempt.reason === 'expression-parse'", ": 'That variable", 'the parse-failure message');
   assert.match(parse, /could not open the next solving step from that form of the expression\. Your work is still here\. Choose Change expression/);
 });
+
+test('My Math Path\'s unconfirmed-submission line names the Submit button its question shows', () => {
+  // PathSessionPlayer's QuestionEngine is given no host label, so its button
+  // reads "Submit — …" (submitCost.js); the retry line says the same word.
+  const player = read('src/components/student/PathSessionPlayer.jsx');
+  assert.match(player, /<QuestionEngine\b/);
+  assert.doesNotMatch(region(player, '<QuestionEngine', '/>', 'the Path question'), /submitLabel=/);
+  const container = read('src/components/student/MyMathPathProductionContainer.jsx');
+  assert.match(container, /Submission was not confirmed\. Check your connection and press Submit again/);
+  assert.doesNotMatch(container, /press Check again/);
+});

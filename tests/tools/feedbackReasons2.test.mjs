@@ -149,6 +149,10 @@ test('Representation Match: the mismatch line agrees with the grader, card then 
   assert.equal(wrongFix.result.score, 0.6);
   assert.equal(wrongFix.text, LINEAR_MISMATCH_FEEDBACK.correctionWrong);
   assert.doesNotMatch(wrongFix.text, /consistent with the others/);
+  // A wrong card with a wrong correction: the card is what to fix first.
+  const bothWrong = matchSay(mismatch(CORRECTION), { selectedId: 'm:standard', correctionChoice: 'plus' });
+  assert.equal(bothWrong.result.score, 0);
+  assert.equal(bothWrong.text, LINEAR_MISMATCH_FEEDBACK.wrongCard);
   const noFix = matchSay(mismatch(CORRECTION), { selectedId: 'm:pointSlope', correctionChoice: '' });
   assert.equal(noFix.text, LINEAR_MISMATCH_FEEDBACK.correctionBlank);
   const noCorrectionAsked = matchSay(mismatch(), { selectedId: 'm:standard', correctionChoice: '' });

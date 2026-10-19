@@ -92,7 +92,7 @@ export const buildWorkflowAnswerState = ({ question, stages = [], responses = {}
   const marked = gradeWorkflow({ stages, responses, grading });
   return {
     ...marked,
-    stageReasons: failedStageReasons(marked.parts),
+    stageReasons: failedStageReasons(marked.parts, stages),
     toolResponse: check.toolResponse,
     ...(check.supported ? { sharedGradingWithheld: check.reason } : {}),
   };

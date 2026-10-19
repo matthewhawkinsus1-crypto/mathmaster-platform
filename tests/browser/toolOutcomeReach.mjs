@@ -101,7 +101,10 @@ const reach = (page, { workView, text, lang }) => page.evaluate(({ workView: inW
   const bar = inWorkView
     ? document.querySelector('.mathmaster-work-view-actions')
     : document.querySelector('.portrait-action-bar, .mathmaster-desktop-action-bar, .landscape-action-bar');
-  const barTop = bar && visible(bar) ? bar.getBoundingClientRect().top : window.innerHeight;
+  // The bar must be found: falling back to the screen's bottom would pass a
+  // box that sits under a bar this selector missed.
+  if (!bar || !visible(bar)) return { error: `no ${inWorkView ? 'Work View rail' : 'action bar'} on screen` };
+  const barTop = bar.getBoundingClientRect().top;
   const scrollers = [];
   for (let element = box.parentElement; element; element = element.parentElement) {
     const style = getComputedStyle(element);

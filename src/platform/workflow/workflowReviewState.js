@@ -111,9 +111,10 @@ export const firstIncorrectWorkflowIndex = (reviewState = []) => (
 
 /*
  * The outcome box's line about the red steps, completed when the steps say
- * why (wave 7): " Each one says what to check." when every red step has its
- * reason, " Where it can, each one says what to check." when some do, and
- * nothing when none does. Read from the same review the steps are drawn from.
+ * why (wave 7): " Each one says what to check." only when every red step
+ * shows its reason, " Some of them say what to check." when some do (a
+ * feature step never says why, review B1), and nothing when none does. Read
+ * from the same review the steps are drawn from.
  */
 export const composedReasonsNote = (review) => {
   const failed = (Array.isArray(review?.parts) ? review.parts : [])
@@ -122,5 +123,5 @@ export const composedReasonsNote = (review) => {
   const reasons = review?.stageReasons || {};
   const explained = failed.filter((part) => String(reasons[part.id] || '').trim()).length;
   if (!explained) return '';
-  return explained === failed.length ? ' Each one says what to check.' : ' Where it can, each one says what to check.';
+  return explained === failed.length ? ' Each one says what to check.' : ' Some of them say what to check.';
 };

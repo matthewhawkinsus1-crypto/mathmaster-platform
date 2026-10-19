@@ -93,28 +93,88 @@ const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false 
   return marking;
 };
 
+/*
+ * WHY A STAGE MISSED, FOR THE SCREEN (student pass 3, wave 7).
+ *
+ * Every marked stage has a `detail` that gradedResult does not keep: a part
+ * record is what an attempt stores. The browser's Check asks for the screen's
+ * reasons separately (`stageReasons`), keyed by stage id, for the stages
+ * graded wrong. The server's grade never asks, so what it records is
+ * unchanged.
+ *
+ * AN ALLOWLIST, BY STAGE KIND (review B1). A reason is shown only when no
+ * failing outcome's words — or their absence — let the student work out the
+ * key or another step's answer. For each kind, each detail shape the grader
+ * can produce on a miss is listed with what the screen says for it: the
+ * detail itself (PASS), or one fixed sentence that every failure of that
+ * shape shares. A kind or a shape not listed shows nothing.
+ *
+ *   graphFeatureSelect, pointInput  nothing, for every failure. The grader's
+ *     own lines ("This graph does not have one." / "…does have one." /
+ *     "1 of 2 correct.") tell whether the graph has the feature at all, which
+ *     answers the step that asks that, and any wording that differs between
+ *     an existence miss and a points miss does the same.
+ *   quantityRoles, axisSetup  one sentence whatever is wrong: naming the one
+ *     wrong role (or axis field) among two choices names its answer.
+ *   tableInput  against the student's own function, the count (it says
+ *     nothing about the key); against an authored key, one sentence.
+ *   coordinatePlot, functionGraph  the workspace's own fixed lines; a count of
+ *     plotted pairs becomes one sentence.
+ *   mappingDiagram, valueSet, domainInput, rangeInput  their single fixed
+ *     line for any miss.
+ *   figureMatch  the count, which the step already turns into named figures
+ *     (P2-4, an owner decision).
+ * Every other kind ("Not correct yet.") shows nothing.
+ */
+const PASS = (detail) => detail;
+const PLOT_POINTS_OFF = 'Some points are not where the ordered pairs put them.';
+const PLOT_LINES = [
+  [/^Some points are not where the (table puts|ordered pairs put) them\.$/, PASS],
+  [/^Revise the graph so it matches the model and table you built\.$/, PASS],
+  [/^\d+ of \d+ ordered pairs are plotted(, with \d+ points? that (is|are) not in the relation)?\.$/, () => PLOT_POINTS_OFF],
+];
+const SET_LINE = [[/^That is not the set of values in this relation — list each one once\.$/, PASS]];
+export const STAGE_REASON_ALLOWLIST = Object.freeze({
+  graphFeatureSelect: [],
+  pointInput: [],
+  quantityRoles: [[/^Check the .+ quantity\.$/, () => 'Check which quantity is independent and which is dependent.']],
+  axisSetup: [[/^Check the .+\.$/, (detail, stage) => (stage?.requireScale === true
+    ? 'Check each axis: its quantity, its unit and its scale.'
+    : 'Check each axis: its quantity and its unit.')]],
+  tableInput: [
+    [/^\d+ value\(s\) do not follow the function you wrote\.$/, PASS],
+    [/^\d+ of \d+ values do not match\.$/, () => 'Some values in your table do not match.'],
+  ],
+  coordinatePlot: PLOT_LINES,
+  functionGraph: PLOT_LINES,
+  mappingDiagram: [[/^The arrows do not match the relation — check which value each one is joined to\.$/, PASS]],
+  valueSet: SET_LINE,
+  domainInput: SET_LINE,
+  rangeInput: SET_LINE,
+  figureMatch: [[/^\d+ of \d+ figures are in the right category\.$/, PASS]],
+});
+
+/** What the screen says for one failed stage's detail: a sentence, or ''. */
+export const stageReasonFor = (stage, detail) => {
+  const text = typeof detail === 'string' ? detail.trim() : '';
+  const rule = (STAGE_REASON_ALLOWLIST[stage?.kind] || []).find(([shape]) => shape.test(text));
+  return rule ? String(rule[1](text, stage) || '').slice(0, 240) : '';
+};
+
+/** `{ [stageId]: sentence }` for the stages graded wrong that may say why. */
+export const failedStageReasons = (parts, stages = []) => {
+  const byId = new Map((Array.isArray(stages) ? stages : []).filter((stage) => stage?.id).map((stage) => [String(stage.id), stage]));
+  return Object.fromEntries((Array.isArray(parts) ? parts : [])
+    .filter((part) => part && part.graded !== false && part.isCorrect !== true && part.id)
+    .map((part) => [String(part.id), stageReasonFor(byId.get(String(part.id)), part.detail)])
+    .filter(([, reason]) => reason));
+};
+
 /**
  * Mark normalized work (`{ responses }`) against the authoritative question.
  * Pure. The work must already have crossed the contract (readToolWork) — use
  * `grade` or gradeComposedWorkflowCheck, never raw browser state.
  */
-/*
- * WHY A STAGE MISSED, FOR THE SCREEN (student pass 3, wave 7).
- *
- * Every marked stage has a `detail` ("Check the x-axis unit.", "2 of 5
- * values do not match.") that gradedResult does not keep: a part record is
- * what an attempt stores. The browser's Check asks for them separately
- * (`stageReasons`), keyed by stage id, for the stages graded wrong — never a
- * generic line that says no more than the red step does. The server's grade
- * never asks, so what it records is unchanged.
- */
-const GENERIC_STAGE_DETAILS = new Set(['', 'Correct.', 'Not correct yet.', 'Not answered.', 'Reviewed by your teacher.']);
-
-export const failedStageReasons = (parts) => Object.fromEntries((Array.isArray(parts) ? parts : [])
-  .filter((part) => part && part.graded !== false && part.isCorrect !== true && part.id)
-  .map((part) => [String(part.id), typeof part.detail === 'string' ? part.detail.trim().slice(0, 240) : ''])
-  .filter(([, detail]) => !GENERIC_STAGE_DETAILS.has(detail)));
-
 export const gradeComposedWorkflowWork = (question, work, { stageReasons = false } = {}) => {
   const { composed, support } = resolveComposedWorkflow(question);
   if (!support.supported) return ungradedResult(support.reason, { mode: support.mode || null });
@@ -151,7 +211,7 @@ export const gradeComposedWorkflowWork = (question, work, { stageReasons = false
       score: marked.partialCreditPercent !== null && Number.isFinite(percent) ? percent / 100 : 0,
     }),
     mode: support.mode,
-    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts) } : {}),
+    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts, composed.workflow) } : {}),
   };
 };
 

@@ -61,9 +61,11 @@ const runnerState = (question, responses) => {
 
 test('the browser Check carries each red stage\'s reason; the server\'s grade is byte-for-byte what it was', () => {
   const browser = gradeComposedWorkflowCheck(SETUP, composedWorkflowWork(SETUP_WRONG));
+  // One sentence for each, whatever in it is wrong (the allowlist; review
+  // B1/S1: naming the one wrong role among two names its answer).
   assert.deepEqual(browser.stageReasons, {
-    roles: 'Check the independent and dependent quantity.',
-    axes: 'Check the y-axis unit.',
+    roles: 'Check which quantity is independent and which is dependent.',
+    axes: 'Check each axis: its quantity, its unit and its scale.',
   });
   // The server never asks: no reasons in what ingestion reads or records.
   const server = gradeServerResponse({ question: SETUP, response: JSON.parse(JSON.stringify(browser.toolResponse)) });
@@ -79,12 +81,13 @@ test('the browser Check carries each red stage\'s reason; the server\'s grade is
 
 test('the runner\'s answer state carries the reasons beside its parts, never in them', () => {
   const state = runnerState(SETUP, SETUP_WRONG);
-  assert.equal(state.stageReasons.axes, 'Check the y-axis unit.');
-  assert.equal(state.stageReasons.roles, 'Check the independent and dependent quantity.');
+  assert.equal(state.stageReasons.axes, 'Check each axis: its quantity, its unit and its scale.');
+  assert.equal(state.stageReasons.roles, 'Check which quantity is independent and which is dependent.');
   state.parts.forEach((part) => assert.equal('reason' in part, false, `${part.id}: the recorded part is unchanged`));
 });
 
 test('a generic line, an ungraded stage or a right one gives no reason', () => {
+  const stages = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, kind: 'tableInput' }));
   assert.deepEqual(failedStageReasons([
     { id: 'a', graded: true, isCorrect: false, detail: 'Not correct yet.' },
     { id: 'b', graded: true, isCorrect: false, detail: 'Not answered.' },
@@ -92,7 +95,7 @@ test('a generic line, an ungraded stage or a right one gives no reason', () => {
     { id: 'd', graded: true, isCorrect: true, detail: 'Every value matches.' },
     { id: 'e', graded: true, isCorrect: false, detail: '2 of 3 values do not match.' },
     { id: 'f', graded: true, isCorrect: false },
-  ]), { e: '2 of 3 values do not match.' });
+  ], stages), { e: 'Some values in your table do not match.' });
 });
 
 test('the review gives a red step its reason, and nothing to a changed, right or unchecked step', () => {
@@ -102,8 +105,8 @@ test('the review gives a red step its reason, and nothing to a changed, right or
   const byId = (entries) => Object.fromEntries(entries.map((entry) => [entry.id, entry]));
   const checked = byId(buildWorkflowReviewState({ stages: workflow, responses: SETUP_WRONG, review }));
   assert.equal(checked.axes.status, 'incorrect');
-  assert.equal(checked.axes.reason, 'Check the y-axis unit.');
-  assert.equal(checked.roles.reason, 'Check the independent and dependent quantity.');
+  assert.equal(checked.axes.reason, 'Check each axis: its quantity, its unit and its scale.');
+  assert.equal(checked.roles.reason, 'Check which quantity is independent and which is dependent.');
   assert.equal('reason' in checked.meaning, false);
   // Edited after the check: the old reason is not about this response.
   const edited = byId(buildWorkflowReviewState({ stages: workflow, responses: { ...SETUP_WRONG, axes: axes({ ...SETUP_WRONG.axes, yUnit: 'gallons' }) }, review }));
@@ -121,7 +124,7 @@ test('the review gives a red step its reason, and nothing to a changed, right or
 test('the outcome box\'s line says the steps say why only when they do', () => {
   const parts = [{ id: 'a', isCorrect: false }, { id: 'b', isCorrect: false }, { id: 'c', isCorrect: true }, { id: 'd', isCorrect: false, graded: false }];
   assert.equal(composedReasonsNote({ parts, stageReasons: { a: 'x', b: 'y' } }), ' Each one says what to check.');
-  assert.equal(composedReasonsNote({ parts, stageReasons: { a: 'x' } }), ' Where it can, each one says what to check.');
+  assert.equal(composedReasonsNote({ parts, stageReasons: { a: 'x' } }), ' Some of them say what to check.');
   assert.equal(composedReasonsNote({ parts, stageReasons: {} }), '');
   assert.equal(composedReasonsNote(null), '');
 });
@@ -138,4 +141,21 @@ test('the runner shows the reason under a red step, from the review only', () =>
   assert.match(region(engine, 'setWorkflowSubmissionReview({', '});', 'the review'), /stageReasons: answerState\.stageReasons \|\| null,/);
   assert.match(engine, /import \{ composedReasonsNote \} from '\.\/platform\/workflow\/workflowReviewState\.js';/);
   assert.match(engine, /MathMaster moved you to the first one\.\{composedReasonsNote\(workflowSubmissionReview\)\}/);
+});
+
+test('a question marked on the device (declared client-graded) gives its red steps the same reasons', () => {
+  // A stage named `solution` is a key the contract would strip, so the shared
+  // grader declines the question and the device marks it (workflowAnswerState).
+  const DEVICE = {
+    ...SETUP,
+    workflow: SETUP.workflow.map((stage) => (stage.id === 'roles' ? { ...stage, id: 'solution' } : stage)),
+    grading: { ...SETUP.grading, solution: SETUP.grading.roles, roles: undefined },
+  };
+  const responses = { ...SETUP_WRONG, solution: SETUP_WRONG.roles };
+  delete responses.roles;
+  assert.equal(gradeComposedWorkflowCheck(DEVICE, composedWorkflowWork(responses)).supported, false, 'declared client-graded');
+  const state = runnerState(DEVICE, responses);
+  assert.equal(state.stageReasons.solution, 'Check which quantity is independent and which is dependent.');
+  assert.equal(state.stageReasons.axes, 'Check each axis: its quantity, its unit and its scale.');
+  state.parts.forEach((part) => assert.equal('reason' in part, false, part.id));
 });

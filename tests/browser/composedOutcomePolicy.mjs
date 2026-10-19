@@ -220,9 +220,13 @@ for (const role of ['practice', 'dol', 'quiz', 'test']) {
   await arrow(3, 4);
   await page.getByRole('button', { name: 'Check', exact: true }).first().click();
   await page.waitForTimeout(300);
-  await page.locator('.workflow-stage math-field').first().click();
+  // Waits on the field itself, not a fixed time: under load MathLive can be
+  // slow to mount (review N8).
+  const domainField = page.locator('.workflow-stage math-field').first();
+  await domainField.waitFor({ state: 'visible', timeout: 60000 });
+  await domainField.click();
   await page.keyboard.type('1,2');
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => /1/.test(document.querySelector('.workflow-stage math-field')?.value || ''), null, { timeout: 15000 }).catch(() => {});
   check(await page.locator('[data-stage-reason]').count() === 0, `${role} reasons: nothing before the question is submitted`);
   const submit = page.getByRole('button', { name: /^(Submit|Record answer|Save answer)\b/ }).first();
   await submit.click();
