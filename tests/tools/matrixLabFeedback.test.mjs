@@ -291,7 +291,7 @@ test('P2-10: in every view Check waits for a readable cell and an edited start; 
   assert.match(region(ui, 'export function CheckRow', '\n}\n'), /const actionName = useSubmitActionName\('Check'\);[\s\S]*\{typeof confirm === 'function' \? confirm\(actionName\) : confirm\}/);
   const context = executableSource(read('src/tools/shared/ToolRuntimeContext.jsx'));
   assert.match(region(context, 'export const useSubmitActionName', '};'), /if \(submitLabel\) return submitLabel;\s*return submitCost \? 'Submit' : ownName;/, 'the host label, then Submit where it costs a try, then the tool\'s word');
-  assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ (askedAt\.current = Date\.now\(\); )?setConfirmed\(confirm\); return; \}/, 'the first press asks; the second checks');
+  assert.match(region(ui, 'const press = ', '};'), /if \(confirm && !asking\) \{ (askedAt\.current = Date\.now\(\); )?setConfirmed\(\(\) => confirm\); return; \}/, 'the first press asks; the second checks');
   assert.match(ui, /onClick=\{press\}/);
   // A second press within the settle time is the same gesture (a double-click).
   assert.match(region(ui, 'const press = ', '};'), /if \(asking && Date\.now\(\) - askedAt\.current < CONFIRM_SETTLE_MS\) return;/);

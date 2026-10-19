@@ -219,7 +219,9 @@ export function CheckRow({ label, onCheck, enabled, feedback, fixList = [], bloc
   // Check never goes dead.
   const askedAt = useRef(0);
   const press = () => {
-    if (confirm && !asking) { askedAt.current = Date.now(); setConfirmed(confirm); return; }
+    // `confirm` may be a function of the button's name (UNTOUCHED_START):
+    // stored as itself, never called as a state updater.
+    if (confirm && !asking) { askedAt.current = Date.now(); setConfirmed(() => confirm); return; }
     if (asking && Date.now() - askedAt.current < CONFIRM_SETTLE_MS) return;
     setConfirmed(null);
     onCheck();
