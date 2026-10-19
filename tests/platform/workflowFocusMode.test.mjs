@@ -88,7 +88,9 @@ test('WorkflowRunner keeps one active workspace and does not run hidden delegate
   assert.match(source, /workflow-focus__summary-link/);
   assert.match(source, /Return to \$\{item\.label\}/);
   assert.match(source, /workflow-focus__workspace/);
-  assert.match(source, /workflow\.map\(\(stage, index\) => renderStage\(stage, index, \{ focused: index === safeActiveIndex \}\)\)/);
+  // Every step is rendered, focused only while it is the step on screen (the
+  // call may sit inside a wrapper: Read aloud's FigureReadingScope, W7-5 B1).
+  assert.match(source, /workflow\.map\(\(stage, index\) => \(?[^;]{0,240}?renderStage\(stage, index, \{ focused: index === safeActiveIndex \}\)/);
   assert.match(source, /workflow-focus__stage-shell--active/);
   assert.match(source, /focusMode && !focused && DELEGATES\[stage\.kind\]/,
     'a future graph/tool step may have a hidden shell, but its live delegated component must not mount');
