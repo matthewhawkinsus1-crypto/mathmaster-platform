@@ -443,10 +443,25 @@ if (wanted('lobbyInvite')) {
     await button.click();
     const waiting = await page.getByText('Waiting for your teacher to start').first().waitFor({ timeout: 30000 }).then(() => true, () => false);
     check(waiting, `${device.name}: "Enter Challenge Lobby" from inside the lesson opens the lobby`);
+    // The lobby card says "Waiting for your teacher to start" whether or not
+    // the join went through, so the join itself is checked: the student's row
+    // and invite say joined, and the lobby counts them.
+    const joinedRow = () => page.evaluate(() => ({
+      player: window.__mmHarnessStore.get('liveChallengeRooms/chrome-lobby-room/players/chrome-lobby-player')?.joined === true,
+      invite: window.__mmHarnessStore.get('liveChallengeInvites/910002')?.status || null,
+    }));
+    let joined = await joinedRow();
+    for (let waited = 0; waited < 10 && !(joined.player && joined.invite === 'joined'); waited += 1) {
+      await page.waitForTimeout(500);
+      joined = await joinedRow();
+    }
+    check(joined.player && joined.invite === 'joined', `${device.name}: the join went through: the student's row is joined and the invite says joined`, JSON.stringify(joined));
+    const counted = await page.getByText('1 player in').first().waitFor({ timeout: 5000 }).then(() => true, () => false);
+    check(counted, `${device.name}: the lobby counts the student ("1 player in")`);
     const lobby = await page.evaluate(() => ({ text: document.body.innerText, unimplemented: window.__mmHarness?.unimplementedCalls || [] }));
     // (Background calls the harness does not fake, such as clock calibration,
     // are not the join.)
-    check(!lobby.unimplemented.includes('joinLiveChallenge') && !/no fake for the callable|Cannot read properties|Could not join/.test(lobby.text), `${device.name}: the lobby opens without an error`, JSON.stringify(lobby.unimplemented));
+    check(!lobby.unimplemented.includes('joinLiveChallenge') && !/no fake for the callable|Cannot read properties|permission-denied|not-found|failed-precondition|Could not join/.test(lobby.text), `${device.name}: the lobby opens without an error`, JSON.stringify(lobby.unimplemented));
     check(await page.getByRole('button', { name: 'Back to your assignment' }).count() > 0, `${device.name}: the lobby's way out goes back to the assignment`);
   };
 
