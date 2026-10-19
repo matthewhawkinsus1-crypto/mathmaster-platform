@@ -9,6 +9,9 @@ import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { FUNCTION_OPERATIONS_ALL_RIGHT, functionOperationsFeedbackText } from '../../src/tools/functionOperations/functionOperationsFeedback.js';
 import { BRIDGE_CONSISTENCY_LINE, bridgeFeedbackLines } from '../../src/tools/representationBridge/bridgeFeedback.js';
 import { LINEAR_MISMATCH_FEEDBACK, linearMismatchFeedbackText } from '../../src/tools/representationMatch/linearMismatchFeedback.js';
+import dataModelingGrader, { dataModelingMissReasons } from '../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
+import { correlation as dmCorrelation, linearRegression as dmRegression } from '../../functions/shared/toolMath/shared/toolMath.mjs';
+import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 /*
@@ -151,4 +154,55 @@ test('Representation Match: the mismatch branch reads those parts from the feedb
   const message = region(code, '{feedback ? (() => {', '})() : null}', 'the verdict');
   assert.match(message, /mode === 'linearConnections' && linearTask === 'group'[\s\S]*: linearMismatchFeedbackText\(feedback\.metadata\?\.parts\);/);
   assert.doesNotMatch(code, /actually consistent with the others/);
+});
+
+/* --------------------------------------------------------- Data Modeling Lab */
+
+const DM_POINTS = [[1, 3.1], [2, 4.9], [3, 7.2], [4, 8.8], [5, 11.1], [6, 13]];
+const DM_REG = dmRegression(DM_POINTS);
+const dmGrade = (question, work) => gradeToolCheck(dataModelingGrader, question, work);
+
+test('Data Modeling: a missed part says which half held, and the grade is the same as before', () => {
+  const fit = { type: 'dataModelingLab', mode: 'linearFit', points: DM_POINTS };
+  const m = String(DM_REG.m.toFixed(3));
+  const b = String(DM_REG.b.toFixed(3));
+  assert.equal(dmGrade(fit, { m, b }).isCorrect, true);
+  assert.deepEqual(dataModelingMissReasons(fit, { m, b }), {});
+  assert.deepEqual(dataModelingMissReasons(fit, { m, b: String(DM_REG.b + 5) }), { fit: 'the intercept b (your slope m is close enough)' });
+  assert.deepEqual(dataModelingMissReasons(fit, { m: String(DM_REG.m + 5), b }), { fit: 'the slope m (your intercept b is close enough)' });
+  // Both wrong, or a box blank: the part keeps its own name.
+  assert.deepEqual(dataModelingMissReasons(fit, { m: '40', b: '40' }), {});
+  assert.deepEqual(dataModelingMissReasons(fit, { m, b: '' }), {});
+
+  const association = { type: 'dataModelingLab', mode: 'association', points: DM_POINTS, causationSupported: false };
+  const right = { direction: 'positive', strength: 'strong', causation: 'association' };
+  assert.equal(dmGrade(association, right).isCorrect, true, 'r ≈ 0.998 here: positive, strong');
+  assert.deepEqual(dataModelingMissReasons(association, { ...right, causation: 'causation' }), { association: 'the causation choice (your direction and strength are right)' });
+  assert.deepEqual(dataModelingMissReasons(association, { ...right, strength: 'weak' }), { association: 'the direction and strength (your causation choice is right)' });
+
+  const prediction = { type: 'dataModelingLab', mode: 'prediction', points: DM_POINTS, predictionX: 4.5, expectedModel: 'linear' };
+  const value = String((DM_REG.m * 4.5 + DM_REG.b).toFixed(2));
+  const rightPrediction = { predictionX: '4.5', predictionY: value, predictionType: 'interpolation' };
+  assert.equal(dmGrade(prediction, rightPrediction).isCorrect, true);
+  assert.deepEqual(dataModelingMissReasons(prediction, { ...rightPrediction, predictionType: 'extrapolation' }), { prediction: 'the prediction type, interpolation or extrapolation (your predicted value is close enough)' });
+  assert.deepEqual(dataModelingMissReasons(prediction, { ...rightPrediction, predictionY: '99' }), { prediction: 'the predicted value (your interpolation or extrapolation choice is right)' });
+
+  // The grade itself, browser and server, carries no reason and is unchanged.
+  const missed = dmGrade(fit, { m, b: String(DM_REG.b + 5) });
+  assert.equal(missed.score, 0);
+  assert.equal('missReasons' in missed, false);
+  const server = gradeServerResponse({ question: fit, response: JSON.parse(JSON.stringify(missed.toolResponse)) });
+  assert.deepEqual(server.parts, missed.parts);
+  assert.equal(JSON.stringify(server).includes('close enough'), false);
+  // No phrase names a value.
+  assert.doesNotMatch(JSON.stringify([dataModelingMissReasons(fit, { m, b: '0' }), dataModelingMissReasons(prediction, { ...rightPrediction, predictionY: '99' })]), /\d/);
+  assert.ok(Number.isFinite(dmCorrelation(DM_POINTS)));
+});
+
+test('Data Modeling: "Still to fix" uses those phrases from the feedback the lab keeps', () => {
+  const code = source('src/tools/dataModeling/DataModelingLab.jsx');
+  const line = region(code, 'const missed = parts.filter', 'return <ResultPill', 'the still-to-fix line');
+  assert.match(line, /const reasons = feedback\.metadata\?\.missReasons \|\| \{\};/);
+  assert.match(line, /Still to fix: \$\{missed\.map\(\(part\) => reasons\[part\] \|\| label\[part\] \|\| part\)\.join\('; '\)\}\. Everything else is right\./);
+  assert.match(code, /missReasons: dataModelingMissReasons\(questionData, work\)/);
 });

@@ -261,8 +261,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           : mode === 'describe'
             ? { id: 'check-description', label: 'Check description', onAction: check }
             : { id: 'check-anchor', label: 'Check defining feature', onAction: check };
-  const finishActionName = useSubmitActionName(primaryAction.label);
   const clearPlottedPoints = () => { setPlottedPoints([]); resetFeedback(); };
+  // What the last step calls the final button, as it reads (D9).
+  const finishActionName = useSubmitActionName(primaryAction.label);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
     // Fit View, pan/zoom and point editing are published upward by the plane
