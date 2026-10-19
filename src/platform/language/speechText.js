@@ -307,8 +307,10 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     .replace(/(\d)\s*%/g, `$1 ${w.percent}`)
     .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (match, amount) => priceSpeech(amount, w))
     // a/b — a fraction, read "a over b". The denominator is one number, one
-    // letter or one bracket, so "-2/3x" is "negative 2 over 3 x".
-    .replace(/([A-Za-z0-9.)]+)\s*\/\s*(\d+(?:\.\d+)?|[A-Za-z]|\([^()]*\))/g, ` $1 ${w.over} $2 `)
+    // letter or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
+    // its own sign: a divided term "-10 / -2" is "negative 10 over negative 2"
+    // (it read "negative 10 / minus 2"; pass 3, MATH_DISPLAY "Not done").
+    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*(?:\d+(?:\.\d+)?|[A-Za-z]|\([^()]*\)))/g, ` $1 ${w.over} $2 `)
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')

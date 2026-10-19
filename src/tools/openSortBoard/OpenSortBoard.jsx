@@ -23,6 +23,7 @@ import {
   placeButtonText,
   placedCardName,
   placementAnnouncement,
+  rationaleInputLabel,
   removeGroupName,
 } from './openSortBoardA11y.js';
 
@@ -374,7 +375,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                   {requireRationale && (
                     <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
                       Why do these belong together?
-                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
+                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
                       <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
                     </label>
                   )}

@@ -58,6 +58,20 @@ test('a label in program syntax or LaTeX is spoken in words; placeholders give w
   assert.equal(mathSpeechLabel({ value: '' }), '');
 });
 
+// Step Algebra's divided term (pass 3, MATH_DISPLAY "Not done"): the board
+// names a term from its text, and "-10 / -2" read "negative 10 / minus 2" —
+// the "/" not said, the denominator's sign said as subtraction.
+test('a division whose denominator carries a sign is "over negative"', () => {
+  assert.equal(spokenMathLabel('-10 / -2'), 'negative 10 over negative 2');
+  assert.equal(spokenMathLabel('-10/-2'), 'negative 10 over negative 2');
+  assert.equal(mathToSpeech('x / −2'), 'x over negative 2');
+  assert.equal(mathToSpeech('-10 / -2', { language: 'es' }), 'negativo 10 sobre negativo 2');
+  // Unchanged around it: subtraction after a fraction, a fraction after subtraction.
+  assert.equal(mathToSpeech('a/b - c'), 'a over b minus c');
+  assert.equal(mathToSpeech('3 - 4/5'), '3 minus 4 over 5');
+  assert.equal(mathToSpeech('-2/3x'), 'negative 2 over 3 x');
+});
+
 test('MathDisplay hides the typeset element and renders one spoken copy from its value', () => {
   const source = executableSource(read('src/MathDisplay.jsx'));
   assert.doesNotMatch(source, /Mathematical expression/, 'the placeholder default label is gone');

@@ -64,6 +64,8 @@ const SCOPED_FILES = [
   ...filesIn('src/tools/matrixLab'),
   ...filesIn('src/tools/stepAlgebra2'),
   'src/StepByStepAlgebraCore.jsx',
+  // Its cancel-factor buttons read raw LaTeX (pass 3, FIGURE_DESCRIPTIONS "Not done").
+  'src/StepAlgebraStructureTools.jsx',
   'src/MultiRelationAlgebraCore.jsx',
 ];
 

@@ -74,7 +74,7 @@ export default function SolutionReviewPanel({
             <div key={part.id} data-part-review-row={part.isCorrect === false ? 'wrong' : part.isCorrect === true ? 'right' : 'ungraded'} style={{ ...row, borderLeft: `4px solid ${part.isCorrect === false ? 'var(--mm-error-text)' : part.isCorrect === true ? 'var(--mm-success-text)' : 'var(--mm-tint-border)'}`, display: 'grid', gap: 4 }}>
               <span style={{ fontWeight: 800, color: 'var(--mm-text-strong)' }}>
                 <MathText>{part.label}</MathText>
-                {part.isCorrect === false ? <span aria-label="not correct" style={{ marginLeft: 8, color: 'var(--mm-error-text)' }}>✗</span> : part.isCorrect === true ? <span aria-label="correct" style={{ marginLeft: 8, color: 'var(--mm-success-text)' }}>✓</span> : null}
+                {part.isCorrect === false ? <span role="img" aria-label="not correct" style={{ marginLeft: 8, color: 'var(--mm-error-text)' }}>✗</span> : part.isCorrect === true ? <span role="img" aria-label="correct" style={{ marginLeft: 8, color: 'var(--mm-success-text)' }}>✓</span> : null}
               </span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'baseline' }}>
                 <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>You wrote: </span>{part.yourAnswer ? <MathDisplay value={part.yourAnswer} format="latex" inline /> : <em>nothing</em>}</span>

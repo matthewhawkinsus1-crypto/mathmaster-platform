@@ -161,12 +161,12 @@ async function factored15x45(context) {
   const journey = 'factored-15x-45';
   const page = await open(context, 1);
   await startFactoring(page, ['15 x', '- 45']);
-  await chooseTokens(page, ['Factor 3 of 15 x', 'Factor 5 of 15 x', 'Factor 3 of -45', 'Factor 5 of -45']);
+  await chooseTokens(page, ['Factor 3 of 15 x', 'Factor 5 of 15 x', 'Factor 3 of negative 45', 'Factor 5 of negative 45']);
   await undoButton(page).click();
   await settle(page);
-  expect(journey, (await token(page, 'Factor 5 of -45').getAttribute('aria-pressed')) === 'false', 'transient Undo did not drop the last chosen prime');
+  expect(journey, (await token(page, 'Factor 5 of negative 45').getAttribute('aria-pressed')) === 'false', 'transient Undo did not drop the last chosen prime');
   expect(journey, (await token(page, 'Factor 5 of 15 x').getAttribute('aria-pressed')) === 'true', 'transient Undo dropped more than one decision');
-  await chooseTokens(page, ['Factor 5 of -45']);
+  await chooseTokens(page, ['Factor 5 of negative 45']);
   await pullOut(page);
   const focused = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || '');
   expect(journey, /What is left of 15x/.test(focused), `first remainder box was not focused (${focused})`);
@@ -199,7 +199,7 @@ async function factoredPartial(context) {
   const journey = 'factored-partial';
   const page = await open(context, 1);
   await startFactoring(page, ['15 x', '- 45']);
-  await chooseTokens(page, ['Factor 3 of 15 x', 'Factor 3 of -45']);
+  await chooseTokens(page, ['Factor 3 of 15 x', 'Factor 3 of negative 45']);
   await pullOut(page);
   await setField(page, remainders(page).nth(0), '5x');
   await setField(page, remainders(page).nth(1), '-15');
@@ -212,7 +212,7 @@ async function factoredPartial(context) {
   await page.locator('[data-term-text="- 15"][aria-label$="select as a term to factor"]').first().click();
   await page.getByRole('button', { name: 'Factor to primes' }).click();
   await settle(page);
-  await chooseTokens(page, ['Factor 5 of 5 x', 'Factor 5 of -15']);
+  await chooseTokens(page, ['Factor 5 of 5 x', 'Factor 5 of negative 15']);
   await pullOut(page);
   await setField(page, remainders(page).nth(0), 'x');
   await setField(page, remainders(page).nth(1), '-3');
@@ -237,7 +237,7 @@ async function factoredNegative(context) {
   const journey = 'factored-negative';
   const page = await open(context, 2);
   await startFactoring(page, ['-6 x', '+ 12']);
-  await chooseTokens(page, ['Factor 2 of -6 x', 'Factor 3 of -6 x', 'Factor 2 of 12', 'Factor 3 of 12']);
+  await chooseTokens(page, ['Factor 2 of negative 6 x', 'Factor 3 of negative 6 x', 'Factor 2 of 12', 'Factor 3 of 12']);
   await page.getByRole('button', { name: 'Pull out a negative' }).click();
   await settle(page);
   await go(page, 4);
@@ -436,7 +436,7 @@ async function keyboard(context) {
   await page.getByRole('button', { name: 'Factor to primes' }).focus();
   await page.keyboard.press('Enter');
   await settle(page);
-  for (const label of ['Factor 3 of 15 x', 'Factor 5 of 15 x', 'Factor 3 of -45', 'Factor 5 of -45']) {
+  for (const label of ['Factor 3 of 15 x', 'Factor 5 of 15 x', 'Factor 3 of negative 45', 'Factor 5 of negative 45']) {
     await token(page, label).first().focus();
     await page.keyboard.press(' ');
     await settle(page, 120);
@@ -470,8 +470,8 @@ async function phone(browserInstance) {
   for (const label of ['15 x', '- 45']) await tap(page.locator(`[data-term-text="${label}"][aria-label$="select as a term to factor"]`).first());
   await tap(page.getByRole('button', { name: 'Factor to primes' }).first());
   for (const label of ['Factor 3 of 15 x', 'Factor 5 of 15 x']) await tap(token(page, label).first());
-  await tap(token(page, 'Factor 3 of -45').first());
-  await tap(token(page, 'Factor 5 of -45').first());
+  await tap(token(page, 'Factor 3 of negative 45').first());
+  await tap(token(page, 'Factor 5 of negative 45').first());
   const [scrollWidth, innerWidth] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
   expect(journey, scrollWidth <= innerWidth, `horizontal page scroll at 390px (${scrollWidth} > ${innerWidth})`);
   const outside = await page.locator('button.algebra-structure-token').evaluateAll((elements) => elements.filter((element) => {

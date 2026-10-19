@@ -17,8 +17,10 @@ import {
   placeButtonText,
   placedCardName,
   placementAnnouncement,
+  rationaleInputLabel,
   removeGroupName,
 } from '../../src/tools/openSortBoard/openSortBoardA11y.js';
+import { readFileSync } from 'node:fs';
 
 const cards = ['a', 'b', 'c', 'd'].map((id) => ({ id, label: `Graph ${id.toUpperCase()}` }));
 
@@ -61,4 +63,18 @@ test('every repeated button names its card and its group, starting with the word
 test('each placement is announced with what is left', () => {
   assert.equal(placementAnnouncement({ card: 'Graph C', group: { name: 'Linear' }, index: 1, remaining: 2 }), 'Graph C placed in Group 2 · Linear. 2 cards left to place.');
   assert.equal(placementAnnouncement({ card: 'Graph C', group: { name: 'Linear' }, index: 0, remaining: 0, controlled: true }), 'Graph C placed in Linear. Every card is placed.');
+});
+
+// Pass 3 (TOOLS_KEYBOARD_UNDO "Not done"): every group's "Why do these belong
+// together?" box had the same name. Each now says its group, after the words
+// on screen.
+test('each group\'s explanation box is named for its group, starting with the words on screen', () => {
+  const groups = [{ id: 'g1', name: '' }, { id: 'g2', name: 'Linear' }];
+  const names = groups.map((group, index) => rationaleInputLabel(group, index));
+  assert.deepEqual(names, ['Why do these belong together? (Group 1)', 'Why do these belong together? (Group 2 · Linear)']);
+  assert.equal(new Set(names).size, names.length);
+  names.forEach((name) => assert.ok(name.startsWith('Why do these belong together?')));
+  const board = readFileSync(new URL('../../src/tools/openSortBoard/OpenSortBoard.jsx', import.meta.url), 'utf8');
+  const box = board.slice(board.indexOf('Why do these belong together?'), board.indexOf('characters needed before checking'));
+  assert.match(box, /<textarea[\s\S]*?aria-label=\{rationaleInputLabel\(group, groupIndex\)\}/, 'the box takes its group\'s name');
 });
