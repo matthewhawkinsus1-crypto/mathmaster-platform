@@ -19,6 +19,8 @@
  *   student-home, student-assignments, student-grades, my-math-path
  *       the REAL App.jsx signed in as a synthetic student (the teacher-workflow
  *       in-memory harness; firebase/* faked), opened from the student nav.
+ *       student-assignments/completed-section opens the active lesson, whose
+ *       section tabs show a finished section's "Complete" badge.
  *   live-challenge
  *       the same app; the invite, room and player are written into the
  *       in-memory store, the student joins from Home: the lobby, then a round
@@ -128,9 +130,28 @@ const uxQuestion = (questionId, ready) => async (page, origins, { first }) => {
   await page.waitForTimeout(2500);
 };
 
+// A section the student has finished, as its tab shows it: the fixture's
+// student has last week's Warm-Up right, and the active lesson opens with that
+// tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
+// 4.44:1, and no scene rendered it). darkModeCertification.mjs opens the same.
+export const openCompletedSection = async (page) => {
+  await page.getByRole('button', { name: 'Continue' }).first().click();
+  const showProgress = page.getByRole('button', { name: 'Show progress' }).first();
+  await showProgress.waitFor({ timeout: 60_000 });
+  if (!(await page.locator('.mathmaster-section-tab').count())) await showProgress.click();
+  await page.locator('.mathmaster-section-tab.is-complete small').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 export const SCREENS = [
   studentAppScreen('student-home', 'Home', /^Welcome, /),
-  studentAppScreen('student-assignments', 'Assignments', 'My Assignments'),
+  {
+    ...studentAppScreen('student-assignments', 'Assignments', 'My Assignments'),
+    scenes: [
+      { id: null, run: studentTab('Assignments', 'My Assignments') },
+      { id: 'completed-section', run: openCompletedSection },
+    ],
+  },
   studentAppScreen('student-grades', 'Grades', 'My Grades'),
   {
     id: 'assignment-tools',

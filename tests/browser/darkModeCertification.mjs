@@ -44,6 +44,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { auditFailures, auditTheme } from './themeAudit.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
+import { openCompletedSection } from './accessibilityCertification.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -338,13 +339,25 @@ const TEACHER_STEPS = [
   { id: 'administration-access', run: (page) => openTab(page, 'Student Access') },
 ];
 
-const STUDENT_STEPS = ['Home', 'Assignments', 'Grades', 'My Rewards', 'My Math Path', 'Tests & Exams'].map((name) => ({
+const STUDENT_STEPS = [...['Home', 'Assignments', 'Grades', 'My Rewards', 'My Math Path', 'Tests & Exams'].map((name) => ({
   id: `student-${name.toLowerCase().replace(/\W+/g, '-').replace(/-$/, '')}`,
   run: async (page) => {
     await page.locator('nav button').filter({ hasText: name }).first().evaluate((element) => element.click());
     await page.waitForTimeout(900);
   },
-}));
+})),
+// Last: it leaves the student nav for a lesson. A finished section's
+// "Complete" badge on the section tabs (pass 3, A11Y-7), as the accessibility
+// certification opens it.
+{
+  id: 'student-completed-section',
+  required: '.mathmaster-section-tab.is-complete small',
+  run: async (page) => {
+    await page.locator('nav button').filter({ hasText: 'Assignments' }).first().evaluate((element) => element.click());
+    await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
+    await openCompletedSection(page);
+  },
+}];
 
 // The root administrator's Teacher View / Administration workspace (the
 // harness's ?rootAdmin=1 gives the teacher those claims).
@@ -356,7 +369,7 @@ const ADMIN_STEPS = [
   } },
 ];
 
-const REFERENCE_SHOTS = new Set(['admin-teacher-view-toggle', 'administration-workspace', 'teacher-dashboard', 'live-walkthrough', 'class-selector-open', 'assignment-menu-open', 'student-home', 'student-my-math-path']);
+const REFERENCE_SHOTS = new Set(['student-completed-section', 'admin-teacher-view-toggle', 'administration-workspace', 'teacher-dashboard', 'live-walkthrough', 'class-selector-open', 'assignment-menu-open', 'student-home', 'student-my-math-path']);
 
 const certify = async ({ role, steps, viewport, theme }) => {
   // The school's clock and zone, as every teacher-harness journey runs

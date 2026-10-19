@@ -1277,11 +1277,13 @@
   white-space: nowrap;
 }
 
+/* Full strength: at 0.9 opacity a tab's count ("0/2") fell below 4.5:1 on its
+   own tab (Practice: 4.33:1; pass 3, A11Y-7). */
 .mathmaster-section-tab small {
   font-size: calc(10 * var(--mm-px));
   font-weight: 900;
   white-space: nowrap;
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .mathmaster-section-tab.is-active {
@@ -1951,12 +1953,15 @@
   box-shadow: 0 3px 10px rgba(166, 107, 0, 0.24), inset 0 0 0 1px #ffe08a;
 }
 
+/* The "Complete" badge: the theme's warning pair, inverted, at a readable
+   size. It was 9px white on #a66b00 (4.44:1) in both themes (pass 3, A11Y-7);
+   now #fff4ce on #7a4f00 (6.5:1) light and #3b2e0b on #fdd663 (9.5:1) dark. */
 .mathmaster-section-tab.is-complete small {
   padding: 2px 6px;
   border-radius: 999px;
-  background: #a66b00;
-  color: #fff;
-  font-size: calc(9 * var(--mm-px));
+  background: var(--mm-warning-text);
+  color: var(--mm-warning-soft);
+  font-size: calc(12 * var(--mm-px));
   letter-spacing: 0.045em;
   text-transform: uppercase;
   opacity: 1;

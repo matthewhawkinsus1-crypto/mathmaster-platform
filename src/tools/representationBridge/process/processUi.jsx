@@ -1,6 +1,7 @@
 import React from 'react';
 import MathDisplay from '../../../MathDisplay.jsx';
 import MathInput from '../../../MathInput.jsx';
+import { ChoiceMark, useChoiceGroup } from '../../../platform/interaction/choiceGroup.js';
 
 /*
  * THE SMALL PIECES PROCESS MODE IS BUILT FROM.
@@ -43,18 +44,22 @@ export const errorText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color
 export const successText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-success-text)', fontWeight: 700, lineHeight: 1.4 };
 export const neutralText = { margin: 0, fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-primary-text)', fontWeight: 600, lineHeight: 1.4 };
 
-/** A choice among a few options: radio semantics, chip looks, 44px targets. */
+/**
+ * A choice among a few options: one radio group (choiceGroup.js) — one tab
+ * stop, arrows move and select — chip looks, 44px targets, and a ✓ on the
+ * chosen chip.
+ */
 export function ChoiceChips({ label, options, value, onChange, disabled = false, name }) {
+  const optionProps = useChoiceGroup({ ids: options.map((option) => option.value), value, onSelect: onChange, disabled });
   return (
     <div role="radiogroup" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {options.map((option) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
         return (
           <button
             key={option.value}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            {...optionProps(index)}
             data-process-choice={`${name || 'choice'}:${option.value}`}
             disabled={disabled}
             onClick={() => onChange(option.value)}
@@ -68,6 +73,7 @@ export function ChoiceChips({ label, options, value, onChange, disabled = false,
               color: selected ? 'var(--mm-primary-text)' : 'var(--mm-text)',
             }}
           >
+            <ChoiceMark selected={selected} />
             {option.label}
           </button>
         );

@@ -3,6 +3,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import './RepresentationMatch.css';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import { useMethodWithheld } from '../shared/ToolRuntimeContext';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 
 const CardSetStack = ({ children }) => (
   <div className="mathmaster-tool-card-set-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}>{children}</div>
@@ -126,6 +127,101 @@ const MODE_HINTS = {
     'Two equations that look different can still be the same line; substitute a value for x and compare the y each one gives.',
   ],
 };
+
+/*
+ * The board's three choice groups, each one radio group (choiceGroup.js): one
+ * tab stop, arrows move and select, and the chosen option carries a ✓ — it was
+ * shown by its border colour alone (pass 3, TOOL-6). Choosing never checks.
+ */
+function EquationChoices({ choices, value, onSelect }) {
+  const optionProps = useChoiceGroup({ ids: choices.map((item) => item.id), value, onSelect });
+  return (
+    <div role="radiogroup" aria-label="Equation choices" style={{ display: 'grid', gap: 8 }}>
+      {choices.map((item, index) => {
+        const selected = value === item.id;
+        return (
+          <button
+            type="button"
+            {...optionProps(index)}
+            key={item.id}
+            onClick={() => onSelect(item.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              minHeight: 46,
+              padding: '10px 12px',
+              textAlign: 'left',
+              borderRadius: 9,
+              border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
+              background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
+              color: 'var(--mm-text-strong)',
+              cursor: 'pointer',
+            }}
+          >
+            <ChoiceMark selected={selected} />
+            <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 'calc(18 * var(--mm-px))' }} ariaLabel={`Equation choice ${item.equation || ''}`} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function GraphChoices({ sets, value, onSelect, bounds }) {
+  const optionProps = useChoiceGroup({ ids: sets.map((item) => item.id), value, onSelect });
+  return (
+    <div role="radiogroup" aria-label="Graph choices" style={{ display: 'grid', gap: 12 }}>
+      {sets.map((item, index) => {
+        const selected = value === item.id;
+        return (
+          <button
+            type="button"
+            key={item.id}
+            {...optionProps(index)}
+            onClick={() => onSelect(item.id)}
+            style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}
+          >
+            <strong><ChoiceMark selected={selected} />Graph {String.fromCharCode(65 + index)}</strong>
+            <div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...bounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SortSlotChoices({ label, labels, value, onSelect, colorFor, countFor }) {
+  const optionProps = useChoiceGroup({ ids: labels.map((_, index) => index), value, onSelect: (_, index) => onSelect(index) });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {labels.map((slotLabel, index) => {
+        const selected = value === index;
+        return (
+          <button
+            type="button"
+            {...optionProps(index)}
+            key={`${index}:${slotLabel}`}
+            onClick={() => onSelect(index)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
+              border: selected ? `2px solid ${colorFor(index)}` : '1px solid var(--mm-tint-border)',
+              background: selected ? 'var(--mm-surface-tint)' : 'var(--mm-surface)', color: 'var(--mm-text-strong)',
+            }}
+          >
+            <ChoiceMark selected={selected} style={{ marginRight: 0 }} />
+            <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: colorFor(index), flex: '0 0 auto' }} />
+            {slotLabel}
+            <span style={{ fontWeight: 700, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+              · {countFor(index)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function RepresentationMatch({ questionData = {}, onAction }) {
   /*
@@ -256,33 +352,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       return (
         <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
           <legend style={{ fontWeight: 700, marginBottom: 7 }}>Equation</legend>
-          <div role="radiogroup" aria-label="Equation choices" style={{ display: 'grid', gap: 8 }}>
-            {choices.map((item) => {
-              const selected = value === item.id;
-              return (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  key={item.id}
-                  onClick={() => setter(item.id)}
-                  style={{
-                    width: '100%',
-                    minHeight: 46,
-                    padding: '10px 12px',
-                    textAlign: 'left',
-                    borderRadius: 9,
-                    border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
-                    background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
-                    color: 'var(--mm-text-strong)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 'calc(18 * var(--mm-px))' }} ariaLabel={`Equation choice ${item.equation || ''}`} />
-                </button>
-              );
-            })}
-          </div>
+          <EquationChoices choices={choices} value={value} onSelect={setter} />
         </fieldset>
       );
     }
@@ -398,7 +468,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
-          <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: graphId === item.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
+          <GraphChoices sets={sets} value={graphId} onSelect={setGraphId} bounds={graphMatchBounds} />
           <button type="button" data-work-view-check="true" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}><SubmitText>Check graph</SubmitText></button>
         </> : null}
 
@@ -406,29 +476,14 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
             <legend style={{ fontWeight: 800, marginBottom: 7, color: 'var(--mm-text)' }}>Sorting cards into:</legend>
-            <div role="radiogroup" aria-label={`${groupNoun} to sort cards into`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {lineLabels.map((label, index) => (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={activeLineSlot === index}
-                  key={`${index}:${label}`}
-                  onClick={() => setActiveLineSlot(index)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                    padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
-                    border: activeLineSlot === index ? `2px solid ${groupColor(index)}` : '1px solid var(--mm-tint-border)',
-                    background: activeLineSlot === index ? 'var(--mm-surface-tint)' : 'var(--mm-surface)', color: 'var(--mm-text-strong)',
-                  }}
-                >
-                  <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: groupColor(index), flex: '0 0 auto' }} />
-                  {label}
-                  <span style={{ fontWeight: 700, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-                    · {linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <SortSlotChoices
+              label={`${groupNoun} to sort cards into`}
+              labels={lineLabels}
+              value={activeLineSlot}
+              onSelect={setActiveLineSlot}
+              colorFor={groupColor}
+              countFor={(index) => linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
+            />
           </fieldset>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {LINEAR_CARD_BANDS.map((band) => {

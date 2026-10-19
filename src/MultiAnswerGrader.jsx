@@ -17,6 +17,7 @@ import { formatProblemForResponse } from './platform/interaction/answerShapeGuar
 import useUndoHistory from './useUndoHistory';
 import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
+import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -34,6 +35,45 @@ const renderChoiceText = (value) => {
     ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text)} />
     : normalizePlainMathTypography(text);
 };
+
+// A choice field: one radio group (choiceGroup.js) — one tab stop, arrows
+// move and select, and the chosen option carries a ✓ as well as its colour.
+function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
+  const raws = options.map((option) => String(option));
+  const optionProps = useChoiceGroup({ ids: raws, value, onSelect });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'grid', gap: '8px' }}>
+      {raws.map((raw, index) => {
+        const selected = value === raw;
+        return (
+          <button
+            type="button"
+            key={raw}
+            {...optionProps(index)}
+            aria-label={choiceAccessibleLabel(raw)}
+            onClick={() => onSelect(raw)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '46px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`,
+              background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              color: 'var(--mm-text-strong)',
+              fontSize: 'calc(16 * var(--mm-px))',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <ChoiceMark selected={selected} />
+            {renderChoiceText(raw)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const looksLikePlainLanguageAnswer = (value) => {
   const text = String(value ?? '').trim();
@@ -199,35 +239,13 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 </p>
               ) : null}
               {choiceOptions ? (
-                <div role="radiogroup" aria-label={field.label || field.id} style={{ display: 'grid', gap: '8px' }}>
-                  {choiceOptions.map((option) => {
-                    const raw = String(option);
-                    const selected = String(answers[field.id] || '') === raw;
-                    return (
-                      <button
-                        type="button"
-                        key={raw}
-                        role="radio"
-                        aria-checked={selected}
-                        aria-label={choiceAccessibleLabel(raw)}
-                        onClick={() => history.setValue((current) => ({ ...current, [field.id]: raw }))}
-                        style={{
-                          minHeight: '46px',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`,
-                          background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                          color: 'var(--mm-text-strong)',
-                          fontSize: 'calc(16 * var(--mm-px))',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {renderChoiceText(raw)}
-                      </button>
-                    );
-                  })}
-                </div>
+                <ChoiceFieldOptions
+                  label={field.label || field.id}
+                  options={choiceOptions}
+                  value={String(answers[field.id] || '')}
+                  grade={grade}
+                  onSelect={(raw) => history.setValue((current) => ({ ...current, [field.id]: raw }))}
+                />
               ) : shouldUsePlainTextInput(field) ? (
                 <input
                   type="text"
