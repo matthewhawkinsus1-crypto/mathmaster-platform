@@ -12,6 +12,7 @@
 //   ?q=dolgraph             the real District DOL #1 graph-analysis item (q_section-4_4_1),
 //                           a graph and its composed steps (readAloudTranslate.mjs: the
 //                           graph is read without positions while it can be answered)
+//   ?q=dolgraph7            q_section-4_4_4: seven steps, only the one on screen is read
 //   ?q=table                the real fillable table of Algebra I M2 T2 L2 (l2-cw-9):
 //                           its given cells are read, a cell to fill in is "blank"
 //   ?run=<id>               a fresh draft namespace
@@ -91,6 +92,11 @@ const QUESTIONS = {
   dolgraph: compileAuthoringIntentV5(dolGraphLesson).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.questionId === 'q_section-4_4_1'),
+  // Seven steps, a later one marking the graph (review B1: a hidden step's
+  // figure must not be read).
+  dolgraph7: compileAuthoringIntentV5(dolGraphLesson).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === 'q_section-4_4_4'),
   table: compileAuthoringIntentV5(transformationsLesson).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.questionId === 'l2-cw-9'),

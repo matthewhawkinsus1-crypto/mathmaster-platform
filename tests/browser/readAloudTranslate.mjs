@@ -148,6 +148,17 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  /* ------------ a hidden step's figure is not read (review B1, q_section-4_4_4) */
+  {
+    const { page, context } = await open(device, 'q=dolgraph7&role=dol&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    const figures = (said.match(/x from /g) || []).length;
+    check(figures === 1, `${device.name}: on step 1 of 7, exactly one figure is read — the one on screen`, `${figures}: ${said.slice(0, 400)}`);
+    check(!/Mark the|maximum or minimum/i.test(said.split('Step 1 of 7')[0]), `${device.name}: no later step's prompt is read as a figure's name`, said.slice(0, 300));
+    await context.close();
+  }
+
   /* ------------------------------------- a fillable table: rows, headers, blanks */
   {
     const { page, context } = await open(device, 'q=table&role=classwork&support=read');
@@ -164,6 +175,35 @@ for (const device of DEVICES) {
       check(((await lastSpoken(page))?.text || '').startsWith('A table, 5 rows.'), `${device.name}: the table can be heard again on its own`);
     } else check(false, `${device.name}: the tray offers "Read a part"`);
     await noSidewaysScroll(page, `${device.name} table`);
+    await context.close();
+  }
+  {
+    // On a DOL: the student's own entry is read back, never a verdict (review S5).
+    const { page, context } = await open(device, 'q=table&role=dol&support=read');
+    const cell = page.locator('input[aria-label="Row 1, c(x)"]');
+    await cell.fill('8/5');
+    // Leave the cell, as a student does before using the work bar: on a phone
+    // the number keypad holds the bar's place until "Done".
+    const closeKeypad = async () => {
+      const done = page.locator('button:visible', { hasText: /^Done$/ });
+      if (await done.count()) await done.first().click();
+      else await page.locator('table input').first().evaluate((element) => element.blur());
+      await page.waitForTimeout(300);
+    };
+    await closeKeypad();
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    await read.click();
+    const before = (await lastSpoken(page))?.text || '';
+    check(/Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/.test(before), `${device.name}: the student's own entry is read as theirs`, before.slice(0, 320));
+    const inputs = page.locator('table input');
+    const count = await inputs.count();
+    for (let index = 0; index < count; index += 1) await inputs.nth(index).fill('1');
+    await closeKeypad();
+    await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
+    await page.waitForTimeout(800);
+    await read.click();
+    const after = (await lastSpoken(page))?.text || '';
+    check(/c of x, you wrote 1/.test(after) && !/correct|incorrect|check this|wrong|✓|✗/i.test(after), `${device.name}: after a DOL submit, the entries — and no verdict`, after.slice(0, 320));
     await context.close();
   }
 

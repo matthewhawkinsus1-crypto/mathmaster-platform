@@ -28,12 +28,18 @@ Source: `STUDENT_PASS3_READ_ALOUD_TRANSLATE.md` "Not done".
   shape as Work View's capability port. A figure renders `<PublishFigureReading entry={…} />` beside the description
   it already gives a screen reader; QuestionEngine collects the entries (`FigureReadingPortProvider` around
   `renderModule()` only, so a "Practice like this" item or a review beside the question is not read as part of it).
-  An update keeps its place; an unchanged entry returns the same state (nothing re-renders); the enlarged Work View
-  copy of a figure is read once. Publishing figures: GraphDisplay (its description and its visible caption), the
+  An update keeps its place; an unchanged entry returns the same state (nothing re-renders). Only what the screen
+  shows is read: Focus Mode's other steps, kept mounted and hidden with CSS, are in a `FigureReadingScope` that
+  publishes nothing (review B1, below). Two figures that say the same words are two figures and both are read (Work
+  View enlarges the figure itself, it draws no copy). An authored `graph.accessibleDescription` or plane `description`
+  is published verbatim, open or closed, as the screen reader already gets it (Preflight already tells authors not to
+  give the answer away there). Publishing figures: GraphDisplay (its description and its visible caption), the
   shared CoordinatePlane (every tool plane), the interval number line, the legacy pick-a-point line, the 3D
   three-plane model, the legacy graph workspace; QuestionVisual and TableGrader publish their tables.
 - **The reader** — `questionReading.js`: `tableReading` reads by rows with headers ("A table, 5 rows. Columns: x;
-  f of x; c of x; input of d; d of x. Row 1: x, negative 2; f of x, negative 2; c of x, blank; …"). A comma between
+  f of x; c of x; input of d; d of x. Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of
+  d, blank; …"). A cell the student fills in is read as what they typed, or "blank" — never its key and never a ✓ or
+  ✗ (no grade reaches the reader; review S5). A comma between
   header and value ("x −2" was heard "x minus 2"); a column headed `c(x)` is "c of x", never "c times the quantity
   x"; a unit "($)" is "(dollars)" (two of them paired as formula delimiters). Tables and figures come after the
   question's own material and before the step and the fields, and each is a part the tray lists ("The table",
@@ -49,7 +55,8 @@ Source: `STUDENT_PASS3_READ_ALOUD_TRANSLATE.md` "Not done".
   - the real fillable table: every cell to fill is blank, headers and rows as above;
   - a table whose row data holds the answer still reads "blank" (fillable and read-only);
   - headers shape, caption, money and Spanish;
-  - order of parts; the host's state rules (place kept, same state when unchanged, the enlarged copy read once);
+  - order of parts; the host's state rules (place kept, same state when unchanged, two figures with equal words both
+    read); a hidden scope publishes nothing;
   - **the leak proof over every real DOL/quiz/test item with a graph (6):** GraphDisplay is rendered (Vite SSR)
     open and closed with the graph the screen draws; open, the reading carries "Positions are not read out" and
     matches no coordinate, crossing, "through", "between", corner or turning point; closed, the same graph's
@@ -73,17 +80,19 @@ own structure. QuestionEngine shows the overlay only then (`scaffoldRequired`). 
 the reader drop the family prompt's leading "Let's back up." (`backUpQuestionText`, in `questionReading.js`): region "Let's back up", heading
 "Which axis do you read the domain along?", Read aloud "Let's back up. Which axis …" once.
 
-**Count** (every real lesson: teacher-import-jsons, docs/assignments and the sample, compiled; 265 Warm-Up,
-Classwork and Practice items — assessments never show it):
+**Count** (every real lesson, each counted once: teacher-import-jsons, docs/assignments and the sample, compiled.
+`Algebra_II_Honors_3x3_Systems_Day2_V5.json` and `…_V5_FINAL.json` are byte-identical, and the two Linear Multiple
+Representations V5 files are one lesson, so one of each is counted. 248 distinct Warm-Up, Classwork and Practice
+items; assessments never show it. Corrected in the review round: the first count took 265, double-counting 17.)
 
 | | Before | After |
 | --- | --- | --- |
-| Step written for the problem (family) | 157 | 157 — keep it |
-| Generic platform step | 108 | 0 shown — lose it |
+| Step written for the problem (family) | 152 | 152 — keep it |
+| Generic platform step | 96 | 0 shown — lose it |
 | Authored | 0 | 0 |
 
-Those that lose it, by type: multiAnswer 44, matrixLab 21, systemsWorkspace 20, transformationsLab 8, figureMatch 7,
-graphChoicePreview 4, representationMatch 4. (teacher-import-jsons alone: 141 keep, 76 lose, of 217.)
+Those that lose it, by type: multiAnswer 40, matrixLab 21, systemsWorkspace 14, transformationsLab 8, figureMatch 7,
+graphChoicePreview 4, representationMatch 2. (teacher-import-jsons alone: 141 keep, 76 lose, of 217.)
 
 **Proof.** `readAloudFigures.test.mjs` (the predicate; over the real lessons no shown step is the generic sentence;
 the gate in QuestionEngine; the heading and the reader say it once). Browser (`readAloudTranslate.mjs`, an
@@ -115,6 +124,21 @@ Since the plane publishes its description (item 1), Read aloud says these too.
 **Proof.** `readAloudFigures.test.mjs`: the selection rule, the fallback, the positions-withheld sentence when only
 tool marks are drawn; the inequality text, with no position or side; the four tools' wiring; a CoordinatePlane
 rendered (SSR) with a tool's children carries the words in its own description.
+
+## Review round (independent review of `56e42ce8`)
+
+| Finding | What was wrong | Fix | Proof (each mutation-checked: broken once, red, restored) |
+| --- | --- | --- | --- |
+| **B1** (blocker) | Focus Mode keeps simple steps mounted and hidden with CSS, so a later step's plane published and was read, named by its prompt. On DOL `q_section-4_4_4`, step 1 of 7 ("Does this graph have an x-intercept?") heard step 7's "Graph. Mark the maximum or minimum…". | `FigureReadingScope shown={index === safeActiveIndex}` around every step in WorkflowRunner's Focus Mode. One element type either way, so moving between steps remounts nothing. Audit of everything else in `renderModule()`: no other figure stays mounted while hidden. CoordinatePlane's own `hidden` is its data table; EnlargeableFigure draws the figure once; help panels and drawers are not rendered while closed. | Node: a hidden scope (and a hidden scope inside a shown one) hands its figures no publisher; the runner's wiring. Browser: `?q=dolgraph7` (the real item) on a DOL, both viewports: exactly one figure read, and no later step's prompt. Mutations: scope always shown → node and browser red; scope passes the publisher through → node red. |
+| **S1** | De-duplicating by content read two different graph cards with the same words once (lmr-wu-1, lmr-wu-2). | De-duplication removed: there is no enlarged copy to fold. | Node: two different figures with equal words are both read. Mutation: content de-duplication back → red. |
+| **S2** | "Graph 1 · Intercept method" was read "Graph 1 times Intercept method" (7 real items, DOL lmr-dol-1 among them). | In a figure's name and text, " · " before a word of two or more letters is said as a comma. "2 · 3" and "2 · x" stay multiplication. | Node, en and es. Mutation → red. |
+| **S3** | The HELP-19 count took two lessons twice. | 248 distinct: 152 keep, 96 lose (table above). `backUpStep.js` header corrected, including "every step is recorded": a platform step is now reached only through restored memory. | Recounted with the duplicate files dropped. |
+| **S4** | The fillable table keyed a column with no `key` by its index, while TableGrader keys its inputs `0:undefined`. The screen showed an input; the reader said "y, 7". | The fillable table keys and looks up cells with the raw key, as TableGrader does. | Node: the reviewer's case. Mutation (both lines back to the index) → red. |
+| **S5** | A cell the student had filled was read "blank". | Read as what they wrote: "c of x, you wrote 8 over 5", in Spanish "escribiste 8/5". An empty cell is still "blank". TableGrader hands the reader its entries, never its grades, so no verdict can be read. | Node: entries, blank, Spanish, no verdict word; wiring passes `entries: studentAnswers`. Browser on a DOL, both viewports: the entry is read before Submit, and after Submit the entries with no verdict. Mutation (entries unwired) → node and browser red. |
+| wording | "You plotted 2 points: (0, 0); (7, −2). Positions are not read out…" contradicted itself. | With the student's points listed: "Positions of the given marks are not read out while this question can be answered." | Node. Mutation → red. |
+
+One driver detail: on a phone the number keypad takes the action bar's place until "Done". That is the same on
+`530ac3cf`. The new table checks press "Done" before Read, as a student would.
 
 ## Mutation checks
 
@@ -169,7 +193,7 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
 
 ## Decisions for the owner
 
-1. **HELP-19 removes the step from 108 of 265 items** rather than writing one for them. An inclusion student on a
+1. **HELP-19 removes the step from 96 of 248 items** rather than writing one for them. An inclusion student on a
    Matrix Lab, Systems Workspace or plain multi-answer item without a family now goes straight to the next try with
    the hints and miss messages the platform already gives. Writing steps for those types (authored `scaffold`, or a
    family that reads their structure) is the way to give them one back.
@@ -193,7 +217,9 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
 - `esSupport.js`: **no entries added.** Every new student sentence here is the reader's own words, which carry their
   Spanish in `questionReading.js` (as before), or figure descriptions, which Translate does not cover.
 - `tests/platform/readAloudAndTranslate.test.mjs`: one import assertion, rewritten as above.
-- Test harness `tests/browser/feedbackTeachesMain.jsx`: fixtures `dolgraph`, `table`, `plain`, profile `inclusion`.
+- Test harness `tests/browser/feedbackTeachesMain.jsx`: fixtures `dolgraph`, `dolgraph7`, `table`, `plain`, profile
+  `inclusion`.
+- `src/platform/workflow/WorkflowRunner.jsx` (review B1): the Focus Mode step list wrapped in `FigureReadingScope`.
 
 ## Not done
 

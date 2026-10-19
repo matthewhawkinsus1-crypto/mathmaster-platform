@@ -7,6 +7,7 @@ import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
 import InteractiveGraphWorkspace from '../../InteractiveGraphWorkspace';
 import GraphDisplay from '../../GraphDisplay';
+import { FigureReadingScope } from '../language/figureReadings.js';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
@@ -1599,7 +1600,14 @@ export default function WorkflowRunner({
         {headingInFooter ? null : stepHeading}
         <div className={showPersistentGraphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
           <div className="workflow-focus__active-stage" key={activeStage?.id || safeActiveIndex}>
-            {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+            {/* Read aloud reads only the step on screen: the others stay mounted,
+                hidden with CSS, and a later step's figure — named by its prompt,
+                "Mark the x-intercepts" — could answer this one (figureReadings.js). */}
+            {workflow.map((stage, index) => (
+              <FigureReadingScope key={stage.id} shown={index === safeActiveIndex}>
+                {renderStage(stage, index, { focused: index === safeActiveIndex })}
+              </FigureReadingScope>
+            ))}
           </div>
           {showPersistentGraphReference && (
             <aside className="workflow-focus__graph-reference" aria-label={graphReferenceTitle}>

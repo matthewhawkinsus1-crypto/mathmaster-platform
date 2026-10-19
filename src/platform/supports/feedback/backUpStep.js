@@ -14,15 +14,17 @@
  *   platform    a generic re-orientation question for the type
  *
  * ONLY A STEP WRITTEN FOR THIS PROBLEM IS SHOWN (pass 3, HELP-19). The
- * platform step covered the work of 108 of the 265 real Warm-Up, Classwork
- * and Practice items with "should you revise the specific parts identified
- * in the feedback? Yes / No", and "No" answered "Try the other choice." It
+ * platform step covered the work of 96 of the 248 distinct real Warm-Up,
+ * Classwork and Practice items with "should you revise the specific parts
+ * identified in the feedback? Yes / No", and "No" answered "Try the other choice." It
  * taught nothing and held the student up. backUpStepWritten(step) is what
  * QuestionEngine shows it on: authored or family. The platform step is still
  * returned (an older attempt may have recorded it; supportUseMemory.js
  * reads its source), but it is no longer put in front of a student.
  *
- * It never asks for the answer. Every step is recorded as backUpStepUsed. An
+ * It never asks for the answer. A step the student completes is recorded as
+ * backUpStepUsed (a platform step now only through memory restored from an
+ * attempt made before this change). An
  * authored or family step names THIS problem's first move (and a wrong pick
  * leaves only the other choice), so it is help with the mathematics: it is
  * also recorded as scaffoldUsed and the next attempt is a supported one. Only

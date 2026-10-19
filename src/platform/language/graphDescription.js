@@ -399,7 +399,10 @@ const describeKinds = ({
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
   if (hasUndescribedMarks) sentences.push(toolMarksText || UNDESCRIBED_MARKS);
   if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length || (hasUndescribedMarks && toolMarksText)) {
-    sentences.push(positionsWithheldText || 'Positions are not read out while this question can be answered.');
+    // The student's own points were just read out: what is withheld is the rest.
+    sentences.push(positionsWithheldText || (plotted.length
+      ? 'Positions of the given marks are not read out while this question can be answered.'
+      : 'Positions are not read out while this question can be answered.'));
   }
   void w;
   const description = sentences.join(' ');

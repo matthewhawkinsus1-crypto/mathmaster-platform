@@ -44,6 +44,7 @@ const WORDS = {
     table: (label, rows) => `${label || 'A table'}, ${rows} ${rows === 1 ? 'row' : 'rows'}.`,
     columns: 'Columns',
     blank: 'blank',
+    wrote: (value) => `you wrote ${value}`,
     of: 'of',
     dollars: 'dollars',
     figure: 'A figure',
@@ -62,6 +63,7 @@ const WORDS = {
     table: (label, rows) => `${label || 'Una tabla'}, de ${rows} ${rows === 1 ? 'fila' : 'filas'}.`,
     columns: 'Columnas',
     blank: 'en blanco',
+    wrote: (value) => `escribiste ${value}`,
     of: 'de',
     dollars: 'dólares',
     figure: 'Una figura',
@@ -83,6 +85,10 @@ const sentence = (value) => {
 // so the reader does not pull the question families into a shared chunk.
 const BACK_UP_LEAD = /^let[’']s back up\.\s*/i;
 export const backUpQuestionText = (prompt) => String(prompt ?? '').trim().replace(BACK_UP_LEAD, '');
+// A figure's name or text with " · " between words ("Graph 1 · Intercept
+// method") is a pause, not a product: said as a comma. Between numbers or a
+// number and one letter ("2 · 3", "2 · x") it stays multiplication.
+const figureWords = (value) => clean(value).replace(/\s+[·•]\s+(?=\p{L}{2})/gu, ', ');
 const optionText = (option) => clean(typeof option === 'string' || typeof option === 'number' ? option : option?.label ?? option?.id ?? '');
 
 /** "Choices: −6; 6; 0; or −2." — semicolons, because a choice may hold a comma ("(2, 3)"). */
@@ -111,8 +117,9 @@ export const matrixReading = (matrix, { language = 'en' } = {}) => {
 
 /**
  * A table the question shows (displayTable.js), row by row with its headers:
- * "Row 1: x 0; y 3." A cell the student fills in is said "blank" — never its
- * value, which on a fillable table is the answer.
+ * "Row 1: x, 0; y, 3." A cell the student fills in is said as what they wrote
+ * ("y, you wrote 7") or "blank" — never its key, and never a verdict: the
+ * table carries no ✓ or ✗ to read.
  */
 export const tableReading = (table, { label = '', language = 'en' } = {}) => {
   const w = wordsFor(language);
@@ -126,7 +133,10 @@ export const tableReading = (table, { label = '', language = 'en' } = {}) => {
   table.rows.forEach((row, rowIndex) => {
     const cells = headers.map((header, columnIndex) => {
       const cell = Array.isArray(row) ? row[columnIndex] : null;
-      const value = cell === null || cell === undefined || clean(cell) === '' ? w.blank : clean(cell);
+      // A cell the student fills in: what they wrote, never whether it is right.
+      const value = cell && typeof cell === 'object'
+        ? (clean(cell.entered) ? w.wrote(clean(cell.entered)) : w.blank)
+        : cell === null || cell === undefined || clean(cell) === '' ? w.blank : clean(cell);
       // "x, −2": a comma, or "x −2" is heard "x minus 2".
       return header ? `${header}, ${value}` : value;
     });
@@ -198,11 +208,11 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   (Array.isArray(figures) ? figures : []).forEach((entry) => {
     if (entry?.kind === 'table') {
       tableCount += 1;
-      add(`table-${tableCount}`, 'table', clean(entry.label) || w.labels.table, tableReading(entry.table, { label: entry.label, language }));
+      add(`table-${tableCount}`, 'table', clean(entry.label) || w.labels.table, tableReading(entry.table, { label: figureWords(entry.label), language }));
     } else if (entry?.kind === 'figure' && clean(entry.text)) {
       figureCount += 1;
       const name = clean(entry.label);
-      add(`figure-${figureCount}`, 'figure', name || w.labels.figure(figureCount), [sentence(name || w.figure), sentence(entry.text)].join(' '));
+      add(`figure-${figureCount}`, 'figure', name || w.labels.figure(figureCount), [sentence(figureWords(name) || w.figure), sentence(figureWords(entry.text))].join(' '));
     }
   });
 

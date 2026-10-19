@@ -17,6 +17,7 @@
  * release nothing read gives a position or a value the question asks for.
  *
  *   <FigureReadingPortProvider publish={fn}>   the host (QuestionEngine)
+ *   <FigureReadingScope shown={bool}>           a part kept mounted while hidden
  *   <PublishFigureReading entry={…} />         a figure, inside its render
  *
  * An entry is { kind: 'figure', label, text } or { kind: 'table', label,
@@ -30,6 +31,21 @@ const FigureReadingPortContext = createContext(null);
 export function FigureReadingPortProvider({ publish, children }) {
   return React.createElement(FigureReadingPortContext.Provider, { value: publish || null }, children);
 }
+
+/**
+ * Only what the screen shows is read. A part of the screen that stays mounted
+ * while hidden (Focus Mode's other steps, kept mounted and hidden with CSS)
+ * renders inside <FigureReadingScope shown={false}>: its figures publish
+ * nothing. One element type whether shown or not, so moving between steps
+ * never remounts them (and their work).
+ */
+export function FigureReadingScope({ shown, children }) {
+  const publish = useContext(FigureReadingPortContext);
+  return React.createElement(FigureReadingPortContext.Provider, { value: shown ? publish : null }, children);
+}
+
+/** Where a figure here would publish: null outside a host or in a hidden scope. */
+export const useFigureReadingPublisher = () => useContext(FigureReadingPortContext);
 
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
@@ -53,7 +69,7 @@ const normalizeEntry = (entry) => {
  * follows the student's points is still read where it is on the screen.
  */
 export function usePublishFigureReading(entry) {
-  const publish = useContext(FigureReadingPortContext);
+  const publish = useFigureReadingPublisher();
   const id = useId();
   const normalized = normalizeEntry(entry);
   const key = figureEntryKey(normalized);
@@ -89,13 +105,9 @@ export const updateFigureReadings = (published, id, entry) => {
   return [...list, { id, entry }];
 };
 
-/** The entries to read: the same figure drawn twice (Work View's enlarged copy) is read once. */
-export const figureReadingEntries = (published) => {
-  const seen = new Set();
-  return (Array.isArray(published) ? published : []).map((item) => item.entry).filter((entry) => {
-    const key = figureEntryKey(entry);
-    if (!entry || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
+/**
+ * The entries to read, in screen order. Two figures that say the same thing
+ * are two figures (two graph cards, each "1 line."), so each is read: Work
+ * View enlarges the figure itself and draws no second copy.
+ */
+export const figureReadingEntries = (published) => (Array.isArray(published) ? published : []).map((item) => item.entry).filter(Boolean);

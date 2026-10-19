@@ -30,7 +30,7 @@ import { generateQuestion } from '../../src/problemGenerator.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
-import { figureReadingEntries, updateFigureReadings } from '../../src/platform/language/figureReadings.js';
+import { FigureReadingPortProvider, FigureReadingScope, figureReadingEntries, updateFigureReadings, useFigureReadingPublisher } from '../../src/platform/language/figureReadings.js';
 import { displayTableFor } from '../../src/platform/question/displayTable.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
@@ -78,7 +78,8 @@ test('a fillable table is read by rows with its headers, and a cell to fill in i
   Object.keys(answers).forEach((key) => {
     const [row, column] = key.split(':');
     const index = table.columns.findIndex((entry) => entry.key === column);
-    assert.equal(table.rows[Number(row)][index], null, `${key} is blank`);
+    // Never its value: only what the student typed (nothing yet).
+    assert.deepEqual(table.rows[Number(row)][index], { entered: '' }, `${key} is blank`);
   });
   const said = speechTextFor(tableReading(table));
   assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./);
@@ -145,7 +146,9 @@ test('the host keeps a figure in its place when its description changes, and doe
   list = updateFigureReadings(list, 'a', { kind: 'figure', label: 'A', text: 'one, moved' });
   assert.deepEqual(list.map((item) => item.id), ['a', 'b'], 'an update keeps its place');
   list = updateFigureReadings(list, 'c', { kind: 'figure', label: 'B', text: 'two' });
-  assert.equal(figureReadingEntries(list).length, 2, 'the enlarged copy of a figure is read once');
+  // Two graph cards that say the same thing are two figures (lmr-wu-1: two
+  // cards, each "1 line."): both are read. Work View draws no second copy.
+  assert.equal(figureReadingEntries(list).length, 3, 'two different figures with equal words are both read');
   list = updateFigureReadings(list, 'a', null);
   assert.deepEqual(list.map((item) => item.id), ['b', 'c'], 'an unmounted figure is no longer read');
 });
@@ -206,7 +209,7 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
   const grader = code('src/TableGrader.jsx');
-  assert.match(grader, /<PublishFigureReading entry=\{\{ kind: 'table', label: '', table: displayTableFor\(question, \{ editable: true \}\) \}\} \/>/);
+  assert.match(grader, /<PublishFigureReading entry=\{\{ kind: 'table', label: '', table: displayTableFor\(question, \{ editable: true, entries: studentAnswers \}\) \}\} \/>/);
 
   // The other figures that already describe themselves, beside that description.
   [
@@ -235,7 +238,8 @@ test('HELP-19: the back-up step is shown only where one is written for the probl
   // Over the real Warm-Up, Classwork and Practice items.
   const helped = realQuestions().filter(({ role }) => ['warmup', 'classwork', 'practice'].includes(role));
   const written = helped.filter(({ question }) => backUpStepWritten(backUpStepFor(question)));
-  // teacher-import-jsons: 141 of 217 (with docs/assignments and the sample, 157 of 265).
+  // teacher-import-jsons: 141 of 217. With docs/assignments and the sample,
+  // counting each lesson once: 152 of 248.
   assert.ok(helped.length >= 200 && written.length >= 130, `${written.length} of ${helped.length} keep a step written for them`);
   written.forEach(({ stored, question }) => {
     const step = backUpStepFor(question);
@@ -306,4 +310,64 @@ test('the Complex Plane, the sideways parabola and the inequality region pass th
   }, () => React.createElement('line', { x1: 0, y1: 0, x2: 1, y2: 1 })));
   const description = /<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/.exec(markup)?.[1] || '';
   assert.match(description, /1 point labelled z₁\. A segment joins the origin to each point\. Positions are not read out/, description);
+});
+
+/* ------------------------------------------- review round: what is on screen */
+
+test('B1: a step kept mounted but hidden publishes nothing — only the step on screen is read', () => {
+  const publish = () => {};
+  const Probe = () => React.createElement('i', null, useFigureReadingPublisher() ? 'reads' : 'silent');
+  const markup = renderToStaticMarkup(React.createElement(FigureReadingPortProvider, { publish },
+    React.createElement(FigureReadingScope, { shown: true }, React.createElement(Probe)),
+    React.createElement(FigureReadingScope, { shown: false }, React.createElement(Probe)),
+    React.createElement(FigureReadingScope, { shown: true }, React.createElement(FigureReadingScope, { shown: false }, React.createElement(Probe)))));
+  assert.equal(markup, '<i>reads</i><i>silent</i><i>silent</i>');
+  assert.equal(renderToStaticMarkup(React.createElement(FigureReadingScope, { shown: true }, React.createElement(Probe))), '<i>silent</i>', 'outside a host, nothing');
+
+  // Focus Mode keeps the other steps mounted, hidden with CSS: each is in a
+  // scope shown only while it is the step on screen.
+  const runner = code('src/platform/workflow/WorkflowRunner.jsx');
+  assert.match(runner, /<FigureReadingScope key=\{stage\.id\} shown=\{index === safeActiveIndex\}>\s*\{renderStage\(stage, index, \{ focused: index === safeActiveIndex \}\)\}\s*<\/FigureReadingScope>/);
+});
+
+test('S2: " · " between words in a figure\'s name is a pause, not "times" (en and es)', () => {
+  const question = real('l3-pr-1');
+  const figures = [{ kind: 'figure', label: 'Coordinate plane for Graph 1 · Intercept method', text: '1 line · Your points.' }];
+  const said = speechTextFor(questionReadingText(questionReadingParts(question, { figures })));
+  assert.match(said, /Coordinate plane for Graph 1, Intercept method\. 1 line, Your points\./);
+  assert.doesNotMatch(said, /times Intercept/);
+  const es = questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Gráfica 1 · Método', text: 'Una recta.' }], language: 'es' }).find((part) => part.kind === 'figure');
+  assert.equal(speechTextFor(es.text, { language: 'es' }), 'Gráfica 1, Método. Una recta.');
+  // Multiplication stays multiplication.
+  assert.match(speechTextFor(questionReadingText(questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Area', text: 'It shows 2 · 3 and 2 · x.' }] }))), /2 times 3 and 2 times x/);
+});
+
+test('S4: the fillable table keys a column with no key the way TableGrader does', () => {
+  const question = { table: { columns: [{ label: 'x' }, { label: 'y' }], rows: [{ 0: 1, 1: 7 }], answers: { '0:undefined': '7' } } };
+  const table = displayTableFor(question, { editable: true });
+  // TableGrader shows an input in every `0:undefined` cell: the reader never says "y, 7".
+  const read = tableReading(table);
+  assert.doesNotMatch(read, /y, 7/, read);
+  assert.equal(read, 'A table, 1 row. Columns: x; y. Row 1: x, blank; y, blank.');
+});
+
+test('S5: a cell the student filled is read as what they wrote; an empty one is "blank"; never a verdict', () => {
+  const question = real('l2-cw-9');
+  const table = displayTableFor(question, { editable: true, entries: { '0:cx': ' 8/5 ', '1:cx': '' } });
+  const said = speechTextFor(tableReading(table));
+  assert.match(said, /Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/, said);
+  assert.match(said, /Row 2: x, negative 1; f of x, negative 1; c of x, blank;/);
+  assert.match(tableReading(table, { language: 'es' }), /c de x, escribiste 8\/5; input of d, en blanco/);
+  // The reader is handed the student's text only — no grade travels with it,
+  // so on a DOL, quiz or test before release there is no verdict to say.
+  assert.doesNotMatch(said, /correct|wrong|check this|✓|✗/i);
+  const grader = code('src/TableGrader.jsx');
+  assert.match(grader, /<PublishFigureReading entry=\{\{ kind: 'table', label: '', table: displayTableFor\(question, \{ editable: true, entries: studentAnswers \}\) \}\} \/>/, 'the entries, not the grades');
+});
+
+test('an interactive plane does not contradict itself: the student\'s points are read, the given marks\' positions are withheld', async () => {
+  const { describeCoordinatePlane } = await import('../../src/platform/language/graphDescription.js');
+  const said = describeCoordinatePlane({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, listPlottedPoints: true, lines: [{ m: 1, b: 0 }], points: [{ x: 2, y: 2 }] }).description;
+  assert.match(said, /You plotted 1 point: \(2, 2\)\. Positions of the given marks are not read out while this question can be answered\./, said);
+  assert.match(describeCoordinatePlane({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, lines: [{ m: 1, b: 0 }] }).description, /Positions are not read out while this question can be answered\./);
 });

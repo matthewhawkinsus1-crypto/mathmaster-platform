@@ -84,8 +84,9 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       {/* The fillable table below is built from question.table, so the shared
           read-only rendering of the same field would duplicate it. */}
       <QuestionVisual question={question} includeTable={false} />
-      {/* Read aloud reads the given cells; a cell to fill in is "blank", never its answer (displayTable.js). */}
-      <PublishFigureReading entry={{ kind: 'table', label: '', table: displayTableFor(question, { editable: true }) }} />
+      {/* Read aloud reads the given cells, and in a cell to fill in what the
+          student wrote or "blank": never its answer, never a ✓ or ✗ (displayTable.js). */}
+      <PublishFigureReading entry={{ kind: 'table', label: '', table: displayTableFor(question, { editable: true, entries: studentAnswers }) }} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
         <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: 'var(--mm-surface)' }}>
           <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid var(--mm-border)', background: 'var(--mm-primary-soft)', fontSize: 'calc(20 * var(--mm-px))' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
