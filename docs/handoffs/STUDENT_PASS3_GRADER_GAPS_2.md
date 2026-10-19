@@ -122,7 +122,7 @@ words.
 | Server | `serverGradingSupport` counts text that is a pair as a key, so ingestion and the deadline finalizer mark these questions. Text that is not a pair is still `no-answer-key`. |
 | V5 compile | `authoringIntentV5Core` stores a text key as `[x, y]`. |
 | JSON import | `assignmentBlueprint.normalizeQuestionStorageShapes` stores a text key as `[x, y]`, with a repair line. It also runs for a portable export, which the compile never sees. |
-| Pre-Flight | `answerKeyResponse` shows the key. The `orderedPair` catalog entry, in the browser copy and the server copy (`functions/shared/questionTypeCatalog.mjs`), refuses a key that is not a pair: `answer "none" is not an ordered pair the grader can read: write the point as [x, y] or "(x, y)" with two numbers, for example [2, 5]`. A generated question has no key until it is drawn, so a missing key is not judged. |
+| Pre-Flight | `answerKeyResponse` shows the key. The `orderedPair` catalog entry, in the browser copy and the server copy (`functions/shared/questionTypeCatalog.mjs`), refuses a key that is not a pair: `answer "none" is not a point the grader can read: write [x, y] or "(x, y)", for example [2, 5]`. A generated question has no key until it is drawn, so a missing key is not judged. |
 | Readers of the key | `SolutionReview` and `missDiagnosis.expectedForPart` read `orderedPairKey`. `OrderedPairGrader`'s details line no longer names the key at all (review B1, below). |
 
 **Proof.** In `studentPass3GraderGaps2.test.mjs`: the harness fixture's key, every spelling, a fraction coordinate, a
