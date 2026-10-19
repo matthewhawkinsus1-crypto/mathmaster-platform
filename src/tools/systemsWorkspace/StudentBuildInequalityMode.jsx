@@ -52,8 +52,8 @@ import {
 } from './inequalityBuildFlow.js';
 import { ChoiceGroup, InequalityLayout, StepFeedback, revealStep } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import {
 import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
+import {
   BoundaryStepFields,
   CLASSIFICATION_OPTIONS,
   ConstraintCard,
