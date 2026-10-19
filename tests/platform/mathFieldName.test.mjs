@@ -130,3 +130,20 @@ test('MathInput names its sink with the same name as the field host', () => {
   const host = region(MATH_INPUT, '<math-field', '/>', 'the math-field host');
   assert.match(host, new RegExp(`aria-label=\\{${name[1]}\\}`), 'the host keeps the same name');
 });
+
+// MathInput takes its name as `ariaLabel`; an `aria-label` prop never reaches
+// the field, and the box was called by its placeholder (Function Operations'
+// four boxes were all "Enter an expression in x").
+test('no caller names a MathInput with an aria-label prop it ignores', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join, relative } = await import('node:path');
+  const root = new URL('../../', import.meta.url).pathname;
+  const files = (dir) => readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    return statSync(full).isDirectory() ? files(full) : (name.endsWith('.jsx') ? [full] : []);
+  });
+  const offenders = files(join(root, 'src')).flatMap((file) => [...executableSource(readFileSync(file, 'utf8')).matchAll(/<MathInput\b[\s\S]*?\/>/g)]
+    .filter((match) => /\saria-label=/.test(match[0]))
+    .map((match) => `${relative(root, file)}: ${match[0].slice(0, 80)}…`));
+  assert.deepEqual(offenders, []);
+});
