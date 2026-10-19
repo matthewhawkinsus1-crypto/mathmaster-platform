@@ -376,7 +376,7 @@ export const MyMathPathProductionContainer = ({
         setConfigurationError(caught.message);
         return null;
       }
-      setSubmissionError(`Submission was not confirmed. Check your connection and press Submit again — MathMaster reuses the same submission ID, so retrying cannot count your answer twice. ${caught.message || ''}`.trim());
+      setSubmissionError(`Submission was not confirmed. Check your connection and try again — MathMaster reuses the same submission ID, so retrying cannot count your answer twice. ${caught.message || ''}`.trim());
       return null;
     } finally {
       setSubmitting(false);

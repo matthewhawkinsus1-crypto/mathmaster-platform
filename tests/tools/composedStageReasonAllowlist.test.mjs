@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import {
   STAGE_REASON_ALLOWLIST,
   failedStageReasons,
+  stageReasonFor,
   gradeComposedWorkflowCheck,
 } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 import { composedWorkflowWork } from '../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
@@ -39,7 +40,7 @@ const shown = (stage, rule, response, extra = {}) => {
   const part = gradeStage({ stage, rule, responses, stages: [stage] });
   assert.equal(part.isCorrect, false, `${stage.kind}: the fixture is a miss (${part.detail})`);
   assert.notEqual(part.graded, false, `${stage.kind}: the fixture is graded`);
-  return failedStageReasons([part], [stage])[stage.id] || '';
+  return failedStageReasons([part], [stage], { [stage.id]: rule })[stage.id] || '';
 };
 
 const FIGURE_STAGE = {
@@ -213,4 +214,21 @@ test('every DOL1 feature step, missed either way, says nothing', () => {
     });
   }));
   assert.ok(probed >= 20, `probed ${probed} feature steps`);
+});
+
+test('the axes sentence names only the fields the student sees and that are graded (review N1)', () => {
+  const said = (stage, rule) => stageReasonFor(stage, 'Check the x-axis quantity.', rule);
+  // Units shown and graded unless either side says requireUnits: false; a
+  // scale only when both the stage shows it and the rule grades it.
+  assert.equal(said({ kind: 'axisSetup' }, {}), 'Check each axis: its quantity and its unit.');
+  assert.equal(said({ kind: 'axisSetup', requireUnits: false }, {}), 'Check each axis: its quantity.');
+  assert.equal(said({ kind: 'axisSetup' }, { requireUnits: false }), 'Check each axis: its quantity.');
+  assert.equal(said({ kind: 'axisSetup', requireScale: true }, { requireScale: true }), 'Check each axis: its quantity, its unit and its scale.');
+  assert.equal(said({ kind: 'axisSetup', requireScale: true }, {}), 'Check each axis: its quantity and its unit.', 'shown, not graded');
+  assert.equal(said({ kind: 'axisSetup' }, { requireScale: true }), 'Check each axis: its quantity and its unit.', 'graded, not shown');
+  assert.equal(said({ kind: 'axisSetup', requireUnits: false, requireScale: true }, { requireUnits: false, requireScale: true }), 'Check each axis: its quantity and its scale.');
+  // Through gradeStage and the real failing branch, with units off on both sides.
+  const stage = { id: 'a', kind: 'axisSetup', requireUnits: false };
+  const rule = { xLabel: ['Time'], yLabel: ['Volume'], requireUnits: false };
+  assert.equal(shown(stage, rule, axes({ xLabel: 'Volume', yLabel: 'Volume' })), 'Check each axis: its quantity.');
 });

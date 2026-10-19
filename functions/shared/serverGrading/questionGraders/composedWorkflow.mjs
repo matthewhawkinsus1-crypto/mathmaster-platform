@@ -133,14 +133,23 @@ const PLOT_LINES = [
   [/^Revise the graph so it matches the model and table you built\.$/, PASS],
   [/^\d+ of \d+ ordered pairs are plotted(, with \d+ points? that (is|are) not in the relation)?\.$/, () => PLOT_POINTS_OFF],
 ];
+// The axis fields a student can see (AxisSetupStage: units unless the stage
+// says requireUnits: false, a scale only when it says requireScale) AND that
+// are graded (gradeAxes: units unless the rule says requireUnits: false, a
+// scale only when it says requireScale: true). Only those are named.
+const axisFieldsSentence = (stage, rule) => {
+  const units = stage?.requireUnits !== false && rule?.requireUnits !== false;
+  const scale = stage?.requireScale === true && rule?.requireScale === true;
+  const fields = ['its quantity', ...(units ? ['its unit'] : []), ...(scale ? ['its scale'] : [])];
+  const list = fields.length > 2 ? `${fields.slice(0, -1).join(', ')} and ${fields.at(-1)}` : fields.join(' and ');
+  return `Check each axis: ${list}.`;
+};
 const SET_LINE = [[/^That is not the set of values in this relation — list each one once\.$/, PASS]];
 export const STAGE_REASON_ALLOWLIST = Object.freeze({
   graphFeatureSelect: [],
   pointInput: [],
   quantityRoles: [[/^Check the .+ quantity\.$/, () => 'Check which quantity is independent and which is dependent.']],
-  axisSetup: [[/^Check the .+\.$/, (detail, stage) => (stage?.requireScale === true
-    ? 'Check each axis: its quantity, its unit and its scale.'
-    : 'Check each axis: its quantity and its unit.')]],
+  axisSetup: [[/^Check the .+\.$/, (detail, stage, rule) => axisFieldsSentence(stage, rule)]],
   tableInput: [
     [/^\d+ value\(s\) do not follow the function you wrote\.$/, PASS],
     [/^\d+ of \d+ values do not match\.$/, () => 'Some values in your table do not match.'],
@@ -155,18 +164,19 @@ export const STAGE_REASON_ALLOWLIST = Object.freeze({
 });
 
 /** What the screen says for one failed stage's detail: a sentence, or ''. */
-export const stageReasonFor = (stage, detail) => {
+export const stageReasonFor = (stage, detail, gradingRule = null) => {
   const text = typeof detail === 'string' ? detail.trim() : '';
-  const rule = (STAGE_REASON_ALLOWLIST[stage?.kind] || []).find(([shape]) => shape.test(text));
-  return rule ? String(rule[1](text, stage) || '').slice(0, 240) : '';
+  const entry = (STAGE_REASON_ALLOWLIST[stage?.kind] || []).find(([shape]) => shape.test(text));
+  return entry ? String(entry[1](text, stage, gradingRule) || '').slice(0, 240) : '';
 };
 
 /** `{ [stageId]: sentence }` for the stages graded wrong that may say why. */
-export const failedStageReasons = (parts, stages = []) => {
+export const failedStageReasons = (parts, stages = [], grading = null) => {
   const byId = new Map((Array.isArray(stages) ? stages : []).filter((stage) => stage?.id).map((stage) => [String(stage.id), stage]));
+  const rules = grading && typeof grading === 'object' ? grading : {};
   return Object.fromEntries((Array.isArray(parts) ? parts : [])
     .filter((part) => part && part.graded !== false && part.isCorrect !== true && part.id)
-    .map((part) => [String(part.id), stageReasonFor(byId.get(String(part.id)), part.detail)])
+    .map((part) => [String(part.id), stageReasonFor(byId.get(String(part.id)), part.detail, rules[String(part.id)] ?? null)])
     .filter(([, reason]) => reason));
 };
 
@@ -211,7 +221,7 @@ export const gradeComposedWorkflowWork = (question, work, { stageReasons = false
       score: marked.partialCreditPercent !== null && Number.isFinite(percent) ? percent / 100 : 0,
     }),
     mode: support.mode,
-    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts, composed.workflow) } : {}),
+    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts, composed.workflow, composed.grading) } : {}),
   };
 };
 

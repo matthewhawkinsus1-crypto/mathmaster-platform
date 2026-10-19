@@ -37,13 +37,16 @@ test('no student sentence in the systems workspace says "token form"', () => {
   assert.match(parse, /could not open the next solving step from that form of the expression\. Your work is still here\. Choose Change expression/);
 });
 
-test('My Math Path\'s unconfirmed-submission line names the Submit button its question shows', () => {
-  // PathSessionPlayer's QuestionEngine is given no host label, so its button
-  // reads "Submit — …" (submitCost.js); the retry line says the same word.
+test('My Math Path\'s unconfirmed-submission line names no button: it serves two that read differently', () => {
+  // handleSubmitAnswer's error serves both Path routes: a tool question goes
+  // through QuestionEngine (serverGrading.submit), whose button reads
+  // "Submit — …"; every other question uses the player's own button,
+  // "Check my answer". So the retry line says "try again" (review S2').
   const player = read('src/components/student/PathSessionPlayer.jsx');
-  assert.match(player, /<QuestionEngine\b/);
-  assert.doesNotMatch(region(player, '<QuestionEngine', '/>', 'the Path question'), /submitLabel=/);
+  assert.match(player, /<QuestionEngine\b[\s\S]*serverGrading=/, 'tool questions submit through QuestionEngine');
+  assert.doesNotMatch(region(player, '<QuestionEngine', '/>', 'the Path question'), /submitLabel=/, 'which names its button Submit');
+  assert.match(player, /\{isSubmitting \? 'Checking…' : 'Check my answer'\}/, 'the player\'s own button');
   const container = read('src/components/student/MyMathPathProductionContainer.jsx');
-  assert.match(container, /Submission was not confirmed\. Check your connection and press Submit again/);
-  assert.doesNotMatch(container, /press Check again/);
+  assert.match(container, /Submission was not confirmed\. Check your connection and try again — MathMaster reuses the same submission ID/);
+  assert.doesNotMatch(container, /press (Check|Submit)\b/);
 });
