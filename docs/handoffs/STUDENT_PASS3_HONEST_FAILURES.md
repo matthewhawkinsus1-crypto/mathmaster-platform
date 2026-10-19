@@ -69,7 +69,7 @@ Source: STUDENT_PASS3_BATCH3_CLIENT.md "Left for later", STUDENT_PASS3_BATCH3_IN
   - A new problem: one alert, same variant, its saved draft kept. The second request opens variant 1, and only then
     is the old draft cleared.
   - The defect replayed with the old host's `null` (two checks).
-  - 62 checks, 0 findings.
+  - 60 checks, 0 findings.
 - `submitNotQueued.test.mjs`'s two import assertions now allow the added names (behaviour unchanged; mutation-checked).
 
 ### 2. Raw error text reaching students
@@ -184,11 +184,68 @@ the account loads.
 
 ## Gate
 
-GATE_TABLE
+Run on this branch's head; the base is `530ac3cf` (a worktree, for the base comparisons).
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 12,129 / 12,129 |
+| `node --test tests/tools/*.test.mjs` | 1,710 pass, 0 fail |
+| `npm run lint` | exit 0 (warnings only, all pre-existing) |
+| `npm run build` | ok |
+| `npm run build:firebase` | ok; no tracked file rewritten (`git status` clean) |
+| `npm run test:draft-persistence` | pass |
+| `npm run test:canonical-persistence` | 35 / 35 |
+| **Plain Vite, 5199** (`AUDIT_ORIGIN`) | |
+| `stepNotQueued.mjs` (new) | 60 checks, 0 findings |
+| `submitNotQueued.mjs` | 21 checks, 0 findings |
+| `durableOutboxRecovery.mjs` | pass (needs `PLAYWRIGHT_MODULE` set to the installed Playwright here: it imports bare `playwright`) |
+| `errorRecovery`, `duplicateTabs`, `staleTabRecord`, `composedDraftRestore`, `draftEditTime`, `dolCloseCopy`, `algebraicSubstitutionHandoff`, `stepAlgebraStructureTools` | all pass |
+| `studentHomeToday.mjs` | **fails, the same on the base**: console errors "Could not reach Cloud Firestore backend … client is offline" (this container cannot reach Firestore; the driver counts them). Not my change. |
+| **Teacher harness, 5188** (`TEACHER_HARNESS_ORIGIN`) | |
+| `journeys`, `draftCrossDeviceJourneys`, `recoveryDraftCrossDeviceJourneys`, `restoredDraftFocusRaceJourneys`, `studentScreenChange`, `appUrlJourneys`, `dolExtraTimeJourneys`, `submitAndFinishJourneys`, `enduranceJourneys` | all pass |
+| `draftSaveNoticeReloadJourneys.mjs` (new) | 10 / 10; with App's old cleanup put back, R1 fails 3 checks (shown, then restored) |
+| **Live Challenge** (own servers) | |
+| `npm run test:live-challenge-teaching-browser` | 58 / 58 |
+| `node tests/browser/liveChallengeShellQa.mjs` | SHELL_RESULT |
+
+**Mutations.** 37 mutations of the new code, each run against `studentHonestFailures.test.mjs` (the arrival one
+against `appUrlArrival.test.mjs`): all 37 caught. They cover:
+- every App catch (`null`, a toast back, the new-problem result dropped);
+- each of the five solver commits ignoring the answer, the alert's role, the retry's board guard;
+- the relation solver applying an unsaved step, applying before saving, and dropping the answer;
+- the new problem ignoring the answer, throwing work away first, and its alert;
+- the words module keeping program or SDK errors, or ignoring the fallback;
+- the Live Challenge screens and SessionGate showing raw text, a missing console line, App passing a message;
+- the expired extension, the three "extra time" wirings and the pill's words;
+- the arrival queue kept off the workspace;
+- the save notice: restoring a retired draft, not keeping, keeping device-full, never restoring, and App clearing
+  as an account arrives.
+
+The four rewritten contracts (`appShellSplit`, `submitNotQueued` ×2, `appUrlArrival`) were each broken once and went
+red. Browser drivers: `stepNotQueued` replays the old `null` host; the reload journey was run against App's old
+effect (above).
 
 ## The first load
 
-FIRST_LOAD
+Measured with `node scripts/check-first-load-budget.mjs --report`, on a production build of this branch and of the
+base (a worktree at `530ac3cf`, same `node_modules`). `scripts/first-load-baseline.json` is not edited.
+
+| Path | Base | Branch | Change |
+| --- | --- | --- | --- |
+| studentHome | 839.4 KB, 184 files | 840.6 KB, 184 files | **+1.2 KB** (the wave's limit is 847.3 KB; my share ≤ 1.5 KB) |
+| signIn | 291.8 KB, 27 files | 292.5 KB, 27 files | +0.7 KB |
+
+Where it goes:
+- the error words, which are now on the first load (SessionGate) instead of only in Test Cycle's lazy chunk, ~0.8 KB;
+- the two new not-queued sentences, ~0.3 KB;
+- the kept save notice, ~0.2 KB.
+
+Two things kept it down:
+- `studentErrorWords.js` imports nothing, so the sign-in path does not also load the navigation model (+1.9 KB on
+  signIn before the split);
+- "extra time" lives in `extraTimeWords.js`, so Home does not load the whole DOL close copy (−0.5 KB).
+
+Nothing here may load lazily: the failure notices have to show when a dynamic import has just failed.
 
 ## Deploying (not done)
 
@@ -242,4 +299,3 @@ FIRST_LOAD
 - Teacher-facing Live Challenge screens (`LiveChallengeTeacher`, hosts, setup) still print `error.message`: out of
   scope (students only).
 
-MUTATIONS
