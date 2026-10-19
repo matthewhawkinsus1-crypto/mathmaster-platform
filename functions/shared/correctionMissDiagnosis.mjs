@@ -130,7 +130,7 @@ const lineFormFindings = ({ keysById, authoredFields, prompt, responses, grading
     if (!wrongPart(grading, id)) return;
     const response = responses?.[id];
     if (typeof response !== 'string') return;
-    const field = { ...(answerFields.find((entry) => entry.id === id) || answerFields[index] || {}), id, ...keysById.keys[index] };
+    const field = { ...(answerFields.find((entry) => entry.id === id) || answerFields[index]), id, ...keysById.keys[index] };
     const keys = answerCandidatesForField(field).filter((key) => typeof key === 'string');
     if (!keys.some((key) => sameLine(response, key))) return;
     const form = fieldLineForm({ answerFields, prompt }, field);
