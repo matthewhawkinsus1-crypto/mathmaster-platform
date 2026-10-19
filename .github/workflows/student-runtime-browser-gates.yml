@@ -461,7 +461,7 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/day1SystemsJourney.mjs
-      - name: Day 2 non-unique 3×3 systems (#390, #392)
+      - name: "Day 2 non-unique 3×3 systems (#390, #392)"
         if: always()
         env:
           PLAYWRIGHT_MODULE: playwright
