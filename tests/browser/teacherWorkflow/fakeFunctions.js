@@ -221,6 +221,21 @@ const MIGRATION_COUNTERS = [
 ];
 
 const handlers = {
+  // Assignment Review's Honors version (tests/browser/honorsCcmrPreflight.mjs).
+  // The audited bank ships with the Functions, so the driver runs the REAL
+  // server selection (functions/lib/ccmrAssignmentBank.js) in node on exactly
+  // what the page sent, through a function it exposes to the page. An answer
+  // carrying { error } fails the way the deployed callable does.
+  hydrateAssignmentCcmr: async (data = {}) => {
+    const serve = typeof window !== 'undefined' ? window.__honorsCcmrServer : null;
+    if (typeof serve !== 'function') throw unimplementedCallableError('hydrateAssignmentCcmr');
+    const answer = await serve(data);
+    if (answer?.error) throw Object.assign(new Error(answer.error.message), { code: `functions/${answer.error.code || 'internal'}` });
+    return answer;
+  },
+  // The harness school has no Google Classroom course linked, so a created
+  // assignment's automatic Classroom post reports that it needs a mapping.
+  listClassroomCourseMappings: () => ({ mappings: [] }),
   advanceSectionRecovery: ({ assignmentId, section, action = 'status', payload = {} } = {}) => {
     const studentId = requireStudent();
     const context = harnessRecoveryContext({ studentId, assignmentId, section, action });

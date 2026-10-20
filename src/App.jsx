@@ -7699,6 +7699,13 @@ function App() {
     if (semanticGaps.length) {
       messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. system dimension, or linear vs. linear–quadratic), so nothing was substituted.');
     }
+    // proveImportedCcmrClaims: every audited item offered for an exam-style
+    // question failed MathMaster's checks in its place, so none was used.
+    const failedChecks = gaps.filter((miss) => miss?.reason === 'no_audited_item_passed_checks');
+    if (failedChecks.length) {
+      const which = failedChecks.map((miss) => `Question ${miss.questionNumber}`).join(', ');
+      messages.push(`MathMaster kept ${which} as written: no audited CCMR item offered for ${failedChecks.length === 1 ? 'it' : 'them'} passed MathMaster's assignment checks in place, so nothing was substituted.`);
+    }
     return messages;
   };
 

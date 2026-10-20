@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
@@ -42,6 +42,17 @@ import {
   repairQuestionWithAI,
 } from '../../services/assignmentAiService.js';
 import { preflightTestCycleCandidate } from '../../services/testCycleService.js';
+import { hydrateAssignmentCcmr } from '../../services/assignmentCcmrService.js';
+import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
+import MathText from '../common/MathText.jsx';
+import {
+  HONORS_CCMR_STATUS,
+  assignmentFingerprint,
+  ccmrSelectionKey,
+  ccmrSourcingKey,
+  composeHonorsCcmrCandidate,
+  selectHonorsCcmrItems,
+} from '../../platform/assignments/canonicalCcmrHydration.js';
 import { seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import { testCycleCandidateContract } from '../../platform/teacher/testCyclePreviewModel.js';
@@ -172,6 +183,30 @@ const humanRole = (role) => ({
   test: 'Test',
 }[role] || role);
 
+const CCMR_FRAMEWORK_LABELS = Object.freeze({ digitalSAT: 'Digital SAT', act: 'ACT', tsia2: 'TSIA2', asvab: 'ASVAB' });
+const ccmrFrameworkLabel = (framework) => CCMR_FRAMEWORK_LABELS[framework] || framework || 'Audited CCMR';
+// An audited item is a template ({{m}}, {{b|signed}}). The teacher reads one
+// instance of it, drawn by the generator a student's copy comes from, not the
+// placeholders; the template text only if no instance can be drawn.
+const auditedExamplePrompt = (question, fallback = '') => {
+  try {
+    if (question && hasPathGenerator(question)) {
+      const drawn = generatePathInstanceWithRetries(question, 'preflight-honors-example');
+      if (drawn?.question?.prompt) return String(drawn.question.prompt);
+    }
+  } catch {
+    // The template text below.
+  }
+  return String(fallback || question?.prompt || '');
+};
+const HONORS_TONES = Object.freeze({
+  done: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  busy: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  note: { background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)' },
+  attention: { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
+});
+const HONORS_TONE_MARKS = Object.freeze({ done: '✓', busy: '↻', note: 'i', attention: '!' });
+
 // A blocker list scoped to one step, shown at the top of that step so the
 // reason is next to the control that fixes it rather than eight screens down.
 const StepBlockers = ({ blockers }) => {
@@ -234,6 +269,15 @@ export const LessonPreflightModal = ({
   const [repairInstruction, setRepairInstruction] = useState('');
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairMessage, setRepairMessage] = useState('');
+  // THE HONORS VERSION (canonicalCcmrHydration.js): the server's ranked plan of
+  // audited CCMR candidates, the items the teacher set aside, and the
+  // teacher's decision when no audited item passes. The plan is keyed to the
+  // questions it was made for; the decision to the situation it answered.
+  const [ccmrPlan, setCcmrPlan] = useState({ key: null, status: 'idle', hydration: null, error: '' });
+  const [ccmrPlanRun, setCcmrPlanRun] = useState(0);
+  const [ccmrSetAside, setCcmrSetAside] = useState([]);
+  const [ccmrKeepAuthoredFor, setCcmrKeepAuthoredFor] = useState(null);
+  const [previewVersion, setPreviewVersion] = useState('standard');
 
   // Teacher review controls edit canonical Assignment V5 directly. The exact
   // reviewed V5 object is revalidated before it
@@ -378,10 +422,6 @@ export const LessonPreflightModal = ({
 
   const publicationPlan = computedPublicationPlan;
   const posts = Array.isArray(publicationPlan?.plannedPosts) ? publicationPlan.plannedPosts : [];
-  const currentActivity = activities[demoActivityIndex] || null;
-  const questions = Array.isArray(currentActivity?.questions) ? currentActivity.questions : [];
-  const currentQuestion = questions[demoQuestionIndex] || null;
-  const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
 
   const activeClassChoices = useMemo(() => (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived' && entry?.classId), [classes]);
   const selectedClassChoices = useMemo(
@@ -422,15 +462,144 @@ export const LessonPreflightModal = ({
   );
   const honorsSelected = rigorDestinations.honors.length > 0;
 
+  /*
+   * THE HONORS VERSION, PREPARED AND PROVEN HERE — NOT AT CREATE.
+   *
+   * With an Honors class selected, MathMaster asks the audited CCMR bank for
+   * its ranked candidates, keeps for each Practice place the first one this
+   * whole assignment passes Pre-Flight with, and builds the final Honors
+   * assignment (canonicalCcmrHydration.js). That object is what the teacher
+   * previews below and exactly what Create publishes. Editing a question,
+   * adding the Honors extension or changing classes prepares it again.
+   * Setup edits to an existing assignment never change its rigor destination
+   * (updateExistingAssignmentFromReview refuses), so there is nothing to
+   * prepare then.
+   */
+  const honorsVersionNeeded = reviewMode !== 'update' && honorsSelected;
+  const honorsCcmrNeeded = honorsVersionNeeded && !honorsReport.isNarrowCheckpoint;
+  // Uniqueness and capacity are judged per class: the largest Honors class.
+  const honorsClassSize = useMemo(() => {
+    const sizes = selectedClassChoices
+      .filter((entry) => entry.courseLevel === 'honors')
+      .map((entry) => Number(rosterSizesByClassId?.[entry.classId]) || 0)
+      .filter((size) => size > 0);
+    return sizes.length ? Math.max(...sizes) : preflightClassSize;
+  }, [selectedClassChoices, rosterSizesByClassId, preflightClassSize]);
+  // Typing a title must not wait for the Honors version to be re-proven; the
+  // blockers below hold Create until it has caught up with what is on screen.
+  const honorsBaseAssignmentV5 = useDeferredValue(effectiveAssignmentV5);
+  const ccmrRequestKey = useMemo(() => (
+    honorsCcmrNeeded ? `${ccmrSourcingKey(honorsBaseAssignmentV5)}|${ccmrSetAside.join(',')}|${ccmrPlanRun}` : null
+  ), [honorsCcmrNeeded, honorsBaseAssignmentV5, ccmrSetAside, ccmrPlanRun]);
+  useEffect(() => {
+    if (!ccmrRequestKey) return undefined;
+    let active = true;
+    const requested = honorsBaseAssignmentV5;
+    const excludeDocumentIds = ccmrSetAside;
+    setCcmrPlan((current) => (current.key === ccmrRequestKey ? current : { key: ccmrRequestKey, status: 'loading', hydration: null, error: '' }));
+    // A short pause so a burst of edits asks the bank once.
+    const timer = setTimeout(() => {
+      hydrateAssignmentCcmr(requested, { ensurePracticeTarget: true, includeCandidates: true, excludeDocumentIds })
+        .then((hydration) => {
+          if (active) setCcmrPlan({ key: ccmrRequestKey, status: 'ready', hydration, error: '' });
+        })
+        .catch((error) => {
+          if (active) setCcmrPlan({ key: ccmrRequestKey, status: 'error', hydration: null, error: error?.message || 'The audited CCMR bank did not answer.' });
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [ccmrRequestKey]);
+  const honorsSelectionKey = useMemo(() => (honorsCcmrNeeded ? ccmrSelectionKey(honorsBaseAssignmentV5) : null), [honorsCcmrNeeded, honorsBaseAssignmentV5]);
+  const ccmrPlanReady = honorsCcmrNeeded && ccmrPlan.status === 'ready' && ccmrPlan.key === ccmrRequestKey;
+  // Stage 1 — which audited item goes where — re-runs only when something the
+  // checks read changes, never for a retitle (see ccmrSelectionKey).
+  const honorsSelection = useMemo(() => (
+    ccmrPlanReady
+      ? selectHonorsCcmrItems({
+        baseAssignmentV5: honorsBaseAssignmentV5,
+        hydration: ccmrPlan.hydration,
+        honorsEnrichmentQuestion,
+        excludedDocumentIds: ccmrSetAside,
+        classSize: honorsClassSize,
+      })
+      : null
+  ), [ccmrPlanReady, ccmrPlan, honorsSelectionKey, honorsEnrichmentQuestion, ccmrSetAside, honorsClassSize]);
+  const keepAuthoredToken = honorsSelection ? `${ccmrRequestKey}|${honorsSelection.selectionKey}` : null;
+  // Stage 2 — the final Honors assignment, on exactly the reviewed object.
+  const honorsCandidate = useMemo(() => {
+    if (!honorsVersionNeeded) return null;
+    if (honorsCcmrNeeded && !honorsSelection) return null;
+    return composeHonorsCcmrCandidate({
+      baseAssignmentV5: honorsBaseAssignmentV5,
+      selection: honorsCcmrNeeded ? honorsSelection : null,
+      honorsEnrichmentQuestion,
+      keepAuthored: Boolean(keepAuthoredToken) && ccmrKeepAuthoredFor === keepAuthoredToken,
+      classSize: honorsClassSize,
+    });
+  }, [honorsVersionNeeded, honorsCcmrNeeded, honorsSelection, honorsBaseAssignmentV5, honorsEnrichmentQuestion, keepAuthoredToken, ccmrKeepAuthoredFor, honorsClassSize]);
+  const reviewedFingerprint = useMemo(() => (honorsVersionNeeded ? assignmentFingerprint(effectiveAssignmentV5) : null), [honorsVersionNeeded, effectiveAssignmentV5]);
+  const honorsCandidateCurrent = Boolean(honorsCandidate) && honorsCandidate.baseFingerprint === reviewedFingerprint;
+  const honorsCcmrState = useMemo(() => {
+    if (!honorsVersionNeeded) return null;
+    if (honorsCcmrNeeded && ccmrPlan.status === 'error' && ccmrPlan.key === ccmrRequestKey) return { status: 'error', error: ccmrPlan.error };
+    if (!honorsCandidate || !honorsCandidateCurrent) return { status: 'preparing' };
+    return { status: honorsCandidate.status, errors: honorsCandidate.errors };
+  }, [honorsVersionNeeded, honorsCcmrNeeded, ccmrPlan, ccmrRequestKey, honorsCandidate, honorsCandidateCurrent]);
+
+  const honorsCcmrChip = (() => {
+    if (!honorsVersionNeeded) {
+      // A setup edit keeps the questions this assignment already has.
+      return honorsReport.checks.ccmrEnrichment
+        ? { tone: 'done', text: 'Authentic CCMR Practice' }
+        : { tone: 'note', text: 'No audited CCMR in this version' };
+    }
+    switch (honorsCcmrState?.status) {
+      case HONORS_CCMR_STATUS.READY: return { tone: 'done', text: 'Authentic CCMR Practice' };
+      case HONORS_CCMR_STATUS.NOT_REQUIRED: return { tone: 'done', text: 'CCMR not needed (short Practice)' };
+      case HONORS_CCMR_STATUS.KEPT_AUTHORED: return { tone: 'note', text: 'Authored Practice kept for Honors' };
+      case 'error':
+      case HONORS_CCMR_STATUS.NEEDS_DECISION:
+      case HONORS_CCMR_STATUS.INVALID: return { tone: 'attention', text: 'Audited CCMR needs attention' };
+      default: return { tone: 'busy', text: 'Checking audited CCMR' };
+    }
+  })();
+
+  // Readiness judges the Honors version Create will publish, once there is
+  // one: the same report confirmHonorsCandidateForCreate checks again.
+  const readinessHonorsReport = honorsCandidateCurrent ? honorsCandidate.honorsReport : honorsReport;
   const readiness = useMemo(() => summarizePreflightReadiness({
-    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport }),
+    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState }),
     validationErrors,
     bundleIsValid: preflightModel.isValid,
-  }), [draft, classPeriods, honorsSelected, honorsReport, validationErrors, preflightModel.isValid]);
+  }), [draft, classPeriods, honorsSelected, readinessHonorsReport, honorsCcmrState, validationErrors, preflightModel.isValid]);
+
+  // The student preview shows either version, from the same object Create
+  // publishes for it: the reviewed assignment, or the final Honors one.
+  const showingHonorsPreview = previewVersion === 'honors' && Boolean(honorsCandidate);
+  const previewActivities = showingHonorsPreview ? honorsCandidate.model.sections : activities;
+  const currentActivity = previewActivities[demoActivityIndex] || null;
+  const questions = Array.isArray(currentActivity?.questions) ? currentActivity.questions : [];
+  const currentQuestion = questions[demoQuestionIndex] || null;
+  const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
+  const honorsOnlyLabel = (() => {
+    if (!showingHonorsPreview || !currentQuestion) return '';
+    const here = (entry) => entry && entry.sectionIndex === demoActivityIndex && entry.questionIndex === demoQuestionIndex;
+    const sourced = honorsCandidate.sourced.find(here);
+    if (sourced) return `Honors only · Audited CCMR · ${ccmrFrameworkLabel(sourced.framework)} · ${sourced.documentId} — in place of the authored Practice question ${sourced.questionNumber}`;
+    if (here(honorsCandidate.extensionLocation)) return 'Honors only · Honors extension';
+    return '';
+  })();
 
   useEffect(() => {
-    if (demoActivityIndex >= activities.length) setDemoActivityIndex(Math.max(0, activities.length - 1));
-  }, [activities.length, demoActivityIndex]);
+    if (previewVersion === 'honors' && !honorsCandidate) setPreviewVersion('standard');
+  }, [previewVersion, honorsCandidate]);
+
+  useEffect(() => {
+    if (demoActivityIndex >= previewActivities.length) setDemoActivityIndex(Math.max(0, previewActivities.length - 1));
+  }, [previewActivities.length, demoActivityIndex]);
 
   useEffect(() => {
     if (demoQuestionIndex >= questions.length) setDemoQuestionIndex(Math.max(0, questions.length - 1));
@@ -595,7 +764,7 @@ export const LessonPreflightModal = ({
     setHonorsAiMessage(
       candidateReport.checks.ccmrEnrichment
         ? `${sourceLabel} repaired the Honors depth requirements and the assignment passed Preflight again.`
-        : `${sourceLabel} repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.`,
+        : `${sourceLabel} repaired the Honors depth requirements. MathMaster is checking the Honors version again, with its audited CCMR Practice, below.`,
     );
   };
 
@@ -715,13 +884,41 @@ export const LessonPreflightModal = ({
       }
       setHonorsEnrichmentQuestion(localQuestion);
       setHonorsAiMessage([
-        `No-AI MathMaster Honors extension added: ${built.recipe.title.charAt(0).toLowerCase()}${built.recipe.title.slice(1)}, on the lesson's own Multiple Representations board (DOK ${localQuestion.dok}, self-graded, a different version for each student). It passed Pre-Flight. Audited CCMR Practice will still be sourced at publish.`,
+        `No-AI MathMaster Honors extension added: ${built.recipe.title.charAt(0).toLowerCase()}${built.recipe.title.slice(1)}, on the lesson's own Multiple Representations board (DOK ${localQuestion.dok}, self-graded, a different version for each student). It passed Pre-Flight, and MathMaster is checking the whole Honors version again, with its audited CCMR Practice, below.`,
         ...built.notes,
       ].join(' '));
     } catch (error) {
       setHonorsAiMessage(error.message);
     }
   };
+
+  // The Honors version's controls (renderHonorsVersion). Each one changes
+  // what is asked for or decided, and the version is prepared and proven
+  // again from it — nothing here edits a question directly.
+  const previewHonorsQuestion = (sectionIndex, questionIndex) => {
+    setPreviewVersion('honors');
+    setPreviewOpen(true);
+    setDemoActivityIndex(sectionIndex);
+    setDemoQuestionIndex(questionIndex);
+    if (isNarrow) setActiveStep('check');
+    window.requestAnimationFrame?.(() => {
+      document.getElementById('preflight-student-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+  // "Use a different audited item": the server is asked again without it, and
+  // whatever replaces it is validated like the first choice was.
+  const setAuditedItemAside = (documentId) => {
+    if (!documentId) return;
+    setCcmrSetAside((current) => [...new Set([...current, documentId])]);
+  };
+  const restoreSetAsideAuditedItems = () => setCcmrSetAside([]);
+  const prepareHonorsVersionAgain = () => setCcmrPlanRun((run) => run + 1);
+  // Offered only once MathMaster has found that no audited item passes; it is
+  // recorded on the Honors assignment, so the gap is visible, never silent.
+  const keepAuthoredPracticeForHonors = () => {
+    if (keepAuthoredToken) setCcmrKeepAuthoredFor(keepAuthoredToken);
+  };
+  const undoKeepAuthoredPractice = () => setCcmrKeepAuthoredFor(null);
 
   // The same fallback the saved assignment and the runtime use
   // (resolveReviewedSectionModes, getSectionVariantMode). This used to fall
@@ -1077,6 +1274,143 @@ export const LessonPreflightModal = ({
     </section>
   );
 
+  /*
+   * THE HONORS VERSION, AS THE TEACHER SEES IT.
+   *
+   * What Honors classes will get and why: the audited items that replace
+   * Practice (each one previewable and replaceable), the audited items that
+   * were checked and not used — with the actual question and the checks it
+   * failed — and, when no audited item passes, the choice of what to do,
+   * made here instead of discovered at Create.
+   */
+  const renderHonorsVersion = () => {
+    const state = honorsCcmrState?.status || 'preparing';
+    const candidate = honorsCandidateCurrent ? honorsCandidate : null;
+    const sourced = candidate?.sourced || [];
+    const skipped = (candidate?.skipped || []).filter((entry) => !entry.depthOnly);
+    const keptClaims = candidate?.keptAuthoredClaims || [];
+    const box = (tone) => ({ marginTop: 11, padding: '11px 13px', borderRadius: 9, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, overflowWrap: 'anywhere', ...HONORS_TONES[tone] });
+    const buttonRow = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 9 };
+    const button = { minHeight: 44, padding: '8px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900, cursor: 'pointer' };
+    const listStyle = { margin: '8px 0 0', paddingLeft: 18, display: 'grid', gap: 9 };
+    const muted = { color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' };
+    const code = { overflowWrap: 'anywhere', fontSize: 'calc(11.5 * var(--mm-px))' };
+    return (
+      <section aria-label="Honors version" data-honors-version-state={state} style={{ marginTop: 4 }}>
+        {state === 'preparing' && (
+          <div role="status" style={box('busy')}>
+            <strong>Preparing the Honors version…</strong> MathMaster is choosing audited CCMR Practice on this lesson’s TEKS and checking each item with the same checks as the rest of this review. Create waits until it is done.
+          </div>
+        )}
+        {state === 'error' && (
+          <div role="alert" style={box('attention')}>
+            <strong>MathMaster could not prepare the Honors version.</strong> {honorsCcmrState.error} Nothing was changed, and your review is kept.
+            <div style={buttonRow}>
+              <button type="button" onClick={prepareHonorsVersionAgain} style={button}>Try again</button>
+            </div>
+          </div>
+        )}
+        {state === HONORS_CCMR_STATUS.NOT_REQUIRED && (
+          <div role="status" style={box('done')}>
+            <strong>✓ Honors version checked.</strong> {honorsReport.isNarrowCheckpoint ? 'This short checkpoint does' : 'This Practice section is short, so it does'} not need audited CCMR Practice. Honors classes get the questions in the preview{candidate?.extensionLocation ? ', including the Honors extension' : ''}.
+          </div>
+        )}
+        {state === HONORS_CCMR_STATUS.READY && (
+          <div role="status" style={box('done')}>
+            <strong>✓ Honors version checked.</strong>{' '}
+            {sourced.length
+              ? `For Honors classes only, ${sourced.length === 1 ? 'one Practice question is' : `${sourced.length} Practice questions are`} replaced by audited CCMR Fidelity V2.1 ${sourced.length === 1 ? 'item' : 'items'} on the same TEKS. Every question passed MathMaster’s checks in place. Standard classes keep the Practice you wrote.`
+              : 'It already contains audited CCMR Practice that passes MathMaster’s checks.'}
+            {sourced.length > 0 && (
+              <ul style={listStyle}>
+                {sourced.map((entry) => (
+                  <li key={`${entry.sectionIndex}-${entry.questionIndex}-${entry.documentId}`} data-honors-ccmr-item={entry.documentId}>
+                    <strong>Question {entry.questionNumber}</strong> · {ccmrFrameworkLabel(entry.framework)}{entry.teksCodes?.length ? ` · TEKS ${entry.teksCodes.join(', ')}` : ''}
+                    <MathText as="div" style={{ color: 'var(--mm-text)' }}>{auditedExamplePrompt(candidate.assignmentV5.sections[entry.sectionIndex]?.questions?.[entry.questionIndex], entry.prompt)}</MathText>
+                    <div style={muted}>In place of: {entry.replacedPrompt ? <MathText>{entry.replacedPrompt}</MathText> : 'the authored Practice question'} · <code style={code}>{entry.documentId}</code></div>
+                    <div style={buttonRow}>
+                      <button type="button" onClick={() => previewHonorsQuestion(entry.sectionIndex, entry.questionIndex)} style={button}>Preview as a student</button>
+                      <button type="button" onClick={() => setAuditedItemAside(entry.documentId)} style={button}>Use a different audited item</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {(state === HONORS_CCMR_STATUS.NEEDS_DECISION || state === HONORS_CCMR_STATUS.KEPT_AUTHORED) && candidate && (
+          <div role={state === HONORS_CCMR_STATUS.NEEDS_DECISION ? 'alert' : 'status'} style={box(state === HONORS_CCMR_STATUS.NEEDS_DECISION ? 'attention' : 'note')}>
+            <strong>
+              {state === HONORS_CCMR_STATUS.NEEDS_DECISION
+                ? 'No audited CCMR Practice item passed MathMaster’s checks for this Honors version.'
+                : 'Honors classes will get the Practice you wrote for this lesson.'}
+            </strong>
+            {candidate.explanation && <p style={{ margin: '6px 0 0' }}>{candidate.explanation}</p>}
+            <p style={{ margin: '6px 0 0' }}>
+              {state === HONORS_CCMR_STATUS.NEEDS_DECISION
+                ? 'Nothing has been created and your review is kept. Check the bank again, or publish the Honors version with the Practice you wrote. That choice is recorded on the Honors assignment, so the missing CCMR item is visible, never silent; every other Honors requirement still applies.'
+                : 'Recorded on the Honors assignment: no audited CCMR item passed MathMaster’s checks, and the authored Practice was kept by your choice. Every other Honors requirement still applies.'}
+            </p>
+            <div style={buttonRow}>
+              {state === HONORS_CCMR_STATUS.NEEDS_DECISION
+                ? <button type="button" onClick={keepAuthoredPracticeForHonors} style={button}>Keep the authored Practice for Honors</button>
+                : <button type="button" onClick={undoKeepAuthoredPractice} style={button}>Undo</button>}
+              <button type="button" onClick={prepareHonorsVersionAgain} style={button}>Check the audited bank again</button>
+              {ccmrSetAside.length > 0 && (
+                <button type="button" onClick={restoreSetAsideAuditedItems} style={button}>Offer the {ccmrSetAside.length === 1 ? 'set-aside item' : `${ccmrSetAside.length} set-aside items`} again</button>
+              )}
+            </div>
+          </div>
+        )}
+        {state === HONORS_CCMR_STATUS.INVALID && (
+          <div role="alert" style={box('attention')}>
+            <strong>The Honors version does not pass MathMaster’s checks, so it cannot be created yet.</strong>
+            <ul style={listStyle}>{(honorsCcmrState?.errors || []).slice(0, 8).map((message) => <li key={message}>{message}</li>)}</ul>
+            <div style={buttonRow}>
+              <button type="button" onClick={prepareHonorsVersionAgain} style={button}>Prepare it again</button>
+            </div>
+          </div>
+        )}
+        {state === HONORS_CCMR_STATUS.READY && ccmrSetAside.length > 0 && (
+          <div style={{ ...muted, marginTop: 8 }}>
+            {ccmrSetAside.length === 1 ? 'One audited item is' : `${ccmrSetAside.length} audited items are`} set aside at your request.{' '}
+            <button type="button" onClick={restoreSetAsideAuditedItems} style={{ ...button, padding: '4px 12px' }}>Offer again</button>
+          </div>
+        )}
+        {keptClaims.length > 0 && (
+          <div style={box('note')}>
+            {keptClaims.map((entry) => (
+              <div key={`${entry.sectionIndex}-${entry.questionIndex}`}>
+                Question {entry.questionNumber} is written like exam practice, but no audited item on its TEKS passed MathMaster’s checks, so your question stays as written.
+              </div>
+            ))}
+          </div>
+        )}
+        {skipped.length > 0 && (
+          <details data-honors-ccmr-skipped="true" style={{ marginTop: 10, padding: '0 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            <summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
+              {skipped.length === 1 ? 'One audited item was checked and not used' : `${skipped.length} audited items were checked and not used`}
+            </summary>
+            <p style={{ ...muted, margin: '0 0 8px', lineHeight: 1.5 }}>
+              Each one failed MathMaster’s assignment checks where it would have gone, so it never reaches students. {state === HONORS_CCMR_STATUS.READY ? 'MathMaster used the next audited item instead.' : 'The authored question stays in its place.'}
+            </p>
+            <ul style={{ ...listStyle, marginBottom: 12 }}>
+              {skipped.map((entry) => (
+                <li key={`${entry.documentId}-${entry.questionNumber}`} data-honors-ccmr-skipped-item={entry.documentId}>
+                  <strong>Question {entry.questionNumber}</strong> · {ccmrFrameworkLabel(entry.framework)} · <code style={code}>{entry.documentId}</code>
+                  {entry.prompt && <MathText as="div" style={{ color: 'var(--mm-text)' }}>{auditedExamplePrompt(entry.question, entry.prompt)}</MathText>}
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                    {entry.errors.map((message) => <li key={message}>{message}</li>)}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
+    );
+  };
+
   const renderClasses = () => (
     <section aria-label="Classes">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'classes')} />}
@@ -1118,19 +1452,17 @@ export const LessonPreflightModal = ({
         {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 7 }}>{[
           ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
         ].map(([key, label]) => {
-          const present = honorsReport.checks[key];
-          const queuedAtPublish = key === 'ccmrEnrichment' && !present;
+          // CCMR is judged on the Honors version, which is where it lives.
+          const chip = key === 'ccmrEnrichment'
+            ? honorsCcmrChip
+            : { tone: honorsReport.checks[key] ? 'done' : 'attention', text: label };
           return (
-            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? 'var(--mm-success-bg)' : queuedAtPublish ? 'var(--mm-primary-soft)' : 'var(--mm-warning-soft)', color: present ? 'var(--mm-success-text)' : queuedAtPublish ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))' }}>
-              {present ? '✓' : queuedAtPublish ? '↻' : '!'} {queuedAtPublish ? 'Audited CCMR at publish' : label}
+            <div key={key} data-honors-check={key} data-honors-check-tone={chip.tone} style={{ padding: '8px 10px', borderRadius: 8, fontWeight: 800, fontSize: 'calc(12 * var(--mm-px))', ...HONORS_TONES[chip.tone] }}>
+              {HONORS_TONE_MARKS[chip.tone]} {chip.text}
             </div>
           );
         })}</div>}
-        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
-          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55 }}>
-            <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
-          </div>
-        )}
+        {honorsVersionNeeded && renderHonorsVersion()}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && (
           <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
             {honorsReport.checks.coreTeks && (
@@ -1456,7 +1788,7 @@ export const LessonPreflightModal = ({
     <>
       <label style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, marginBottom: 4 }}>Section</label>
       <select value={demoActivityIndex} onChange={(event) => { setDemoActivityIndex(Number(event.target.value)); setDemoQuestionIndex(0); }} style={{ ...inputStyle, marginBottom: 14 }}>
-        {activities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
+        {previewActivities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
       </select>
       {currentPolicy && (
         <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid var(--mm-border)', marginBottom: 14, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.55 }}>
@@ -1508,8 +1840,13 @@ export const LessonPreflightModal = ({
             </div>
             <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
           </div>
+          {honorsOnlyLabel && (
+            <div data-preview-honors-only="true" style={{ marginBottom: 12, padding: '7px 10px', borderRadius: 8, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, lineHeight: 1.45, overflowWrap: 'anywhere', ...HONORS_TONES.note }}>
+              {honorsOnlyLabel}
+            </div>
+          )}
           <MathMasterToolWrapper
-            key={`${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
+            key={`${previewVersion}-${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
             activityRole={currentActivity.role}
             question={currentQuestion}
             student={{ id: 'teacher_preview_user', supportProfile: { accommodations: demoCalculator ? ['calculator'] : [], modifications: [], translationLanguage: demoTranslation } }}
@@ -1840,8 +2177,31 @@ export const LessonPreflightModal = ({
           )}
         </section>
       )}
-      <fieldset style={{ ...fieldsetStyle, marginTop: 0, padding: 0 }}>
+      <fieldset id="preflight-student-preview" style={{ ...fieldsetStyle, marginTop: 0, padding: 0, scrollMarginTop: 8 }}>
         <legend style={legendStyle}>See it as a student</legend>
+        {honorsCandidate && (
+          // Two versions are created from this review when Honors classes are
+          // selected; each previews the exact object Create publishes for it.
+          <div role="group" aria-label="Which version to preview" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '10px 15px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)' }}>
+            {[
+              ['standard', rigorDestinations.standard.length ? 'Standard version' : 'Without Honors changes'],
+              ['honors', 'Honors version'],
+            ].map(([version, label]) => (
+              <button
+                key={version}
+                type="button"
+                aria-pressed={previewVersion === version}
+                onClick={() => setPreviewVersion(version)}
+                style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, fontWeight: 800, cursor: 'pointer', border: `1px solid ${previewVersion === version ? 'var(--mm-primary)' : 'var(--mm-border)'}`, background: previewVersion === version ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: previewVersion === version ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}
+              >
+                {label}
+              </button>
+            ))}
+            <span style={{ alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.4 }}>
+              {showingHonorsPreview ? 'What Honors classes receive, including audited CCMR Practice and any Honors extension.' : 'What Standard classes receive.'}
+            </span>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setPreviewOpen((current) => !current)}
@@ -2024,6 +2384,9 @@ export const LessonPreflightModal = ({
                     publicationPlan,
                     assignmentV5: effectiveAssignmentV5,
                     honorsReport,
+                    // The Honors version this review prepared, proved and
+                    // previewed; Create publishes it or nothing.
+                    honorsCandidate: honorsCandidateCurrent ? honorsCandidate : null,
                   });
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
@@ -2059,6 +2422,7 @@ export const LessonPreflightModal = ({
             onPreviewReview={() => {
               const reviewIndex = activities.findIndex((activity) => activity.role === 'review');
               setCyclePreviewOpen(false);
+              setPreviewVersion('standard');
               setPreviewOpen(true);
               if (reviewIndex >= 0) {
                 setDemoActivityIndex(reviewIndex);

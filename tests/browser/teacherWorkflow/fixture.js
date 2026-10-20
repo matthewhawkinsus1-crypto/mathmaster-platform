@@ -264,6 +264,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     { classId: 'c-alg1-p1', name: 'Algebra I — Period 1', period: 'Period 1', course: 'algebra1' },
     { classId: 'c-alg1-p5', name: 'Algebra I — Period 5', period: 'Period 5', course: 'algebra1' },
   ].map((entry) => ({ ...entry, teacherOfRecord: TEACHER_EMAIL, status: 'active', courseLevel: 'standard' }));
+  // `?honors=1`: Period 5 is an Honors class, so a review for Periods 1 and 5
+  // has a Standard and an Honors destination (honorsCcmrJourneys.mjs).
+  if (params?.get?.('honors') === '1') classes.find((entry) => entry.classId === 'c-alg1-p5').courseLevel = 'honors';
   classes.forEach(({ classId, ...data }) => { fixture[`classes/${classId}`] = data; });
 
   // ---------------------------------------------------------------- assignments

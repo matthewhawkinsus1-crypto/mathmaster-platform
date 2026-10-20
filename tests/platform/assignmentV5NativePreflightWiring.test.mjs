@@ -45,8 +45,11 @@ test('final Preflight callback returns the exact reviewed V5 object and canonica
 
 test('App publishes from reviewed V5 sections instead of reparsing original pasted questions', () => {
   assert.match(app, /flattenV5Sections\(reviewedV5\)/);
-  assert.match(app, /rebuildV5SectionsFromQuestions\(reviewedV5, variantQuestions\)/);
-  assert.match(app, /handleCreateAssignment\(draft, assignmentV5\)/);
+  // Each destination's sections are rebuilt from the canonical V5 it was
+  // reviewed as: the reviewed lesson, or the Honors version Pre-Flight proved.
+  assert.match(app, /sections: rebuildV5SectionsFromQuestions\(sectionsSource, variantQuestions\)/);
+  assert.match(app, /questions: parsedQuestions, sectionsSource: reviewedV5/);
+  assert.match(app, /handleCreateAssignment\(draft, assignmentV5(?:, \{ honorsCandidate \})?\)/);
   const publishStart = app.indexOf('const handleCreateAssignment');
   const publishEnd = app.indexOf('const updateExistingAssignmentFromReview', publishStart);
   const publishBlock = app.slice(publishStart, publishEnd);

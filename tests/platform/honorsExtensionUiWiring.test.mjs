@@ -44,7 +44,7 @@ test('publish uses the extension the teacher reviewed, never regenerates per des
   // (G2: the publish handler moved with the teacher's screen; its import is there.)
   assert.match(read('src/app/teacher/TeacherWorkspace.jsx'), /import\s*\{[^}]*certifyHonorsExtensionQuestion[^}]*\}\s*from\s*'\.\.\/\.\.\/platform\/rigor\/honorsExtensionRecipes\.js'/);
   assert.doesNotMatch(app, /buildHonorsEnrichmentQuestion/);
-  const split = region(app, 'const destinationVariants = destinationGroups.map', 'const createdAssignments = []', 'honors destination split');
+  const split = region(app, 'const destinationVariants = destinationGroups.map', 'const plannedWrites', 'honors destination split');
   assert.doesNotMatch(split, /course:\s*destination\.course/, 'the extension is never rebuilt from a destination class\'s course');
   assert.match(split, /certifyHonorsExtensionQuestion\(enrichmentQuestion\)/);
 });
