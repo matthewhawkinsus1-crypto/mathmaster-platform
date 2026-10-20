@@ -1088,6 +1088,25 @@
     overscroll-behavior: contain;
   }
 
+  /* Inside a capped box every pixel is the line's: at 200% text on its side
+     the cap is 53px and "Draft saved." (46px under an 8px margin) was cut
+     by 1px. */
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > :first-child {
+    margin-top: 4px !important;
+  }
+
+  /* THE TASK GIVES WAY BEFORE THE ACTION BAR. In the question's column only
+     the work area shrinks, and at 200% text on a small phone (320×568,
+     360×640) it is already 16–39px: any height the lines under the question
+     took then came out of the action bar, which the question's frame clips —
+     every button missed at 360×640 with the notice. Once the work area is
+     gone the task panel shrinks instead (it scrolls, and Minimize folds it),
+     down to one row. */
+  .mathmaster-assignment-screen .mathmaster-question-container.mode-portrait > .question-prompt-panel {
+    flex-shrink: 1;
+    min-height: 44px;
+  }
+
   .mathmaster-assignment-screen .mathmaster-question-engine,
   .mathmaster-assignment-screen .mathmaster-question-container {
     width: 100% !important;

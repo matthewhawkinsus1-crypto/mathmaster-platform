@@ -13,7 +13,8 @@
 //   - on a phone, upright and on its side, the stage is a column: the question
 //     takes what the lines leave (and still has a definite height, so its
 //     columns scroll), and the lines never take more than 30% of it — at 200%
-//     text the notice alone once cut the question's action bar in half.
+//     text the notice alone once cut the question's action bar in half;
+//   - upright, the task panel gives way before the action bar does (review B1).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -58,5 +59,18 @@ for (const [layout, media] of PHONE_LAYOUTS) {
     const status = rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-stage-status');
     assert.match(status, /max-height: 30%;/);
     assert.match(status, /overflow-y: auto;/);
+    // Inside the cap the first line's margin is 4px, not 8px: at 200% text
+    // on its side the cap is 53px and "Draft saved." is 46px (review, S1).
+    assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage-status > :first-child'), /margin-top: 4px !important;/);
   });
 }
+
+// Upright, once the work area is gone the task panel gives way before the
+// action bar does (review, B1): at 200% text on a 360×640 phone the lines
+// under the question otherwise cut the bar until no button could be pressed.
+test('upright: the task panel shrinks to one row before the action bar is cut', () => {
+  const [, media] = PHONE_LAYOUTS[0];
+  const panel = rule(media, '.mathmaster-assignment-screen .mathmaster-question-container.mode-portrait > .question-prompt-panel');
+  assert.match(panel, /flex-shrink: 1;/);
+  assert.match(panel, /min-height: 44px;/);
+});

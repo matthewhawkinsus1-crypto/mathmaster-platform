@@ -737,6 +737,12 @@
     overscroll-behavior: contain;
   }
 
+  /* At 200% text the cap here is 53px, and "Draft saved." under its 8px
+     margin was cut by 1px (App.css, the same rule upright). */
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > :first-child {
+    margin-top: 4px !important;
+  }
+
   /* THE QUESTION IS AS TALL AS ITS STAGE, SO ITS COLUMNS SCROLL.
      The question engine sits between the stage and this container. Left out
      of the rule, it grew to its content and took the container with it: a

@@ -10,9 +10,10 @@
 // notice — sat below the stage's box: at 390×844 "Draft saved." was drawn at
 // 851–874, and no sighted student ever saw it.
 //
-// For every phone layout — upright 390×844, on its side 844×390, 320px
-// reflow, 200% browser text, and the WCAG 1.4.12 text-spacing override — and a
-// Chromebook for reference:
+// For every phone layout — upright 390×844, on its side 844×390 and 664×390,
+// 320px reflow, 200% browser text (at 390×844, 375×667, 360×640, 320×568 and
+// 844×390), and the WCAG 1.4.12 text-spacing override — and a Chromebook for
+// reference:
 //
 //   L  after the student types, the save line is inside the screen, inside
 //      every box that clips it, and nothing (the action bar, a toast) is drawn
@@ -20,7 +21,14 @@
 //   N  with a draft the backup refused (planted the way
 //      draftSaveNoticeReloadJourneys.mjs does), the problem notice is the same;
 //   B  and upright, the question keeps its whole action bar beside either: at
-//      200% text the notice once took the question's room and cut it in half.
+//      200% text the notice once took the question's room and cut it in half,
+//      and on a 320×568 or 360×640 phone even "Draft saved." or the notice
+//      left no button of it reachable (W7-8 review, B1).
+//
+// At 200% text the lines under the question may be taller than the 30% of
+// the stage they get; there the notice may scroll in place with its start in
+// view: two lines upright, one on its side, where the whole stage is 177px
+// and a second line would leave the question nothing (W7-8 review, S1).
 //
 // PHONE_SAVE_LINE_SHOTS=<dir> also saves a screenshot of each. Exit code 1 on
 // any failure.
@@ -43,6 +51,11 @@ const SETTINGS = [
   { id: 'phone on its side 844×390', width: 844, height: 390, mobile: true },
   { id: 'reflow 320×640', width: 320, height: 640, mobile: true },
   { id: 'phone 390×844 at 200% text', width: 390, height: 844, mobile: true, textScale: 2 },
+  { id: 'phone 375×667 at 200% text', width: 375, height: 667, mobile: true, textScale: 2 },
+  { id: 'phone 360×640 at 200% text', width: 360, height: 640, mobile: true, textScale: 2 },
+  { id: 'phone 320×568 at 200% text', width: 320, height: 568, mobile: true, textScale: 2 },
+  { id: 'phone on its side 844×390 at 200% text', width: 844, height: 390, mobile: true, textScale: 2, minLines: 1 },
+  { id: 'phone on its side 664×390', width: 664, height: 390, mobile: true },
   { id: 'phone 390×844 with text spacing', width: 390, height: 844, mobile: true, spacing: true },
   { id: 'Chromebook 1366×768', width: 1366, height: 768 },
 ];
@@ -67,9 +80,13 @@ const check = (ok, label, detail = '') => {
 // scrolls it (its visible part), and what is drawn on top of that part. A
 // Chromebook page scrolls, so there the element is first brought into view,
 // as the student would.
-const SEEN = (selector) => {
+const SEEN = ([selector, minLines = 2]) => {
   const element = document.querySelector(selector);
   if (!element) return { cutBy: ['not on the page'], covered: [], full: false, startSeen: false };
+  const lineHeight = (node) => {
+    const style = getComputedStyle(node);
+    return parseFloat(style.lineHeight) || 1.2 * parseFloat(style.fontSize);
+  };
   const name = (node) => `${node.tagName.toLowerCase()}.${String(node.className).split(' ')[0]}`;
   // The rectangle of `node` left after the screen and every ancestor whose
   // overflow is not visible; `cutBy` collects those that took something.
@@ -78,7 +95,7 @@ const SEEN = (selector) => {
     let part = { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
     const clip = (box, by) => {
       const next = { top: Math.max(part.top, box.top), bottom: Math.min(part.bottom, box.bottom), left: Math.max(part.left, box.left), right: Math.min(part.right, box.right) };
-      if (cutBy && (next.top > part.top + 1 || next.bottom < part.bottom - 1 || next.left > part.left + 1 || next.right < part.right - 1)) cutBy.push(by);
+      if (cutBy && (next.top > part.top + 0.5 || next.bottom < part.bottom - 0.5 || next.left > part.left + 0.5 || next.right < part.right - 0.5)) cutBy.push(by);
       part = next;
     };
     for (let parent = node.parentElement; parent && parent !== document.documentElement; parent = parent.parentElement) {
@@ -118,8 +135,8 @@ const SEEN = (selector) => {
     cutBy,
     covered: [...new Set(covered)],
     full: cutBy.length === 0 && rect.height >= 1,
-    // Its start is on screen, uncut, with at least two lines of it.
-    startSeen: part.top <= rect.top + 1 && visibleHeight >= Math.min(rect.height, 2 * parseFloat(getComputedStyle(element).lineHeight || '20') || 40),
+    // Its start is on screen, uncut, with at least `minLines` lines of it.
+    startSeen: part.top <= rect.top + 1 && visibleHeight >= Math.min(rect.height, minLines * lineHeight(element) - 2),
     // Cut only by the lines' own scrolling area under the question.
     onlyByStatus: cutBy.length > 0 && cutBy.every((by) => by.startsWith('div.mathmaster-question-stage-status')),
     text: element.textContent.trim().slice(0, 60),
@@ -161,7 +178,7 @@ const seen = async (page, selector, setting) => {
   // The Chromebook page scrolls; a phone's assignment screen does not.
   if (!setting.mobile) await page.locator(selector).first().scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
-  return page.evaluate(SEEN, selector);
+  return page.evaluate(SEEN, [selector, setting.minLines]);
 };
 // Whole and uncovered. At 200% text the lines under the question may be
 // taller than the 30% of the stage they are given; there they scroll in place,
