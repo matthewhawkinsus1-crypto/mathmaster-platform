@@ -715,6 +715,26 @@
     border-radius: 0 !important;
     overflow: hidden !important;
     overscroll-behavior: contain;
+    /* The question takes what the save line leaves, and the line never more
+       than 30% of the stage: the lines after the question were clipped below
+       it, as upright (App.css, "THE QUESTION TAKES WHAT THE SAVE LINE
+       LEAVES"). */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > * {
+    flex: 0 0 auto;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine {
+    flex: 1 1 0;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-stage-status {
+    max-height: 30%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /* THE QUESTION IS AS TALL AS ITS STAGE, SO ITS COLUMNS SCROLL.

@@ -54,7 +54,7 @@ const DRIVERS = [
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
-    'teacherWorkflow/draftSaveNoticeReloadJourneys',
+    'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
   ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],

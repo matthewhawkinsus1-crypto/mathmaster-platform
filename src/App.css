@@ -1054,6 +1054,35 @@
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
+    /* THE QUESTION TAKES WHAT THE SAVE LINE LEAVES.
+       The stage clips, and the question was as tall as the stage, so
+       everything after it — "Draft saved.", "Not saved · this device could
+       not store your last change", the draft-save problem notice — sat below
+       the stage's box and no student on a phone ever saw it (851–874 on an
+       844px screen). As a column, the lines keep their own height under the
+       question (and under its action bar, which is the question's last row
+       here, not fixed), and the question fills the rest, still a definite
+       height, so its columns scroll as before. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > * {
+    flex: 0 0 auto;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine {
+    flex: 1 1 0;
+  }
+
+  /* ...BUT NEVER MORE THAN A THIRD OF IT. At 200% text the problem notice
+     alone is 296px: taken whole, it left the question no work area and cut
+     its action bar in half. Past 30% of the stage the lines scroll in place,
+     their first line in view. */
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-stage-status {
+    max-height: 30%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .mathmaster-assignment-screen .mathmaster-question-engine,
