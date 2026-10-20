@@ -46,13 +46,20 @@ At 200% text with the problem notice (after): [phone-save-line-after-notice-200p
    (max-height: 500px)`) — the same three rules in each:
    - the stage keeps `overflow: hidden !important` and becomes a column (`display: flex; flex-direction: column`);
    - its children keep their own height (`flex: 0 0 auto`), and the question takes what is left
-     (`> .mathmaster-question-engine { flex: 1 1 0 }`). The engine and container keep `height: 100%;
+     (`> .mathmaster-question-engine { flex: 1 1 auto }`: from its own `height: 100%` of the stage, shrunk by the
+     lines' height). The engine and container keep `height: 100%;
      max-height: 100%; min-height: 0`: a flexed item in a definite-height column is itself definite, so the
      question is still exactly as tall as the room it has and its columns scroll as before ("THE QUESTION IS AS
      TALL AS ITS STAGE, SO ITS COLUMNS SCROLL" holds — `stagedQuestion`, `planePhoneReach`,
      `phoneToolPanelReach` below);
    - the status element never takes more than **30% of the stage** and scrolls in place past it
      (`max-height: 30%; overflow-y: auto; overscroll-behavior: contain`).
+
+**Why `auto`, not `0`.** The first version used `flex: 1 1 0`. The gate caught it: `assignmentGraphingCalculator`
+renders the stage without the assignment shell around it, so the stage has no set height there, and a basis of 0
+collapsed the question to nothing on its phone pass (a click timed out on an element outside the viewport). With
+`auto` an unsized stage lays out exactly as before, and a sized one (the real App) the same as with `0`. Every
+browser run in the gate table is on the final CSS.
 
 **Where the line sits, and the action bar.** On a portrait phone the action bar (`.portrait-action-bar`) is not
 fixed: it is the last row of the question's own flex column (`position: relative`, `flex: 0 0 auto`), at the
