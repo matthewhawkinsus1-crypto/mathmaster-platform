@@ -83,8 +83,8 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
             <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800 }}><span aria-hidden="true">{result.label} =</span><span style={SR_ONLY_STYLE}>{spokenOperation(result.label)} equals</span></span>
             <MatrixGrid showName={false} rows={result.value.map((row) => row.map(format))} ariaLabel={`Calculator result ${spokenOperation(result.label)}`} fontSize={18} />
             <div role="group" aria-label="Show the result as" style={{ display: 'flex', gap: 6 }}>
-              <button type="button" aria-pressed={view === 'fraction'} onClick={() => setView('fraction')} style={{ ...choiceStyle(view === 'fraction'), minHeight: 36, padding: '4px 10px' }}>▸Frac</button>
-              <button type="button" aria-pressed={view === 'decimal'} onClick={() => setView('decimal')} style={{ ...choiceStyle(view === 'decimal'), minHeight: 36, padding: '4px 10px' }}>▸Dec</button>
+              <button type="button" aria-pressed={view === 'fraction'} onClick={() => setView('fraction')} style={{ ...choiceStyle(view === 'fraction'), minHeight: 44, minWidth: 44, padding: '4px 10px' }}>▸Frac</button>
+              <button type="button" aria-pressed={view === 'decimal'} onClick={() => setView('decimal')} style={{ ...choiceStyle(view === 'decimal'), minHeight: 44, minWidth: 44, padding: '4px 10px' }}>▸Dec</button>
             </div>
           </div>
         ) : null}

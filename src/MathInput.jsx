@@ -9,6 +9,7 @@ import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.j
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
+import { useMathFieldName } from './platform/math/mathFieldName.js';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -348,6 +349,11 @@ export default function MathInput({
   // edit the field the student had just left.
   useEffect(() => bindMathFieldFocusHandoff(mfRef.current), []);
 
+  // A screen reader lands in MathLive's keyboard sink, which MathLive leaves
+  // unnamed: the sink gets the host's name too (mathFieldName.js, A11Y-3).
+  const fieldName = ariaLabel || placeholder || 'Math answer';
+  useMathFieldName(mfRef, fieldName);
+
   useEffect(() => {
     const mathField = mfRef.current;
     if (!mathField) return undefined;
@@ -595,7 +601,7 @@ export default function MathInput({
         // A field with its own Enter action says so, so the question-level
         // Enter routing (QuestionEngine) never takes the key from it.
         data-mm-enter-owner={onSubmit ? 'field' : undefined}
-        aria-label={ariaLabel || placeholder || 'Math answer'}
+        aria-label={fieldName}
         math-virtual-keyboard-policy="manual"
         inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
         onFocus={() => {

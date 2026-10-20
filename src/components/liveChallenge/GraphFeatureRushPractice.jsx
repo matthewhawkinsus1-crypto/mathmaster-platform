@@ -3,6 +3,7 @@ import GraphFeatureRushRound from './GraphFeatureRushRound.jsx';
 import { applyRushAttempts, rushRoundState } from '../../../functions/shared/graphFeatureRush.mjs';
 import { correctCountStrategy } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { previewGraphFeatureRush } from '../../platform/liveChallenge/liveChallengeService.js';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 /*
  * "TRY IT YOURSELF FIRST" FOR A RUSH.
@@ -57,7 +58,10 @@ export default function GraphFeatureRushPractice({ config, roundSeconds = 60, on
     setError('');
     previewGraphFeatureRush({ graphFeatureRush: JSON.parse(configKey), count: PRACTICE_GRAPHS })
       .then((reply) => { if (alive) setQuestions(Array.isArray(reply?.questions) ? reply.questions : []); })
-      .catch((previewError) => { if (alive) setError(previewError?.message || 'Practice graphs could not be loaded.'); });
+      .catch((previewError) => {
+        console.error('Practice graphs could not be loaded:', previewError);
+        if (alive) setError(studentErrorSentence(previewError, 'Practice graphs could not be loaded.'));
+      });
     return () => { alive = false; };
   }, [configKey, play]);
 

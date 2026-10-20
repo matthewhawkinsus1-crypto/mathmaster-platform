@@ -14,7 +14,7 @@ import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
-import dataModelingGrader from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
+import dataModelingGrader, { dataModelingMissReasons } from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
 import {
   FIT_PREDICTION_MODELS,
   FORCED_FIT_MODELS,
@@ -352,7 +352,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // not ask (B-25).
   const check = () => {
     const result = gradeToolCheck(dataModelingGrader, questionData, work);
-    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, parts: result.parts });
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, parts: result.parts, missReasons: dataModelingMissReasons(questionData, work) });
   };
 
   // WIDE WHEN IT SAVES A ROW (platform quirks audit). The full lab is six
@@ -601,9 +601,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
                 const missed = parts.filter((part) => !part.isCorrect).map((part) => part.id);
                 const label = { fit:'the fitted function', correlation:'the correlation coefficient', correlationInterpretation:'the direction/strength interpretation', association:'the association description', modelChoice:'the model family', prediction:'the requested prediction' };
+                // Which half of a part held, where the grader can tell (wave 7).
+                const reasons = feedback.metadata?.missReasons || {};
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
-                  : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
+                  : `Still to fix: ${missed.map((part) => reasons[part] || label[part] || part).join('; ')}. Everything else is right.`;
                 return <ResultPill ok={feedback.isCorrect} message={text}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>;
               })()}
               <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>

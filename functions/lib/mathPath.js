@@ -702,11 +702,10 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'nonnegativeRadicalExpression') {
       return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
     }
-    // A list or pair field never reads `1,250` as one number (its kind is
-    // stored with the private grading, fieldFormatOf).
-    return equivalence.sameValue(actual, expected, tolerance, {
-      thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(field),
-    });
+    // A list or pair field never reads `1,250` as one number, and a number
+    // box compares an exact constant key by value (its kind is stored with
+    // the private grading, fieldFormatOf; answerEquivalence.fieldValueOptions).
+    return equivalence.sameValue(actual, expected, tolerance, equivalence.fieldValueOptions(field));
   });
 }
 

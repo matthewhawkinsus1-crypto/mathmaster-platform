@@ -1091,13 +1091,16 @@ test('My Math Path still reads the work the lab sends (the keys did not change)'
 /* ------------------------- component wiring ------------------------- */
 
 test('the lab\'s Check grades only through the shared grader and submits no answer key', () => {
-  assert.match(COMPONENT, /import dataModelingGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/dataModelingLab\.mjs';/);
+  assert.match(COMPONENT, /import dataModelingGrader, \{ dataModelingMissReasons \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/dataModelingLab\.mjs';/);
   assert.match(COMPONENT, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
   const checkStart = COMPONENT.indexOf('const check = () => {');
   assert.notEqual(checkStart, -1);
   const check = COMPONENT.slice(checkStart, COMPONENT.indexOf('\n  };', checkStart));
   assert.match(check, /const result = gradeToolCheck\(dataModelingGrader, questionData, work\);/);
-  assert.match(check, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode, parts: result\.parts \}\);/);
+  // The screen's reasons ride as metadata beside the parts; the engine
+  // records only the parts (toolSubmissionParts), so they never reach an
+  // attempt (wave 7, tests/tools/feedbackReasons2).
+  assert.match(check, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode, parts: result\.parts, missReasons: dataModelingMissReasons\(questionData, work\) \}\);/);
   // No verdict of its own and no key material in the submission.
   assert.doesNotMatch(check, /expected|regression|descriptor|Tolerance|score ===|results\./);
   for (const gone of [/const expectedPrediction\b/, /const expectedModelId\b/, /const requiredParts\b/, /fitCoefficientTolerance/, /correlationDescriptor/]) {

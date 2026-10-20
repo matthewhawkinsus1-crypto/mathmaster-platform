@@ -259,7 +259,7 @@ test('in Spanish, the reader\'s own words are Spanish', () => {
 
 test('QuestionEngine says the whole question from the work bar and hands the tray the parts', () => {
   const engine = code('src/QuestionEngine.jsx');
-  assert.match(engine, /import \{ questionReadingParts, questionReadingText \} from '\.\/platform\/language\/questionReading\.js';/);
+  assert.match(engine, /import \{[^}]*\bquestionReadingParts\b[^}]*\bquestionReadingText\b[^}]*\} from '\.\/platform\/language\/questionReading\.js';/);
   const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
   assert.match(reading, /questionReadingParts\(processedQuestion, \{/);
   assert.match(reading, /backUp: scaffoldRequired \? scaffold : null,/, 'the back-up question while it blocks the work');

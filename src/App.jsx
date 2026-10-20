@@ -29,8 +29,8 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
-import { SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
+import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -44,6 +44,7 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
+import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 import {
   classDolFieldPatch,
   controlsRequestKey,
@@ -868,8 +869,14 @@ function App() {
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
   const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
   useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
-  // A shared Chromebook: the next student never inherits this one's notice.
-  useEffect(() => () => { clearDraftSaveProblems(); }, [user?.id]);
+  // A shared Chromebook: the next student never inherits this one's notice,
+  // and a reload keeps this student's (accountChangeClearsDraftProblems).
+  const draftHealthAccountRef = useRef(null);
+  useEffect(() => {
+    const account = user?.id || null;
+    if (accountChangeClearsDraftProblems(draftHealthAccountRef.current, account)) clearDraftSaveProblems();
+    draftHealthAccountRef.current = account;
+  }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
@@ -3571,7 +3578,10 @@ function App() {
       } catch (error) {
         if (!cancelled) {
           setUser(null);
-          setSessionHydrationError(error.message || 'MathMaster could not load your account.');
+          // The error itself: SessionGate turns it into words for the person
+          // (studentErrorText.js) and the technical text stays here.
+          console.error('Could not load the signed-in account:', error);
+          setSessionHydrationError(error || new Error('MathMaster could not load your account.'));
         }
       } finally {
         if (!cancelled) setSessionHydrating(false);
@@ -7483,10 +7493,13 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded, so the step was not taken: the solver keeps it
+      // on the board unapplied and says so in its own alert, inside Work View
+      // where the student is (STEP_NOT_QUEUED). A toast here sat under Work
+      // View, and `null` let the solver apply the step as if it were saved.
       console.error('Could not durably queue this algebra step:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Step not queued', 'Your step is still in Work View. Keep this tab open and submit it again.');
-      return null;
+      return STEP_NOT_QUEUED;
     }
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
@@ -7580,10 +7593,11 @@ function App() {
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
     } catch (error) {
+      // Nothing was recorded: the question and its work stay, and the engine
+      // says so under its own button (REPLACEMENT_NOT_QUEUED). No toast.
       console.error('Could not durably queue a replacement question:', error);
       setStudentPersistenceStatus('volatile');
-      toastWarning('Replacement not queued', 'Keep this tab open and request the new question again.');
-      return;
+      return REPLACEMENT_NOT_QUEUED;
     }
     setTracker(updatedTracker);
     if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
@@ -10814,7 +10828,7 @@ function App() {
                 state's (a student's extra time lives there). */}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">
-                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} />
+                <SectionTimeLeft label={EXIT_TICKET} labelInSentence={exitTicketInSentence} endsAt={dolState.endsAt} hideCountdown={supportPresentation.hideCountdowns} extraTimeFrom={extraTimeFrom(dolState)} />
               </div>
             )}
           </nav>
@@ -11035,61 +11049,67 @@ function App() {
                 {studentSaveLineAnnouncement}
               </span>
             )}
-            {!preview && studentSaveLineShown && (
-              <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
-                {/* A draft is "Draft saved"; only an answer the student sent
-                    is ever "Answer recorded", and only once the server has it
-                    (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
-                {studentSaveLine
-                  ? studentSaveLine
-                          : studentPersistenceStatus === 'rejected'
-                            ? 'This change was not accepted because the assignment is no longer available.'
-                            // The device queue could not be written: the last
-                            // change is on screen only (saveStatusModel.js).
-                            // Never "saved" — nothing was (RUN-3).
-                            : studentPersistenceStatus === 'volatile'
-                              ? 'Not saved · this device could not store your last change. Keep this tab open and try it again.'
-                              : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
-              </p>
-            )}
-            {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
-                Storage full, a record the backup refuses, or a backup at its
-                caps: the student is told where the work is and what to do,
-                in one plain sentence, until it is saved again. */}
-            {!preview && studentDraftSaveProblem && (
-              <p role="alert" data-draft-save-problem={studentDraftSaveProblem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
-                {studentDraftSaveProblem.text}
-              </p>
-            )}
-            {!preview && studentReportingError && (
-              <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
-                Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
-              </p>
-            )}
-            {/* "When time ends" is a promise only an open window can keep. */}
-            {!preview && runtimeActivityRole === 'dol' && currentDolCopy?.openNotice && (
-              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
-            )}
-            {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
-              <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
-            )}
-            {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
-                Never "submitted" for a response that was not complete — the
-                status comes from the server's own finalization receipt, and
-                only once there is one: receipts are read when the assignment
-                opens, and a question never worked on gets none, so a
-                "checking" line could stand forever. A DOL that ended today
-                says who closed it (describeDolClose); on another day, and for
-                a Warm-Up, the receipt reads as before. */}
-            {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
-              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
-                {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
-                  ? 'Time ended. Your latest completed response was submitted automatically.'
-                  : currentCheckpointOutcome === 'explicitly-submitted'
-                    ? 'Time ended. Your submitted work has been saved.'
-                    : 'Time ended. No completed response was available to submit.')}
-              </p>
-            )}
+            {/* THE LINES UNDER THE QUESTION, TOGETHER. On a phone the stage
+                is a column and the question takes what these leave: they
+                were clipped below it (App.css, "THE QUESTION TAKES WHAT THE
+                SAVE LINE LEAVES"). Unstyled elsewhere. */}
+            <div className="mathmaster-question-stage-status">
+              {!preview && studentSaveLineShown && (
+                <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                  {/* A draft is "Draft saved"; only an answer the student sent
+                      is ever "Answer recorded", and only once the server has it
+                      (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}
+                  {studentSaveLine
+                    ? studentSaveLine
+                            : studentPersistenceStatus === 'rejected'
+                              ? 'This change was not accepted because the assignment is no longer available.'
+                              // The device queue could not be written: the last
+                              // change is on screen only (saveStatusModel.js).
+                              // Never "saved" — nothing was (RUN-3).
+                              : studentPersistenceStatus === 'volatile'
+                                ? 'Not saved · this device could not store your last change. Keep this tab open and try it again.'
+                                : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+                </p>
+              )}
+              {/* UNFINISHED WORK THAT IS NOT BEING SAVED IS NEVER SILENT.
+                  Storage full, a record the backup refuses, or a backup at its
+                  caps: the student is told where the work is and what to do,
+                  in one plain sentence, until it is saved again. */}
+              {!preview && studentDraftSaveProblem && (
+                <p role="alert" data-draft-save-problem={studentDraftSaveProblem.kind} style={{ margin: '8px 4px 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))' }}>
+                  {studentDraftSaveProblem.text}
+                </p>
+              )}
+              {!preview && studentReportingError && (
+                <p role="status" style={{ margin: '2px 4px 0', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}>
+                  Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
+                </p>
+              )}
+              {/* "When time ends" is a promise only an open window can keep. */}
+              {!preview && runtimeActivityRole === 'dol' && currentDolCopy?.openNotice && (
+                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
+              )}
+              {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
+                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
+              )}
+              {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
+                  Never "submitted" for a response that was not complete — the
+                  status comes from the server's own finalization receipt, and
+                  only once there is one: receipts are read when the assignment
+                  opens, and a question never worked on gets none, so a
+                  "checking" line could stand forever. A DOL that ended today
+                  says who closed it (describeDolClose); on another day, and for
+                  a Warm-Up, the receipt reads as before. */}
+              {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
+                <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                  {currentDolCopy?.closeReceipt || (currentCheckpointOutcome === 'auto-submitted'
+                    ? 'Time ended. Your latest completed response was submitted automatically.'
+                    : currentCheckpointOutcome === 'explicitly-submitted'
+                      ? 'Time ended. Your submitted work has been saved.'
+                      : 'Time ended. No completed response was available to submit.')}
+                </p>
+              )}
+            </div>
           </main>
         </div>
       </div>
@@ -11250,7 +11270,15 @@ function App() {
     if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
   }, []);
   useEffect(() => {
-    if (!workspaceArrivalNotices.length || activeView !== 'assignment') return;
+    if (!workspaceArrivalNotices.length) return;
+    // A notice is queued in the same update that opens the workspace, so a
+    // screen committed without it means the workspace never opened (its code
+    // failed to load, or the student left first). The notice belonged to that
+    // opening: dropped, never shown over a later, unrelated one (W6-2, N6).
+    if (activeView !== 'assignment') {
+      setWorkspaceArrivalNotices([]);
+      return;
+    }
     // Once each, even where the effect runs twice for the same notices
     // (StrictMode, a suspended tree shown again).
     workspaceArrivalNotices.forEach((notice) => {

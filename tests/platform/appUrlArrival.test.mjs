@@ -182,7 +182,12 @@ test('the arrival notice about the work waits for the workspace commit, and the 
   assert.match(start, /setActiveView\('assignment'\);\s*return true;\s*\};\s*$/);
   const notice = region(appCode, 'const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);', '}, [workspaceArrivalNotices, activeView, toastInfo]);', 'workspace notice effect');
   assert.match(notice, /const showWhenWorkspaceOpens = useCallback\(\(notice\) => \{\s*if \(notice\?\.title\) setWorkspaceArrivalNotices\(\(current\) => \[\.\.\.current, notice\]\);/);
-  assert.match(notice, /if \(!workspaceArrivalNotices\.length \|\| activeView !== 'assignment'\) return;/);
+  // Shown only once the workspace is on screen. A screen committed with the
+  // notice still queued but without the workspace drops it, so it never shows
+  // over a later, unrelated opening (pass 3, wave 7; W6-2's N6).
+  const offWorkspace = notice.search(/if \(activeView !== 'assignment'\) \{\s*setWorkspaceArrivalNotices\(\[\]\);\s*return;\s*\}/);
+  assert.notEqual(offWorkspace, -1, 'off the workspace the queue is dropped, and nothing is shown');
+  assert.ok(offWorkspace < notice.indexOf('toastInfo(notice.title, notice.body);'), 'the drop comes before the toast');
   assert.match(notice, /if \(shownArrivalNoticesRef\.current\.has\(notice\)\) return;\s*shownArrivalNoticesRef\.current\.add\(notice\);\s*toastInfo\(notice\.title, notice\.body\);/);
   assert.match(notice, /setWorkspaceArrivalNotices\(\[\]\);/);
   // The start's own notices wait for the workspace too (review S2).

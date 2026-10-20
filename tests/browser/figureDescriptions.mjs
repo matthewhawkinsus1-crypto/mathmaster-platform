@@ -25,11 +25,20 @@
  *               placed (with its coordinates).
  *   analysis    its given graph is "a graph is drawn", no positions.
  *   story       the Graph Story sketch says how many strokes were drawn.
+ *   pathBoundary a Path stimulus with authored vertical boundaries (Batch 1/2,
+ *               never seen in a browser before wave 7): x = 5 of x ≤ 5 is
+ *               drawn solid and x = 1 of x > 1 dashed, at x = 5 and x = 1;
+ *               the description says one solid and one dashed vertical line.
+ *               Screenshots: tests/browser/artifacts/figureDescriptions/
+ *               (FIGURE_SHOTS to put them elsewhere).
  *
  * At 390x844 it also checks A11Y-10: beside Submit, Undo and Reset keep a
  * word under their icons.
  */
 import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const origin = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
@@ -61,6 +70,9 @@ const open = async (page, q, { role = 'practice', closed = false, locked = false
 
 // Notation a picture-to-symbols item asks the student to write.
 const NOTATION = /[[\]()]\s*−?\d|[≤≥<>]|\bx\s*=|interval notation:/;
+
+const SHOTS = process.env.FIGURE_SHOTS || path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/figureDescriptions');
+mkdirSync(SHOTS, { recursive: true });
 
 const failures = [];
 const step = async (at, what, run) => {
@@ -101,6 +113,34 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     assert.notEqual(drawn.description, pending.description, 'the description follows the drawing');
     const graphPart = drawn.description.split('Click anywhere')[0];
     assert.doesNotMatch(graphPart, NOTATION, `no interval notation or inequality on an item that asks for it: "${graphPart}"`);
+  });
+
+  await step(at, 'Path stimulus: an authored vertical boundary keeps its style', async () => {
+    await open(page, 'pathBoundary');
+    const PLANE = 'svg[role="img"][aria-label="Question graph"]';
+    await page.locator(PLANE).waitFor();
+    // The boundaries, in graph units: the plane's own x scale, read from two
+    // of its labelled ticks.
+    const drawn = await page.evaluate((selector) => {
+      const svg = document.querySelector(selector);
+      const ticks = [...svg.querySelectorAll('text')]
+        .map((text) => ({ value: Number(text.textContent.replace('−', '-')), x: Number(text.getAttribute('x')), y: Number(text.getAttribute('y')) }))
+        .filter((tick) => Number.isFinite(tick.value) && Number.isFinite(tick.x));
+      const bottom = Math.max(...ticks.map((tick) => tick.y));
+      const axis = ticks.filter((tick) => Math.abs(tick.y - bottom) > 1 && tick.value !== 0).sort((a, b) => a.x - b.x);
+      const [a, b] = [axis[0], axis[axis.length - 1]];
+      const toX = (px) => a.value + ((px - a.x) * (b.value - a.value)) / (b.x - a.x);
+      return [...svg.querySelectorAll('line')]
+        .filter((line) => line.getAttribute('x1') === line.getAttribute('x2') && line.getAttribute('stroke') && line.getAttribute('stroke-width') === '3')
+        .map((line) => ({ x: Math.round(toX(Number(line.getAttribute('x1'))) * 10) / 10, dashed: Boolean(line.getAttribute('stroke-dasharray')) }))
+        .sort((left, right) => left.x - right.x);
+    }, PLANE);
+    assert.deepEqual(drawn, [{ x: 1, dashed: true }, { x: 5, dashed: false }], `the boundaries as drawn: ${JSON.stringify(drawn)}`);
+    const plane = await axNode(page, PLANE);
+    assert.match(plane.description, /1 dashed vertical line\./, plane.description);
+    assert.match(plane.description, /1 solid vertical line\./, plane.description);
+    await page.locator(PLANE).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(SHOTS, `path-vertical-boundary-${at}.png`) });
   });
 
   await step(at, 'legacy number line: the marks and the student\'s choice', async () => {

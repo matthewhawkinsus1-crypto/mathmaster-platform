@@ -51,7 +51,9 @@ test('drag-oriented workflow surfaces keep a tap equivalent and turn off HTML dr
   assert.match(graph, /onClick=\{handleGridClick\}/);
 
   const sort = read('src/tools/openSortBoard/OpenSortBoard.jsx');
-  assert.match(sort, /Tap a card to select it, then tap a group to place it there/);
+  // Select, then place: the sort works without a drag, on any device (its
+  // wording names no single device; pass 3, A11Y-12).
+  assert.match(sort, /Select a card, then select a group to place it there/);
 });
 
 test('assignment action menus cannot render off the phone viewport', () => {

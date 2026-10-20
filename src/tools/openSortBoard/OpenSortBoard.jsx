@@ -23,6 +23,7 @@ import {
   placeButtonText,
   placedCardName,
   placementAnnouncement,
+  rationaleInputLabel,
   removeGroupName,
 } from './openSortBoardA11y.js';
 
@@ -262,11 +263,11 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
         stepsAreControls
         steps={controlled ? [
           'Read or inspect one card.',
-          'Tap the category that best describes it.',
-          'Tap a placed card to move it back if you want to change your choice.',
+          'Select the category that best describes it.',
+          'Select a placed card to move it back if you want to change your choice.',
           'When every card is placed, submit your sort.',
         ] : [
-          'Tap a card to select it, then tap a group to place it there.',
+          'Select a card, then select a group to place it there.',
           'Create another group if your sorting idea needs one.',
           'Name each group and explain the mathematical characteristic you used.',
           'Submit your sort when it is finished. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
@@ -322,7 +323,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                           key={id}
                           onClick={() => returnItem(id)}
                           aria-label={placedCardName({ card, group, index: groupIndex, controlled: true })}
-                          title="Tap to move this card again"
+                          title="Select to move this card again"
                           style={{ ...button, minHeight: 40, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
                         >
                           {card} <span aria-hidden="true">↩</span>
@@ -367,14 +368,14 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
                     {group.itemIds.map((id) => {
                       const card = cardName(itemById(id), id);
-                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Tap to move this card again" style={{ ...button, minHeight: 44, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
+                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Select to move this card again" style={{ ...button, minHeight: 44, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
                     })}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>
                   {requireRationale && (
                     <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
                       Why do these belong together?
-                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
+                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
                       <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
                     </label>
                   )}

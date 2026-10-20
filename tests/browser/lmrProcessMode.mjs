@@ -450,6 +450,16 @@ const journeys = {
     await settle(page, 1200);
     await divideAndSimplify(page, '2', '3');
     await type(page, 'point', '(0, 3');
+    // Review SF1: arrow keys select in "Which variable is 0", so arrowing away
+    // and back must keep the point the student typed under that choice.
+    await workspace(page).locator('[data-process-choice="zero:x"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await settle(page, 600);
+    check(await workspace(page).locator('[data-process-choice="zero:y"]').getAttribute('aria-checked') === 'true', 'ArrowRight selects y = 0');
+    await page.keyboard.press('ArrowLeft');
+    await settle(page, 1200);
+    const kept = await field(page, 'point').evaluate((element) => element.value).catch(() => '');
+    check(/\(0,\s*3/.test(kept), `arrowing away from x = 0 and back keeps the typed point (got "${kept}")`);
     await checkWork(page);
     check(/ordered pair/.test(await message(page)), 'an unreadable pair is the one thing said');
     await type(page, 'point', '(0, 3)');

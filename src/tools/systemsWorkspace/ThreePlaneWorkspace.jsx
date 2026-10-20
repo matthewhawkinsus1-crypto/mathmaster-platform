@@ -28,6 +28,7 @@ import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
 import { describeThreePlaneModel } from './threePlaneDescription.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
@@ -390,6 +391,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           <span id={instructionId} className="mathmaster-threeplane-sr-only">
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
+          <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription }} />
           <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true">{modelDescription}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg

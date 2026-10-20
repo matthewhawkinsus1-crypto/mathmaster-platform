@@ -36,7 +36,64 @@ const listeners = new Set();
 
 const snapshot = () => Object.fromEntries(KINDS.map((kind) => [kind, problems.get(kind).size]));
 
+/*
+ * KEPT ACROSS A RELOAD OF THIS TAB, WHILE IT STAYS TRUE (pass 3, wave 7).
+ *
+ * The problems lived in this page's memory only: after a reload Home and the
+ * assignment said nothing until the next failed write. The two backup
+ * problems describe work that is still in this device's storage and still
+ * not on MathMaster's server, so they are kept in this tab's sessionStorage
+ * and read back on load — but only for a draft this device still holds (one
+ * submitted, started over or retired since is not unsaved work any more).
+ * Every clear writes through, so the notice goes the moment the draft is
+ * backed up. DEVICE_FULL is not kept: the work storage refused never reached
+ * it, so after a reload it is gone from this page, and the next write that
+ * fails says so again. Per tab, as before; a new tab starts clear.
+ */
+const KEPT_KINDS = [DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, DRAFT_SAVE_PROBLEM.BACKUP_FULL];
+const KEPT_STORAGE_KEY = 'mathmaster:draft-save-health:v1';
+
+const tabStorage = () => {
+  try {
+    return typeof window === 'undefined' ? null : window.sessionStorage || null;
+  } catch {
+    return null;
+  }
+};
+
+const keep = () => {
+  const storage = tabStorage();
+  if (!storage) return;
+  try {
+    const kept = Object.fromEntries(KEPT_KINDS.map((kind) => [kind, [...problems.get(kind)]]).filter(([, keys]) => keys.length));
+    if (Object.keys(kept).length) storage.setItem(KEPT_STORAGE_KEY, JSON.stringify(kept));
+    else storage.removeItem(KEPT_STORAGE_KEY);
+  } catch {
+    // Not kept for a reload; this page still shows it.
+  }
+};
+
+const restoreKept = () => {
+  const storage = tabStorage();
+  if (!storage) return;
+  try {
+    const kept = JSON.parse(storage.getItem(KEPT_STORAGE_KEY) || 'null');
+    if (!kept || typeof kept !== 'object') return;
+    KEPT_KINDS.forEach((kind) => {
+      const keys = Array.isArray(kept[kind]) ? kept[kind].slice(-MAX_KEYS_PER_KIND) : [];
+      keys.forEach((key) => {
+        if (typeof key === 'string' && key && window.localStorage.getItem(key) !== null) problems.get(kind).add(key);
+      });
+    });
+    keep();
+  } catch {
+    // Nothing usable was kept: start clear, as before.
+  }
+};
+restoreKept();
+
 const notify = () => {
+  keep();
   const current = snapshot();
   listeners.forEach((listener) => {
     try {
@@ -100,6 +157,16 @@ export const clearDraftSaveProblemsForFamily = (prefix) => {
   if (changed) notify();
   return changed;
 };
+
+/*
+ * A shared Chromebook: the next student never inherits this one's notice.
+ * Cleared when a signed-in account gives way (sign-out, another student),
+ * never when one arrives: after a reload what was kept for this tab must
+ * survive the account loading again (null → the same student).
+ */
+export const accountChangeClearsDraftProblems = (previousAccount, nextAccount) => (
+  Boolean(previousAccount) && previousAccount !== (nextAccount || null)
+);
 
 /** `{ 'device-full': n, 'backup-refused': n, 'backup-full': n }`. */
 export const currentDraftSaveProblems = () => snapshot();

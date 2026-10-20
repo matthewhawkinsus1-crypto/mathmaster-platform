@@ -37,7 +37,7 @@
  * inputs, and every expected value is recomputed from the question.
  */
 import declaration from '../declarations/dataModelingLab.mjs';
-import { bindToolGrader } from '../toolGraderDefinition.mjs';
+import { bindToolGrader, toolModeSupport } from '../toolGraderDefinition.mjs';
 import { gradedResult } from '../gradingResult.mjs';
 import { correlation, linearRegression, parseNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
 import { choicesAreOwn } from '../../toolMath/shared/judgmentChoices.mjs';
@@ -131,12 +131,14 @@ const fitPart = (question, work, mode, { regression, expectedModel, stepperPlan 
   const interceptTolerance = Number(question.interceptTolerance ?? (stepperPlan ? stepperPlan.intercept.tolerance : 0.8));
   const slope = parseNumericAnswer(work.m);
   const intercept = parseNumericAnswer(work.b);
+  const slopeHolds = slope != null && Math.abs(slope - regression.m) <= slopeTolerance;
+  const interceptHolds = intercept != null && Math.abs(intercept - regression.b) <= interceptTolerance;
   return {
     complete: slope != null && intercept != null,
-    correct: slope != null && intercept != null
-      && Math.abs(slope - regression.m) <= slopeTolerance
-      && Math.abs(intercept - regression.b) <= interceptTolerance,
+    correct: slope != null && intercept != null && slopeHolds && interceptHolds,
     response: `m = ${entry(work.m)}, b = ${entry(work.b)}`,
+    // Which half missed, for the screen's reason (missReason below).
+    holds: slope != null && intercept != null ? { slope: slopeHolds, intercept: interceptHolds } : null,
   };
 };
 
@@ -149,7 +151,27 @@ const PART_LABELS = Object.freeze({
   prediction: 'Prediction',
 });
 
-const gradeMode = (mode) => (question, work) => {
+/*
+ * WHAT IN A MISSED PART HELD (student pass 3, wave 7; FEEDBACK_REASONS
+ * survey row 5). "Still to fix: the fitted function" folded a right slope
+ * with a wrong intercept into one line. Each phrase replaces the part's name
+ * in that line and says which half to change; it names no value. A part with
+ * both halves wrong, or a box left blank, keeps its name.
+ */
+const MISS_REASONS = Object.freeze({
+  fit: { slope: 'the intercept b (your slope m is close enough)', intercept: 'the slope m (your intercept b is close enough)' },
+  association: { interpretation: 'the causation choice (your direction and strength are right)', causation: 'the direction and strength (your causation choice is right)' },
+  prediction: { value: 'the prediction type, interpolation or extrapolation (your predicted value is close enough)', type: 'the predicted value (your interpolation or extrapolation choice is right)' },
+});
+
+// The half that held names the other as the one to change.
+const missReason = (id, holds) => {
+  if (!holds || !MISS_REASONS[id]) return '';
+  const held = Object.entries(holds).filter(([, ok]) => ok).map(([half]) => half);
+  return held.length === 1 ? MISS_REASONS[id][held[0]] || '' : '';
+};
+
+const gradeMode = (mode) => (question, work, options = {}) => {
   const points = dataModelingPoints(question);
   const regression = linearRegression(points);
   const candidateModels = buildCandidateModels(points, regression);
@@ -197,10 +219,13 @@ const gradeMode = (mode) => (question, work) => {
     correlationInterpretation: interpretation,
     association: () => {
       const read = interpretation();
+      const causationHolds = work.causation === (question.causationSupported ? 'causation' : 'association');
+      const complete = read.complete && filled(work.causation);
       return {
-        complete: read.complete && filled(work.causation),
-        correct: read.correct && work.causation === (question.causationSupported ? 'causation' : 'association'),
+        complete,
+        correct: read.correct && causationHolds,
         response: `${read.response}, ${entry(work.causation)}`,
+        holds: complete ? { interpretation: read.correct, causation: causationHolds } : null,
       };
     },
     correlation: () => {
@@ -234,23 +259,32 @@ const gradeMode = (mode) => (question, work) => {
       const expectedType = predictionKind(points, predictionX);
       const tolerance = Number(question.predictionTolerance ?? Math.max(0.5, Math.abs(expectedPrediction) * 0.08));
       const predicted = parseNumericAnswer(work.predictionY);
+      const complete = predicted != null
+        && (!asksPredictionType || filled(work.predictionType))
+        && (fixedTarget || filled(work.predictionX));
+      const valueHolds = predicted != null && Number.isFinite(expectedPrediction)
+        && Math.abs(predicted - expectedPrediction) <= tolerance;
+      const typeHolds = !asksPredictionType || work.predictionType === expectedType;
       return {
-        complete: predicted != null
-          && (!asksPredictionType || filled(work.predictionType))
-          && (fixedTarget || filled(work.predictionX)),
-        correct: predicted != null && Number.isFinite(expectedPrediction)
-          && Math.abs(predicted - expectedPrediction) <= tolerance
-          && (!asksPredictionType || work.predictionType === expectedType),
+        complete,
+        correct: valueHolds && typeHolds,
         response: `x = ${entry(fixedTarget ? question.predictionX : work.predictionX)}, y = ${entry(work.predictionY)}${asksPredictionType ? `, ${entry(work.predictionType)}` : ''}`,
+        holds: complete && asksPredictionType ? { value: valueHolds, type: typeHolds } : null,
       };
     },
   };
 
   const requiredParts = dataModelingRequiredParts(mode, question);
-  const parts = requiredParts.map((id) => {
-    const result = checks[id]();
-    return { id, label: PART_LABELS[id], isComplete: result.complete, isCorrect: result.correct === true, response: result.response };
-  });
+  const results = requiredParts.map((id) => [id, checks[id]()]);
+  const parts = results.map(([id, result]) => ({ id, label: PART_LABELS[id], isComplete: result.complete, isCorrect: result.correct === true, response: result.response }));
+  // The screen's reasons (browser only; see dataModelingMissReasons). The
+  // part records, the score and the verdict below never read them.
+  if (options.missReasons) {
+    return Object.fromEntries(results
+      .filter(([, result]) => result.correct !== true)
+      .map(([id, result]) => [id, missReason(id, result.holds)])
+      .filter(([, reason]) => reason));
+  }
   const correctCount = parts.filter((part) => part.isCorrect).length;
 
   // Every input the graded parts read, and whether each still holds the
@@ -285,6 +319,24 @@ const gradeMode = (mode) => (question, work) => {
   });
 };
 
-export default bindToolGrader(declaration, 'dataModelingLab', Object.fromEntries(
-  [...DATA_MODELING_MODES, DATA_MODELING_UNRECOGNIZED_MODE].map((mode) => [mode, gradeMode(mode)]),
+const dataModelingGrader = bindToolGrader(declaration, 'dataModelingLab', Object.fromEntries(
+  // Two arguments: the server's grade never asks for the screen's reasons.
+  [...DATA_MODELING_MODES, DATA_MODELING_UNRECOGNIZED_MODE].map((mode) => [mode, (question, work) => gradeMode(mode)(question, work)]),
 ));
+
+/**
+ * The browser's reasons for the parts this work missed, `{ [partId]: phrase }`
+ * (MISS_REASONS), for the lab's "Still to fix" line. Same mode, same checks
+ * as the grade; nothing on the server calls it.
+ */
+export const dataModelingMissReasons = (question = {}, work = {}) => {
+  const support = toolModeSupport(declaration, question);
+  if (!support.supported || !work || typeof work !== 'object') return {};
+  try {
+    return gradeMode(support.mode)(question, work, { missReasons: true }) || {};
+  } catch {
+    return {};
+  }
+};
+
+export default dataModelingGrader;

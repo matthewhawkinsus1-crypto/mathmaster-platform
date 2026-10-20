@@ -69,7 +69,7 @@ const BRIDGE = 'Y’s tell the truth';
 const BRIDGE_PLAIN = "Y's tell the truth";
 const POINT_MAP_STEP = 'undo the inside multiplier b';
 // Graphing2's control steps.
-const PLOT_STEP = 'Click the grid to plot a point';
+const PLOT_STEP = 'Click or tap the grid to plot a point';
 
 const run = Date.now();
 const open = async (role, tool, grading = '', ready = '.mathmaster-tool-task-card') => {

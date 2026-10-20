@@ -184,8 +184,9 @@ export default function SimplifyPanel({
       if (partNeedsAnswer(part) && !partNeedsSigns(part)) setAnswerFocus((signal) => signal + 1);
       return;
     }
-    // Armed before the commit: the host re-renders the new parts while it is
-    // still awaiting the save, and the refocus must already be waiting.
+    // Armed before the commit: the host saves the step, then re-renders the
+    // new parts, possibly before this await returns, and the refocus must
+    // already be waiting. A step the host did not take disarms it.
     refocusAfterCommit.current = true;
     if (!(await onCommit?.(result))) refocusAfterCommit.current = false;
   };

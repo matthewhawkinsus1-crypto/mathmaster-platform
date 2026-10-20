@@ -7,6 +7,16 @@
  *   npm run certify:accessibility                      # fail on any new / increased violation
  *   npm run certify:accessibility -- --write-baseline  # after a deliberate reduction
  *
+ *   The standalone server MUST be the emulator config's (stubbed services).
+ *   A plain `npx vite --port 5199`, which most browser drivers use, serves
+ *   the same pages wired to the real services, and the secure exam's start
+ *   screen then never loads ("could not reach the screen" after 180 s): in a
+ *   container where a plain server already held 5199, the stubbed one could
+ *   not take the port. So the run first asks the audit origin how it resolves
+ *   the Test Cycle service (auditOriginIsStubbed). If it is not stubbed, the
+ *   run starts its own stubbed server on a free port and says so; under
+ *   CI=true it fails instead, since there the workflow is what is wrong.
+ *
  *   TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188), AUDIT_ORIGIN
  *   (default http://127.0.0.1:5199), PLAYWRIGHT_MODULE / CHROMIUM_PATH,
  *   ONLY=<screen id>[,<screen id>] to run some screens (the ratchet then
@@ -19,6 +29,8 @@
  *   student-home, student-assignments, student-grades, my-math-path
  *       the REAL App.jsx signed in as a synthetic student (the teacher-workflow
  *       in-memory harness; firebase/* faked), opened from the student nav.
+ *       student-assignments/completed-section opens the active lesson, whose
+ *       section tabs show a finished section's "Complete" badge.
  *   live-challenge
  *       the same app; the invite, room and player are written into the
  *       in-memory store, the student joins from Home: the lobby, then a round
@@ -42,6 +54,8 @@
  *
  * NOTHING LEAVES LOCALHOST: every context aborts non-local requests.
  */
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -128,9 +142,28 @@ const uxQuestion = (questionId, ready) => async (page, origins, { first }) => {
   await page.waitForTimeout(2500);
 };
 
+// A section the student has finished, as its tab shows it: the fixture's
+// student has last week's Warm-Up right, and the active lesson opens with that
+// tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
+// 4.44:1, and no scene rendered it). darkModeCertification.mjs opens the same.
+export const openCompletedSection = async (page) => {
+  await page.getByRole('button', { name: 'Continue' }).first().click();
+  const showProgress = page.getByRole('button', { name: 'Show progress' }).first();
+  await showProgress.waitFor({ timeout: 60_000 });
+  if (!(await page.locator('.mathmaster-section-tab').count())) await showProgress.click();
+  await page.locator('.mathmaster-section-tab.is-complete small').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 export const SCREENS = [
   studentAppScreen('student-home', 'Home', /^Welcome, /),
-  studentAppScreen('student-assignments', 'Assignments', 'My Assignments'),
+  {
+    ...studentAppScreen('student-assignments', 'Assignments', 'My Assignments'),
+    scenes: [
+      { id: null, run: studentTab('Assignments', 'My Assignments') },
+      { id: 'completed-section', run: openCompletedSection },
+    ],
+  },
   studentAppScreen('student-grades', 'Grades', 'My Grades'),
   {
     id: 'assignment-tools',
@@ -207,6 +240,49 @@ export const SCREENS = [
 
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
 
+// ------------------------------------------------------- the audit server
+// The emulator config swaps src/services/testCycleService.js for its stub
+// (tests/browser/emulator/vite.config.mjs), so the module Vite serves for the
+// Test Cycle card imports the stub; a plain dev server's imports the real one.
+export const STUBBED_PROBE = '/src/components/student/TestCycleCard.jsx';
+export const servesStubbedServices = (moduleSource) => /from\s*["'][^"']*\/tests\/browser\/emulator\/testCycleServiceStub\.js["']/.test(String(moduleSource || ''));
+
+const auditOriginIsStubbed = async (origin) => {
+  try {
+    const response = await fetch(`${origin}${STUBBED_PROBE}`);
+    return response.ok && servesStubbedServices(await response.text());
+  } catch {
+    return false;
+  }
+};
+
+const freePort = () => new Promise((resolve, reject) => {
+  const probe = createServer();
+  probe.once('error', reject);
+  probe.listen(0, '127.0.0.1', () => { const { port } = probe.address(); probe.close(() => resolve(port)); });
+});
+
+/** A stubbed audit server of the run's own, stopped when the run exits. */
+const startStubbedAuditServer = async () => {
+  const port = await freePort();
+  const server = spawn('npx', ['vite', '--config', 'tests/browser/emulator/vite.config.mjs', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
+    cwd: repo, stdio: 'ignore', detached: true,
+  });
+  // Not a reason to keep running: the run ends when its work does, and takes
+  // the server with it.
+  server.unref();
+  const stop = () => { try { process.kill(-server.pid, 'SIGKILL'); } catch { /* gone */ } };
+  process.on('exit', stop);
+  // Ctrl-C or a killed job: take the server down too, then end as signalled.
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { stop(); process.exit(signal === 'SIGINT' ? 130 : 143); });
+  const origin = `http://127.0.0.1:${port}`;
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    if (await auditOriginIsStubbed(origin)) return origin;
+    await new Promise((resolve) => { setTimeout(resolve, 500); });
+  }
+  throw new Error(`the stubbed audit server did not start on ${origin}`);
+};
+
 // ------------------------------------------------------------------ main
 const readBaseline = () => { try { return JSON.parse(readFileSync(BASELINE_PATH, 'utf8')); } catch { return { counts: {}, targets: {} }; } };
 
@@ -220,6 +296,16 @@ const main = async () => {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
   };
+  if (screens.some((screen) => screen.harness === 'audit') && !await auditOriginIsStubbed(origins.audit)) {
+    const given = origins.audit;
+    // In CI the workflow starts the stubbed server itself: a wrong one there
+    // is a mis-wired workflow, and says so instead of being worked around.
+    if (process.env.CI === 'true') {
+      throw new Error(`${given} is not the stubbed harness server (tests/browser/emulator/vite.config.mjs): its Test Cycle card loads the real service. Start that config on the audit port (see accessibility-certification.yml).`);
+    }
+    origins.audit = await startStubbedAuditServer();
+    console.log(`note: ${given} is not the stubbed harness server (tests/browser/emulator/vite.config.mjs) — its Test Cycle card loads the real service, so the secure exam would never open. Started one at ${origins.audit}.`);
+  }
   const artifacts = process.env.ACCESSIBILITY_ARTIFACTS || path.join(repo, 'tests/browser/artifacts/accessibility');
   mkdirSync(artifacts, { recursive: true });
 

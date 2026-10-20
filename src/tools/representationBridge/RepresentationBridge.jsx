@@ -27,6 +27,7 @@ import {
 } from './representationBridgeMath.js';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import { bridgeFeedbackLines } from './bridgeFeedback.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -679,9 +680,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       {notice ? <p role="status" style={{ color: 'var(--mm-text-muted)' }}>{notice}</p> : null}
       {feedback && !feedback.isCorrect ? (
         <ul style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
-          {(Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : []).filter((part) => !part.isCorrect).map(({ id }) => (
-            <li key={id}>{id === 'crossRepresentationConsistency' ? 'Your representations do not all describe the same line — recheck them against each other.' : `Recheck: ${id}.`}</li>
-          ))}
+          {bridgeFeedbackLines(feedback.metadata?.parts).map(({ id, text }) => <li key={id}>{text}</li>)}
         </ul>
       ) : null}
     </ToolShell>

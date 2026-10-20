@@ -20,6 +20,7 @@ import {
 import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import { regressionFeedbackText } from './regressionFeedback.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -365,21 +366,10 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     );
   };
 
-  // Stage-aware feedback, first failing stage first. The table stage is the
-  // first part; interpretation is not a part when it is not required.
+  // Stage-aware feedback, first failing stage first, from the shared grader's
+  // parts: what is true and what to change (regressionFeedback.js).
   const feedbackParts = Array.isArray(feedback?.metadata?.parts) ? feedback.metadata.parts : [];
-  const stagePassed = (id) => feedbackParts.find((part) => part.id === id)?.isCorrect === true;
-  const feedbackText = feedback && (
-    feedbackParts[0]?.isCorrect !== true
-      ? 'Data entry/table does not match the provided data.'
-      : !stagePassed('linear-regression')
-        ? 'Regression setup is incomplete or invalid.'
-        : !stagePassed('correlation-produced')
-          ? 'A correlation value has not been produced.'
-          : feedbackParts.some((part) => part.id === 'interpretation') && !stagePassed('interpretation')
-            ? 'Check the direction/strength interpretation.'
-            : 'Regression complete.'
-  );
+  const feedbackText = feedback && regressionFeedbackText(feedbackParts);
 
   return (
     <ToolShell

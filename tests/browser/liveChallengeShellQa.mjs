@@ -436,12 +436,16 @@ const closeAll = (...handles) => Promise.all(handles.flat().filter(Boolean).map(
 // returns is held by the DevTools protocol until disposed, so each wait kept
 // a whole setup panel alive and the endurance run measured the harness's leak
 // instead of the console's.
-const createClassic = async (teacher, { classKey = 'p3', rounds = 5, seconds = 20, passPlaces = 0 } = {}) => {
+// `closingThreshold`: the console's "Round closing threshold" (default 70%:
+// once that share of the class has answered, the round closes 5 seconds
+// later). null leaves the console's default.
+const createClassic = async (teacher, { classKey = 'p3', rounds = 5, seconds = 20, passPlaces = 0, closingThreshold = null } = {}) => {
   await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
   await selectInLabel(teacher, 'Game type', 'standard');
   await selectInLabel(teacher, 'Rounds', rounds);
   await selectInLabel(teacher, 'Time per round', seconds);
+  if (closingThreshold !== null) await teacher.page.getByLabel('Round closing threshold').selectOption(String(closingThreshold));
   await teacher.page.getByLabel('Practice Pass for').selectOption(String(passPlaces));
   await teacher.page.getByRole('button', { name: 'Create Lobby' }).click();
   if (!await waitForConsole(teacher, 'lobby', 30_000)) {
@@ -490,6 +494,30 @@ const dismissDialog = async (handle) => {
 const toProjector = async (teacher) => {
   await teacher.page.getByRole('button', { name: 'Projector View' }).click();
   await teacher.page.locator('[data-mm-arena-stage]').first().waitFor({ timeout: 10_000 });
+};
+// A ready worked solution takes the left of the projector's results and the
+// round's own table steps aside (LiveChallengeArenaProjector ResultsView); the
+// standings stay. The teacher's "Hide solution" brings the table back for this
+// round only. A check of the round table presses it first, as a teacher would.
+// True once the table is on screen with no solution about to replace it.
+const showRoundTable = async (teacher, timeout = 10_000) => {
+  const deadline = Date.now() + timeout;
+  let quietSince = null;
+  while (Date.now() < deadline) {
+    const hide = teacher.page.locator('[data-mm-solution-toggle="hide"]');
+    if (await hide.count()) await hide.first().click().catch(() => {});
+    const table = await teacher.page.locator('[data-mm-results-layout="tables"] [aria-label="Round results"]').count();
+    const hidden = await teacher.page.locator('[data-mm-solution-toggle="show"]').count();
+    const toggle = await teacher.page.locator('[data-mm-solution-toggle]').count();
+    if (table && hidden) return true;
+    // No solution for this round (yet): wait a moment longer for one to land.
+    if (table && !toggle) {
+      quietSince ??= Date.now();
+      if (Date.now() - quietSince >= 1_500) return true;
+    } else quietSince = null;
+    await wait(150);
+  }
+  return false;
 };
 const toConsole = async (teacher) => {
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click();
@@ -781,6 +809,7 @@ await run('classic', async (S) => {
   check(S, arenaRows.length > 0 && JSON.stringify(arenaRows) === JSON.stringify(serverOrder), `the projector standings are not the server's (${arenaRows.length} rows)`);
   const boardText = await textOf(teacher);
   check(S, !/\b0 0 0 0\b/.test(boardText), 'the projector board reads as a row of zeros');
+  check(S, await showRoundTable(teacher), 'the projector never shows the round table, even with the solution hidden');
   const roundOrder = await teacher.page.locator('[aria-label="Round results"] [data-mm-round-result]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-round-result')));
   const expectedRoundOrder = roundResultsView({ summary: summary1 }).rows.map((row) => row.playerKey).slice(0, roundOrder.length);
   check(S, roundOrder.length > 0 && JSON.stringify(roundOrder) === JSON.stringify(expectedRoundOrder), 'the projector round table is not in the round\'s order');
@@ -950,6 +979,7 @@ await run('scoring', async (S) => {
   check(S, mine && await waitForText(s1, `+${mine.matchPointsAwarded} championship points`, 6_000), `the student is not told +${mine?.matchPointsAwarded} championship points`);
   check(S, await waitForText(s1, 'points this round', 4_000) || await waitForText(s1, 'round points', 1_000), 'the round\'s own points are not named as the round\'s');
   await toProjector(teacher);
+  await showRoundTable(teacher);
   check(S, await waitForText(teacher, 'Round results · championship points', 6_000), 'the projector does not say the round earned championship points');
   await shot(teacher, 'B02-projector-grand-prix-results');
   await shot(s1, 'B02-student-grand-prix-results');
@@ -1101,8 +1131,11 @@ await run('launch', async (S) => {
   const ids = studentsOf('launch');
   const teacher = await openTeacher('chromebook');
   // Long rounds: a screen whose choices are disabled mid-round is then a
-  // finding about the screen, never about the clock running out.
-  const roomId = await createClassic(teacher, { classKey: 'launch', rounds: 5, seconds: 90 });
+  // finding about the screen, never about the clock running out. The closing
+  // threshold is off for the same reason: the 34 bots answer at once, and at
+  // the default 70% the round would close 5 seconds later, before the slow,
+  // frozen and late screens this scenario is about have reached it.
+  const roomId = await createClassic(teacher, { classKey: 'launch', rounds: 5, seconds: 90, closingThreshold: 'off' });
   const [normalId, slowId, frozenId, offlineId, countdownId, lateId] = ids;
   const bots = ids.slice(6);
   const normal = await openStudent(normalId, 'chromebook');
@@ -1231,6 +1264,12 @@ await run('big-class', async (S) => {
   await answerInBrowser(phone, roomId, { correct: true });
   await Promise.all(ids.slice(2).map((id, index) => botAnswer(roomId, id, { correct: index % 3 !== 0, humanElapsedMs: 1_000 + index * 300 })));
   await answerInBrowser(tablet, roomId, { correct: false });
+  // The console's default "Round closing threshold" is 70% (launch turns it
+  // off; this game keeps it): with all 32 answered well inside the 20 s, the
+  // server cuts the round's clock to 5 seconds, and says why.
+  const compressed = await waitForRoom(roomId, (room) => Boolean(room.roundCompressionReason) || room.roundState === 'closed', 20_000);
+  check(S, compressed?.roundClosingThreshold === 70 && compressed?.roundCompressionReason === '70-percent-answered',
+    `the default 70% closing threshold did not close the round early: ${JSON.stringify({ threshold: compressed?.roundClosingThreshold, reason: compressed?.roundCompressionReason })}`);
   await waitForRoom(roomId, (room) => room.roundState === 'closed', 20_000);
   check(S, await waitForArena(teacher, 'roundResults', 10_000), 'no projector results for 32');
   check(S, await waitForText(teacher, 'more players', 5_000), 'a 32-player board does not say how many more are playing');
@@ -1520,18 +1559,22 @@ await run('adversarial', async (S) => {
   // A second host tab on the same game.
   const teacher2 = await openTeacher('desktop');
   check(S, await waitForConsole(teacher2, 'lobby', 20_000), 'a second host tab does not open the live game');
-  // START pressed three times across two tabs: one round.
-  await Promise.all([
-    primary(teacher, 'start').click().catch(() => {}),
+  // START pressed three times across two tabs: one round. A press that loses
+  // the race waits for a Start button that is gone, so nothing waits on the
+  // presses until the countdown checks are done (a lost press once held them
+  // 30 s, past GO).
+  const presses = Promise.all([
+    primary(teacher, 'start').click({ timeout: 5_000 }).catch(() => {}),
     primary(teacher, 'start').click({ timeout: 500 }).catch(() => {}),
-    primary(teacher2, 'start').click().catch(() => {}),
+    primary(teacher2, 'start').click({ timeout: 5_000 }).catch(() => {}),
   ]);
   const r0 = await waitForRoom(roomId, (room) => room.status === 'running');
-  await wait(1_000);
-  check(S, (await roomOf(roomId)).roundVersion === 1, `Start pressed three times opened ${(await roomOf(roomId)).roundVersion} rounds`);
-  // An answer during the countdown is refused and records nothing.
+  // An answer during the countdown is refused as early and records nothing.
+  const leadMs = ms(r0.startsAt) - Date.now();
   const early = await botAnswer(roomId, ids[1], { correct: true }).then(() => null, (error) => error);
-  check(S, early, 'an answer during the countdown was accepted');
+  check(S, early?.details?.reason === 'round_not_started', early
+    ? `an answer during the countdown was refused for another reason: ${early.message}`
+    : `an answer during the countdown was accepted (sent ${leadMs} ms before GO)`);
   check(S, (await privatePlayer(roomId, ids[1])).answeredRound === -1, 'an answer during the countdown was recorded');
   // A refresh mid-countdown picks the countdown up where the server is.
   await s1.page.reload({ waitUntil: 'domcontentloaded' });
@@ -1546,6 +1589,9 @@ await run('adversarial', async (S) => {
   })();
   note(S, 'countdown step after a refresh', step);
   check(S, step === 'started' || step === 'go' || Number(step) <= Math.ceil((ms(r0.startsAt) - Date.now() + 1_000) / 1000), 'a refresh restarted the countdown');
+  await presses;
+  await wait(1_000);
+  check(S, (await roomOf(roomId)).roundVersion === 1, `Start pressed three times opened ${(await roomOf(roomId)).roundVersion} rounds`);
   await wait(Math.max(0, ms(r0.startsAt) - Date.now()) + 300);
   // END ROUND NOW: asked first; "Keep playing" keeps playing.
   check(S, await waitForConsole(teacher, 'roundActive', 10_000), `the console is not on the round in play (${await attr(teacher, '[data-mm-host-console]', 'data-mm-host-console')})`);
@@ -1591,6 +1637,12 @@ await run('adversarial', async (S) => {
   await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
   const lobbyId = await createClassic(teacher, { classKey: 'p4', rounds: 5, seconds: 20 });
   check(S, await waitForStudentStage(s1, 'lobby', 20_000), 'the student did not reach the new lobby');
+  // Cancel Session asks first only when the console counts someone joined;
+  // with nobody in, it cancels at once (no dialog). The student's screen can
+  // show the lobby before the console's player snapshot arrives (seen after
+  // the endurance games), so wait until the console counts them, as a
+  // teacher looking at it would.
+  check(S, await waitForText(teacher, '1 student is in', 15_000), 'the console never counted the student in the new lobby');
   await teacher.page.getByRole('button', { name: 'Cancel Session' }).first().click();
   await dismissDialog(teacher);
   await wait(600);

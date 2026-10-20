@@ -1,4 +1,6 @@
 import { answerFormatOf } from './answerFormatHints.js';
+import { looksLikeMixedNumber } from '../../../functions/shared/answerEquivalence.mjs';
+import { fractionAnswerCandidates, fractionAnswerRequiresLowestTerms } from '../../../functions/shared/fractionAnswer.mjs';
 
 /*
  * CATCH A SHAPE MISTAKE BEFORE IT COSTS A TRY.
@@ -41,5 +43,27 @@ export const formatProblemForResponse = (field = {}, value = '') => {
   if (format === 'equation' && !hasEqualsSign(value) && keys.length && keys.every(hasEqualsSign)) {
     return 'Write the full equation, including the equals sign.';
   }
+  // A Digital SAT number box (numberRules, set by the CCMR hydration): the
+  // grader reads 3½ as 7/2, but the SAT itself does not take a mixed number,
+  // so the box says so at entry, for any mixed number (wave 7 review, S7).
+  if (field?.numberRules === 'digitalSAT' && looksLikeMixedNumber(value) && !keys.some(looksLikeMixedNumber)) {
+    return 'The SAT doesn\'t take mixed numbers. Enter it as an improper fraction or a decimal.';
+  }
   return '';
+};
+
+/*
+ * A MIXED NUMBER WHERE THE QUESTION ASKS FOR ONE FRACTION (student pass 3,
+ * wave 7). A number box reads 3½ as 7/2 now; a `fraction` question that asks
+ * for lowest terms keeps its rule that the answer is one fraction
+ * (ordinaryResponseGrading matchesAuthoredFractionAnswer), so a mixed number
+ * there was a silent wrong. This says why before a try is spent. It fires for
+ * any mixed number, right or wrong, so it says nothing about the key, and it
+ * steps aside when the author listed a mixed number among the answers.
+ */
+export const fractionFormProblemForResponse = (question = {}, value = '') => {
+  if (!String(value ?? '').trim() || !looksLikeMixedNumber(value)) return '';
+  if (!fractionAnswerRequiresLowestTerms(question)) return '';
+  if (fractionAnswerCandidates(question).some(looksLikeMixedNumber)) return '';
+  return 'Write your answer as one fraction in lowest terms, not as a whole number and a fraction.';
 };

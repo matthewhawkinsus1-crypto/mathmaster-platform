@@ -50,7 +50,11 @@ test('the sort UI uses those names and no hard-coded "Line"', () => {
   const sort = source.slice(source.indexOf("linearTask === 'group' ? <div className=\"mathmaster-line-sort\""), source.indexOf("linearTask === 'findMismatch' ? <>"));
   assert.ok(sort.length > 500, 'found the sort block');
   assert.doesNotMatch(sort, /Line \{/, 'no "Line {label}" left in the sort');
-  assert.match(sort, /\{lineLabels\.map\(\(label, index\) => \(/);
+  // One choice per group name, drawn by the sort's radio group.
+  assert.match(sort, /<SortSlotChoices[\s\S]*?labels=\{lineLabels\}/);
+  const slots = region(source, 'function SortSlotChoices(', '\n}\n', 'SortSlotChoices');
+  assert.doesNotMatch(slots, /Line \{/, 'no "Line {label}" in the group choices');
+  assert.match(slots, /\{labels\.map\(\(slotLabel, index\) => \{[\s\S]*?\{slotLabel\}/, 'each choice is called by its group name');
   assert.match(source, /const lineLabels = useMemo\(\(\) => linearGroupLabels\(questionData, sets\), \[questionData, sets\]\);/);
 });
 

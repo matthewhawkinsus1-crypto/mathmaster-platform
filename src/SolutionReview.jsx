@@ -15,6 +15,7 @@ import { getStage } from './platform/workflow/interactionStages';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import { buildExpressionFunctionSpec, evaluateModelAt, parseIntervalDomainRestriction } from './platform/workflow/modelExpression';
 import { fractionSolutionRepresentations } from './fractionQuestionDisplay.js';
+import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
 
 const asText = (value) => String(value ?? '').trim();
 const pointText = (point) => `(${point[0]}, ${point[1]})`;
@@ -89,8 +90,9 @@ const buildRepresentations = (question) => {
       ]).slice(0, 3);
     }
     case 'orderedPair': {
-      const pair = question.answer || question.solution;
-      return Array.isArray(pair) ? unique([pointText(pair), `x=${pair[0]},\\quad y=${pair[1]}`]).slice(0, 3) : [];
+      // An array, or a key stored as pair text '(2,3)' (answerUtils.orderedPairKey).
+      const pair = orderedPairKey(question.answer || question.solution);
+      return pair ? unique([pointText(pair), `x=${pair[0]},\\quad y=${pair[1]}`]).slice(0, 3) : [];
     }
     case 'graphing':
       return unique([

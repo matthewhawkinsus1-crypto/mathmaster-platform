@@ -127,6 +127,16 @@ export const useSubmitLabel = (ownLabel) => {
   return submitCost ? `Submit — ${submitCost}` : ownLabel;
 };
 
+// What a sentence calls that button ("press Submit again"), so the words
+// beside it match it (D9): the host's label where it names the action, the
+// word "Submit" where the press spends a try, the tool's own word elsewhere.
+// The same three cases as useSubmitLabel, without the cost.
+export const useSubmitActionName = (ownName) => {
+  const { submitLabel, submitCost } = useContext(ToolRuntimeContext);
+  if (submitLabel) return submitLabel;
+  return submitCost ? 'Submit' : ownName;
+};
+
 // The same words on a JSX button: <SubmitText>Check my sort</SubmitText>
 // reads "Submit — uses 1 of 3 tries" where that press spends a try, and the
 // tool's own words everywhere else.

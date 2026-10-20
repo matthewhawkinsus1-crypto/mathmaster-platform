@@ -206,13 +206,14 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
 });
 
 test('stage-aware feedback replaces the generic workflow message', async () => {
+  // The sentences live in regressionFeedback.js (TOOL-5) and are chosen from
+  // the grader's parts; tests/tools/regressionCalculatorSharedGrading proves
+  // each one through the real grader. Here: the component shows that module's
+  // sentence, and the old generic line is gone.
   const component = await readFile(new URL('../../src/tools/regressionCalculator/RegressionCalculator.jsx', import.meta.url), 'utf8');
-  for (const message of [
-    'Data entry/table does not match the provided data.',
-    'Regression setup is incomplete or invalid.',
-    'A correlation value has not been produced.',
-    'Check the direction/strength interpretation.',
-  ]) assert.match(component, new RegExp(message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  const { REGRESSION_FEEDBACK, regressionFeedbackText } = await import('../../src/tools/regressionCalculator/regressionFeedback.js');
+  assert.match(component, /const feedbackText = feedback && regressionFeedbackText\(feedbackParts\);/);
+  assert.equal(regressionFeedbackText([{ id: 'data-entry', isComplete: true, isCorrect: false }]), REGRESSION_FEEDBACK.tableWrong);
   assert.doesNotMatch(component, /Check each workflow stage/);
 });
 

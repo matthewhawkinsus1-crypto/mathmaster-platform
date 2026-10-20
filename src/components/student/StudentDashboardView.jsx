@@ -31,6 +31,7 @@ import {
   CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_WAITS, SEE_RESULTS, firstExitTicketMention, studentPeriodLabel, studentSectionLabel,
 } from '../../platform/student/studentWords.js';
 import { whenDateTimeText } from '../../platform/student/studentWhen.js';
+import { scrollMotion } from '../../motionPreference.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -491,7 +492,7 @@ export default function StudentDashboardView({
               onClick={() => {
                 const heading = typeof document !== 'undefined' ? document.getElementById('mm-what-changed-heading') : null;
                 if (!heading) return;
-                try { heading.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { heading.scrollIntoView(); }
+                try { heading.scrollIntoView({ block: 'start', behavior: scrollMotion() }); } catch { heading.scrollIntoView(); }
                 heading.focus({ preventScroll: true });
               }}
               style={{
@@ -617,6 +618,7 @@ export default function StudentDashboardView({
           pacing={recommended.pacing}
           pathOptions={recommended.pathOptions}
           onChooseSkill={recommended.onChooseSkill}
+          coverage={recommended.coverage}
         />
 
         <BuildStamp />

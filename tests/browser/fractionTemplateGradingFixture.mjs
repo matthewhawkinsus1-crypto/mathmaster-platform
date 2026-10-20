@@ -22,6 +22,11 @@ const simplifyTemplate = () => ({
 export const questionFor = (kind) => {
   if (kind === 'family') return { ...simplifyTemplate(), questionFamily: { scope: 'assignment' } };
   if (kind === 'template') return simplifyTemplate();
+  // Student pass 3, wave 7: a mixed number typed with the fraction template.
+  // A key in lowest terms keeps "one fraction in lowest terms"; a sum the
+  // author wrote out takes any answer worth it, 3½ included.
+  if (kind === 'lowest') return { id: 'q-lowest', type: 'fraction', prompt: 'Simplify 14/4.', answer: '7/2' };
+  if (kind === 'sum') return { id: 'q-sum', type: 'fraction', prompt: 'Add.', n1: 3, d1: 2, n2: 2, d2: 1 };
   return { id: 'q-authored', type: 'fraction', prompt: 'Simplify 4/8.', answer: '2/4' };
 };
 

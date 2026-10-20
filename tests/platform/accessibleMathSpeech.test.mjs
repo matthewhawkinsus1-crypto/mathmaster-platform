@@ -58,6 +58,97 @@ test('a label in program syntax or LaTeX is spoken in words; placeholders give w
   assert.equal(mathSpeechLabel({ value: '' }), '');
 });
 
+// Step Algebra's divided term (pass 3, MATH_DISPLAY "Not done"): the board
+// names a term from its text, and "-10 / -2" read "negative 10 / minus 2" —
+// the "/" not said, the denominator's sign said as subtraction.
+test('a division whose denominator carries a sign is "over negative"', () => {
+  assert.equal(spokenMathLabel('-10 / -2'), 'negative 10 over negative 2');
+  assert.equal(spokenMathLabel('-10/-2'), 'negative 10 over negative 2');
+  assert.equal(mathToSpeech('x / −2'), 'x over negative 2');
+  assert.equal(mathToSpeech('-10 / -2', { language: 'es' }), 'negativo 10 sobre negativo 2');
+  // Unchanged around it: subtraction after a fraction, a fraction after subtraction.
+  assert.equal(mathToSpeech('a/b - c'), 'a over b minus c');
+  assert.equal(mathToSpeech('3 - 4/5'), '3 minus 4 over 5');
+  assert.equal(mathToSpeech('-2/3x'), 'negative 2 over 3 x');
+});
+
+// Review SF2: a denominator that is a word — a function, pi, or math already
+// said in words ("the square root of") — was cut after its first letter and
+// the rest spelled: "1 over s in", "180 over p i", "2 over t he square root
+// of 3". Signed or not, the whole word is the denominator.
+test('a word denominator is read whole, with or without a sign', () => {
+  const cases = [
+    ['1/-sin(x)', '1 over negative sin times the quantity x', '1 sobre negativo sin por la cantidad x'],
+    ['3 / -sqrt(2)', '3 over negative the square root of 2', '3 sobre negativo la raíz cuadrada de 2'],
+    ['x/-√2', 'x over negative the square root of 2', 'x sobre negativo la raíz cuadrada de 2'],
+    ['2/-pi', '2 over negative pi', '2 sobre negativo pi'],
+    ['1/-ln(x)', '1 over negative ln times the quantity x', '1 sobre negativo ln por la cantidad x'],
+    ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
+    ['1/sin(x)', '1 over sin times the quantity x', '1 sobre sin por la cantidad x'],
+    ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
+    ['1/|b|', '1 over the absolute value of b', '1 sobre el valor absoluto de b'],
+  ];
+  for (const [value, en, es] of cases) {
+    assert.equal(mathToSpeech(value), en, value);
+    assert.equal(mathToSpeech(value, { language: 'es' }), es, `${value} (es)`);
+  }
+  // Prose the platform really shows (a lesson's hint and step).
+  assert.equal(speechTextFor('Multiply a radian measure by $180/\\pi$ to express it in degrees.'), 'Multiply a radian measure by 180 over pi to express it in degrees.');
+  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals ln 3 over ln 2.');
+  // A one-letter denominator is still one letter.
+  assert.equal(mathToSpeech('x/y'), 'x over y');
+  assert.equal(mathToSpeech('3/-x'), '3 over negative x');
+});
+
+// Review SF2, second round: a run of letters after "/" that is not a word is a
+// product of variables, said letter by letter, as before — "V over l w", never
+// "V over lw" (a literal equation's answer; how "lw" sounds depends on the
+// voice). Only a function, a constant, a spoken phrase or a real word is read
+// whole.
+test('a product of variables in a denominator is said letter by letter', () => {
+  const cases = [
+    ['h = V/lw', 'h equals V over l w', 'h es igual a V sobre l w'],
+    ['h=A/bh', 'h equals A over b h', 'h es igual a A sobre b h'],
+    ['r = I/Pt', 'r equals I over P t', 'r es igual a I sobre P t'],
+    ['d/rt', 'd over r t', 'd sobre r t'],
+    ['x = c/ab', 'x equals c over a b', 'x es igual a c sobre a b'],
+    ['1/xy', '1 over x y', '1 sobre x y'],
+    ['x/yz', 'x over y z', 'x sobre y z'],
+    ['1/xy^2', '1 over x y squared', '1 sobre x y al cuadrado'],
+    ['dy/dx', 'dy over d x', 'dy sobre d x'],
+  ];
+  for (const [value, en, es] of cases) {
+    assert.equal(mathToSpeech(value), en, value);
+    assert.equal(mathToSpeech(value, { language: 'es' }), es, `${value} (es)`);
+  }
+  assert.equal(mathToSpeech('rise/run'), 'rise over run', 'a word of three or more letters with a vowel is a word');
+  assert.equal(mathToSpeech('Slope = rise/run.'), 'Slope equals rise over run .');
+});
+
+// What these two rounds must not move: each reads exactly as it did before them.
+test('denominators the review named as unchanged still read the same', () => {
+  const unchanged = [
+    ['xy/z', 'xy over z', 'xy sobre z'],
+    ['3/2ab', '3 over 2 ab', '3 sobre 2 ab'],
+    ['1/2x', '1 over 2 x', '1 sobre 2 x'],
+    ['x/2y', 'x over 2 y', 'x sobre 2 y'],
+    ['m/s', 'm over s', 'm sobre s'],
+    ['km/h', 'km over h', 'km sobre h'],
+    ['ft/s', 'ft over s', 'ft sobre s'],
+    ['w/l', 'w over l', 'w sobre l'],
+    ['C/2pi', 'C over 2 pi', 'C sobre 2 pi'],
+    ['t = d/r', 't equals d over r', 't es igual a d sobre r'],
+    ['h = 2A/b', 'h equals 2A over b', 'h es igual a 2A sobre b'],
+    ['y = k/x', 'y equals k over x', 'y es igual a k sobre x'],
+    ['A/(bh)', 'A over the quantity bh', 'A sobre la cantidad bh'],
+    ['\\frac{A}{bh}', 'the fraction A over bh end fraction', 'la fracción A sobre bh fin de fracción'],
+  ];
+  for (const [value, en, es] of unchanged) {
+    assert.equal(mathToSpeech(value), en, value);
+    assert.equal(mathToSpeech(value, { language: 'es' }), es, `${value} (es)`);
+  }
+});
+
 test('MathDisplay hides the typeset element and renders one spoken copy from its value', () => {
   const source = executableSource(read('src/MathDisplay.jsx'));
   assert.doesNotMatch(source, /Mathematical expression/, 'the placeholder default label is gone');

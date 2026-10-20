@@ -215,10 +215,13 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
         : lessonSections;
-  // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 40). Under 10, the
-  // Warm-Up is still inside its default ten-minute window.
-  const p3StartMin = Number(params?.get?.('p3StartMin'));
-  const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 40) * 60_000;
+  // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 0: it begins
+  // now). Under 10, the Warm-Up is still inside its default ten-minute window,
+  // so with no parameter it is open; every journey that passes none relies on
+  // that. Pass e.g. 40 for a period well under way with its Warm-Up closed.
+  const p3StartParam = params?.get?.('p3StartMin');
+  const p3StartMin = p3StartParam == null || p3StartParam === '' ? 0 : Number(p3StartParam);
+  const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 0) * 60_000;
   // `?p3EndMin=<n>`: Period 3 ends in n minutes (default 50). With 3, the
   // class's DOL (10 minutes, closing 5 before the bell) closed 2 minutes ago.
   const p3EndMin = Number(params?.get?.('p3EndMin'));

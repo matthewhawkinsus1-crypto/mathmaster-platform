@@ -38,7 +38,12 @@
  * accommodation and no multiplier.
  */
 
+import { EXTRA_TIME_WORDS } from './extraTimeWords.js';
+
 export const DOL_OPEN_NOTICE = 'Your latest completed response will be submitted automatically when time ends.';
+
+// "extra time", shared with the timer pill and Home (extraTimeWords.js).
+export { EXTRA_TIME_WORDS };
 
 const clockTime = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -51,7 +56,7 @@ const clockTime = (value) => {
 export const dolExtraTimeNotice = ({ extendedTime = false, endsAt = null } = {}) => {
   if (extendedTime !== true || !endsAt) return '';
   const time = clockTime(endsAt);
-  return time ? `Your exit ticket closes at ${time} — extra time.` : '';
+  return time ? `Your exit ticket closes at ${time} — ${EXTRA_TIME_WORDS}.` : '';
 };
 
 const RECEIPT_TEXT = {

@@ -129,7 +129,11 @@ for (const viewport of VIEWPORTS) {
   await row.getByLabel('Your answer').fill(ANSWER_TEXT);
   await row.getByRole('button', { name: 'Send answer' }).click();
   await questions.getByText(/Answer sent to /).waitFor({ timeout: 10000 });
-  expect(`Q2 ${tag} answered leaves the list`, (await questions.locator('[data-student-question]').count()) === 0, 'the answered question is still waiting');
+  // The list follows the waiting-questions snapshot, which lands a task after
+  // the "Answer sent" line (on CI's runner, after this check first looked):
+  // the row has to go, but it may take that long.
+  const answeredLeft = await page.waitForFunction(() => !document.querySelector('[data-student-questions] [data-student-question]'), null, { timeout: 10000 }).then(() => true, () => false);
+  expect(`Q2 ${tag} answered leaves the list`, answeredLeft, 'the answered question is still waiting');
   await shot(page, 'q2-answered', viewport);
   await page.close();
 

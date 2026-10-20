@@ -65,6 +65,14 @@ for (const viewport of VIEWPORTS) {
     return route.abort();
   });
   const page = await context.newPage();
+  // The harness builds the day's schedule around the page's clock (Period 1
+  // ends an hour from now, the DOL works its last minutes). Late in the day
+  // that hour runs past midnight and the schedule wraps: the DOL's wait line
+  // and the Warm-Up's window come out wrong (seen at 23:37 UTC, the base too).
+  // The page's clock is held at noon today; its timers keep running.
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
+  await page.clock.setFixedTime(noon);
   const consoleErrors = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('pageerror', (error) => consoleErrors.push(String(error?.message || error)));

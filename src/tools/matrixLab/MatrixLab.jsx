@@ -21,7 +21,7 @@ import MatrixCalculator from './MatrixCalculator.jsx';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import {
   CellInput, CheckRow, DimensionsInput, MatrixInput, Step, Symbol, SystemDisplay, VariableMatrix, YesNo,
-  buttonStyle, choiceStyle, resizeCells, setCell,
+  buttonStyle, ChoiceRadios, choiceStyle, resizeCells, setCell,
 } from './matrixLabUi.jsx';
 
 /*
@@ -93,8 +93,10 @@ const gridFields = (cells, label) => cells.flatMap((row, i) => row.map((value, j
 const sameCells = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 // An authored start the student has not changed is not refused — an item
 // published with a right start must stay answerable — but Check asks once
-// before it spends a try on it (S3, integration review).
-const UNTOUCHED_START = 'This is the matrix equation as it was given. Change what needs fixing — or press Check again to check it as it is.';
+// before it spends a try on it (S3, integration review). CheckRow words it
+// with the button's own name ("press Submit again" where the press spends a
+// try; D9), so it never says Check beside a Submit button.
+const UNTOUCHED_START = (actionName) => `This is the matrix equation as it was given. Change what needs fixing, or press ${actionName} again if it is right as it is.`;
 
 function useLabUndo(questionData, state, restore, clearFeedback, label) {
   return useMathUndoHistory({
@@ -477,12 +479,14 @@ function SingularReason({ size, value, onChange }) {
         {rowSelect('otherRow', 'The row it is a multiple of')}
         <span>.</span>
       </div>
-      <div role="radiogroup" aria-label="Do the constants in B follow the same multiple?" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span>The constants in B</span>
-        {[[SINGULAR_CONSTANT.FOLLOWS, 'follow the same multiple'], [SINGULAR_CONSTANT.BREAKS, 'do not follow it']].map(([id, text]) => (
-          <button key={id} type="button" role="radio" aria-checked={value.constant === id} onClick={() => onChange({ constant: id })} style={choiceStyle(value.constant === id)}>{text}</button>
-        ))}
-      </div>
+      <ChoiceRadios
+        label="Do the constants in B follow the same multiple?"
+        lead={<span>The constants in B</span>}
+        options={[[SINGULAR_CONSTANT.FOLLOWS, 'follow the same multiple'], [SINGULAR_CONSTANT.BREAKS, 'do not follow it']]}
+        value={value.constant}
+        onChange={(constant) => onChange({ constant })}
+        style={{ alignItems: 'center' }}
+      />
     </div>
   );
 }
@@ -596,11 +600,12 @@ function SolveMode({ questionData, model, onAction }) {
         ) : null}
       </Step>
       <Step number={nextStep()} title="Report the solution">
-        <div role="radiogroup" aria-label="How many solutions does the system have?" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {CLASSIFICATIONS.map(([id, label]) => (
-            <button key={id} type="button" role="radio" aria-checked={classification === id} onClick={() => { clearFeedback(); setClassification(id); }} style={choiceStyle(classification === id)}>{label}</button>
-          ))}
-        </div>
+        <ChoiceRadios
+          label="How many solutions does the system have?"
+          options={CLASSIFICATIONS}
+          value={classification}
+          onChange={(id) => { clearFeedback(); setClassification(id); }}
+        />
         {asksReason ? <SingularReason size={model.keyA?.length || size} value={singularReason} onChange={editReason} /> : null}
         {classification === SOLUTION_TYPES.ONE ? (
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 12 }}>

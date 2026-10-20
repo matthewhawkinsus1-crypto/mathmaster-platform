@@ -58,6 +58,8 @@ test('Regression Calculator submits "my regression" and says so when it is compl
   // action ("Record answer", ToolRuntimeContext useSubmitLabel).
   assert.match(button, />\s*\{submitActionLabel\}\s*$/);
   assert.match(source, /const submitActionLabel = useSubmitLabel\('Submit my regression'\);/);
-  const verdict = region(source, 'const feedbackText', ');', 'the regression verdict text');
-  assert.match(verdict, /'Regression complete\.'/);
+  // The verdict sentence is chosen from the grader's parts in
+  // regressionFeedback.js (wave 7, TOOL-5); complete work says so.
+  assert.match(source, /const feedbackText = feedback && regressionFeedbackText\(feedbackParts\);/);
+  assert.match(read('src/tools/regressionCalculator/regressionFeedback.js'), /complete: 'Regression complete\.'/);
 });

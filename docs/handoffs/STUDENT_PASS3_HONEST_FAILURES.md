@@ -1,0 +1,340 @@
+# Student pass 3, wave 7, W7-3: honest failures
+
+Branch `claude/pass3-honest-failures`, from `claude/modest-pasteur-xzagn7` at `530ac3cf` (`main` today). Nothing here
+deploys, writes to a production project or re-grades anything. No new Firestore path, no rules, index or Cloud
+Function change. This session owns `src/App.jsx` this wave.
+
+Each item was first checked on the base by reading the code there (line numbers below are the base's), and the two
+visual ones were replayed in a real browser: `tests/browser/stepNotQueued.mjs` runs the old host's answer (`?host=null`)
+next to the new one.
+
+## Per item: what a student saw → what changed → proof
+
+### 1. A Step Algebra step, or a new problem, the device could not queue
+
+Source: STUDENT_PASS3_BATCH3_CLIENT.md "Left for later", STUDENT_PASS3_BATCH3_INTO_PASS3.md, wave 6 "Found here".
+
+**Still there on the base?** Yes.
+
+- `App.jsx` `handleStepGrade` (base ~7487) caught a failed outbox write with a toast, "Step not queued — Your step is
+  still in Work View…", and returned `null`.
+  - The toast sat under Work View.
+  - The solver never looked at the answer. It applied the step anyway: new equation, a history entry, "Balanced step
+    complete", and the Step Algebra draft moved on.
+  - "Submit it again" had nothing to press: the step was already on the board.
+- The new-problem handler (base ~7585) did the same with "Replacement not queued". Worse, `QuestionEngine` had already
+  removed the question's drafts and emptied its answer before it asked the host.
+- Replayed in the browser: with the old host's `null`, the solver applies a step nothing saved (the driver's "defect"
+  checks).
+
+**Changed.**
+
+- `src/platform/student/submissionNotQueued.js` gains two results, shaped like Batch 3's `SUBMISSION_NOT_QUEUED`.
+  Neither carries a verdict, credit or attempt.
+  - `STEP_NOT_QUEUED`: "Step not saved. This device could not save this step, so it was not sent and no try was used.
+    Your step is still here: keep this tab open and apply it again."
+  - `REPLACEMENT_NOT_QUEUED`: "No new problem yet. This device could not save your request, so nothing changed and no try
+    was used. Keep this tab open and ask for the new problem again."
+- `App.jsx`: both catches return the result and raise no toast. The save line still says "Not saved · …"; it is not a
+  live region, so the alert below is the one announcement.
+- `StepByStepAlgebraCore.jsx`: every commit that saves a step now reads the host's answer before it applies anything.
+  That is the balanced move, Simplify, Distribute, the Rewrite tools and a standalone cancellation.
+  - On `STEP_NOT_QUEUED` (`holdUnsavedStep`) the step is not applied: no new equation, no history entry, no "complete".
+  - Whatever the student staged stays on the board: the pending move, the crossed sides, the open tool.
+  - One `role="alert"` in the solver says so. It is inside Work View, where the student is. It is remounted on each
+    failure, so a second failure is announced again.
+  - "Apply the step again" repeats the same step. It is offered only while the staging is the one the step was
+    taken with (any change retires it, review S1), and is disabled while a save is in flight.
+- `MultiRelationAlgebraCore.jsx` (the relation solver, also `stepAlgebra`): `commitState` now saves first and applies
+  after.
+  - On `STEP_NOT_QUEUED` it returns `false`, and every caller already stops on `false`. The relation, history and
+    staging are untouched, the same alert shows, and the student presses the same control (Commit step, …) again.
+  - A ref keeps it to one step at a time while a save is in flight. The old order applied first, so a double press
+    acted on the new state; now it would have acted twice on the old one.
+- `QuestionEngine.jsx` `handleRequestNewQuestion` asks the host first.
+  - On `REPLACEMENT_NOT_QUEUED` it keeps the question, its drafts and its answer, and shows the alert under "Request
+    New Question", which can be pressed again.
+  - Only after a queued request does it clear the old variant's drafts. The variant is part of the draft key, so the
+    new problem's key is never touched.
+
+**Proof.**
+
+- `tests/platform/studentHonestFailures.test.mjs`, items 1: the result shapes. App answers with the result, never `null`,
+  never a toast. Each of the five solver commits stops between the save and the new equation. The alert and the
+  retry's guard. The relation solver saves before it applies. The new problem asks before it clears.
+- `tests/browser/stepNotQueued.mjs` (new; real QuestionEngine and solvers; 1366×768 and 390×844; plain Vite on 5199):
+  - Step Algebra, 3x + 6 = 21, Subtract 6 and cancel. The board keeps the equation, one alert, no "complete", and the
+    button fits the screen. Once the device can save, "Apply the step again" applies it, reaching the host once more.
+  - The relation solver, 2x + 3 < 11, Subtract 3: the same, with Commit step pressed again.
+  - A new problem: one alert, same variant, its saved draft kept. The second request opens variant 1, and only then
+    is the old draft cleared.
+  - The defect replayed with the old host's `null` (two checks).
+  - 85 checks, 0 findings (with the review round's flip and staging scenes).
+- `submitNotQueued.test.mjs`'s two import assertions now allow the added names (behaviour unchanged; mutation-checked).
+
+### 2. Raw error text reaching students
+
+Source: STUDENT_PASS3_GETTING_AROUND.md "Not done".
+
+**Still there on the base?** Yes, and Graph the Line (#500) added more. On the base every one of these printed
+`error.message`:
+
+- `LiveChallengeStudent.jsx`:
+  - the answer submit (~386) and its retry (~430);
+  - the room listener (~861);
+  - the score, standings and place listeners (~954, ~963, ~973);
+  - the join (~1064).
+- `GraphFeatureRushRound.jsx` (~364, ~447).
+- New with #500: `LineGraphRound.jsx` (~517, ~599), `LineGraphPractice.jsx` (~81), and the same in
+  `GraphFeatureRushPractice.jsx` (~60).
+- `SessionGate.jsx` printed `hydrationError` as is, from `App.jsx`'s `error.message` (~3574).
+
+A Firestore listener's refusal reads "Missing or insufficient permissions."; a program error reads like "e.map is not
+a function". Both pass `studentSafeSentence`'s word filter, so routing alone would not have been enough.
+
+**Changed.**
+
+- `src/platform/student/studentErrorWords.js` (new) is the words half of `studentErrorText.js`: `text` and `retry`,
+  with no navigation exit and no imports. `studentErrorText.js` re-exports it and adds the exit; its behaviour for
+  callers is unchanged.
+  - New rule: only a callable's message (`functions/…`) counts as a sentence our server wrote. A Firestore or Auth SDK
+    error, or a program error (`TypeError`, `RangeError`, …), is never shown.
+  - New option `fallback`: the screen's own sentence when none comes with the error.
+- `studentErrorSentence(error, fallback)` is used at every site above. Each keeps the technical error in a
+  `console.error` / `console.warn` line, for support.
+- `SessionGate` shows `studentErrorSentence(hydrationError, …)`. Its fallback is "Something went wrong while loading
+  your account. Return to sign in and try again." `App.jsx` now hands it the error itself and logs it.
+- `TestCycleCard` (the existing user) now also hides a Firestore SDK message. A callable's sentence is kept as before.
+
+**Proof.**
+
+- `studentHonestFailures.test.mjs`, item 2:
+  - the translator on real errors (SDK, program, callable, plain sentence, offline, bare code);
+  - the words module imports nothing;
+  - each of the five Live Challenge screens sets no `.message`, routes every shown error (7 / 2 / 2 / 1 / 1), and logs
+    each one;
+  - SessionGate and App's hand-off.
+- `studentErrorText.test.mjs` unchanged and green.
+- `appShellSplit.test.mjs`'s gate assertion now expects the translated sentence (rewritten per the playbook,
+  mutation-checked).
+
+### 3. Copy that is no longer true
+
+Sources: STUDENT_PASS3_WAVE6_INTEGRATION.md "Found here"; STUDENT_PASS3_D7_EXTRA_TIME.md "Not done"; W6-2's N6.
+
+**Still there on the base?** All three.
+
+- `whatChangedModel.js` (~270) listed any extension as "You have more time on … — now due <date>", past dates
+  included.
+- `SectionTimeLeft` read "Exit ticket (DOL) open · 3:20" and Home "Closes at 10:52". A pill counting past the class's
+  end gave no reason.
+- The arrival effect (`App.jsx` ~11246) returned early off the workspace and kept the queue. A notice for an opening
+  that never committed would show over the next, unrelated one.
+
+**Changed.**
+
+- An extension whose date has passed is not listed any more (`controlChanges` uses the `nowValue` it was already
+  passed).
+- "extra time" (`src/platform/assessment/extraTimeWords.js`, re-exported by `dolCloseCopy.js`) is now said on the
+  pill, in its screen-reader sentence and on Home's card, from `getDOLState()`'s `extendedTime` and `classEndsAt`:
+  - the pill: "Exit ticket (DOL) open · extra time · 3:20";
+  - the pill's screen-reader sentence: "… is open (extra time), 3:20 left.";
+  - Home's card: "Closes at 10:52 AM — extra time" (`resolveNextAction` → `extraTimeFrom`);
+  - the open notice, as before (D7's own sentence, unchanged).
+  It names no accommodation and no multiplier. **Only once the class's own window has ended** (review N7,
+  `saysExtraTime`): `extendedTime` comes from this student's accommodation and the pill sits in the navigation, where
+  a neighbour can read it. Before the class's close the pill and Home read as for everyone, with the student's own
+  countdown and close; from it, "extra time" explains why their timer is still running. The pill decides on its own
+  one-second clock; Home at its next render.
+- The arrival notices are dropped by any commit that has them queued and is not the workspace. They are queued in the
+  same update that opens the workspace, so such a commit means it never opened.
+
+**Proof.** `studentHonestFailures.test.mjs`, item 3: a past and a future extension; `extraTimeFrom` and `saysExtraTime`
+on both sides of `classEndsAt` (and never without extra time); `resolveNextAction` with and without extra time; the
+Home card, pill and App wiring. `dolExtraTimeJourneys` (real App) passes. `appUrlArrival.test.mjs` rewritten: the drop comes before the toast.
+
+### 4. "Not being saved" across a reload
+
+Source: wave 6 "Found here" (W6-5).
+
+**Still there on the base?** Yes. `draftSaveHealth.js` kept the problems in module memory. Separately, App cleared all
+of them whenever `user?.id` changed (an effect cleanup). That includes null → student, which is what a reload does as
+the account loads.
+
+**Changed.**
+
+- The two backup problems are kept in the tab's `sessionStorage` (`mathmaster:draft-save-health:v1`). They are read
+  back on load only for drafts still in this device's storage.
+  - `BACKUP_REFUSED`: the server backup refused a draft that is on this device.
+  - `BACKUP_FULL`: the backup is past its caps and left the oldest drafts out.
+- Every change writes through, so the notice goes the moment the draft saves, and a reload does not bring it back.
+- `DEVICE_FULL` is not kept. That work never reached storage, so after a reload it is not in the page any more, and
+  the next write that fails says so again.
+- Still per tab: a new tab starts clear.
+- App now clears the problems only when a signed-in account gives way (sign-out, another student), never when one
+  arrives.
+
+**Proof.**
+
+- `studentHonestFailures.test.mjs`, item 4: module reloads with fake storages. A refused backup survives; device-full
+  and a retired draft do not. A clear writes through; sign-out empties what is kept; an unreadable copy starts clear.
+  App's account rule.
+- `tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs` (new; the real App on the teacher harness, 5188):
+  - R1: after a reload the account loads, Home says "Some work needs attention", and the assignment shows the refused
+    sentence.
+  - R2: an edit that is backed up clears it, and a reload keeps it cleared.
+  - R3: a kept problem for a draft no longer on the device is dropped.
+  - 10 checks, all pass.
+  - The refusal is planted in the kept copy; the guard that refuses a real draft is `draftSaveFailureNotice`'s.
+
+## Review round (reviewer on `ae66df2c`)
+
+The independent review found three blockers, three should-fixes and one change the integrator decided. Payloads are
+byte-identical to the base, and nothing is lost, doubled or crosses students (the reviewer's checks).
+
+| Finding | What was wrong | Fix | Proof |
+| --- | --- | --- | --- |
+| B1 | A late Live Challenge answer: the server's `HttpsError('deadline-exceeded', 'Time was up before your answer arrived, so it was not counted.')` became "Can't reach MathMaster right now. Check the Wi-Fi…" — the "unreachable" codes were tested before the server's words. Untrue: it was answered, and never counted. | `describeStudentErrorWords`: a `functions/…` error with a sentence our server wrote is returned first, whatever its code (asking again only where `details.retry` says so). The Functions SDK's own errors never pass for ours: a bare code (its timeout, "internal") is still the connection; its four sentences ("Response is not valid JSON object.", "Response is missing data field.", "Request was cancelled[.]", "Firebase Functions instance was deleted.", from `@firebase/functions`) give the screen's fallback. Navigator offline and a failed fetch stay the connection. | `studentHonestFailures`: the late answer and "Time is up for this round." keep their sentence (and offer no retry); the SDK timeout and bare codes read as the connection; each SDK sentence gets the fallback. |
+| B2 | A relation-symbol flip (every inequality ÷ or × a negative) did not go through `commitState`: history, board and "Relation symbols accepted." came first, the save's answer was ignored. | `chooseRelationSymbol` saves before it takes the flip. Unsaved: the flip stays pending, the symbol is unchosen again, the not-saved alert shows; choosing the symbol again saves it again. `commitState` and the flip are `persistStep`'s only callers (asserted); the StepByStep solver's five commits were already covered, and its slips are decision 1. | `studentHonestFailures` (order, the stop, two callers). `stepNotQueued.mjs` new scene, -2x < 6 ÷ -2, ">": unsaved, the symbol stays "<" with one alert; saved, ">" and a second host call. With the fix broken, 4 checks go red. |
+| B3 | My first report said `test:platform` 12,129/12,129. That run started before the App account-rule change; on `ae66df2c` it was 12,128: `draftSaveFailureNotice.test.mjs` still pinned the old cleanup. | The rule is a pure function, `accountChangeClearsDraftProblems` (draftSaveHealth.js), used by App's effect. The test asserts its behaviour (A→B and A→signed out clear; null→A and A→A keep) and App's wiring. | Mutation-checked (clearing on arrival, keeping on sign-out, the old cleanup back). The whole gate was run again on the new head (below). |
+| S1 | "Apply the step again" outlived a change of staging: held Subtract 6, then new staging, then the button applied the old move. | `stagingKey` (the board and everything staged: pending move, tiles, operand, placements, Simplify, Rewrite tools, distribution, typed simplifications, cancellation marks). A held step records it; any change retires the alert and the button, and the button shows only while it matches. Decision 2 is settled by this. | Contract (every piece in the key, the retiring effect), mutation-checked. Browser: held step, then Undo and Divide by — the alert and button go and nothing older is applied. (Undo clears the message on its own, so the browser check does not isolate the effect; its mutation is caught by the contract.) |
+| S2 | The balanced-move contract had no `if \(`, so `if (false && holdUnsavedStep(...))` stayed green. | Anchored on the `if`. | Mutation caught. |
+| S3 | Two comments described the old apply-then-save order. | MultiRelation `commitSimplifyResult` and `SimplifyPanel` say what happens now. | — |
+| N7 | "extra time" on the pill for the whole exit ticket shows a neighbour that the student has an accommodation. | Said only from the class's own close (item 3). | Both sides of `classEndsAt`, mutation-checked. |
+
+## Gate
+
+Run again on the review round's head (`63c46a3b` for the suites; the code is `9d79bb4b`'s, and `63c46a3b` changes
+tests only); the base is `530ac3cf` (a worktree, for the base comparisons). My first report's "12,129/12,129" was
+from a run that started before the last App change and was not true of `ae66df2c` (review B3).
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 12,133 / 12,133 (on `63c46a3b`; also 12,133 / 12,133 on `9d79bb4b`) |
+| `node --test tests/tools/*.test.mjs` | 1,710 pass, 0 fail |
+| `npm run lint` | exit 0 (warnings only, all pre-existing) |
+| `npm run build` | ok |
+| `npm run build:firebase` | ok; no tracked file rewritten (`git status` clean) |
+| `npm run test:draft-persistence` | pass |
+| `npm run test:canonical-persistence` | 35 / 35 |
+| **Plain Vite, 5199** (`AUDIT_ORIGIN`) | |
+| `stepNotQueued.mjs` (new) | 85 checks, 0 findings (adds the -2x < 6 flip and the staging scenes) |
+| `submitNotQueued.mjs` | pass |
+| `durableOutboxRecovery.mjs` | pass (needs `PLAYWRIGHT_MODULE` set to the installed Playwright here: it imports bare `playwright`) |
+| `errorRecovery`, `duplicateTabs`, `stepAlgebraStructureTools`, `dolCloseCopy` | all pass |
+| **Teacher harness, 5188** (`TEACHER_HARNESS_ORIGIN`) | |
+| `draftSaveNoticeReloadJourneys` (new), `journeys`, `appUrlJourneys`, `dolExtraTimeJourneys`, `submitAndFinishJourneys` | all pass |
+| `npm run test:live-challenge-teaching-browser` | 58 / 58 |
+
+Run in the first round on `ae66df2c`'s code and not re-run (the integrator's list for this round leaves them out):
+`staleTabRecord`, `composedDraftRestore`, `draftEditTime`, `algebraicSubstitutionHandoff` and the teacher journeys
+`draftCrossDeviceJourneys`, `recoveryDraftCrossDeviceJourneys`, `restoredDraftFocusRaceJourneys`,
+`studentScreenChange`, `enduranceJourneys` all passed. `studentHomeToday` fails the same on the base (this container
+cannot reach Firestore: "client is offline" console errors). `liveChallengeShellQa` has the same 2 teacher-projector
+findings on the base ("the projector round table is not in the round's order"; "the projector does not say the round
+earned championship points").
+
+**Mutations.** 52 mutations of the new code, each run against the test that guards it, all caught. They cover:
+- every App catch, each solver commit (the balanced move's `if` anchored, S2), the alert, the retry's staging guard,
+  the staging effect and key (S1);
+- the relation solver's order and stop, and the flip's stop and its history before the save (B2);
+- the new problem's order and alert;
+- the words: program and SDK errors kept, the fallback ignored, a server answer called the connection, an SDK sentence
+  passing for ours or called the connection, a server refusal offering retry (B1);
+- the Live Challenge screens, SessionGate and App's hand-off;
+- the expired extension; "extra time" said without extra time, before the class's close, or not wired (N7);
+- the arrival queue;
+- the kept notice and App's account rule.
+The account rule (B3), as the reviewer listed: the guard dropped, the clear dropped, `!==` → `===`, the assignment
+moved above the check, the old cleanup put back — each red in both `draftSaveFailureNotice` and
+`studentHonestFailures`, which now run the effect's own body through one tab's life. In the browser, `stepNotQueued`
+goes red (4 checks) with the flip's stop removed. Its staging scene stays green with the S1 effect removed, because Undo
+clears the message on its own; that effect is held by its contract.
+
+## The first load
+
+Measured with `node scripts/check-first-load-budget.mjs --report`, on production builds of this branch and of the
+base (a worktree at `530ac3cf`, same `node_modules`), built the same way. `scripts/first-load-baseline.json` is not
+edited.
+
+| Path | Base | Branch | Change |
+| --- | --- | --- | --- |
+| studentHome (`npm run build`) | 839.4 KB, 184 files | 840.8 KB, 184 files | **+1.4 KB** (my share ≤ 1.5 KB) |
+| studentHome (`npm run build:firebase`) | 839.6 KB | 841.0 KB | +1.4 KB |
+| signIn (`npm run build`) | 291.8 KB, 27 files | 292.6 KB, 27 files | +0.8 KB |
+
+Where it goes:
+- the error words, which are now on the first load (SessionGate) instead of only in Test Cycle's lazy chunk, ~0.9 KB with
+  B1's SDK sentences;
+- the two new not-queued sentences, ~0.3 KB;
+- the kept save notice and its account rule, ~0.2 KB.
+
+Two things kept it down:
+- `studentErrorWords.js` imports nothing, so the sign-in path does not also load the navigation model (+1.9 KB on
+  signIn before the split);
+- "extra time" lives in `extraTimeWords.js`, so Home does not load the whole DOL close copy (−0.5 KB).
+
+Nothing here may load lazily: the failure notices have to show when a dynamic import has just failed.
+
+## Deploying (not done)
+
+- **Hosting only.** Every change is under `src/`; tests and docs do not ship.
+- **Functions, rules, indexes:** none. `functions/` and `functions/shared/` are untouched.
+- Run `node scripts/release-firebase.mjs --since 530ac3cf` for the exact plan.
+- It touches persistence: the device's draft-save notice, and the order in which a step and a new-problem request are
+  saved and applied. Release outside class time, as the brief says.
+- An open tab of an older build keeps the old behaviour until it reloads. Nothing it writes conflicts: the kept-notice
+  key is new and read only by this build.
+
+## Decisions for the owner
+
+1. **A wrong-side tap or wrong simplification the device could not save** (a "slip" record, kept only for the teacher
+   at levels that record slips) is not announced to the student. It costs them nothing, and the save line says
+   "Not saved". Before, it raised the "Step not queued… submit it again" toast, with nothing to submit.
+2. ~~"Apply the step again" repeats the step as staged when it failed.~~ Settled in the review round (S1): any change
+   of staging, an edited simplification included, retires the held step and its button.
+3. **Step credit for a checked intercept** (`LinearInterceptsOrchestrator`, fire-and-forget) that could not be queued
+   is not announced. The intercept is checked locally and graded at Submit; only that step's credit is lost. Before, a
+   toast said "Step not queued".
+4. **The account-load fallback** reads "Something went wrong while loading your account. Return to sign in and try
+   again." Teachers see it too, so it does not say "tell your teacher".
+5. **Device-full is not kept across a reload** (item 4, above). Say if you want it kept until the next successful write
+   instead.
+6. **"extra time" only once the class's window has ended** (review N7, decided by the integrator). Say "extra time"
+   from the start instead? That would explain the later close early, at the cost of showing a neighbour that the
+   student has an accommodation for the whole exit ticket.
+7. **A callable refusal with our sentence and an "unreachable" code** (B1) now shows the sentence and, unless the
+   server sets `details.retry`, no Try again. This also applies to the Test Cycle card (`describeStudentError`): a
+   server `HttpsError('internal', '<a sentence>')` used to read as the Wi-Fi line with Try again.
+
+## What I touched outside my scope
+
+- `src/QuestionEngine.jsx`: the new-problem handler and its alert (item 1). W7-4 (feedback reasons 2) may also be in
+  this file. My hunks are the import line, one `useState`, `handleRequestNewQuestion`, and one line after the "Request
+  New Question" button.
+- `src/StepByStepAlgebraCore.jsx` and `src/MultiRelationAlgebraCore.jsx`: item 1 needs the solvers to read the host's
+  answer.
+- `src/components/student/SectionTimeLeft.jsx`, `WhatShouldIDoNow.jsx`, `src/studentDashboardModel.js`: the
+  "extra time" words.
+- `src/platform/student/studentErrorText.js` was split. It re-exports everything it had; behaviour is unchanged except
+  that SDK and program errors are no longer kept.
+- Tests rewritten per SOURCE_CONTRACT_PLAYBOOK: `appShellSplit` (1 assertion), `appUrlArrival` (1), `submitNotQueued`
+  (2), `draftSaveFailureNotice` (the account rule, now run; review B3). New helper:
+  `tests/platform/helpers/draftHealthAccountEffect.mjs`.
+- `src/platform/algebra/simplify/SimplifyPanel.jsx`: one comment (review S3).
+- For W7-7 (CI hygiene): two new drivers are in no workflow yet:
+  - `tests/browser/stepNotQueued.mjs` (plain Vite on 5199);
+  - `tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs` (teacher harness on 5188).
+
+## Not done
+
+- `liveChallengeShellQa`'s two projector findings and `studentHomeToday`'s offline console errors fail on the base too
+  (gate table); not mine to fix on this branch.
+
+- `LinearInterceptsOrchestrator`'s own intercept step (decision 3).
+- A slip that could not be saved (decision 1).
+- `SectionRecoveryRunner`, `ToolWrapper` and the Live Challenge question host have their own step hosts. None of them
+  writes to the durable outbox, so none returns these results; nothing to change.
+- Teacher-facing Live Challenge screens (`LiveChallengeTeacher`, hosts, setup) still print `error.message`: out of
+  scope (students only).
+

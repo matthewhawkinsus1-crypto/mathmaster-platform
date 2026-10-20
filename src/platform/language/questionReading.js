@@ -41,7 +41,14 @@ const WORDS = {
     system: 'The system',
     matrix: (name, rows, columns) => `${name ? `Matrix ${name}` : 'A matrix'}, ${rows} by ${columns}.`,
     row: (index) => `Row ${index}`,
-    labels: { question: 'The question', backUp: 'Let’s back up', information: 'Information you need', step: 'This step', system: 'The system', matrix: (name) => (name ? `Matrix ${name}` : 'The matrix'), part: (index) => `Part ${index}` },
+    table: (label, rows) => `${label || 'A table'}, ${rows} ${rows === 1 ? 'row' : 'rows'}.`,
+    columns: 'Columns',
+    blank: 'blank',
+    wrote: (value) => `you wrote ${value}`,
+    of: 'of',
+    dollars: 'dollars',
+    figure: 'A figure',
+    labels: { table: 'The table', figure: (index) => `Figure ${index}`, question: 'The question', backUp: 'Let’s back up', information: 'Information you need', step: 'This step', system: 'The system', matrix: (name) => (name ? `Matrix ${name}` : 'The matrix'), part: (index) => `Part ${index}` },
   },
   es: {
     backUp: 'Retrocedamos un paso.',
@@ -53,7 +60,14 @@ const WORDS = {
     system: 'El sistema',
     matrix: (name, rows, columns) => `${name ? `Matriz ${name}` : 'Una matriz'}, de ${rows} por ${columns}.`,
     row: (index) => `Fila ${index}`,
-    labels: { question: 'La pregunta', backUp: 'Retrocedamos', information: 'Información que necesitas', step: 'Este paso', system: 'El sistema', matrix: (name) => (name ? `Matriz ${name}` : 'La matriz'), part: (index) => `Parte ${index}` },
+    table: (label, rows) => `${label || 'Una tabla'}, de ${rows} ${rows === 1 ? 'fila' : 'filas'}.`,
+    columns: 'Columnas',
+    blank: 'en blanco',
+    wrote: (value) => `escribiste ${value}`,
+    of: 'de',
+    dollars: 'dólares',
+    figure: 'Una figura',
+    labels: { table: 'La tabla', figure: (index) => `Figura ${index}`, question: 'La pregunta', backUp: 'Retrocedamos', information: 'Información que necesitas', step: 'Este paso', system: 'El sistema', matrix: (name) => (name ? `Matriz ${name}` : 'La matriz'), part: (index) => `Parte ${index}` },
   },
 };
 const wordsFor = (language) => WORDS[String(language || 'en').toLowerCase().split('-')[0]] || WORDS.en;
@@ -65,6 +79,16 @@ const sentence = (value) => {
   if (!text) return '';
   return /[.?!:;]$/.test(text) ? text : `${text}.`;
 };
+// A family's back-up prompt opens with "Let’s back up." — which the overlay
+// already says above it, and its region is named. The question itself, said
+// once (the overlay's heading and the reader). Kept here, not in backUpStep.js,
+// so the reader does not pull the question families into a shared chunk.
+const BACK_UP_LEAD = /^let[’']s back up\.\s*/i;
+export const backUpQuestionText = (prompt) => String(prompt ?? '').trim().replace(BACK_UP_LEAD, '');
+// A figure's name or text with " · " between words ("Graph 1 · Intercept
+// method") is a pause, not a product: said as a comma. Between numbers or a
+// number and one letter ("2 · 3", "2 · x") it stays multiplication.
+const figureWords = (value) => clean(value).replace(/\s+[·•]\s+(?=\p{L}{2})/gu, ', ');
 const optionText = (option) => clean(typeof option === 'string' || typeof option === 'number' ? option : option?.label ?? option?.id ?? '');
 
 /** "Choices: −6; 6; 0; or −2." — semicolons, because a choice may hold a comma ("(2, 3)"). */
@@ -91,6 +115,36 @@ export const matrixReading = (matrix, { language = 'en' } = {}) => {
   return lines.join(' ');
 };
 
+/**
+ * A table the question shows (displayTable.js), row by row with its headers:
+ * "Row 1: x, 0; y, 3." A cell the student fills in is said as what they wrote
+ * ("y, you wrote 7") or "blank" — never its key, and never a verdict: the
+ * table carries no ✓ or ✗ to read.
+ */
+export const tableReading = (table, { label = '', language = 'en' } = {}) => {
+  const w = wordsFor(language);
+  if (!table || !Array.isArray(table.columns) || !table.columns.length || !Array.isArray(table.rows) || !table.rows.length) return '';
+  // A column headed "c(x)" is the function's output, never "c times x".
+  const headers = table.columns.map((column) => clean(column.label ?? column.key)
+    .replace(/^\$?([A-Za-z])\(([A-Za-z])\)\$?$/, (match, name, input) => `${name} ${w.of} ${input}`)
+    // A unit "($)" is a word: two of them would pair as a formula's delimiters.
+    .replace(/\(\s*\\?\$\s*\)/g, `(${w.dollars})`));
+  const lines = [w.table(clean(label).replace(/[.:]$/, ''), table.rows.length), `${w.columns}: ${headers.join('; ')}.`];
+  table.rows.forEach((row, rowIndex) => {
+    const cells = headers.map((header, columnIndex) => {
+      const cell = Array.isArray(row) ? row[columnIndex] : null;
+      // A cell the student fills in: what they wrote, never whether it is right.
+      const value = cell && typeof cell === 'object'
+        ? (clean(cell.entered) ? w.wrote(clean(cell.entered)) : w.blank)
+        : cell === null || cell === undefined || clean(cell) === '' ? w.blank : clean(cell);
+      // "x, −2": a comma, or "x −2" is heard "x minus 2".
+      return header ? `${header}, ${value}` : value;
+    });
+    lines.push(`${w.row(rowIndex + 1)}: ${cells.join('; ')}.`);
+  });
+  return lines.join(' ');
+};
+
 const stageChoices = (stage, workflow = []) => {
   const authored = Array.isArray(stage?.choices) ? stage.choices : [];
   if (!authored.length) return [];
@@ -111,8 +165,13 @@ const stageChoices = (stage, workflow = []) => {
  *   stage          { stage, index, total, workflow } — a composed question's current step
  *   language       the language the screen is in ('en', or the student's when an
  *                  authored translation is shown)
+ *   figures        what the tables, graphs and tool drawings on the screen
+ *                  already say (figureReadings.js: { kind: 'table', label, table }
+ *                  or { kind: 'figure', label, text }), in screen order. A
+ *                  figure's text is its own description, under its own rule:
+ *                  while the question can be answered, no positions.
  */
-export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en' } = {}) => {
+export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [] } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const w = wordsFor(language);
   const parts = [];
@@ -124,7 +183,8 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   // The back-up question first: until it is answered, it is the only thing
   // the student can do.
   if (backUp?.prompt) {
-    add('back-up', 'back-up', w.labels.backUp, [w.backUp, sentence(backUp.prompt), choicesSentence(backUp.options, { language })].join(' '));
+    // Said once: a family's prompt opens with the same words.
+    add('back-up', 'back-up', w.labels.backUp, [w.backUp, sentence(backUpQuestionText(backUp.prompt)), choicesSentence(backUp.options, { language })].join(' '));
   }
 
   add('prompt', 'prompt', w.labels.question, sentence(question.prompt));
@@ -139,6 +199,22 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   // A system the tool shows (Matrix Lab) but the prompt does not write out.
   const equations = question.showEquations === false || !Array.isArray(question.equations) ? [] : question.equations.map(clean).filter(Boolean);
   if (equations.length) add('system', 'system', w.labels.system, `${w.system}: ${equations.join('; ')}.`);
+
+  // Tables, graphs and what a tool draws, where the screen shows them (after
+  // the prompt's own material, before the step and the fields that ask about
+  // them). Each says only what the figure itself already says.
+  let tableCount = 0;
+  let figureCount = 0;
+  (Array.isArray(figures) ? figures : []).forEach((entry) => {
+    if (entry?.kind === 'table') {
+      tableCount += 1;
+      add(`table-${tableCount}`, 'table', clean(entry.label) || w.labels.table, tableReading(entry.table, { label: figureWords(entry.label), language }));
+    } else if (entry?.kind === 'figure' && clean(entry.text)) {
+      figureCount += 1;
+      const name = clean(entry.label);
+      add(`figure-${figureCount}`, 'figure', name || w.labels.figure(figureCount), [sentence(figureWords(name) || w.figure), sentence(figureWords(entry.text))].join(' '));
+    }
+  });
 
   if (stage?.stage) {
     const current = stage.stage;

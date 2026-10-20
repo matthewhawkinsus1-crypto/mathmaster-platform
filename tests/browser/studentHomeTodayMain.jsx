@@ -175,6 +175,11 @@ const home = ({ assignments, scheduleMinutes, startedMinutesAgo, weeklyProgress,
         finished: { stage: 'final-complete', grade: 82, studentVisible: true },
         'pastdue-started': { stage: 'late-progress', grade: 40, studentVisible: false },
       }}
+      // Hermetic: no Path coverage read from Firestore. null is what that
+      // read returns when it fails (no index: recommendations fail closed),
+      // so the screen is the one the aborted read used to give, without the
+      // console error that made the driver's result depend on timing.
+      recommended={{ coverage: null }}
       {...extras}
     />
   );

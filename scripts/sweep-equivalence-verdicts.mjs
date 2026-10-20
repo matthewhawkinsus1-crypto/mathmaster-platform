@@ -31,13 +31,18 @@
  * as a near miss (or another option) is now accepted.
  *
  *   git worktree add /tmp/base <base-commit> && ln -s "$PWD/node_modules" /tmp/base/node_modules
- *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong]
+ *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong] [--allow-shallow]
+ *
+ * It reads every committed version of the seed files (the old keys, below),
+ * so it needs the whole history: on a shallow clone it stops (exit 2) unless
+ * --allow-shallow says to read only what the clone holds.
  *
  * Read-only: it writes only the --out file.
  */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -50,7 +55,7 @@ const DRAWS = Math.max(1, Number(argOf('--draws', '3')) || 3);
 const OUT = argOf('--out', null);
 const CHECK_WRONG = process.argv.includes('--check-wrong');
 if (!BASE) {
-  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong]');
+  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong] [--allow-shallow]');
   process.exit(2);
 }
 
@@ -93,7 +98,9 @@ const addField = (source, raw, questionChoices) => {
     answerFormat: raw.answerFormat || raw.inputContract?.format || null,
     inputProfile: raw.inputProfile || null,
   };
-  const id = JSON.stringify([field.key, field.accepted, field.options, field.equivalence, field.numericTolerance, field.answerFormat]);
+  // The profile is part of a field's identity: a number box and an
+  // expression field with one key are graded differently (wave 7).
+  const id = JSON.stringify([field.key, field.accepted, field.options, field.equivalence, field.numericTolerance, field.answerFormat, field.inputProfile]);
   if (seenFields.has(id)) return;
   seenFields.add(id);
   fields.push(field);
@@ -121,12 +128,15 @@ const seedFiles = [
   ...readdirSync(pathSeedDir).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).map((name) => [pathSeedDir, name]),
   ...readdirSync(secureSeedDir).filter((name) => name.endsWith('.json')).map((name) => [secureSeedDir, name]),
 ];
+// Every bank item as it is today, for the old-key spellings below.
+const currentItems = [];
 for (const [dir, file] of seedFiles) {
   const documents = documentsIn(JSON.parse(readFileSync(path.join(dir, file), 'utf8'))) || [];
   for (const item of documents) {
     if (item.active === false) continue;
     let document = item;
     try { document = compilePathRecordForStorage({ ...item, active: true }).document || item; } catch { /* keep the authored item */ }
+    currentItems.push({ dir, file, item, document });
     if (generation.hasPathGenerator(document) || generation.hasPathVariants(document)) {
       for (let draw = 0; draw < DRAWS; draw += 1) {
         try {
@@ -303,13 +313,201 @@ for (const p of [-4, -2, 0, 2, 4]) {
     }
   }
 }
+/*
+ * THE GRADER GAPS OF STUDENT PASS 3 WAVE 7, outright as wave 6's:
+ *
+ *   mixed numbers   3\frac{1}{2} and `3 1/2` are 7/2 against a number key,
+ *                   the sign covering both parts, and never 3·½; so is a side
+ *                   or bound of an equation or inequality that is exactly one;
+ *   ½π              \frac{1}{2}\pi is π/2; not after a whole number, not
+ *                   with a power on π;
+ *   number boxes    a key that is an exact constant written unsimplified is
+ *                   compared by value in a box declared a number: the
+ *                   simplified radical, the decimal of a rational key. A
+ *                   decimal for a root, a root for a rational key and an
+ *                   unsimplified answer to a simplified key stay wrong, and
+ *                   an expression field is never read by value. Only the
+ *                   field graders know the field, so these skip bare sameValue.
+ */
+const wave7Keys = [];
+for (const [whole, numerator, denominator] of [[3, 1, 2], [2, 3, 4], [1, 2, 3], [5, 1, 8], [4, 2, 5]]) {
+  const improper = whole * denominator + numerator;
+  const mixed = `${whole}\\frac{${numerator}}{${denominator}}`;
+  const typed = `${whole} ${numerator}/${denominator}`;
+  wave7Keys.push([`${improper}/${denominator}`, 'number', {
+    right: [mixed, typed, `${whole}\\frac${numerator}${denominator}`],
+    wrong: [`-${mixed}`, `${whole}\\frac{${numerator + 1}}{${denominator}}`, `${whole + 1}\\frac{${numerator}}{${denominator}}`],
+  }]);
+  wave7Keys.push([`-${improper}/${denominator}`, 'number', { right: [`-${mixed}`, `-${typed}`], wrong: [mixed, `-${whole}\\frac{${numerator + 1}}{${denominator}}`] }]);
+  // The product reading, 3·½, is another number.
+  wave7Keys.push([`${(whole * numerator) / denominator}`, 'number', { right: [], wrong: [mixed, typed] }]);
+}
+wave7Keys.push(['3.5', 'number', { right: ['3\\frac{1}{2}', '3 1/2', '3\\frac{2}{4}'], wrong: ['3\\frac{5}{2}', '-3\\frac{1}{2}'] }]);
+// A side or bound that is exactly a mixed number (review S2): read as one,
+// never as 3·½; a side that is not exactly one keeps its reading.
+for (const [key, inputProfile, right, wrong] of [
+  ['x=7/2', 'equation', ['x=3\\frac{1}{2}', '3\\frac{1}{2}=x', 'x=3 1/2'], ['x=-3\\frac{1}{2}', 'x=3\\frac{1}{3}']],
+  ['x=1.5', 'equation', [], ['x=3\\frac{1}{2}']],
+  ['y=-9/4', 'equation', ['y=-2\\frac{1}{4}'], ['y=2\\frac{1}{4}']],
+  ['x<7/2', 'inequality', ['x<3\\frac{1}{2}'], ['x<=3\\frac{1}{2}', 'x>3\\frac{1}{2}']],
+  ['x<1.5', 'inequality', [], ['x<3\\frac{1}{2}']],
+  ['1<x<2.5', 'inequality', ['1<x<2\\frac{1}{2}'], ['1<x<2\\frac{1}{4}']],
+]) wave7Keys.push([key, inputProfile, { right, wrong }]);
+for (const [key, right, wrong] of [
+  ['pi/2', ['\\frac{1}{2}\\pi', '\\frac{1}{2}π'], ['\\frac{1}{3}\\pi', '\\frac{1}{2}\\pi^2', '1.5707963']],
+  ['3pi/4', ['\\frac{3}{4}\\pi'], ['\\frac{4}{3}\\pi', '2\\frac{3}{4}\\pi']],
+  ['5pi/2', [], ['2\\frac{1}{2}\\pi']],
+]) wave7Keys.push([key, 'expression', { right, wrong }]);
+const fieldOnly = ['path', 'assignment'];
+for (const [key, right, wrong] of [
+  ['sqrt(8)/2', ['\\sqrt{2}', '\\frac{\\sqrt{8}}{2}'], ['1.4142135624', '\\sqrt{3}', '2\\sqrt{2}', '\\sqrt{8}']],
+  ['sqrt(12)/2', ['\\sqrt{3}'], ['1.7320508', '\\sqrt{6}']],
+  ['(2+sqrt(8))/2', ['1+\\sqrt{2}'], ['1-\\sqrt{2}', '2.4142136', '2+\\sqrt{2}']],
+  ['2sqrt(2)', [], ['\\sqrt{8}', '2.8284271']],
+  ['sqrt(2)/2', [], ['\\frac{1}{\\sqrt{2}}']],
+  ['10^{-3}/2', ['0.0005', '\\frac{1}{2000}'], ['0.005', '0.00005', '10^-\\frac{3}{2}']],
+  ['(-(-4))/2', ['2'], ['\\sqrt{4}', '-2']],
+]) wave7Keys.push([key, 'number', { right, wrong, graders: fieldOnly }]);
+// A "simplify" item's expression field is never read by value.
+wave7Keys.push(['11sqrt(5)', 'expression', { right: [], wrong: ['\\sqrt{605}'], graders: fieldOnly }]);
+wave7Keys.push(['sqrt(20)/2', 'expression', { right: [], wrong: ['\\sqrt{5}'], graders: fieldOnly }]);
+
+const GAP_SOURCES = new Set(['synthetic: wave-6 grader gaps', 'synthetic: wave-7 grader gaps']);
 const gapChecks = new Map();
+// Checks are kept per key and profile: the same key in a number box and in
+// an expression field asks different things.
+const gapCheckId = (key, inputProfile) => `${inputProfile}|${key}`;
+wave7Keys.forEach(([key, inputProfile, checks]) => {
+  addField('synthetic: wave-7 grader gaps', { expected: key, inputProfile });
+  const known = gapChecks.get(gapCheckId(key, inputProfile));
+  gapChecks.set(gapCheckId(key, inputProfile), known ? { ...known, right: [...known.right, ...checks.right], wrong: [...known.wrong, ...checks.wrong] } : checks);
+});
 gapKeys.forEach(([key, inputProfile, checks]) => {
   addField('synthetic: wave-6 grader gaps', { expected: key, inputProfile });
   // A key listed twice (N2's `10^{-3}/2` and S2's) keeps both lists.
-  const known = gapChecks.get(key);
-  gapChecks.set(key, known ? { right: [...known.right, ...checks.right], wrong: [...known.wrong, ...checks.wrong] } : checks);
+  const known = gapChecks.get(gapCheckId(key, inputProfile));
+  gapChecks.set(gapCheckId(key, inputProfile), known ? { ...known, right: [...known.right, ...checks.right], wrong: [...known.wrong, ...checks.wrong] } : checks);
 });
+
+// --- old keys ------------------------------------------------------------------
+
+/*
+ * THE SPELLING STUDENTS WERE TAUGHT (student pass 3, wave 7; W6-6's review).
+ * The spellings above are built from today's key only, so a family whose key
+ * text changed WITHOUT a version move (W6-6's `{{p|xterm}}`) was never tried
+ * with its old key — and a re-key could silently refuse the answer a student
+ * was marked right for last week. So every committed version of every seed
+ * file is read from git: where a field's key template differs from today's at
+ * the same familyVersion, the old template is filled with the parameters of
+ * today's draw (same seeds) and graded against today's key. Each must be
+ * accepted outright (`oldKeySpellingsRefused` must be 0); a family whose
+ * parameters no longer fill the old template, or that draws through variants,
+ * is counted, not guessed (`oldKeysNotAligned`), and a field that now asks for
+ * another kind of answer (its inputProfile, answerFormat or equivalence
+ * changed) is a re-asked question, listed for review (`oldKeysReasked`).
+ * Read-only: `git log`/`git show`.
+ */
+const versionOf = (item) => item?.familyVersion ?? item?.version ?? null;
+const keyTemplatesOf = (document) => new Map((Array.isArray(document?.responseFields) ? document.responseFields : [])
+  .filter((field) => field && field.id !== undefined && String(field.inputProfile || '').toLowerCase() !== 'choice')
+  .map((field) => [String(field.id), field]));
+const gitLines = (...args) => {
+  try { return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 }).split('\n').filter(Boolean); } catch { return null; }
+};
+const oldKeyChecks = new Map();
+const oldKeyCounts = { oldKeySnapshotsRead: 0, oldKeyTemplatesFound: 0, oldKeySpellings: 0, oldKeysNotAligned: 0, oldKeysReasked: 0 };
+const oldKeyNotes = [];
+const oldKeyReasked = [];
+const historyAvailable = gitLines('rev-parse', '--is-shallow-repository');
+// A shallow clone holds only recent commits, so most old keys would be
+// silently missed (wave 7 review, N3): stop unless the run says it knows.
+if (!historyAvailable) console.warn('old keys: git is not available here, so no old key was tried');
+else if (historyAvailable[0] === 'true' && !process.argv.includes('--allow-shallow')) {
+  console.error('old keys: this clone is shallow, so the old keys would not be read. Run `git fetch --unshallow` first, or pass --allow-shallow to read only the history it holds.');
+  process.exit(2);
+} else if (historyAvailable[0] === 'true') console.warn('old keys: --allow-shallow: this clone is shallow; only the history it holds was read');
+const byFile = new Map();
+currentItems.forEach((entry) => {
+  const list = byFile.get(entry.file) || [];
+  list.push(entry);
+  byFile.set(entry.file, list);
+});
+for (const [file, entries] of historyAvailable ? byFile : []) {
+  const relative = path.relative(ROOT, path.join(entries[0].dir, file));
+  // `--follow` with the path each commit had, so a renamed seed keeps its history.
+  const log = gitLines('log', '--follow', '--name-only', '--format=%H', '--', relative) || [];
+  const snapshots = [];
+  for (let index = 0; index < log.length; index += 1) {
+    if (/^[0-9a-f]{40}$/.test(log[index]) && log[index + 1] && !/^[0-9a-f]{40}$/.test(log[index + 1])) snapshots.push([log[index], log[index + 1]]);
+  }
+  const currentById = new Map(entries.map((entry) => [entry.item.id, entry]));
+  const seen = new Set();
+  for (const [commit, oldPath] of snapshots) {
+    let documents;
+    try { documents = documentsIn(JSON.parse(execFileSync('git', ['show', `${commit}:${oldPath}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 }))) || []; } catch { continue; }
+    oldKeyCounts.oldKeySnapshotsRead += 1;
+    for (const oldItem of documents) {
+      const current = currentById.get(oldItem?.id);
+      if (!current || versionOf(oldItem) !== versionOf(current.item)) continue;
+      let oldDocument = oldItem;
+      try { oldDocument = compilePathRecordForStorage({ ...oldItem, active: true }).document || oldItem; } catch { /* keep the authored item */ }
+      const now = keyTemplatesOf(current.document);
+      for (const [fieldId, oldField] of keyTemplatesOf(oldDocument)) {
+        const field = now.get(fieldId);
+        const oldKey = oldField.expected ?? oldField.answer;
+        const nowKey = field?.expected ?? field?.answer;
+        if (!field || typeof oldKey !== 'string' || typeof nowKey !== 'string' || oldKey === nowKey) continue;
+        if ((Array.isArray(field.accepted) ? field.accepted : []).includes(oldKey)) continue;
+        const id = `${current.item.id}|${fieldId}|${oldKey}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        oldKeyCounts.oldKeyTemplatesFound += 1;
+        const source = `${file} ${current.item.id} ${fieldId} (old key at ${commit.slice(0, 8)})`;
+        // A field that now asks for another KIND of answer (interval notation
+        // became an inequality) is a different question at the same version,
+        // not a new spelling of one: listed for the owner, never graded here.
+        const kind = (entry) => JSON.stringify([entry.inputProfile || null, entry.answerFormat || null, entry.equivalence || null]);
+        if (kind(oldField) !== kind(field)) {
+          oldKeyCounts.oldKeysReasked += 1;
+          oldKeyReasked.push(`${source}: ${kind(oldField)} ${JSON.stringify(oldKey)} → ${kind(field)} ${JSON.stringify(nowKey)}`);
+          continue;
+        }
+        const pairs = [];
+        if (generation.hasPathVariants(current.document)) {
+          oldKeyCounts.oldKeysNotAligned += 1;
+          oldKeyNotes.push(`${source}: drawn through variants, not aligned`);
+          continue;
+        }
+        if (generation.hasPathGenerator(current.document)) {
+          for (let draw = 0; draw < DRAWS; draw += 1) {
+            const instance = generation.generatePathInstanceWithRetries(current.document, `p-sweep-${draw}`, 4);
+            const drawnField = keyTemplatesOf(instance?.question).get(fieldId);
+            if (!instance?.question || !drawnField) continue;
+            const spelling = generation.substitutePlaceholders(oldKey, instance.parameters || {});
+            if (/\{\{/.test(spelling)) continue;
+            pairs.push([drawnField, spelling]);
+          }
+          if (!pairs.length) {
+            oldKeyCounts.oldKeysNotAligned += 1;
+            oldKeyNotes.push(`${source}: today's parameters do not fill ${JSON.stringify(oldKey)}`);
+            continue;
+          }
+        } else {
+          pairs.push([field, oldKey]);
+        }
+        for (const [drawnField, spelling] of pairs) {
+          const keyText = String(drawnField.expected ?? drawnField.answer);
+          if (spelling === keyText) continue;
+          const checkId = `${drawnField.inputProfile || null}|${keyText}`;
+          const list = oldKeyChecks.get(checkId) || [];
+          if (!list.some((entry) => entry.spelling === spelling)) list.push({ spelling, source });
+          oldKeyChecks.set(checkId, list);
+          oldKeyCounts.oldKeySpellings += 1;
+        }
+      }
+    }
+  }
+}
 
 // --- spellings and near misses -------------------------------------------------
 
@@ -354,6 +552,25 @@ const editorSpellingKeys = new Set();
 // no worse than the base (which accepted x^\frac{\pi}{2} for x^{\pi}/2).
 const stackedWrongSpellings = new Set();
 
+const mixedSpellingsOf = (text) => {
+  const fraction = /^\s*(-?)(\d+)\s*\/\s*(\d+)\s*$/.exec(text);
+  let sign = '';
+  let numerator;
+  let denominator;
+  if (fraction) {
+    [sign, numerator, denominator] = [fraction[1], Number(fraction[2]), Number(fraction[3])];
+  } else if (isPlainNumber(text) && text.includes('.')) {
+    const value = Math.abs(Number(text));
+    sign = text.trim().startsWith('-') ? '-' : '';
+    denominator = [2, 3, 4, 5, 8, 10, 16, 20, 25, 100].find((candidate) => Math.abs(value * candidate - Math.round(value * candidate)) < 1e-9);
+    numerator = denominator ? Math.round(value * denominator) : undefined;
+  }
+  if (!denominator || numerator <= denominator || numerator % denominator === 0) return [];
+  const whole = Math.floor(numerator / denominator);
+  const rest = numerator - whole * denominator;
+  return [`${sign}${whole}\\frac{${rest}}{${denominator}}`, `${sign}${whole} ${rest}/${denominator}`];
+};
+
 /** Student spellings of a response. Each is the same mathematics written another way. */
 const spellingsOf = (text) => {
   const out = new Set();
@@ -389,6 +606,10 @@ const spellingsOf = (text) => {
   if (stacked(text) !== text) stackedSpellings.add(text);
   add(stacked(text));
   add(stacked(text).replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}').replace(/\bpi\b|π/g, '\\pi'));
+  // A number with a fractional part as the mixed number the editor's fraction
+  // template writes after a whole number (student pass 3, wave 7): 3.5 and
+  // 7/2 as 3\frac{1}{2} and `3 1/2`, the sign in front.
+  mixedSpellingsOf(text).forEach(add);
   if (isPlainNumber(text)) {
     add(`x=${text.trim()}`);
     add(`${text.trim()}%`);
@@ -460,6 +681,13 @@ const nearMissesOf = (text) => {
 const gradersFrom = async (root) => {
   const equivalence = await import(pathToFileURL(path.join(root, 'functions/shared/answerEquivalence.mjs')).href);
   const answerUtils = await import(pathToFileURL(path.join(root, 'functions/shared/answerUtils.mjs')).href);
+  // The sameValue options production passes for this field: a tree with
+  // fieldValueOptions (student pass 3, wave 7) reads a number box's exact
+  // constant key by value; an older tree passed only the thousands rule.
+  const fieldShape = (field) => ({ inputProfile: field.inputProfile || undefined, answerFormat: field.answerFormat || undefined, equivalence: field.equivalence || undefined });
+  const valueOptions = (field) => (equivalence.fieldValueOptions
+    ? equivalence.fieldValueOptions(fieldShape(field))
+    : { thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(fieldShape(field)) });
   // functions/lib/mathPath.js valuesEquivalent, without the async import.
   const pathField = (actual, field) => [field.key, ...field.accepted].some((expected) => {
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
@@ -471,13 +699,14 @@ const gradersFrom = async (root) => {
       case 'setBuilder': return equivalence.sameSetBuilderNotation(actual, expected, tolerance);
       case 'rationalExpression': return equivalence.sameRationalExpression(actual, expected, tolerance);
       case 'nonnegativeRadicalExpression': return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
-      default: return equivalence.sameValue(actual, expected, tolerance);
+      default: return equivalence.sameValue(actual, expected, tolerance, valueOptions(field));
     }
   });
   const assignmentField = (actual, field) => answerUtils.matchesFieldAnswer(actual, {
     answer: field.key,
     acceptedAnswers: field.accepted,
     answerFormat: field.answerFormat || undefined,
+    inputProfile: field.inputProfile || undefined,
   });
   const safely = (grade) => (actual, field) => { try { return Boolean(grade(actual, field)); } catch { return 'throws'; } };
   return {
@@ -517,9 +746,9 @@ counts.editorSpellingsRefused = editorRefused.length;
 const gapRefused = [];
 const gapWrongAccepted = [];
 for (const field of fields) {
-  const checks = gapChecks.get(field.key);
-  if (!checks || field.source !== 'synthetic: wave-6 grader gaps') continue;
-  for (const grader of ['path', 'assignment', 'sameValue']) {
+  const checks = gapChecks.get(gapCheckId(field.key, field.inputProfile));
+  if (!checks || !GAP_SOURCES.has(field.source)) continue;
+  for (const grader of checks.graders || ['path', 'assignment', 'sameValue']) {
     const asField = grader === 'assignment' && field.inputProfile === 'orderedPair' ? { ...field, answerFormat: 'orderedPair' } : field;
     checks.right.forEach((response) => { if (current[grader](response, asField) !== true) gapRefused.push({ grader, response, key: field.key }); });
     checks.wrong.forEach((response) => { if (current[grader](response, asField) === true) gapWrongAccepted.push({ grader, response, key: field.key }); });
@@ -531,9 +760,9 @@ counts.gapWrongAccepted = gapWrongAccepted.length;
 let gapBaseRefused = 0;
 let gapBaseWrongAccepted = 0;
 for (const field of fields) {
-  const checks = gapChecks.get(field.key);
-  if (!checks || field.source !== 'synthetic: wave-6 grader gaps') continue;
-  for (const grader of ['path', 'assignment', 'sameValue']) {
+  const checks = gapChecks.get(gapCheckId(field.key, field.inputProfile));
+  if (!checks || !GAP_SOURCES.has(field.source)) continue;
+  for (const grader of checks.graders || ['path', 'assignment', 'sameValue']) {
     const asField = grader === 'assignment' && field.inputProfile === 'orderedPair' ? { ...field, answerFormat: 'orderedPair' } : field;
     checks.right.forEach((response) => { if (base[grader](response, asField) !== true) gapBaseRefused += 1; });
     checks.wrong.forEach((response) => { if (base[grader](response, asField) === true) gapBaseWrongAccepted += 1; });
@@ -542,8 +771,21 @@ for (const field of fields) {
 counts.gapSpellingsRefusedOnBase = gapBaseRefused;
 counts.gapWrongAcceptedOnBase = gapBaseWrongAccepted;
 
+// The old keys, outright: today's key must take the spelling it replaced.
+const oldKeysRefused = [];
+for (const field of fields) {
+  for (const { spelling, source } of oldKeyChecks.get(`${field.inputProfile || null}|${field.key}`) || []) {
+    for (const grader of ['path', 'assignment']) {
+      if (current[grader](spelling, field) !== true) oldKeysRefused.push({ grader, response: spelling, key: field.key, source });
+    }
+  }
+}
+Object.assign(counts, oldKeyCounts, { oldKeySpellingsRefused: oldKeysRefused.length });
+
 for (const field of fields) {
   const right = new Set([field.key, ...field.accepted]);
+  // An old key's spelling is a right answer to today's key (above).
+  (oldKeyChecks.get(`${field.inputProfile || null}|${field.key}`) || []).forEach(({ spelling }) => right.add(spelling));
   [...right].forEach((value) => spellingsOf(value).forEach((spelling) => right.add(spelling)));
   // Each wrong response remembers the answer it spells. A spelling of a near
   // miss that the field's own tolerance already accepts (154 vs 155 with a
@@ -586,7 +828,7 @@ for (const field of fields) {
   }
 }
 
-if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes, editorRefused }, null, 2)}\n`);
+if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes, editorRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
 console.log(JSON.stringify({ ...counts, stackedPiOrRootSpellings: stackedSpellings.size, editorSpelledKeys: editorSpellingKeys.size }));
 const show = (title, list) => {
   if (!list.length) return;
@@ -620,5 +862,17 @@ if (gapWrongAccepted.length) {
   console.log(`\nA WAVE-6 GAP WRONG ANSWER, ACCEPTED (${gapWrongAccepted.length}; must be empty)`);
   gapWrongAccepted.slice(0, 40).forEach((entry) => console.log(`  ${entry.grader.padEnd(10)} ${JSON.stringify(entry.response)}  key ${JSON.stringify(entry.key)}`));
 }
+if (oldKeysRefused.length) {
+  console.log(`\nAN OLD KEY'S SPELLING, REFUSED BY TODAY'S KEY (${oldKeysRefused.length}; must be empty)`);
+  oldKeysRefused.slice(0, 40).forEach((entry) => console.log(`  ${entry.grader.padEnd(10)} ${JSON.stringify(entry.response)}  key ${JSON.stringify(entry.key)}  ${entry.source}`));
+}
+if (oldKeyReasked.length) {
+  console.log(`\nA FIELD RE-ASKED AS ANOTHER KIND OF ANSWER WITHOUT A VERSION MOVE (${oldKeyReasked.length}; for the owner)`);
+  oldKeyReasked.slice(0, 40).forEach((note) => console.log(`  ${note}`));
+}
+if (oldKeyNotes.length) {
+  console.log(`\nOLD KEYS NOT ALIGNED WITH TODAY'S DRAW (${oldKeyNotes.length}; review each)`);
+  oldKeyNotes.slice(0, 40).forEach((note) => console.log(`  ${note}`));
+}
 if (counts.rightToWrong > 0 || (CHECK_WRONG && (counts.nearMissNowRight > 0 || editorRefused.length > 0 || stackedWrongAccepted.length > 0
-  || gapRefused.length > 0 || gapWrongAccepted.length > 0))) process.exit(1);
+  || gapRefused.length > 0 || gapWrongAccepted.length > 0 || oldKeysRefused.length > 0))) process.exit(1);

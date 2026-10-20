@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ChoiceMark, useChoiceGroup } from '../interaction/choiceGroup.js';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
 import { evaluateModelAt } from './modelExpression';
@@ -59,6 +60,33 @@ const chip = (selected) => ({
   fontSize: 'calc(14 * var(--mm-px))',
   cursor: 'pointer',
 });
+
+// One figure's categories: a radio group (choiceGroup.js) — one tab stop,
+// arrows move and select, and the chosen chip carries a ✓.
+function CategoryChoices({ label, categories, value, disabled, onSelect }) {
+  const ids = categories.map((category) => String(category.id ?? '').trim());
+  const optionProps = useChoiceGroup({ ids, value, onSelect, disabled });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {categories.map((category, index) => {
+        const selected = value === ids[index];
+        return (
+          <button
+            key={ids[index]}
+            type="button"
+            {...optionProps(index)}
+            disabled={disabled}
+            onClick={() => onSelect(ids[index])}
+            style={chip(selected)}
+          >
+            <ChoiceMark selected={selected} />
+            {String(category.label ?? '')}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const normalizePoint = (point) => {
   const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
@@ -168,29 +196,13 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
                 </div>
               ) : null}
               {item.text ? <p style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))' }}>{String(item.text)}</p> : null}
-              <div
-                role="radiogroup"
-                aria-label={`Category for ${label}`}
-                style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
-              >
-                {categories.map((category) => {
-                  const categoryId = String(category.id ?? '').trim();
-                  const selected = chosen === categoryId;
-                  return (
-                    <button
-                      key={categoryId}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      disabled={disabled}
-                      onClick={() => assign(itemId, categoryId)}
-                      style={chip(selected)}
-                    >
-                      {String(category.label ?? '')}
-                    </button>
-                  );
-                })}
-              </div>
+              <CategoryChoices
+                label={`Category for ${label}`}
+                categories={categories}
+                value={chosen}
+                disabled={disabled}
+                onSelect={(categoryId) => assign(itemId, categoryId)}
+              />
             </div>
           );
         })}

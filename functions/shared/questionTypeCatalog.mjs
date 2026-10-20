@@ -1,4 +1,5 @@
 import { validateAnalysisRequests } from './analysisRequestCatalog.mjs';
+import { orderedPairKey } from './answerUtils.mjs';
 // Validation asks the RECIPE whether each answer key would derive, rather than
 // keeping its own copy of the rules. A second copy would drift, and the drift
 // would surface as a question that passed Preflight and then graded nobody.
@@ -446,6 +447,15 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     useWhen: ['The expected answer is a point.'],
     doNotUseWhen: ['The student should plot the point — use graphing or functionGraph.'],
     required: [requires('prompt', 'needs a prompt')],
+    // A key the grader cannot read as one point can never be marked right
+    // (student pass 3, wave 7): refused here, with what to write instead. A
+    // generated question has no key until it is drawn, so a missing one is
+    // not judged.
+    validate: (question) => {
+      const key = has(question.answer) ? question.answer : question.solution;
+      if (!has(key) || orderedPairKey(key)) return [];
+      return [`answer ${JSON.stringify(key)} is not a point the grader can read: write [x, y] or "(x, y)", for example [2, 5]`];
+    },
     optional: ['answer', 'coordinates', 'graph'],
     example: { type: 'orderedPair', prompt: 'Where do the lines meet?', answer: [2, 5] },
   },

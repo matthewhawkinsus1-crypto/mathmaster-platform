@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import {
   DRAFT_SAVE_PROBLEM,
   DRAFT_SAVE_PROBLEM_TEXT,
+  accountChangeClearsDraftProblems,
   clearDraftSaveProblems,
   currentDraftSaveProblems,
   describeDraftSaveProblems,
@@ -30,6 +31,7 @@ import {
 } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { draftHealthAccountEffect, replayAccounts } from './helpers/draftHealthAccountEffect.mjs';
 
 const STUDENT = 'S-save';
 const ASSIGNMENT = 'A-save';
@@ -145,6 +147,15 @@ test('the store hands back what the caps left out', () => {
   assert.match(region(app, 'flush: async ({ document }) => {', '},'), /const result = await writeWorkspaceDraft\(document\);[\s\S]*return result;/);
 });
 
+test('a shared Chromebook: the next student starts clean, and a reload keeps this student\'s notice', () => {
+  assert.equal(accountChangeClearsDraftProblems('stu-a', 'stu-b'), true, 'another student signs in');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', null), true, 'sign-out');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', undefined), true, 'signed out (no id)');
+  assert.equal(accountChangeClearsDraftProblems(null, 'stu-a'), false, 'the account loading after a reload');
+  assert.equal(accountChangeClearsDraftProblems('stu-a', 'stu-a'), false, 'the same student');
+  assert.equal(accountChangeClearsDraftProblems(null, null), false);
+});
+
 test('App.jsx shows the notice on the assignment screen, for this student and assignment', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   assert.match(app, /import \{[^}]*\bdescribeDraftSaveProblems\b[^}]*\bdraftSaveProblemsFor\b[^}]*\bsubscribeDraftSaveHealth\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';/,
@@ -159,7 +170,19 @@ test('App.jsx shows the notice on the assignment screen, for this student and as
   // Not gated on the outbox status: a draft can fail while nothing is queued.
   assert.doesNotMatch(notice, /studentPersistenceStatus/);
   assert.doesNotMatch(problem, /studentPersistenceStatus/);
-  assert.match(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\);/, 'a shared Chromebook\'s next student starts clean');
+  // A shared Chromebook's next student starts clean, and a reload of the same
+  // student keeps it (pass 3, wave 7): the effect is run, not only read.
+  const { rule, run } = draftHealthAccountEffect(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(rule, /useEffect\(\(\) => \{/, 'an effect body, not a cleanup');
+  assert.doesNotMatch(app, /useEffect\(\(\) => \(\) => \{ clearDraftSaveProblems\(\); \}, \[user\?\.id\]\)/, 'the old cleanup is gone');
+  const ref = { current: null };
+  assert.deepEqual(replayAccounts(run, [null, 'stu-a'], ref), [0, 0], 'null → A: a reload keeps the notice');
+  assert.deepEqual(replayAccounts(run, ['stu-a'], ref), [0], 'A → A: a re-render');
+  assert.deepEqual(replayAccounts(run, ['stu-b'], ref), [1], 'A → B: another student');
+  assert.deepEqual(replayAccounts(run, [null], ref), [1], 'B → signed out');
+  assert.deepEqual(replayAccounts(run, ['stu-b'], ref), [0], 'null → B after that sign-out');
+  assert.deepEqual(replayAccounts(run, ['stu-a']), [0], 'a fresh page: null → A');
+  assert.match(app, /^import \{[^}]*\baccountChangeClearsDraftProblems\b[^}]*\} from '\.\/platform\/persistence\/draftSaveHealth\.js';$/m);
 });
 
 /*

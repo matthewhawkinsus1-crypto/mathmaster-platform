@@ -14,6 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -223,6 +224,10 @@ export default function CoordinatePlane({
   // terminal). A screen that asks nothing (a report, a solution review) passes
   // true; an authored `description` always wins.
   describeFeatures = null,
+  // What the tool draws as `children`, in its own words: { kinds, features }
+  // (graphDescription.js `toolMarks`). The plane says `kinds` while the
+  // question can be answered and `features` once it may state values.
+  toolMarks = null,
   // The "Show data table" disclosure under a read-only plane. Only where
   // feature values may be stated, never where the plane withholds coordinates
   // (revealCoordinates or pointHoverEnabled false), and left out automatically
@@ -569,11 +574,12 @@ export default function CoordinatePlane({
     horizontalLines: describedHorizontals,
     label: ariaLabel,
     hasUndescribedMarks: hasToolMarks,
+    toolMarks: hasToolMarks ? toolMarks : null,
     emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarks?.kinds, toolMarks?.features,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const spokenDescription = authoredDescription || generatedDescription.description;
@@ -909,6 +915,8 @@ export default function CoordinatePlane({
       {/* Inline as well as the class: a host that loads no UI kit CSS must not
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
+      {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
+      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
 
       {showDataTable ? (
