@@ -210,6 +210,15 @@ test('an orderedPair key written as text is a point: graded right, coordinate by
   assert.deepEqual(gradeOrderedPairResponse(rootKey, '(1-\\sqrt{2},4)').parts.map((part) => part.isCorrect), [true, false]);
   assert.deepEqual(gradeOrderedPairResponse(rootKey, '(-0.414,3)').parts.map((part) => part.isCorrect), [false, true]);
   assert.equal(gradeOrderedPairResponse(rootKey, '(-0.414,3)').isCorrect, false);
+  // In square brackets too, as a plain key takes them: the whole pair, not
+  // only its two coordinate marks (Codex's review of #502).
+  for (const spelling of ['[1-\\sqrt{2},3]', '[1-\\sqrt{2}, 3]', '\\left[1-\\sqrt{2},3\\right]']) {
+    assert.equal(compareOrderedPair(spelling, ['1-\\sqrt{2}', 3]), true, spelling);
+    assert.equal(gradeOrderedPairResponse(rootKey, spelling).isCorrect, true, spelling);
+  }
+  assert.equal(compareOrderedPair('[1,3]', [1, 3]), true);
+  assert.equal(gradeOrderedPairResponse(rootKey, '[1+\\sqrt{2},3]').isCorrect, false);
+  assert.equal(gradeOrderedPairResponse(rootKey, '[-0.414,3]').isCorrect, false);
   // Not a pair: nothing can match it.
   for (const key of ['none', '(x,3)', '(1,2,3)', [2]]) assert.equal(orderedPairKey(key), null, JSON.stringify(key));
   assert.equal(gradeOrderedPairResponse({ answer: 'none' }, '(2,3)').isCorrect, false);

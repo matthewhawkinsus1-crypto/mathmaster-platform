@@ -332,6 +332,9 @@ export const compareOrderedPair = (studentAnswer, expectedPair, tolerance = 1e-9
       && Math.abs(pair[0] - values[0]) <= tolerance
       && Math.abs(pair[1] - values[1]) <= tolerance;
   }
-  // A coordinate with a root: by exact value, as a pair field compares it.
-  return sameNumericPair(studentAnswer, `(${key[0]},${key[1]})`);
+  // A coordinate with a root: by exact value, as a pair field compares it. The
+  // student's pair is read with the brackets a plain key takes, `(x, y)` or
+  // `[x, y]`: sameNumericPair alone reads only round ones.
+  const student = splitPairText(normalizeMathAnswer(studentAnswer));
+  return Boolean(student) && sameNumericPair(`(${student[0]},${student[1]})`, `(${key[0]},${key[1]})`);
 };
