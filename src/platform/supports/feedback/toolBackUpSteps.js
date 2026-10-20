@@ -11,7 +11,14 @@
  * locates an element, adds, multiplies or checks an inverse, writes A · X = B
  * or solves it; a Systems Workspace item names its mode, its variables and its
  * method. So the step is built from that structure, about THIS problem's first
- * move, in this problem's names (A and B, Nov and Dec, s, m and l).
+ * move.
+ *
+ * IN WORDS THE SPANISH PACK CAN CARRY. Translate must cover every step the
+ * platform writes (readAloudAndTranslate.test.mjs). Its templates hold
+ * mathematics in slots, but a matrix's name is not reliably mathematics to
+ * it ("A" reads as the article, "Nov" as a word), so a Matrix Lab step says
+ * "two matrices" and "the first", not the names. A system's variables
+ * (x, y and z; s, m and l) and A · X = B are always slots: they stay.
  *
  * NEVER THE ANSWER. Each step asks for a rule or a first move that is true
  * whatever this problem's answer is: which numbers to combine, what the
@@ -66,29 +73,21 @@ const matrixLabStep = (question) => {
   if (mode === 'locate') {
     // Its own first element, written the way the item writes it (a₃₄).
     const target = list(question.targets).find((entry) => Number.isInteger(Number(entry?.row)) && Number.isInteger(Number(entry?.col)));
-    const SUB = '₀₁₂₃₄₅₆₇₈₉';
-    const sub = (value) => String(value).replace(/\d/g, (digit) => SUB[Number(digit)]);
-    const name = text(question.matrix) || Object.keys(isObject(question.matrices) ? question.matrices : {})[0] || 'A';
-    if (target) {
-      const element = `${name.toLowerCase()}${sub(target.row)}${sub(target.col)}`;
-      return step(`In the name ${element}, which does the first number give?`, 'The row', 'The column');
-    }
-    return step(`Matrix ${name}'s dimensions are written as…`, 'rows × columns', 'columns × rows');
+    if (target) return step('When you name an element of a matrix, which comes first?', 'Its row', 'Its column');
+    return step('A matrix’s dimensions are written as…', 'rows × columns', 'columns × rows');
   }
   if (mode === 'operate') {
-    const pair = operands(question);
-    if (!pair) return null;
-    const { left, right } = pair;
+    if (!operands(question)) return null;
     if (text(question.operation) === 'add') {
-      return step(`To add ${left} and ${right}, which numbers do you combine?`, 'The numbers in the same position', `Each row of ${left} with each column of ${right}`);
+      return step('To add two matrices, which numbers do you combine?', 'The numbers in the same position', 'Each row of the first with each column of the second');
     }
     if (question.judgeInverse === true) {
-      return step(`${left} and ${right} are inverses when ${left} · ${right} is…`, 'the identity matrix', 'a matrix of zeros');
+      return step('Two matrices are inverses when their product is…', 'the identity matrix', 'a matrix of zeros');
     }
     if (question.askDefined !== false) {
-      return step(`To decide whether ${left} · ${right} can be found, which two numbers do you compare?`, `The columns of ${left} and the rows of ${right}`, `The rows of ${left} and the rows of ${right}`);
+      return step('To decide whether a product of two matrices can be found, which two numbers do you compare?', 'The columns of the first and the rows of the second', 'The rows of the first and the rows of the second');
     }
-    return step(`Row 1, column 1 of ${left} · ${right} comes from which two?`, `Row 1 of ${left} and column 1 of ${right}`, `Column 1 of ${left} and row 1 of ${right}`);
+    return step('The first entry of a product comes from which two?', 'The first row of the first matrix and the first column of the second', 'The first column of the first matrix and the first row of the second');
   }
   if (mode === 'equation') {
     // A variable on the right of "=", or a number alone on the left: the
@@ -98,18 +97,18 @@ const matrixLabStep = (question) => {
       return extra === undefined && rightSide !== undefined && (/[a-z]/i.test(rightSide) || !/[a-z]/i.test(leftSide));
     });
     if (notStandard || isObject(question.startFrom)) {
-      return step('Before an equation’s numbers go in A and B, how must it be written?', 'Every variable on the left, the constant on the right', 'Exactly as it is given');
+      return step('Before an equation’s numbers go in the matrices, how must it be written?', 'Every variable on the left, the constant on the right', 'Exactly as it is given');
     }
     return step('In A · X = B, what goes in A?', 'The coefficients of the variables', 'The constants');
   }
   if (mode === 'solve') {
     const meanings = isObject(question.variableMeanings) ? Object.keys(question.variableMeanings) : [];
-    if (question.showEquations === false && meanings.length >= 2) {
+    if (question.showEquations === false && meanings.length >= 2 && meanings.length <= 4) {
       const count = meanings.length;
-      return step(`The situation has ${numberWord(count)} unknowns (${joined(meanings.map((key) => text(question.variableMeanings[key]) || key))}). How many equations do you write?`, capitalized(numberWord(count)), capitalized(numberWord(count - 1)));
+      return step(`The situation has ${numberWord(count)} unknowns. How many equations do you write?`, capitalized(numberWord(count)), capitalized(numberWord(count - 1)));
     }
     if (question.justifySingular === true) {
-      return step('X = A⁻¹ · B works only when A…', 'has an inverse', 'has a zero in it');
+      return step('Solving with an inverse works only when the coefficient matrix…', 'has an inverse', 'has a zero in it');
     }
     return step('To solve A · X = B, which product gives X?', 'A⁻¹ · B', 'B · A⁻¹');
   }
