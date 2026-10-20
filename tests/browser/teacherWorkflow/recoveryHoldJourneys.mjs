@@ -46,7 +46,7 @@
 //       Tomas's Q3 miss was classified "intercepts-swapped". His first
 //       Recovery practice question is a fresh intercepts question — the one
 //       the server dealt (untargeted it would be Q1), never the one he missed
-//       — headed "DOL Recovery practice"; he answers it, the server records
+//       — headed "Exit ticket Recovery practice"; he answers it, the server records
 //       exactly that question, and the next one is dealt.
 //
 // At every viewport nothing scrolls sideways; on a touch screen the controls
@@ -306,7 +306,7 @@ const journeys = {
     expect(where, recoveryFieldAnswers(assignment, q3) === null, 'Q3\'s pin no longer replays against the edited lesson (the P0 case)');
 
     const card = await openResult(page, RECOVERY_ASSIGNMENT_TITLE);
-    await card.getByRole('button', { name: 'Continue DOL Recovery' }).click();
+    await card.getByRole('button', { name: 'Continue Exit ticket Recovery' }).click();
     const runner = page.locator('[data-recovery-runner="assessment"]');
     await runner.waitFor({ timeout: 30000 * SLOW_FACTOR });
 
@@ -329,7 +329,7 @@ const journeys = {
     await noSidewaysScroll(`${where} Q3`, page);
     await shot(page, 's1-q3-unavailable');
 
-    const submit = runner.getByRole('button', { name: 'Submit DOL Recovery (2/3 saved)' });
+    const submit = runner.getByRole('button', { name: 'Submit Exit ticket Recovery (2/3 saved)' });
     expect(where, await submit.count() === 1, 'Submit counts the two answers saved');
     await submit.click();
     await page.waitForTimeout(400 * SLOW_FACTOR);
@@ -513,7 +513,7 @@ const journeys = {
     expect(where, await card.getAttribute('data-recovery-state') === 'inProgress', 'the student\'s Recovery is open again');
     const cardText = await studentCopy(`${where} student panel`, card);
     expect(where, /new question/i.test(cardText), `the student is told a new question is waiting (${cardText.slice(0, 200)})`);
-    await card.getByRole('button', { name: 'Continue DOL Recovery' }).click();
+    await card.getByRole('button', { name: 'Continue Exit ticket Recovery' }).click();
     const runner = page.locator('[data-recovery-runner="assessment"]');
     await runner.waitFor({ timeout: 30000 * SLOW_FACTOR });
     const nav = await runner.locator('[data-recovery-item]').evaluateAll((nodes) => nodes.map((node) => `${node.dataset.recoveryItem}:${node.dataset.recoveryItemState}`));
@@ -526,7 +526,7 @@ const journeys = {
     await studentCopy(`${where} runner`, runner);
     await noSidewaysScroll(`${where} runner`, page);
     await shot(page, 't2-student-replacement');
-    await runner.getByRole('button', { name: 'Submit DOL Recovery (1/1 saved)' }).click();
+    await runner.getByRole('button', { name: 'Submit Exit ticket Recovery (1/1 saved)' }).click();
     const complete = page.locator('[data-recovery-runner="complete"]');
     await complete.waitFor({ timeout: 30000 * SLOW_FACTOR });
     const completeText = squash(await complete.innerText());
@@ -626,10 +626,10 @@ journeys.P1 = async (viewport) => {
   expect(where, !targetedContext.seenFingerprints.includes(dealt?.pin?.fingerprint), 'never the question he missed');
 
   const card = await openResult(page, TARGETED_ASSIGNMENT_TITLE);
-  await card.getByRole('button', { name: 'Practice for DOL Recovery' }).click();
+  await card.getByRole('button', { name: 'Practice for Exit ticket Recovery' }).click();
   const runner = page.locator('[data-recovery-runner="practice"]');
   await runner.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  expect(where, /DOL Recovery practice/.test(squash(await runner.innerText())), 'headed "DOL Recovery practice"');
+  expect(where, /Exit ticket Recovery practice/.test(squash(await runner.innerText())), 'headed "Exit ticket Recovery practice"');
   await runner.locator('.mathmaster-multipart-fields > div').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
   const shown = squash(await runner.innerText());
   expect(where, /intercepts/i.test(shown) && !/Solve for x/.test(shown), `the first question is an intercepts question (${shown.slice(0, 160)})`);

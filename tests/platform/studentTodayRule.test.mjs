@@ -432,7 +432,7 @@ test('a locked Recovery keeps the lesson unfinished and points the next action a
   const next = resolveNextAction({ dashboard, weeklyProgress: { completed: 1, required: 1, remaining: 0 } });
   assert.notEqual(next.kind, 'clear');
   assert.equal(next.opensResult, true);
-  assert.match(next.headline, /Practice to unlock your DOL Recovery/);
+  assert.match(next.headline, /Practice to unlock your Exit ticket Recovery/);
 });
 
 test('the Path Simulator reads timed sections as untimed (it has no bell schedule) — review finding 7', async () => {

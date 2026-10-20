@@ -36,6 +36,7 @@ import { assignmentIsArchived, assignmentIsUnpublished } from '../../../function
 import { RECOVERY_SECTIONS } from '../../../functions/shared/recoveryPolicy.mjs';
 import { ORIGINAL_OPPORTUNITY, RECOVERY_STATE, resolveOriginalOpportunity } from '../../../functions/shared/sectionRecoveryEligibility.mjs';
 import { buildStudentRecoverySummary } from './studentRecoveryModel.js';
+import { exitTicketInSentence } from '../student/studentWords.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -74,7 +75,8 @@ const PHASE_PRIORITY = Object.freeze({
   [RECOVERY_PHASE.AVAILABLE]: 2,
 });
 
-export const RECOVERY_SECTION_NAME = Object.freeze({ warmup: 'Warm-Up', dol: 'DOL' });
+// Mid-sentence: "Your exit ticket has closed" (studentWords).
+export const RECOVERY_SECTION_NAME = Object.freeze({ warmup: 'Warm-Up', dol: exitTicketInSentence });
 
 export const RECOVERY_ACTION_KIND = Object.freeze({
   PRACTICE: 'practice',
@@ -300,7 +302,7 @@ export const recoveryNotice = (opportunities = []) => {
       return {
         tone: 'info',
         title: `${only.label}: a new question`,
-        message: `${only.assignmentTitle}: your teacher added a new question to your ${only.sectionName} Recovery. Your other answers are saved — answer the new one and submit.${until}`,
+        message: `${only.assignmentTitle}: your teacher added a new question to your ${only.label}. Your other answers are saved — answer the new one and submit.${until}`,
       };
     }
     return only.phase === RECOVERY_PHASE.UNLOCKED
