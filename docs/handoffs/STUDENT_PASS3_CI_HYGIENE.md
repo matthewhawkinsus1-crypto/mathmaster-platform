@@ -34,15 +34,27 @@ changes, so none grows.
 | --- | --- | --- | --- |
 | student-runtime-browser-gates.yml | `pass3-student-screens` (40 min) | plain `npx vite --host 127.0.0.1 --port 5199 --strictPort` | see the job table in the gate |
 | student-runtime-browser-gates.yml | `pass3-secure-screens` (30 min) | secureResults and secureExamNavigation start their own stubbed Vite; secureAccessParity uses the emulator config on 5203 | see the gate |
-| student-runtime-browser-gates.yml | `pass3-test-cycle-rich-tools` (40 min) | the driver starts the Firestore emulator, the bridge to the real callables, and Vite | testCycleRichToolQa |
-| student-runtime-browser-gates.yml | `pass3-live-challenge-shell` (60 min) | the same, its own | liveChallengeShellQa |
+| student-pass3-emulator-journeys.yml (new) | `pass3-test-cycle-rich-tools` (40 min) | the driver starts the Firestore emulator, the bridge to the real callables, and Vite | testCycleRichToolQa |
+| student-pass3-emulator-journeys.yml (new) | `pass3-live-challenge-shell` (60 min) | the same, its own | liveChallengeShellQa |
 | student-teacher-journeys.yml | `pass3-student-journeys` (30 min) | the teacher harness on 5188, and the accessibility App harness on 5189 | assignmentChromeJourneys, studentNameJourneys (5188); askMyTeacherJourneys and the lobby invite's way into the game (5189) |
 
-- **The long ones.** testCycleRichToolQa and liveChallengeShellQa each have their own job.
-- **When they run.** On pull requests that touch their paths, not on a schedule. The runtime gates' `paths` gain each
-  driver, its harness page, `tests/browser/emulator/**`, `tests/browser/support/**` and `functions/**` (the two
-  emulator jobs run the real callables).
-- **Permissions.** Both workflows keep `permissions: contents: read`. No job holds a write token, and nothing pushes
+- **The long ones.** testCycleRichToolQa and liveChallengeShellQa each have their own job, in a workflow of their own
+  (review S3; see "Review round").
+- **When they run.**
+  - **student-runtime-browser-gates.yml.** The gates' `paths` gain each driver and every page a pinned driver opens
+    (`keyboardSweep.html` for W7-2's toolChoiceGroups included), `tests/browser/emulator/**`, and the five
+    `functions/lib` files secureAccessParity grades with (`mathPath`, `pathContentCompiler`, `pathFirestoreShape`,
+    `secureItems`, `secureItemStorage`; what they require is in `functions/shared/**`, already there). **Not
+    `functions/**`:** a functions-only change does not run the ~32-minute student-runtime job.
+  - **student-pass3-emulator-journeys.yml.** On pull requests that touch what the two drivers reach, nightly
+    (`41 6 * * *`) and on demand. Its paths: `functions/**`; `src/firebase.js`; Live Challenge and rewards code; the
+    Test Cycle card, `src/components/assessment/**`, `src/components/question/**`, the Test Cycle and secure-exam
+    services, `src/platform/assessment/**`; `src/tools/**` and `QuestionEngine.jsx`; the emulator harness and
+    `tests/browser/support/**`; the two drivers and the pages they open.
+  - **student-teacher-journeys.yml.** It already triggered on `tests/browser/teacherWorkflow/**`. It now also
+    triggers on `accessibilityAppHarness*` and `accessibilityFakeFirestore.js` (the harness for askMyTeacher and the
+    lobby).
+- **Permissions.** All three workflows keep `permissions: contents: read`. No job holds a write token, and nothing pushes
   (AGENTS.md "Scaffolding must not merge").
 - **Install steps.** Every job installs the way the other browser jobs do: `npm ci`, then Playwright 1.55.0 with
   `scripts/check-lockfile-install.mjs`. The two emulator jobs add `npm --prefix functions ci`, as
@@ -83,7 +95,33 @@ yet: skipped" and exits 0.
 - **Triggers.** The runtime gates' `paths` name the four plain-Vite drivers. student-teacher-journeys already
   triggers on `tests/browser/teacherWorkflow/**`.
 - **Pinned.** `pass3BrowserDriversInCi` checks each guarded step: its job, its `if: always()`, its origin, and the
-  exact guard. Mutation-checked.
+  exact guard. It **fails once a guarded driver's file exists** (review S2), so a guard cannot skip forever after a
+  rename: the merge that brings a file must also convert its step. Mutation-checked: an empty
+  `tests/browser/stepNotQueued.mjs` turns it red.
+
+**Converting a guarded step, once its file is on the branch.** Do this for each of the five:
+
+1. **Change the step's `run:`.** In the step (job `pass3-student-screens` or `pass3-student-journeys`), replace the
+   whole block
+
+   ```
+   run: |
+     if [ -f tests/browser/<x>.mjs ]; then node tests/browser/<x>.mjs; else echo "… skipped"; fi
+   ```
+
+   with the one line `run: node tests/browser/<x>.mjs`.
+2. **Tidy the step.** Keep its `name`, `if: always()` and `env` as they are. Delete the two comment lines above it
+   ("W7-n …" and "Guarded: …").
+3. **Move it in the pin test.** In `tests/platform/pass3BrowserDriversInCi.test.mjs`, delete the driver's row from
+   `GUARDED` and add its name to the driver list of the matching `DRIVERS` row:
+   - `stepNotQueued`, `toolOutcomeReach`, `feedbackReasons2` and `toolChoiceGroups` go in the
+     `pass3-student-screens` / `plain` row;
+   - `teacherWorkflow/draftSaveNoticeReloadJourneys` goes in the `pass3-student-journeys` / `teacher` row.
+4. **When all five are converted,** delete the empty `GUARDED` array and its loop.
+5. **Check it.**
+   - Run `node --test tests/platform/pass3BrowserDriversInCi.test.mjs`. It is green only when every present file is
+     out of `GUARDED` and in `DRIVERS`.
+   - In the header comments of both workflows, drop "guarded until their branches merge".
 - **Run here.** Each guard ran in this container and skipped with exit 0.
 - **For the integrator, once those branches merge.** Run the two jobs and see each driver run, not skip.
 - **Already in a workflow.** W7-2's in-place extensions need nothing new:
@@ -393,6 +431,64 @@ shapes, a synthetic bank with a generated template, and a run over the real bank
 - the corner count off by one;
 - generator expansion removed.
 
+## Review round (reviewer on `90b87a6d`, forwarded by the integrator)
+
+No blockers. The reviewer confirmed:
+
+- actionlint finds 0 issues;
+- permissions are read-only and no ports clash;
+- the guards fail on a failing driver;
+- every job runs green as its workflow runs it;
+- on a merge of all seven wave-7 branches, the five guarded drivers ran and passed.
+
+| Finding | What I did | Proof |
+| --- | --- | --- |
+| **S1** The lobbyInvite journey passed with every join rejected: the lobby card reads "Waiting for your teacher to start" either way | `entersLobby` now asserts that the student's row is `joined: true` and the invite `'joined'` (polled up to 5 s), that the lobby reads "1 player in", and that no `permission-denied`, `not-found`, `failed-precondition` or "Could not join" text shows | Passes at both sizes. Mutation: `joinLiveChallenge` always rejected (the reviewer's) turns all three red at both sizes: `{"player":false,"invite":"invited"}` |
+| **S2** A guard could skip forever after a rename | The pin test fails once a guarded driver's file exists ("drop its guard and pin it in DRIVERS"). The conversion, step by step, is in 1b | Mutation: an empty `tests/browser/stepNotQueued.mjs` is red |
+| **S3** Cost: `functions/**` in the gates ran the ~32-min student-runtime job on functions-only PRs, and every `src/**` PR ran both emulator jobs | The emulator jobs moved to `student-pass3-emulator-journeys.yml`: their own paths, nightly and `workflow_dispatch`, `contents: read`, no secrets. The gates dropped `functions/**`. pass3-secure-screens stays in the gates: its emulator-like dependency is secureAccessParity's node-side grading through five `functions/lib` files, which the gates now name. secureExamNavigation runs on stubbed services (`MOCK_LOCAL`), not the Firestore emulator. The pin test follows | Mutations, each red: `functions/**` back in the gates; `npm --prefix functions ci` dropped from an emulator job; `pull_request_target` |
+| **N1** Since launch turns the 70% threshold off, no browser check covered the default | big-class keeps the default: once 32 answer, it asserts `roundClosingThreshold === 70 && roundCompressionReason === '70-percent-answered'` | Passes. Mutation: the console's default set to 80 is red ("threshold":80, "reason":"80-percent-answered") |
+| **N3** A mis-wired CI could self-heal silently | Under `CI=true`, certify:accessibility throws on a plain audit server instead of starting one. A server it starts is killed on SIGINT and SIGTERM. The contract test pins the CI check between the probe and the start | `CI=true` with a plain 5199: rc=1 in 2 s, with the reason. Without CI: a note, then pass. SIGINT: exit 130, and the spawned port refuses connections. Mutation of the CI check is red |
+| **N4** | The pin test asserts no `pull_request_target` in the three workflows, and `npm --prefix functions ci` before each emulator driver | Mutation-checked (above) |
+| **N5** | `tests/browser/keyboardSweep.html` (W7-2's toolChoiceGroups opens it) is in the gates' paths. Every page a pinned driver opens is checked against the paths, and all others were already covered by the drivers' globs. `accessibilityFakeFirestore.js` joins student-teacher-journeys | Pinned; mutation: dropping the page is red |
+
+**Found while re-running the jobs (after midnight UTC).**
+
+- **studentHomeToday failed at 23:37 UTC, fixed (driver).** The Home harness builds the day's schedule an hour around
+  the page's clock. Late in the day that hour wraps past midnight, so the exit ticket's wait line and the Warm-Up
+  window come out wrong (6 findings). Any CI run near midnight UTC would have failed.
+  - The driver now holds the page's clock at noon today with `page.clock.setFixedTime`, which keeps the timers
+    running.
+  - Proof: with the pin, it passes at 23:45 and in the job re-run at 00:3x; without it, it is red at that hour.
+- **A step name, fixed.** In `Day 2 non-unique 3×3 systems (#390, #392)`, ` #392)` was read as a YAML comment. The
+  name is now quoted.
+- **dolCloseCopy (accessibility-certification.yml) fails after midnight UTC, on the base too. Not fixed.** It is
+  outside this scope.
+  - On this branch at 00:0x and on the base `530ac3cf` at 00:20, it gives the same 16 findings:
+    `{"status":"unavailable",…}` for the extra-time DOL scenes.
+  - It is the same kind of schedule-around-now wrap, in a driver that is already in CI. It needs the same treatment.
+    For the owner or a later wave.
+
+Notes the integrator carries, with no action here:
+
+- In a championship game, the projector shows the round table and "championship points" only after Hide solution.
+- The student sees the raw "permission-denied: …" text in the lobby when a join is refused (pre-existing).
+
+**Runner minutes per pull request.** Times are the job steps as run here, before installs. Add about 3 minutes per
+job on a hosted runner for `npm ci` and Playwright, and more for `npm --prefix functions ci`.
+
+| Workflow · job | Runs on | Time here |
+| --- | --- | --- |
+| gates · student-runtime (unchanged) | `src/**`, the gates' drivers, the five `functions/lib` files; no longer every `functions/**` | ≈ 32.5 min (reviewer) |
+| gates · pass3-student-screens | the same | ≈ 9.6 min (17 steps, the five guarded ones skipping) |
+| gates · pass3-secure-screens | the same | ≈ 8.3 min |
+| journeys · pass3-student-journeys | its existing paths | ≈ 5.2 min |
+| emulator journeys · pass3-test-cycle-rich-tools | its own paths, nightly, on demand | ≈ 4.1 min |
+| emulator journeys · pass3-live-challenge-shell | the same | ≈ 9 min |
+
+So a `src/**` PR outside Live Challenge, assessment, question, tools and the engine runs the three gates jobs and the
+journeys, with no emulator job. A functions-only PR runs the emulator journeys, and the gates only when it touches
+those five files or `functions/shared/**`.
+
 ## Gate
 
 Run in this container on the branch, one driver at a time, except where a job runs several in sequence, as its
@@ -436,12 +532,34 @@ origins).
 | pass | submitNotQueued, matrixLabFeedback, afterLastMiss, day1SystemsJourney, day2NonuniqueJourneys, assignmentMobile, studentGradesRaise, studentResultUpNext, studentWhatChanged, gradeCenterMobile, secureResults, secureExamNavigation, secureAccessParity, assignmentChromeJourneys, studentNameJourneys, askMyTeacherJourneys, testCycleRichToolQa, graphFeatureRushGame |
 | red | toolDraftSyncSweep (2a), studentHomeToday (2g), liveChallengeShellQa classic, scoring and launch (2h) |
 
+### After the review round (on `e19e1550`)
+
+Each job's steps were run from the workflow YAML with `bash -eo pipefail`, the step's env and `CI=true`. Installs were
+skipped, already done.
+
+| Job | Result |
+| --- | --- |
+| pass3-student-journeys | passed: assignmentChrome (with the S1 checks) 131 s, studentName 89 s, the guarded draftSaveNoticeReload step skipped (0 s), askMyTeacher 89 s |
+| pass3-student-screens | first run red: studentHomeToday at 23:37 UTC (the clock wrap above). Re-run after the fix: **passed**, 17 steps, the five guarded ones skipping |
+| pass3-secure-screens | passed: 134 s, 247 s, 115 s |
+| student-pass3-emulator-journeys · pass3-test-cycle-rich-tools | passed, 244 s |
+| student-pass3-emulator-journeys · pass3-live-challenge-shell | passed, 540 s, all scenarios, with the N1 check |
+| accessibility-certification · browser-accessibility (its certify step changed) | certify (ratchet), with `CI=true`, passed in 73 s against the stubbed server. Every other step passed except dolCloseCopy, which fails the same way on the base after midnight (above) |
+
+| Check | Result |
+| --- | --- |
+| `npm run test:platform` | 12,136 of 12,136 |
+| `node --test tests/tools/*.test.mjs` | 1,718 of 1,718 |
+| `npm run lint` | exit 0, 496 warnings (the base's count) |
+| `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
+| `check-first-load-budget --report` | studentHome 839.5 KB, signIn 291.9 KB, within baseline (unchanged from before the review) |
+
 ### The usual gate
 
 | Check | Result |
 | --- | --- |
-| `npm run test:platform` | 12,128 of 12,128 pass |
-| `node --test tests/tools/*.test.mjs` | 1,718 of 1,718 pass |
+| `npm run test:platform` | 12,128 of 12,128 pass; after the review round 12,136 of 12,136 |
+| `node --test tests/tools/*.test.mjs` | 1,718 of 1,718 pass (again after the review round) |
 | `npm run lint` | exit 0; 496 warnings, the same count as the base `530ac3cf` (each warning in a file I touched is on a line I did not write) |
 | `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten (`git status` shows only this handoff, before it was committed) |
 | `node scripts/check-first-load-budget.mjs --report` | within baseline; see "The first load" |
@@ -497,10 +615,8 @@ release-ordering constraint. The CI changes need no deploy.
 
 ## Decisions for the owner
 
-1. **The two long drivers run on every pull request that touches their paths** (`src/**`, `functions/**`, the
-   emulator harness): testCycleRichToolQa in about 5 minutes here, liveChallengeShellQa in about 10 minutes here (all 11 scenarios). If runner minutes
-   matter more than catching a Live Challenge or secure-tool regression before merge, move those two jobs to a
-   nightly schedule. They are self-contained jobs, so that is a one-line `if:`.
+1. **Decided by the integrator in review (S3).** The two long drivers run in their own workflow: on pull requests
+   that touch what they reach, nightly, and on demand. Runner minutes are in "Review round".
 2. **`p3StartMin`'s default stays 0.** Say if you want 40, and every journey that relies on an open Warm-Up will need
    `p3StartMin` set.
 3. **The bank count does not see Firestore-only teacher items.** Run `node scripts/audit-systems-shapes.mjs` over an
@@ -517,6 +633,9 @@ release-ordering constraint. The CI changes need no deploy.
 - **Not touched:** `src/App.jsx`.
 
 ## Not done
+
+- **dolCloseCopy fails after midnight UTC, on the base too** (see "Review round"). It is a driver in CI outside this
+  scope.
 
 - **Phone layout seen in the vertical-boundary screenshot** (2c), for W7-2 (boxes) or the owner:
   - "Open Work View" covers the stimulus title;
