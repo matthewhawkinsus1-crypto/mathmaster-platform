@@ -9,7 +9,8 @@
 //
 //   room        the navigator starts as one compact row on both sizes; the
 //               sticky chrome ends by y=240 on a Chromebook (y=301 before),
-//               and a phone question gets at least 480px (373px before).
+//               and a phone question gets at least 480px (373px before),
+//               less the save line under it (W7-8).
 //   phoneRow    phone: back, Previous and Next are 44px; no text in the
 //               navigator under 12px; with "Show progress" open the question
 //               numbers are 44px too (RUN-15).
@@ -131,6 +132,9 @@ if (wanted('room')) {
         chromeEnd: anchor?.getBoundingClientRect().height ? anchor.getBoundingClientRect().bottom : null,
         workTop: work?.getBoundingClientRect().top,
         barTop: bar?.getBoundingClientRect().top,
+        // The lines under the question ("Draft saved." …). On a phone they
+        // share the stage with it and the question gives up their height.
+        statusHeight: stage?.querySelector('.mathmaster-question-stage-status')?.getBoundingClientRect().height || 0,
         text: element.innerText.replace(/\s+/g, ' '),
       };
     });
@@ -138,8 +142,14 @@ if (wanted('room')) {
     check(!/if submitted now|on-time access|personalized versions/i.test(nav.text), `${device.name}: no grade projection or program words in the navigator`, nav.text.slice(0, 120));
     if (device === PHONE) {
       check(nav.height <= 64, `${device.name}: the navigator is one row`, `${Math.round(nav.height)}px (179px before)`);
+      // 480px is what the compact chrome leaves the question (499px measured,
+      // 373px before it). Since W7-8 the save line under the question is on
+      // the phone's screen too, and takes its own height from the question:
+      // the chrome's room is the question's plus that line's, and the line
+      // is one line, not a block (a 200%-text notice is capped elsewhere).
       const room = nav.barTop - nav.workTop;
-      check(room >= 480, `${device.name}: the question gets at least 480px`, `${Math.round(room)}px, work y=${Math.round(nav.workTop)} (373px at y=410 before)`);
+      check(nav.statusHeight <= 40, `${device.name}: the lines under the question take one line's height`, `${Math.round(nav.statusHeight)}px`);
+      check(room + nav.statusHeight >= 480, `${device.name}: the question gets at least 480px, less the save line under it`, `${Math.round(room)}px + ${Math.round(nav.statusHeight)}px for the line, work y=${Math.round(nav.workTop)} (373px at y=410 before)`);
     } else {
       check(nav.chromeEnd != null && nav.chromeEnd <= 240, `${device.name}: the sticky chrome ends by y=240`, `y=${Math.round(nav.chromeEnd)} (y=301 before)`);
     }

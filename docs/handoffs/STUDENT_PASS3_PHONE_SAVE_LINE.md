@@ -113,7 +113,7 @@ text-spacing override, and 1366×768 for reference:
 
 `PHONE_SAVE_LINE_SHOTS=<dir>` also saves a screenshot of each.
 
-Mutation checks (each run, then restored):
+Mutation checks (each run, then restored; the cap mutation re-run on the final CSS with the same result):
 
 | Mutation | Result |
 | --- | --- |
@@ -129,7 +129,49 @@ base `App.jsx` (no wrapper) → 1 red.
 
 ## Gate
 
-GATE_TABLE
+Every browser run below is on the final CSS (`flex: 1 1 auto`), one driver at a time, with the servers CI uses for
+each. Kills were by PID of the Vite process itself.
+
+| Check | Server(s) | Result |
+| --- | --- | --- |
+| `npm run test:platform` | — | pass, 12,314 tests (after `npm --prefix functions ci`: this container had no `functions/node_modules`) |
+| `node --test tests/tools/*.test.mjs` | — | pass, 1,743 |
+| `npm run lint` | — | exit 0; no warning in a line this branch adds |
+| `npm run build`; `npm run build:firebase` | — | both exit 0; `build:firebase` rewrote no tracked file |
+| `node scripts/check-first-load-budget.mjs --report` | — | within baseline. studentHome **842.9 KB** (842.7 on `3cba9192`, limit 847.3); signIn **292.7 KB**. `scripts/first-load-baseline.json` not edited |
+| `phoneSaveLineJourneys` (new) | teacher harness 5188 | pass: L, N at all 6 settings, B at the 4 upright phone ones |
+| `studentShellLargeText --check=text`, all scenes | emulator Vite 5199, a11y App harness 5188 | pass (95/95). On `3cba9192`, `--only=student-assignments`: phone-200%, reflow-320, spacing-phone fail (`clipped=1`) |
+| `studentShellLargeText --check=targets,s5` | same | pass |
+| `studentShellLargeText --check=default`, compared with shots from `3cba9192` | same | Chromebook: every scene identical. Phone: `student-assignments--completed-section` changed (the intended change: "Draft saved." drawn under the bar, page 845 → 844px). `more-tools--multiple-responses` (91 px) and `assignment-tools--step-algebra` (51 px) differ by at most 1/255 in one text band; two shots of `3cba9192` differ from each other the same way (91 px and 20 px, max 1/255), so that is rendering noise |
+| `npm run certify:accessibility` | emulator 5199, a11y harness 5188 | pass, no new or increased violations |
+| `npm run certify:dark-mode` | plain Vite 5199, teacher harness 5188 | pass (Parts 1, 1B, 2: 200 surfaces) |
+| `closedVerdictChip`, `workBarPrimaryLabel`, `studentAccessibleNames` | emulator 5199, a11y harness 5188 | pass |
+| `stagedQuestion` | plain Vite 5199 | pass, no findings |
+| `assignmentMobile` | plain 5199 | pass |
+| `phoneToolPanelReach` | plain 5199 | pass |
+| `planePhoneReach` | plain 5199 | pass |
+| `workViewHelpReach` | plain 5199 | pass |
+| `toolOutcomeReach` | plain 5199 | pass |
+| `keyboardSweep` | plain 5199 | pass |
+| `mathKeypadToolbar` | plain 5199 | pass |
+| `assignmentGraphingCalculator` | plain 5199 | pass (red on the first version, `flex: 1 1 0`; see "Why `auto`") |
+| `gradeCenterMobile` | plain 5199 | pass |
+| `submitNotQueued` | plain 5199 | pass, 21 checks |
+| `stepNotQueued` | plain 5199 | pass, 85 checks |
+| `workViewMatrix --write` | plain 5199 | pass; fixture diff: `generatedAt` only, no finding changed; restored |
+| `draftSaveNoticeReloadJourneys` | teacher 5188 | pass |
+| `submitAndFinishJourneys` | teacher 5188 | pass |
+| `restoredDraftFocusRaceJourneys` | teacher 5188 | pass |
+| `assignmentChromeJourneys` (`LIVE_CHALLENGE_HARNESS_ORIGIN` = a11y harness 5189) | teacher 5188 | pass after its room check was rewritten (below); red before it: "the question gets at least 480px: 467px" |
+| `recoveryHoldJourneys` | teacher 5188 | pass, no findings |
+
+**`assignmentChromeJourneys`' room check, rewritten.** It pinned "a phone question gets at least 480px" (Batch 5's
+compact chrome: 499px measured, 373px before it). "Draft saved." is already showing when that lesson opens (a
+restored draft), and now that the line is on the phone's screen it takes its 31px (8px margin + a 23.2px line)
+from the question: 467px. The behaviour the check protects — the chrome leaves the question its room — is intact;
+the room is now shared with the line. The check now reads the status element's height and asserts (a) it is one
+line (≤ 40px) and (b) work area + that height ≥ 480px. Mutations: 60px of extra chrome on the phone stage → (b) red
+(407 + 31); 30px of padding on the status area → (a) red (61px). This is decision 5 below.
 
 ## Deploy targets
 
@@ -153,6 +195,10 @@ GATE_TABLE
    list on a phone is worth its own look.
 4. **Seen, not changed**: in the `completed-section` scene (both before and after) the "⤢ Open Work View" button
    overlaps the heading of the "This question could not be displayed" card on a phone.
+5. **31px of the phone's work area for the save line.** Whenever a save line shows (on opening a lesson with a
+   draft, "Draft saved." already does), the phone question's work area is 31px shorter (467px instead of 499px at
+   390×844). The line could be tightened on phones (4px margin, a 1.35 line height: about 20px) at the cost of a
+   phone-only style for it; not done, since it does not change whether the line is seen.
 
 ## Every file touched
 
@@ -162,6 +208,7 @@ GATE_TABLE
 - `tests/browser/teacherWorkflow/phoneSaveLineJourneys.mjs` — new browser driver.
 - `tests/platform/phoneSaveLineSeen.test.mjs` — new source contract.
 - `tests/platform/pass3BrowserDriversInCi.test.mjs` — the new driver pinned to its job.
+- `tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs` — the phone room check counts the save line (above).
 - `.github/workflows/student-teacher-journeys.yml` — the new step, and the header comment.
 - `docs/qa/student-experience-pass-3/screenshots/phone-save-line-*.png` — five screenshots.
 - `docs/handoffs/STUDENT_PASS3_PHONE_SAVE_LINE.md` — this file.
