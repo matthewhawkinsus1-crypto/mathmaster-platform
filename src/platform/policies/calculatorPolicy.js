@@ -139,24 +139,29 @@ const isAssessmentActivity = (activityPolicy = {}) => (
 );
 
 /**
- * WHICH CALCULATOR A STUDENT GETS, IN THIS ORDER (pass 3, PR-25):
+ * WHICH CALCULATOR A STUDENT GETS, IN THIS ORDER (pass 3, PR-25; the order
+ * of levels 2 and 3 is the owner's, 2026-10-20: the question wins, as #239
+ * had it):
  *
  *   1. Assessment rules — the active assessment context (a secure exam, a
  *      course Test's blueprint) decides outright.
- *   2. The assignment's setting — `toolPolicy.calculator` on the assignment
- *      ("graphing" for a whole lesson). `inherit` (the schema default) and
- *      `questionSpecific` mean "no setting here".
- *   3. The question's setting — its `calculatorPolicy`, the activity's default
- *      when that inherits, then the mode the item embeds.
+ *   2. The question's own setting — its `calculatorPolicy`, the activity's
+ *      default when that inherits, then the mode the item embeds. A question
+ *      set to "teacher choice" uses the teacher's choice; with none set it
+ *      has no setting of its own here.
+ *   3. The assignment's setting — `toolPolicy.calculator` on the assignment
+ *      ("graphing" for a whole lesson), for every item with no setting of its
+ *      own. `inherit` (the schema default) and `questionSpecific` mean "no
+ *      setting here".
  *   4. The platform default (basic).
  *
  * Two stricter rules hold whatever the assignment says:
  *   - a skill that is assessed without a calculator (the question says
  *     `none`) gets none — only a documented accommodation that overrides
  *     computation gives one back;
- *   - on an exit ticket, quiz or test the assignment setting may narrow the
- *     question's own authored calculator but never widen it: the stricter of
- *     the two is used. (An item with no authored mode takes the assignment's.)
+ *   - on an exit ticket, quiz or test the assignment setting may still narrow
+ *     the question's own calculator but never widen it: the stricter of the
+ *     two is used. On other work the question's own is used as it is.
  *
  * A student's documented calculator accommodation applies after all of this,
  * exactly as before. Any assessment context skips level 2 entirely: what the
@@ -229,22 +234,24 @@ export const resolveCalculatorPolicy = ({
   const skillDeclaresNoCalculator = explicitQuestionMode === CALCULATOR_MODES.NONE
     || embeddedQuestionMode === CALCULATOR_MODES.NONE;
 
-  // 2. The assignment's setting, over the question's.
+  // 3. The assignment's setting, for an item with none of its own.
   const assignmentSetting = normalizeMode(assignmentCalculatorMode);
   const assignmentMode = assignmentSetting === CALCULATOR_MODES.TEACHER_CHOICE
     ? normalizeMode(teacherCalculatorChoice)
     : assignmentSetting;
   if (!assessment && CONCRETE_MODES.has(assignmentMode)) {
-    const questionAuthoredMode = baseSource === 'platformDefault' ? null : basePolicy;
+    // A "teacher choice" question with no choice set has no mode of its own:
+    // the assignment's setting is the teacher's choice.
+    const questionAuthoredMode = baseSource === 'platformDefault' || teacherChoiceMissing ? null : basePolicy;
     if (skillDeclaresNoCalculator) {
       basePolicy = CALCULATOR_MODES.NONE;
       baseSource = 'questionDesign';
     } else if (
-      isAssessmentActivity(activityPolicy)
-      && CONCRETE_MODES.has(questionAuthoredMode)
-      && MODE_STRENGTH[questionAuthoredMode] <= MODE_STRENGTH[assignmentMode]
+      CONCRETE_MODES.has(questionAuthoredMode)
+      && (!isAssessmentActivity(activityPolicy) || MODE_STRENGTH[questionAuthoredMode] <= MODE_STRENGTH[assignmentMode])
     ) {
-      // The stricter of the two on an exit ticket, quiz or test: the question's.
+      // 2. The question's own: as it is on other work, and the stricter of
+      // the two on an exit ticket, quiz or test.
     } else {
       basePolicy = assignmentMode;
       baseSource = 'assignmentToolPolicy';

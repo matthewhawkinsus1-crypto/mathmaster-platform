@@ -9,9 +9,10 @@
  * only one was the secure practice test's.
  *
  * Order of precedence (calculatorPolicy.js): assessment rules, then the
- * assignment's setting, then the question's, then the platform default. A
- * no-calculator skill stays without one, and on an exit ticket, quiz or test
- * the stricter of the assignment's and the question's own authored mode wins.
+ * question's own setting, then the assignment's, then the platform default
+ * (the owner, 2026-10-20: the question wins, as #239 had it). A no-calculator
+ * skill stays without one, and on an exit ticket, quiz or test the stricter of
+ * the assignment's and the question's own authored mode wins.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,20 +42,43 @@ test('3. the question\'s own setting applies when the assignment has none', () =
   }
 });
 
-test('2. the assignment\'s setting applies over the default and over the question\'s own mode', () => {
+test('3. the assignment\'s setting applies over the platform default: every item with no setting of its own takes it', () => {
   const overDefault = resolve({ assignmentCalculatorMode: GRAPHING });
   assert.deepEqual([overDefault.available, overDefault.mode, overDefault.source], [true, GRAPHING, 'assignmentToolPolicy']);
-
-  const overQuestion = resolve({ questionSpec: { calculatorPolicy: BASIC }, assignmentCalculatorMode: GRAPHING });
-  assert.deepEqual([overQuestion.mode, overQuestion.source], [GRAPHING, 'assignmentToolPolicy']);
-
-  const narrower = resolve({ questionSpec: { rawSpec: { calculatorMode: GRAPHING } }, assignmentCalculatorMode: SQUARE_ROOT });
-  assert.deepEqual([narrower.mode, narrower.source], [SQUARE_ROOT, 'assignmentToolPolicy']);
 
   const off = resolve({ assignmentCalculatorMode: NONE });
   assert.equal(off.available, false);
   assert.equal(off.source, 'assignmentToolPolicy');
   assert.match(off.reason, /turned the calculator off for this assignment/);
+});
+
+test('2. on ordinary work the question\'s own mode wins over the assignment\'s, wider or narrower (#239\'s order)', () => {
+  const overAssignment = resolve({ questionSpec: { calculatorPolicy: BASIC }, assignmentCalculatorMode: GRAPHING });
+  assert.deepEqual([overAssignment.mode, overAssignment.source], [BASIC, 'questionDesign']);
+
+  const embedded = resolve({ questionSpec: { rawSpec: { calculatorMode: GRAPHING } }, assignmentCalculatorMode: SQUARE_ROOT });
+  assert.deepEqual([embedded.mode, embedded.source], [GRAPHING, 'questionDesign']);
+
+  const notOff = resolve({ questionSpec: { rawSpec: { calculatorMode: SCIENTIFIC } }, assignmentCalculatorMode: NONE });
+  assert.deepEqual([notOff.available, notOff.mode, notOff.source], [true, SCIENTIFIC, 'questionDesign']);
+
+  for (const role of ['warmup', 'classwork', 'practice']) {
+    const activityPolicy = getEffectiveActivityPolicy(role);
+    const own = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: GRAPHING });
+    assert.deepEqual([own.mode, own.source], [BASIC, 'questionDesign'], role);
+  }
+});
+
+test('2. a "teacher choice" question uses the teacher\'s choice; with none set the assignment\'s setting is that choice', () => {
+  const questionSpec = { calculatorPolicy: CALCULATOR_MODES.TEACHER_CHOICE };
+  const chosen = resolve({ questionSpec, teacherCalculatorChoice: SCIENTIFIC, assignmentCalculatorMode: GRAPHING });
+  assert.deepEqual([chosen.mode, chosen.source], [SCIENTIFIC, 'teacherChoice']);
+  for (const role of ['classwork', 'dol']) {
+    const unset = resolve({ activityPolicy: getEffectiveActivityPolicy(role), questionSpec, assignmentCalculatorMode: GRAPHING });
+    assert.deepEqual([unset.available, unset.mode, unset.source], [true, GRAPHING, 'assignmentToolPolicy'], role);
+  }
+  const nothingSet = resolve({ questionSpec });
+  assert.deepEqual([nothingSet.available, nothingSet.source], [false, 'teacherChoice']);
 });
 
 test('2. an assignment set to "teacher choice" uses the teacher\'s choice, and with none set defers to the question', () => {
@@ -129,8 +153,9 @@ test('exit tickets, quizzes and tests keep the stricter of the assignment\'s and
   // A role-less policy whose outcome feedback waits is treated the same way.
   const waiting = resolve({ activityPolicy: { feedback: 'teacherRelease' }, questionSpec: { calculatorPolicy: SCIENTIFIC }, assignmentCalculatorMode: GRAPHING });
   assert.equal(waiting.mode, SCIENTIFIC);
-  // Classwork with the same inputs follows the assignment.
-  assert.equal(resolve({ questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: GRAPHING }).mode, GRAPHING);
+  // Classwork with the same inputs keeps the question's own, wider or narrower.
+  assert.equal(resolve({ questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: GRAPHING }).mode, BASIC);
+  assert.equal(resolve({ questionSpec: { rawSpec: { calculatorMode: GRAPHING } }, assignmentCalculatorMode: BASIC }).mode, GRAPHING);
 });
 
 test('zeros, minimum and maximum are listed only where they cannot state an unreleased answer (keyPointsAllowed)', () => {
