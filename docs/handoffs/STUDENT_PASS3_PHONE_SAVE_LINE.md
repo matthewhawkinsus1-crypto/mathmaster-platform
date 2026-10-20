@@ -244,9 +244,12 @@ Gate on the review-round head (one driver at a time, CI's servers):
    Columns still scroll in every case, every action-bar button is whole and pressable in every case
    (`measure`, below), and Work View (one tap, full screen) is unaffected. The notice only appears when storage
    is full or the backup refuses a draft; "Not saved" only when the device could not store a change. At 200% text
-   on a small phone a student with the notice sees the bar, the tries strip and the task's heading row, with the
-   task scrolling in its panel
-   ([320×568](../qa/student-experience-pass-3/screenshots/phone-save-line-after-notice-320x568-200pct.png)). A
+   with the notice, at 360×640 and 375×667 a student sees the bar, the tries strip, the task's heading and its
+   first line, the rest scrolling in the panel. At 320×568 (corrected by the integrator from the re-review) the
+   panel is a 59px window: the heading row, about 70px at 200%, is cut in half, and the task itself is reached
+   only by scrolling inside it
+   ([320×568](../qa/student-experience-pass-3/screenshots/phone-save-line-after-notice-320x568-200pct.png)).
+   Minimize does not help at 200% text: the folded panel still needs 265px, the same as on the base. A
    lower cap (20%) would give back about a third of the lines' height at 200% and show fewer lines of the notice;
    on these small phones at 200% it does not bring the work area back, because the task panel and the bar alone
    fill the screen. Kept at 30%.
