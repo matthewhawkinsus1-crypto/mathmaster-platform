@@ -1559,18 +1559,22 @@ await run('adversarial', async (S) => {
   // A second host tab on the same game.
   const teacher2 = await openTeacher('desktop');
   check(S, await waitForConsole(teacher2, 'lobby', 20_000), 'a second host tab does not open the live game');
-  // START pressed three times across two tabs: one round.
-  await Promise.all([
-    primary(teacher, 'start').click().catch(() => {}),
+  // START pressed three times across two tabs: one round. A press that loses
+  // the race waits for a Start button that is gone, so nothing waits on the
+  // presses until the countdown checks are done (a lost press once held them
+  // 30 s, past GO).
+  const presses = Promise.all([
+    primary(teacher, 'start').click({ timeout: 5_000 }).catch(() => {}),
     primary(teacher, 'start').click({ timeout: 500 }).catch(() => {}),
-    primary(teacher2, 'start').click().catch(() => {}),
+    primary(teacher2, 'start').click({ timeout: 5_000 }).catch(() => {}),
   ]);
   const r0 = await waitForRoom(roomId, (room) => room.status === 'running');
-  await wait(1_000);
-  check(S, (await roomOf(roomId)).roundVersion === 1, `Start pressed three times opened ${(await roomOf(roomId)).roundVersion} rounds`);
-  // An answer during the countdown is refused and records nothing.
+  // An answer during the countdown is refused as early and records nothing.
+  const leadMs = ms(r0.startsAt) - Date.now();
   const early = await botAnswer(roomId, ids[1], { correct: true }).then(() => null, (error) => error);
-  check(S, early, 'an answer during the countdown was accepted');
+  check(S, early?.details?.reason === 'round_not_started', early
+    ? `an answer during the countdown was refused for another reason: ${early.message}`
+    : `an answer during the countdown was accepted (sent ${leadMs} ms before GO)`);
   check(S, (await privatePlayer(roomId, ids[1])).answeredRound === -1, 'an answer during the countdown was recorded');
   // A refresh mid-countdown picks the countdown up where the server is.
   await s1.page.reload({ waitUntil: 'domcontentloaded' });
@@ -1585,6 +1589,9 @@ await run('adversarial', async (S) => {
   })();
   note(S, 'countdown step after a refresh', step);
   check(S, step === 'started' || step === 'go' || Number(step) <= Math.ceil((ms(r0.startsAt) - Date.now() + 1_000) / 1000), 'a refresh restarted the countdown');
+  await presses;
+  await wait(1_000);
+  check(S, (await roomOf(roomId)).roundVersion === 1, `Start pressed three times opened ${(await roomOf(roomId)).roundVersion} rounds`);
   await wait(Math.max(0, ms(r0.startsAt) - Date.now()) + 300);
   // END ROUND NOW: asked first; "Keep playing" keeps playing.
   check(S, await waitForConsole(teacher, 'roundActive', 10_000), `the console is not on the round in play (${await attr(teacher, '[data-mm-host-console]', 'data-mm-host-console')})`);
