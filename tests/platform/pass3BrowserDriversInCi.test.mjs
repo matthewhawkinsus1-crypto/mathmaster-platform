@@ -14,7 +14,7 @@
 // A step that only runs on a schedule counts only where it is meant to.
 
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (name) => readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8');
@@ -47,12 +47,14 @@ const DRIVERS = [
   ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'plain', [
     'submitNotQueued', 'toolDraftSyncSweep', 'matrixLabFeedback', 'afterLastMiss', 'day1SystemsJourney',
     'day2NonuniqueJourneys', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise', 'studentResultUpNext',
-    'studentWhatChanged', 'gradeCenterMobile',
+    'studentWhatChanged', 'gradeCenterMobile', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2',
+    'toolChoiceGroups',
   ]],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
+    'teacherWorkflow/draftSaveNoticeReloadJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
   ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],
@@ -176,28 +178,3 @@ test('no workflow here runs on pull_request_target', () => {
     assert.doesNotMatch(read(name), /pull_request_target/, name);
   });
 });
-
-// Wave 7's other branches add five drivers. Until each merges, its step skips
-// cleanly; once the file is there, the same step runs it, beside the drivers
-// that share its server.
-const GUARDED = [
-  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'stepNotQueued'],
-  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'toolOutcomeReach'],
-  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'feedbackReasons2'],
-  ['student-runtime-browser-gates.yml', 'pass3-student-screens', 'toolChoiceGroups'],
-  ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacherWorkflow/draftSaveNoticeReloadJourneys'],
-];
-for (const [workflow, job, driver] of GUARDED) {
-  test(`${job} runs ${driver} once its branch merges, and skips cleanly before`, () => {
-    const steps = stepsOf(jobsOf(read(workflow))[job]);
-    const file = `tests/browser/${driver}.mjs`;
-    // A guard that outlives its file would skip forever if the file were
-    // renamed. Once the driver is here: drop the guard and pin it in DRIVERS
-    // (the handoff, "Converting a guarded step", says how).
-    if (existsSync(new URL(`../../${file}`, import.meta.url))) assert.fail(`${file} is here: drop its guard and pin it in DRIVERS`);
-    const step = steps.find((candidate) => candidate.includes(`if [ -f ${file} ]; then node ${file}; else echo`));
-    assert.ok(step, `${job} has a guarded step for ${file}`);
-    assert.match(step, /if: always\(\)/);
-    if (job === 'pass3-student-screens') assert.match(step, /AUDIT_ORIGIN: "http:\/\/127\.0\.0\.1:5199"/);
-  });
-}

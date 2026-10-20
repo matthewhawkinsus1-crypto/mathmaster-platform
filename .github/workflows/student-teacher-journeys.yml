@@ -106,7 +106,7 @@ name: Student and Teacher Journeys
 #                          (the assignment chrome; the lobby invite inside a
 #                          lesson, NAV-25), studentNameJourneys.mjs (one name
 #                          per student everywhere), draftSaveNoticeReloadJourneys.mjs
-#                          (W7-3, guarded until it merges), askMyTeacherJourneys.mjs
+#                          (W7-3: a draft-save notice survives a reload), askMyTeacherJourneys.mjs
 #                          (Ask my teacher answers back). Ask my teacher and the
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
@@ -495,14 +495,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/studentNameJourneys.mjs
-      # W7-3 (honest failures). Guarded: the file arrives with that branch;
-      # until then the step skips.
       - name: A draft-save notice survives a reload
         if: always()
         env:
           PLAYWRIGHT_MODULE: playwright
-        run: |
-          if [ -f tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs ]; then node tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs; else echo "draftSaveNoticeReloadJourneys.mjs is not on this branch yet: skipped"; fi
+        run: node tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs
       - name: Ask my teacher answers back, and a raised hand is seen
         if: always()
         env:
