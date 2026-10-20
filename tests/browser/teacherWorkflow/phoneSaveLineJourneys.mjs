@@ -19,10 +19,13 @@
 //      saved." and its kind) is not drawn, and the lines under the question
 //      take no height: the question keeps its work area (the owner,
 //      2026-10-20). On the Chromebook it is drawn as before;
-//   L  a save line that needs the student (offline: "Draft saved on this
-//      device. It will sync when you are back online."; on the Chromebook,
-//      the routine one) is inside the screen, inside every box that clips it,
-//      and nothing (the action bar, a toast) is drawn over it;
+//   L  a save line that needs the student is inside the screen, inside every
+//      box that clips it, and nothing (the action bar, a toast) is drawn over
+//      it. On a phone the line is the real one with its routine mark taken
+//      off and the longest line that needs the student put in ("Not saved ·
+//      this device could not store your last change…"): this harness cannot
+//      make a real save fail (its server accepts every write, offline too).
+//      On the Chromebook it is the routine line, as before;
 //   N  with a draft the backup refused (planted the way
 //      draftSaveNoticeReloadJourneys.mjs does), the problem notice is the same;
 //   B  and upright, the question keeps its whole action bar beside either: at
@@ -48,6 +51,9 @@ const STUDENT = '910002';
 const ASSIGNMENT = 'a-today';
 const KEPT = 'mathmaster:draft-save-health:v1';
 const REFUSED = /can only be saved on this device, not backed up/;
+// The longest save line, and one that needs the student (App.jsx, the
+// device queue could not be written).
+const NEEDS_STUDENT_LINE = 'Not saved · this device could not store your last change. Keep this tab open and try it again.';
 // studentShellLargeText.mjs's text-spacing override (the bookmarklet's values).
 const SPACING = '* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }';
 
@@ -235,18 +241,18 @@ for (const setting of SETTINGS) {
         `R  the routine save line is not drawn on a phone, and the question keeps the room (${setting.id})`,
         `"${routine.text}" ${routine.routine ? 'routine' : 'not marked routine'}, ${routine.drawn ? 'drawn' : 'not drawn'}, the lines take ${routine.statusHeight}px`);
       await shot(page, `routine ${setting.id}`);
-      // Offline: the line now needs the student, and is seen.
-      await context.setOffline(true);
-      await page.evaluate(() => window.__mmHarnessStore?.setOnline(false));
-      await typeIntoFirst(page, '8');
-      await page.locator('[data-save-line]:not([data-save-line-routine])').first().waitFor({ timeout: 15000 });
-      await page.waitForTimeout(1500);
-      report(`L  the offline save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
+      // A line that needs the student is drawn: the same element, its routine
+      // mark off and the longest such sentence in it (see L above).
+      await page.evaluate((words) => {
+        const line = document.querySelector('[data-save-line]');
+        line.removeAttribute('data-save-line-routine');
+        line.textContent = words;
+      }, NEEDS_STUDENT_LINE);
+      // At 200% text the longest line is taller than the 30% cap and scrolls
+      // in place, its start in view, as the problem notice does (W7-8).
+      report(`L  a save line that needs the student is seen (the "Not saved" line, simulated; ${setting.id})`, await seen(page, '[data-save-line]', setting), { mayScroll: setting.textScale === 2 });
       await shot(page, `line ${setting.id}`);
       await barWhole('offline save line');
-      await page.evaluate(() => window.__mmHarnessStore?.setOnline(true));
-      await context.setOffline(false);
-      await page.locator('[data-save-line][data-save-line-routine]').first().waitFor({ state: 'attached', timeout: 30000 });
     } else {
       report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
       await shot(page, `line ${setting.id}`);
