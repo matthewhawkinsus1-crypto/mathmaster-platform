@@ -185,6 +185,9 @@ test('a step built from the tool is shown, and counts as problem-specific help l
   // QuestionEngine and supportUseMemory treat every source but the platform's as written for the problem.
   const engine = readFileSync(join(ROOT, 'src/QuestionEngine.jsx'), 'utf8');
   assert.match(engine, /const backUpSpecific = specificStepUsed \|\| \(scaffoldComplete && scaffold\.source !== 'platform'\);/);
+  // The step's question and choices are drawn as mathematics (a family's $x$ showed raw).
+  assert.match(engine, /<h2 style=\{\{ margin: '8px 0 16px', color: 'var\(--mm-text-strong\)' \}\}><MathText>\{backUpQuestionText\(scaffold\.prompt\)\}<\/MathText><\/h2>/);
+  assert.match(engine, /cursor: 'pointer' \}\}><MathText>\{option\}<\/MathText><\/button>/);
   const memory = readFileSync(join(ROOT, 'src/platform/supports/supportUseMemory.js'), 'utf8');
   assert.match(memory, /const problemSpecificStep = Boolean\(scaffoldUsed\) \|\| \(Boolean\(backUpStepDone\) && backUpStepSource !== 'platform'\);/);
 });
