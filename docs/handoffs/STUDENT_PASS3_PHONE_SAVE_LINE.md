@@ -206,11 +206,11 @@ Gate on the review-round head (one driver at a time, CI's servers):
 
 | Check | Server(s) | Result |
 | --- | --- | --- |
-| `npm run test:platform` | — | R_PLATFORM |
-| `node --test tests/tools/*.test.mjs` | — | R_TOOLS |
-| `npm run lint` | — | R_LINT |
-| `npm run build`; `npm run build:firebase` | — | R_BUILD |
-| first load | — | R_FIRST |
+| `npm run test:platform` | — | pass, 12,315 tests |
+| `node --test tests/tools/*.test.mjs` | — | pass, 1,743 |
+| `npm run lint` | — | exit 0; no warning in a line this branch adds |
+| `npm run build`; `npm run build:firebase` | — | both exit 0; no tracked file rewritten |
+| first load | — | within baseline: studentHome **843.0 KB** (842.7 on `3cba9192`, limit 847.3), signIn **292.7 KB** |
 | `phoneSaveLineJourneys` (11 settings) | teacher 5188 | pass, 125s |
 | `assignmentChromeJourneys` | teacher 5188, a11y harness 5189 | pass ("471px + 27px for the line") |
 | `studentNameJourneys`, `draftSaveNoticeReloadJourneys`, `askMyTeacherJourneys` (the rest of the job) | teacher 5188 / a11y harness 5189 | pass |
