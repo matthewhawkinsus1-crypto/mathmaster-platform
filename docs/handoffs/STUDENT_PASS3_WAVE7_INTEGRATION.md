@@ -7,6 +7,7 @@ gate found.
 
 Each session's handoff holds the detail. This note covers:
 - what the reviews and the merge changed;
+- what changed after the release PR opened;
 - how the merged tree was checked;
 - how it ships;
 - what waits for the owner.
@@ -119,6 +120,25 @@ the full list.
   pinned in `pass3BrowserDriversInCi`. Putting a guard back turns it red.
 - **W7-8** (`c821835`), last, with no conflict: it started from the merged seven, so the merged tree is the tree its
   reviewer checked.
+
+## After the release PR opened (#502)
+
+Three fixes, each from a finding on the PR:
+- **`9de24ee`, from Codex's review.** An ordered pair whose key has a root marked a right answer in square brackets
+  (`[1-\sqrt{2},3]`) wrong, though both coordinate marks said right: W7-1's root branch read only round brackets. It
+  now reads the pair with the brackets a plain key takes. `studentPass3GraderGaps2` covers it, and reverting the fix
+  turns it red. test:platform (12,315), tools, lint, both builds and first load (842.8 KB) pass, and the grading sweep
+  against `530ac3c` gives the same verdicts as before the fix.
+- **`9115c49`, from CI.** `askMyTeacherJourneys` counted the teacher's list the moment "Answer sent" appeared, a task
+  before the snapshot that drops the answered question, and CI's runner lost that race. It now waits for the row to
+  go. Delaying the harness's snapshots reproduces CI's two findings with the old check; a panel that keeps the
+  answered question still turns the new one red.
+- **`6a8f0b6`, from CI.** liveChallengeShellQa's adversarial scene presses Start three times across two tabs, and it
+  waited for all three presses before its countdown checks. A press that lost the race waited 30 s for a Start button
+  that was gone, so "an answer during the countdown" went after GO and was accepted. The countdown checks no longer
+  wait for the presses, and the early answer must be refused as early (`round_not_started`). Making one press lose the
+  race reproduces CI's findings with the old scene and passes with the new one; a server that accepts early answers
+  still turns it red.
 
 ## Checks
 
@@ -364,3 +384,14 @@ Each handoff lists its own, in full. Grouped here:
     opened).
   - Two fixes are possible. The driver could wait for focus inside the list before pressing Escape. Or the answer box
     could stop taking focus once the student has moved it somewhere else.
+- **The calculator setting's driver (found by CI on #502; older than wave 7).** `assignmentGraphingCalculator`'s
+  closed-question check clicks the page as soon as the calculator has closed, then presses Enter. `close()` hands
+  focus back to the work bar's control on the next frame. When that frame lands after the click, Enter presses the
+  control and the calculator opens again: "closed question: the calculator does not reopen" (`student-runtime` on
+  `9115c49`).
+  - The driver, the panel and the CI step are on `main`, unchanged here. `4f1dbb7` (release 2) fixed the same race in
+    the driver's other two Close checks; this one was missed.
+  - A student cannot hit it: it needs a click within one frame of Close.
+  - The fix is the wait `4f1dbb7` added, for the focus to reach the control before the click (the patch is in a
+    comment on #502). A hand-back that lands after the click reproduces CI's failure with the old driver. The patched
+    driver passes, and still fails when Enter really brings the calculator back.
