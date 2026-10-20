@@ -162,6 +162,25 @@ rest are code strings and `{{placeholder}}` templates. The words that now follow
 (den, total, run, the, pi, ln, hypotenuse, rise, dx…); one letter stays one letter (`x/y`, `3/-x`).
 Tests: `accessibleMathSpeech.test.mjs`, en and es, red with the one-letter rule.
 
+**SF2, second round (re-review on `aab680de`).** Reading every letter run after "/" as one word made a product of
+variables one word: "h = V/lw" read "V over lw", "r = I/Pt" "I over Pt", "dy/dx" "dy over dx" — literal-equation
+answers, where how "lw" sounds depends on the voice. Now, in the denominator only, a letter run is read whole when it
+is a function or constant (sin, cos, tan, sec, csc, cot, ln, log, exp, abs, sqrt, pi), the first or last word of one
+of the language's spoken phrases ("the" square root of, "la", operator words), or three or more letters with a vowel
+(rise/run, miles/hour, pages/rate). Anything else is spelled letter by letter, as on the base: "V over l w", "I over
+P t", "d over r t", "1 over x y squared", "dy over d x". Kept from the first round: "2 over pi", "1 over negative
+sin…", "3 over negative the square root of 2" (es "la raíz cuadrada"). Tests: the reviewer's table and the review's
+unchanged list (`xy/z`, `3/2ab`, `1/2x`, `x/2y`, `m/s`, `km/h`, `ft/s`, `w/l`, `C/2pi`, `t = d/r`, `h = 2A/b`,
+`y = k/x`, `A/(bh)`, `\frac{A}{bh}`), en and es, each reading exactly as on `530ac3cf`; red with the previous head's
+rule, and the first round's test red when the word rule is removed. Corpus against `530ac3cf` (4589 strings with a
+"/"): 55 prose strings change, every one a signed denominator ("10 over negative 2") or a word that had been spelled
+out ("180 over pi", "1 over the absolute value of b", "ln 3 over ln 2", "pages over rate", "miles over hour").
+Against `aab680de` the only changes are `{{placeholder}}` templates and code strings.
+
+**Figure Match, two more cases** (`toolChoiceGroups.mjs`, the review's): a one-category group — Space, Right, Down,
+Home, End, Space give one write and never clear; three categories with the middle chip checked — Space, Space give no
+write and focus stays on it. Both red without the B1 guard.
+
 **Small:** `FractionGrader`'s box is "Fraction answer"; `LiteralGrader`'s is `${solveFor} =`, the words beside it
 (`mathFieldName.test.mjs`, red on each base file).
 
