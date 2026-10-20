@@ -83,6 +83,7 @@ export const TestCycleWindowsPanel = ({ schedule, busy, unopenedCount = 0, onCha
   const [exception, setException] = useState(null); // { classId, kind: 'extend' | 'reopen', opensAt, closesAt, windowId }
   const [followUp, setFollowUp] = useState(null);
   const [allFrom, setAllFrom] = useState('');
+  const [countingSitting, setCountingSitting] = useState(null); // classId whose sitting is being counted
   if (!schedule) return null;
   const { timeZone } = schedule;
   const today = schoolDateKey(Date.now(), timeZone);
@@ -154,6 +155,40 @@ export const TestCycleWindowsPanel = ({ schedule, busy, unopenedCount = 0, onCha
                 <p style={{ ...fact, color: 'var(--mm-warning-text)', fontWeight: 700 }}>
                   {entry.windows.filter((window) => !window.resolved).map((window) => window.label).join('; ')}
                 </p>
+              )}
+              {/* THE TEACHER DECIDES (the owner, 2026-10-20; W7-6 decision 1).
+                  A sitting was recorded on the stranded day: count it as the
+                  class's Test day, or set a new day below. Never automatic —
+                  one student starting from home on a snow day records one too. */}
+              {!anytime && entry.test.sitting && (
+                <div role="group" aria-label={`${entry.name}: the Test day the class sat`} data-test-window-sitting={entry.test.sitting.windowId} style={{ ...formRow, padding: 10, borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+                  <p style={{ ...fact, flexBasis: '100%', color: 'inherit', fontWeight: 700 }}>
+                    Class sat {entry.test.sitting.label} ({entry.test.sitting.started} started, {entry.test.sitting.range}). Was that the Test day?
+                  </p>
+                  {countingSitting === entry.classId ? (
+                    <>
+                      <p style={{ ...fact, flexBasis: '100%', color: 'inherit' }}>
+                        {entry.test.sitting.waiting === 1 ? 'The student' : `The ${entry.test.sitting.waiting} students`} who did not start it will have missed the Test and move to the Retest.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        style={button('primary', !busy)}
+                        onClick={() => { onChange({ action: 'countClassSitting', classId: entry.classId, windowId: entry.test.sitting.windowId }, 'Counting the Test day'); setCountingSitting(null); }}
+                      >
+                        Yes, mark them missed
+                      </button>
+                      <button type="button" onClick={() => setCountingSitting(null)} style={button()}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" disabled={busy} style={button(null, !busy)} onClick={() => setCountingSitting(entry.classId)}>
+                        Count it: mark absent students missed
+                      </button>
+                      <span style={{ ...fact, color: 'inherit' }}>Or choose a new Test day below.</span>
+                    </>
+                  )}
+                </div>
               )}
 
               {!anytime && (

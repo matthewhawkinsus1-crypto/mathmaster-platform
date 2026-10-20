@@ -310,6 +310,7 @@ Each handoff lists its own, in full. Grouped here:
 **Test Cycle**
 18. Should a recorded sitting ever mark absent students missed: (a) evidence, (b) the teacher decides, (c) any sitting
     (W7-6 1; shipped record-only).
+    **Decided 2026-10-20: (b), the teacher decides** (see `STUDENT_PASS3_SERVER_FOLLOWUPS.md`, decision 1).
 19. A Retest's recorded mistakes have no reader (W7-6 2).
 20. Sittings are never cleaned up (W7-6 3).
 21. While classmates still test, "the mistake to watch for" with a student's own released answer gives that student

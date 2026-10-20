@@ -377,6 +377,16 @@ collection.
    - **Data:** the sittings recorded from this deploy on are what any of these
      would use. Nothing reads them today, so decisions 1 and 5 of
      `STUDENT_PASS3_TEST_CYCLE_DATES.md` stand unchanged.
+   - **Decided 2026-10-20: (b), the teacher decides.** When a class's Test day
+     stops resolving and a sitting was recorded on it, the windows panel says
+     "Class sat Mon, Oct 19 (12 started). Was that the Test day?" and offers
+     "Count it: mark absent students missed" (with a confirmation) beside the
+     usual new-day picker. Counting it (`updateTestCycleAvailability` action
+     `countClassSitting`) copies the sitting's times onto the class's window
+     (`held`, `withClassSittingHeld`); `resolveClassWindows` reads that, never a
+     sitting, so the day ran and closed and whoever did not start it has missed
+     it. Until the teacher answers, nothing changes: `needsNewDay` stays true and
+     nobody is missed. Branch `claude/test-cycle-sitting-teacher-decides-20261020`.
 2. **A Retest's recorded mistakes** have no reader. Should the teacher's
    per-student view show them, or should a failed Retest open another round of
    Corrections? Not built.

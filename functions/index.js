@@ -20916,7 +20916,7 @@ function classSittingsOf(shared, rows) {
   return byClass;
 }
 
-async function teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
+async function teacherTestCycleSchedule(db, shared, { assignmentId = null, assignment, policy, classSizes, bell, now = Date.now(), classSittings = new Map() }) {
   if (policy.externalAssessment) return null;
   const timeZone = shared.timeZone;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -20925,12 +20925,31 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
     ? await db.getAll(...classIds.map((classId) => db.collection(CLASS_COLLECTION).doc(classId)))
     : [];
   const todayKey = schoolTodayKey(shared, now);
-  const classes = classSnapshots.map((classSnapshot) => {
+  const resolvedClasses = classSnapshots.map((classSnapshot) => {
     const classRecord = classSnapshot.exists ? classSnapshot.data() || {} : {};
     const classId = classSnapshot.id;
     const classPeriod = String(classRecord.period || "") || null;
     const windows = shared.schedule.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone });
     const test = shared.schedule.resolveTestWindowStatus({ availability: assignment?.testAvailability, classWindows: windows, now });
+    return { classRecord, classId, classPeriod, windows, test };
+  });
+  // A stranded day on which a sitting was recorded: the teacher decides
+  // whether it was the class's Test day (W7-6 decision 1, option b; the
+  // owner, 2026-10-20). Read by id, one document per stranded class.
+  const sittingIdOf = ({ classId, test }) => (test.stranded
+    ? shared.schedule.classSittingId({ assignmentId, classId, dateKey: test.dateKey })
+    : null);
+  const sittingIds = resolvedClasses.map(sittingIdOf).filter(Boolean);
+  const sittingSnapshots = sittingIds.length
+    ? await db.getAll(...sittingIds.map((id) => db.collection(shared.schedule.TEST_CYCLE_CLASS_SITTINGS).doc(id)))
+    : [];
+  const recordedSittings = new Map(sittingSnapshots.filter((snapshot) => snapshot.exists).map((snapshot) => [snapshot.id, snapshot.data() || {}]));
+  const classes = resolvedClasses.map(({ classRecord, classId, classPeriod, windows, test }) => {
+    const recorded = recordedSittings.get(sittingIdOf({ classId, test })) || null;
+    const strandedWindow = recorded ? windows.find((window) => !window.resolved && window.dateKey === test.dateKey) : null;
+    const sitting = recorded && strandedWindow && Number.isFinite(recorded.opensAt) && Number.isFinite(recorded.closesAt)
+      ? { windowId: strandedWindow.id, dateKey: test.dateKey, opensAt: recorded.opensAt, closesAt: recorded.closesAt }
+      : null;
     const followUp = shared.schedule.resolveFollowUpWindow({ assignment, availability: assignment?.testAvailability, testStatus: test, now, timeZone });
     const upcoming = shared.schedule.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey: todayKey, count: 4, timeZone, now });
     return {
@@ -20950,7 +20969,18 @@ async function teacherTestCycleSchedule(db, shared, { assignment, policy, classS
         // flagged, and one where anybody started is not told the day never
         // happened (classSittingsOf).
         needsNewDay: shared.schedule.classNeedsNewTestDay(test, classSittings.get(classId)),
-        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null }),
+        // The recorded sitting the teacher may count as the Test day
+        // (action countClassSitting), while somebody still waits on it.
+        sitting: sitting && Number(classSittings.get(classId)?.waiting) > 0
+          ? {
+            ...sitting,
+            label: shared.schedule.formatSchoolDate(sitting.dateKey, timeZone),
+            range: shared.schedule.formatSchoolRange(sitting.opensAt, sitting.closesAt, timeZone),
+            started: Number(classSittings.get(classId)?.started) || 0,
+            waiting: Number(classSittings.get(classId)?.waiting) || 0,
+          }
+          : null,
+        ...shared.schedule.describeTestWindow(test, { timeZone, audience: "teacher", classSittings: classSittings.get(classId) || null, sitting }),
       },
       followUp: {
         state: followUp.state,
@@ -21178,7 +21208,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
-    testSchedule: await teacherTestCycleSchedule(db, shared, { assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
+    testSchedule: await teacherTestCycleSchedule(db, shared, { assignmentId, assignment, policy, classSizes, bell, now, classSittings: classSittingsOf(shared, rows) }),
     // Who this Test is for: its classes, anyone added on their own, and the
     // record of every addition.
     audience: {
@@ -26185,7 +26215,7 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
   }
 
   // --- a class, or the whole Test ------------------------------------------
-  const bell = ["setClassTestDay", "setTestDayForClasses"].includes(action) ? await readBellSchedule(db) : null;
+  const bell = ["setClassTestDay", "setTestDayForClasses", "countClassSitting"].includes(action) ? await readBellSchedule(db) : null;
   const todayKey = schoolTodayKey(shared, now);
   const classPeriodOf = async (classId) => {
     const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
@@ -26269,6 +26299,32 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
       (next, entry) => sched.withClassTestDay(next, { ...entry, by: actor, at: now, replace: true }),
       current,
     );
+  } else if (action === "countClassSitting") {
+    // THE TEACHER COUNTS A RECORDED SITTING AS THE TEST DAY (the owner,
+    // 2026-10-20; W7-6 decision 1, option b). Only for a class-period day the
+    // bell schedule no longer gives times for, and only with a sitting the
+    // server recorded on it: the day then ran at the sitting's times, and
+    // whoever did not start it has missed it.
+    const classId = assignedClass();
+    const windowId = String(request.data?.windowId || "").trim();
+    const classPeriod = await classPeriodOf(classId);
+    const window = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
+      .find((entry) => entry.id === windowId);
+    if (!window || window.source !== "bellSchedule" || window.resolved || !sched.isDateKey(window.dateKey)) {
+      throw new HttpsError("failed-precondition", "Only a Test day the bell schedule no longer gives times for can be counted from its sitting.");
+    }
+    const sittingId = sched.classSittingId({ assignmentId, classId, dateKey: window.dateKey });
+    const sittingSnapshot = sittingId ? await db.collection(sched.TEST_CYCLE_CLASS_SITTINGS).doc(sittingId).get() : null;
+    const sitting = sittingSnapshot?.exists ? sittingSnapshot.data() || {} : null;
+    if (!sitting || !Number.isFinite(sitting.opensAt) || !Number.isFinite(sitting.closesAt)) {
+      throw new HttpsError("failed-precondition", `Nobody started the Test in this class period on ${sched.formatSchoolDate(window.dateKey, timeZone)}, so there is no sitting to count. Set a new Test day instead.`);
+    }
+    if (sitting.closesAt > now) {
+      throw new HttpsError("failed-precondition", "That class period has not ended yet.");
+    }
+    notes.push(`${sched.formatSchoolDate(window.dateKey, timeZone)} counts as this class's Test day (${sched.formatSchoolRange(sitting.opensAt, sitting.closesAt, timeZone)}). Students who did not start it have missed it and move to the Retest.`);
+    audit = { action, classId, windowId, dateKey: window.dateKey, opensAt: sitting.opensAt, closesAt: sitting.closesAt };
+    edit = (current) => sched.withClassSittingHeld(current, { classId, windowId, opensAt: sitting.opensAt, closesAt: sitting.closesAt, by: actor, at: now });
   } else if (action === "extendClassWindow") {
     const classId = assignedClass();
     const windowId = String(request.data?.windowId || "").trim();

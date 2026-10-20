@@ -114,6 +114,19 @@ const shiftDateKey = (dateKey, days) => {
   return `${moved.getUTCFullYear()}-${pad(moved.getUTCMonth() + 1)}-${pad(moved.getUTCDate())}`;
 };
 
+const normalizeHeldSitting = (raw) => {
+  if (!isObject(raw)) return null;
+  const opensAt = instant(raw.opensAt);
+  const closesAt = instant(raw.closesAt);
+  if (opensAt === null || closesAt === null || closesAt <= opensAt) return null;
+  return {
+    opensAt,
+    closesAt,
+    ...(clean(raw.by) ? { by: clean(raw.by).slice(0, 160) } : {}),
+    ...(instant(raw.at) ? { at: instant(raw.at) } : {}),
+  };
+};
+
 const normalizeWindow = (raw) => {
   if (!isObject(raw)) return null;
   const id = clean(raw.id).slice(0, 60);
@@ -133,12 +146,17 @@ const normalizeWindow = (raw) => {
   }
   if (!isDateKey(raw.dateKey)) return null;
   const closesAtOverride = instant(raw.closesAtOverride);
+  const held = normalizeHeldSitting(raw.held);
   return {
     id: id || `day-${clean(raw.dateKey)}`,
     mode: TEST_WINDOW_MODE.CLASS_PERIOD,
     dateKey: clean(raw.dateKey),
     // An extension of this day's window, past the bell. Null means "the bell".
     ...(closesAtOverride !== null ? { closesAtOverride } : {}),
+    // The teacher counted the class's recorded sitting as this day's Test
+    // (withClassSittingHeld): its times, used only when the bell schedule no
+    // longer gives the day any.
+    ...(held ? { held } : {}),
     ...(clean(raw.by) ? { by: clean(raw.by).slice(0, 160) } : {}),
     ...(instant(raw.at) ? { at: instant(raw.at) } : {}),
   };
@@ -300,6 +318,22 @@ export const resolveClassWindows = ({
       return { id: window.id, source: 'teacher', opensAt: window.opensAt, closesAt: window.closesAt, resolved: true, pending: false };
     }
     const day = resolveClassPeriodDay({ schedule, classPeriod, dateKey: window.dateKey, timeZone });
+    if (!day.resolved && window.held) {
+      // The class sat it and the teacher said so: the day ran at the times
+      // its sitting recorded, so it opened and closed like any other day.
+      return {
+        id: window.id,
+        source: 'bellSchedule',
+        dateKey: window.dateKey,
+        resolved: true,
+        pending: false,
+        heldFromSitting: true,
+        opensAt: window.held.opensAt,
+        closesAt: window.held.closesAt,
+        scheduledClosesAt: window.held.closesAt,
+        extended: false,
+      };
+    }
     if (!day.resolved) {
       return {
         id: window.id,
@@ -349,10 +383,14 @@ export const resolveClassWindows = ({
  * (functions/index.js `recordClassTestSitting`, create-if-absent in the
  * server-only `testCycleClassSittings` collection).
  *
- * RECORD-ONLY. Nothing reads a sitting: one student starting the Test looks
- * exactly like a class sitting it, so whether a sitting may ever make a day
- * that stops resolving count as held (and its absent students missed) is an
- * owner decision. `resolveClassWindows` does not take them.
+ * THE TEACHER DECIDES (the owner, 2026-10-20; W7-6 decision 1, option b).
+ * One student starting the Test looks exactly like a class sitting it (a snow
+ * day, a start from home), so a sitting never makes a day count on its own.
+ * When the day stops resolving, the teacher's panel names the sitting ("Class
+ * sat Mon, Oct 19 (12 started)") and offers the choice: count it, and the
+ * students who did not start it have missed it, or set a new Test day. Only
+ * the teacher's "count it" copies the sitting's times onto the class's window
+ * (`withClassSittingHeld`); `resolveClassWindows` reads that, never a sitting.
  */
 export const TEST_CYCLE_CLASS_SITTINGS = 'testCycleClassSittings';
 
@@ -650,7 +688,7 @@ const PENDING_REASON = Object.freeze({
  * The original Test's window, as the two sentences both screens show: when it
  * opens and closes, and whether it may be taken from home.
  */
-export const describeTestWindow = (status, { timeZone = null, audience = 'student', classSittings = null } = {}) => {
+export const describeTestWindow = (status, { timeZone = null, audience = 'student', classSittings = null, sitting = null } = {}) => {
   const state = status?.state || WINDOW_STATE.UNSET;
   const whose = audience === 'teacher' ? 'Students' : 'You';
   if (state === WINDOW_STATE.UNSET) {
@@ -685,6 +723,19 @@ export const describeTestWindow = (status, { timeZone = null, audience = 'studen
     };
   }
   if (state === WINDOW_STATE.UPCOMING) {
+    if (status.stranded && audience === 'teacher' && sitting && Number(classSittings?.waiting) > 0) {
+      // A sitting was recorded on the stranded day: the teacher decides
+      // whether it was the class's Test day (W7-6 decision 1, option b).
+      const day = formatSchoolDate(sitting.dateKey, timeZone) || 'That day';
+      const started = Math.max(0, Number(classSittings?.started) || 0);
+      const waiting = Math.max(0, Number(classSittings?.waiting) || 0);
+      return {
+        state,
+        headline: `Class sat ${day} (${started} started)`,
+        detail: `The bell schedule no longer gives that day's times (${formatSchoolRange(sitting.opensAt, sitting.closesAt, timeZone)} when it was recorded). If it was the class's Test day, mark the ${waiting === 1 ? 'student' : `${waiting} students`} who did not start it as missed: they move to the Retest. Otherwise set a new Test day.`,
+        home,
+      };
+    }
     if (status.stranded && audience === 'teacher' && Number(classSittings?.started) > 0) {
       // Somebody in this class started the Test, so its day DID happen: the
       // bell schedule just cannot say when any more (a rotation change, a
@@ -853,6 +904,27 @@ export const withClassTestDay = (raw, { classId, dateKey, by = null, at = null, 
     ...normalized,
     policy: TEST_AVAILABILITY_POLICY.CLASS_TIME,
     classWindows: { ...normalized.classWindows, [id]: [...existing, window].slice(-MAX_WINDOWS_PER_CLASS) },
+  });
+};
+
+/**
+ * The teacher counts the class's recorded sitting as the Test day: the day's
+ * window keeps the sitting's times, so a day the bell schedule no longer
+ * resolves is a window that ran and closed, and whoever did not start it in
+ * time has missed it. Only a class-period day that does not resolve now may
+ * take one (the caller checks; a resolving day already has its times).
+ */
+export const withClassSittingHeld = (raw, { classId, windowId, opensAt, closesAt, by = null, at = null } = {}) => {
+  const normalized = normalizeTestAvailability(raw);
+  const id = clean(classId);
+  const windows = list(normalized.classWindows[id]);
+  const target = windows.find((window) => window.id === clean(windowId) && window.mode === TEST_WINDOW_MODE.CLASS_PERIOD);
+  if (!target) throw new Error('That Test day was not found.');
+  const held = normalizeHeldSitting({ opensAt, closesAt, by, at });
+  if (!held) throw new Error('The recorded sitting has no usable times.');
+  return storedShape({
+    ...normalized,
+    classWindows: { ...normalized.classWindows, [id]: windows.map((window) => (window.id === target.id ? { ...target, held } : window)) },
   });
 };
 
