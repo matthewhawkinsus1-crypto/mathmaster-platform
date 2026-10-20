@@ -1630,6 +1630,12 @@ await run('adversarial', async (S) => {
   await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
   const lobbyId = await createClassic(teacher, { classKey: 'p4', rounds: 5, seconds: 20 });
   check(S, await waitForStudentStage(s1, 'lobby', 20_000), 'the student did not reach the new lobby');
+  // Cancel Session asks first only when the console counts someone joined;
+  // with nobody in, it cancels at once (no dialog). The student's screen can
+  // show the lobby before the console's player snapshot arrives (seen after
+  // the endurance games), so wait until the console counts them, as a
+  // teacher looking at it would.
+  check(S, await waitForText(teacher, '1 student is in', 15_000), 'the console never counted the student in the new lobby');
   await teacher.page.getByRole('button', { name: 'Cancel Session' }).first().click();
   await dismissDialog(teacher);
   await wait(600);
