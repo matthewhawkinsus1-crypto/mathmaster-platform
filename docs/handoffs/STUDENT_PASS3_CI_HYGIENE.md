@@ -47,10 +47,16 @@ changes, so none grows.
     `secureItems`, `secureItemStorage`; what they require is in `functions/shared/**`, already there). **Not
     `functions/**`:** a functions-only change does not run the ~32-minute student-runtime job.
   - **student-pass3-emulator-journeys.yml.** On pull requests that touch what the two drivers reach, nightly
-    (`41 6 * * *`) and on demand. Its paths: `functions/**`; `src/firebase.js`; Live Challenge and rewards code; the
-    Test Cycle card, `src/components/assessment/**`, `src/components/question/**`, the Test Cycle and secure-exam
-    services, `src/platform/assessment/**`; `src/tools/**` and `QuestionEngine.jsx`; the emulator harness and
-    `tests/browser/support/**`; the two drivers and the pages they open.
+    (`41 6 * * *`) and on demand. Its paths:
+    - `functions/**`;
+    - `src/**`, then 29 whole directories neither driver loads, excluded with `!` after it (GitHub: the last match
+      wins);
+    - the emulator harness and `tests/browser/support/**`;
+    - the two drivers and the pages they open;
+    - `tests/fixtures/secureRichToolAnswers.mjs`.
+
+    `scripts/check-emulator-journey-paths.mjs` rebuilds both drivers' import graphs with Vite and checks that every
+    file is reached (re-review F1).
   - **student-teacher-journeys.yml.** It already triggered on `tests/browser/teacherWorkflow/**`. It now also
     triggers on `accessibilityAppHarness*` and `accessibilityFakeFirestore.js` (the harness for askMyTeacher and the
     lobby).
@@ -461,12 +467,9 @@ No blockers. The reviewer confirmed:
   - Proof: with the pin, it passes at 23:45 and in the job re-run at 00:3x; without it, it is red at that hour.
 - **A step name, fixed.** In `Day 2 non-unique 3×3 systems (#390, #392)`, ` #392)` was read as a YAML comment. The
   name is now quoted.
-- **dolCloseCopy (accessibility-certification.yml) fails after midnight UTC, on the base too. Not fixed.** It is
-  outside this scope.
-  - On this branch at 00:0x and on the base `530ac3cf` at 00:20, it gives the same 16 findings:
-    `{"status":"unavailable",…}` for the extra-time DOL scenes.
-  - It is the same kind of schedule-around-now wrap, in a driver that is already in CI. It needs the same treatment.
-    For the owner or a later wave.
+- **dolCloseCopy (accessibility-certification.yml) failed after midnight UTC, on the base too.** It gave 16 findings,
+  `{"status":"unavailable",…}`, for the extra-time DOL scenes: on this branch at 00:0x, and on the base `530ac3cf` at
+  00:20. It is fixed in the re-review round (below), driver only.
 
 Notes the integrator carries, with no action here:
 
@@ -488,6 +491,43 @@ job on a hosted runner for `npm ci` and Playwright, and more for `npm --prefix f
 So a `src/**` PR outside Live Challenge, assessment, question, tools and the engine runs the three gates jobs and the
 journeys, with no emulator job. A functions-only PR runs the emulator journeys, and the gates only when it touches
 those five files or `functions/shared/**`.
+
+## Re-review round (reviewer on `60e49201`, forwarded by the integrator)
+
+No blockers. The reviewer confirmed:
+
+- S1, S2, N1 and N3–N5 hold, and every pin mutation is red;
+- the #501 merge is clean and green;
+- the noon clock hides no product bug;
+- the gates' five-file list is complete.
+
+| Finding | What I did | Proof |
+| --- | --- | --- |
+| **F1** The emulator journeys' hand-made `src` paths missed files the drivers load (the reviewer counted 313) | **The cause:** I rebuilt both drivers' client import graphs with Vite, under each driver's own bridge config, from the pages it opens, and added what the drivers load in node: testCycleRichToolQa 811 files, liveChallengeShellQa 842. Against the old paths, 326 distinct files were missed, among them `MathInput`, `MultiAnswerGrader`, `src/platform/{workflow,interaction,…}/**` and the fixture `tests/fixtures/secureRichToolAnswers.mjs`. **The fix:** the paths are now `src/**` followed by 29 whole-directory exclusions, plus the fixture. **Not the reviewer's 31:** two of them, `src/platform/context` and `src/platform/curriculum`, are loaded by both drivers (`wordProblemLayer.js` through `QuestionEngine.jsx`; `inequalityRepresentationPolicy.js` through `MultiRelationAlgebraCore.jsx`), so they stay in. `src/components/rewards` is in neither graph and is excluded. `src/platform/rewards` is loaded (`challengeRewardPolicy.js`) and is not excluded | `scripts/check-emulator-journey-paths.mjs` (new, about 10 s, outside test:platform) matches every loaded file with GitHub's rules: before, 326 missed; after, **0 missed** for both drivers. Excluding `src/platform/context` makes it report `wordProblemLayer.js`. `pass3BrowserDriversInCi` pins the shape: `src/**` first, whole-directory `!` exclusions after it, no hand-made `src` entry beside it, the files above reached, an excluded directory not. It also checks the last-match-wins rule. Mutations, each red: an exclusion moved before `src/**`, `context` excluded, a hand-made `src/tools/**` added |
+| **dolCloseCopy** after midnight (driver only) | The extra-time scenes build Period 1 as the hour ending 2 minutes from the page's clock, which wraps near midnight. Each page's clock is now held at noon today with `page.clock.setFixedTime`, which keeps the timers running. The "class's DOL has closed" check compares against the page's clock, not the driver's (it would otherwise fail on a morning run) | With the page held at 23:58, a midnight-crossing time: red, the same 16 findings as the base at 00:20. At noon: all checks pass |
+
+**Gate.** Each job's steps were run from the YAML (`bash -eo pipefail`, the step env, `CI=true`, installs skipped).
+
+| Check | Result |
+| --- | --- |
+| accessibility-certification · browser-accessibility | passed, all 25 steps, dolCloseCopy included |
+| student-pass3-emulator-journeys · pass3-test-cycle-rich-tools | passed, 248 s |
+| student-pass3-emulator-journeys · pass3-live-challenge-shell | first run red, in `adversarial`: the Cancel Session dialog never came. Unchanged code then passed 3 of 3 alone and once in full; the race is below. After the fix: passed in full, 551 s |
+| `npm run test:platform` · tools · lint | 12,137 of 12,137 · 1,718 of 1,718 · exit 0, 496 warnings (the base's count) |
+| `npm run build` · `npm run build:firebase` | pass · pass; no tracked file rewritten |
+| actionlint 1.7.7 | 0 issues, over every workflow in the repository |
+| `node scripts/check-emulator-journey-paths.mjs` | 0 files missed (811 and 842 loaded) |
+
+**The adversarial race, fixed (driver only).** Cancel Session asks first only when the console counts someone joined
+(`joinedCount > 0`). With nobody counted, it cancels at once, with no dialog; that is correct, because nobody is
+there to tell.
+
+- **The race.** The driver waited for the *student's* screen to show the new lobby, which can come before the
+  console's player snapshot. After the endurance games, once in four full runs, the click found nobody counted.
+- **The fix.** The driver now waits for the console's own "1 student is in" before pressing, as a teacher looking at
+  it would.
+- **Proof.** Passes alone twice and in full. A mutation waiting for "9 students are in" is red with "the console never
+  counted the student in the new lobby".
 
 ## Gate
 
@@ -633,9 +673,6 @@ release-ordering constraint. The CI changes need no deploy.
 - **Not touched:** `src/App.jsx`.
 
 ## Not done
-
-- **dolCloseCopy fails after midnight UTC, on the base too** (see "Review round"). It is a driver in CI outside this
-  scope.
 
 - **Phone layout seen in the vertical-boundary screenshot** (2c), for W7-2 (boxes) or the owner:
   - "Open Work View" covers the stimulus title;
