@@ -71,6 +71,14 @@ try {
     for (const kase of CASES) {
       const label = `${viewport.width}x${viewport.height} ${kase.id}`;
       const page = await context.newPage();
+      // The extra-time scenes build Period 1 as the hour ending 2 minutes
+      // from the page's clock. Within about an hour of midnight that hour
+      // wraps (23:58 → 00:57) and getDOLState rightly finds no period:
+      // "unavailable" from about 23:51 to 00:51. The page's clock is held at
+      // noon today; its timers keep running.
+      const noon = new Date();
+      noon.setHours(12, 0, 0, 0);
+      await page.clock.setFixedTime(noon);
       const errors = [];
       page.on('pageerror', (error) => errors.push(String(error)));
       const query = new URLSearchParams({ status: kase.status, run: `${run}-${kase.id}` });
@@ -111,7 +119,8 @@ try {
       if (kase.extra) {
         const dol = await page.evaluate(() => window.__mmDol);
         check(dol?.status === kase.status, `${label}: the student's own DOL window is ${kase.status} after the class's closed`, JSON.stringify(dol));
-        check(Number(dol?.classEndsAt) < Date.now(), `${label}: the class's DOL has closed`);
+        // Against the page's clock (held at noon above), not this process's.
+        check(Number(dol?.classEndsAt) < await page.evaluate(() => Date.now()), `${label}: the class's DOL has closed`);
         const match = text.match(EXTRA_TIME_LINE);
         if (kase.extra === 'student') {
           const ends = new Date(dol.endsAt);
