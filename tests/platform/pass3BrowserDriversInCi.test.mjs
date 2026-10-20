@@ -119,8 +119,8 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   assert.match(journeys, /- "tests\/browser\/accessibilityAppHarness\*"/);
   assert.match(journeys, /- "tests\/browser\/accessibilityFakeFirestore\.js"/);
   const emulator = read('student-pass3-emulator-journeys.yml');
-  ['functions/\\*\\*', 'tests/browser/emulator/\\*\\*', 'tests/browser/support/\\*\\*', 'tests/browser/testCycleRichToolQa\\*',
-    'tests/browser/liveChallengeShellQa\\*', 'src/components/liveChallenge/\\*\\*', 'src/platform/liveChallenge/\\*\\*'].forEach((glob) => {
+  ['functions/\\*\\*', 'src/\\*\\*', 'tests/browser/emulator/\\*\\*', 'tests/browser/support/\\*\\*', 'tests/browser/testCycleRichToolQa\\*',
+    'tests/browser/liveChallengeShellQa\\*', 'tests/fixtures/secureRichToolAnswers\\.mjs'].forEach((glob) => {
     assert.match(emulator, new RegExp(`- "${glob}"`), `${glob} is in the emulator journeys' paths`);
   });
 });
@@ -140,6 +140,35 @@ test('the emulator journeys run on their own paths, nightly and on demand; the g
     assert.match(gates, new RegExp(`- "functions/lib/${name}\\.js"`), `${name}.js triggers the gates (secureAccessParity)`);
   });
   assert.doesNotMatch(gates, /pass3-(test-cycle-rich-tools|live-challenge-shell):/, 'the long jobs left the gates');
+});
+
+// The emulator journeys' paths are all of src/ minus the directories neither
+// driver loads (wave 7 re-review, F1: a hand-made list missed 313 loaded
+// files). scripts/check-emulator-journey-paths.mjs rebuilds the drivers'
+// import graphs with Vite and checks every file is reached; it is slow, so it
+// runs by hand. This pins the shape and the matching rule it relies on.
+test('the emulator journeys watch src/** with exclusions after it, and what the drivers load in node', async () => {
+  const { workflowPaths, reachedBy } = await import('../../scripts/check-emulator-journey-paths.mjs');
+  const paths = workflowPaths(read('student-pass3-emulator-journeys.yml'));
+  const all = paths.indexOf('src/**');
+  assert.ok(all >= 0, 'src/** is watched');
+  const exclusions = paths.filter((pattern) => pattern.startsWith('!'));
+  assert.ok(exclusions.length >= 20, `${exclusions.length} exclusions`);
+  exclusions.forEach((pattern) => {
+    assert.ok(paths.indexOf(pattern) > all, `${pattern} comes after src/** (GitHub: the last match wins)`);
+    assert.match(pattern, /^!src\/[A-Za-z]+\/[A-Za-z]+\/\*\*$/, `${pattern} excludes a whole directory`);
+  });
+  assert.equal(paths.filter((pattern) => pattern.startsWith('src/') && pattern !== 'src/**').length, 0, 'no hand-made src list beside src/**');
+  // Loaded by both drivers (QuestionEngine, MultiRelationAlgebraCore): never excluded.
+  ['src/platform/context/wordProblemLayer.js', 'src/platform/curriculum/inequalityRepresentationPolicy.js',
+    'src/platform/rewards/challengeRewardPolicy.js', 'src/MathInput.jsx', 'src/QuestionEngine.jsx',
+    'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs']
+    .forEach((file) => assert.ok(reachedBy(file, paths), `${file} runs the journeys`));
+  assert.equal(reachedBy('src/platform/gradeTransfer/gradeTransferModel.js', paths), false, 'an excluded directory does not');
+  // The matching rule itself: in order, the last match decides.
+  assert.equal(reachedBy('src/a/b.js', ['src/**', '!src/a/**']), false);
+  assert.equal(reachedBy('src/a/b.js', ['!src/a/**', 'src/**']), true);
+  assert.equal(reachedBy('src/c.js', ['src/**', '!src/a/**']), true);
 });
 
 test('no workflow here runs on pull_request_target', () => {
