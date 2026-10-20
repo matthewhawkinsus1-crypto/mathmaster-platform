@@ -44,7 +44,15 @@
             }
           ],
           "dok": 1,
-          "difficultyBand": 1
+          "difficultyBand": 1,
+          "scaffold": {
+            "prompt": "Let’s back up. The graph of f(x) = |x| is shaped like…",
+            "options": [
+              "A V",
+              "A U"
+            ],
+            "correct": "A V"
+          }
         },
         {
           "standard": "A2.2A",

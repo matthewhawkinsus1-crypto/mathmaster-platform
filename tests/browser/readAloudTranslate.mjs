@@ -248,6 +248,30 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  {
+    // A tool no family reads: its step is built from the tool's structure
+    // (the owner, 2026-10-20; W7-5 decision 1). The three-planes model.
+    const { page, context } = await open(device, 'q=planes&role=classwork&support=inclusion');
+    for (const wrong of ['A different point on each plane.', 'Three separate intercepts.']) {
+      await page.locator('[role="radio"]', { hasText: wrong }).first().click();
+      await page.waitForTimeout(250);
+      await page.locator('button:visible', { hasText: /^Submit/ }).first().click();
+      await page.waitForTimeout(700);
+    }
+    check(await page.evaluate(() => window.__mmGrades.length) === 2, `${device.name}: two misses on the planes item were graded`);
+    const overlay = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
+    check(await overlay.count() === 1, `${device.name}: the planes item gets a step built from its structure`);
+    const heading = ((await overlay.locator('h2').textContent().catch(() => '')) || '').trim();
+    check(heading === 'Each equation in x, y and z is what shape in space?', `${device.name}: the step asks about this system's equations`, heading);
+    await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-back-up-planes.png`) });
+    await overlay.getByRole('button', { name: 'A line' }).click();
+    check(await overlay.getByText('Try the other choice.').count() === 1, `${device.name}: a wrong pick leaves only the other choice`);
+    await overlay.getByRole('button', { name: 'A plane' }).click();
+    await page.waitForTimeout(300);
+    check(await page.locator('[data-scaffold]').count() === 0, `${device.name}: the right pick gives the work back`);
+    await context.close();
+  }
+
   /* ------------------------------------------------------------- Translate */
   {
     // A platform hint (the question family's own words).

@@ -109,7 +109,15 @@
               ],
               "answer": "Pair Equation 2 (-z) with Equation 1 (+2z) or Equation 3 (+2z), multiplying only Equation 2 by 2."
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A variable cancels without scaling when its coefficients in the two equations are…",
+            "options": [
+              "Equal or opposite",
+              "Both positive"
+            ],
+            "correct": "Equal or opposite"
+          }
         }
       ]
     },
@@ -301,7 +309,15 @@
               ],
               "answer": "Those two planes are parallel and distinct, so no point lies on both. The system has no solution, whatever the remaining equation says."
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An equation like 0 = 5 is…",
+            "options": [
+              "Always true",
+              "Never true"
+            ],
+            "correct": "Never true"
+          }
         },
         {
           "questionId": "3x3-d2-pr-5",
@@ -365,7 +381,15 @@
               ],
               "answer": "s + m + l = 72"
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For each condition, what do you write?",
+            "options": [
+              "An equation using s, m and l",
+              "A single number"
+            ],
+            "correct": "An equation using s, m and l"
+          }
         },
         {
           "questionId": "3x3-d2-pr-6",
@@ -458,7 +482,15 @@
               ],
               "answer": "No solution (Equation 3 is parallel to and distinct from Equation 1, creating a contradiction 0 = -5)."
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Compare equation (3) with equation (1). Its left side is…",
+            "options": [
+              "Unrelated to equation (1)",
+              "3 times the left side of equation (1)"
+            ],
+            "correct": "3 times the left side of equation (1)"
+          }
         }
       ]
     },

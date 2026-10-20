@@ -11,6 +11,9 @@
  *   authored    the question's own `scaffold` { prompt, options, correct }
  *   family      the question family's backUpQuestion — about THIS problem's
  *               first move (src/platform/supports/families)
+ *   tool        built from the tool's own structure where no family reads it:
+ *               Matrix Lab and the three-variable Systems Workspace
+ *               (toolBackUpSteps.js; the owner, 2026-10-20, W7-5 decision 1)
  *   platform    a generic re-orientation question for the type
  *
  * ONLY A STEP WRITTEN FOR THIS PROBLEM IS SHOWN (pass 3, HELP-19). The
@@ -18,7 +21,7 @@
  * Classwork and Practice items with "should you revise the specific parts
  * identified in the feedback? Yes / No", and "No" answered "Try the other choice." It
  * taught nothing and held the student up. backUpStepWritten(step) is what
- * QuestionEngine shows it on: authored or family. The platform step is still
+ * QuestionEngine shows it on: authored, family or tool. The platform step is still
  * returned (an older attempt may have recorded it; supportUseMemory.js
  * reads its source), but it is no longer put in front of a student.
  *
@@ -32,6 +35,7 @@
  * (supportUseMemory.js attemptSupportUsageFrom; PR #462 review B3).
  */
 import { familyFor } from '../families/index.js';
+import { toolBackUpStep } from './toolBackUpSteps.js';
 
 const text = (value) => String(value ?? '').trim();
 
@@ -59,12 +63,16 @@ export const backUpStepFor = (question) => {
     const family = familyFor(question);
     const fromFamily = valid(family?.backUpQuestion?.(question));
     if (fromFamily) return { ...fromFamily, source: 'family' };
+  } catch { /* fall through to the tool's step */ }
+  try {
+    const fromTool = valid(toolBackUpStep(question));
+    if (fromTool) return { ...fromTool, source: 'tool' };
   } catch { /* fall through to the platform step */ }
   const platform = PLATFORM_STEPS[text(question?.type)] || GENERIC_STEP;
   return { ...platform, options: [...platform.options], source: 'platform' };
 };
 
-/** Shown only when written for THIS problem: authored, or built by its family from the item's own structure. */
-export const backUpStepWritten = (step) => step?.source === 'authored' || step?.source === 'family';
+/** Shown only when written for THIS problem: authored, or built from the item's own structure by its family or its tool. */
+export const backUpStepWritten = (step) => ['authored', 'family', 'tool'].includes(step?.source);
 
 export default backUpStepFor;
