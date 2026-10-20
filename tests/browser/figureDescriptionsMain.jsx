@@ -8,6 +8,8 @@
 //   ?q=construct    the legacy graph workspace: plot two points of y = 2x + 1
 //   ?q=analysis     the legacy graph workspace with a given graph to read
 //   ?q=story        Graph Story's sketch plane
+//   ?q=pathBoundary a Path stimulus graph with authored vertical boundaries:
+//                   x = 5, solid (of x ≤ 5), and x = 1, dashed (of x > 1)
 //   ?role=practice|dol   the activity policy (default practice)
 //   ?closed=1       the question is already answered (a closed question)
 //   ?locked=1       the assignment is locked (an ended DOL): terminal, nothing shown
@@ -71,6 +73,23 @@ const FIXTURES = {
     analysisRequests: [{ id: 'at-two', kind: 'value', label: 'The value of $f(2)$', expected: 5 }],
   },
   story: { type: 'graphStory', prompt: 'Sketch a graph for a story.', requireSketch: true },
+  // The Path stimulus (PathQuestionStimulus) draws an authored vertical line as
+  // a boundary with its own style (verticalLineStyle.js, Batch 1/2).
+  pathBoundary: {
+    type: 'multiAnswer',
+    prompt: 'Which two inequalities are graphed?',
+    stimulus: {
+      title: 'Graph of the boundaries',
+      graph: {
+        xMin: -2, xMax: 8, yMin: -4, yMax: 4,
+        lines: [
+          { label: 'x = 5', boundaryStyle: 'solid', points: [[5, -4], [5, 4]] },
+          { label: 'x = 1', boundaryStyle: 'dashed', points: [[1, -4], [1, 4]] },
+        ],
+      },
+    },
+    answerFields: [{ id: 'left', label: 'The inequality for x = 1', answer: 'x > 1' }, { id: 'right', label: 'The inequality for x = 5', answer: 'x ≤ 5' }],
+  },
 };
 
 const question = FIXTURES[which] ? { questionId: `figure-description-${which}`, ...FIXTURES[which] } : null;

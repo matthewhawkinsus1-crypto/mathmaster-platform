@@ -100,6 +100,16 @@ name: Student and Teacher Journeys
 #                          (same job: focus and the spoken name on a screen
 #                          change, one main per screen, Back by origin, the
 #                          one-row phone nav, Assignments' filters kept)
+#   pass 3 student journeys (job pass3-student-journeys; they ran by hand
+#                          only until wave 7):
+#                          tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs
+#                          (the assignment chrome; the lobby invite inside a
+#                          lesson, NAV-25), studentNameJourneys.mjs (one name
+#                          per student everywhere), draftSaveNoticeReloadJourneys.mjs
+#                          (W7-3, guarded until it merges), askMyTeacherJourneys.mjs
+#                          (Ask my teacher answers back). Ask my teacher and the
+#                          lobby's way into the game run on the accessibility
+#                          App harness, on port 5189
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
 # nightly and on demand. Read-only: this workflow writes nothing back.
@@ -112,6 +122,8 @@ on:
       - "functions/shared/**"
       - "functions/lib/ccmrAssignmentBank.js"
       - "tests/browser/teacherWorkflow/**"
+      - "tests/browser/accessibilityAppHarness*"
+      - "tests/browser/accessibilityFakeFirestore.js"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/linearMultipleRepresentations*"
       - "tests/browser/lmrProcess*"
@@ -447,3 +459,53 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/familyPinContainment.mjs --slow
+
+  # Student pass 3's journeys in the real App. Their own job: the teacher job
+  # is near its limit. About 6 minutes locally.
+  pass3-student-journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      # The accessibility App harness: the same App and fixture, with snapshot
+      # metadata filled in so a Live Challenge screen renders. Ask my teacher
+      # and the lobby invite's way into the game run on it.
+      - name: Start the accessibility App harness
+        run: |
+          TEACHER_HARNESS_PORT=5189 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5189/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: The assignment's chrome, and the Live Challenge lobby invite inside a lesson
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          LIVE_CHALLENGE_HARNESS_ORIGIN: "http://127.0.0.1:5189"
+        run: node tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs
+      - name: Every surface names every student the same way
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/studentNameJourneys.mjs
+      # W7-3 (honest failures). Guarded: the file arrives with that branch;
+      # until then the step skips.
+      - name: A draft-save notice survives a reload
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: |
+          if [ -f tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs ]; then node tests/browser/teacherWorkflow/draftSaveNoticeReloadJourneys.mjs; else echo "draftSaveNoticeReloadJourneys.mjs is not on this branch yet: skipped"; fi
+      - name: Ask my teacher answers back, and a raised hand is seen
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5189"
+        run: node tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs

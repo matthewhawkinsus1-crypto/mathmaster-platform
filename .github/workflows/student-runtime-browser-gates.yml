@@ -100,6 +100,23 @@ name: Student Runtime Browser Gates
 #                       Math Path's mount, items with no id), closes again
 #   closedQuestionEnter on a closed question Enter goes on only from the page:
 #                       a summary, a button or an ARIA widget keeps its Enter
+#
+# Student pass 3's own drivers, each in a job of its own size (they ran by
+# hand only until wave 7):
+#
+#   pass3-student-screens (plain Vite, 5199)
+#     submitNotQueued, toolDraftSyncSweep, matrixLabFeedback, afterLastMiss,
+#     day1SystemsJourney, day2NonuniqueJourneys, assignmentMobile,
+#     studentHomeToday, studentGradesRaise, studentResultUpNext,
+#     studentWhatChanged, gradeCenterMobile; and, guarded until their branches
+#     merge, stepNotQueued (W7-3), toolOutcomeReach and feedbackReasons2
+#     (W7-4), toolChoiceGroups (W7-2)
+#   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
+#     Firebase)
+#     secureResults, secureExamNavigation, secureAccessParity
+#   (testCycleRichToolQa and liveChallengeShellQa, which run the real
+#   callables on the Firestore emulator, are in
+#   student-pass3-emulator-journeys.yml: their own paths, and nightly)
 
 on:
   pull_request:
@@ -148,6 +165,37 @@ on:
       - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
+      # Student pass 3's drivers and the harness pages they open
+      - "tests/browser/submitNotQueued*"
+      - "tests/browser/toolDraftSyncSweep*"
+      - "tests/browser/toolOpenAudit*"
+      - "tests/browser/matrixLabFeedback*"
+      - "tests/browser/algebra2MatricesLesson*"
+      - "tests/browser/afterLastMiss*"
+      - "tests/browser/day1Systems*"
+      - "tests/browser/day2Nonunique*"
+      - "tests/browser/assignmentMobile*"
+      - "tests/browser/studentHomeToday*"
+      - "tests/browser/studentGradesRaise*"
+      - "tests/browser/studentResultUpNext*"
+      - "tests/browser/studentWhatChanged*"
+      - "tests/browser/gradeCenterMobile*"
+      - "tests/browser/stepNotQueued*"
+      - "tests/browser/toolOutcomeReach*"
+      - "tests/browser/feedbackReasons2*"
+      - "tests/browser/toolChoiceGroups*"
+      - "tests/browser/secureResults*"
+      - "tests/browser/secureExamNavigation*"
+      - "tests/browser/secureAccessParity*"
+      - "tests/browser/keyboardSweep.html"
+      - "tests/browser/emulator/**"
+      # secureAccessParity grades with the server's own code (functions/shared
+      # is above): these files and what they require.
+      - "functions/lib/mathPath.js"
+      - "functions/lib/pathContentCompiler.js"
+      - "functions/lib/pathFirestoreShape.js"
+      - "functions/lib/secureItems.js"
+      - "functions/lib/secureItemStorage.js"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-runtime-browser-gates.yml"
@@ -366,3 +414,163 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/mathFontsProduction.mjs
+
+  # Student pass 3's drivers on the plain dev server. Their own job: the
+  # student-runtime job above is near its limit. About 12 minutes locally.
+  pass3-student-screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Start the harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/pass3-student-vite.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/toolOpenAudit.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/pass3-student-vite.log; exit 1
+      - name: A submission the device could not queue is not submitted (RUN-3)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/submitNotQueued.mjs
+      - name: Every draft-backed tool saves and restores its draft
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolDraftSyncSweep.mjs
+      - name: Matrix Lab feedback, and the Work View rail's Submit on a DOL
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/matrixLabFeedback.mjs
+      - name: After the last miss, through the real QuestionEngine (Batch 4)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/afterLastMiss.mjs
+      - name: The Day 1 3×3 lesson, solved the way a student solves it (#361)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/day1SystemsJourney.mjs
+      - name: "Day 2 non-unique 3×3 systems (#390, #392)"
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/day2NonuniqueJourneys.mjs
+      - name: Composed questions on a phone
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/assignmentMobile.mjs
+      - name: Home — one primary action, honest cards, the right question
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/studentHomeToday.mjs
+      - name: Grades — Start on open work, ways to raise it, how it is figured
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/studentGradesRaise.mjs
+      - name: The Assignments Center and the result follow the one "Today" rule
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/studentResultUpNext.mjs
+      - name: What changed since the last visit, and the one Log Out
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/studentWhatChanged.mjs
+      - name: The Grade Center and the result on a 390px phone
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/gradeCenterMobile.mjs
+      # W7-3 (honest failures).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: A Step Algebra step the device could not queue is not submitted
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/stepNotQueued.mjs ]; then node tests/browser/stepNotQueued.mjs; else echo "tests/browser/stepNotQueued.mjs is not on this branch yet: skipped"; fi
+      # W7-4 (feedback reasons 2).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: A tool's outcome box can be reached on every screen
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/toolOutcomeReach.mjs ]; then node tests/browser/toolOutcomeReach.mjs; else echo "tests/browser/toolOutcomeReach.mjs is not on this branch yet: skipped"; fi
+      # W7-4 (feedback reasons 2).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: Feedback reasons, part 2
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/feedbackReasons2.mjs ]; then node tests/browser/feedbackReasons2.mjs; else echo "tests/browser/feedbackReasons2.mjs is not on this branch yet: skipped"; fi
+      # W7-2 (boxes and choices).
+      # Guarded: the file arrives with that branch; until then the step skips.
+      - name: Tool choices are radio groups
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          if [ -f tests/browser/toolChoiceGroups.mjs ]; then node tests/browser/toolChoiceGroups.mjs; else echo "tests/browser/toolChoiceGroups.mjs is not on this branch yet: skipped"; fi
+
+  # The secure screens (results, navigation, access parity) against stubbed
+  # services. secureResults and secureExamNavigation start their own Vite;
+  # secureAccessParity uses the emulator config's stubs. About 10 minutes.
+  pass3-secure-screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Released results, for the student and the teacher
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/secureResults.mjs
+      - name: Moving through a secure test
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/secureExamNavigation.mjs
+      - name: Start the stubbed harness server
+        if: always()
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5203 --strictPort >/tmp/pass3-secure-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5203/tests/browser/secureAccessParity.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/pass3-secure-vite.log; exit 1
+      - name: Secure items give every student the same access
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5203"
+        run: node tests/browser/secureAccessParity.mjs

@@ -618,6 +618,7 @@ export default function StudentDashboardView({
           pacing={recommended.pacing}
           pathOptions={recommended.pathOptions}
           onChooseSkill={recommended.onChooseSkill}
+          coverage={recommended.coverage}
         />
 
         <BuildStamp />

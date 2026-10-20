@@ -23,6 +23,10 @@
 //          on a phone; P2-11 no matrix box scrolls vertically;
 //   DOL    on the exit tickets: no list, no marked cell, no verdict, and the
 //          calculator press is recorded (P2-12).
+//   RAIL   on an exit ticket, Work View's rail Submit ("Submit — your only
+//          try", the tool's own button mirrored, toolCheckMirror.js) is off
+//          until the work is filled; pressing it spends the one try and the
+//          verdict stays withheld, in Work View and on the page.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/matrixLabFeedback/.
 
@@ -263,6 +267,43 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.press();
   const dol3 = await page.evaluate(() => document.querySelector('[data-question-id]').innerText);
   check((await s.fixList()).length === 0 && !/Not yet|\bCorrect\b(?!ness)|Why A has no inverse/.test(dol3), `DOL 3: a wrong read says nothing (${(dol3.match(/Not yet|\bCorrect\b(?!ness)|Why A has no inverse/) || [''])[0]})`);
+  check(s.errors.length === 0, `no page errors (${s.errors.join(' | ')})`);
+  await s.page.close();
+}
+
+/* ------------------------------------------- Work View rail on a DOL */
+{
+  // A fresh session: DOL 1 not yet tried.
+  const s = await session({ width: 1366, height: 768 }, { appScrollPadding: true });
+  const { page } = s;
+  journey = 'DOL 1 from the Work View rail';
+  await s.go('l3m-dol-1');
+  await page.locator('[data-question-id]').getByRole('button', { name: /Open Work View/ }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Question Work View' });
+  await dialog.waitFor({ timeout: 10000 });
+  const rail = dialog.locator('[data-work-view-action]').filter({ hasText: /^Submit — / });
+  check((await rail.count()) === 1, `the rail carries one Submit (${await rail.count()})`);
+  check((await rail.first().innerText()).trim() === 'Submit — your only try', `the rail says what it costs: "${(await rail.first().innerText().catch(() => '')).trim()}"`);
+  check(!(await rail.first().isEnabled()), 'the rail\'s Submit is off until the work is filled');
+  await dialog.getByRole('radio', { name: 'Yes' }).first().click();
+  await s.fill('Dimensions of P · Q: number of rows', 2);
+  await s.fill('Dimensions of P · Q: number of columns', 2);
+  // A wrong product: a verdict, were one shown, would be "Not yet".
+  const wrong = [['2', '7'], ['2', '5']];
+  for (let i = 0; i < 2; i += 1) for (let j = 0; j < 2; j += 1) await s.fill(`Matrix PQ, row ${i + 1}, column ${j + 1}`, wrong[i][j]);
+  check(await rail.first().isEnabled(), 'filled, the rail\'s Submit turns on');
+  check((await s.record('l3m-dol-1')) === null, 'nothing is recorded before the press');
+  await rail.first().click();
+  await page.waitForTimeout(1200);
+  const recorded = await s.record('l3m-dol-1');
+  check(recorded?.attemptCount === 1, `the rail's press is the tool's own Submit: one try spent (${JSON.stringify(recorded && { attemptCount: recorded.attemptCount })})`);
+  const shown = await page.evaluate(() => [document.querySelector('[role="dialog"]')?.innerText || '', document.querySelector('[data-question-id]')?.innerText || ''].join('\n'));
+  const verdict = /Not yet|\bCorrect\b(?!ness)|Reconsider|not right yet|Not quite/;
+  check(!verdict.test(shown), `no verdict in Work View or on the page (${(shown.match(verdict) || [''])[0]})`);
+  check((await s.fixList()).length === 0, 'no list of what to fix');
+  check((await s.invalidCells()) === 0, 'no cell marked');
+  check(/Your answer is saved\. You will see whether it is right when /.test(shown), 'the answer is saved and its verdict held');
+  await s.shot('laptop-dol1-work-view-rail');
   check(s.errors.length === 0, `no page errors (${s.errors.join(' | ')})`);
   await s.page.close();
 }

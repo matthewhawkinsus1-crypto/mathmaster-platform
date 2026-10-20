@@ -127,7 +127,9 @@ const TARGETED = {
     const rowCount = await rows.count();
     for (let row = 0; row < rowCount; row += 1) {
       await rows.nth(row).click();
-      const groups = page.locator('[data-audit-root] [role="group"]');
+      // The choice groups only: the task card's "How to do this" steps are a
+      // group too, with no buttons in it.
+      const groups = page.locator('[data-audit-root] [role="group"]').filter({ has: page.locator('button') });
       const groupCount = await groups.count();
       // The last expression is left half done, like a student mid-task.
       const answer = row === rowCount - 1 ? Math.min(1, groupCount) : groupCount;
