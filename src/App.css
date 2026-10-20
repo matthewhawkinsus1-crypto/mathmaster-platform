@@ -1054,6 +1054,57 @@
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
+    /* THE QUESTION TAKES WHAT THE SAVE LINE LEAVES.
+       The stage clips, and the question was as tall as the stage, so
+       everything after it — "Draft saved.", "Not saved · this device could
+       not store your last change", the draft-save problem notice — sat below
+       the stage's box and no student on a phone ever saw it (851–874 on an
+       844px screen). As a column, the lines keep their own height under the
+       question (and under its action bar, which is the question's last row
+       here, not fixed), and the question fills the rest, still a definite
+       height, so its columns scroll as before. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage > * {
+    flex: 0 0 auto;
+  }
+
+  /* From its own height: 100% (the stage), less what the lines take. A basis
+     of 0 collapsed the question wherever the stage has no set height (a
+     stage outside the assignment shell, as the tool harnesses render it). */
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine {
+    flex: 1 1 auto;
+  }
+
+  /* ...BUT NEVER MORE THAN A THIRD OF IT. At 200% text the problem notice
+     alone is 296px: taken whole, it left the question no work area and cut
+     its action bar in half. Past 30% of the stage the lines scroll in place,
+     their first line in view. */
+  .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-stage-status {
+    max-height: 30%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Inside a capped box every pixel is the line's: at 200% text on its side
+     the cap is 53px and "Draft saved." (46px under an 8px margin) was cut
+     by 1px. */
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > :first-child {
+    margin-top: 4px !important;
+  }
+
+  /* THE TASK GIVES WAY BEFORE THE ACTION BAR. In the question's column only
+     the work area shrinks, and at 200% text on a small phone (320×568,
+     360×640) it is already 16–39px: any height the lines under the question
+     took then came out of the action bar, which the question's frame clips —
+     every button missed at 360×640 with the notice. Once the work area is
+     gone the task panel shrinks instead (it scrolls, and Minimize folds it),
+     down to one row. */
+  .mathmaster-assignment-screen .mathmaster-question-container.mode-portrait > .question-prompt-panel {
+    flex-shrink: 1;
+    min-height: 44px;
   }
 
   .mathmaster-assignment-screen .mathmaster-question-engine,
