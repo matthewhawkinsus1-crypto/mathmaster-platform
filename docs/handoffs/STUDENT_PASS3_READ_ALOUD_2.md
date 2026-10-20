@@ -156,25 +156,31 @@ Each new assertion was broken once in the code, seen red, restored.
 
 ## Gate
 
-Run on the final code (`81c41f80` for the browser drivers; the node gate on `87a86cf0`, which differs only in
-lint-only test edits). Browser drivers one at a time, nothing edited while they ran.
+**After the review round**, on `41efc952`. The code is that of `0279ac9b`; `41efc952` changes one test only. Browser
+drivers ran one at a time, with nothing edited while they ran.
 
 | Check | Result |
 | --- | --- |
-| `npm ci`, `npm --prefix functions ci` | ok |
-| `npm run test:platform` | 12127 / 12127 pass |
+| `npm run test:platform` | 12132 / 12132 pass |
 | `node --test tests/tools/*.test.mjs` | 1710 / 1710 pass |
 | `npm run lint` | 0 errors; no warning in a file this branch touches |
-| `npm run build` | ok |
-| `npm run build:firebase` | ok, no tracked file rewritten |
-| `node scripts/check-first-load-budget.mjs --report` | within baseline. **studentHome 839.5 KB**, **signIn 291.9 KB** gzip. The base built on the same machine: 839.4 / 291.8. This branch adds **+0.1 KB** |
-| readAloudFigures, readAloudAndTranslate (unit) | 12 / 12, 22 / 22 |
-| emulator suites (`test:rules`, `test:challenge-finish`, …) | not run: no `functions/`, rules, indexes or persistence touched |
-| plain Vite :5199 — readAloudTranslate, mathSpeech, graphDescription (58/58), figureDescriptions, accessiblePrimitives, assessmentLeakGates, stagedQuestion, feedbackTeaches, renderStability, systemsWorkspaceStudio, toolAttemptOutcome, composedOutcomePolicy, workViewReference, planePhoneReach, toolPolicyGates | all passed |
-| emulator-config Vite :5199 — hostAccessibility | passed |
-| `npm run certify:accessibility` (app harness :5188 + :5199) | passed, 11 screens × 2 viewports, no new or increased violations |
-| studentAccessibleNames (app harness :5188) | passed |
-| teacherWorkflow harness :5188 — warmupReopenJourneys (answers the back-up step when it appears) | passed |
+| `npm run build`, `npm run build:firebase` | ok, no tracked file rewritten |
+| `node scripts/check-first-load-budget.mjs --report` | within baseline. **studentHome 839.6 KB**, **signIn 291.9 KB** gzip, against the base on the same machine at 839.4 / 291.8: **+0.2 KB** |
+| readAloudFigures (unit) | 17 / 17 |
+| plain Vite :5199 — readAloudTranslate, graphDescription (58/58), figureDescriptions, assessmentLeakGates, stagedQuestion, feedbackTeaches, renderStability, systemsWorkspaceStudio, workViewReference, composedOutcomePolicy, toolPolicyGates | all passed |
+| `npm run certify:accessibility` (emulator config :5199 + app harness :5188) | passed, 11 screens × 2 viewports, no new or increased violations |
+| emulator suites | not run: no `functions/`, rules, indexes or persistence touched |
+
+**Review round, so you know.** The first gate on `0279ac9b` failed one test, and I had already pushed that commit:
+`workflowFocusMode.test.mjs` pinned the Focus Mode `workflow.map(… renderStage(…))` as text, and B1 wraps the call.
+The behaviour (each step rendered, focused only while on screen) holds. The assertion now allows the wrapper and
+was mutation-checked (focusing step 0 instead turns it red) in `41efc952`. On the first driver run of the round, the
+Vite server reached its background time limit midway; that run was discarded and every driver above was rerun on a
+fresh server.
+
+**Before the review** (`81c41f80`, same checks, plus): mathSpeech, hostAccessibility (emulator config),
+accessiblePrimitives, toolAttemptOutcome, planePhoneReach, studentAccessibleNames and warmupReopenJourneys
+(teacherWorkflow harness) all passed. They were not rerun this round: they were not in the list asked for.
 
 **Fixed during the gate, so you know.** (1) `familyClosedRender` caught an import of mine placed inside a multi-line
 import (`StudentBuildInequalityMode.jsx`): the inequality build mode could not load. Fixed in `2e996ea2`, and the
@@ -216,7 +222,8 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
   `StudentBuildInequalityMode.jsx` (item 3).
 - `esSupport.js`: **no entries added.** Every new student sentence here is the reader's own words, which carry their
   Spanish in `questionReading.js` (as before), or figure descriptions, which Translate does not cover.
-- `tests/platform/readAloudAndTranslate.test.mjs`: one import assertion, rewritten as above.
+- `tests/platform/readAloudAndTranslate.test.mjs` and `tests/platform/workflowFocusMode.test.mjs`: one assertion each,
+  rewritten as above.
 - Test harness `tests/browser/feedbackTeachesMain.jsx`: fixtures `dolgraph`, `dolgraph7`, `table`, `plain`, profile
   `inclusion`.
 - `src/platform/workflow/WorkflowRunner.jsx` (review B1): the Focus Mode step list wrapped in `FigureReadingScope`.
