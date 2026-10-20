@@ -285,6 +285,8 @@ Each handoff lists its own, in full. Grouped here:
 3. Should a key written as a mixed number ask for a mixed number (W7-1 3)?
 4. Mixed numbers inside expressions, intervals, sets and pairs stay refused (W7-1 4, its table).
 5. Ten Algebra I fields re-asked without a version move at `dc2ae1ad` (W7-1 5).
+   **Decided 2026-10-20: a field that asks for another kind of answer must move `familyVersion`.**
+   `scripts/check-family-version-bumps.mjs`, run on every pull request that touches a bank (answer-acceptance audit).
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
 
@@ -320,6 +322,8 @@ Each handoff lists its own, in full. Grouped here:
     they load, nightly and on demand, not on every pull request. Runner minutes are in W7-7's handoff.
 23. Who watches the nightly? GitHub mails a scheduled run's failure only to whoever last edited its schedule line
     (W7-7's re-review).
+    **Decided 2026-10-20: an issue.** `nightly-failure-issue.yml` opens or updates a `nightly-failure` issue per
+    workflow when a scheduled run fails, and closes it when one passes.
 24. In a championship game, the projector shows the round table and "championship points" only after Hide solution: a
     ready worked solution takes the table's place, by design (W7-7 2h). Should the table stay in view beside it?
 25. The teacher harness's `p3StartMin` stays 0, and the bank count does not see Firestore-only teacher items (W7-7 2
