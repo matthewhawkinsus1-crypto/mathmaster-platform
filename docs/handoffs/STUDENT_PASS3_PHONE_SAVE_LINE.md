@@ -55,6 +55,12 @@ At 200% text with the problem notice (after): [phone-save-line-after-notice-200p
    - the status element never takes more than **30% of the stage** and scrolls in place past it
      (`max-height: 30%; overflow-y: auto; overscroll-behavior: contain`).
 
+3. **Added in the review round** (both in the phone blocks): inside the capped status box the first line keeps a
+   4px top margin, not 8px (`> :first-child { margin-top: 4px !important }`, over the inline style; S1), and, upright,
+   the task panel shrinks before the action bar is cut (`.mathmaster-question-container.mode-portrait >
+   .question-prompt-panel { flex-shrink: 1; min-height: 44px }`, scoped to the assignment screen; B1). The work area
+   still gives way first: its basis is 0, so the panel shrinks only once the work area is gone. See "Review round 1".
+
 **Why `auto`, not `0`.** The first version used `flex: 1 1 0`. The gate caught it: `assignmentGraphingCalculator`
 renders the stage without the assignment shell around it, so the stage has no set height there, and a basis of 0
 collapsed the question to nothing on its phone pass (a click timed out on an element outside the viewport). With
@@ -64,7 +70,7 @@ browser run in the gate table is on the final CSS.
 **Where the line sits, and the action bar.** On a portrait phone the action bar (`.portrait-action-bar`) is not
 fixed: it is the last row of the question's own flex column (`position: relative`, `flex: 0 0 auto`), at the
 bottom of the engine. So the status lines sit directly under the bar, at the bottom of the screen, and nothing
-covers them; the bar moves up by the line's height (31px for "Draft saved."). In landscape the bar is static
+covers them; the bar moves up by the line's height (27px for "Draft saved.": a 4px margin and the line). In landscape the bar is static
 inside the prompt column, and the line spans the screen's width under both columns. `--mm-action-bar-clearance`
 (App.jsx, published from where the bar is) and `--mm-action-bar-height` lift toasts and scroll padding only; with
 the bar inside the question neither needs to change. Safe-area insets are 0 in this app (`index.html` has no
@@ -90,7 +96,7 @@ status area. At 100% text nothing reaches the cap: on every phone layout below t
 - *Overlaying the line on the bar or the question.* It would cover the controls it reports on.
 
 **Which scenes change.** Only phone layouts of the real assignment screen, and only while a status line is
-showing: the question is shorter by the lines' height (31px for "Draft saved." at 100% text) and the line is drawn.
+showing: the question is shorter by the lines' height (27px for "Draft saved." at 100% text; 31px before the review round) and the line is drawn.
 In `--check=default` that is `student-assignments--completed-section-phone` (845 → 844px tall: the clipped line
 no longer made the page 1px taller; "Draft saved." is now drawn under the bar). Every Chromebook scene is
 pixel-identical.
@@ -178,14 +184,58 @@ line (≤ 40px) and (b) work area + that height ≥ 480px. Mutations: 60px of ex
 **Hosting only** (`src/App.jsx`, two stylesheets). No functions, rules or indexes. Through the wrapper, as always:
 `FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting` — not deployed from here.
 
+## Review round 1 (review of `7733bf8f`)
+
+Every number the reviewer gave was re-measured here (`measure`: the real App on the teacher harness; each
+action-bar button's visible height after scrolling only real scrollers, never `overflow: hidden` boxes, and
+`elementFromPoint` at its centre) before anything changed, and it reproduced, base → `7733bf8f`:
+320×568@200% bar 74/74 → 51/74 with "Draft saved.", 0/74 and no button hit with the longest line or the notice;
+360×640@200% 74/74 → 33/74, no button hit; 375×667@200% → 45/74; 844×390@200% "Draft saved." 45/46 in the
+status box; the S2 work areas to the pixel.
+
+| Finding | What changed | Proof |
+| --- | --- | --- |
+| B1 (blocker): at 200% text on 320×568, 360×640 and 375×667 the lines under the question cut the action bar; at 360×640 and 320×568 with the notice no button could be pressed | The reviewer's rule, kept after trying the alternatives they ruled out: upright, the task panel shrinks (it scrolls, and Minimize folds it) down to one row once the work area is gone. In the question's column only the work area could shrink, and at 200% on a small phone it is 16–39px before any line shows. | `measure`: every bar button 74/74 and hit at 320×568, 360×640, 375×667 and 390×844 at 200%, with the line, the longest line and the notice. `phoneSaveLineJourneys` gains 375×667, 360×640 and 320×568 at 200%, with B at each. Mutation (the rule dropped): B red at 375×667, 360×640 and 320×568 (4 failures, `cut by div.mathmaster-question-container`); `phoneSaveLineSeen` red |
+| S1: no landscape setting at 200% and no 664×390; "Draft saved." cut by 1px in the 53px cap; one line of the notice shown | 844×390 at 200% and 664×390 added. The first line in the capped box keeps a 4px margin (46 + 4 ≤ 53). One line of the notice on its side at 200% is accepted, with the numbers, as decision 6; the driver's floor is one line there and two upright. The driver's clip tolerance is now 0.5px (it was 1px, which is how the 1px cut passed). | `measure`: 46/46. Driver: L passes at 844×390@200%; mutation (8px margin back): L red there, `cut by div.mathmaster-question-stage-status`; `phoneSaveLineSeen` red |
+| S2: the work area the lines take on short phones | Numbers re-measured after the B1 fix, in decision 1, which now covers every short phone | `measure`, decision 1 |
+| N5: no driver shrinks the visual viewport | Measured and recorded as decision 7 | `measure` |
+| N3: the `pass3-student-journeys` job's time | Timed below; the job keeps its 30-minute limit | ROUND_N3 |
+| N1–N4 verified clean by the reviewer | — | — |
+
+Gate on the review-round head (one driver at a time, CI's servers):
+
+ROUND_GATE
+
 ## Decisions for the owner
 
-1. **The 30% cap at large text.** At 390×844 and 200% text, while the draft-save problem notice is showing, the
-   question keeps its prompt, tries strip and whole action bar, but its work area is a sliver (screenshot above):
-   the prompt panel (≤25dvh), tries strip and a wrapped action bar already take most of a 200% phone. Work View
-   (one tap, full screen) is unaffected. The stage is 625px there: a 20% cap would give the work area ~60px more and
-   show about two and a half lines of the notice instead of about four; a higher cap the reverse. The notice only appears when storage is full or the
-   backup refuses a draft. Kept at 30%.
+1. **The work area the lines take, on every short phone** (review S2). On a phone the question gives up the
+   lines' height whenever they show; once the work area is gone (200% text on a small phone) the task panel gives
+   way, and the action bar stays whole. Work area in px (action bar top − work area top; on its side, the work
+   area's height), base `3cba9192` → this branch, with "Draft saved." / the longest line ("Not saved · this device
+   could not store…") / the backup-refused notice. 16px is the work area's own padding, so no room to work:
+
+   | Phone | Base | Draft saved. | Longest line | Notice |
+   | --- | --- | --- | --- | --- |
+   | 320×568 | 171 | 144 | 121 | 56 |
+   | 320×640 | 225 | 198 | 175 | 110 |
+   | 390×844 | 498 | 471 | 448 | 407 |
+   | 390×844, text spacing | 392 | 346 | 328 | 266 |
+   | 664×390 and 844×390 | 232 | 205 | 205 | 164 |
+   | 390×844, 200% text | 246 | 195 | 102 | 58 |
+   | 375×667, 200% text | 113 | 62 | 16 | 16 |
+   | 360×640, 200% text | 93 | 42 | 16 | 16 |
+   | 320×568, 200% text | 39 | 16 | 16 | 16 |
+   | 844×390, 200% text | 101 | 50 | 48 | 48 |
+
+   Columns still scroll in every case, every action-bar button is whole and pressable in every case
+   (`measure`, below), and Work View (one tap, full screen) is unaffected. The notice only appears when storage
+   is full or the backup refuses a draft; "Not saved" only when the device could not store a change. At 200% text
+   on a small phone a student with the notice sees the bar, the tries strip and the task's heading row, with the
+   task scrolling in its panel
+   ([320×568](../qa/student-experience-pass-3/screenshots/phone-save-line-after-notice-320x568-200pct.png)). A
+   lower cap (20%) would give back about a third of the lines' height at 200% and show fewer lines of the notice;
+   on these small phones at 200% it does not bring the work area back, because the task panel and the bar alone
+   fill the screen. Kept at 30%.
 2. **A scrolling status area has no tab stop of its own.** When the cap is reached (200% text with the notice) the
    area scrolls by touch; Chromium 130+ makes such a scroller keyboard-focusable on its own. Adding `tabIndex=0`
    would add a tab stop on every assignment on every device for a case a phone keyboard rarely meets. Not added.
@@ -195,10 +245,20 @@ line (≤ 40px) and (b) work area + that height ≥ 480px. Mutations: 60px of ex
    list on a phone is worth its own look.
 4. **Seen, not changed**: in the `completed-section` scene (both before and after) the "⤢ Open Work View" button
    overlaps the heading of the "This question could not be displayed" card on a phone.
-5. **31px of the phone's work area for the save line.** Whenever a save line shows (on opening a lesson with a
-   draft, "Draft saved." already does), the phone question's work area is 31px shorter (467px instead of 499px at
-   390×844). The line could be tightened on phones (4px margin, a 1.35 line height: about 20px) at the cost of a
-   phone-only style for it; not done, since it does not change whether the line is seen.
+5. **27px of the phone's work area for the save line.** Whenever a save line shows (on opening a lesson with a
+   draft, "Draft saved." already does), the phone question's work area is 27px shorter (471px instead of 498px at
+   390×844): a 4px margin and the 23.2px line. A tighter line height for it on phones would save about 6px more;
+   not done.
+6. **One line of the notice on its side at 200% text** (review S1). On a 390px-tall phone on its side the whole
+   stage is 177px at 200% text and the cap 53px: "Draft saved." fits whole (46px), and the notice (157px tall)
+   shows its first line, the rest scrolling in place. A two-line floor would take about 100px of the 177px and
+   leave the question nothing (its work area is 48px with the cap). The driver accepts one line there and two
+   upright.
+7. **When the screen keyboard shrinks the layout viewport** (review N5; no driver shrinks it). Measured with the
+   field focused and the viewport resized: 390×844 → 390×480, the focused field shows 38/70px on the base and
+   11/70px on this branch; 320×568 → 320×330, the action bar shows 38/61px on the base and 49/61px here. Both
+   were poor on the base; the save line takes part of what is left at 390×480. Worth its own item (the
+   visualViewport the container already measures, `--mm-visual-viewport-height`).
 
 ## Every file touched
 
