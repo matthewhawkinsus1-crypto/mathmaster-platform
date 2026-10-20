@@ -173,7 +173,7 @@ each. Kills were by PID of the Vite process itself.
 
 **`assignmentChromeJourneys`' room check, rewritten.** It pinned "a phone question gets at least 480px" (Batch 5's
 compact chrome: 499px measured, 373px before it). "Draft saved." is already showing when that lesson opens (a
-restored draft), and now that the line is on the phone's screen it takes its 31px (8px margin + a 23.2px line)
+restored draft), and now that the line is on the phone's screen it took its 31px (8px margin + a 23.2px line; 27px since the review round, 471 + 27)
 from the question: 467px. The behaviour the check protects — the chrome leaves the question its room — is intact;
 the room is now shared with the line. The check now reads the status element's height and asserts (a) it is one
 line (≤ 40px) and (b) work area + that height ≥ 480px. Mutations: 60px of extra chrome on the phone stage → (b) red
@@ -199,12 +199,26 @@ status box; the S2 work areas to the pixel.
 | S1: no landscape setting at 200% and no 664×390; "Draft saved." cut by 1px in the 53px cap; one line of the notice shown | 844×390 at 200% and 664×390 added. The first line in the capped box keeps a 4px margin (46 + 4 ≤ 53). One line of the notice on its side at 200% is accepted, with the numbers, as decision 6; the driver's floor is one line there and two upright. The driver's clip tolerance is now 0.5px (it was 1px, which is how the 1px cut passed). | `measure`: 46/46. Driver: L passes at 844×390@200%; mutation (8px margin back): L red there, `cut by div.mathmaster-question-stage-status`; `phoneSaveLineSeen` red |
 | S2: the work area the lines take on short phones | Numbers re-measured after the B1 fix, in decision 1, which now covers every short phone | `measure`, decision 1 |
 | N5: no driver shrinks the visual viewport | Measured and recorded as decision 7 | `measure` |
-| N3: the `pass3-student-journeys` job's time | Timed below; the job keeps its 30-minute limit | ROUND_N3 |
+| N3: the `pass3-student-journeys` job's time | Timed below; the job keeps its 30-minute limit | Its five steps, run here in CI's order on CI's servers: assignmentChromeJourneys 137s, studentNameJourneys 96s, draftSaveNoticeReloadJourneys 26s, phoneSaveLineJourneys 123s, askMyTeacherJourneys 101s = 483s. Setup in this workflow's jobs takes 40–75s (run 39334246600), and CI runs these journeys at about local speed (restoredDraftFocusRace 189s there, 218s here; submitAndFinish 92s, 91s): about 10–11 minutes against 30 |
 | N1–N4 verified clean by the reviewer | — | — |
 
 Gate on the review-round head (one driver at a time, CI's servers):
 
-ROUND_GATE
+| Check | Server(s) | Result |
+| --- | --- | --- |
+| `npm run test:platform` | — | R_PLATFORM |
+| `node --test tests/tools/*.test.mjs` | — | R_TOOLS |
+| `npm run lint` | — | R_LINT |
+| `npm run build`; `npm run build:firebase` | — | R_BUILD |
+| first load | — | R_FIRST |
+| `phoneSaveLineJourneys` (11 settings) | teacher 5188 | pass, 125s |
+| `assignmentChromeJourneys` | teacher 5188, a11y harness 5189 | pass ("471px + 27px for the line") |
+| `studentNameJourneys`, `draftSaveNoticeReloadJourneys`, `askMyTeacherJourneys` (the rest of the job) | teacher 5188 / a11y harness 5189 | pass |
+| `studentShellLargeText --check=text`, all scenes | emulator 5199, a11y harness 5188 | pass |
+| `studentShellLargeText --check=default` vs `3cba9192` | same | Chromebook: all identical. Phone: `completed-section` (the intended change); `step-algebra` (20 px) and `multiple-responses` (91 px) at most 1/255, the base-vs-base noise measured in round 0 (the same boxes) |
+| `certify:accessibility` | emulator 5199, a11y harness 5188 | pass, no new or increased violations |
+| `certify:dark-mode` | plain 5199, teacher 5188 | pass |
+| `stagedQuestion`, `phoneToolPanelReach`, `workViewHelpReach`, `toolOutcomeReach`, `mathKeypadToolbar`, `planePhoneReach`, `assignmentMobile`, `keyboardSweep` | plain 5199 | all pass |
 
 ## Decisions for the owner
 
@@ -270,5 +284,5 @@ ROUND_GATE
 - `tests/platform/pass3BrowserDriversInCi.test.mjs` — the new driver pinned to its job.
 - `tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs` — the phone room check counts the save line (above).
 - `.github/workflows/student-teacher-journeys.yml` — the new step, and the header comment.
-- `docs/qa/student-experience-pass-3/screenshots/phone-save-line-*.png` — five screenshots.
+- `docs/qa/student-experience-pass-3/screenshots/phone-save-line-*.png` — six screenshots (the 320×568 one in the review round).
 - `docs/handoffs/STUDENT_PASS3_PHONE_SAVE_LINE.md` — this file.
