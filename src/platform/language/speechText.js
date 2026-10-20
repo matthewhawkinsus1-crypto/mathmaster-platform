@@ -256,6 +256,20 @@ const latexToSpeech = (raw, w) => {
     .replace(/\uE002/g, '$');
 };
 
+// Letter runs a denominator may hold that are said as one word (review SF2).
+const DENOMINATOR_WORDS = new Set(['sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'ln', 'log', 'exp', 'abs', 'sqrt', 'pi']);
+// The first and last word of each spoken phrase: "the" (the square root of),
+// "la", "el", and the operator words a phrase ends in.
+const phraseWordsFor = (w) => new Set(Object.values(w).filter((value) => typeof value === 'string' && value)
+  .flatMap((value) => { const parts = value.split(' '); return [parts[0], parts[parts.length - 1]]; }));
+const phraseWordsCache = new WeakMap();
+const readsAsWord = (letters, w) => {
+  if (DENOMINATOR_WORDS.has(letters.toLowerCase())) return true;
+  if (!phraseWordsCache.has(w)) phraseWordsCache.set(w, phraseWordsFor(w));
+  if (phraseWordsCache.get(w).has(letters)) return true;
+  return letters.length >= 3 && /[aeiou]/i.test(letters);
+};
+
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
 const plainMathToSpeech = (raw, w, functionNames = '') => {
   let text = ` ${raw} `;
@@ -307,13 +321,18 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     .replace(/(\d)\s*%/g, `$1 ${w.percent}`)
     .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (match, amount) => priceSpeech(amount, w))
     // a/b — a fraction, read "a over b". The denominator is one number, one
-    // letter or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
+    // word or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
     // its own sign: a divided term "-10 / -2" is "negative 10 over negative 2"
     // (it read "negative 10 / minus 2"; pass 3, MATH_DISPLAY "Not done").
-    // A word denominator is the whole word: one letter taken from "sin", "pi"
-    // or a spoken "the square root of" left the rest spelled out ("1 over s
-    // in", "180 over p i", "1 over t he absolute value of b"; review SF2).
-    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*(?:\d+(?:\.\d+)?|[A-Za-z]+|\([^()]*\)))/g, ` $1 ${w.over} $2 `)
+    // Letters after "/" are read as a word only when they are one: a function
+    // or constant (sin, ln, pi), the head of a phrase already said in words
+    // ("the square root of"), or a word of three or more letters with a vowel
+    // (rise/run, miles/hour). Anything else is a product of variables, said
+    // letter by letter: "V/lw" is "V over l w", "dy/dx" "dy over d x"
+    // (review SF2).
+    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\([^()]*\))/g, (match, numerator, sign, denominator) => (
+      ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
+    ))
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
