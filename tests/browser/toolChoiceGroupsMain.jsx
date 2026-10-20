@@ -20,20 +20,35 @@ const STAGE = {
   ],
 };
 
-window.__fm = { changes: [] };
+// One category: every arrow, Home and End lands on the chip already chosen.
+const ONE_CATEGORY = {
+  items: [{ id: 'g1', text: 'y = 3x' }],
+  categories: [{ id: 'linear', label: 'Linear' }],
+};
 
-function Harness() {
+window.__fm = { changes: [], one: [] };
+
+function Stage({ stage, log, name }) {
   const [value, setValue] = useState(null);
   return (
-    <main style={{ padding: 24 }} data-fm-root="true">
+    <section data-fm-stage={name} style={{ marginBottom: 24 }}>
       <FigureMatchStage
-        stage={STAGE}
+        stage={stage}
         value={value}
         onChange={(next) => {
-          window.__fm.changes.push(next);
+          window.__fm[log].push(next);
           setValue(next);
         }}
       />
+    </section>
+  );
+}
+
+function Harness() {
+  return (
+    <main style={{ padding: 24 }} data-fm-root="true">
+      <Stage stage={STAGE} log="changes" name="three" />
+      <Stage stage={ONE_CATEGORY} log="one" name="one" />
     </main>
   );
 }
