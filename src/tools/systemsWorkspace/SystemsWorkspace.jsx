@@ -350,6 +350,8 @@ function ClassicInequalityMode({ questionData, onAction }) {
             showPlotHelp="keyboard"
             cursorLabel={nextPoint ? `Inequality ${nextPoint.index + 1}, point ${nextPoint.which}` : 'Point'}
             ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
+            // The region it shades below, said by the plane (no corners: they are positions).
+            toolMarks={{ kinds: shownPolygon.length >= 3 ? `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}.` : 'No region is shaded yet.' }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >

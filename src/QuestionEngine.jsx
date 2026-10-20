@@ -38,7 +38,7 @@ import { buildPartReviewRows, closedQuestionHasReview } from './platform/support
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
-import { backUpStepFor } from './platform/supports/feedback/backUpStep.js';
+import { backUpStepFor, backUpStepWritten } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
 import { ATTEMPT_RESULT_FOCUS_ATTRIBUTE, revealAttemptResult } from './platform/student/attemptResultsReveal.js';
@@ -112,6 +112,7 @@ import { resolveTaskContextPresentation } from './platform/workflow/taskContextP
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
+import { FigureReadingPortProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
@@ -124,7 +125,7 @@ import { StudentSupportTray } from './components/student/StudentSupportTools.jsx
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
-import { questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
 // calculator is graphing. If its chunk cannot load, the keypad drawer stands
@@ -943,7 +944,12 @@ function QuestionEngineBody({
   }, []);
 
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
-  const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  // The inclusion "Let's back up" step: authored, else one quick question
+  // about THIS problem's first move from its question family (backUpStep.js).
+  // Only a step written for this problem covers the work (HELP-19): the
+  // platform's generic Yes/No taught nothing and held the student up.
+  const scaffold = useMemo(() => backUpStepFor(processedQuestion), [processedQuestion]);
+  const scaffoldRequired = Boolean(backUpStepWritten(scaffold) && resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
   // The scaffold appears in place of the work: take the student to it.
   useEffect(() => {
     if (!scaffoldRequired) return undefined;
@@ -1126,10 +1132,6 @@ function QuestionEngineBody({
     markCalculatorOpened();
     setCalculatorOpen(true);
   };
-  // The inclusion "Let's back up" step: authored, else one quick question
-  // about THIS problem's first move from its question family, else the
-  // platform's generic re-orientation question (backUpStep.js).
-  const scaffold = useMemo(() => backUpStepFor(processedQuestion), [processedQuestion]);
   // READ ALOUD READS THE WHOLE QUESTION (pass 3, HELP-6): the "Let's back
   // up" question while it blocks the work, the prompt, "Information you need",
   // the matrices and system the question shows, a composed question's current
@@ -1143,14 +1145,21 @@ function QuestionEngineBody({
     const stage = (workflow || []).find((entry) => entry.id === stageId);
     return stage ? { stage, index: currentWorkflowGuidance.currentStageIndex, total: currentWorkflowGuidance.total || workflow.length, workflow: processedQuestion?.workflow } : null;
   }, [isComposed, processedQuestion, currentWorkflowGuidance?.currentStageId, currentWorkflowGuidance?.currentStageIndex, currentWorkflowGuidance?.total]);
+  // The tables, graphs and tool drawings on the screen publish what they
+  // already say (figureReadings.js); a figure's description keeps its own
+  // rule — no positions while the question can be answered.
+  const [publishedFigures, setPublishedFigures] = useState([]);
+  const publishFigureReading = useCallback((id, entry) => setPublishedFigures((current) => updateFigureReadings(current, id, entry)), []);
+  const figureReadings = useMemo(() => figureReadingEntries(publishedFigures), [publishedFigures]);
   const readingParts = useMemo(
     () => questionReadingParts(processedQuestion, {
       referenceInfo,
       backUp: scaffoldRequired ? scaffold : null,
       stage: readingStage,
       language: readAloudLanguage,
+      figures: figureReadings,
     }),
-    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage],
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings],
   );
   const referenceSpeechText = useMemo(() => questionReadingText(readingParts), [readingParts]);
 
@@ -3241,7 +3250,7 @@ function QuestionEngineBody({
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
               onFailureChange={(failed) => setFailedModule(failed ? { key: moduleFailureKey, question: processedQuestion } : null)}
             >
-              {renderModule()}
+              <FigureReadingPortProvider publish={publishFigureReading}>{renderModule()}</FigureReadingPortProvider>
             </QuestionModuleBoundary>
           </div>
         </fieldset>
@@ -3257,7 +3266,7 @@ function QuestionEngineBody({
           <section ref={scaffoldRef} role="region" aria-label="Let's back up" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
-              <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
+              <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{backUpQuestionText(scaffold.prompt)}</h2>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {(scaffold.options || []).map((option) => (
                   <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}>{option}</button>

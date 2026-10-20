@@ -52,6 +52,7 @@ import {
 } from './inequalityBuildFlow.js';
 import { ChoiceGroup, InequalityLayout, StepFeedback, revealStep } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
+import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
 import {
   BoundaryStepFields,
   CLASSIFICATION_OPTIONS,
@@ -846,6 +847,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
             ariaLabel={graphLabel}
+            // What InequalityGraphLayers draws, said by the plane (inequalityGraphMarks.js).
+            toolMarks={{ kinds: inequalityGraphMarksText({ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon }) }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >

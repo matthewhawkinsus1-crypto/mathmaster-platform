@@ -9,6 +9,7 @@ import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
 import { describeCoordinatePlane } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
+import { PublishFigureReading } from './platform/language/figureReadings.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -665,6 +666,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       {/* Read through aria-describedby only (hidden from browse mode, so it is
           not heard twice); inline styles so a host with no UI kit CSS never
           shows it. */}
+      {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
+      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : ''].join(' ') }} />
       <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
       {graph.caption && (
         <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>

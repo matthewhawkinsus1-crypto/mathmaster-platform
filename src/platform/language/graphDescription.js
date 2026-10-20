@@ -342,11 +342,17 @@ const vertexList = (vertices, res) => {
   return joinClauses(shown);
 };
 
+const UNDESCRIBED_MARKS = 'It also shows marks drawn by the activity that are not listed here.';
+const toolMarkSentence = (toolMarks, detail) => {
+  const pick = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+  return detail === 'features' ? pick(toolMarks?.features) || pick(toolMarks?.kinds) : pick(toolMarks?.kinds);
+};
+
 /* ------------------------------------------- kinds only (still answerable) */
 
 // What is drawn, never where: no crossings, extremes, positions or table.
 const describeKinds = ({
-  sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints,
+  sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMarksText = '',
   points, lines, functions, polylines, regions, verticalLines, horizontalLines,
   positionsWithheldText,
 }) => {
@@ -391,9 +397,12 @@ const describeKinds = ({
   }
   const described = lineCount + curveCount + verticals + horizontals + paths + shaded + drawn.length;
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
-  if (hasUndescribedMarks) sentences.push('It also shows marks drawn by the activity that are not listed here.');
-  if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length) {
-    sentences.push(positionsWithheldText || 'Positions are not read out while this question can be answered.');
+  if (hasUndescribedMarks) sentences.push(toolMarksText || UNDESCRIBED_MARKS);
+  if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length || (hasUndescribedMarks && toolMarksText)) {
+    // The student's own points were just read out: what is withheld is the rest.
+    sentences.push(positionsWithheldText || (plotted.length
+      ? 'Positions of the given marks are not read out while this question can be answered.'
+      : 'Positions are not read out while this question can be answered.'));
   }
   void w;
   const description = sentences.join(' ');
@@ -421,6 +430,13 @@ export function describeCoordinatePlane({
   // description is produced either way (see the module header).
   label = '',
   hasUndescribedMarks = false,
+  // WHAT A TOOL DRAWS ITSELF (its `children`: Complex Plane segments, a
+  // sideways parabola, an inequality's shading), in the tool's own words:
+  // { kinds, features }. The plane picks by its own detail — `kinds` while
+  // the question can be answered (no position or value, the rule everything
+  // here follows), `features` once it is closed (else `kinds`) — so a tool
+  // cannot say more than the plane would. Without it, "marks … not listed".
+  toolMarks = null,
   emptyText = 'Nothing is plotted.',
   // 'kinds' (default — fails closed) or 'features'. See the module header.
   detail = 'kinds',
@@ -466,6 +482,7 @@ export function describeCoordinatePlane({
   if (detail !== 'features' || hideX || hideY) {
     return describeKinds({
       sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, positionsWithheldText,
+      toolMarksText: toolMarkSentence(toolMarks, 'kinds'),
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
       regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
     });
@@ -511,7 +528,7 @@ export function describeCoordinatePlane({
   const described = lineEntries.length + curveEntries.length + verticals.length + horizontals.length
     + polyVertices.length + regionVertices.length + pointEntries.length;
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
-  if (hasUndescribedMarks) sentences.push('It also shows marks drawn by the activity that are not listed here.');
+  if (hasUndescribedMarks) sentences.push(toolMarkSentence(toolMarks, 'features') || UNDESCRIBED_MARKS);
 
   /* Tables: the same reading, laid out as a sighted student would tabulate it. */
   const tables = [];

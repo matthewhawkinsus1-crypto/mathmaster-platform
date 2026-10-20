@@ -13,6 +13,7 @@ import intervalNumberLineGrader from '../../../functions/shared/serverGrading/to
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLine } from '../../platform/language/numberLineDescription.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import {
   intervalsToNotation,
   normalizeIntervals,
@@ -957,6 +958,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
           {/* Read through the line's aria-describedby, and hidden from browse
               mode so it is not heard a second time as a loose paragraph. */}
+          <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription }} />
           <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
           <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
             {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
