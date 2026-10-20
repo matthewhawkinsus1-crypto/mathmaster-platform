@@ -154,6 +154,19 @@ export const describeRuntimeSaveLine = ({
 };
 
 /*
+ * A ROUTINE SAVE LINE (the owner, 2026-10-20; the W7-8 integrator's option).
+ * On a phone every line under the question takes its height from the work
+ * area ("Draft saved." is 27px of a 390×844 phone's 498). So a phone shows
+ * only the lines that need the student: offline, needs review, refused, not
+ * stored. The routine ones (saving, saved on this device and sending, "Draft
+ * saved.", "Answer recorded by MathMaster.") are not drawn there (App.css and
+ * MathToolMobileLayout.css hide `[data-save-line-routine]`); a Chromebook still
+ * shows them. None of them is announced (App.jsx's save-line announcement).
+ */
+const ROUTINE_SAVE_STATUSES = new Set(['capturing', 'queued', 'syncing', 'durable', 'submitted']);
+export const saveLineIsRoutine = ({ persistenceStatus = 'idle' } = {}) => ROUTINE_SAVE_STATUSES.has(String(persistenceStatus || 'idle'));
+
+/*
  * A DRAFT LINE GIVES WAY WHILE UNFINISHED WORK IS NOT BEING SAVED (Batch 3
  * into pass 3).
  *

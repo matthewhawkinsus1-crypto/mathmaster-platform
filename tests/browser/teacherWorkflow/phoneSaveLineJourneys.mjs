@@ -15,9 +15,14 @@
 // 844×390), and the WCAG 1.4.12 text-spacing override — and a Chromebook for
 // reference:
 //
-//   L  after the student types, the save line is inside the screen, inside
-//      every box that clips it, and nothing (the action bar, a toast) is drawn
-//      over it;
+//   R  on a phone, after the student types, the routine save line ("Draft
+//      saved." and its kind) is not drawn, and the lines under the question
+//      take no height: the question keeps its work area (the owner,
+//      2026-10-20). On the Chromebook it is drawn as before;
+//   L  a save line that needs the student (offline: "Draft saved on this
+//      device. It will sync when you are back online."; on the Chromebook,
+//      the routine one) is inside the screen, inside every box that clips it,
+//      and nothing (the action bar, a toast) is drawn over it;
 //   N  with a draft the backup refused (planted the way
 //      draftSaveNoticeReloadJourneys.mjs does), the problem notice is the same;
 //   B  and upright, the question keeps its whole action bar beside either: at
@@ -209,15 +214,43 @@ for (const setting of SETTINGS) {
     await signedIn(page, setting, { reset: true });
     await openAssignment(page, setting);
     await typeIntoFirst(page, '7');
-    await page.locator('[data-save-line]').first().waitFor({ timeout: 15000 });
+    await page.locator('[data-save-line]').first().waitFor({ state: 'attached', timeout: 15000 });
     await page.waitForTimeout(2500);
-    report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
-    await shot(page, `line ${setting.id}`);
     const barWhole = async (what) => {
       if (!setting.mobile || setting.width > setting.height) return;
       report(`B  the action bar is whole beside the ${what} (${setting.id})`, await seen(page, '.portrait-action-bar', setting));
     };
-    await barWhole('save line');
+    if (setting.mobile) {
+      const routine = await page.evaluate(() => {
+        const line = document.querySelector('[data-save-line]');
+        const status = document.querySelector('.mathmaster-question-stage-status');
+        return {
+          text: line?.textContent.trim() || '',
+          routine: line?.hasAttribute('data-save-line-routine') || false,
+          drawn: Boolean(line && line.getClientRects().length),
+          statusHeight: status ? status.getBoundingClientRect().height : null,
+        };
+      });
+      check(routine.routine && !routine.drawn && routine.statusHeight === 0,
+        `R  the routine save line is not drawn on a phone, and the question keeps the room (${setting.id})`,
+        `"${routine.text}" ${routine.routine ? 'routine' : 'not marked routine'}, ${routine.drawn ? 'drawn' : 'not drawn'}, the lines take ${routine.statusHeight}px`);
+      await shot(page, `routine ${setting.id}`);
+      // Offline: the line now needs the student, and is seen.
+      await context.setOffline(true);
+      await page.evaluate(() => window.__mmHarnessStore?.setOnline(false));
+      await typeIntoFirst(page, '8');
+      await page.locator('[data-save-line]:not([data-save-line-routine])').first().waitFor({ timeout: 15000 });
+      await page.waitForTimeout(1500);
+      report(`L  the offline save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
+      await shot(page, `line ${setting.id}`);
+      await barWhole('offline save line');
+      await page.evaluate(() => window.__mmHarnessStore?.setOnline(true));
+      await context.setOffline(false);
+      await page.locator('[data-save-line][data-save-line-routine]').first().waitFor({ state: 'attached', timeout: 30000 });
+    } else {
+      report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
+      await shot(page, `line ${setting.id}`);
+    }
 
     const keys = await draftKeys(page);
     const draft = keys.find((key) => !key.includes(':ui') && !key.endsWith(':resume')) || keys[0];
