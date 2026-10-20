@@ -9,6 +9,7 @@ import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import './GraphScenarioMatch.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
+import { scrollMotion } from './motionPreference.js';
 
 const getPartGrade = (feedback, id) => feedback?.partGrades?.find((part) => part.id === id);
 
@@ -170,7 +171,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     if (!pane) return;
     pane.scrollTo({
       top: Math.max(0, Math.min(pane.scrollHeight - pane.clientHeight, pane.scrollTop + amount)),
-      behavior: 'smooth',
+      behavior: scrollMotion(),
     });
   }, []);
 
@@ -207,8 +208,8 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     else if (event.key === 'ArrowUp') { event.preventDefault(); scrollMatchPane(pane, -step); }
     else if (event.key === 'PageDown') { event.preventDefault(); scrollMatchPane(pane, page); }
     else if (event.key === 'PageUp') { event.preventDefault(); scrollMatchPane(pane, -page); }
-    else if (event.key === 'Home') { event.preventDefault(); pane.scrollTo({ top: 0, behavior: 'smooth' }); }
-    else if (event.key === 'End') { event.preventDefault(); pane.scrollTo({ top: pane.scrollHeight, behavior: 'smooth' }); }
+    else if (event.key === 'Home') { event.preventDefault(); pane.scrollTo({ top: 0, behavior: scrollMotion() }); }
+    else if (event.key === 'End') { event.preventDefault(); pane.scrollTo({ top: pane.scrollHeight, behavior: scrollMotion() }); }
   }, [scrollMatchPane]);
 
   const selectGraph = (graphId) => {
@@ -248,7 +249,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
       <div className="graph-scenario-match-instructions" aria-live="polite">
         <div>
           <strong>{selectedGraph ? `${selectedGraph.label || selectedGraph.id} selected` : '1. Select a graph'}</strong>
-          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Click a graph, or drag it directly onto a scenario.'}</span>
+          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Select a graph, or drag it directly onto a scenario.'}</span>
         </div>
         <div className="graph-scenario-match-actions">
           {selectedGraph && (

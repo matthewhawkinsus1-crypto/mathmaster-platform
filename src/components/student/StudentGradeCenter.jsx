@@ -8,6 +8,7 @@ import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath, missingGrade
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime, studentDueText } from '../../assignmentLifecycle';
 import { CLOSED_WORK, SEE_RESULTS, firstExitTicketMention } from '../../platform/student/studentWords.js';
+import { scrollMotion } from '../../motionPreference.js';
 
 /*
  * THE STUDENT GRADE CENTER.
@@ -359,7 +360,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
     const row = bodyRef.current?.querySelector(`[data-grade-status="${GRADE_STATUS.MISSING}"]`);
     if (!row) return;
     row.focus({ preventScroll: true });
-    try { row.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { row.scrollIntoView(); }
+    try { row.scrollIntoView({ block: 'start', behavior: scrollMotion() }); } catch { row.scrollIntoView(); }
   }, [open, revealMissing]);
   if (!group.entries.length) return null;
 

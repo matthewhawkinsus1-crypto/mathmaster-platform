@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { executableSource, region } from './helpers/sourceContract.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { READ_ONLY_EDITOR_ACTIONS, SECURE_EDITOR_HELD_EVENTS, readOnlyEditorAction } from '../../src/platform/assessment/secureAnswerEntry.js';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
@@ -130,14 +130,15 @@ test('read-only reaches the math field itself, and the hold runs in the capture 
 test('the math field\'s accessible name carries the typing hint, which an id reference cannot carry into MathLive', () => {
   const component = region(FIELD, 'export default function SecureMathAnswerField', '\n}\n', 'the field');
   assert.match(component, /<MathEditor[\s\S]*?label=\{nameWithHint\(label, entry\.hint, serverHint\)\}/, 'the hint rides in the field\'s name');
-  // MathLive leaves its keyboard sink — where focus lands — unnamed. It is
-  // found through the MathLive adapter, which pins the verified selector.
+  // MathLive leaves its keyboard sink — where focus lands — unnamed. The name,
+  // hint included, reaches MathInput as its ariaLabel, and MathInput names the
+  // sink with it through the shared binder (tests/platform/mathFieldName.test.mjs
+  // proves the binder and MathInput's wiring; studentAccessibleNames.mjs the
+  // focused element's name in a browser).
   const math = region(FIELD, 'function MathEditor(', '\n}\n', 'the math editor');
-  const nameSink = region(math, 'const nameSink = () => {', '};', 'nameSink');
-  assert.match(FIELD, /^import \{ mathFieldKeyboardSink \} from '\.\.\/\.\.\/platform\/math\/mathLiveCompat\.js';$/m);
-  assert.match(nameSink, /const sink = mathFieldKeyboardSink\(wrapper\.querySelector\('math-field'\)\);/);
-  assert.match(nameSink, /sink\.setAttribute\('aria-label', label\)/);
-  assert.match(math, /wrapper\.addEventListener\('focusin', nameSink\);/, 'and again on focus');
+  assert.match(region(math, '<MathInput', '/>', 'the editor\'s MathInput'), /\n\s*ariaLabel=\{label\}/, 'the editor\'s name is the math box\'s name');
+  const MATH_INPUT = executableSource(componentSource('src/MathInput.jsx'));
+  assert.match(region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks'), /const fieldName = ariaLabel \|\| placeholder \|\| 'Math answer';\s*useMathFieldName\(mfRef, fieldName\);/, 'MathInput names its sink with that name');
   const named = region(FIELD, 'const nameWithHint = (label, hint, fromServer) => {', '\n};', 'nameWithHint');
   assert.match(named, /const spoken = fromServer \? speechTextFor\(hint\) : hint;/, 'a server hint\'s $…$ mathematics is said in words');
   assert.match(component, /<TextEditor[\s\S]*?hintId=\{entry\.hint \? hintId : ''\}/, 'a text box keeps its description');

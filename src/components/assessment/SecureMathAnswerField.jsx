@@ -5,7 +5,6 @@ import {
   READ_ONLY_EDITOR_ACTIONS, SECURE_ANSWER_EDITORS, SECURE_EDITOR_HELD_EVENTS, SECURE_INLINE_SHORTCUTS, readOnlyEditorAction, secureAnswerEntryFor,
 } from '../../platform/assessment/secureAnswerEntry.js';
 import { speechTextFor } from '../../platform/language/speechText.js';
-import { mathFieldKeyboardSink } from '../../platform/math/mathLiveCompat.js';
 
 /*
  * ONE TYPED ANSWER ON A SECURE ITEM, IN THE EDITOR STUDENTS USE EVERYWHERE ELSE.
@@ -94,31 +93,10 @@ function MathEditor({ entry, value, emit, readOnly, readOnlyRef, autoFocus, labe
     return () => { cancelled = true; };
   }, []);
 
-  // MathLive takes focus in its keyboard sink (found through the MathLive
-  // adapter) and never names it, whatever the host's aria-label says:
-  // a screen reader landing in the field heard an unnamed text box. The sink
-  // gets the field's name, typing hint included — once the element has
-  // upgraded, and again on focus, in case MathLive replaced it.
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return undefined;
-    let cancelled = false;
-    const nameSink = () => {
-      const sink = mathFieldKeyboardSink(wrapper.querySelector('math-field'));
-      if (sink && sink.getAttribute('aria-label') !== label) sink.setAttribute('aria-label', label);
-      return Boolean(sink);
-    };
-    if (!nameSink()) {
-      window.customElements?.whenDefined?.('math-field').then(() => {
-        if (!cancelled) window.requestAnimationFrame?.(() => { if (!cancelled) nameSink(); });
-      });
-    }
-    wrapper.addEventListener('focusin', nameSink);
-    return () => {
-      cancelled = true;
-      wrapper.removeEventListener('focusin', nameSink);
-    };
-  }, [label]);
+  // MathLive takes focus in its keyboard sink and never names it, whatever
+  // the host's aria-label says. MathInput names the sink with the ariaLabel
+  // passed below — this field's name, typing hint included — through the
+  // shared platform/math/mathFieldName.js, as it does for every math box.
 
   // Capture listeners on the wrapper run before anything inside it — MathInput's
   // own key handling on the field and its keypad's clicks — so an event held

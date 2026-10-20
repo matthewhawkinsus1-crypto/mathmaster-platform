@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatStandardEquation } from './linearInterceptsMath.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 
 // The zero-substitution stage shared by the legacy stepAlgebra2 compatibility
 // shell (LinearIntercepts.jsx) and the consolidated LinearInterceptsOrchestrator
@@ -100,6 +101,37 @@ export function InteractiveStandardEquation({ standard, placedVariable, zeroArme
       />
       <span>=</span>
       <span>{standard.C}</span>
+    </div>
+  );
+}
+
+/**
+ * "At the x-intercept, which variable equals 0?": x = 0 or y = 0, one radio
+ * group (choiceGroup.js) — one tab stop, arrows move and select — with a ✓ on
+ * the chosen one. Choosing is not checking: nothing here spends a try.
+ */
+export function ZeroVariableChoice({ label, value, disabled = false, onSelect, buttonStyle }) {
+  const variables = ['x', 'y'];
+  const optionProps = useChoiceGroup({ ids: variables, value, onSelect, disabled });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+      {variables.map((variable, index) => (
+        <button
+          key={variable}
+          type="button"
+          {...optionProps(index)}
+          disabled={disabled}
+          onClick={() => onSelect(variable)}
+          style={{
+            ...buttonStyle,
+            border: value === variable ? '2px solid #174ea6' : buttonStyle?.border,
+            background: value === variable ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+          }}
+        >
+          <ChoiceMark selected={value === variable} />
+          {variable} = 0
+        </button>
+      ))}
     </div>
   );
 }

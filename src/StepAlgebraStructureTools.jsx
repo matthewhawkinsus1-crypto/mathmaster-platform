@@ -52,6 +52,7 @@ import {
   tapArrangeTerm,
 } from './algebraArrangeTermsModel';
 import { factoringOptionsFor } from './algebraStructureTools';
+import { spokenMathValue } from './tools/shared/spokenMathValue.js';
 
 const COMMON_FACTOR_DRAG = 'mathmaster-common-factor';
 const SPLIT_DENOMINATOR_DRAG = 'mathmaster-split-denominator';
@@ -85,7 +86,7 @@ function PlainTerm({ term }) {
 
 function FactorTokenGroup({ termText, tokens, chosen = [], pulled = false, onToken, disabled }) {
   return (
-    <span className={`algebra-structure-token-group${pulled ? ' is-pulled-phase' : ''}`} role="group" aria-label={`${termText} written as factors`}>
+    <span className={`algebra-structure-token-group${pulled ? ' is-pulled-phase' : ''}`} role="group" aria-label={`${spokenMathValue(termText)} written as factors`}>
       {tokens.map((token, index) => {
         const isChosen = chosen.includes(index);
         const key = `${index}-${token.key}`;
@@ -97,7 +98,7 @@ function FactorTokenGroup({ termText, tokens, chosen = [], pulled = false, onTok
                 type="button"
                 className={`algebra-structure-token${isChosen ? ' is-chosen' : ''}`}
                 aria-pressed={isChosen}
-                aria-label={`Factor ${token.latex} of ${termText}${isChosen ? ', chosen as common' : ''}`}
+                aria-label={`Factor ${spokenMathValue(token.latex)} of ${spokenMathValue(termText)}${isChosen ? ', chosen as common' : ''}`}
                 onClick={() => onToken?.(index)}
                 disabled={disabled}
               >
@@ -106,7 +107,7 @@ function FactorTokenGroup({ termText, tokens, chosen = [], pulled = false, onTok
             ) : (
               <span
                 className={`algebra-structure-token is-static${token.kind === 'sign' ? ' is-sign' : ''}${pulled && isChosen ? ' is-pulled' : ''}`}
-                aria-label={token.kind === 'sign' ? `negative one, the sign of ${termText}` : `Factor ${token.latex}${pulled && isChosen ? ', pulled out' : ''}`}
+                aria-label={token.kind === 'sign' ? `negative one, the sign of ${spokenMathValue(termText)}` : `Factor ${spokenMathValue(token.latex)}${pulled && isChosen ? ', pulled out' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </span>
@@ -326,7 +327,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
             format="latex"
             inline
             style={{ fontSize: 'calc(19 * var(--mm-px))' }}
-            ariaLabel={`${termLabel(termIndex)} divided by ${tool.pulled.text}`}
+            ariaLabel={`${spokenMathValue(termLabel(termIndex))} divided by ${spokenMathValue(tool.pulled.text)}`}
           />
           <span aria-hidden="true" className="algebra-structure-equals">=</span>
           <MathInput
@@ -341,7 +342,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
               else check();
             }}
             placeholder="what is left"
-            ariaLabel={`What is left of ${termLabel(termIndex)} after pulling out ${tool.pulled.text}`}
+            ariaLabel={`What is left of ${spokenMathValue(termLabel(termIndex))} after pulling out ${spokenMathValue(tool.pulled.text)}`}
             toolProfile="algebra-operation"
             compact
             maxWidth={220}
@@ -411,7 +412,7 @@ function SplitSide({ tool, equation, side, update, notify, disabled }) {
                       }}
                       disabled={disabled || placed}
                       aria-pressed={placed}
-                      aria-label={placed ? `${shown.text} now over its own denominator` : `Place the denominator under ${shown.text}`}
+                      aria-label={placed ? `${spokenMathValue(shown.text)} now over its own denominator` : `Place the denominator under ${spokenMathValue(shown.text)}`}
                     >
                       <MathDisplay
                         value={placed
@@ -496,12 +497,12 @@ function ReductionTokenRow({ tokens, row, tool, onTap, disabled }) {
                 onClick={() => onTap(row, index)}
                 disabled={disabled || paired}
                 aria-pressed={held || paired}
-                aria-label={`${row === 'numerator' ? 'Numerator' : 'Denominator'} factor ${token.latex}${paired ? ', cancelled' : held ? ', held' : ''}`}
+                aria-label={`${row === 'numerator' ? 'Numerator' : 'Denominator'} factor ${spokenMathValue(token.latex)}${paired ? ', cancelled' : held ? ', held' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </button>
             ) : (
-              <span className="algebra-structure-token is-static" aria-label={`Factor ${token.latex}`}>
+              <span className="algebra-structure-token is-static" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </span>
             )}

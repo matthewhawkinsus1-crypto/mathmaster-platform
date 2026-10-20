@@ -5,6 +5,7 @@ import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { ResultPill } from '../shared/ToolShell';
 import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 
 /*
  * The small pieces every Matrix Lab view shares: a matrix cell a student types
@@ -167,15 +168,29 @@ export function DimensionsInput({ value = {}, onChange, label }) {
   );
 }
 
-/** Yes / No as two buttons, the way the lab asks every judgment. */
-export function YesNo({ value, onChange, label }) {
+/**
+ * A choice among a few buttons: one radio group (choiceGroup.js) — one tab
+ * stop, arrows move and select — and the chosen one carries a ✓. `lead` is
+ * words drawn before the buttons, inside the group ("The constants in B").
+ */
+export function ChoiceRadios({ label, options, value, onChange, lead = null, style = null }) {
+  const ids = options.map(([id]) => id);
+  const optionProps = useChoiceGroup({ ids, value, onSelect: onChange });
   return (
-    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {[['yes', 'Yes'], ['no', 'No']].map(([id, text]) => (
-        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)} style={choiceStyle(value === id)}>{text}</button>
+    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', ...style }}>
+      {lead}
+      {options.map(([id, text], index) => (
+        <button key={id} type="button" {...optionProps(index)} onClick={() => onChange(id)} style={choiceStyle(value === id)}>
+          <ChoiceMark selected={value === id} />{text}
+        </button>
       ))}
     </div>
   );
+}
+
+/** Yes / No as two buttons, the way the lab asks every judgment. */
+export function YesNo({ value, onChange, label }) {
+  return <ChoiceRadios label={label} options={[['yes', 'Yes'], ['no', 'No']]} value={value} onChange={onChange} />;
 }
 
 /**

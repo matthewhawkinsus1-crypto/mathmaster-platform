@@ -2871,7 +2871,7 @@ function QuestionEngineBody({
                 <span key={part.key} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
                   {closedYourAnswer.length > 1 && part.label ? <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>{part.label}</span> : null}
                   <MathDisplay value={part.response} format="latex" />
-                  {part.isCorrect === true ? <span aria-label="correct" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span> : part.isCorrect === false ? <span aria-label="not correct" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>✗</span> : null}
+                  {part.isCorrect === true ? <span role="img" aria-label="correct" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span> : part.isCorrect === false ? <span role="img" aria-label="not correct" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>✗</span> : null}
                 </span>
               ))}
             </div>

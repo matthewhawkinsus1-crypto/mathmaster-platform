@@ -49,7 +49,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
       )}
       <QuestionVisual question={question} />
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+        <MathInput value={answer} onChange={setAnswer} ariaLabel="Fraction answer" onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
       {/* Under the box, where the floating Work View button never covers it. */}
       {formProblem ? (

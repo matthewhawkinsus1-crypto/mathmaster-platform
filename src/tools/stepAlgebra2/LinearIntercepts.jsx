@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid, controlStep } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
-import { InteractiveStandardEquation } from './linearInterceptsConceptualUi.jsx';
+import { InteractiveStandardEquation, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
   applyInterceptOperation,
@@ -314,24 +314,12 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               <p style={{ marginTop: 0, lineHeight: 1.5 }}>
                 At the <strong>{stageLabel(kind)}</strong>, which variable equals 0?
               </p>
-              <div role="radiogroup" aria-label={`Variable that equals zero at the ${stageLabel(kind)}`} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-                {['x', 'y'].map((variable) => (
-                  <button
-                    key={variable}
-                    type="button"
-                    role="radio"
-                    aria-checked={stage.conceptualZeroChoice === variable}
-                    onClick={() => selectZeroChoice(variable)}
-                    style={{
-                      ...secondaryButton,
-                      border: stage.conceptualZeroChoice === variable ? '2px solid #174ea6' : secondaryButton.border,
-                      background: stage.conceptualZeroChoice === variable ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                    }}
-                  >
-                    {variable} = 0
-                  </button>
-                ))}
-              </div>
+              <ZeroVariableChoice
+                label={`Variable that equals zero at the ${stageLabel(kind)}`}
+                value={stage.conceptualZeroChoice}
+                onSelect={selectZeroChoice}
+                buttonStyle={secondaryButton}
+              />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
                 <button

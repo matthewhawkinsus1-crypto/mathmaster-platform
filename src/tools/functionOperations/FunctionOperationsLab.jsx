@@ -129,7 +129,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
                   toolProfile="expression"
                   maxWidth={540}
                   placeholder="Enter an expression in x"
-                  aria-label={`${title} simplified expression`}
+                  ariaLabel={`${title} simplified expression`}
                 />
               </label>
               {operation === 'quotient' ? (

@@ -367,7 +367,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
         task={targetPrompt(normalizedQuestion, target)}
         stepsAreControls
         steps={[
-          'Click the grid to plot a point. A crosshair shows the exact coordinate before you click.',
+          'Click or tap the grid to plot a point, or focus it and use the arrow keys and Enter. A crosshair shows the exact coordinate first.',
           requiredPointCount > 2
             ? `Plot ${requiredPointCount - 1} more points on the same line — the line is drawn for you automatically.`
             : 'Plot a second point on the same line — the line is drawn for you automatically.',

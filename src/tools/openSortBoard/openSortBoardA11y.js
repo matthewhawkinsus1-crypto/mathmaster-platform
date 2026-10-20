@@ -78,6 +78,14 @@ export const categoryButtonName = ({ category, card }) => `${text(category?.labe
 
 export const groupNameInputLabel = (index) => `Name this group (Group ${index + 1})`;
 
+/**
+ * Each group's "Why do these belong together?" box. Every group showed the same
+ * visible label, so a screen reader heard four identical boxes (pass 3,
+ * TOOLS_KEYBOARD_UNDO "Not done"). The name starts with the words on screen
+ * and says which group.
+ */
+export const rationaleInputLabel = (group, index) => `Why do these belong together? (${groupName(group, index)})`;
+
 export const placementAnnouncement = ({ card, group, index, remaining, controlled = false }) => (
   `${card} placed in ${groupName(group, index, { controlled })}. ${remaining
     ? `${remaining} card${remaining === 1 ? '' : 's'} left to place.`

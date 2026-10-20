@@ -7,7 +7,10 @@
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   node tests/browser/studentAccessibleNames.mjs
  *
- *   TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188),
+ *   npx vite --host 127.0.0.1 --port 5199 --strictPort &   # the math boxes
+ *
+ *   TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188), AUDIT_ORIGIN
+ *   (default http://127.0.0.1:5199),
  *   PLAYWRIGHT_MODULE / CHROMIUM_PATH as in accessibilityCertification.mjs.
  *
  * What it proves:
@@ -19,15 +22,27 @@
  *           pressed, exactly "Show grade" — no emoji in either name, no
  *           aria-pressed contradicting the label — and no button on the
  *           screen carries an emoji in its name.
+ *   Math boxes (pass 3, A11Y-3) on studentUxPlatform.html (AUDIT_ORIGIN):
+ *           every math box of an assignment question, a practice question
+ *           and an exit ticket, and one in Work View, is named where focus
+ *           LANDS — the element the accessibility tree reports focused is
+ *           MathLive's keyboard sink, and its name is the box's own (never
+ *           ""), on first focus and again after typing, leaving and coming
+ *           back (MathLive rewrites the sink's label on every focus).
+ *   Complete badge (pass 3, A11Y-7): a finished section's "Complete" badge
+ *           on the section tabs is at least 12px.
  * Exits non-zero on any failure.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SCREENS, VIEWPORTS } from './accessibilityCertification.mjs';
+import { openCompletedSection, SCREENS, VIEWPORTS } from './accessibilityCertification.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/accessible-names');
-const origins = { app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188' };
+const origins = {
+  app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
+  audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
+};
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 const failures = [];
@@ -138,6 +153,74 @@ const runGrades = async (page, viewport) => {
   await toggle.click();
 };
 
+// The element focus really landed on (through shadow roots), and what the
+// accessibility tree says is focused: its role and name.
+const focusedName = async (page) => {
+  const dom = await page.evaluate(() => {
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    const host = active?.getRootNode?.()?.host;
+    return { part: active?.getAttribute?.('part') || '', host: host?.tagName?.toLowerCase() || '', hostName: host?.getAttribute?.('aria-label') || '' };
+  });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Accessibility.enable');
+  const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+  await cdp.detach();
+  const focused = nodes.filter((node) => !node.ignored && (node.properties || []).some((prop) => prop.name === 'focused' && prop.value?.value) && node.role?.value !== 'RootWebArea');
+  const node = focused[focused.length - 1];
+  return { ...dom, role: node?.role?.value || '', name: String(node?.name?.value || '').trim() };
+};
+
+const checkBoxNamed = async (page, field, where) => {
+  await field.click();
+  await page.waitForTimeout(250);
+  const first = await focusedName(page);
+  check(first.host === 'math-field' && first.part === 'keyboard-sink', `${where}: focus lands in the math box's keyboard sink (${first.host || 'no host'} ${first.part || first.role})`);
+  check(first.name !== '' && first.name === first.hostName, `${where}: the focused element is named "${first.hostName}" (got ${first.role} "${first.name}")`);
+  await page.keyboard.type('1');
+  await page.keyboard.press('Tab');
+  await field.click();
+  await page.waitForTimeout(250);
+  const again = await focusedName(page);
+  check(again.name !== '' && again.name === again.hostName, `${where}: typed in, left and focused again, still named "${again.hostName}" (got ${again.role} "${again.name}")`);
+  await page.keyboard.press('Backspace');
+};
+
+const runMathBoxes = async (page, viewport) => {
+  await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=ux-multi&run=names-${viewport}`, { timeout: 180_000 });
+  await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="ux-multi"]'), null, { timeout: 180_000 });
+  for (const [questionId, where] of [['ux-multi', 'assignment'], ['ux-simple', 'practice'], ['ux-dol-simple', 'exit ticket']]) {
+    await page.evaluate((qid) => window.__ux.go(qid), questionId);
+    await page.waitForFunction((qid) => document.querySelector(`[data-question-id="${qid}"] math-field`), questionId, { timeout: 60_000 });
+    await page.waitForTimeout(1200);
+    const fields = page.locator(`[data-question-id="${questionId}"] math-field`);
+    const count = await fields.count();
+    check(count > 0, `${viewport} ${where}: the question has math boxes to check (${count})`);
+    for (let index = 0; index < count; index += 1) await checkBoxNamed(page, fields.nth(index), `${viewport} ${where} box ${index + 1}`);
+  }
+  // Work View: the enlarged workspace draws its own copy of the question.
+  await page.evaluate(() => window.__ux.go('ux-multi'));
+  await page.waitForFunction(() => document.querySelector('[data-question-id="ux-multi"] math-field'), null, { timeout: 60_000 });
+  await page.getByRole('button', { name: /Open Work View/ }).first().click();
+  await page.locator('.mathmaster-work-view-header').first().waitFor({ state: 'visible', timeout: 15_000 });
+  await page.waitForTimeout(800);
+  const inWorkView = page.locator('.mathmaster-work-view-host[data-open="true"] math-field').first();
+  check(await inWorkView.count() === 1, `${viewport} Work View: a math box is open in Work View`);
+  if (await inWorkView.count()) await checkBoxNamed(page, inWorkView, `${viewport} Work View box`);
+  await page.screenshot({ path: path.join(artifacts, `math-boxes-${viewport}.png`) }).catch(() => {});
+};
+
+const runCompleteBadge = async (page, viewport) => {
+  await page.locator('nav[aria-label="Student navigation"] button').filter({ hasText: 'Assignments' }).first().evaluate((button) => button.click());
+  await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
+  await openCompletedSection(page);
+  const badge = await page.locator('.mathmaster-section-tab.is-complete small').first().evaluate((element) => ({
+    text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize),
+  }));
+  check(badge.size >= 12, `${viewport} section tabs: the "${badge.text}" badge is at least 12px (${badge.size}px)`);
+  await page.screenshot({ path: path.join(artifacts, `complete-badge-${viewport}.png`) }).catch(() => {});
+};
+
 const main = async () => {
   const { mkdirSync } = await import('node:fs');
   mkdirSync(artifacts, { recursive: true });
@@ -163,6 +246,8 @@ const main = async () => {
         await sceneOf('student-home').open(page, origins);
         await runHome(page, viewport.id);
         await runGrades(page, viewport.id);
+        await runCompleteBadge(page, viewport.id);
+        await runMathBoxes(page, viewport.id);
       } catch (error) {
         check(false, `${viewport.id}: could not finish — ${error.message.split('\n')[0]}`);
         await page.screenshot({ path: path.join(artifacts, `FAIL-${viewport.id}.png`), fullPage: true }).catch(() => {});

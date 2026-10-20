@@ -143,6 +143,10 @@ test('every Process Mode file speaks the board\'s language, fits a phone, and is
   // Touch targets and radio semantics for every choice a student makes.
   const ui = file('src/tools/representationBridge/process/processUi.jsx');
   assert.match(ui, /minHeight: 44/);
-  assert.match(ui, /role="radiogroup"/);
-  assert.match(ui, /role="radio"\s+aria-checked=\{selected\}/);
+  // Each chip takes role="radio", aria-checked and its keys from the shared
+  // choice group (tests/platform/choiceGroup.test.mjs proves those props).
+  const chips = region(ui, 'export function ChoiceChips(', '\n}\n', 'ChoiceChips');
+  assert.match(chips, /role="radiogroup"/);
+  assert.match(chips, /const optionProps = useChoiceGroup\(\{ ids: options\.map\(\(option\) => option\.value\), value,/);
+  assert.match(region(chips, '<button', '>', 'a chip'), /\{\.\.\.optionProps\(index\)\}/);
 });

@@ -462,7 +462,10 @@ test('phone Work View trims nested padding around the math', () => {
 test('multi-part choices are named by their own text', () => {
   const grader = read('src/MultiAnswerGrader.jsx');
   assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceAccessibleLabel\(text\)\} \/>/);
-  assert.match(grader, /role="radio"\s*aria-checked=\{selected\}\s*aria-label=\{choiceAccessibleLabel\(raw\)\}/);
+  // Role and checked state come from the shared choice group; the name, given
+  // after them, is the choice's own text.
+  const options = region(grader, 'function ChoiceFieldOptions(', '\n}\n', 'ChoiceFieldOptions');
+  assert.match(options, /\{\.\.\.optionProps\(index\)\}\s*aria-label=\{choiceAccessibleLabel\(raw\)\}/);
 });
 
 // PR #357 CI: the typeset operand made the placed marker's innerText MathLive
