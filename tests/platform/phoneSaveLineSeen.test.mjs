@@ -51,7 +51,7 @@ for (const [layout, media] of PHONE_LAYOUTS) {
     assert.match(stage, /display: flex;/);
     assert.match(stage, /flex-direction: column;/);
     assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage > *'), /flex: 0 0 auto;/);
-    assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine'), /flex: 1 1 0;/);
+    assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine'), /flex: 1 1 auto;/);
   });
 
   test(`${layout}: the lines never take more than 30% of the stage, and scroll in place past it`, () => {

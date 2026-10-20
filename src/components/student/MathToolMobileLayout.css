@@ -728,7 +728,7 @@
   }
 
   .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-engine {
-    flex: 1 1 0;
+    flex: 1 1 auto;
   }
 
   .mathmaster-assignment-screen .mathmaster-question-stage > .mathmaster-question-stage-status {
