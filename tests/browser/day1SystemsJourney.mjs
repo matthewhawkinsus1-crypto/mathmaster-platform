@@ -248,8 +248,8 @@ const subsystemBackSubstitute = async (page, value, rIndex, variable) => {
 
 /* ------------------------------------------- back-substitute + verify */
 
-const placeValue = async (page, scopeLocator, variable) => {
-  await workflow(page).locator(`button[aria-label^="Pick up solved value"][aria-label$="for ${variable}"]`).first().click();
+const placeValue = async (page, scopeLocator, variable, tokens = workflow(page)) => {
+  await tokens.locator(`button[aria-label^="Pick up solved value"][aria-label$="for ${variable}"]`).first().click();
   await settle(page, 150);
   await scopeLocator.locator(`button[aria-label="Variable ${variable}. Place the selected value or expression here"]`).first().click();
   await settle(page, 350);
@@ -265,11 +265,24 @@ const backSubstitute = async (page, destinationId, knownVariables) => {
 // original equation that has that variable, and a side that is already a
 // number is shown as given — so three placements, then one simplified side
 // per equation. Every equation is still simplified and checked on its own.
+//
+// The stage appears when the embedded solver reports the last value solved,
+// which can land after the previous step's settle (CI's slower browser). Until
+// then the back-substitution tokens are on screen with the SAME "Pick up solved
+// value … for x" label: a pick-up that lands on one is cleared by the solved
+// transition, the placement is ignored, and no card is substituted ("0 of 3").
+// So wait for the stage, pick up from its own token bank, and wait for each
+// placement to land rather than for a fixed time.
 const verifyAll = async (page, journey, sides) => {
-  const cards = page.locator('[data-verify-id]');
+  const stage = page.locator('.mathmaster-systems-verification-stage');
+  await stage.waitFor({ timeout: 10000 });
+  const tokens = stage.locator('.mathmaster-systems-verification-token-bank');
+  const cards = stage.locator('[data-verify-id]');
   for (const variable of ['x', 'y', 'z']) {
-    const open = cards.filter({ has: page.locator(`button[aria-label="Variable ${variable}. Place the selected value or expression here"]`) });
-    await placeValue(page, open.first(), variable);
+    const target = `button[aria-label="Variable ${variable}. Place the selected value or expression here"]`;
+    await placeValue(page, cards.filter({ has: page.locator(target) }).first(), variable, tokens);
+    // Placed once, the value is in every original equation that has it.
+    await cards.locator(target).first().waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
   }
   const substituted = await cards.filter({ hasText: 'Values substituted' }).count();
   expect(journey, substituted === sides.length, `three placements substituted into ${substituted} of ${sides.length} original equations`);
