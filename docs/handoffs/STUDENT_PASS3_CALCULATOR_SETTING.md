@@ -317,6 +317,9 @@ EOF
    ordinary work (#239 had it the other way). On exit tickets, quizzes and tests the stricter of the two wins. If the
    owner prefers #239's order everywhere, it is one condition in `resolveCalculatorPolicy` (and two tests). Close
    #239 as superseded after this merges.
+   **Decided 2026-10-20: the question wins (#239's order).** On ordinary work the question's own mode is used as it is,
+   and the assignment's setting serves only items with none of their own. On exit tickets, quizzes and tests the
+   stricter of the two still applies. Built in the follow-up PR from `claude/calculator-question-wins-20261020`.
 2. **Zeros / minimum / maximum on secure practice tests.** Off there (`keyPoints` is opt-in) so the secure panel is
    unchanged. The Digital SAT's Desmos shows such points; turning it on is one prop in `SecureExamContainer.jsx`.
 3. **May the assignment widen an unauthored assessment item?** *Current behaviour (what this branch ships):* on an
