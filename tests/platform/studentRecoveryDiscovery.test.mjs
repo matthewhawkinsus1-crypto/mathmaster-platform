@@ -8,8 +8,9 @@
  *
  *   it lists exactly the actionable Recoveries the Results panel shows — never
  *     one the panel (and so the server) would refuse, and never misses one;
- *   it says what to do in plain words, including that the assignment's own
- *     Practice section does not unlock it;
+ *   it says what to do in plain words, including exactly which practice
+ *     counts toward the unlock — the "Practice for …" questions, and (Recovery
+ *     V2) the assignment's own Practice questions on the same skills, by name;
  *   it announces each phase once per device, and marks it NEW until opened.
  */
 import test from 'node:test';
@@ -239,16 +240,34 @@ test('the list always agrees with the Results panel — across the whole Recover
  * The words a student reads.
  * ------------------------------------------------------------------------- */
 
-test('a locked Recovery says the exact bar, and that the assignment\'s own Practice section does not count', () => {
+// Recovery V2: the assignment's own Practice counts when it practises a skill
+// the DOL assessed (assignmentPracticeEvidence.mjs). One Practice question on
+// the DOL's two-step-equation skill, and one on an unrelated skill.
+const withPractice = (questions) => buildAssignment({
+  sections: [
+    ...buildAssignment().sections,
+    { id: 'practice', role: 'practice', title: 'Practice', questions },
+  ],
+});
+const SAME_SKILL = { questionId: 'p1', type: 'stepAlgebra', prompt: 'Solve for x.', questionFamily: { id: 'linear.twoStepEquation' } };
+const OTHER_SKILL = { questionId: 'p2', type: 'multiAnswer', prompt: 'What is 3 + 4?', answerFields: [{ id: 'a', answer: '7' }], alignments: [{ framework: 'teks', code: 'A.9C', role: 'primary' }] };
+
+test('a locked Recovery says the exact bar, and exactly which practice counts toward it', () => {
   const dol = discover().find((opportunity) => opportunity.section === 'dol');
-  assert.match(dol.detail, /7 of your last 8 Recovery practice questions/);
-  assert.match(dol.hint, /separate from the assignment's own Practice section/);
-  assert.match(dol.hint, /does not count/);
+  assert.match(dol.detail, /Get 7 of your last 8 practice questions right on your own to unlock it/);
+  // No Practice section: only the "Practice for …" questions.
+  assert.equal(dol.hint, 'Use the “Practice for …” questions to unlock it.');
+  // Practice on the DOL's skill counts, named as the student sees it.
+  const counting = discover({ assignments: [withPractice([OTHER_SKILL, SAME_SKILL])] }).find((opportunity) => opportunity.section === 'dol');
+  assert.equal(counting.hint, 'Practice Q2 in this assignment counts when you answer it without a hint or help, and so do the questions behind “Practice for …”.');
+  // Practice on other skills does not, and the student is told why.
+  const other = discover({ assignments: [withPractice([OTHER_SKILL])] }).find((opportunity) => opportunity.section === 'dol');
+  assert.match(other.hint, /this assignment's own Practice questions practise other skills, so they do not count toward unlocking it/);
   const unlocked = discover({ records: { 'asg-recovery': { dol: { section: 'dol', status: 'unlocked' } } } })
     .find((opportunity) => opportunity.section === 'dol');
   assert.match(unlocked.detail, /can only raise your score/);
   assert.doesNotMatch(unlocked.detail, /\d+%/, 'the browser never promises a cap it cannot know (an excused make-up is uncapped)');
-  const copy = JSON.stringify(discover().map(({ headline, detail, hint, actionLabel }) => ({ headline, detail, hint, actionLabel })));
+  const copy = JSON.stringify([...discover(), ...discover({ assignments: [withPractice([SAME_SKILL])] })].map(({ headline, detail, hint, actionLabel }) => ({ headline, detail, hint, actionLabel })));
   ['seed', 'family', 'variant', 'allocation', 'token', 'fingerprint', 'pin'].forEach((word) => {
     assert.doesNotMatch(copy, new RegExp(`\\b${word}\\b`, 'i'), `student copy must not say "${word}"`);
   });
@@ -443,17 +462,31 @@ test('a finished assignment with an open Recovery is in Active as well as Comple
  * The Results panel names the practice that counts.
  * ------------------------------------------------------------------------- */
 
-test('the Results panel\'s locked message names the bar and says the assignment\'s own practice does not count', () => {
-  const [dol] = buildStudentRecoverySummary({ assignment: buildAssignment(), tracker: TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: PERIOD, nowValue: NOW })
-    .filter((entry) => entry.section === 'dol');
-  assert.equal(dol.state, 'locked');
-  assert.match(dol.message, /Get 7 of your last 8 right to unlock a second try/);
-  assert.match(dol.message, /Practice inside the assignment does not count/);
+test('the Results panel\'s locked message names the bar and says which practice counts — and why the rest does not', () => {
+  const summaryFor = (assignment, tracker = TRACKER) => buildStudentRecoverySummary({ assignment, tracker, studentId: STUDENT, classId: CLASS, classPeriod: PERIOD, nowValue: NOW })
+    .find((entry) => entry.section === 'dol');
+  const plain = summaryFor(buildAssignment());
+  assert.equal(plain.state, 'locked');
+  assert.equal(plain.message, 'Use “Practice for …” to answer new practice questions. Get 7 of your last 8 right to unlock a second try.');
+  assert.equal(plain.assignmentPractice.role, 'none');
+  const counting = summaryFor(withPractice([SAME_SKILL]));
+  assert.equal(counting.message, 'Get 7 of your last 8 practice questions right on your own to unlock a second try. Practice Q1 in this assignment counts when you answer it without a hint or help, and so do the questions behind “Practice for …”.');
+  assert.equal(counting.assignmentPractice.role, 'counts');
+  assert.deepEqual(counting.assignmentPractice.countingNumbers, [1]);
+  const other = summaryFor(withPractice([OTHER_SKILL]));
+  assert.match(other.message, /This assignment's own Practice questions practise other skills, so they do not count toward it\./);
+  // When the original closed: the DOL was given on Sep 1, a school day before NOW.
+  assert.match(plain.originalClosedLabel, /^Your DOL was given in class on .*Sep.* 1 and is now closed\.$/);
+
+  // The banner over a locked Recovery says where the counting practice is.
   const panel = componentSource('src/components/student/SectionRecoveryPanel.jsx');
   const banner = region(panel, '<strong>Recovery Available</strong>', '</div>', 'Recovery Available banner');
   assert.doesNotMatch(banner, /Improve your Practice mastery/, 'the wording that sent students to the wrong Practice is gone');
-  assert.match(banner, /Practice for/);
-  assert.match(banner, /does not count/);
+  assert.match(banner, /\{lockedBannerText\(summary\)\}/);
+  const words = region(panel, 'const lockedBannerText = (summary) => {', '\n};', 'banner words');
+  assert.match(words, /roles\.has\('counts'\)[\s\S]*Practice questions in this assignment that each card names/);
+  assert.match(words, /roles\.has\('otherSkills'\)[\s\S]*practise other skills, so they do not count toward it/);
+  assert.match(words, /Use the “Practice for …” button below to unlock another try\./);
 });
 
 /* ---------------------------------------------------------------------------
@@ -463,9 +496,16 @@ test('the Results panel\'s locked message names the bar and says the assignment\
 const app = componentSource('src/App.jsx');
 
 test('App builds one Recovery list, from the same original the Results panel compares against', () => {
-  assert.match(app, /^import \{\n(?:  [A-Za-z]+,\n)*  buildStudentRecoveryDiscovery,\n(?:  [A-Za-z]+,\n)*\} from '\.\/platform\/recovery\/studentRecoveryDiscovery\.js';$/m);
+  // Deciding the list loads after Home (app/student/studentRecoveryKit.js);
+  // showing and announcing it is the light notices module.
+  assert.match(app, /^import \{\n(?:  [A-Za-z]+,\n)*  markRecoveryNotified,\n(?:  [A-Za-z]+,\n)*\} from '\.\/platform\/recovery\/studentRecoveryNotices\.js';$/m);
+  assert.match(app, /^import \{ loadStudentRecoveryKit, loadedStudentRecoveryKit \} from '\.\/app\/student\/studentRecoveryKitLoader\.js';$/m);
   const memo = region(app, 'const studentRecoveryDiscovery = useMemo(', '\n  );\n', 'Recovery discovery memo');
-  assert.match(memo, /buildStudentRecoveryDiscovery\(\{/);
+  assert.match(memo, /return studentRecoveryKit\.buildStudentRecoveryDiscovery\(\{/);
+  assert.match(memo, /if \(!recoveryDiscoveryScope \|\| !studentRecoveryKit\) return NO_RECOVERY_OPPORTUNITIES;/, 'nothing is offered before the kit arrives');
+  assert.match(memo, /\[recoveryDiscoveryScope, studentRecoveryKit,/, 'the list is built when the kit arrives');
+  // A Practice question a teacher graded is not the student's own evidence.
+  assert.match(memo, /overridesByAssignment: teacherGradeOverridesByAssignment \|\| \{\},/);
   // After teacher overrides and BEFORE any Recovery — never the display
   // tracker, which already credits a completed Recovery.
   assert.match(memo, /trackerByAssignment: projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
@@ -485,7 +525,6 @@ test('App builds one Recovery list, from the same original the Results panel com
   assert.match(scope, /user\?\.role !== 'student' \|\| !user\?\.id\s*\?\s*null/);
   assert.match(scope, /activeView === 'dashboard'\s*\?\s*RECOVERY_DISCOVERY_ALL/);
   assert.match(scope, /\(activeView === 'assignment' && activeAssignmentId\) \|\| null/);
-  assert.match(memo, /if \(!recoveryDiscoveryScope\) return NO_RECOVERY_OPPORTUNITIES;/);
   assert.match(memo, /recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL\s*\?\s*assignments\s*:\s*assignments\.filter\(\(assignment\) => assignment\.id === recoveryDiscoveryScope\)/);
   assert.match(memo, /\[recoveryDiscoveryScope,/, 'a change of screen rebuilds it');
 });

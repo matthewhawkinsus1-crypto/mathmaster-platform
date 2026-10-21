@@ -710,6 +710,10 @@ const workedExampleSteps = [
   ['The third point {1}: {2} stays {3} and {4}, so its image is {5}.', 'El tercer punto {1}: {2} sigue siendo {3} y {4}, así que su imagen es {5}.'],
   ['In {1}, a is one, {2} is one, {3} is zero, {4}.', 'En {1}, a vale uno, {2} vale uno, {3} vale cero, {4}.'],
   ['In {1}, a is one, {2}, {3} is zero, {4} is zero.', 'En {1}, a vale uno, {2}, {3} vale cero, {4} vale cero.'],
+  // A worked example's sibling where b and h both move (a reflection with a
+  // shift), with and without a stretch.
+  ['In {1}, a is one, {2}, {3}, {4} is zero.', 'En {1}, a vale uno, {2}, {3}, {4} vale cero.'],
+  ['In {1}, {2}, {3}, {4}, {5} is zero.', 'En {1}, {2}, {3}, {4}, {5} vale cero.'],
   ['In {1}, every point has y-coordinate {2}; the other coordinate can be any number.', 'En {1}, todos los puntos tienen coordenada y igual a {2}; la otra coordenada puede ser cualquier número.'],
   ['Plot two such points, for example {1} and {2}.', 'Marca dos puntos así, por ejemplo {1} y {2}.'],
   ['Draw the horizontal line through them.', 'Traza la recta horizontal que pasa por ellos.'],

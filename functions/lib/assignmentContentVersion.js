@@ -158,7 +158,10 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
       });
       continue;
     }
-    const result = policy.classifyContentQuestionChange(row.question, target.question);
+    // Recovery-capability upgrades are recognized here (and only here): a
+    // target that makes a static Warm-Up/DOL question a family slot keeps the
+    // live question and adds its Recovery (assignmentContentUpgradePolicy.mjs).
+    const result = policy.classifyContentQuestionChange(row.question, target.question, { recoveryCapability: true });
     changes.push({
       questionId: row.questionId,
       flatIndex: row.flatIndex,
@@ -170,6 +173,7 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
       reason: result.reason || null,
       affectedFieldIds: result.affectedFieldIds || [],
       gradingKeys: result.gradingKeys || [],
+      ...(result.recoveryFamily ? { recoveryFamily: result.recoveryFamily } : {}),
       beforeQuestion: row.question,
       afterQuestion: target.question,
     });
@@ -189,9 +193,30 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
     systemsWorkspaceUpgrade: 0,
     gradingExpansion: 0,
     clarificationOnly: 0,
+    recoveryCapability: 0,
     fundamental: 0,
   };
   changes.forEach((change) => { counts[change.classification] += 1; });
+
+  // The Recovery bindings this upgrade proposes, certified at commit against
+  // the live questions (recoveryContentPlan.mjs): each recovery-capability
+  // change's family, and the target release's own recoveryContent for a
+  // question it leaves as it is.
+  const KEEPS_LIVE_RECOVERY = new Set(["unchanged", "clarificationOnly", "graphViewportRepair", "recoveryCapability"]);
+  const targetBindings = targetAssignment?.recoveryContent?.bindings && typeof targetAssignment.recoveryContent.bindings === "object"
+    ? targetAssignment.recoveryContent.bindings
+    : {};
+  const liveBindings = liveAssignment?.recoveryContent?.bindings && typeof liveAssignment.recoveryContent.bindings === "object"
+    ? liveAssignment.recoveryContent.bindings
+    : {};
+  const recoveryProposals = {};
+  changes.forEach((change) => {
+    if (change.classification === "recoveryCapability" && change.recoveryFamily) {
+      recoveryProposals[change.questionId] = { questionFamily: change.recoveryFamily };
+    } else if (KEEPS_LIVE_RECOVERY.has(change.classification) && targetBindings[change.questionId]?.questionFamily && !liveBindings[change.questionId]) {
+      recoveryProposals[change.questionId] = { questionFamily: targetBindings[change.questionId].questionFamily };
+    }
+  });
 
   const hashInput = {
     liveAssignmentId: liveAssignment.id,
@@ -211,6 +236,9 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
       beforeQuestion: change.beforeQuestion,
       afterQuestion: change.afterQuestion,
     })),
+    // Present only when the upgrade proposes Recovery, so every plan without
+    // it hashes exactly as it always did.
+    ...(Object.keys(recoveryProposals).length ? { recoveryProposals } : {}),
   };
 
   return {
@@ -220,6 +248,7 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
     targetAssignmentRevision: Number(targetAssignment.assignmentRevision || 1),
     changes,
     counts,
+    recoveryProposals,
     requiresFundamentalChoice: counts.fundamental > 0,
     planHash: planHashFor(hashInput),
   };
@@ -245,6 +274,9 @@ function buildUpgradedAssignment({
       const change = changeById.get(questionId);
       const target = targetRows.get(questionId)?.question || null;
       if (!change || change.classification === "unchanged") return question;
+      // The live question stays exactly as students saw it; its Recovery is
+      // stored beside it (plan.recoveryProposals), never in it.
+      if (change.classification === "recoveryCapability") return question;
       if (change.classification !== "fundamental") return target || question;
 
       const choice = fundamentalChoices[questionId];
@@ -282,6 +314,7 @@ function buildUpgradedAssignment({
 
   return {
     replacementQuestionIds,
+    recoveryProposals: plan.recoveryProposals || {},
     assignment: {
       ...liveAssignment,
       sections,

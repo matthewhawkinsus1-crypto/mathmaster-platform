@@ -25,8 +25,10 @@ import {
   buildStudentRecoveryDiscovery,
   groupRecoveryOpportunitiesByAssignment,
 } from '../../src/platform/recovery/studentRecoveryDiscovery.js';
+import { buildStudentRecoverySummary } from '../../src/platform/recovery/studentRecoveryModel.js';
 import StudentDashboardView from '../../src/components/student/StudentDashboardView.jsx';
 import StudentAssignmentsCenter from '../../src/components/student/StudentAssignmentsCenter.jsx';
+import SectionRecoveryPanel from '../../src/components/student/SectionRecoveryPanel.jsx';
 
 // As src/main.jsx: fluid font sizes follow the text-size setting (job N).
 installTextScale(window);
@@ -125,6 +127,28 @@ function Harness() {
     groups: { [BUCKET.COMPLETED]: [entry] },
   };
   const onOpen = (opportunity) => { opened.push({ section: opportunity.section, action: opportunity.action }); };
+  // The Results screen's own panel (what "Practice for …" opens beside).
+  if (view === 'results') {
+    const summary = buildStudentRecoverySummary({
+      assignment,
+      tracker,
+      recoveryForAssignment: records,
+      studentId: STUDENT,
+      classId: CLASS,
+      classPeriod: 'Period 3',
+      nowValue,
+    });
+    return (
+      <main style={{ padding: 16, maxWidth: 760, margin: '0 auto' }}>
+        <SectionRecoveryPanel
+          summary={summary}
+          onPractice={(section) => opened.push({ section, action: 'practice' })}
+          onStart={(section) => opened.push({ section, action: 'start' })}
+          onContinue={(section) => opened.push({ section, action: 'continue' })}
+        />
+      </main>
+    );
+  }
   const student = { id: STUDENT, displayName: 'Jordan Rivera', firstName: 'Jordan', lastName: 'Rivera', classPeriod: 'Period 3' };
   return view === 'center' ? (
     <StudentAssignmentsCenter

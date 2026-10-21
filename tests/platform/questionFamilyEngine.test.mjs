@@ -68,6 +68,8 @@ const correctFieldResponses = (question, instance) => {
       yIntercept: `(${answer.value.yIntercept[0]}, ${answer.value.yIntercept[1]})`,
     };
   }
+  // A typed-and-chosen board (Recovery V2 families): one value per field id.
+  if (answer.kind === 'fields') return Object.fromEntries(Object.entries(answer.value).map(([id, value]) => [id, String(value)]));
   throw new Error(`no responder for ${answer.kind}`);
 };
 
@@ -87,6 +89,19 @@ const REGISTRY_TOOL_WORK = {
     right: correctAlgebraicSystemWork(question),
     wrong: wrongAlgebraicSystemWork(question),
   }),
+  // The graphing board: the y-intercept and one slope step whose rise is whole,
+  // and the same line one unit up.
+  graphing2: (question) => {
+    const { m, b } = question.line;
+    const run = [1, 2, 3, 4, 5, 6].find((step) => Math.abs(Math.round(m * step) - m * step) < 1e-9);
+    const points = [[0, b], [run, b + m * run]];
+    return { right: { points }, wrong: { points: points.map(([x, y]) => [x, y + 1]) } };
+  },
+  // The Transformations Lab: each labeled point's image, and one image moved.
+  transformationsLab: (question, instance) => {
+    const images = instance.answer.value.map(([x, y]) => [x, y]);
+    return { right: { plottedPoints: images }, wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) } };
+  },
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));
@@ -194,7 +209,7 @@ test('every family: the answer key is correct for its own question, on the serve
           return;
         }
         if (REGISTRY_TOOL_WORK[question.type]) {
-          const { right, wrong } = REGISTRY_TOOL_WORK[question.type](question);
+          const { right, wrong } = REGISTRY_TOOL_WORK[question.type](question, instance);
           const browser = gradeToolWork({ toolId: question.type, question, work: right });
           assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
           assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);

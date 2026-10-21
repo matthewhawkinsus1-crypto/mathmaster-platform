@@ -68,16 +68,117 @@ export const excludedRecoveryNote = (count) => (count > 0
   : null);
 
 /*
+ * WHICH PRACTICE COUNTS — BY NAME (Recovery V2).
+ *
+ * The questions behind "Practice for …" always count. The assignment's own
+ * Practice questions count too when they practise a skill the Warm-Up or DOL
+ * assessed and the student answered them on their own, graded by MathMaster
+ * (functions/shared/assignmentPracticeEvidence.mjs — the same rule the server
+ * unlocks with). So the sentence names those questions, numbered exactly as
+ * the student sees them, or says plainly why this assignment's Practice does
+ * not count — "Practice inside the assignment" is never left to guesswork.
+ */
+const joinWords = (parts) => (parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);
+
+/** [1, 2, 3, 4, 7, 9] → "Practice Q1–Q4, Q7 and Q9"; [] → "". */
+export const practiceQuestionsText = (numbers = []) => {
+  const sorted = [...new Set((Array.isArray(numbers) ? numbers : []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+  if (!sorted.length) return '';
+  const runs = [];
+  sorted.forEach((number) => {
+    const last = runs[runs.length - 1];
+    if (last && number === last[1] + 1) last[1] = number;
+    else runs.push([number, number]);
+  });
+  const parts = runs.flatMap(([from, to]) => {
+    if (from === to) return [`Q${from}`];
+    if (to === from + 1) return [`Q${from}`, `Q${to}`];
+    return [`Q${from}–Q${to}`];
+  });
+  return `Practice ${joinWords(parts)}`;
+};
+
+/*
+ * What the assignment's own Practice section contributes, in the student's
+ * words:
+ *   counts       some of its questions count → named
+ *   otherSkills  it has Practice, none of it on this section's skills
+ *   none         the assignment has no Practice section
+ */
+export const ASSIGNMENT_PRACTICE_ROLE = Object.freeze({
+  COUNTS: 'counts',
+  OTHER_SKILLS: 'otherSkills',
+  NONE: 'none',
+});
+
+/*
  * A LOCKED RECOVERY SAYS EXACTLY WHAT UNLOCKS IT, AND WHERE.
  *
- * "Recovery unlocks when your recent Practice shows mastery" sent students to
- * the assignment's own Practice section, which never counts: only the
- * questions behind "Practice for …" do. So the sentence names the bar from the
- * policy (7 of the last 8 by default) and says which practice counts.
+ * The bar comes from the policy (7 of the last 8 by default); the second half
+ * says which practice counts (above).
  */
-export const lockedRecoveryMessage = ({ requiredCorrect, windowSize } = {}) => (
-  `Use “Practice for …” to answer new practice questions. Get ${requiredCorrect} of your last ${windowSize} right to unlock a second try. Practice inside the assignment does not count toward it.`
-);
+export const assignmentPracticeCountsSentence = ({ countingText = '', countingNumbers = [] } = {}) => {
+  if (!countingText) return '';
+  const one = countingNumbers.length === 1;
+  return `${countingText} in this assignment ${one ? 'counts' : 'count'} when you answer ${one ? 'it' : 'them'} without a hint or help, and so do the questions behind “Practice for …”.`;
+};
+
+export const lockedRecoveryMessage = ({ requiredCorrect, windowSize, practiceRole = ASSIGNMENT_PRACTICE_ROLE.NONE, countingText = '', countingNumbers = [] } = {}) => {
+  if (practiceRole === ASSIGNMENT_PRACTICE_ROLE.COUNTS && countingText) {
+    return `Get ${requiredCorrect} of your last ${windowSize} practice questions right on your own to unlock a second try. ${assignmentPracticeCountsSentence({ countingText, countingNumbers })}`;
+  }
+  const lead = `Use “Practice for …” to answer new practice questions. Get ${requiredCorrect} of your last ${windowSize} right to unlock a second try.`;
+  return practiceRole === ASSIGNMENT_PRACTICE_ROLE.OTHER_SKILLS
+    ? `${lead} This assignment's own Practice questions practise other skills, so they do not count toward it.`
+    : lead;
+};
+
+/** The assignment Practice account for one section, as the panel words it. */
+export const describeAssignmentPractice = (assignmentPractice = null, projection = null) => {
+  const considered = Array.isArray(assignmentPractice?.questions) ? assignmentPractice.questions : [];
+  // Numbered as the student sees them: the logical position in the Practice
+  // section (a replacement question sits where the question it replaced was).
+  const numberOf = (entry) => {
+    const projected = projection?.byStorageIndex?.get?.(entry.storageIndex);
+    if (projected && Number.isInteger(projected.logicalPosition)) return projected.logicalPosition + 1;
+    const match = /Q(\d+)$/.exec(String(entry.label || ''));
+    return match ? Number(match[1]) : null;
+  };
+  const aligned = considered.filter((entry) => entry.aligned);
+  const countedCorrect = aligned.filter((entry) => entry.counts).length;
+  const role = !considered.length
+    ? ASSIGNMENT_PRACTICE_ROLE.NONE
+    : aligned.length ? ASSIGNMENT_PRACTICE_ROLE.COUNTS : ASSIGNMENT_PRACTICE_ROLE.OTHER_SKILLS;
+  return {
+    role,
+    countingText: practiceQuestionsText(aligned.map(numberOf)),
+    countingNumbers: aligned.map(numberOf).filter((n) => n !== null),
+    // Already answered correctly on their own: in the meter now.
+    countedCorrect,
+  };
+};
+
+/*
+ * WHEN THE ORIGINAL CLOSED, in the student's own time: the moment it closed,
+ * or — for a section given on an earlier school day — that day.
+ */
+const formatDateKey = (dateKey) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ''));
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+export const originalClosedLabel = (opportunity = null, sectionName = '') => {
+  if (!opportunity || opportunity.status !== 'closed') return null;
+  const name = sectionName || 'original';
+  const at = Number(opportunity.closedAtMs);
+  if (Number.isFinite(at) && opportunity.closedAtMs !== null && opportunity.reason !== 'assignment-final-deadline') {
+    return `Your ${name} closed ${formatRecoveryEndsAt(at)}.`;
+  }
+  const day = formatDateKey(opportunity.instructionDateKey);
+  return day ? `Your ${name} was given in class on ${day} and is now closed.` : null;
+};
 
 export const KEPT_ORIGINAL_NOTE = 'Your teacher reviewed your Recovery and kept your original score.';
 export const REPLACEMENT_ISSUED_NOTE = 'Your teacher added a new question to your Recovery. Your other answers are saved — just answer the new question and submit again.';
@@ -89,6 +190,65 @@ export const formatRecoveryEndsAt = (endsAtMs) => {
 };
 
 const OPEN_STATES = new Set([RECOVERY_STATE.LOCKED, RECOVERY_STATE.UNLOCKED, RECOVERY_STATE.IN_PROGRESS]);
+
+/**
+ * The shared Recovery decision for one student and one assignment, per
+ * Warm-Up/DOL section the student has: the context the server decides with
+ * (buildSectionRecoveryContext), the student's original for it, and the
+ * content projection. The student's panel and the teacher's class roster
+ * (teacherRecoveryRoster.js) both read it, so they cannot disagree.
+ */
+export const studentRecoveryContexts = ({
+  assignment = null,
+  tracker = {},
+  recoveryForAssignment = null,
+  studentId = null,
+  classId = null,
+  classPeriod = null,
+  schedule = null,
+  studentProfile = null,
+  overrides = null,
+  // The student's Live Challenge Warm-Up credit, where the caller has it.
+  challengeCredit = null,
+  nowValue = Date.now(),
+} = {}) => {
+  if (!assignment?.id || !studentId) return { projection: null, sections: [] };
+  const questions = getStoredAssignmentQuestions(assignment);
+  const projection = projectCurrentAssignmentContent(assignment);
+  // The original is this student's own section: a reduced-item-count
+  // accommodation's omitted items are neither in the grade nor in Recovery
+  // (the server's advanceSectionRecovery filters the same way).
+  const originals = splitGradesBySection({ tracker, assignment, supportProfile: studentProfile });
+  const omitted = studentOmittedIndices({ assignment, profile: studentProfile, tracker, nowValue });
+  const sections = ['warmup', 'dol'].map((section) => {
+    const sectionEntries = projection.entries
+      .filter((entry) => entry.logicalRole === section && !omitted.has(entry.storageIndex))
+      .map((entry) => ({ storageIndex: entry.storageIndex, question: questions[entry.storageIndex] }));
+    if (!sectionEntries.length) return null;
+    const original = originals[section] || {};
+    const context = buildSectionRecoveryContext({
+      assignment,
+      section,
+      sectionEntries,
+      questions,
+      tracker,
+      sectionOriginal: { score: original.total ? original.score : null, attempted: original.attempted || 0, total: original.total || 0 },
+      record: recoveryForAssignment?.[section] || null,
+      studentId,
+      classId,
+      classPeriod,
+      schedule,
+      supportEvents: null,
+      challengeCredit,
+      studentProfile,
+      overrides,
+      sectionModeFor: (role) => getSectionVariantMode(assignment, role),
+      nowValue,
+    });
+    return { section, original, context };
+  }).filter(Boolean);
+  return { projection, sections };
+};
 
 /**
  * The student's Recovery summary for one assignment: one entry per Warm-Up/DOL
@@ -104,40 +264,27 @@ export const buildStudentRecoverySummary = ({
   classPeriod = null,
   schedule = null,
   studentProfile = null,
+  // teacherGradeOverridesByAssignment[assignment.id]: a Practice question a
+  // teacher graded is not the student's own evidence (assignmentPracticeEvidence).
+  overrides = null,
   nowValue = Date.now(),
 } = {}) => {
   if (!assignment?.id || !studentId) return [];
-  const questions = getStoredAssignmentQuestions(assignment);
-  const entries = projectCurrentAssignmentContent(assignment).entries;
-  // The original is this student's own section: a reduced-item-count
-  // accommodation's omitted items are neither in the grade nor in Recovery
-  // (the server's advanceSectionRecovery filters the same way).
-  const sections = splitGradesBySection({ tracker, assignment, supportProfile: studentProfile });
-  const omitted = studentOmittedIndices({ assignment, profile: studentProfile, tracker, nowValue });
-  return ['warmup', 'dol'].map((section) => {
-    const sectionEntries = entries
-      .filter((entry) => entry.logicalRole === section && !omitted.has(entry.storageIndex))
-      .map((entry) => ({ storageIndex: entry.storageIndex, question: questions[entry.storageIndex] }));
-    if (!sectionEntries.length) return null;
-    const original = sections[section] || {};
-    const context = buildSectionRecoveryContext({
-      assignment,
-      section,
-      sectionEntries,
-      questions,
-      tracker,
-      sectionOriginal: { score: original.total ? original.score : null, attempted: original.attempted || 0, total: original.total || 0 },
-      record: recoveryForAssignment?.[section] || null,
-      studentId,
-      classId,
-      classPeriod,
-      schedule,
-      supportEvents: null,
-      studentProfile,
-      sectionModeFor: (role) => getSectionVariantMode(assignment, role),
-      nowValue,
-    });
+  const { projection, sections } = studentRecoveryContexts({
+    assignment,
+    tracker,
+    recoveryForAssignment,
+    studentId,
+    classId,
+    classPeriod,
+    schedule,
+    studentProfile,
+    overrides,
+    nowValue,
+  });
+  return sections.map(({ section, original, context }) => {
     const { eligibility, mastery, record } = context;
+    const practice = describeAssignmentPractice(context.assignmentPractice, projection);
     if (!eligibility.studentVisible) return null;
     const copy = STATE_COPY[eligibility.state] || STATE_COPY[RECOVERY_STATE.LOCKED];
     const completedState = eligibility.state === RECOVERY_STATE.COMPLETED && record?.status === 'completed'
@@ -172,8 +319,19 @@ export const buildStudentRecoverySummary = ({
       state: eligibility.state,
       badge: copy.badge,
       message: eligibility.state === RECOVERY_STATE.LOCKED
-        ? lockedRecoveryMessage({ requiredCorrect: mastery.requiredCorrect, windowSize: mastery.windowSize })
+        ? lockedRecoveryMessage({
+          requiredCorrect: mastery.requiredCorrect,
+          windowSize: mastery.windowSize,
+          practiceRole: practice.role,
+          countingText: practice.countingText,
+          countingNumbers: practice.countingNumbers,
+        })
         : copy.message,
+      // Which practice counts, and how much of the meter each kind filled.
+      assignmentPractice: practice,
+      masterySources: mastery.sources || null,
+      // When the original closed — the reason Recovery is open at all.
+      originalClosedLabel: originalClosedLabel(context.opportunity, section === 'dol' ? 'DOL' : 'Warm-Up'),
       masteryPercent: mastery.percent,
       masteryCorrect: mastery.correct,
       masteryWindow: mastery.windowSize,

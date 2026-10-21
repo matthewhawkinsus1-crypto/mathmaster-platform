@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 12,
+  "familyCount": 17,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -85,6 +85,34 @@
           "reason": "Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; \"small\" leading coefficients only add a common factor of 2.",
           "missingCapability": "`zeroForm: \"rational\"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: \"irrational\"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode \"factorQuadratic\" (the workshop and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
+        },
+        {
+          "familyId": "linear.graphFromSlopeIntercept",
+          "familyTitle": "Graph a line from its slope-intercept equation",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "The line is always given in slope-intercept form, with a whole-number or unit-fraction slope and a whole-number intercept, so the student only reads m and b off the equation; the remaining levers are wider ranges, which are not rigor.",
+          "missingCapability": "A `form` knob that states the line in standard form (Ax + By = C) or point-slope form, so the student must rewrite it before graphing, answered in the same graphing2 slopeIntercept board.",
+          "teacherReason": "MathMaster's line-graphing generator only graphs equations already in slope-intercept form, so it cannot yet build the rewrite-then-graph work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "linear.keyCharacteristics",
+          "familyTitle": "Key characteristics of a line",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is an unrestricted line, so the domain and range are always all real numbers; the fraction slopes and intercepts it already writes are the original skill, not an extension of it.",
+          "missingCapability": "A `domain` knob (a closed interval, or a domain restricted by a context) with the range answered as an inequality or interval in the answer fields.",
+          "teacherReason": "MathMaster's key-characteristics generator only writes unrestricted lines, so it cannot yet ask the restricted-domain work a built-in Honors extension needs."
         },
         {
           "familyId": "linear.multiStepEquation",
@@ -311,6 +339,48 @@
           "reason": "This family still makes one-solution systems answered as one ordered pair, but systems.algebraic2x2 v1 (pinnable to `method: \"substitution\"`) now generates 2×2 systems with `solutionCase` one | none | infinite | mixed in the Systems Workspace's algebraic mode, where substitution — isolating, substituting, solving and reading 0 = c — is marked by the shared server grader. A recipe anchored on this family can target it; none has been written yet.",
           "missingCapability": null,
           "teacherReason": "MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
+        },
+        {
+          "familyId": "transformations.linearCompareEffects",
+          "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It compares, with three choice fields, whether a transformation of f(x) = x acts on the inputs or the outputs; the choices are fixed, so no deeper reasoning can be generated from it.",
+          "missingCapability": "A second parent function to compare against, or a server-marked justification field explaining why the two effects coincide for f(x) = x.",
+          "teacherReason": "MathMaster's transformation-comparison generator only asks fixed-choice questions about f(x) = x, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.linearHorizontalShiftAlgebra",
+          "familyTitle": "A horizontal shift of a line, written as a vertical shift",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "For a line, a horizontal shift is always equivalent to a vertical one, and that equivalence is the skill this family assesses; the Honors question — why it fails for other parents — needs a parent that is not a line.",
+          "missingCapability": "A non-linear parent (absolute value or quadratic) for r(x) = j(x − c), with a field asking whether an equivalent vertical shift exists.",
+          "teacherReason": "MathMaster's horizontal-shift generator only uses linear functions, so it cannot yet ask the compare-the-parents work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "transformations.linearPlotImages",
+          "familyTitle": "Graph a transformation of f(x) = x by mapping labeled points",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It plots the images of three points under one transformation of f(x) = x at a time; Honors depth combines a shift with a stretch, where the order of the moves matters.",
+          "missingCapability": "A `moves: 2` knob that composes a shift with a vertical or horizontal scale (g(x) = a·f(b(x − h)) + k), answered with the same plotted images in the Transformations Lab.",
+          "teacherReason": "MathMaster's transformations generator plots one transformation at a time, so it cannot yet build the combined-transformation work a built-in Honors extension needs."
         }
       ],
       "concepts": [
@@ -419,7 +489,7 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 5,
-        "BLOCKED": 2,
+        "BLOCKED": 7,
         "NOT APPROPRIATE": 1
       }
     },
@@ -468,6 +538,34 @@
           "reason": "Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros.",
           "missingCapability": "`zeroForm: \"irrational\" | \"complex\"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode \"quadraticRoots\" (the lab and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
+        },
+        {
+          "familyId": "linear.graphFromSlopeIntercept",
+          "familyTitle": "Graph a line from its slope-intercept equation",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Graphing a line from slope-intercept form is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Graphing a line from slope-intercept form is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "linear.keyCharacteristics",
+          "familyTitle": "Key characteristics of a line",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Key characteristics of a line is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Key characteristics of a line is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "linear.multiStepEquation",
@@ -594,6 +692,48 @@
           "reason": "Algebra II substitution is used on linear-quadratic systems (A2.3C–D), which no registered family generates.",
           "missingCapability": "A Question Family for systemsWorkspace mode \"linearQuadratic\" (the mode and its server grader exist), with a knob for the number of intersections (0, 1 or 2).",
           "teacherReason": "MathMaster has no generator for linear-quadratic systems yet, so it cannot build a no-AI Algebra II Honors extension for systems by substitution."
+        },
+        {
+          "familyId": "transformations.linearCompareEffects",
+          "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Comparing horizontal and vertical transformations of f(x) = x is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Comparing horizontal and vertical transformations of f(x) = x is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "transformations.linearHorizontalShiftAlgebra",
+          "familyTitle": "A horizontal shift of a line, written as a vertical shift",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Horizontal shifts of a linear function is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Horizontal shifts of a linear function is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "transformations.linearPlotImages",
+          "familyTitle": "Graph a transformation of f(x) = x by mapping labeled points",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Plotting a transformation of f(x) = x is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Plotting a transformation of f(x) = x is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         }
       ],
       "concepts": [
@@ -798,7 +938,7 @@
         "READY": 0,
         "CAPABLE": 0,
         "BLOCKED": 6,
-        "NOT APPROPRIATE": 6
+        "NOT APPROPRIATE": 11
       }
     }
   }

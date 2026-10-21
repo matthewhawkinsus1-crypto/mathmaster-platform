@@ -73,6 +73,55 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
   'linear.multipleRepresentations': Object.freeze({
     algebra2: Object.freeze(ALGEBRA_I_ONLY('Multiple representations of a linear relationship')),
   }),
+  // Recovery V2 families: written so a static Warm-Up or DOL question can be
+  // recovered with fresh versions of itself (recoveryContent.mjs). Each asks
+  // exactly the original's skill at its rigor, which is why none carries an
+  // Honors task yet.
+  'linear.graphFromSlopeIntercept': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'The line is always given in slope-intercept form, with a whole-number or unit-fraction slope and a whole-number intercept, so the student only reads m and b off the equation; the remaining levers are wider ranges, which are not rigor.',
+      missingCapability: 'A `form` knob that states the line in standard form (Ax + By = C) or point-slope form, so the student must rewrite it before graphing, answered in the same graphing2 slopeIntercept board.',
+      teacherReason: 'MathMaster\'s line-graphing generator only graphs equations already in slope-intercept form, so it cannot yet build the rewrite-then-graph work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Graphing a line from slope-intercept form')),
+  }),
+  'linear.keyCharacteristics': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is an unrestricted line, so the domain and range are always all real numbers; the fraction slopes and intercepts it already writes are the original skill, not an extension of it.',
+      missingCapability: 'A `domain` knob (a closed interval, or a domain restricted by a context) with the range answered as an inequality or interval in the answer fields.',
+      teacherReason: 'MathMaster\'s key-characteristics generator only writes unrestricted lines, so it cannot yet ask the restricted-domain work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Key characteristics of a line')),
+  }),
+  'transformations.linearPlotImages': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It plots the images of three points under one transformation of f(x) = x at a time; Honors depth combines a shift with a stretch, where the order of the moves matters.',
+      missingCapability: 'A `moves: 2` knob that composes a shift with a vertical or horizontal scale (g(x) = a·f(b(x − h)) + k), answered with the same plotted images in the Transformations Lab.',
+      teacherReason: 'MathMaster\'s transformations generator plots one transformation at a time, so it cannot yet build the combined-transformation work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Plotting a transformation of f(x) = x')),
+  }),
+  'transformations.linearHorizontalShiftAlgebra': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'For a line, a horizontal shift is always equivalent to a vertical one, and that equivalence is the skill this family assesses; the Honors question — why it fails for other parents — needs a parent that is not a line.',
+      missingCapability: 'A non-linear parent (absolute value or quadratic) for r(x) = j(x − c), with a field asking whether an equivalent vertical shift exists.',
+      teacherReason: 'MathMaster\'s horizontal-shift generator only uses linear functions, so it cannot yet ask the compare-the-parents work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Horizontal shifts of a linear function')),
+  }),
+  'transformations.linearCompareEffects': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It compares, with three choice fields, whether a transformation of f(x) = x acts on the inputs or the outputs; the choices are fixed, so no deeper reasoning can be generated from it.',
+      missingCapability: 'A second parent function to compare against, or a server-marked justification field explaining why the two effects coincide for f(x) = x.',
+      teacherReason: 'MathMaster\'s transformation-comparison generator only asks fixed-choice questions about f(x) = x, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Comparing horizontal and vertical transformations of f(x) = x')),
+  }),
   'linear.representationSort': Object.freeze({
     algebra2: Object.freeze(ALGEBRA_I_ONLY('Sorting the representations of two lines')),
   }),

@@ -279,6 +279,13 @@ export const teacherAdmin = {
     callable('previewAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
   commitAssignmentContentUpgrade: (payload) =>
     callable('commitAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
+  // Recovery V2: Recovery versions for a live assignment's static Warm-Up and
+  // DOL questions — the dry-run report, then the approval bound to its plan
+  // hash. Writes only the assignment's recoveryContent (functions/index.js).
+  previewRecoveryContentUpgrade: (payload) =>
+    callable('previewRecoveryContentUpgrade')(payload).then((result) => result.data || {}),
+  commitRecoveryContentUpgrade: (payload) =>
+    callable('commitRecoveryContentUpgrade')(payload).then((result) => result.data || {}),
   previewTeacherQuestionRepair: (payload) =>
     callable('previewTeacherQuestionRepair')(payload).then((result) => result.data || {}),
   commitTeacherQuestionRepair: (payload) =>

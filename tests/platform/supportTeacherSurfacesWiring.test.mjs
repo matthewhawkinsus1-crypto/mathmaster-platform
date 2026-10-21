@@ -55,7 +55,9 @@ test('the assignment hub carries the Supports layer after progress, filed under 
   const mount = region(hub, '<AssignmentSupportLayer', '/>', 'layer mount');
   assert.match(mount, /teacherEmail=\{teacherEmail\}/);
   assert.match(mount, /gradeRecordsById=\{gradeRecordsById\}/);
-  assert.match(hub, /: <>\{controls\}\{liveSection\}\{progressSection\}\{supportsSection\}<\/>;/);
+  // Supports comes straight after progress; a layer added after it (Warm-Up &
+  // DOL Recovery) does not move it.
+  assert.match(hub, /: <>\{controls\}\{liveSection\}\{progressSection\}\{supportsSection\}(\{\w+\})*<\/>;/);
   const hubMount = executableSource(region(app, '<AssignmentHub', '/>', 'hub mount in App'));
   assert.match(hubMount, /teacherEmail=\{user\?\.email \|\| ''\}/);
 });

@@ -3,6 +3,7 @@ import {
   SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
   analyzeSafeResponseEntryRepair,
 } from './liveResponseRepairPolicy.mjs';
+import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 
 const canonicalize = (value) => {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -145,7 +146,65 @@ const withoutValueProvenance = (question) => {
   return rest;
 };
 
-export function classifyContentQuestionChange(beforeQuestion = {}, afterQuestion = {}) {
+/*
+ * A RECOVERY-CAPABILITY UPGRADE IS NOT A NEW QUESTION.
+ *
+ * A newer release of a lesson may turn a static Warm-Up or DOL question into
+ * a Question Family slot so that it can be recovered. Applied to a live
+ * assignment that would change the question every student is given — the
+ * classifier is right to call that fundamental, and retiring a question
+ * students answered merely to enable Recovery is exactly what must not
+ * happen. So, for the Content V2 live upgrade only (opt-in), such a change is
+ * its own classification:
+ *
+ *   recoveryCapability   the live question is kept BYTE FOR BYTE, and the
+ *                        target's family becomes its Recovery binding in the
+ *                        assignment's separately versioned recoveryContent
+ *                        (recoveryContent.mjs), certified at commit like any
+ *                        other binding. No tracker is migrated; no grade can
+ *                        change.
+ *
+ * Scoped tightly: the live question is static, the target is the same
+ * question id and role as a platform family slot answered in the same tool,
+ * and that family RECOGNIZES the live question — it can say which of its own
+ * versions is the original's mathematics. Anything else stays fundamental.
+ */
+const TEMPLATE_FIELDS = Object.freeze(['questionFamily', 'generator', 'generatorVersion', 'variants']);
+
+export function recoveryCapabilityChange(beforeQuestion = {}, afterQuestion = {}) {
+  const before = beforeQuestion || {};
+  const after = afterQuestion || {};
+  const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  if (!before.questionId || before.questionId !== after.questionId) return { safe: false };
+  if (isObject(before.questionFamily) || !isObject(after.questionFamily)) return { safe: false };
+  if (clean(before.activityRole || after.activityRole) && clean(before.activityRole) !== clean(after.activityRole)) return { safe: false };
+  const familyId = clean(after.questionFamily.id || after.questionFamily.familyId);
+  const version = Number.isInteger(Number(after.questionFamily.version)) && Number(after.questionFamily.version) >= 1
+    ? Number(after.questionFamily.version)
+    : null;
+  const family = familyId ? getPlatformQuestionFamily(familyId, version) : null;
+  if (!family || typeof family.recognize !== 'function' || !family.recovery?.eligible) return { safe: false };
+  const tool = clean(after.questionFamily.tool) || clean(after.type);
+  if (tool && tool !== clean(before.type)) return { safe: false };
+  let recognized = null;
+  try {
+    recognized = family.recognize(before);
+  } catch {
+    recognized = null;
+  }
+  if (!recognized) return { safe: false };
+  return {
+    safe: true,
+    questionFamily: {
+      id: family.id,
+      version: family.version,
+      constraints: { ...(isObject(after.questionFamily.constraints) ? after.questionFamily.constraints : {}) },
+      ...(clean(after.questionFamily.tool) ? { tool: clean(after.questionFamily.tool) } : {}),
+    },
+  };
+}
+
+export function classifyContentQuestionChange(beforeQuestion = {}, afterQuestion = {}, { recoveryCapability = false } = {}) {
   const before = withoutValueProvenance(beforeQuestion) || {};
   const after = withoutValueProvenance(afterQuestion) || {};
   if (stable(before) === stable(after)) return { classification: 'unchanged', safe: true };
@@ -185,6 +244,21 @@ export function classifyContentQuestionChange(beforeQuestion = {}, afterQuestion
 
   if (clarificationOnly(before, after)) {
     return { classification: 'clarificationOnly', safe: true };
+  }
+
+  if (recoveryCapability) {
+    const capability = recoveryCapabilityChange(before, after);
+    if (capability.safe) {
+      return {
+        classification: 'recoveryCapability',
+        safe: true,
+        // The live question is kept as it is; only Recovery is added.
+        keepsLiveQuestion: true,
+        presentationOnly: true,
+        affectedFieldIds: [],
+        recoveryFamily: capability.questionFamily,
+      };
+    }
   }
 
   return {

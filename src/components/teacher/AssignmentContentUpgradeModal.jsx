@@ -9,6 +9,9 @@ const LABELS = {
   systemsWorkspaceUpgrade: 'Restore interactive Systems Workspace',
   gradingExpansion: 'More forgiving grading',
   clarificationOnly: 'Clarification only',
+  // The live question stays exactly as students saw it; the release's
+  // family becomes its Recovery (functions/shared/recoveryContent.mjs).
+  recoveryCapability: 'Adds Recovery (question unchanged)',
   fundamental: 'Fundamental correction',
 };
 
@@ -191,6 +194,22 @@ export default function AssignmentContentUpgradeModal({
             <p style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>
               MathMaster will keep this assignment’s existing link, classes, due dates, attempts, and Classroom posts. More-forgiving grading may raise previously saved credit, but this upgrade cannot lower earned credit.
             </p>
+
+            {(preview.recovery || []).length > 0 && (
+              <div data-content-upgrade-recovery="true" style={{ marginBottom: 12, padding: 12, borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+                <strong style={{ color: 'var(--mm-info-text)' }}>Warm-Up and DOL Recovery</strong>
+                <div style={{ marginTop: 4, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+                  These questions stay exactly as students saw them. Their Recovery versions are stored beside them.
+                </div>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
+                  {preview.recovery.map((entry) => (
+                    <li key={entry.questionId}>
+                      <strong>{entry.questionId}</strong>: {entry.ok ? 'Recovery will be added.' : `No Recovery: ${(entry.issues || []).map((item) => item.message).join(' ')}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gap: 10 }}>
               {(preview.changes || []).filter((change) => change.classification !== 'unchanged').map((change) => (

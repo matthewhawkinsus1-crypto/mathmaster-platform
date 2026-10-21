@@ -3,9 +3,9 @@
 //   npx vite --port 5199 --strictPort &
 //   node tests/browser/recoveryDiscovery.mjs
 //
-// Renders Home and the Assignments Center through recoveryDiscoveryMain.jsx,
-// on a phone and a Chromebook, in light and dark, and checks what a student
-// needs from them:
+// Renders Home, the Assignments Center and the Results screen's Recovery panel
+// through recoveryDiscoveryMain.jsx, on a phone, an iPad and a Chromebook, in
+// light and dark, and checks what a student needs from them:
 //
 //   FOUND      a closed Warm-Up/DOL with a second try open is on Home and in
 //              the default (Active) tab of the Assignments Center — and
@@ -13,8 +13,10 @@
 //   NEXT STEP  each Recovery has one button naming the next thing to do
 //              (Practice for, Start, Continue), and pressing it opens THAT
 //              Recovery with THAT action
-//   EXPLAINED  a locked Recovery names the bar and says the assignment's own
-//              Practice section does not count; every card says until when
+//   EXPLAINED  a locked Recovery names the bar and exactly which practice
+//              counts (Recovery V2: the assignment's own Practice questions on
+//              the same skills, by number, and "Practice for …"); every card
+//              says until when, and the Results panel when the original closed
 //   NEW        an unopened Recovery is marked NEW; work in progress is not
 //   FITS       no sideways scroll at 360px; every button is a 44px target
 //
@@ -34,6 +36,7 @@ mkdirSync(OUT, { recursive: true });
 
 const DEVICES = [
   { id: 'phone-360', width: 360, height: 780 },
+  { id: 'ipad', width: 820, height: 1180 },
   { id: 'chromebook', width: 1366, height: 768 },
 ];
 const THEMES = ['light', 'dark'];
@@ -76,8 +79,8 @@ for (const device of DEVICES) {
       assert.deepEqual(await home.locator('[data-recovery-opportunity]').evaluateAll((cards) => cards.map((card) => card.dataset.recoveryOpportunity)), ['dol', 'warmup']);
       assert.deepEqual(await home.locator('[data-recovery-action]').allTextContents(), ['Practice for DOL Recovery', 'Practice for Warm-Up Recovery']);
       const text = await home.innerText();
-      assert.match(text, /Get 7 of your last 8 Recovery practice questions right/);
-      assert.match(text, /does not count toward unlocking it/);
+      assert.match(text, /Get 7 of your last 8 practice questions right on your own to unlock it/);
+      assert.match(text, /Practice Q1 and Q2 in this assignment count when you answer them without a hint or help, and so do the questions behind “Practice for …”/);
       assert.match(text, /Open until Fri, Oct 16, 11:59 PM/, 'the final submission date, in school time');
       assert.equal(await home.locator('[data-recovery-new]').count(), 2, 'both unopened Recoveries are NEW');
       await fits(page, `${tag} home`);
@@ -110,6 +113,22 @@ for (const device of DEVICES) {
     await check(`${tag} lesson day`, async () => {
       const { context, page } = await open({ device, theme, scene: 'lessonDay', view: 'home' });
       assert.equal(await page.locator('[data-recovery-home]').count(), 0, 'nothing is offered while the original is open');
+      await context.close();
+    });
+
+    await check(`${tag} results panel`, async () => {
+      const { context, page, errors } = await open({ device, theme, scene: 'available', view: 'results' });
+      const panel = page.locator('[data-section-recovery-panel]');
+      await panel.waitFor();
+      const text = await panel.innerText();
+      assert.match(text, /Answer practice questions on your own to unlock another try/);
+      assert.match(text, /Your DOL was given in class on Mon, Oct 5 and is now closed\./);
+      assert.match(text, /Practice Q1 and Q2 in this assignment count when you answer them without a hint or help/);
+      assert.equal(await panel.locator('[data-recovery-section]').count(), 2);
+      const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
+      assert.ok(scrollWidth <= innerWidth, `${tag} results: page is ${scrollWidth}px wide in a ${innerWidth}px window`);
+      await page.screenshot({ path: path.join(OUT, `results-available-${tag}.png`), fullPage: true });
+      assert.deepEqual(errors, []);
       await context.close();
     });
 

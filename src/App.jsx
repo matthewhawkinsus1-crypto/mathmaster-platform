@@ -295,7 +295,7 @@ import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
 import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
-import { buildRecoverySummariesByAssignment, recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
+import { recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
 import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import { whenDateTimeText } from './platform/student/studentWhen.js';
 import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
@@ -390,15 +390,16 @@ import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './servi
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
+// Showing and announcing a Recovery list is light; DECIDING one runs the
+// server's own rules and loads after Home (app/student/studentRecoveryKit.js).
 import {
-  buildStudentRecoveryDiscovery,
   groupRecoveryOpportunitiesByAssignment,
   markRecoveryNotified,
   markRecoverySeen,
   recoveryNotice,
   recoveryWasNotified,
-} from './platform/recovery/studentRecoveryDiscovery.js';
+} from './platform/recovery/studentRecoveryNotices.js';
+import { loadStudentRecoveryKit, loadedStudentRecoveryKit } from './app/student/studentRecoveryKitLoader.js';
 import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities.jsx';
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
@@ -777,6 +778,20 @@ function App() {
       });
     return () => { stopped = true; };
   }, [user?.role, teacherKit]);
+  // The student's Recovery decisions (app/student/studentRecoveryKit.js) load
+  // once a student is signed in, after Home. Every Recovery surface reads
+  // them through the kit and offers nothing until it arrives; a failed load is
+  // forgotten (the next sign-in asks again), and the server decides every
+  // Recovery action whatever the browser shows.
+  const [studentRecoveryKit, setStudentRecoveryKit] = useState(loadedStudentRecoveryKit);
+  useEffect(() => {
+    if (user?.role !== 'student' || studentRecoveryKit) return undefined;
+    let stopped = false;
+    loadStudentRecoveryKit()
+      .then((kit) => { if (!stopped) setStudentRecoveryKit(kit); })
+      .catch((error) => { console.warn('Recovery could not load yet:', error); });
+    return () => { stopped = true; };
+  }, [user?.role, user?.id, studentRecoveryKit]);
   // Only the teacher's screen calls these, and it renders only with the kit.
   const requireTeacherKit = () => {
     if (!teacherKit) throw new Error('The teacher workspace has not finished loading. Try again in a moment.');
@@ -1384,11 +1399,12 @@ function App() {
   // "Ways to raise your grade" see the Recoveries the result page would offer
   // (platform/student/recoveryStates.js). Refreshed once a minute at most.
   const studentRecoveryMinute = Math.floor(now / 60000);
-  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id
-    ? buildRecoverySummariesByAssignment({
+  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id && studentRecoveryKit
+    ? studentRecoveryKit.buildRecoverySummariesByAssignment({
       assignments,
       trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
       sectionRecoveryByAssignment,
+      overridesByAssignment: teacherGradeOverridesByAssignment || {},
       studentId: user.id,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
@@ -1397,22 +1413,24 @@ function App() {
       studentProfile: user.timingProfile || null,
       nowValue: studentRecoveryMinute * 60000,
     })
-    : {}), [user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
+    : {}), [studentRecoveryKit, user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
   const studentRecoverySummary = useMemo(() => {
-    if (!recoveryAssignmentId || !user?.id) return [];
+    if (!recoveryAssignmentId || !user?.id || !studentRecoveryKit) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
     if (!assignment) return [];
-    return buildStudentRecoverySummary({
+    return studentRecoveryKit.buildStudentRecoverySummary({
       assignment,
       tracker: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment)?.[recoveryAssignmentId] || {},
       recoveryForAssignment: sectionRecoveryByAssignment?.[recoveryAssignmentId] || null,
+      // A Practice question a teacher graded is not the student's own evidence.
+      overrides: teacherGradeOverridesByAssignment?.[recoveryAssignmentId] || null,
       studentId: user.id,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       schedule: classSchedule,
       studentProfile: user.timingProfile || null,
     });
-  }, [recoveryAssignmentId, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
+  }, [recoveryAssignmentId, studentRecoveryKit, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
   useEffect(() => {
     if (!recoveryAssignmentId) setRecoverySession(null);
@@ -1440,13 +1458,14 @@ function App() {
       ? RECOVERY_DISCOVERY_ALL
       : (activeView === 'assignment' && activeAssignmentId) || null;
   const studentRecoveryDiscovery = useMemo(() => {
-    if (!recoveryDiscoveryScope) return NO_RECOVERY_OPPORTUNITIES;
-    return buildStudentRecoveryDiscovery({
+    if (!recoveryDiscoveryScope || !studentRecoveryKit) return NO_RECOVERY_OPPORTUNITIES;
+    return studentRecoveryKit.buildStudentRecoveryDiscovery({
       assignments: recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL
         ? assignments
         : assignments.filter((assignment) => assignment.id === recoveryDiscoveryScope),
       trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
       sectionRecoveryByAssignment,
+      overridesByAssignment: teacherGradeOverridesByAssignment || {},
       studentId: user.id,
       classId: user.classId || null,
       classPeriod: user.classPeriod,
@@ -1454,7 +1473,7 @@ function App() {
       studentProfile: user.timingProfile || null,
       nowValue: now,
     });
-  }, [recoveryDiscoveryScope, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  }, [recoveryDiscoveryScope, studentRecoveryKit, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
   const studentRecoveryByAssignment = useMemo(
     () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
     [studentRecoveryDiscovery],

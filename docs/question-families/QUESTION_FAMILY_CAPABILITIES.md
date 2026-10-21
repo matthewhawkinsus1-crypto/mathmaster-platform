@@ -23,6 +23,8 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `absoluteValue.solveEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 8,588 — every student unique | — |
 | `functions.identifyIntercepts` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `functions.identifyZeros` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 162 — every student unique | — |
+| `linear.graphFromSlopeIntercept` | v1 · what an unpinned reference means | — | — | `graphing2` (slopeIntercept) | yes — shared server grader | yes | 150 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope |
+| `linear.keyCharacteristics` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 180 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope, xIntercept |
 | `linear.multipleRepresentations` | v1 · what an unpinned reference means | — | — | `representationBridge` (linearMultipleRepresentations) | yes — shared server grader | yes | 62 — every student unique | reduce-complexity: slope "integer", standardScale 1 |
 | `linear.multiStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 132,851 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6] |
 | `linear.multiStepEquation` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 3,923,640 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6]; keeps solutionCase, distribute, solutionForm, coefficientForm |
@@ -34,6 +36,9 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.elimination` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 2,174,110 — every student unique | — |
 | `systems.substitution` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 212,550 — every student unique | — |
+| `transformations.linearCompareEffects` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 1,152 — every student unique | — |
+| `transformations.linearHorizontalShiftAlgebra` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | reduce-complexity: slopeRange [2, 3], shiftRange [1, 3] |
+| `transformations.linearPlotImages` | v1 · what an unpinned reference means | — | — | `transformationsLab` (plotTransform) | yes — shared server grader | yes | 49 — every student unique | reduce-complexity: shiftRange [1, 5]; keeps transformation |
 
 ## Families
 
@@ -97,6 +102,63 @@ Zeros of a quadratic function.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 162 | — |
+
+### `linear.graphFromSlopeIntercept` v1
+
+Graph a line from its slope-intercept equation.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3C, A.3B
+- **Answered in:** `graphing2` (slopeIntercept)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `slope` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `slopeSign` | choice | `"any"` | `"any"`, `"positive"`, `"negative"` | — |
+| `slopeRange` | range | `[1, 5]` | whole-number range inside [1, 9] | — |
+| `denominatorRange` | range | `[2, 4]` | whole-number range inside [2, 6] | — |
+| `interceptRange` | range | `[-9, 9]` | whole-number range inside [-9, 9] | — |
+| `functionName` | choice | `"g"` | `"g"`, `"h"`, `"f"`, `"p"`, `"q"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 150 | — |
+| slope: "fraction" | 300 | — |
+
+- **reduce-complexity:** `slopeRange` [1, 3] — about 96 distinct questions; never changes `slope`.
+
+### `linear.keyCharacteristics` v1
+
+Key characteristics of a line.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3C, A.2A, A.3B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `slope` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `xIntercept` | choice | `"any"` | `"any"`, `"integer"`, `"fraction"` | yes |
+| `slopeSign` | choice | `"any"` | `"any"`, `"positive"`, `"negative"` | — |
+| `slopeRange` | range | `[1, 5]` | whole-number range inside [1, 9] | — |
+| `denominatorRange` | range | `[2, 4]` | whole-number range inside [2, 6] | — |
+| `interceptRange` | range | `[-9, 9]` | whole-number range inside [-9, 9] | — |
+| `functionName` | choice | `"g"` | `"g"`, `"h"`, `"f"`, `"p"`, `"q"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 180 | — |
+| slope: "fraction" | 264 | — |
+| xIntercept: "integer" | 76 | — |
+| xIntercept: "fraction" | 104 | — |
+
+- **reduce-complexity:** `slopeRange` [1, 3] — about 108 distinct questions; never changes `slope`, `xIntercept`.
 
 ### `linear.multipleRepresentations` v1
 
@@ -387,3 +449,75 @@ System of linear equations (substitution).
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 212,550 | — |
+
+### `transformations.linearCompareEffects` v1
+
+Compare horizontal and vertical transformations of f(x) = x.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3E, A.3C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `factorRange` | range | `[2, 9]` | whole-number range inside [2, 12] | — |
+| `amountRange` | range | `[2, 9]` | whole-number range inside [1, 20] | — |
+| `amountForm` | choice | `"mixed"` | `"mixed"`, `"number"`, `"letter"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 1,152 | — |
+
+### `transformations.linearHorizontalShiftAlgebra` v1
+
+A horizontal shift of a line, written as a vertical shift.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3E, A.3C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `slopeRange` | range | `[2, 5]` | whole-number range inside [2, 9] | — |
+| `interceptRange` | range | `[-9, 9]` | whole-number range inside [-20, 20] | — |
+| `shiftRange` | range | `[1, 4]` | whole-number range inside [1, 9] | — |
+| `direction` | choice | `"any"` | `"any"`, `"right"`, `"left"` | — |
+| `names` | choice | `"j/r"` | `"j/r"`, `"f/g"`, `"p/q"`, `"h/k"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 576 | — |
+
+- **reduce-complexity:** `slopeRange` [2, 3], `shiftRange` [1, 3] — about 216 distinct questions.
+
+### `transformations.linearPlotImages` v1
+
+Graph a transformation of f(x) = x by mapping labeled points.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3E, A.3C
+- **Answered in:** `transformationsLab` (plotTransform)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `transformation` | choice | `"any"` | `"any"`, `"horizontalShift"`, `"verticalShift"`, `"verticalScale"`, `"horizontalScale"` | yes |
+| `shiftRange` | range | `[1, 9]` | whole-number range inside [1, 9] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 49 | — |
+| transformation: "horizontalShift" | 18 | — |
+| transformation: "verticalShift" | 18 | — |
+| transformation: "verticalScale" | 7 | — |
+| transformation: "horizontalScale" | 6 | — |
+
+- **reduce-complexity:** `shiftRange` [1, 5] — about 33 distinct questions; never changes `transformation`.

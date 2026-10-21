@@ -65,6 +65,38 @@ export function RecoveryMasteryMeter({ percent }) {
   );
 }
 
+/*
+ * The banner over a locked Recovery says where the practice that counts is:
+ * the "Practice for …" questions always, and — when they practise the same
+ * skills — this assignment's own Practice questions, which each card names
+ * (studentRecoveryModel.js describeAssignmentPractice).
+ */
+const lockedBannerText = (summary) => {
+  const locked = summary.filter((entry) => entry.state === 'locked');
+  const roles = new Set(locked.map((entry) => entry.assignmentPractice?.role || 'none'));
+  if (roles.has('counts')) {
+    return 'Answer practice questions on your own to unlock another try: the “Practice for …” questions below, and the Practice questions in this assignment that each card names.';
+  }
+  return roles.has('otherSkills')
+    ? 'Use the “Practice for …” button below to unlock another try. This assignment\'s own Practice questions practise other skills, so they do not count toward it.'
+    : 'Use the “Practice for …” button below to unlock another try.';
+};
+
+/*
+ * Where the meter's correct answers came from — the recent window the unlock
+ * reads (practiceMastery.mjs `sources`): "Counting now: 3 right in this
+ * assignment's Practice, 2 right in “Practice for …”."
+ */
+const countedSoFar = (sources) => {
+  const fromAssignment = Number(sources?.assignmentPractice?.correct) || 0;
+  const fromRecovery = Number(sources?.recoveryPractice?.correct) || 0;
+  if (!fromAssignment && !fromRecovery) return null;
+  const parts = [];
+  if (fromAssignment) parts.push(`${fromAssignment} right in this assignment's Practice`);
+  if (fromRecovery) parts.push(`${fromRecovery} right in “Practice for …”`);
+  return `Counting now: ${parts.join(', ')}.`;
+};
+
 export default function SectionRecoveryPanel({ summary = [], busySection = null, onPractice, onStart, onContinue }) {
   if (!Array.isArray(summary) || !summary.length) return null;
   const anyLocked = summary.some((entry) => entry.state === 'locked');
@@ -73,10 +105,9 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
       {anyLocked && (
         <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--mm-info-bg)', border: '1px solid var(--mm-info-border)', color: 'var(--mm-info-text)' }}>
           <strong>Recovery Available</strong>
-          {/* Names the button, because "improve your Practice mastery" sent
-              students to the assignment's own Practice section, which never
-              counts toward unlocking a Recovery. */}
-          <div style={{ marginTop: 2, fontSize: 'calc(13 * var(--mm-px))' }}>Use the “Practice for …” button below to unlock another try. Practice inside the assignment itself does not count toward it.</div>
+          {/* Names the practice that counts, because "improve your Practice
+              mastery" once sent students to practice that did not. */}
+          <div style={{ marginTop: 2, fontSize: 'calc(13 * var(--mm-px))' }}>{lockedBannerText(summary)}</div>
         </div>
       )}
       {summary.map((entry) => {
@@ -87,8 +118,14 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
               <strong style={{ fontSize: 'calc(16 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{entry.label}</strong>
               <span style={badgeStyle(entry.state)}>{entry.badge}</span>
             </div>
+            {entry.originalClosedLabel && (
+              <p data-recovery-original-closed="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{entry.originalClosedLabel}</p>
+            )}
             {(entry.state === 'locked' || entry.state === 'unlocked') && <RecoveryMasteryMeter percent={entry.masteryPercent} />}
             <p style={{ margin: 0, fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.5 }}>{entry.message}</p>
+            {entry.state === 'locked' && countedSoFar(entry.masterySources) && (
+              <p data-recovery-counted="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{countedSoFar(entry.masterySources)}</p>
+            )}
             {entry.endsAtLabel && (
               <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-strong)' }}>
                 Open until {entry.endsAtLabel}

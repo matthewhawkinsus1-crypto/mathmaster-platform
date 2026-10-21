@@ -66,6 +66,8 @@ import { groupAssignmentList } from '../../platform/teacher/assignmentListGroups
 import StudentNameLink from '../../components/common/StudentNameLink.jsx';
 import { EmptyState, SearchField } from '../../ui/primitives';
 import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from '../../platform/recovery/teacherRecoveryAudit.js';
+import { creationRecoveryContent } from '../../platform/recovery/recoveryContentAuthoring.js';
+import { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
 import StudentPerformanceBadge from '../../components/common/StudentPerformanceBadge.jsx';
 
 export default function TeacherWorkspace({
@@ -749,6 +751,12 @@ export default function TeacherWorkspace({
           // carries, or the teacher's recorded choice when none passed.
           ...(destination.courseLevel === 'honors' ? { honorsCcmr: honorsVersion.record } : {}),
         };
+        // Recovery V2: each copy's static Warm-Up and DOL questions, paired
+        // with certified families, planned on this exact payload (the Honors
+        // copy from its own questions). Never a question change.
+        const recoveryContent = creationRecoveryContent(payload, { actorUid: user?.uid || null });
+        if (recoveryContent) payload.recoveryContent = recoveryContent;
+        else delete payload.recoveryContent;
         assertFirestoreSafeAssignmentPayload(payload);
         return { assignmentRef, payload, privateLabWrites };
       };
@@ -1382,11 +1390,16 @@ export default function TeacherWorkspace({
         assessmentPolicyHistory: _assessmentPolicyHistory,
         contentLineage: _contentLineage,
         contentUpgrade: _contentUpgrade,
+        // The source's Recovery bindings name the SOURCE's question ids; the
+        // copy's questions have new ones, so its Recovery is planned afresh.
+        recoveryContent: _recoveryContent,
         ...rest
       } = stripAssignmentInstanceState(assignment);
+      const copyRecoveryContent = creationRecoveryContent({ ...rest, ...persistence }, { actorUid: user?.uid || null });
       await addDoc(collection(db, 'assignments'), {
         ...rest,
         ...persistence,
+        ...(copyRecoveryContent ? { recoveryContent: copyRecoveryContent } : {}),
         assignmentKey: null,
         assignedClassIds: [],
         assignedClassPeriods: [],
@@ -2016,6 +2029,10 @@ export default function TeacherWorkspace({
         onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
         onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
         teacherEmail={user?.email || ''}
+        onRecoveryUpgraded={async (result) => {
+          await fetchAssignments();
+          if (!result?.alreadyCurrent) toastSuccess('Recovery added', 'No question, student record, grade or Classroom post changed.');
+        }}
       />
 
       {/* After the hub, so a student opened from an assignment's hub stacks
@@ -2379,6 +2396,10 @@ export default function TeacherWorkspace({
                   contentUpgradeTarget
                   && contentVersionOf(contentUpgradeTarget) > contentVersionOf(assignment)
                 );
+                // Recovery V2: a static Warm-Up or DOL question that could gain
+                // Recovery versions without changing (recognition only; the
+                // assignment details run the full check before anything is saved).
+                const recoveryCanBeAdded = recoveryPreparationAvailable(assignment);
                 return (
                   <article key={assignment.id} data-assignment-card={assignment.id} style={{ scrollMarginTop: '16px', background: 'var(--mm-surface-sunken)', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : 'var(--mm-border)'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -2396,6 +2417,7 @@ export default function TeacherWorkspace({
                           <button type="button" className="tw-link" style={{ fontSize: 'calc(18 * var(--mm-px))' }} onClick={() => openAssignmentHub(assignment.id)}>{assignment.title}</button>
                           <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{contentVersionLabel(assignment)}</span>
                           {hasContentUpgrade && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>V{contentVersionOf(contentUpgradeTarget)} AVAILABLE</span>}
+                          {recoveryCanBeAdded && <button type="button" data-recovery-can-be-added={assignment.id} onClick={() => openAssignmentHub(assignment.id)} title="Open the assignment details to review and approve Recovery versions for its Warm-Up and DOL." style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', border: '1px solid var(--mm-info-border)', cursor: 'pointer' }}>RECOVERY CAN BE ADDED</button>}
                           <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: lifecycle.isPracticeOnly ? 'var(--mm-surface-control)' : lifecycle.isLate ? 'var(--mm-warning-soft)' : 'var(--mm-success-bg)', color: lifecycle.isPracticeOnly ? 'var(--mm-text)' : lifecycle.isLate ? 'var(--mm-warning-text)' : 'var(--mm-success-text)' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
                           <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : assignmentType.toUpperCase()}</span>
                           {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>SECTION VERSIONS</span> : assignmentVariantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>SHARED VERSION</span>}
@@ -2429,6 +2451,11 @@ export default function TeacherWorkspace({
                           { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                           { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                           { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                          ...(recoveryCanBeAdded ? [{
+                            key: 'prepare-recovery',
+                            label: 'Prepare Recovery…',
+                            onClick: () => openAssignmentHub(assignment.id),
+                          }] : []),
                           ...(hasContentUpgrade ? [{
                             key: 'upgrade-content-version',
                             label: `Upgrade to Content V${contentVersionOf(contentUpgradeTarget)}`,

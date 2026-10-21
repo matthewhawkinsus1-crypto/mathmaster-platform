@@ -848,12 +848,17 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   // Since the App split the lazy declaration lives in app/lazyScreens.js.
   assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const SectionRecoveryRunner = lazy\(\(\) => import\('\.\.\/components\/student\/SectionRecoveryRunner\.jsx'\)\);$/m);
   assert.match(app, /\bSectionRecoveryRunner,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
-  assert.match(app, /^import \{ buildStudentRecoverySummary \} from '\.\/platform\/recovery\/studentRecoveryModel\.js';$/m);
+  // The summary is decided by the student's Recovery kit, which loads after
+  // Home (app/student/studentRecoveryKit.js): the same buildStudentRecoverySummary.
+  assert.match(app, /^import \{ loadStudentRecoveryKit, loadedStudentRecoveryKit \} from '\.\/app\/student\/studentRecoveryKitLoader\.js';$/m);
   assert.match(app, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\/services\/sectionRecoveryService\.js';$/m);
   assert.match(resultView, /<SectionRecoveryRunner\b/);
   assert.match(resultView, /recoveryPanel=\{studentRecoverySummary\.length \? \(\s*<SectionRecoveryPanel\b/);
   const summaryMemo = region(app, 'const studentRecoverySummary = useMemo(', '}, [recoveryAssignmentId', 'recovery summary memo');
-  assert.match(summaryMemo, /buildStudentRecoverySummary\(/);
+  assert.match(summaryMemo, /if \(!recoveryAssignmentId \|\| !user\?\.id \|\| !studentRecoveryKit\) return \[\];/);
+  assert.match(summaryMemo, /return studentRecoveryKit\.buildStudentRecoverySummary\(\{/);
+  // A Practice question a teacher graded is not the student's own evidence.
+  assert.match(summaryMemo, /overrides: teacherGradeOverridesByAssignment\?\.\[recoveryAssignmentId\] \|\| null,/);
   // The original is compared after teacher overrides and BEFORE any Recovery.
   assert.match(summaryMemo, /projectTeacherOverridesForDisplay\(tracker, teacherGradeOverridesByAssignment\)/);
   assert.doesNotMatch(summaryMemo, /gradeDisplayTracker|projectSectionRecoveries/);
