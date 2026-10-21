@@ -184,7 +184,7 @@ const openRunner = async (page) => {
   await row.getByRole('button', { name: 'See results' }).click();
   const card = page.locator('[data-section-recovery-panel] [data-recovery-section="dol"]');
   await card.waitFor({ timeout: 30000 });
-  await card.getByRole('button', { name: 'Continue DOL Recovery' }).click();
+  await card.getByRole('button', { name: 'Continue Exit ticket Recovery' }).click();
   const runner = page.locator('[data-recovery-runner="assessment"]');
   await runner.waitFor({ timeout: 30000 });
   return runner;
@@ -303,9 +303,9 @@ const journeys = {
     const ownCopies = await two.page.evaluate(() => Object.keys(localStorage).filter((key) => /^mathmaster:recovery-|~recovery~/.test(key)));
     check(where, ownCopies.length === 0, 'a fresh Chromebook: no Recovery answers of its own', ownCopies.join(', '));
     runner = await openRunner(two.page);
-    const twoOfThree = runner.getByRole('button', { name: 'Submit DOL Recovery (2/3 saved)' });
+    const twoOfThree = runner.getByRole('button', { name: 'Submit Exit ticket Recovery (2/3 saved)' });
     await twoOfThree.waitFor({ timeout: 20000 }).catch(() => {});
-    check(where, await twoOfThree.count() === 1, 'Submit reads "(2/3 saved)"', squash(await runner.locator('button', { hasText: 'Submit DOL Recovery' }).first().innerText().catch(() => '')));
+    check(where, await twoOfThree.count() === 1, 'Submit reads "(2/3 saved)"', squash(await runner.locator('button', { hasText: 'Submit Exit ticket Recovery' }).first().innerText().catch(() => '')));
     check(where, await itemState(runner, q1.itemId) === 'saved' && await itemState(runner, q2.itemId) === 'saved', 'Q1 and Q2 are saved to his account', `${await itemState(runner, q1.itemId)} ${await itemState(runner, q2.itemId)}`);
     check(where, await itemState(runner, q3.itemId) === 'open', 'Q3 is still open', await itemState(runner, q3.itemId));
     await itemButton(runner, q1.itemId).click();
@@ -320,7 +320,7 @@ const journeys = {
     await itemButton(runner, q3.itemId).click();
     await answerQuestion(two.page, runner, keyAnswers[2]);
     await waitForState(runner, q3.itemId, 'saved');
-    const all = runner.getByRole('button', { name: 'Submit DOL Recovery (3/3 saved)' });
+    const all = runner.getByRole('button', { name: 'Submit Exit ticket Recovery (3/3 saved)' });
     check(where, await all.count() === 1, 'Submit reads "(3/3 saved)"');
     await all.click();
     await two.page.waitForTimeout(600);

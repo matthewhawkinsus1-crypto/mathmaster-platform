@@ -72,7 +72,7 @@ test('the region says the tool\'s words with the outcome, and offers the hint, R
     assert.match(platformMiss, /aria-label="Translate the feedback"/);
     assert.doesNotMatch(platformMiss, /No Spanish translation/);
     // With the one sentence on what a hint costs (HELP-17).
-    assert.match(offered, /A hint is ready if you want one\. Hints never lower your score\. Your teacher can see you used one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
+    assert.match(offered, /A hint is ready if you want one\. Hints never lower your grade\. Your teacher can see you used one\.\s*<button type="button"[^>]*>Show a hint<\/button>/);
 
     // A language with no pack: no dead Translate button, and the student is told.
     const vietnamese = render({ ...MISS, readAloud: { language: 'en' }, translation: { language: 'vi' }, onEvidence: () => {} });
@@ -160,7 +160,7 @@ test('after a miss, the box and the tool offer the worked sibling beside the hin
     // still fits a phone under the task card (tests/browser/toolAttemptOutcome.mjs);
     // what a hint costs is still said (HELP-17).
     assert.doesNotMatch(both, /A hint is ready/);
-    assert.match(both, /<span data-hint-cost-note=""[^>]*>Hints never lower your score\. Your teacher can see you used one\.<\/span>\s*<button type="button"[^>]*>Show a hint<\/button>/);
+    assert.match(both, /<span data-hint-cost-note=""[^>]*>Hints never lower your grade\. Your teacher can see you used one\.<\/span>\s*<button type="button"[^>]*>Show a hint<\/button>/);
     const similarOnly = render({ ...MISS, onShowSimilar: () => {} });
     assert.match(similarOnly, />See a similar problem worked<\/button>/);
     assert.doesNotMatch(similarOnly, /A hint is ready/, 'the sibling alone does not promise a hint');
@@ -184,7 +184,7 @@ test('HELP-17: the tool box says what a hint costs in the host\'s words — Reco
     for (const outcome of [{ ...MISS, onShowHint: () => {} }, { ...MISS, onShowHint: () => {}, onShowSimilar: () => {} }]) {
       const recovery = render({ ...outcome, hintCost: RECOVERY_HINT_COST_SENTENCE });
       assert.match(recovery, new RegExp(escaped(RECOVERY_HINT_COST_SENTENCE)), 'Recovery\'s sentence reaches the box');
-      assert.doesNotMatch(recovery, /Hints never lower your score/, 'never the platform\'s promise in a Recovery runner');
+      assert.doesNotMatch(recovery, /Hints never lower your grade/, 'never the platform\'s promise in a Recovery runner');
       assert.match(render(outcome), new RegExp(escaped(HINT_COST_SENTENCE)), 'without a host sentence, the platform\'s');
     }
   });

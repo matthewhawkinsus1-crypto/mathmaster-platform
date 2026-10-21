@@ -120,7 +120,7 @@ function Recovery() {
     allocation: { seat: index, variant: 0, stride: 1, index, basis: 'provisional' },
   }).delivery);
   const entry = {
-    section: 'dol', label: 'DOL Recovery', state: 'in-progress',
+    section: 'dol', label: 'Exit ticket Recovery', state: 'in-progress',
     plan: { opportunity: 1, items: questions.map((q, i) => ({ itemId: `item-${i + 1}`, storageIndex: i, questionId: q.questionId, pin: pinFor(q, i) })) },
     questionsByIndex: Object.fromEntries(questions.map((q, i) => [i, q])),
   };

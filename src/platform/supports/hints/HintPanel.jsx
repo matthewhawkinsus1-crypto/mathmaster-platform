@@ -15,7 +15,7 @@ import { hintCostSentence } from './hintCopy.js';
  * recorded by the caller (QuestionEngine) as hintUsed / workedExampleUsed.
  * Rendered only where hints are allowed and the question is still open.
  *
- * WHAT IT COSTS, SAID ONCE (HELP-17): "Hints never lower your score. Your
+ * WHAT IT COSTS, SAID ONCE (HELP-17): "Hints never lower your grade. Your
  * teacher can see you used one." — or the host's own sentence where a hint
  * does cost something (`costNote`: Recovery practice, HELP-4).
  *

@@ -207,7 +207,7 @@ const recoveryEntry = () => {
   const p0 = slot(twoStep, 0);
   return {
     section: 'dol',
-    label: 'DOL Recovery',
+    label: 'Exit ticket Recovery',
     state: 'in-progress',
     plan: {
       opportunity: 1,

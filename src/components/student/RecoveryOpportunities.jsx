@@ -104,7 +104,7 @@ export function RecoveryHomeSection({ opportunities = [], studentId = null, onOp
           {open.length === 1 ? 'You have a Recovery open' : `You have ${open.length} Recoveries open`}
         </h2>
         <p style={{ margin: 0, fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
-          A Warm-Up or DOL has closed, and you can earn a second try with new questions. A Recovery can only raise your score.
+          A Warm-Up or exit ticket has closed, and you can earn a second try with new questions. A Recovery can only raise your score.
         </p>
       </div>
       {open.map((opportunity) => {

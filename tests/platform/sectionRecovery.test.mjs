@@ -801,7 +801,7 @@ test('the student panel speaks plainly: locked, unlocked, then Original / Recove
   const assignment = buildAssignment();
   const locked = buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: NOW });
   const dol = locked.find((entry) => entry.section === 'dol');
-  assert.equal(dol.label, 'DOL Recovery');
+  assert.equal(dol.label, 'Exit ticket Recovery');
   assert.equal(dol.state, 'locked');
   assert.equal(dol.canPractice, true);
   assert.equal(dol.canStart, false);

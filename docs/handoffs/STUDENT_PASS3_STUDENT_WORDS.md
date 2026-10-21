@@ -343,6 +343,9 @@ still reach the bar.
 1. **"DOL Recovery".** The Recovery keeps its name ("Start DOL Recovery", "Practice for DOL Recovery") while every
    other place says "Exit ticket". Rename it "Exit ticket Recovery"? It is about 40 assertions in eight files,
    Recovery journeys included, and teachers and Pre-Flight say "DOL Recovery" too.
+   **Decided 2026-10-20: renamed for students.** Every student screen says "Exit ticket Recovery" ("Start Exit ticket
+   Recovery", "Your exit ticket closed, but you can earn a second try"); teachers, Pre-Flight and case review keep
+   "DOL Recovery". Built from `claude/owner-decisions-words-20261020`.
 2. **What "reopened" means** (wave 3's list, C). What changed no longer mentions the flag; Grades still shows the
    status "Reopened" while the lesson is open. If "reopened" should open closed work, that is a server change
    (`studentAssignmentOverrides.mjs`), and What changed can then say it.
@@ -353,6 +356,7 @@ still reach the bar.
 5. **"Hints never lower your score"** is true of the grade. But a hint weighs against Mastered (`masteryEngine` ~35)
    and against a CCMR session pass (`functions/index.js` ~14999). Should the sentence say "grade" ("Hints never lower
    your grade")? It is one constant (`HINT_COST`).
+   **Decided 2026-10-20: "Hints never lower your grade."** Built in the same follow-up.
 6. **A past-date Test Cycle**: what is it to a student? It is no longer in the closed tab, but it still offers "Open
    assessment" after its final date (a secure Test is never practice; `studentAssignmentsCenterModel.js`).
 
