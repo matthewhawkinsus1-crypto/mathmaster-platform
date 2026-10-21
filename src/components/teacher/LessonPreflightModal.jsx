@@ -63,6 +63,8 @@ import {
 } from '../../platform/teacher/testCycleFamilyRegistration.js';
 import Dialog from '../../ui/Dialog.jsx';
 import RepresentationAudit from './RepresentationAudit';
+import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
+import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
   PREFLIGHT_STEPS, blockersForStep, collectReviewBlockers,
@@ -266,6 +268,9 @@ export const LessonPreflightModal = ({
   const notesRepairFileRef = useRef(null);
   const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
   const [repairTargetIndex, setRepairTargetIndex] = useState(null);
+  // 'blocker' (a Pre-Flight blocker) or 'recovery' (a Warm-Up or DOL question
+  // with no certified Recovery): which list the repair request is built from.
+  const [repairPurpose, setRepairPurpose] = useState('blocker');
   const [repairInstruction, setRepairInstruction] = useState('');
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairMessage, setRepairMessage] = useState('');
@@ -411,6 +416,28 @@ export const LessonPreflightModal = ({
     () => groupQuestionPreflightIssues(validationErrors, previewQuestions),
     [validationErrors, previewQuestions],
   );
+  // RECOVERY V2: a Warm-Up or DOL question no certified Recovery family can
+  // pair, in the planner's own words plus the instruction that asks the AI
+  // for a recoverable version. Offered only where Recovery applies.
+  const recoveryRepairIssues = useMemo(() => {
+    const recovery = preflightModel.questionGeneration?.recovery || {};
+    return ['warmup', 'dol'].flatMap((section) => {
+      const entry = recovery[section];
+      if (!entry || ['off', 'liveChallenge', 'secure'].includes(entry.status)) return [];
+      return (entry.rows || [])
+        .filter((row) => row.status === 'unavailable' && Number.isInteger(row.storageIndex))
+        .map((row) => ({
+          questionIndex: row.storageIndex,
+          questionNumber: row.storageIndex + 1,
+          question: previewQuestions[row.storageIndex],
+          errors: [
+            ...(row.issues || []).map((issue) => [issue.message, issue.fix].filter(Boolean).join(' ')),
+            RECOVERY_REPAIR_INSTRUCTION,
+          ],
+          recovery: true,
+        }));
+    });
+  }, [preflightModel.questionGeneration, previewQuestions]);
 
   const computedPublicationPlan = useMemo(() => planClassroomPublication({
     assignmentV5: effectiveAssignmentV5,
@@ -609,14 +636,16 @@ export const LessonPreflightModal = ({
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
   const repairIssueForIndex = (questionIndex) => (
-    questionRepairIssues.find((entry) => entry.questionIndex === questionIndex) || null
+    (repairPurpose === 'recovery' ? recoveryRepairIssues : questionRepairIssues)
+      .find((entry) => entry.questionIndex === questionIndex) || null
   );
 
-  const beginQuestionRepair = (questionIndex) => {
+  const beginQuestionRepair = (questionIndex, purpose = 'blocker') => {
     if (!allowQuestionRepair) {
       setRepairMessage('Student records already exist for this assignment. Duplicate the assignment before rewriting question content so historical responses stay attached to what students actually saw.');
       return;
     }
+    setRepairPurpose(purpose);
     setRepairTargetIndex(questionIndex);
     setRepairInstruction('');
     setRepairMessage('');
@@ -674,6 +703,18 @@ export const LessonPreflightModal = ({
     const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
     if (newErrors.length) {
       throw new Error(`The replacement introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+    }
+    if (issue?.recovery) {
+      // A "Fix for Recovery" replacement is taken only when the planner can
+      // now certify a Recovery for that question — never on the AI's word.
+      const recovery = candidateModel.questionGeneration?.recovery || {};
+      const row = ['warmup', 'dol']
+        .flatMap((section) => recovery[section]?.rows || [])
+        .find((entry) => entry.storageIndex === repairTargetIndex);
+      if (!row || row.status === 'unavailable') {
+        const why = row?.issues?.[0]?.message || 'MathMaster still cannot prepare a Recovery for it.';
+        throw new Error(`The replacement is valid, but it still has no certified Recovery: ${why} Nothing was changed.`);
+      }
     }
     setWorkingAssignmentV5(candidateModel.assignmentV5);
     setRepairTargetIndex(null);
@@ -1861,6 +1902,62 @@ export const LessonPreflightModal = ({
     </>
   );
 
+  // The repair controls for the question being repaired — one copy, used by
+  // the blocker list and the Recovery readiness panel alike.
+  const renderRepairControls = () => (
+    <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid var(--mm-border-soft)' }}>
+      <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
+        Anything else you want the AI to know? <span style={{ fontWeight: 500, color: 'var(--mm-text-muted)' }}>(optional)</span>
+        <textarea
+          value={repairInstruction}
+          onChange={(event) => setRepairInstruction(event.target.value)}
+          placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
+          style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'inherit', fontSize: 'calc(14 * var(--mm-px))' }}
+        />
+      </label>
+      <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+        <button type="button" onClick={repairQuestionWithMathMasterAi} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#6f2da8', color: '#fff', fontWeight: 800 }}>
+          {repairBusy ? 'Repairing…' : '✨ Repair with MathMaster AI'}
+        </button>
+        <button type="button" onClick={copyQuestionRepairRequest} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
+          Copy AI Repair Request
+        </button>
+        <button type="button" onClick={pasteQuestionRepairReplacement} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
+          {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
+        </button>
+        <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairPurpose('blocker'); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  // RECOVERY V2: the Warm-Up and DOL Recovery each version will be created
+  // with — the Standard assignment, and the Honors copy on its own questions
+  // once there is one. The same planner creation stores (recoveryContentAuthoring).
+  const honorsRecoveryModel = honorsCandidateCurrent ? honorsCandidate?.model : null;
+  const renderRecoveryReadiness = () => (
+    <>
+      <RecoveryReadinessPanel
+        sections={preflightModel.questionGeneration?.recovery}
+        fullyReady={preflightModel.questionGeneration?.recoveryReadiness?.fullyReady ?? null}
+        title={honorsRecoveryModel ? 'Warm-Up and DOL Recovery — Standard' : 'Warm-Up and DOL Recovery'}
+        intro="MathMaster pairs each Warm-Up and DOL question with a checked Question Family, so a student who needs Recovery gets fresh, equivalent, server-graded questions. You do not write Recovery questions; the questions here stay exactly as they are."
+        onRepair={allowQuestionRepair ? (row) => beginQuestionRepair(row.storageIndex, 'recovery') : null}
+        renderRepairControls={repairPurpose === 'recovery' ? renderRepairControls : null}
+        repairTargetIndex={repairPurpose === 'recovery' ? repairTargetIndex : null}
+      />
+      {honorsRecoveryModel && (
+        <RecoveryReadinessPanel
+          sections={honorsRecoveryModel.questionGeneration?.recovery}
+          fullyReady={honorsRecoveryModel.questionGeneration?.recoveryReadiness?.fullyReady ?? null}
+          title="Warm-Up and DOL Recovery — Honors"
+          intro="The Honors copy is checked on its own questions. A Warm-Up or DOL question it shares with the Standard version is fixed by fixing it above."
+        />
+      )}
+    </>
+  );
+
   const renderCheck = () => (
     <section aria-label="Check">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'check')} />}
@@ -1883,6 +1980,8 @@ export const LessonPreflightModal = ({
           )}
         </div>
       )}
+
+      {renderRecoveryReadiness()}
 
       {/* WORKED SOLUTIONS (student pass 3, HELP-11 / HELP-18): what a student
           reads after the last try. Suggestions only — they never change
@@ -2046,33 +2145,7 @@ export const LessonPreflightModal = ({
                     Repair with AI
                   </button>
                 </div>
-                {repairTargetIndex === issue.questionIndex && (
-                  <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid var(--mm-border-soft)' }}>
-                    <label style={{ display: 'block', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
-                      Anything else you want the AI to know? <span style={{ fontWeight: 500, color: 'var(--mm-text-muted)' }}>(optional)</span>
-                      <textarea
-                        value={repairInstruction}
-                        onChange={(event) => setRepairInstruction(event.target.value)}
-                        placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
-                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'inherit', fontSize: 'calc(14 * var(--mm-px))' }}
-                      />
-                    </label>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={repairQuestionWithMathMasterAi} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#6f2da8', color: '#fff', fontWeight: 800 }}>
-                        {repairBusy ? 'Repairing…' : '✨ Repair with MathMaster AI'}
-                      </button>
-                      <button type="button" onClick={copyQuestionRepairRequest} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
-                        Copy AI Repair Request
-                      </button>
-                      <button type="button" onClick={pasteQuestionRepairReplacement} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
-                        {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
-                      </button>
-                      <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {repairPurpose === 'blocker' && repairTargetIndex === issue.questionIndex && renderRepairControls()}
               </div>
             ))}
           </div>

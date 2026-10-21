@@ -1491,6 +1491,8 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         // private extension included — read above, never from the request.
         privateOverride: privateOverrideFrom(overrideSnapshot),
         misconceptionRecords,
+        // A teacher-graded Practice question is not the student's own evidence.
+        overrides,
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
@@ -1661,6 +1663,7 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         challengeCredit: gradeData.warmupChallengeByAssignment?.[assignmentId] || null,
         studentProfile: gradeData.profile || null,
         privateOverride: privateOverrideFrom(overrideSnapshot),
+        overrides,
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
@@ -22376,8 +22379,11 @@ function contentUpgradeAlreadyCurrent(liveAssignment = {}, targetAssignment = {}
   );
 }
 
-function contentUpgradePreviewPayload(plan, affectedStudentCount) {
+function contentUpgradePreviewPayload(plan, affectedStudentCount, recovery = null) {
   return {
+    // The Recovery each proposed binding would add, certified against the
+    // live questions (recoveryContentUpgrade.certifyRecoveryProposals).
+    recovery: recovery ? recovery.results : [],
     fromVersion: plan.fromVersion,
     toVersion: plan.toVersion,
     liveAssignmentRevision: plan.liveAssignmentRevision,
@@ -22445,7 +22451,7 @@ exports.previewAssignmentContentUpgrade = onCall(async (request) => {
         toVersion: targetVersion,
         liveAssignmentRevision: Number(liveAssignment.assignmentRevision || 1),
         targetAssignmentRevision: Number(targetAssignment.assignmentRevision || 1),
-        counts: { unchanged: 0, safeResponseControl: 0, graphViewportRepair: 0, gradingExpansion: 0, clarificationOnly: 0, fundamental: 0 },
+        counts: { unchanged: 0, safeResponseControl: 0, graphViewportRepair: 0, gradingExpansion: 0, clarificationOnly: 0, recoveryCapability: 0, fundamental: 0 },
         requiresFundamentalChoice: false,
         planHash: null,
         affectedStudentCount: 0,
@@ -22458,7 +22464,15 @@ exports.previewAssignmentContentUpgrade = onCall(async (request) => {
       assignmentContentVersion.buildContentUpgradePlan({ liveAssignment, targetAssignment }),
       loadSavedAssignmentTrackers(db, assignmentId, liveAssignment),
     ]);
-    return contentUpgradePreviewPayload(plan, trackers.length);
+    const recovery = Object.keys(plan.recoveryProposals || {}).length
+      ? (await recoveryUpgradeLibrary()).certifyRecoveryProposals({
+        assignment: liveAssignment,
+        proposals: plan.recoveryProposals,
+        gradeSample: (await recoveryUpgradeLibrary()).serverRecoveryKeyCheck,
+        at: new Date().toISOString(),
+      })
+      : null;
+    return contentUpgradePreviewPayload(plan, trackers.length, recovery);
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Content V2 upgrade preview failed", {
@@ -22521,7 +22535,7 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
           targetAssignmentId,
           contentVersion: Number(liveAssignment?.contentLineage?.version || 1),
           assignmentRevision: Number(liveAssignment.assignmentRevision || 1),
-          counts: { unchanged: 0, safeResponseControl: 0, graphViewportRepair: 0, gradingExpansion: 0, clarificationOnly: 0, fundamental: 0 },
+          counts: { unchanged: 0, safeResponseControl: 0, graphViewportRepair: 0, gradingExpansion: 0, clarificationOnly: 0, recoveryCapability: 0, fundamental: 0 },
           replacementQuestionIds: {},
           affectedStudentCount: 0,
           migratedStudentCount: 0,
@@ -22623,6 +22637,28 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         fundamentalChoices,
       });
       const correctedAt = new Date().toISOString();
+      // Recovery the upgrade adds without changing a question: certified
+      // against the questions as this upgrade leaves them, stored beside them.
+      let recoveryUpdate = null;
+      if (Object.keys(upgraded.recoveryProposals || {}).length) {
+        const recoveryLibrary = await recoveryUpgradeLibrary();
+        const certified = recoveryLibrary.certifyRecoveryProposals({
+          assignment: upgraded.assignment,
+          proposals: upgraded.recoveryProposals,
+          gradeSample: recoveryLibrary.serverRecoveryKeyCheck,
+          at: correctedAt,
+        });
+        const content = await import("./shared/recoveryContent.mjs");
+        const applied = content.applyRecoveryBindings({
+          content: liveAssignment.recoveryContent || null,
+          bindings: certified.bindings,
+          at: correctedAt,
+          actorUid: request.auth.uid,
+          source: content.RECOVERY_BINDING_ORIGIN.UPGRADE,
+          planHash: plan.planHash,
+        });
+        if (applied.changed) recoveryUpdate = { content: applied.content, added: applied.added, replaced: applied.replaced };
+      }
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
 
@@ -22648,6 +22684,7 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
           upgradedAt: correctedAt,
           upgradedBy: request.auth.uid,
         },
+        ...(recoveryUpdate ? { recoveryContent: recoveryUpdate.content } : {}),
         updatedAt: FieldValue.serverTimestamp(),
       });
 
@@ -22694,6 +22731,11 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         affectedStudentCount: trackerDocs.length,
         migratedStudentCount: migratedStudents,
         gradeReconciliationRequested,
+        ...(recoveryUpdate ? {
+          recoveryContentVersionTo: recoveryUpdate.content.version,
+          recoveryBindingsAdded: recoveryUpdate.added,
+          recoveryBindingsReplaced: recoveryUpdate.replaced,
+        } : {}),
         createdAt: FieldValue.serverTimestamp(),
       });
 
@@ -22707,6 +22749,7 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         affectedStudentCount: trackerDocs.length,
         migratedStudentCount: migratedStudents,
         gradeReconciliationRequested,
+        recoveryBindingsAdded: recoveryUpdate ? [...recoveryUpdate.added, ...recoveryUpdate.replaced] : [],
       };
     });
   } catch (error) {
@@ -22715,6 +22758,216 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
       "failed-precondition",
       error.message || "MathMaster refused the live content upgrade."
     );
+  }
+});
+
+/*
+ * RECOVERY V2 — A LIVE ASSIGNMENT GAINS WARM-UP AND DOL RECOVERY, UNCHANGED.
+ *
+ * previewRecoveryContentUpgrade is the dry run a teacher reads: which static
+ * Warm-Up and DOL questions a certified family will recover, what stays
+ * exactly as it is, and the plan hash their approval is bound to.
+ * commitRecoveryContentUpgrade applies it: inside one transaction it re-reads
+ * the assignment, re-plans and re-certifies against the LIVE questions with
+ * the full shared graders, refuses if anything moved since the preview, and
+ * writes ONE field (`recoveryContent`, functions/shared/recoveryContent.mjs)
+ * plus one assignmentVersionEvents row naming the approver. No question is
+ * edited, added or retired; no student document is written; no Classroom sync
+ * is requested; a repeat writes nothing (functions/shared/
+ * recoveryContentUpgrade.mjs). A prepared migration that matches the
+ * assignment (functions/shared/recoveryMigrations.mjs) supplies its reviewed
+ * bindings, certified exactly like any other.
+ */
+let recoveryUpgradeModules = null;
+async function recoveryUpgradeLibrary() {
+  if (!recoveryUpgradeModules) {
+    // The full grader is loaded only here, on the server: every sampled
+    // Recovery version is marked with its own key before it can be stored.
+    const [upgrade, grading, migrations, content] = await Promise.all([
+      import("./shared/recoveryContentUpgrade.mjs"),
+      import("./shared/recoveryCertificationGrading.mjs"),
+      import("./shared/recoveryMigrations.mjs"),
+      import("./shared/recoveryContent.mjs"),
+    ]);
+    recoveryUpgradeModules = {
+      ...upgrade,
+      serverRecoveryKeyCheck: grading.serverRecoveryKeyCheck,
+      preparedMigrationFor: migrations.preparedMigrationFor,
+      RECOVERY_CONTENT_FIELD: content.RECOVERY_CONTENT_FIELD,
+    };
+  }
+  return recoveryUpgradeModules;
+}
+
+// The teacher of record for every assigned class (or the root
+// administrator) — the Content V2 rule. An unassigned Library copy has no
+// student history to protect, so any teacher may prepare its Recovery, as
+// with teacher question repair.
+async function requireRecoveryUpgradeAuthority(db, request, assignment) {
+  const { classIds, periods } = contentUpgradeAudience(assignment);
+  if (!classIds.length && !periods.length) {
+    const uid = await requireTeacher(request);
+    return { uid, email: callerEmail(request), authorizationType: "teacherLibrary" };
+  }
+  return requireContentUpgradeOwner(db, request, assignment);
+}
+
+// Counts only: the report never needs a student id or name.
+async function recoveryUpgradeStudentRows(db, assignmentId, assignment) {
+  const { classIds, periods } = contentUpgradeAudience(assignment);
+  const queries = [
+    ...classIds.map((classId) => db.collection("grades").where("classId", "==", classId).select("gradesByAssignment", "sectionRecoveryByAssignment")),
+    ...periods.map((period) => db.collection("grades").where("classPeriod", "==", period).select("gradesByAssignment", "sectionRecoveryByAssignment")),
+  ];
+  if (!queries.length) return [];
+  const snapshots = await Promise.all(queries.map((queryRef) => queryRef.get()));
+  const seen = new Set();
+  const rows = [];
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((gradeDoc) => {
+    if (seen.has(gradeDoc.id)) return;
+    const data = gradeDoc.data() || {};
+    const tracker = data.gradesByAssignment?.[assignmentId];
+    if (tracker === undefined) return;
+    seen.add(gradeDoc.id);
+    rows.push({ tracker, recovery: data.sectionRecoveryByAssignment?.[assignmentId] || null });
+  }));
+  return rows;
+}
+
+function requireRecoveryUpgradeAssignment(snapshot) {
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+  const assignment = { id: snapshot.id, ...snapshot.data() };
+  if (Number(assignment.schemaVersion) !== 5) {
+    throw new HttpsError("failed-precondition", "Recovery V2 prepares Assignment V5 lessons. Re-import this assignment as V5 first.");
+  }
+  return assignment;
+}
+
+exports.previewRecoveryContentUpgrade = onCall(async (request) => {
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "Choose the assignment to prepare Recovery for.");
+  try {
+    const db = getFirestore();
+    const assignment = requireRecoveryUpgradeAssignment(await db.collection("assignments").doc(assignmentId).get());
+    await requireRecoveryUpgradeAuthority(db, request, assignment);
+    const library = await recoveryUpgradeLibrary();
+    const trackers = await recoveryUpgradeStudentRows(db, assignmentId, assignment);
+    const preview = library.buildRecoveryUpgradePreview({
+      assignment,
+      manifest: library.preparedMigrationFor(assignment),
+      gradeSample: library.serverRecoveryKeyCheck,
+      trackers,
+      at: new Date().toISOString(),
+    });
+    return { assignmentId, changed: preview.report.changed, planHash: preview.planHash, report: preview.report };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Recovery V2 preview failed", {
+      assignmentId,
+      uid: request.auth?.uid || null,
+      message: String(error?.message || error || "Unknown error").slice(0, 1000),
+      stack: String(error?.stack || "").slice(0, 4000),
+    });
+    throw new HttpsError("unavailable", "MathMaster could not prepare this Recovery preview. Nothing was changed.", { reason: "recovery-upgrade-preview-failed" });
+  }
+});
+
+exports.commitRecoveryContentUpgrade = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const expectedPlanHash = String(request.data?.expectedPlanHash || "").trim();
+  if (!assignmentId || !expectedPlanHash) {
+    throw new HttpsError("invalid-argument", "Preview this Recovery upgrade before approving it.");
+  }
+  const initial = requireRecoveryUpgradeAssignment(await db.collection("assignments").doc(assignmentId).get());
+  const authority = await requireRecoveryUpgradeAuthority(db, request, initial);
+  const actorEmail = callerEmail(request);
+  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail));
+  const library = await recoveryUpgradeLibrary();
+  // Counted outside the transaction: the report's numbers, never an input to
+  // the plan, and no student document is written.
+  const trackers = await recoveryUpgradeStudentRows(db, assignmentId, initial);
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const ref = db.collection("assignments").doc(assignmentId);
+      const assignment = requireRecoveryUpgradeAssignment(await transaction.get(ref));
+      const { classIds } = contentUpgradeAudience(assignment);
+      if (!isRoot && classIds.length) {
+        const classSnapshots = [];
+        for (const classId of classIds) {
+          // All reads occur before any transaction write.
+          // eslint-disable-next-line no-await-in-loop
+          classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
+        }
+        const ownsEveryClass = classSnapshots.every((snapshot) => (
+          snapshot.exists
+          && snapshot.data()?.status !== "archived"
+          && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
+        ));
+        if (!ownsEveryClass) {
+          throw new HttpsError("permission-denied", "Class ownership changed after preview. Only the current teacher of record may approve this Recovery upgrade.");
+        }
+      }
+      const at = new Date().toISOString();
+      const preview = library.buildRecoveryUpgradePreview({
+        assignment,
+        manifest: library.preparedMigrationFor(assignment),
+        gradeSample: library.serverRecoveryKeyCheck,
+        trackers,
+        at,
+      });
+      if (!preview.report.changed) {
+        return {
+          assignmentId,
+          alreadyCurrent: true,
+          recoveryContentVersion: preview.report.recoveryContent.versionBefore,
+          readiness: preview.report.readiness,
+          fullyReady: preview.report.fullyReadyAfter,
+        };
+      }
+      if (preview.planHash !== expectedPlanHash) {
+        throw new HttpsError("failed-precondition", "This assignment changed after the preview, so nothing was changed. Preview the Recovery upgrade again.", { reason: "recovery-upgrade-plan-changed" });
+      }
+      const applied = library.applyRecoveryUpgrade({
+        assignment,
+        plan: preview.plan,
+        planHash: preview.planHash,
+        migrationId: preview.report.migrationId,
+        at,
+        actorUid: request.auth.uid,
+        actorEmail,
+        authorizationType: isRoot ? "administrator" : authority.authorizationType,
+        approvedBy: actorEmail,
+        affectedStudentCount: trackers.length,
+      });
+      if (!applied.changed) {
+        return { assignmentId, alreadyCurrent: true, recoveryContentVersion: applied.recoveryContent.version, readiness: preview.report.readiness, fullyReady: preview.report.fullyReadyAfter };
+      }
+      // ONE field. Not updatedAt, not assignmentRevision: no question moved,
+      // so no open editor or Content V2 preview is invalidated by it.
+      transaction.update(ref, { [library.RECOVERY_CONTENT_FIELD]: applied.recoveryContent });
+      transaction.set(eventRef, { ...applied.auditEvent, createdAt: FieldValue.serverTimestamp() });
+      return {
+        assignmentId,
+        alreadyCurrent: false,
+        recoveryContentVersion: applied.recoveryContent.version,
+        added: applied.added,
+        replaced: applied.replaced,
+        readiness: preview.report.readiness,
+        fullyReady: preview.report.fullyReadyAfter,
+        affectedStudentCount: trackers.length,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Recovery V2 commit failed", {
+      assignmentId,
+      uid: request.auth?.uid || null,
+      message: String(error?.message || error || "Unknown error").slice(0, 1000),
+    });
+    throw new HttpsError("failed-precondition", error.message || "MathMaster refused the Recovery upgrade. Nothing was changed.");
   }
 });
 

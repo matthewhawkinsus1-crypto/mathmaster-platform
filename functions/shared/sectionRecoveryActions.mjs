@@ -303,6 +303,8 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
       practiceIndex: Number.isInteger(Number(payload.practiceIndex)) ? Number(payload.practiceIndex) : null,
       policy,
       requiredCoverage: context.requiredCoverage,
+      // The assignment's own trustworthy Practice counts in the same window.
+      extraOutcomes: context.assignmentPractice?.outcomes || [],
       at,
     });
     let nextRecord = applied.record;

@@ -66,6 +66,10 @@ test('preview classifies all live V1 to V2 change kinds', async () => {
     systemsWorkspaceUpgrade: 0,
     gradingExpansion: 1,
     clarificationOnly: 1,
+    // Recovery V2: a static Warm-Up/DOL question whose release is a Question
+    // Family slot keeps its live question and gains Recovery beside it. None
+    // here (see the test below).
+    recoveryCapability: 0,
     fundamental: 1,
   });
   assert.equal(plan.fromVersion, 1);
@@ -370,4 +374,53 @@ test('Content V2 can restore a live legacy system in place and return one exhaus
   assert.deepEqual(exhaustedResult.tracker[0].partGrades, exhaustedTracker[0].partGrades);
   assert.equal(exhaustedResult.tracker[0].contentVersionRegradeHistory.at(-1).kind, 'systems-workspace-upgrade');
   assert.equal(exhaustedResult.tracker[0].contentVersionRegradeHistory.at(-1).grantedRepairRetry, true);
+});
+
+/*
+ * RECOVERY V2 THROUGH CONTENT V2: a release that turns a static Warm-Up or DOL
+ * question into a Question Family slot does not replace the question students
+ * answered. It is classified "recoveryCapability": the live question is kept
+ * byte for byte, and the release's family becomes that question's Recovery
+ * (stored beside it as recoveryContent, after the server certifies it).
+ */
+test('a release that makes a live static Warm-Up question a family slot keeps the question and only adds its Recovery', async () => {
+  const policy = await import('../../functions/shared/assignmentContentUpgradePolicy.mjs');
+  const { certifyRecoveryProposals } = await import('../../functions/shared/recoveryContentUpgrade.mjs');
+  const { serverRecoveryKeyCheck } = await import('../../functions/shared/recoveryCertificationGrading.mjs');
+  const staticQuestion = {
+    questionId: 'wu-graph', type: 'graphing2', mode: 'slopeIntercept', activityRole: 'warmup',
+    prompt: 'Graph g(x) = 3x − 8.', line: { m: 3, b: -8 }, graphBounds: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    dok: 1, difficultyBand: 1, standard: 'A.3C', alignments: [{ framework: 'teks', code: 'A.3C', role: 'primary' }],
+  };
+  const familySlot = { ...staticQuestion, questionFamily: { id: 'linear.graphFromSlopeIntercept', version: 1, constraints: { slope: 'integer' } } };
+  const live = {
+    ...liveAssignment,
+    sections: [{ id: 'warmup', role: 'warmup', title: 'Warm-Up', questions: [staticQuestion] }, ...liveAssignment.sections],
+  };
+  const target = {
+    ...targetAssignment,
+    sections: [{ id: 'warmup', role: 'warmup', title: 'Warm-Up', questions: [familySlot] }, ...targetAssignment.sections],
+  };
+
+  // Without the opt-in the same change is fundamental: Recovery is never a
+  // reason to accept any other change.
+  assert.equal(policy.classifyContentQuestionChange(staticQuestion, familySlot).classification, 'fundamental');
+  assert.equal(policy.classifyContentQuestionChange(staticQuestion, familySlot, { recoveryCapability: true }).classification, 'recoveryCapability');
+  // A family that does not recognize the question cannot add Recovery to it.
+  const wrongFamily = { ...staticQuestion, questionFamily: { id: 'linear.keyCharacteristics', version: 1 } };
+  assert.equal(policy.classifyContentQuestionChange(staticQuestion, wrongFamily, { recoveryCapability: true }).classification, 'fundamental');
+
+  const plan = await buildContentUpgradePlan({ liveAssignment: live, targetAssignment: target });
+  assert.equal(plan.counts.recoveryCapability, 1);
+  assert.deepEqual(Object.keys(plan.recoveryProposals), ['wu-graph']);
+  assert.equal(plan.recoveryProposals['wu-graph'].questionFamily.id, 'linear.graphFromSlopeIntercept');
+  const upgraded = buildUpgradedAssignment({ liveAssignment: live, targetAssignment: target, plan, fundamentalChoices: { q5: 'retire-only' } });
+  const kept = upgraded.assignment.sections.flatMap((section) => section.questions).find((question) => question.questionId === 'wu-graph');
+  assert.deepEqual(kept, staticQuestion, 'the question students answered is kept byte for byte');
+  assert.deepEqual(Object.keys(upgraded.recoveryProposals), ['wu-graph']);
+
+  // The server certifies the proposal before it stores a binding.
+  const certified = certifyRecoveryProposals({ assignment: { ...upgraded.assignment, id: 'live-1' }, proposals: upgraded.recoveryProposals, gradeSample: serverRecoveryKeyCheck });
+  assert.equal(certified.results[0].ok, true, JSON.stringify(certified.results[0].issues));
+  assert.equal(certified.bindings['wu-graph'].questionFamily.id, 'linear.graphFromSlopeIntercept');
 });

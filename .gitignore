@@ -58,3 +58,6 @@ classroom-regrade-reports/
 
 # Agent worktrees (local only)
 .claude/worktrees/
+
+# Recovery V2 migration dry-run and execution reports (scripts/recovery-v2-upgrade.mjs)
+recovery-reports/

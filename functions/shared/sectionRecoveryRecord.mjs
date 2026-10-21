@@ -188,8 +188,11 @@ export const recoveryRecordFingerprints = (record) => [
   ...list(record?.plan?.items).map((item) => item.pin?.fingerprint).filter(Boolean),
 ];
 
-const masteryFor = (record, { policy, requiredCoverage, at }) => evaluateRecentPracticeMastery({
-  outcomes: record.practice.items,
+// `extraOutcomes`: the assignment's own Practice that passed every trust rule
+// (assignmentPracticeEvidence.mjs). They are evidence beside the record's own
+// items, never stored in it: the record keeps only what Recovery dealt.
+const masteryFor = (record, { policy, requiredCoverage, at, extraOutcomes = [] }) => evaluateRecentPracticeMastery({
+  outcomes: [...record.practice.items, ...list(extraOutcomes)],
   requiredCoverage,
   policy,
   now: Date.parse(iso(at)),
@@ -216,6 +219,7 @@ export const applyRecoveryPracticeAttempt = ({
   practiceIndex = null,
   policy = null,
   requiredCoverage = [],
+  extraOutcomes = [],
   at = Date.now(),
 } = {}) => {
   const normalizedPolicy = policy?.version ? policy : normalizeRecoveryPolicy(policy || {});
@@ -235,7 +239,7 @@ export const applyRecoveryPracticeAttempt = ({
     createdAt: record.createdAt || iso(at),
     practice: { items, nextIndex },
   };
-  const mastery = masteryFor(next, { policy: normalizedPolicy, requiredCoverage, at });
+  const mastery = masteryFor(next, { policy: normalizedPolicy, requiredCoverage, at, extraOutcomes });
   return {
     record: {
       ...next,
@@ -278,6 +282,9 @@ export const applyRecoveryUnlock = ({
         percent: mastery.percent,
         coverage: mastery.coverage,
         itemKeys: list(mastery.itemKeys).slice(0, 40),
+        // Recovery Practice and the assignment's own Practice, counted apart,
+        // so the teacher's audit can say what unlocked it.
+        ...(mastery.sources ? { sources: mastery.sources } : {}),
         masteryRequired,
         evaluatedAt: iso(at),
       } : { met: false, masteryRequired: false, evaluatedAt: iso(at) },
@@ -285,7 +292,7 @@ export const applyRecoveryUnlock = ({
         at: iso(at),
         event: RECOVERY_HISTORY_EVENT.UNLOCKED,
         detail: masteryRequired
-          ? `Unlocked after Practice mastery (${mastery.correct} of last ${mastery.windowSize} correct).`
+          ? `Unlocked after Practice mastery (${mastery.correct} of last ${mastery.windowSize} correct${mastery.sources?.assignmentPractice?.correct ? `, ${mastery.sources.assignmentPractice.correct} from the assignment's own Practice` : ''}).`
           : 'Unlocked as an excused make-up.',
       }),
     },

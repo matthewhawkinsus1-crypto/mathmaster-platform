@@ -213,6 +213,19 @@ const resolutionLabelOf = (resolution, formatWhenValue) => {
 
 const percent = (value) => (Number.isFinite(Number(value)) && value !== null ? `${Math.round(Number(value))}%` : '—');
 
+/*
+ * Recovery V2: which practice the unlock counted — the assignment's own
+ * Practice (server-graded, independent, on the section's skills) and the
+ * Recovery Practice questions (practiceMastery.mjs `sources`, stored at
+ * unlock). Silent for an unlock recorded before sources were kept.
+ */
+const unlockSourcesNote = (sources) => {
+  const fromAssignment = Number(sources?.assignmentPractice?.correct) || 0;
+  const fromRecovery = Number(sources?.recoveryPractice?.correct) || 0;
+  if (!fromAssignment) return '';
+  return ` — ${fromAssignment} from the assignment's own Practice, ${fromRecovery} from Recovery Practice`;
+};
+
 const formatWhen = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -304,7 +317,7 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
       actionLabels: legacyUncorrected ? { finalizeGraded: LEGACY_CORRECTION_LABEL } : {},
       resolution: resolutionLabelOf(resolution, formatWhen),
       evidence: evidence?.met
-        ? `Unlocked after Practice mastery: ${evidence.correct} of the last ${evidence.windowSize} correct (${evidence.percent}%).`
+        ? `Unlocked after Practice mastery: ${evidence.correct} of the last ${evidence.windowSize} correct (${evidence.percent}%)${unlockSourcesNote(evidence.sources)}.`
         : evidence && evidence.masteryRequired === false
           ? 'Unlocked as an excused make-up.'
           : `${practiced} Practice question${practiced === 1 ? '' : 's'} answered so far.`,

@@ -223,6 +223,329 @@
       "declared": {}
     },
     {
+      "id": "linear.graphFromSlopeIntercept",
+      "version": 1,
+      "title": "Graph a line from its slope-intercept equation",
+      "alignments": [
+        "A.3C",
+        "A.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "slope",
+          "label": "Slope",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "slopeSign",
+          "label": "Slope sign",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "any",
+            "positive",
+            "negative"
+          ]
+        },
+        {
+          "name": "slopeRange",
+          "label": "Slope size (numerator)",
+          "kind": "range",
+          "default": [
+            1,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "denominatorRange",
+          "label": "Slope denominator (fractional slopes)",
+          "kind": "range",
+          "default": [
+            2,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            6
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -9,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            -9,
+            9
+          ]
+        },
+        {
+          "name": "functionName",
+          "label": "Function name",
+          "kind": "choice",
+          "default": "g",
+          "concept": false,
+          "values": [
+            "g",
+            "h",
+            "f",
+            "p",
+            "q"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "slope"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphing2",
+          "default": true,
+          "mode": "slopeIntercept",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 150,
+          "exact": true
+        },
+        {
+          "label": "slope: \"fraction\"",
+          "constraints": {
+            "slope": "fraction"
+          },
+          "capacity": 300,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "slopeRange": [
+              1,
+              3
+            ]
+          },
+          "keeps": [
+            "slope"
+          ],
+          "capacity": 96
+        }
+      ],
+      "declared": {}
+    },
+    {
+      "id": "linear.keyCharacteristics",
+      "version": 1,
+      "title": "Key characteristics of a line",
+      "alignments": [
+        "A.3C",
+        "A.2A",
+        "A.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "slope",
+          "label": "Slope",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "xIntercept",
+          "label": "x-intercept",
+          "kind": "choice",
+          "default": "any",
+          "concept": true,
+          "values": [
+            "any",
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "slopeSign",
+          "label": "Slope sign",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "any",
+            "positive",
+            "negative"
+          ]
+        },
+        {
+          "name": "slopeRange",
+          "label": "Slope size (numerator)",
+          "kind": "range",
+          "default": [
+            1,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "denominatorRange",
+          "label": "Slope denominator (fractional slopes)",
+          "kind": "range",
+          "default": [
+            2,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            6
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -9,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            -9,
+            9
+          ]
+        },
+        {
+          "name": "functionName",
+          "label": "Function name",
+          "kind": "choice",
+          "default": "g",
+          "concept": false,
+          "values": [
+            "g",
+            "h",
+            "f",
+            "p",
+            "q"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "slope",
+        "xIntercept"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 180,
+          "exact": true
+        },
+        {
+          "label": "slope: \"fraction\"",
+          "constraints": {
+            "slope": "fraction"
+          },
+          "capacity": 264,
+          "exact": true
+        },
+        {
+          "label": "xIntercept: \"integer\"",
+          "constraints": {
+            "xIntercept": "integer"
+          },
+          "capacity": 76,
+          "exact": true
+        },
+        {
+          "label": "xIntercept: \"fraction\"",
+          "constraints": {
+            "xIntercept": "fraction"
+          },
+          "capacity": 104,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "slopeRange": [
+              1,
+              3
+            ]
+          },
+          "keeps": [
+            "slope",
+            "xIntercept"
+          ],
+          "capacity": 108
+        }
+      ],
+      "declared": {}
+    },
+    {
       "id": "linear.multipleRepresentations",
       "version": 1,
       "title": "One linear relationship in every representation",
@@ -2182,6 +2505,334 @@
       ],
       "classOf30": "every student unique",
       "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.linearCompareEffects",
+      "version": 1,
+      "title": "Compare horizontal and vertical transformations of f(x) = x",
+      "alignments": [
+        "A.3E",
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "factorRange",
+          "label": "Stretch factor",
+          "kind": "range",
+          "default": [
+            2,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            12
+          ]
+        },
+        {
+          "name": "amountRange",
+          "label": "Shift size",
+          "kind": "range",
+          "default": [
+            2,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            20
+          ]
+        },
+        {
+          "name": "amountForm",
+          "label": "Shift size as a number, a letter, or either",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": false,
+          "values": [
+            "mixed",
+            "number",
+            "letter"
+          ]
+        }
+      ],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1152,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.linearHorizontalShiftAlgebra",
+      "version": 1,
+      "title": "A horizontal shift of a line, written as a vertical shift",
+      "alignments": [
+        "A.3E",
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "slopeRange",
+          "label": "Slope of j",
+          "kind": "range",
+          "default": [
+            2,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            9
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept of j",
+          "kind": "range",
+          "default": [
+            -9,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            -20,
+            20
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Horizontal shift size",
+          "kind": "range",
+          "default": [
+            1,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "direction",
+          "label": "Shift direction",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "any",
+            "right",
+            "left"
+          ]
+        },
+        {
+          "name": "names",
+          "label": "Function names",
+          "kind": "choice",
+          "default": "j/r",
+          "concept": false,
+          "values": [
+            "j/r",
+            "f/g",
+            "p/q",
+            "h/k"
+          ]
+        }
+      ],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 576,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "slopeRange": [
+              2,
+              3
+            ],
+            "shiftRange": [
+              1,
+              3
+            ]
+          },
+          "keeps": [],
+          "capacity": 216
+        }
+      ],
+      "declared": {}
+    },
+    {
+      "id": "transformations.linearPlotImages",
+      "version": 1,
+      "title": "Graph a transformation of f(x) = x by mapping labeled points",
+      "alignments": [
+        "A.3E",
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "transformation",
+          "label": "Transformation",
+          "kind": "choice",
+          "default": "any",
+          "concept": true,
+          "values": [
+            "any",
+            "horizontalShift",
+            "verticalShift",
+            "verticalScale",
+            "horizontalScale"
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift size",
+          "kind": "range",
+          "default": [
+            1,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "transformation"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "plotTransform",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 49,
+          "exact": true
+        },
+        {
+          "label": "transformation: \"horizontalShift\"",
+          "constraints": {
+            "transformation": "horizontalShift"
+          },
+          "capacity": 18,
+          "exact": true
+        },
+        {
+          "label": "transformation: \"verticalShift\"",
+          "constraints": {
+            "transformation": "verticalShift"
+          },
+          "capacity": 18,
+          "exact": true
+        },
+        {
+          "label": "transformation: \"verticalScale\"",
+          "constraints": {
+            "transformation": "verticalScale"
+          },
+          "capacity": 7,
+          "exact": true
+        },
+        {
+          "label": "transformation: \"horizontalScale\"",
+          "constraints": {
+            "transformation": "horizontalScale"
+          },
+          "capacity": 6,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "shiftRange": [
+              1,
+              5
+            ]
+          },
+          "keeps": [
+            "transformation"
+          ],
+          "capacity": 33
+        }
+      ],
       "declared": {}
     }
   ]

@@ -93,6 +93,24 @@
  *                      contract and the capability report read. It never
  *                      changes generation.
  *
+ * Added for Recovery V2 (recoveryContent.mjs), and optional in the same way:
+ *
+ *   recognize          (question) => { params, constraints } | null. Reads a
+ *                      STATIC question of the shape this family writes and
+ *                      returns the parameter tuple (and the concept
+ *                      constraints) under which this family's instance is
+ *                      the same mathematics. Recovery uses it to exclude the
+ *                      original — and every other static problem in the
+ *                      assignment — from the fresh questions it deals, and
+ *                      Pre-Flight uses it to pair a static Warm-Up or DOL
+ *                      question with the family that can recover it. It never
+ *                      changes generation.
+ *   difficultyFor      (constraintValues) => { band, dok }. The rigor of the
+ *                      questions a slot asks under these constraints, for a
+ *                      family whose concept constraints change it (an integer
+ *                      slope is DOK 1, a fractional one DOK 2). Absent: the
+ *                      family's `difficulty` for every slot.
+ *
  * Pure by construction: no Firestore, no network, no clock.
  */
 
@@ -393,6 +411,8 @@ export const defineQuestionFamily = (spec = {}) => {
 
   ['parameters', 'derive', 'rules', 'fingerprint', 'answer'].forEach((name) => requireFunction(id, spec, name));
   if (spec.graphWindow !== undefined) requireFunction(id, spec, 'graphWindow');
+  if (spec.recognize !== undefined) requireFunction(id, spec, 'recognize');
+  if (spec.difficultyFor !== undefined) requireFunction(id, spec, 'difficultyFor');
 
   const constraints = isObject(spec.constraints) ? spec.constraints : {};
   Object.entries(constraints).forEach(([name, knob]) => {
@@ -486,6 +506,8 @@ export const defineQuestionFamily = (spec = {}) => {
     instanceFields: Object.freeze((Array.isArray(spec.instanceFields) ? spec.instanceFields : []).map(clean).filter(Boolean)),
     strata: spec.strata ? Object.freeze({ values: spec.strata.values, ...(clean(spec.strata.balance) ? { balance: clean(spec.strata.balance) } : {}) }) : null,
     capabilities: deepFreeze(isObject(spec.capabilities) ? JSON.parse(JSON.stringify(spec.capabilities)) : {}),
+    recognize: spec.recognize || null,
+    difficultyFor: spec.difficultyFor || null,
   });
 
   // A strict family resolves every support's overrides exactly as it resolves

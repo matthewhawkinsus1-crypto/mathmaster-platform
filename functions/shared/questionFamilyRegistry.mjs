@@ -19,10 +19,14 @@ import { SYSTEMS_FAMILIES } from './questionFamiliesSystems.mjs';
 import { SYSTEMS_ALGEBRAIC_FAMILIES } from './questionFamiliesSystemsAlgebraic.mjs';
 import { NONLINEAR_FAMILIES } from './questionFamiliesNonlinear.mjs';
 import { REPRESENTATION_FAMILIES } from './questionFamiliesRepresentations.mjs';
+import { LINEAR_GRAPH_FAMILIES } from './questionFamiliesLinearGraphs.mjs';
+import { TRANSFORMATION_FAMILIES } from './questionFamiliesTransformations.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
 // distribution and exact fractions); an unpinned reference still means v1.
+// The linear-graph and transformation families are Recovery V2's: each can
+// recognize the static questions it recovers (recoveryContent.mjs).
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -30,6 +34,8 @@ const REGISTERED = Object.freeze([
   ...SYSTEMS_ALGEBRAIC_FAMILIES,
   ...NONLINEAR_FAMILIES,
   ...REPRESENTATION_FAMILIES,
+  ...LINEAR_GRAPH_FAMILIES,
+  ...TRANSFORMATION_FAMILIES,
 ]);
 
 const byKey = new Map();

@@ -12,10 +12,18 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
  */
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 
-test('Recovery for every assignment is built and fed to the dashboard, with its import', () => {
-  assert.match(app, /import\s*\{[^}]*\bbuildRecoverySummariesByAssignment\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
+test('Recovery for every assignment is built and fed to the dashboard, with its import', async () => {
   assert.match(app, /import\s*\{[^}]*\brecoveryStatesFromSummaries\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
-  assert.match(app, /useMemo\(\(\)\s*=>\s*\(user\?\.role === 'student'[\s\S]{0,40}buildRecoverySummariesByAssignment\(/);
+  // Built by the student's Recovery kit, which loads after Home: until it
+  // arrives the dashboard sees no Recovery, and when it does the memo rebuilds.
+  assert.match(app, /import\s*\{[^}]*\bloadStudentRecoveryKit\b[^}]*\}\s*from\s*'\.\/app\/student\/studentRecoveryKitLoader\.js'/);
+  assert.match(app, /useMemo\(\(\)\s*=>\s*\(user\?\.role === 'student' && user\?\.id && studentRecoveryKit\s*\?\s*studentRecoveryKit\.buildRecoverySummariesByAssignment\(/);
+  const memo = region(app, 'const studentRecoverySummariesByAssignment = useMemo(', ']);', 'summaries memo');
+  assert.match(memo, /\[studentRecoveryKit, /);
+  // The kit hands App the very builder the dashboard's tests exercise.
+  const kit = await import('../../src/app/student/studentRecoveryKit.js');
+  const { buildRecoverySummariesByAssignment } = await import('../../src/platform/student/recoverySummaries.js');
+  assert.equal(kit.buildRecoverySummariesByAssignment, buildRecoverySummariesByAssignment);
 });
 
 test('the dashboard model receives the student, their Recovery states and the teacher section lock', () => {

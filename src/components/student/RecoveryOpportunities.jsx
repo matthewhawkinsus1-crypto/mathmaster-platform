@@ -1,7 +1,7 @@
 import React from 'react';
 import { RecoveryMasteryMeter } from './SectionRecoveryPanel.jsx';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
-import { RECOVERY_PHASE, recoveryIsUnseen } from '../../platform/recovery/studentRecoveryDiscovery.js';
+import { RECOVERY_PHASE, recoveryIsUnseen } from '../../platform/recovery/studentRecoveryNotices.js';
 
 /*
  * AN OPEN RECOVERY, WHERE A STUDENT WILL ACTUALLY SEE IT.

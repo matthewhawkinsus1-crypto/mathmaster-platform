@@ -1617,6 +1617,15 @@ service cloud.firestore {
         // check the teacher of record and read the bell schedule: a window a
         // browser could write is a Test any teacher account could open early.
         'testAvailability', 'testAvailabilityHistory', 'audienceHistory',
+        // Recovery V2 (functions/shared/recoveryContent.mjs): the certified
+        // families that generate a static question's Recovery, which the
+        // server grades against. Written at creation (Pre-Flight's bindings
+        // ride the create) and afterwards only by
+        // commitRecoveryContentUpgrade, which re-certifies against the live
+        // questions and keeps an audit row — never by a browser save, which
+        // could otherwise drop or swap the content a student's Recovery pins
+        // were dealt from.
+        'recoveryContent',
       ];
     }
 

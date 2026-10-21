@@ -17,7 +17,11 @@
  *                       showing every student the same exit ticket.
  *   RECOVERY            for the Warm-Up and DOL: can a fresh, server-graded
  *                       Recovery be generated, and if not, which question
- *                       stops it (in the words teachers act on).
+ *                       stops it (in the words teachers act on). A static
+ *                       question is paired automatically with a certified
+ *                       family that recognizes it (Recovery V2,
+ *                       recoveryContentPlan.mjs) — the question itself never
+ *                       changes — and creation stores those bindings.
  *   LIVE CHALLENGE      a Warm-Up delivered by Live Challenge is reported as
  *                       such — never as a Warm-Up students will be missing.
  *
@@ -50,6 +54,9 @@ import { GRADING_AUTHORITY } from '../../../functions/shared/serverGrading/gradi
 import { describeQuestionVariability, VARIABILITY } from '../../../functions/shared/questionVariability.mjs';
 import { assessSectionRecoveryReadiness } from '../../../functions/shared/sectionRecoveryReadiness.mjs';
 import { normalizeRecoveryPolicy } from '../../../functions/shared/recoveryPolicy.mjs';
+import { RECOVERY_BINDING_ORIGIN } from '../../../functions/shared/recoveryContent.mjs';
+import { RECOVERY_PLAN_ROW, planAssignmentRecoveryContent } from '../../../functions/shared/recoveryContentPlan.mjs';
+import { lightRecoveryKeyCheck } from '../../../functions/shared/recoveryLightKeyCheck.mjs';
 import { resolveWarmupDelivery, warmupIsNotAssignmentDelivered } from '../../../functions/shared/warmupDelivery.mjs';
 import { MISSING_TOOL_IDS, validateToolQuestion } from '../../tools/toolSchemas.js';
 import { validateQuestionSemantics } from '../contract/semanticValidation.js';
@@ -236,7 +243,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
  * a registry tool's own schema first, then semantic validation of the built
  * question (which is no longer a template, so it is judged directly).
  */
-const generatedVersionProblems = (built) => {
+export const generatedVersionProblems = (built) => {
   // A {{token}} the family never filled would reach the student exactly as
   // written: a misspelled name in an authored prompt, story or choice.
   const unfilled = [...placeholdersUsed(built)];
@@ -475,6 +482,22 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
   // Recovery readiness, Warm-Up and DOL.
   const policy = normalizeRecoveryPolicy(assignment);
   const recovery = {};
+  // RECOVERY V2: a static Warm-Up or DOL question is paired with a certified
+  // family that recognizes it — the same planner the live upgrade runs — and
+  // judged with that binding exactly as a family slot is judged. Creation
+  // stores the bindings (src/platform/recovery/recoveryContentAuthoring.js);
+  // the questions themselves never change.
+  const recoveryPlan = planAssignmentRecoveryContent({
+    assignment: { ...assignment, id: assignmentId },
+    questions: list,
+    gradeSample: lightRecoveryKeyCheck,
+    validateVersion: (built) => generatedVersionProblems(built).map((problem) => problem.text),
+    origin: RECOVERY_BINDING_ORIGIN.PREFLIGHT,
+  });
+  const recoveryAssignment = {
+    ...assignment,
+    recoveryContent: { schemaVersion: 1, version: 1, bindings: recoveryPlan.desiredBindings },
+  };
   ['warmup', 'dol'].forEach((section) => {
     const entries = list
       .map((question, storageIndex) => ({ question, storageIndex }))
@@ -482,33 +505,49 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       .filter((entry) => clean(entry.question?.activityRole).toLowerCase() === section);
     if (!entries.length) return;
     const label = `${sectionLabel(section)} Recovery`;
+    const rows = recoveryPlan.sections[section]?.rows || [];
+    if (recoveryPlan.ownRetest) {
+      recovery[section] = { status: 'secure', rows: [] };
+      notes.push(`${label} does not apply: secure assessments use their own retest process.`);
+      return;
+    }
     if (!policy.enabled || !policy[section]?.enabled || policy.automaticOpportunities < 1) {
-      recovery[section] = { status: 'off' };
+      recovery[section] = { status: 'off', rows };
       notes.push(`${label} is turned off for this assignment.`);
       return;
     }
     if (section === 'warmup') {
       const delivery = resolveWarmupDelivery({ assignment, hasAuthoredWarmup: true });
       if (warmupIsNotAssignmentDelivered(delivery)) {
-        recovery[section] = { status: 'liveChallenge' };
+        recovery[section] = { status: 'liveChallenge', rows };
         notes.push('Warm-Up is delivered by Live Challenge: each student\'s result (rounds correct out of the rounds they could play) is their Warm-Up grade, and MathMaster will not generate a Warm-Up Recovery.');
         return;
       }
     }
-    const readiness = assessSectionRecoveryReadiness({ assignmentId, section, entries });
+    const readiness = assessSectionRecoveryReadiness({ assignmentId, section, entries, assignment: recoveryAssignment });
     const linked = (issue) => `${issue.message} (Question ${issue.storageIndex + 1})`;
     const anyFamilyBacked = entries.some((entry) => isFamilyBackedQuestion(entry.question));
-    if (!anyFamilyBacked) {
-      // A section that never opted in (every legacy assignment) is not an
-      // authoring mistake; it simply has no automatic Recovery. Say so once.
-      recovery[section] = { status: 'notConfigured', readyQuestions: 0, totalQuestions: entries.length };
-      notes.push(`${label} is not available: ${entries.length === 1 ? 'this question does' : `none of its ${entries.length} questions`} ${entries.length === 1 ? 'not reference' : 'reference'} a generator-backed Question Family, so students will not be offered an automatic Recovery.`);
+    const prepared = rows.filter((row) => [RECOVERY_PLAN_ROW.ADD, RECOVERY_PLAN_ROW.REPLACE, RECOVERY_PLAN_ROW.KEPT].includes(row.status));
+    const unprepared = rows.filter((row) => row.status === RECOVERY_PLAN_ROW.UNAVAILABLE);
+    // Why each static question could not be paired, in the planner's words.
+    const reasons = unprepared
+      .map((row) => String(row.issues[0]?.message || `${row.label}: no certified Recovery family recognizes it`).replace(/[.\s]+$/, ''))
+      .slice(0, 3);
+    if (!anyFamilyBacked && !prepared.length) {
+      // A section MathMaster could not pair with any certified family. Not an
+      // authoring mistake — every legacy lesson is here — so it is a note,
+      // and the readiness panel says exactly why and offers a repair.
+      recovery[section] = { status: 'notConfigured', readyQuestions: 0, totalQuestions: entries.length, rows };
+      notes.push(`${label} is not available: ${entries.length === 1 ? 'this question does' : `none of its ${entries.length} questions`} ${entries.length === 1 ? 'not reference' : 'reference'} a generator-backed Question Family, so students will not be offered an automatic Recovery.${reasons.length ? ` MathMaster could not prepare one automatically — ${reasons.join('; ')}.` : ''}`);
       return;
     }
-    // Partly family-backed: the teacher meant Recovery to work, and these are
-    // the questions stopping it.
-    readiness.blockers.forEach((issue) => warnings.push(`Recovery generation unavailable: ${linked(issue)}`));
-    readiness.warnings.forEach((issue) => warnings.push(`${label} will skip one question: ${linked(issue)}`));
+    // A section the author opted in (some question is a family slot): the
+    // questions stopping Recovery are warnings, as they always were. A
+    // section MathMaster prepared on its own: notes — it never turns a lesson
+    // the author did not opt in into one that needs review.
+    const report = (message) => (anyFamilyBacked ? warnings : notes).push(message);
+    readiness.blockers.forEach((issue) => report(`Recovery generation unavailable: ${linked(issue)}`));
+    readiness.warnings.forEach((issue) => report(`${label} will skip one question: ${linked(issue)}`));
     const thin = readiness.readySlots.filter((slot) => {
       const known = slots.find((entry) => entry.questionIndex === slot.storageIndex);
       return known?.familyBacked && Number.isFinite(known.capacity) && known.capacity < RECOVERY_MINIMUM_CAPACITY;
@@ -516,15 +555,26 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     thin.forEach((slot) => {
       warnings.push(`${label}: ${slot.label} can produce very few distinct questions, so a student who practices a lot may run out of fresh ones (Question ${slot.storageIndex + 1}).`);
     });
+    const boundCount = readiness.readySlots.filter((slot) => slot.source === 'binding').length;
     recovery[section] = {
       status: readiness.ready ? 'ready' : 'unavailable',
       readyQuestions: readiness.readySlots.length,
       totalQuestions: entries.length,
+      preparedQuestions: boundCount,
+      rows,
     };
     if (readiness.ready) {
+      const pairedWho = boundCount === entries.length
+        ? (entries.length === 1 ? 'The question was' : `All ${entries.length} questions were`)
+        : `${boundCount} question${boundCount === 1 ? ' was' : 's were'}`;
+      const preparedNote = boundCount
+        ? ` ${pairedWho} paired automatically with a certified Recovery family; the questions themselves are unchanged.`
+        : '';
       notes.push(section === 'dol'
-        ? `${label} ready: each of the ${entries.length} DOL question${entries.length === 1 ? '' : 's'} can generate fresh, server-graded versions (unlocks after ${policy.mastery.requiredCorrect} of the last ${policy.mastery.windowSize} Practice questions correct; counts up to ${policy.dol.maxRecordedScore}%; open until the final submission date).`
-        : `${label} ready: ${policy.warmup.questionCount} fresh questions from ${readiness.readySlots.length} Warm-Up question${readiness.readySlots.length === 1 ? '' : 's'} (counts up to ${policy.warmup.maxRecordedScore}%; open until the final submission date).`);
+        ? `${label} ready: each of the ${entries.length} DOL question${entries.length === 1 ? '' : 's'} can generate fresh, server-graded versions (unlocks after ${policy.mastery.requiredCorrect} of the last ${policy.mastery.windowSize} Practice questions correct; counts up to ${policy.dol.maxRecordedScore}%; open until the final submission date).${preparedNote}`
+        : `${label} ready: ${policy.warmup.questionCount} fresh questions from ${readiness.readySlots.length} Warm-Up question${readiness.readySlots.length === 1 ? '' : 's'} (counts up to ${policy.warmup.maxRecordedScore}%; open until the final submission date).${preparedNote}`);
+    } else if (!anyFamilyBacked && reasons.length) {
+      notes.push(`${label} is not ready: ${reasons.join('; ')}.`);
     }
   });
 
@@ -541,12 +591,26 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     notes.unshift(`${familySlots.length} question${familySlots.length === 1 ? ' generates' : 's generate'} a different version for each student from a Question Family${knownClassSize ? ` (checked against a class of ${knownClassSize})` : ''}.`);
   }
 
+  // "Fully recovery-ready": every Warm-Up and DOL section this assignment has
+  // passed certification, or is a legitimate exception (turned off, a Live
+  // Challenge Warm-Up, a secure assessment). Never claimed otherwise.
+  const recoveryStatuses = Object.values(recovery).map((entry) => entry.status);
+  const recoveryReadiness = {
+    fullyReady: recoveryStatuses.every((status) => ['ready', 'off', 'liveChallenge', 'secure'].includes(status)),
+    sections: Object.fromEntries(Object.entries(recovery).map(([section, entry]) => [section, entry.status])),
+    rows: recoveryPlan.rows,
+  };
+
   return {
     errors: [...new Set(errors)],
     warnings: [...new Set(warnings)],
     notes,
     slots,
     recovery,
+    recoveryReadiness,
+    // The certified Recovery bindings for the static questions, as Pre-Flight
+    // judged them. Creation re-plans on the exact stored payload.
+    recoveryBindings: recoveryPlan.desiredBindings,
     classSize: knownClassSize,
   };
 };

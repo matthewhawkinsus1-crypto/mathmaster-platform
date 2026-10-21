@@ -17,7 +17,7 @@
  */
 
 import { normalizeRecoveryPolicy } from './recoveryPolicy.mjs';
-import { evaluateRecentPracticeMastery } from './practiceMastery.mjs';
+import { attemptWasIndependent, evaluateRecentPracticeMastery } from './practiceMastery.mjs';
 import { resolveWarmupDelivery } from './warmupDelivery.mjs';
 import { resolveRecoveryAttendance } from './recoveryAttendance.mjs';
 import { assessSectionRecoveryReadiness } from './sectionRecoveryReadiness.mjs';
@@ -34,6 +34,9 @@ import {
   recoveryRecordFingerprints,
 } from './sectionRecoveryRecord.mjs';
 import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
+import { bindingFamily, assignmentRecoveryContent, recoveryExclusionFingerprints } from './recoveryContent.mjs';
+import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
+import { assignmentPracticeEvidence } from './assignmentPracticeEvidence.mjs';
 import {
   learnerToken,
   normalizeDeliveryPin,
@@ -53,14 +56,8 @@ export const RECOVERY_ACTION = Object.freeze({
   SUBMIT: 'submit',
 });
 
-const MATH_SUPPORT_KEYS = ['hintUsed', 'teacherAssisted', 'scaffoldUsed', 'remediationUsed', 'workedExampleUsed', 'feedbackAssisted', 'modified'];
-
-/** Did this attempt use help that makes it something other than independent? */
-export const attemptWasIndependent = (supportUsage = {}) => (
-  supportUsage?.isMathematicallyIndependent !== false
-  && !MATH_SUPPORT_KEYS.some((key) => Boolean(supportUsage?.[key]))
-  && !(Array.isArray(supportUsage?.modifications) && supportUsage.modifications.length > 0)
-);
+/** Did this attempt use help that makes it something other than independent? (practiceMastery.mjs) */
+export { attemptWasIndependent };
 
 /** Question weight, with the same bounds as the grading engine. */
 export const recoveryQuestionWeight = (question = {}) => {
@@ -133,13 +130,18 @@ export const buildSectionRecoveryContext = ({
   // Null (the browser) deals untargeted Practice; the server's dealt item is
   // what the runner shows (recoveryMisconceptionTargeting.mjs).
   misconceptionRecords = null,
+  // The student's teacherGradeOverridesByAssignment[assignmentId]: a
+  // teacher-graded Practice question is not the student's own evidence.
+  overrides = null,
   sectionModeFor = () => 'personalized',
   nowValue = Date.now(),
 } = {}) => {
   const policy = normalizeRecoveryPolicy(assignment || {});
   const normalizedRecord = normalizeRecoveryRecord(record, section);
   const opportunity = resolveOriginalOpportunity({ assignment, section, schedule, classId, classPeriod, studentId, nowValue, studentProfile, privateOverride });
-  const readiness = assessSectionRecoveryReadiness({ assignmentId: assignment?.id || '', section, entries: sectionEntries });
+  // Recovery V2: a static question with a certified binding in the
+  // assignment's recoveryContent is ready like a family slot.
+  const readiness = assessSectionRecoveryReadiness({ assignmentId: assignment?.id || '', section, entries: sectionEntries, assignment });
   const warmupDelivery = section === 'warmup'
     ? resolveWarmupDelivery({ assignment, hasAuthoredWarmup: list(sectionEntries).length > 0, challengeCredit })
     : null;
@@ -159,8 +161,17 @@ export const buildSectionRecoveryContext = ({
       .map((seats) => seats[token]))]
     : [];
   const requiredCoverage = [...new Set(readiness.readySlots.map((slot) => slot.coverageKey).filter(Boolean))];
+  // The assignment's own Practice, where it is trustworthy evidence
+  // (assignmentPracticeEvidence.mjs), in the same window as Recovery Practice.
+  const assignmentPractice = assignmentPracticeEvidence({
+    assignmentId: assignment?.id || '',
+    questions,
+    tracker,
+    overrides: overrides || {},
+    slots: readiness.readySlots,
+  });
   const mastery = evaluateRecentPracticeMastery({
-    outcomes: normalizedRecord?.practice?.items || [],
+    outcomes: [...(normalizedRecord?.practice?.items || []), ...assignmentPractice.outcomes],
     requiredCoverage,
     policy,
     now: Number(nowValue instanceof Date ? nowValue.getTime() : nowValue),
@@ -176,10 +187,29 @@ export const buildSectionRecoveryContext = ({
     mastery,
     record: normalizedRecord,
   });
-  const questionsByIndex = Object.fromEntries(list(sectionEntries).map((entry) => [entry.storageIndex, entry.question]));
+  // The template each ready slot generates from: the question itself, or a
+  // bound static question's synthesized family slot (recoveryContent.mjs).
+  // The plan, the runner and the server's grading all read it from here.
+  const readyByIndex = new Map(readiness.readySlots.map((slot) => [slot.storageIndex, slot]));
+  const questionsByIndex = Object.fromEntries(list(sectionEntries).map((entry) => [
+    entry.storageIndex,
+    readyByIndex.get(entry.storageIndex)?.recoveryQuestion || entry.question,
+  ]));
+  // Fresh means not any problem from this assignment: the originals of bound
+  // questions, and every static question the section's families recognize.
+  const recoveryFamilies = readiness.readySlots
+    .map((slot) => getPlatformQuestionFamily(slot.familyId, slot.familyVersion))
+    .filter(Boolean);
+  const content = assignmentRecoveryContent(assignment);
+  Object.values(content?.bindings || {}).forEach((binding) => {
+    const family = bindingFamily(binding);
+    if (family) recoveryFamilies.push(family);
+  });
   const seen = [
     ...studentSeenFingerprints({ assignment, questions, tracker, seatInfo, sectionModeFor }),
     ...recoveryRecordFingerprints(normalizedRecord),
+    ...readiness.readySlots.flatMap((slot) => slot.originalFingerprints || []),
+    ...recoveryExclusionFingerprints({ questions, families: recoveryFamilies }),
   ];
   return {
     assignmentId: assignment?.id || '',
@@ -197,6 +227,8 @@ export const buildSectionRecoveryContext = ({
     eligibility,
     questionsByIndex,
     seenFingerprints: [...new Set(seen)],
+    // What the assignment's own Practice contributes, question by question.
+    assignmentPractice,
     sectionOriginal,
     misconceptionFocus: Array.isArray(misconceptionRecords)
       ? recoveryMisconceptionFocus({

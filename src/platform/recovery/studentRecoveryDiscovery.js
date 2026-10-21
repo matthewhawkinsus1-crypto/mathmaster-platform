@@ -26,92 +26,48 @@
  * both are cheap date and record checks (`sectionMayBeActionable`). Only an
  * assignment that passes one builds its summary.
  *
- * Pure apart from the "NEW" and notification marks at the end, which are
- * per-device conveniences in localStorage, exactly like Test Cycle's.
+ * Pure. The phases, the one announcement and the "NEW" and notification marks
+ * (per-device conveniences in localStorage, exactly like Test Cycle's) are in
+ * ./studentRecoveryNotices.js, which Home reads without loading this module:
+ * this one decides, so it loads after Home (src/app/student/studentRecoveryKit.js).
  */
 
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { assignmentIsArchived, assignmentIsUnpublished } from '../../../functions/shared/assessmentAvailability.mjs';
 import { RECOVERY_SECTIONS } from '../../../functions/shared/recoveryPolicy.mjs';
-import { ORIGINAL_OPPORTUNITY, RECOVERY_STATE, resolveOriginalOpportunity } from '../../../functions/shared/sectionRecoveryEligibility.mjs';
-import { buildStudentRecoverySummary } from './studentRecoveryModel.js';
-import { exitTicketInSentence } from '../student/studentWords.js';
+import { ORIGINAL_OPPORTUNITY, resolveOriginalOpportunity } from '../../../functions/shared/sectionRecoveryEligibility.mjs';
+import { ASSIGNMENT_PRACTICE_ROLE, assignmentPracticeCountsSentence, buildStudentRecoverySummary } from './studentRecoveryModel.js';
+import {
+  PHASE_PRIORITY,
+  RECOVERY_ACTION_KIND,
+  RECOVERY_PHASE,
+  RECOVERY_SECTION_NAME,
+  recoveryNoticeKey,
+  recoveryNoticePhase,
+  recoveryPhaseForState,
+} from './studentRecoveryNotices.js';
+
+// The phases, announcements and marks live in the light module so Home can
+// show and announce a list without loading this one; every name is still
+// exported from here.
+export {
+  RECOVERY_ACTION_KIND,
+  RECOVERY_PHASE,
+  RECOVERY_SECTION_NAME,
+  groupRecoveryOpportunitiesByAssignment,
+  markRecoveryNotified,
+  markRecoverySeen,
+  recoveryIsUnseen,
+  recoveryNotice,
+  recoveryNoticeKey,
+  recoveryNoticePhase,
+  recoveryPhaseForState,
+  recoveryWasNotified,
+} from './studentRecoveryNotices.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
-
-/*
- * WHERE A STUDENT IS IN AN OPEN RECOVERY.
- *
- *   available   the original closed; practise to unlock a second try (Locked)
- *   unlocked    mastery shown; the second try can start
- *   inProgress  started (or a teacher added a replacement question); finish it
- *
- * A student is told once about `available` and once about `unlocked`. They
- * started `inProgress` themselves, so it is listed but never announced.
- */
-export const RECOVERY_PHASE = Object.freeze({
-  AVAILABLE: 'available',
-  UNLOCKED: 'unlocked',
-  IN_PROGRESS: 'inProgress',
-});
-
-const PHASE_FOR_STATE = Object.freeze({
-  [RECOVERY_STATE.LOCKED]: RECOVERY_PHASE.AVAILABLE,
-  [RECOVERY_STATE.UNLOCKED]: RECOVERY_PHASE.UNLOCKED,
-  [RECOVERY_STATE.IN_PROGRESS]: RECOVERY_PHASE.IN_PROGRESS,
-});
-
-// The order a student can move through them; seeing a later phase means the
-// earlier ones need no announcement.
-const PHASE_ORDER = Object.freeze([RECOVERY_PHASE.AVAILABLE, RECOVERY_PHASE.UNLOCKED, RECOVERY_PHASE.IN_PROGRESS]);
-
-// What a list shows first: work already started, then a second try that is
-// ready, then one still to unlock.
-const PHASE_PRIORITY = Object.freeze({
-  [RECOVERY_PHASE.IN_PROGRESS]: 0,
-  [RECOVERY_PHASE.UNLOCKED]: 1,
-  [RECOVERY_PHASE.AVAILABLE]: 2,
-});
-
-// Mid-sentence: "Your exit ticket has closed" (studentWords).
-export const RECOVERY_SECTION_NAME = Object.freeze({ warmup: 'Warm-Up', dol: exitTicketInSentence });
-
-export const RECOVERY_ACTION_KIND = Object.freeze({
-  PRACTICE: 'practice',
-  START: 'start',
-  CONTINUE: 'continue',
-});
-
-/** The phase a Recovery state belongs to, or null for a state no list shows. */
-export const recoveryPhaseForState = (state) => PHASE_FOR_STATE[state] || null;
-
-/** One announcement per assignment, section and phase. */
-export const recoveryNoticeKey = ({ assignmentId, section, phase }) => `${clean(assignmentId)}|${clean(section)}|${clean(phase)}`;
-
-/*
- * A TEACHER'S REPLACEMENT QUESTION IS NEWS, TOO.
- *
- * A Recovery in progress is the student's own doing and is not announced —
- * except when it is in progress because a teacher resolved a held Recovery by
- * adding a replacement question (sectionRecoveryResolution.mjs). Then the
- * student has a new question to answer before the end date and did nothing to
- * learn of it. Each round of replacements is its own news, named by the items
- * it added, exactly as the Results panel decides `repaired`.
- */
-const replacementItemIds = (plan) => list(plan?.items)
-  .filter((item) => clean(item?.replaces))
-  .map((item) => clean(item.itemId))
-  .filter(Boolean);
-
-/** The announcement this state stands for, or null when there is none. */
-export const recoveryNoticePhase = ({ state, plan = null } = {}) => {
-  const phase = recoveryPhaseForState(state);
-  if (phase !== RECOVERY_PHASE.IN_PROGRESS) return phase;
-  const replacements = replacementItemIds(plan);
-  return replacements.length ? `replacement:${replacements.join(',')}` : null;
-};
 
 /**
  * Could this section be actionable for this student right now?
@@ -142,6 +98,16 @@ export const sectionMayBeActionable = ({
   return opportunity.status === ORIGINAL_OPPORTUNITY.CLOSED;
 };
 
+/** Which practice counts toward the unlock, for the list's one-line hint. */
+const practiceHint = (practice = {}) => {
+  if (practice.role === ASSIGNMENT_PRACTICE_ROLE.COUNTS && practice.countingText) {
+    return assignmentPracticeCountsSentence(practice);
+  }
+  return practice.role === ASSIGNMENT_PRACTICE_ROLE.OTHER_SKILLS
+    ? 'Use the “Practice for …” questions: this assignment\'s own Practice questions practise other skills, so they do not count toward unlocking it.'
+    : 'Use the “Practice for …” questions to unlock it.';
+};
+
 const describeOpportunity = ({ assignment, entry }) => {
   const phase = recoveryPhaseForState(entry.state);
   const sectionName = RECOVERY_SECTION_NAME[entry.section] || entry.section;
@@ -153,15 +119,17 @@ const describeOpportunity = ({ assignment, entry }) => {
   /*
    * WHAT TO DO NEXT, IN THE STUDENT'S WORDS.
    *
-   * The locked sentence names the exact bar and where the practice is, because
-   * "improve your Practice mastery" sent students to the assignment's own
-   * Practice section, which never counts. No internal vocabulary, and no
-   * promised cap: the browser cannot see an excused absence, so it never
-   * claims what a second try is worth — only that it cannot lower a score
-   * (the recorded section score is the higher of the two).
+   * The locked sentence names the exact bar and which practice counts: the
+   * questions behind "Practice for …" always, and — Recovery V2 — the
+   * assignment's own Practice questions on the same skills, answered on the
+   * student's own (named, as the Results panel names them). No internal
+   * vocabulary, and no promised cap: the browser cannot see an excused
+   * absence, so it never claims what a second try is worth — only that it
+   * cannot lower a score (the recorded section score is the higher of the two).
    */
+  const practice = entry.assignmentPractice || { role: ASSIGNMENT_PRACTICE_ROLE.NONE };
   const detail = {
-    [RECOVERY_PHASE.AVAILABLE]: `Your ${sectionName} has closed, but you can earn a second try. Get ${required} of your last ${windowSize} Recovery practice questions right to unlock it.`,
+    [RECOVERY_PHASE.AVAILABLE]: `Your ${sectionName} has closed, but you can earn a second try. Get ${required} of your last ${windowSize} practice questions right on your own to unlock it.`,
     [RECOVERY_PHASE.UNLOCKED]: `You unlocked a second try at the ${sectionName}. Start it when you are ready — it can only raise your score.`,
     [RECOVERY_PHASE.IN_PROGRESS]: entry.note || `Your second try at the ${sectionName} is started. Pick up where you left off and submit it before it closes.`,
   }[phase];
@@ -189,11 +157,10 @@ const describeOpportunity = ({ assignment, entry }) => {
     badge: entry.badge,
     headline,
     detail,
-    // Only while it is still locked: the assignment's Practice section is a
-    // different thing and never unlocks a Recovery.
-    hint: phase === RECOVERY_PHASE.AVAILABLE
-      ? 'These practice questions are separate from the assignment\'s own Practice section, which does not count toward unlocking it.'
-      : null,
+    // Only while it is still locked: which practice moves the meter.
+    hint: phase === RECOVERY_PHASE.AVAILABLE ? practiceHint(practice) : null,
+    // When the original closed (the reason this Recovery is open at all).
+    originalClosedLabel: entry.originalClosedLabel || null,
     // The meter is the way to the unlock; once unlocked it has done its job.
     showMastery: phase === RECOVERY_PHASE.AVAILABLE,
     masteryPercent: entry.masteryPercent,
@@ -232,6 +199,9 @@ export const buildStudentRecoveryDiscovery = ({
   assignments = [],
   trackerByAssignment = {},
   sectionRecoveryByAssignment = {},
+  // teacherGradeOverridesByAssignment: a Practice question a teacher graded is
+  // not the student's own evidence (buildStudentRecoverySummary `overrides`).
+  overridesByAssignment = {},
   studentId = null,
   classId = null,
   classPeriod = null,
@@ -266,6 +236,7 @@ export const buildStudentRecoveryDiscovery = ({
       assignment,
       tracker: trackerByAssignment?.[assignment.id] || {},
       recoveryForAssignment: records,
+      overrides: overridesByAssignment?.[assignment.id] || null,
       studentId,
       classId,
       classPeriod,
@@ -279,111 +250,3 @@ export const buildStudentRecoveryDiscovery = ({
   return opportunities.sort(byPriority);
 };
 
-/** { [assignmentId]: [opportunity, ...] } for surfaces that list assignments. */
-export const groupRecoveryOpportunitiesByAssignment = (opportunities = []) => list(opportunities)
-  .reduce((byAssignment, opportunity) => {
-    (byAssignment[opportunity.assignmentId] ||= []).push(opportunity);
-    return byAssignment;
-  }, {});
-
-/*
- * THE ANNOUNCEMENT.
- *
- * One toast for everything new at once, never one per section: two Recoveries
- * opening at the end of the same class period is one piece of news.
- */
-export const recoveryNotice = (opportunities = []) => {
-  const fresh = list(opportunities).filter((opportunity) => opportunity?.notify);
-  if (!fresh.length) return null;
-  if (fresh.length === 1) {
-    const [only] = fresh;
-    const until = only.endsAtLabel ? ` Open until ${only.endsAtLabel}.` : '';
-    if (only.replacementIssued) {
-      return {
-        tone: 'info',
-        title: `${only.label}: a new question`,
-        message: `${only.assignmentTitle}: your teacher added a new question to your ${only.label}. Your other answers are saved — answer the new one and submit.${until}`,
-      };
-    }
-    return only.phase === RECOVERY_PHASE.UNLOCKED
-      ? {
-        tone: 'success',
-        title: `${only.label} unlocked`,
-        message: `${only.assignmentTitle}: your second try at the ${only.sectionName} is ready to start.${until}`,
-      }
-      : {
-        tone: 'info',
-        title: `${only.label} available`,
-        message: `${only.assignmentTitle}: your ${only.sectionName} closed, but you can earn a second try. Use “${only.actionLabel}” on Home.${until}`,
-      };
-  }
-  const anyUnlocked = fresh.some((opportunity) => opportunity.phase === RECOVERY_PHASE.UNLOCKED);
-  return {
-    tone: anyUnlocked ? 'success' : 'info',
-    title: `${fresh.length} Recovery opportunities`,
-    message: `You can earn a second try on ${fresh.map((opportunity) => `the ${opportunity.sectionName} for ${opportunity.assignmentTitle}`).join('; ')}. They are listed on Home.`,
-  };
-};
-
-/*
- * "NEW" AND "ALREADY TOLD", PER DEVICE.
- *
- * The same best-effort pattern as Test Cycle's markTestCycleSeen: losing these
- * marks only re-shows a badge or a toast, never a state, and every read and
- * write is guarded because a Chromebook in a private window may refuse
- * storage entirely.
- */
-const SEEN_PREFIX = 'mm-recovery-seen:';
-const NOTIFIED_PREFIX = 'mm-recovery-notified:';
-
-const storageKeyFor = (prefix, studentId, noticeKey) => `${prefix}${clean(studentId)}:${noticeKey}`;
-
-const readMark = (prefix, studentId, noticeKey) => {
-  try {
-    return window.localStorage.getItem(storageKeyFor(prefix, studentId, noticeKey)) === '1';
-  } catch {
-    return false;
-  }
-};
-
-const writeMark = (prefix, studentId, noticeKey) => {
-  try {
-    window.localStorage.setItem(storageKeyFor(prefix, studentId, noticeKey), '1');
-  } catch {
-    /* best effort */
-  }
-};
-
-/** Has this student been told about this phase on this device? */
-export const recoveryWasNotified = (studentId, opportunity) => (
-  !clean(studentId) || !opportunity?.noticeKey ? true : readMark(NOTIFIED_PREFIX, studentId, opportunity.noticeKey)
-);
-
-export const markRecoveryNotified = (studentId, opportunity) => {
-  if (!clean(studentId) || !opportunity?.noticeKey) return;
-  writeMark(NOTIFIED_PREFIX, studentId, opportunity.noticeKey);
-};
-
-/** Should a list mark this Recovery NEW: announced-worthy, and not yet opened? */
-export const recoveryIsUnseen = (studentId, opportunity) => (
-  Boolean(clean(studentId) && opportunity?.notify && opportunity?.noticeKey)
-  && !readMark(SEEN_PREFIX, studentId, opportunity.noticeKey)
-);
-
-/**
- * The student has looked at this Recovery (its Results panel or its runner):
- * this phase and every earlier one — and a teacher's replacement question the
- * panel is showing — are seen, and need no announcement.
- */
-export const markRecoverySeen = (studentId, { assignmentId, section, state, plan = null } = {}) => {
-  const phase = recoveryPhaseForState(state);
-  if (!clean(studentId) || !clean(assignmentId) || !phase) return;
-  const reached = PHASE_ORDER.slice(0, PHASE_ORDER.indexOf(phase) + 1);
-  const replacement = recoveryNoticePhase({ state, plan });
-  if (replacement && !reached.includes(replacement)) reached.push(replacement);
-  reached.forEach((seenPhase) => {
-    const noticeKey = recoveryNoticeKey({ assignmentId, section, phase: seenPhase });
-    writeMark(SEEN_PREFIX, studentId, noticeKey);
-    writeMark(NOTIFIED_PREFIX, studentId, noticeKey);
-  });
-};

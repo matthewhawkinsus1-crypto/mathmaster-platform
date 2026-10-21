@@ -12,7 +12,7 @@ import { RECOVERY_NAME } from './studentWords.js';
  * decided:
  *
  *   missing / late work   the Grade Center entry's status and lifecycle
- *   Recovery              buildRecoverySummariesByAssignment (recoveryStates.js),
+ *   Recovery              buildRecoverySummariesByAssignment (recoverySummaries.js),
  *                         the same summary the result page shows
  *   Practice Pass         practicePassEligibleAssignments — a UX filter; the
  *                         server still decides when the student redeems

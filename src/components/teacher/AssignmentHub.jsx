@@ -10,7 +10,19 @@ import { AssignmentLessonRows } from './ClassLessonControls.jsx';
 import AssignmentSupportLayer from './AssignmentSupportLayer.jsx';
 import { useClassPracticePasses } from '../../platform/rewards/useClassPracticePasses.js';
 import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
+import { liveRecoverySections, planAssignmentRecoveryContent } from '../../../functions/shared/recoveryContentPlan.mjs';
+import { normalizeRecoveryContent } from '../../../functions/shared/recoveryContent.mjs';
+import { lightRecoveryKeyCheck } from '../../../functions/shared/recoveryLightKeyCheck.mjs';
+import { recoveryReadinessSummary } from '../../platform/recovery/recoveryReadinessCopy.js';
+import {
+  RECOVERY_ROSTER_GROUP,
+  RECOVERY_ROSTER_GROUP_LABEL,
+  RECOVERY_ROSTER_GROUP_ORDER,
+  buildTeacherRecoveryRoster,
+} from '../../platform/recovery/teacherRecoveryRoster.js';
 import Dialog from '../../ui/Dialog.jsx';
+import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
+import RecoveryUpgradeModal from './RecoveryUpgradeModal.jsx';
 import './teacherWorkspace.css';
 
 /*
@@ -33,7 +45,12 @@ import './teacherWorkspace.css';
  *      each name one click from the student and their work;
  *   5. supports & evidence — students with a support profile, their individual
  *      deadlines on this assignment, one-click classroom support records, and
- *      (on request) what the evidence records show (AssignmentSupportLayer).
+ *      (on request) what the evidence records show (AssignmentSupportLayer);
+ *   6. Warm-Up and DOL Recovery — whether each section can be recovered, the
+ *      Recovery versions this assignment carries, Prepare Recovery for a live
+ *      assignment whose static questions can gain them (Recovery V2), and (on
+ *      request) who in this class can recover and why not
+ *      (AssignmentRecoverySection below).
  *
  * It computes nothing new: controls come from classLessonControls.js, progress
  * from assignmentProgress.js, and every change goes through the same App.jsx
@@ -91,6 +108,175 @@ function StatGroup({ items, openKey, setOpenKey, label }) {
   );
 }
 
+/*
+ * WARM-UP AND DOL RECOVERY, FOR ONE ASSIGNMENT.
+ *
+ * Readiness is the planner's (functions/shared/recoveryContentPlan.mjs) on the
+ * stored assignment, counted as students have it NOW: a static question whose
+ * Recovery versions are not stored yet is not ready, and Prepare Recovery
+ * offers to add them (RecoveryUpgradeModal: the server's dry run, approved by
+ * the teacher). Pre-Flight and the server run the same planner.
+ *
+ * Who can recover is read only when the teacher asks (it decides every
+ * student's Recovery, which is too much to redo on every live refresh), from
+ * the class's grade records, as of the moment it was read.
+ */
+function AssignmentRecoverySection({
+  assignment,
+  classContext = null,
+  classLabel = '',
+  gradeStudents = null,
+  onLoadClassGrades = null,
+  schedule = null,
+  nowValue = Date.now(),
+  nameOf,
+  onOpenStudent = null,
+  onRecoveryUpgraded = null,
+}) {
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState(null);
+  const [rosterBusy, setRosterBusy] = useState(false);
+  const [rosterError, setRosterError] = useState('');
+  const [openKey, setOpenKey] = useState(null);
+  // What the plan depends on, in a key that survives live refreshes (which
+  // hand this drawer a new assignment object every few seconds): question
+  // edits move the revision or content version; Recovery changes its version.
+  const questionCount = (Array.isArray(assignment?.sections) ? assignment.sections : [])
+    .reduce((count, section) => count + (Array.isArray(section?.questions) ? section.questions.length : 0), 0);
+  const excludedCount = (Array.isArray(assignment?.sections) ? assignment.sections : [])
+    .reduce((count, section) => count + (Array.isArray(section?.questions) ? section.questions.filter((question) => question?.teacherExcluded === true).length : 0), 0);
+  const planKey = [
+    assignment?.id,
+    assignment?.assignmentRevision || 1,
+    assignment?.contentLineage?.version || 1,
+    assignment?.recoveryContent?.version || 0,
+    questionCount,
+    excludedCount,
+    JSON.stringify(assignment?.recoveryPolicy || null),
+    JSON.stringify(assignment?.warmup || null),
+    JSON.stringify(assignment?.assessmentPolicy || null),
+  ].join('|');
+  const plan = useMemo(() => {
+    try {
+      return planAssignmentRecoveryContent({ assignment, gradeSample: lightRecoveryKeyCheck });
+    } catch {
+      return null;
+    }
+  }, [planKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!plan) return null;
+  const sections = liveRecoverySections(plan);
+  const present = Object.values(sections).filter((entry) => entry.status !== 'notPresent');
+  if (!present.length) return null;
+  const fullyReadyNow = present.every((entry) => ['ready', 'off', 'liveChallenge', 'secure'].includes(entry.status));
+  const preparable = plan.rows.filter((row) => row.status === 'add' || row.status === 'replace');
+  const content = normalizeRecoveryContent(assignment?.recoveryContent);
+  const lastPrepared = content?.history?.length ? content.history[content.history.length - 1] : null;
+  const preparedOn = lastPrepared?.at ? new Date(lastPrepared.at) : null;
+  const versionLine = content?.version
+    ? `Recovery version ${content.version}${preparedOn && Number.isFinite(preparedOn.getTime()) ? ` · prepared ${preparedOn.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''} · ${Object.keys(content.bindings || {}).length} question${Object.keys(content.bindings || {}).length === 1 ? '' : 's'} with Recovery versions`
+    : null;
+
+  const snapshotCurrent = snapshot && snapshot.assignmentId === assignment.id && snapshot.classId === (classContext?.classId || null);
+  const readRoster = async () => {
+    if (!classContext) return;
+    setRosterBusy(true);
+    setRosterError('');
+    try {
+      const students = gradeStudents || (onLoadClassGrades ? await onLoadClassGrades(classContext.classId) : null);
+      if (!students) throw new Error('Student records are not available here.');
+      const roster = buildTeacherRecoveryRoster({
+        assignment,
+        students,
+        classId: classContext.classId,
+        classPeriod: classContext.classPeriod || null,
+        schedule,
+        nameOf,
+        nowValue,
+      });
+      setSnapshot({ assignmentId: assignment.id, classId: classContext.classId, at: Date.now(), roster });
+      setOpenKey(null);
+    } catch (error) {
+      setRosterError(error?.message || 'Could not read student Recovery.');
+    } finally {
+      setRosterBusy(false);
+    }
+  };
+
+  const rosterItems = (section) => {
+    const entry = snapshot?.roster?.sections?.[section];
+    if (!entry) return [];
+    return RECOVERY_ROSTER_GROUP_ORDER
+      .filter((group) => entry.counts[group] > 0 || [RECOVERY_ROSTER_GROUP.PRACTICING, RECOVERY_ROSTER_GROUP.UNLOCKED, RECOVERY_ROSTER_GROUP.COMPLETED].includes(group))
+      .map((group) => ({
+        key: `${section}:${group}`,
+        label: RECOVERY_ROSTER_GROUP_LABEL[group],
+        value: entry.counts[group] || 0,
+        tone: group === RECOVERY_ROSTER_GROUP.HELD || group === RECOVERY_ROSTER_GROUP.UNAVAILABLE
+          ? (entry.counts[group] ? 'danger' : undefined)
+          : group === RECOVERY_ROSTER_GROUP.COMPLETED || group === RECOVERY_ROSTER_GROUP.UNLOCKED ? 'success' : undefined,
+        rows: entry.groups[group],
+      }));
+  };
+  const allRosterItems = ['warmup', 'dol'].flatMap(rosterItems);
+  const openRoster = allRosterItems.find((item) => item.key === openKey);
+  const clock = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+  return (
+    <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-recovery" data-assignment-hub-recovery={assignment.id}>
+      <h3 id="assignment-hub-recovery" className="tw-card__title">
+        Warm-Up &amp; DOL Recovery
+        <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · {recoveryReadinessSummary(sections)}</span>
+      </h3>
+      <RecoveryReadinessPanel sections={sections} fullyReady={fullyReadyNow} context="live" title="Recovery readiness" />
+      {versionLine && <div className="tw-small tw-muted" data-recovery-content-version={content.version}>{versionLine}</div>}
+      {preparable.length > 0 && (
+        <div className="tw-notice" data-recovery-preparable={preparable.length}>
+          <div>
+            MathMaster can add Recovery versions for {preparable.length === 1 ? 'one question' : `${preparable.length} questions`} ({preparable.map((row) => row.label).join(', ')}) without changing any question or any student&apos;s work. Review exactly what would change before anything is saved.
+          </div>
+          <div className="tw-row" style={{ marginTop: 8 }}>
+            <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" data-recovery-prepare="true" onClick={() => setUpgradeOpen(true)}>Prepare Recovery…</button>
+          </div>
+        </div>
+      )}
+      {classContext && (
+        <div className="tw-stack" style={{ gap: 6 }}>
+          {snapshotCurrent ? (
+            <>
+              {['warmup', 'dol'].filter((section) => snapshot.roster.sections[section]).map((section) => (
+                <div key={section} className="tw-stack" style={{ gap: 4 }}>
+                  <div className="tw-small" style={{ fontWeight: 800 }}>{section === 'dol' ? 'DOL' : 'Warm-Up'} Recovery · {classLabel}</div>
+                  <StatGroup items={rosterItems(section)} openKey={openKey} setOpenKey={setOpenKey} label={`${section === 'dol' ? 'DOL' : 'Warm-Up'} Recovery by student`} />
+                </div>
+              ))}
+              {!Object.keys(snapshot.roster.sections).length && <div className="tw-small tw-muted">No student in {classLabel} has a Warm-Up or DOL Recovery to show yet.</div>}
+              {openRoster && <div className="tw-card tw-card--muted"><NameList rows={openRoster.rows} detail={(row) => row.reasonText} onOpenStudent={onOpenStudent} /></div>}
+              <div className="tw-small tw-muted">
+                As of {clock(snapshot.at)} · <button type="button" className="tw-link" disabled={rosterBusy} onClick={readRoster}>{rosterBusy ? 'Refreshing…' : 'Refresh'}</button>
+              </div>
+            </>
+          ) : (
+            <div className="tw-row">
+              <button type="button" className="tw-btn tw-btn--sm" disabled={rosterBusy || (!gradeStudents && !onLoadClassGrades)} onClick={readRoster}>
+                {rosterBusy ? 'Reading…' : `Show who can recover in ${classLabel}`}
+              </button>
+            </div>
+          )}
+          {rosterError && <span className="tw-small" role="alert">Could not read: {rosterError}</span>}
+        </div>
+      )}
+      {upgradeOpen && (
+        <RecoveryUpgradeModal
+          assignment={assignment}
+          onClose={() => setUpgradeOpen(false)}
+          onUpgraded={onRecoveryUpgraded}
+        />
+      )}
+    </section>
+  );
+}
+
 export default function AssignmentHub({
   open = false,
   assignment = null,
@@ -127,6 +313,9 @@ export default function AssignmentHub({
   // own controls (individual deadlines) are read for it
   // (platform/teacher/teacherClassControls.js).
   onClassChange = null,
+  // (result) => Promise. After Prepare Recovery saved: refresh the assignment
+  // list so this drawer shows the new Recovery version.
+  onRecoveryUpgraded = null,
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
@@ -374,9 +563,26 @@ export default function AssignmentHub({
               />
             );
 
+            const recoverySection = !isTestCycleAssignment(assignment) && (
+              <AssignmentRecoverySection
+                assignment={assignment}
+                classContext={classContext}
+                classLabel={classLabel}
+                gradeStudents={hasGradeRecords ? roster : fetched?.students || null}
+                onLoadClassGrades={onLoadClassGrades}
+                schedule={classSchedule}
+                nowValue={nowValue}
+                nameOf={nameOf}
+                onOpenStudent={onOpenStudent}
+                onRecoveryUpgraded={onRecoveryUpgraded}
+              />
+            );
+
+            // Recovery follows the core layers and Supports: it never changes
+            // what the hub leads with.
             return pastLesson
-              ? <>{progressSection}{liveSection}{controls}{supportsSection}</>
-              : <>{controls}{liveSection}{progressSection}{supportsSection}</>;
+              ? <>{progressSection}{liveSection}{controls}{supportsSection}{recoverySection}</>
+              : <>{controls}{liveSection}{progressSection}{supportsSection}{recoverySection}</>;
           })()}
         </div>
       </Dialog>

@@ -290,15 +290,17 @@ question, and it is never a free skip.
 The Results panel was at first the only way in, and students did not find it:
 nothing elsewhere said a Recovery had opened, a student arriving from a Google
 Classroom link never passed the Results screen, and students who did find it
-practised in the assignment's own Practice section, which never counts.
+practised in the assignment's own Practice section, which did not count then
+(since Recovery V2 it counts where it is trustworthy evidence: §6a).
 `src/platform/recovery/studentRecoveryDiscovery.js` lists every Recovery a
 student can act on now — Locked (practise), Unlocked (start) or In progress
 (continue) — and three surfaces render it with one button for the next step:
 
 * **Home** — a "Second chance" card below the live Warm-Up/DOL cards and
   above the Resume card: what closed, the exact bar ("Get 7 of your last 8
-  Recovery practice questions right"), that the assignment's own Practice
-  does not count, the meter and the end date.
+  practice questions right on your own"), exactly which practice counts (the
+  "Practice for …" questions and, since Recovery V2, the assignment's own
+  Practice questions on the same skills, by number), the meter and the end date.
 * **The Assignments Center** — a line on the assignment's row, and the row
   joins the Active tab even when every question is finished.
 * **The assignment's own header**, for a student who came from Classroom.
@@ -465,6 +467,97 @@ establish nothing on another, so nothing leaks between classmates, from a DOL
 into its Recovery, or across Practice versions. See
 `multiple-representations-process-mode.md`.
 
+## 6a. Recovery V2: Recovery for static questions (`recoveryContent`)
+
+Practice-based Recovery needs a generator behind every Warm-Up and DOL
+question, and most lessons — including live assignments students had already
+started — were written with static questions. Recovery V2 gives a static
+question Recovery **without changing it**: a separately versioned record
+beside the questions binds it to a certified Question Family that recognizes
+it, and the Recovery is generated from that family.
+
+| Module | Role |
+| --- | --- |
+| `recoveryContent.mjs` | The record (`assignment.recoveryContent`: `version`, `bindings` by questionId, `history`), each binding's `sourceSignature` (a content signature of the exact question it was certified for — weights, hints and section names excluded), the synthesized family slot a bound question generates from (`recoverySourceQuestion`: the original's identity fields and the family, none of its mathematics), and the exclusion fingerprints (the original and every static problem in the assignment its family recognizes). `applyRecoveryBindings` is idempotent: the same bindings twice is one version. |
+| `questionFamilyContract.mjs` | Two optional family hooks: `recognize(question)` → `{ params, constraints }` for a static question that is one of its instances, and `difficultyFor(constraints)` → `{ band, dok }`. |
+| `questionFamiliesLinearGraphs.mjs`, `questionFamiliesTransformations.mjs` | The five families behind the Algebra I transformations lesson: `linear.graphFromSlopeIntercept`, `linear.keyCharacteristics`, `transformations.linearPlotImages`, `transformations.linearHorizontalShiftAlgebra`, `transformations.linearCompareEffects`. |
+| `recoveryCertification.mjs` | Certifies a binding: registered and Recovery-eligible family, valid constraints, recognizes the original with the same concept settings, same tool and mode, the original's primary TEKS among the family's alignments, the same DOK and difficulty band, at least 12 fresh versions after the exclusions (an exact walk when the list is small), server-gradable, every sampled version's own key marked right and a wrong answer marked wrong. The key check is a parameter: the full graders (`recoveryCertificationGrading.mjs`) on the server and in the tests, a light check (`recoveryLightKeyCheck.mjs`) in Pre-Flight, which never reports an unchecked kind as passed. |
+| `recoveryContentPlan.mjs` | The one planner every surface runs (Pre-Flight, creation, the assignment details, the upgrade callables, the operator script): per Warm-Up/DOL question `family`, `kept`, `add`, `replace` or `unavailable` (with the reason and the fix), the legitimate exceptions (`off`, `liveChallenge`, `secure`, `notPresent`), and `fullyReady` only when both sections are ready or excepted. `liveRecoverySections` counts only stored bindings — what students have now. `recoveryPreparationAvailable` is the cheap, recognition-only check behind an assignment card's badge. |
+| `recoveryContentUpgrade.mjs` | The live upgrade: the dry-run report (what changes; what does not, with every question's signature and student-record counts — never an id), the plan hash an approval is bound to (the questions and the bindings to write; never student data, so work in progress never invalidates an approval), and `applyRecoveryUpgrade` (the new `recoveryContent` and one `assignmentVersionEvents` row). |
+| `recoveryMigrations.mjs` | Prepared, reviewed bindings for a known live lesson (`recovery-v2-algebra1-m2t2-l2`), certified like any other. |
+| `assignmentPracticeEvidence.mjs` | The assignment's own Practice as mastery evidence, only where trustworthy (below). |
+
+**Readiness and generation.** `sectionRecoveryReadiness.mjs` treats a static
+question with a current binding as a ready slot whose `recoveryQuestion` is
+the synthesized family slot; `sectionRecoveryService.mjs` puts that slot in
+`questionsByIndex`, so Practice dealing, the Recovery plan, the runner and the
+server's grading all generate from it, and adds the bound originals and every
+recognizable static problem to the student's seen fingerprints. A binding whose
+question has since changed (`sourceSignature` mismatch) is stale and unused —
+the section reads "not ready" until it is prepared again.
+
+**Where bindings come from.**
+
+1. *Creation.* Pre-Flight plans the Warm-Up and DOL; publish plans again on
+   the exact payload written (Standard and Honors copies separately) and stores
+   the bindings with the new assignment (`recoveryContentAuthoring.js`). A
+   duplicate gets bindings planned for its own question ids.
+2. *The live upgrade.* `previewRecoveryContentUpgrade` (the teacher's "Prepare
+   Recovery" dry run) and `commitRecoveryContentUpgrade` (the approval). The
+   commit re-plans inside its transaction from the document it read, refuses a
+   plan hash that moved (`recovery-upgrade-plan-changed`), and writes exactly
+   two things: `recoveryContent` and the audit event. It never writes
+   `updatedAt` or `assignmentRevision` (no question moved), a `grades/`
+   document, or a Classroom signal. Authority: the teacher of record of every
+   assigned class, or an administrator (any teacher for a Library copy).
+3. *Content V2.* A release that turns a live static Warm-Up/DOL question into a
+   family slot is classified `recoveryCapability` (opt-in in
+   `classifyContentQuestionChange`): the live question is kept byte for byte
+   and the release's family is certified and stored as its binding in the same
+   commit. Without the opt-in the same change is `fundamental`.
+4. *The operator script* `scripts/recovery-v2-upgrade.mjs`, the same operation
+   with the Admin SDK on a teacher's approved plan hashes
+   (`docs/handoffs/RECOVERY_V2_LIVE_UPGRADE_RUNBOOK.md`).
+
+`firestore.rules` lists `recoveryContent` among the server-owned assignment
+fields: a teacher's browser may create an assignment with it and never change
+it afterwards (`tests/rules/recoveryContentRules.test.mjs`).
+
+**The assignment's own Practice counts — when it is evidence.** A Practice
+question contributes to the mastery window when it is ALIGNED (its family's
+skill, or the same primary TEKS, as a ready slot), FINISHED (correct or out of
+tries), SERVER-GRADED (`gradedBy: 'server'`), the student's OWN (no teacher
+per-question grade, no content-correction credit), INDEPENDENT
+(`attemptWasIndependent`), DATED and DISTINCT (its delivered instance, or its
+question id). The player shows a solution only once a question is finished,
+and a finished question records nothing more, so it cannot be re-answered from
+a remembered solution. Outcomes carry `source: 'assignmentPractice'`; the gate
+reports `sources` and the unlock record keeps them, so the teacher's audit says
+how much of an unlock came from the assignment's Practice. The student's panel
+names the counting questions by their position (`describeAssignmentPractice`).
+
+**Teacher surfaces.** Pre-Flight's `RecoveryReadinessPanel` (Standard and
+Honors) with "Fix for Recovery" (the existing repair flow, with
+`RECOVERY_REPAIR_INSTRUCTION`; a replacement is accepted only if the planner
+can then certify it); the assignment details' Warm-Up & DOL Recovery section
+(readiness now, the Recovery version, Prepare Recovery, and — on request —
+`teacherRecoveryRoster.js`: each student's server-decided state and reason);
+the assignment card's "RECOVERY CAN BE ADDED" badge.
+
+**The student's first load.** Deciding a Recovery now loads after Home: App
+loads `src/app/student/studentRecoveryKit.js` once a student is signed in, and
+every Recovery surface fills in when it arrives. The phases, the announcement
+and the "NEW" marks stay in `studentRecoveryNotices.js`
+(`tests/platform/firstLoadStudentRecovery.test.mjs`).
+
+**Tests.** `recoveryV2Families`, `recoveryV2Certification`,
+`recoveryV2LiveUpgrade` (dry run, plan hash, one-field write, idempotence, the
+operator script against an in-memory Firestore), `recoveryV2StudentJourney`
+(the real lesson end to end: a part-way class, the upgrade, the original
+finished, Practice, the Recovery, the grade on every surface) and
+`recoveryV2Visibility`; `tests/browser/recoveryReadiness.mjs` and
+`tests/browser/recoveryDiscovery.mjs` on a phone, an iPad and a Chromebook.
+
 ## 7. Compatibility and what remains legacy
 
 * Questions without `questionFamily` behave exactly as before. This includes
@@ -483,6 +576,7 @@ into its Recovery, or across Practice versions. See
     boards). Each baseline question is one draw of its upgraded slot. It
     passes the teacher import and Pre-Flight with no errors or warnings, both
     Recoveries ready. The baseline file is kept unchanged.
-* Everything else in `teacher-import-jsons/` and the stored library remains
-  legacy until it is migrated question by question. Pre-Flight shows which
-  questions block Recovery.
+* Everything else in `teacher-import-jsons/` and the stored library is paired
+  with a certified Recovery family where one recognizes it (§6a); the rest
+  stays without Recovery until it is migrated question by question, and
+  Pre-Flight and the assignment details show which questions block it.
