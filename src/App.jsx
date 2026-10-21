@@ -476,7 +476,6 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
-import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
 import { projectTestCycleTeacherActions } from './platform/teacher/testCycleActionProjection.js';
 import {
@@ -4726,14 +4725,14 @@ function App() {
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
       return { units: [], authorizedClassIds: [] };
     }
-    return projectGradeTransferUnits({
+    return teacherKit.projectGradeTransferUnits({
       classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
       snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
     });
-  }, [teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
+  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
 
   const actionReturnCheckIns = useMemo(() => {
     if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];

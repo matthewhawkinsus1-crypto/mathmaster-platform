@@ -31,6 +31,50 @@ const wrongFieldValue = (field) => {
   return '999';
 };
 
+/**
+ * The Matrix Lab work a student who solved a matrices.* version would send
+ * (serverGrading/declarations/matrixLab.mjs, every cell as typed text), and
+ * one wrong one; null for an answer that is not a Matrix Lab answer.
+ */
+export const matrixLabKeyWork = (answer = {}) => {
+  if (answer.kind === 'matrixOperate' && Array.isArray(answer.value?.entries)) {
+    const { rows, cols, entries } = answer.value;
+    const work = (cells) => ({
+      defined: 'yes',
+      dimensions: { rows: String(rows), cols: String(cols) },
+      entries: cells.map((row) => row.map(String)),
+      inverses: '',
+    });
+    return { right: work(entries), wrong: work(entries.map((row, i) => row.map((cell, j) => (i === 0 && j === 0 ? cell + 1 : cell)))) };
+  }
+  if (answer.kind === 'matrixSolve' && Array.isArray(answer.value?.A)) {
+    const { A, B, classification, values = [], singularReason = null } = answer.value;
+    const work = (overrides = {}) => ({
+      A: A.map((row) => row.map(String)),
+      B: B.map(String),
+      inverse: [],
+      classification,
+      values: values.map(String),
+      usedTechnology: true,
+      ...(singularReason ? {
+        singularReason: {
+          row: String(singularReason.row),
+          otherRow: String(singularReason.otherRow),
+          factor: String(singularReason.factor),
+          constant: singularReason.constant,
+        },
+      } : {}),
+      ...overrides,
+    });
+    // One solved value off by one; a singular system classified the other way.
+    const wrong = classification === 'one'
+      ? work({ values: values.map((value, index) => String(index === 0 ? value + 1 : value)) })
+      : work({ classification: classification === 'none' ? 'many' : 'none' });
+    return { right: work(), wrong };
+  }
+  return null;
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -61,6 +105,14 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
         toolId: 'transformationsLab',
         work: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) },
       }),
+    };
+  }
+  // Matrix Lab (matrices.*): the work the lab's Check sends.
+  const matrixWork = question.type === 'matrixLab' ? matrixLabKeyWork(answer) : null;
+  if (matrixWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'matrixLab', work: matrixWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'matrixLab', work: matrixWork.wrong }),
     };
   }
   return null;

@@ -32,6 +32,12 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `linear.slopeFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 64,231 — every student unique | — |
 | `linear.twoStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 10,080 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6] |
 | `linear.twoStepEquation` | v2 · only when pinned (`"version": 2`) | one | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 9,671 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6]; keeps distribute, solutionForm, coefficientForm |
+| `matrices.addition` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 956,718 — every student unique | — |
+| `matrices.arrayRecordTotals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 907,031 — every student unique | — |
+| `matrices.multiplication` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 140,390 — every student unique | — |
+| `matrices.singularSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 91,328 — every student unique | — |
+| `matrices.solveSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,390 — every student unique | — |
+| `numbers.multiplicativeInverse` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,695 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.elimination` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 2,174,110 — every student unique | — |
@@ -355,6 +361,117 @@ Two-step linear equation (distribution and fractions).
 | coefficientForm: "fraction" | about 4,257 | one · plain: about 4,257 |
 
 - **reduce-complexity:** `coefficientRange` [2, 6], `constantRange` [-8, 8], `solutionRange` [-6, 6] — about 1,020 distinct questions; never changes `distribute`, `solutionForm`, `coefficientForm`.
+
+### `matrices.addition` v1
+
+Add two matrices of data.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `matrixLab` (operate)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 956,718 | — |
+
+### `matrices.arrayRecordTotals` v1
+
+Read two arrays of data: totals over both and the smallest.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 907,031 | — |
+
+### `matrices.multiplication` v1
+
+Is a matrix product defined? Its size and its entries.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `matrixLab` (operate)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `names` | choice | `"P/Q"` | `"P/Q"`, `"A/B"`, `"M/N"`, `"R/S"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 140,390 | — |
+
+### `matrices.singularSystem3x3` v1
+
+A system whose coefficient matrix has no inverse.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.3B
+- **Answered in:** `matrixLab` (solve)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `singularCase` | choice | `"none"` | `"none"`, `"many"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 91,328 | — |
+| singularCase: "many" | about 91,328 | — |
+
+### `matrices.solveSystem3x3` v1
+
+Solve a system of three equations with matrices.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `matrixLab` (solve)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 60,390 | — |
+
+### `numbers.multiplicativeInverse` v1
+
+The multiplicative inverse of a number.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 1,695 | — |
 
 ### `quadratics.identifyVertex` v1
 

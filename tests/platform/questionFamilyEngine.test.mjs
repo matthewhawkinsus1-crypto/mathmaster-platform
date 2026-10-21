@@ -40,6 +40,7 @@ import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serve
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
+import { matrixLabKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
 
 const SAMPLE = 160;
 
@@ -102,6 +103,9 @@ const REGISTRY_TOOL_WORK = {
     const images = instance.answer.value.map(([x, y]) => [x, y]);
     return { right: { plottedPoints: images }, wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) } };
   },
+  // The Matrix Lab (matrices.*): the work the lab's Check sends, and one cell
+  // (or one value, or the classification) wrong.
+  matrixLab: (question, instance) => matrixLabKeyWork(instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));
