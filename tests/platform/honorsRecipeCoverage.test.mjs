@@ -130,7 +130,10 @@ test('the committed report is generated from the live registry and audit, never 
   // CAPABLE; no recipe exists for them yet. The five Recovery V2 families
   // (a line from slope-intercept form, a line's key characteristics, and three
   // transformations of f(x) = x) ask exactly their original's skill: BLOCKED in
-  // Algebra I, NOT APPROPRIATE in Algebra II.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 17 \| 4 \| 5 \| 7 \| 1 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 17 \| 0 \| 0 \| 6 \| 11 \|/);
+  // Algebra I, NOT APPROPRIATE in Algebra II. The six matrices Recovery
+  // families are Algebra II content: NOT APPROPRIATE in Algebra I; in Algebra
+  // II five are BLOCKED and matrices.solveSystem3x3 is CAPABLE (an extension
+  // can target matrices.singularSystem3x3; no recipe yet).
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 23 \| 4 \| 5 \| 7 \| 7 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 23 \| 0 \| 1 \| 11 \| 11 \|/);
 });

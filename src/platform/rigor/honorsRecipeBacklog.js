@@ -42,6 +42,12 @@ const ALGEBRA_I_ONLY = (concept) => ({
   teacherReason: `${concept} is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it.`,
 });
 
+const ALGEBRA_II_ONLY = (concept, teks) => ({
+  status: NOT_APPROPRIATE,
+  reason: `${concept} is Algebra II content (${teks}); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to ${teks} is the course/TEKS conflict selection already refuses.`,
+  teacherReason: `${concept} is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it.`,
+});
+
 /**
  * The verdict for every registered family that is not READY, by course.
  * A family id missing here for a course must be READY in the registry; the
@@ -134,8 +140,8 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
     algebra2: Object.freeze({
       status: BLOCKED,
       reason: 'Algebra II systems (A2.3A–B) are systems of three linear equations in three variables; a two-variable elimination drill has no Algebra II Honors depth.',
-      missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions.',
-      teacherReason: 'MathMaster has no generator for three-variable systems yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
+      missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions. (matrices.solveSystem3x3 generates 3×3 systems only for the Matrix Lab, solved with technology.)',
+      teacherReason: 'MathMaster has no generator for three-variable systems in the Systems Workspace yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
     }),
   }),
   'systems.substitution': Object.freeze({
@@ -160,8 +166,8 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
     algebra2: Object.freeze({
       status: BLOCKED,
       reason: 'Algebra II systems (A2.3A–B) are systems of three linear equations in three variables; two-variable systems, even with no or infinitely many solutions, are Algebra I depth (A.5C).',
-      missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions.',
-      teacherReason: 'MathMaster has no generator for three-variable systems yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
+      missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions. (matrices.solveSystem3x3 generates 3×3 systems only for the Matrix Lab, solved with technology.)',
+      teacherReason: 'MathMaster has no generator for three-variable systems in the Systems Workspace yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
     }),
   }),
   'quadratics.identifyVertex': Object.freeze({
@@ -203,6 +209,62 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       reason: 'Every instance has exactly two integer solutions h ± d, entered as two numbers. The depth Honors needs — an equation with no solution or one solution, an extraneous root, or the inequality |x − h| ≤ c (A2.6F) — cannot be generated.',
       missingCapability: 'A `solutionCase` knob (two | one | none | mixed) with a "No solution" answer the multiAnswer key can state, and an `inequality` knob (<, ≤, >, ≥) answered on intervalNumberLine (the number-line tool and its server grader exist).',
       teacherReason: 'MathMaster\'s absolute value generator only makes equations with two whole-number solutions, so it cannot yet ask the no-solution, one-solution or inequality cases an Honors extension needs.',
+    }),
+  }),
+  // Recovery V2 families for Algebra II Honors "Solving Systems with Matrices"
+  // (questionFamiliesMatrices.mjs). Like the Algebra I ones above, each asks
+  // exactly its original's skill at its rigor.
+  'matrices.arrayRecordTotals': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Reading records as matrices', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It reads two sales records as arrays — two totals, whether the arrays hold the same numbers, and which kind sold fewest — with no matrix operation; the remaining levers are other card values and wider counts, which are not rigor.',
+      missingCapability: 'A context product (a quantity matrix times a price column, giving revenue) answered in the Matrix Lab\'s operate mode, so the student decides what the product means as well as computing it.',
+      teacherReason: 'MathMaster\'s sales-record generator only asks for totals read from the arrays, so it cannot yet build the matrix-product-in-context work a built-in Honors extension needs.',
+    }),
+  }),
+  'matrices.addition': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Adding matrices', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It adds two 3×2 sales matrices entry by entry; the Matrix Lab\'s operate mode adds or multiplies only, so neither a scalar multiple nor a difference (k·A − B) can be asked.',
+      missingCapability: 'Scalar multiples and differences in the Matrix Lab\'s operate mode (with their server grader), and a family knob that asks for a combination such as 2·Dec − Nov.',
+      teacherReason: 'MathMaster\'s matrix-addition generator only adds two matrices, so it cannot yet build the matrix-combination work a built-in Honors extension needs.',
+    }),
+  }),
+  'numbers.multiplicativeInverse': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Multiplicative inverses as the idea behind an inverse matrix', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review: the inverse of a whole number and of a fraction, that a number times its inverse is 1, and that 0 has none. Its Honors depth is the inverse of a matrix, which this family does not generate.',
+      missingCapability: 'A Question Family for the Matrix Lab\'s inverse work (judgeInverse / askInverse): find or verify A⁻¹ for a 2×2 matrix, and recognize a matrix with no inverse.',
+      teacherReason: 'MathMaster\'s inverse generator only works with numbers, so it cannot yet build the inverse-matrix work a built-in Honors extension needs.',
+    }),
+  }),
+  'matrices.multiplication': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Multiplying matrices', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a 2×3 times a 3×2, always defined, computed once; the depth Honors needs — that Q · P differs from P · Q, or is not even defined — cannot be generated.',
+      missingCapability: 'An `order` knob that asks for both P · Q and Q · P (or whether one is defined, with the Matrix Lab\'s askDefined), so the student shows matrix multiplication is not commutative.',
+      teacherReason: 'MathMaster\'s matrix-multiplication generator computes one product in one order, so it cannot yet build the does-order-matter work a built-in Honors extension needs.',
+    }),
+  }),
+  'matrices.solveSystem3x3': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Solving a system of three equations with matrices', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: CAPABLE,
+      reason: 'This family makes one-solution 3×3 systems solved with technology, but matrices.singularSystem3x3 now generates the systems whose coefficient matrix has no inverse — no solution or infinitely many, decided from the constants and justified by the row that is a multiple of another — marked by the Matrix Lab\'s shared server grader. A recipe anchored on this family can target it; none has been written yet.',
+      teacherReason: 'MathMaster can now generate the singular systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
+    }),
+  }),
+  'matrices.singularSystem3x3': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Systems of three equations with no inverse', 'A2.3B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It already asks the deeper reading (no inverse; no solution or infinitely many; which row is a multiple of which). What remains is reasoning about a parameter, which it cannot generate.',
+      missingCapability: 'A `parameter` knob that writes one constant or coefficient as k and asks for the value(s) of k that give no solution or infinitely many, with the answer field the Matrix Lab\'s solve mode would need to mark it.',
+      teacherReason: 'MathMaster\'s singular-system generator uses fixed numbers, so it cannot yet build the find-the-parameter work a built-in Honors extension needs.',
     }),
   }),
 });

@@ -4,8 +4,9 @@
 // student's Home, although no student path runs them before it:
 //   - the needs-attention queue, the Action Center's items, Assignment
 //     Review's publishing intent, teacher worksheets and Classroom publishing,
-//     which App imported for the teacher's screen. They now load as the teacher
-//     kit (src/app/teacher/teacherKit.js) once a teacher is signed in, and the
+//     which App imported for the teacher's screen, and the Action Center's
+//     grade-transfer units. They now load as the teacher kit
+//     (src/app/teacher/teacherKit.js) once a teacher is signed in, and the
 //     teacher's screen waits for it;
 //   - the authoring and repair logic, reached by Home only for four state
 //     names (src/platform/preflight/authoringStates.js);
@@ -41,6 +42,7 @@ for (const [file, why] of [
   ['src/app/teacher/teacherKit.js', 'the teacher kit loads for a teacher (app/teacher/teacherKitLoader.js)'],
   ['src/platform/teacher/needsAttention.js', 'only Teacher Home shows the queue'],
   ['src/platform/teacher/teacherActionCenter.js', 'only the Action Center shows its items'],
+  ['src/platform/gradeTransfer/gradeTransferProjection.js', 'only the Action Center projects grade-transfer units'],
   ['src/platform/authoring/lessonPublishingIntent.js', 'only Assignment Review reads it'],
   ['src/platform/resources/teacherWorksheetEligibility.js', 'only a teacher\'s worksheet export reads it'],
   ['src/platform/classroom/automaticClassroomPublishing.js', 'only a teacher publishes to Classroom'],
@@ -107,6 +109,12 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(items, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
   assert.match(items, /return teacherKit\.buildTeacherActionItems\(\{/);
   assert.match(items, /\}, \[teacherKit, /, 'the memo depends on the kit');
+  // The Action Center's grade-transfer units (their saved state loads with the
+  // first load's grade-transfer store, which rewards use too).
+  const scope = region(appCode, 'const actionGradeScope = useMemo(() => {', '\n  const actionReturnCheckIns', 'grade-transfer scope memo');
+  assert.match(scope, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) \{\s*return \{ units: \[\], authorizedClassIds: \[\] \};/);
+  assert.match(scope, /return teacherKit\.projectGradeTransferUnits\(\{/);
+  assert.match(scope, /\}, \[teacherKit, /, 'the memo depends on the kit');
 });
 
 test('the authoring states and the exam-practice rule are the same values from their new homes', async () => {
