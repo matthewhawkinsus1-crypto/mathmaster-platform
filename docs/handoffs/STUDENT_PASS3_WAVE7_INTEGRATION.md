@@ -306,6 +306,7 @@ Each handoff lists its own, in full. Grouped here:
     multi-answer items with no family. An inclusion student there goes straight to the next try, with the hints and
     miss messages the platform already gives. Writing steps for those types (an authored `scaffold`, or a family that
     reads their structure) would give them one back.
+    **Decided 2026-10-20: write them** (see `STUDENT_PASS3_READ_ALOUD_2.md`, decision 1).
 16. A figure is read in English even under an authored Spanish translation (W7-5 2). The reader's own words are
     Spanish ("Una tabla", "Fila", "en blanco").
 17. A composed graph is named by its step's label (W7-5 3), so a DOL item reads "State the domain. x from …" before

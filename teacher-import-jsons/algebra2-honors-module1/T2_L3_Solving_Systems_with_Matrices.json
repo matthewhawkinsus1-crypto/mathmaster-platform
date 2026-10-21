@@ -140,7 +140,15 @@
             "Find the $25 row and the Grocery column in each month, add the two counts, then multiply by $25.",
             "$50 gas cards: 550 in November and 348 in December.",
             "Add each card type across both months before you compare."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find a total over both months, you first…",
+            "options": [
+              "Multiply the two months’ counts",
+              "Add the two months’ counts for that card"
+            ],
+            "correct": "Add the two months’ counts for that card"
+          }
         },
         {
           "questionId": "l3m-wu-2",
@@ -270,7 +278,15 @@
             "Flip the number: the inverse of a/b is b/a, with the same sign.",
             "A number times its multiplicative inverse is always the multiplicative identity.",
             "Which number times anything is never 1?"
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The multiplicative inverse of a/b is…",
+            "options": [
+              "b/a",
+              "−a/b"
+            ],
+            "correct": "b/a"
+          }
         }
       ]
     },
@@ -1532,7 +1548,15 @@
           "hints": [
             "Row 2 of A is (0, 3); column 1 of B is (4, −2).",
             "Inner dimensions must match; the product has the outer ones."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An m × n matrix times an n × p matrix has dimensions…",
+            "options": [
+              "n × n",
+              "m × p"
+            ],
+            "correct": "m × p"
+          }
         }
       ]
     },

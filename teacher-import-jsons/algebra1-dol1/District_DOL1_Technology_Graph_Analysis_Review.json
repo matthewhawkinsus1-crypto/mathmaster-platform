@@ -670,7 +670,15 @@
               "label": "a(5)",
               "answer": "23"
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In this sequence, how do you get from one term to the next?",
+            "options": [
+              "Add 4",
+              "Multiply by 4"
+            ],
+            "correct": "Add 4"
+          }
         },
         {
           "standard": "A.2A",
@@ -1064,7 +1072,15 @@
               "label": "g(5)",
               "answer": "48"
             }
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In this sequence, how do you get from one term to the next?",
+            "options": [
+              "Add 2",
+              "Multiply by 2"
+            ],
+            "correct": "Multiply by 2"
+          }
         },
         {
           "standard": "A.12A",

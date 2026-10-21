@@ -624,7 +624,15 @@
           "purpose": "independentPractice",
           "evidenceWeight": 0.75,
           "dok": 1,
-          "difficultyBand": 2
+          "difficultyBand": 2,
+          "scaffold": {
+            "prompt": "Let’s back up. Can |x| ever be negative?",
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "correct": "No"
+          }
         },
         {
           "standard": "A2.6C",
@@ -881,6 +889,14 @@
           "difficultyBand": 3,
           "questionFamily": {
             "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The farther x is from 0, the value of |x| is…",
+            "options": [
+              "Larger",
+              "Smaller"
+            ],
+            "correct": "Larger"
           }
         }
       ]

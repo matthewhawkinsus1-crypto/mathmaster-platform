@@ -15,6 +15,9 @@
 //   ?q=dolgraph7            q_section-4_4_4: seven steps, only the one on screen is read
 //   ?q=table                the real fillable table of Algebra I M2 T2 L2 (l2-cw-9):
 //                           its given cells are read, a cell to fill in is "blank"
+//   ?q=planes               the real three-planes Systems Workspace item 3x3-d1-cw-1:
+//                           no family reads it, so its "Let's back up" step is
+//                           built from the tool's structure (readAloudTranslate.mjs)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -35,6 +38,7 @@ import day2Transformations from '../../teacher-import-jsons/algebra2-honors-modu
 import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
 import dolGraphLesson from '../../teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
 import transformationsLesson from '../../teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json';
+import threeByThreeDay1 from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -100,6 +104,9 @@ const QUESTIONS = {
   table: compileAuthoringIntentV5(transformationsLesson).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.questionId === 'l2-cw-9'),
+  planes: compileAuthoringIntentV5(threeByThreeDay1).package.sections
+    .flatMap((section) => section.questions)
+    .find((entry) => entry.questionId === '3x3-d1-cw-1'),
   // No question family claims it and it has no authored scaffold: no step is
   // written for it (HELP-19, readAloudTranslate.mjs).
   plain: {

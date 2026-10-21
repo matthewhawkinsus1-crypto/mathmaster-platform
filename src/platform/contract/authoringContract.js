@@ -282,6 +282,7 @@ const sectionBalanceRigorSection = () => section('Classwork versus Practice bala
   bullet('Rigor floor: Practice may remove support, but it must not quietly turn DOK 2–3 Classwork into mostly DOK 1 recognition.'),
   bullet('Interaction parity: if Classwork uses graphs, mappings, tables, modeling, sorting, or representation matching, Practice should retain a meaningful share of those experiences instead of collapsing to mostly simple multiple-response questions.'),
   bullet('Scaffolding reduction: Guided Notes belong primarily in Classwork. Practice should usually run without authored Guided Notes and with fewer hints.'),
+  bullet('Inclusion back-up step (optional): a Warm-Up, Classwork or Practice question may carry `"scaffold": { "prompt": "Let’s back up. …", "options": ["…", "…"], "correct": "…" }`, one two-choice question about THIS problem\'s first move that an inclusion student answers after two misses. It never offers the question\'s own answer. Matrix Lab and three-variable Systems Workspace items get one from their structure, so they need none; never put one on a DOL, quiz or test.'),
   bullet('Transfer variety: Practice should use new numbers, contexts, or representations while assessing the same lesson objective; do not merely copy Classwork verbatim.'),
   bullet('Instructional ceiling still wins: never add later-unit/later-course mathematics merely to make Practice look harder.'),
   '',

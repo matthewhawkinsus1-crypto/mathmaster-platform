@@ -158,7 +158,10 @@ const copyCommon = (source, target = {}) => {
   // `misconceptions` ([{ match, message }]) is the teacher's feedback keyed to
   // one wrong answer; missFeedback (attemptFeedbackPlan.js) reads it off the
   // compiled question, so dropping it here silenced it for every student.
-  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `scaffold` ({ prompt, options: [two], correct }) is the item's own "Let's
+  // back up" step for an inclusion student after two misses (backUpStep.js);
+  // it was dropped here, so no authored step ever reached a student.
+  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose

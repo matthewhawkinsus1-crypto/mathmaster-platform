@@ -161,7 +161,15 @@
             "The x-intercept is where the output is 0: solve 0 = 3x − 8.",
             "The y-intercept is the output when x = 0.",
             "A positive slope means the line rises from left to right."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Where a line crosses the x-axis, which of these is 0?",
+            "options": [
+              "The input, x",
+              "The output, g(x)"
+            ],
+            "correct": "The output, g(x)"
+          }
         },
         {
           "questionId": "l2-wu-3",
@@ -265,7 +273,15 @@
             "Solve 0 = −(2/3)x + 5 for the x-intercept. Multiply both sides by 3 first.",
             "The y-intercept is the constant term.",
             "A negative slope means the line falls from left to right."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find the y-intercept of h(x), which value do you put in?",
+            "options": [
+              "x = 0",
+              "h(x) = 0"
+            ],
+            "correct": "x = 0"
+          }
         }
       ]
     },
@@ -522,6 +538,14 @@
                 "instruction": "y = f(x) + d moves the graph vertically: up when d > 0, down when d < 0."
               }
             ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. To compare t(x) and w(x), what do you look at first?",
+            "options": [
+              "A table of points for each graph",
+              "Only the equation f(x) = x"
+            ],
+            "correct": "A table of points for each graph"
           }
         },
         {
@@ -664,7 +688,15 @@
             "q(x) = j(x) + 4 = (2x − 1) + 4.",
             "r(x) = j(x + 4) = 2(x + 4) − 1. Distribute first.",
             "Compare the y-intercepts of your two simplified equations."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Shifting a graph UP changes which values?",
+            "options": [
+              "The inputs",
+              "The outputs"
+            ],
+            "correct": "The outputs"
+          }
         },
         {
           "questionId": "l2-cw-6",
@@ -727,7 +759,15 @@
             "b(x) = 2(x − 2) − 1.",
             "v(x) = (2x − 1) − 2.",
             "For f(x) = x it worked because the slope is 1. Here the slope is 2."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To simplify j(x − 2), what replaces x in 2x − 1?",
+            "options": [
+              "x − 2",
+              "−2"
+            ],
+            "correct": "x − 2"
+          }
         },
         {
           "questionId": "l2-cw-7",
@@ -1061,7 +1101,15 @@
             "Compare the slopes and intercepts of each pair.",
             "2·j(x) = 2(2x − 1). j(2x) replaces x with 2x: 2(2x) − 1.",
             "A vertical dilation scales the y-intercept too; a horizontal dilation never moves the y-intercept."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To simplify j(2x), what replaces x in 2x − 1?",
+            "options": [
+              "2",
+              "2x"
+            ],
+            "correct": "2x"
+          }
         }
       ]
     },
@@ -1511,7 +1559,15 @@
           "hints": [
             "Changes inside the parentheses are horizontal; changes outside are vertical.",
             "Inside, signs and factors act the opposite way: x − 7 moves right, and (1/2)x is a horizontal STRETCH by a factor of 2."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A change written inside the parentheses, like f(x − 7), changes the graph…",
+            "options": [
+              "Horizontally",
+              "Vertically"
+            ],
+            "correct": "Horizontally"
+          }
         },
         {
           "questionId": "l2-pr-8",
@@ -1768,7 +1824,15 @@
           "hints": [
             "Find the input that makes the inside equal 0: x + 3 = 0 when x = −3.",
             "The point that was at the origin moves to x = −3."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For g(x) = f(x + 3), which input makes the inside equal 0?",
+            "options": [
+              "x = 3",
+              "x = −3"
+            ],
+            "correct": "x = −3"
+          }
         },
         {
           "questionId": "l2-pr-12",
@@ -1833,7 +1897,15 @@
             "Right 4 goes inside as x − 4; up 1 goes outside as + 1.",
             "Stretch by 3 multiplies the outputs, so the 3 goes outside.",
             "Then replace f(·) with whatever is inside it."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A move right or left is written…",
+            "options": [
+              "Inside the parentheses, with x",
+              "Outside, added to f(x)"
+            ],
+            "correct": "Inside the parentheses, with x"
+          }
         },
         {
           "questionId": "l2-pr-13",
@@ -1897,7 +1969,15 @@
             "m(x) = −(x + 2) + 6.",
             "n(x) = (−x + 6) − 2.",
             "Check the earlier cases: slope 1 moved left 3 = up 3; slope 2 moved left 4 = up 8."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To simplify m(x) = j(x + 2), what replaces x in −x + 6?",
+            "options": [
+              "2",
+              "x + 2"
+            ],
+            "correct": "x + 2"
+          }
         }
       ]
     },
