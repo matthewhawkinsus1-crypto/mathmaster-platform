@@ -14,11 +14,14 @@
 //     takes what the lines leave (and still has a definite height, so its
 //     columns scroll), and the lines never take more than 30% of it — at 200%
 //     text the notice alone once cut the question's action bar in half;
-//   - upright, the task panel gives way before the action bar does (review B1).
+//   - upright, the task panel gives way before the action bar does (review B1);
+//   - a phone draws only the save lines that need the student: the routine
+//     "Draft saved." and its kind are not drawn there (the owner, 2026-10-20).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { describeRuntimeSaveLine, initialSaveSubject, saveLineIsRoutine } from '../../src/platform/student/saveStatusModel.js';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -44,7 +47,38 @@ test('the save line and the problem notice are in the status element, inside the
   assert.match(status, /\{!preview && studentDraftSaveProblem && \(\s*<p role="alert" data-draft-save-problem=/, 'the problem notice is in it');
 });
 
+test('a routine save line is marked as such; a line that needs the student never is', () => {
+  const answer = { ...initialSaveSubject(), lastRecorded: 'answer' };
+  const routine = [
+    ['capturing', initialSaveSubject(), 'Saving…'],
+    ['queued', initialSaveSubject(), 'Draft saved on this device. You may keep working.'],
+    ['syncing', { ...initialSaveSubject(), pendingAnswer: true }, 'Answer saved on this device · sending it to MathMaster. You may keep working.'],
+    ['durable', initialSaveSubject(), 'Draft saved.'],
+    ['submitted', answer, 'Answer recorded by MathMaster.'],
+  ];
+  for (const [persistenceStatus, subject, words] of routine) {
+    assert.equal(describeRuntimeSaveLine({ persistenceStatus, subject }), words);
+    assert.equal(saveLineIsRoutine({ persistenceStatus }), true, persistenceStatus);
+  }
+  // Offline, needs review, refused and not stored: the lines App also
+  // announces, or that ask the student to keep the tab open.
+  for (const persistenceStatus of ['offline', 'needs-review', 'rejected', 'volatile', 'idle', undefined, 'something new']) {
+    assert.equal(saveLineIsRoutine({ persistenceStatus }), false, String(persistenceStatus));
+  }
+  const status = region(app, '<div className="mathmaster-question-stage-status">', '\n            </div>\n', 'the status element');
+  assert.match(status, /<p data-save-line="" data-save-line-routine=\{studentSaveLineRoutine \? '' : undefined\}/);
+  assert.match(app, /const studentSaveLineRoutine = saveLineIsRoutine\(\{ persistenceStatus: studentPersistenceStatus \}\);/);
+});
+
 for (const [layout, media] of PHONE_LAYOUTS) {
+  test(`${layout}: a routine save line is not drawn, and the next line takes the first line's margin`, () => {
+    assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine]'), /^\s*display: none;\s*$/);
+    assert.match(rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine]:first-child + *'), /margin-top: 4px !important;/);
+    // Only the routine line: the problem notice and the other lines are never hidden here.
+    assert.doesNotMatch(media, /\[data-draft-save-problem\][^{]*\{[^}]*display: none/);
+    assert.doesNotMatch(media, /\.mathmaster-question-stage-status > (?:p|\*)\s*\{[^}]*display: none/);
+  });
+
   test(`${layout}: the stage clips, and is a column the question fills under the lines' own height`, () => {
     const stage = rule(media, '.mathmaster-assignment-screen .mathmaster-question-stage');
     // The clip stays: it is what keeps one question to one phone screen.
