@@ -262,7 +262,8 @@ test('HELP-19: "Let\'s back up" is said once — the region names it, the questi
   const engine = code('src/QuestionEngine.jsx');
   const overlay = region(engine, '{scaffoldRequired && (', '</section>', 'the back-up overlay');
   assert.match(overlay, /role="region" aria-label="Let's back up"/);
-  assert.match(overlay, /<h2[^>]*>\{backUpQuestionText\(scaffold\.prompt\)\}<\/h2>/, 'the heading is the question, not "Let\'s back up" again');
+  // Drawn through MathText: a family's step writes its mathematics as $…$.
+  assert.match(overlay, /<h2[^>]*><MathText>\{backUpQuestionText\(scaffold\.prompt\)\}<\/MathText><\/h2>/, 'the heading is the question, not "Let\'s back up" again');
 });
 
 /* ------------------------------------- what a tool draws on the shared plane */
