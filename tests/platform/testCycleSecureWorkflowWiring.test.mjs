@@ -316,6 +316,21 @@ test('the student card shows the windows that are still ahead of them, in the se
   assert.match(card, /missed: 'Not taken',/);
 });
 
+test('a stranded day the class sat: the panel asks the teacher, and only a confirmed "count it" calls countClassSitting', () => {
+  const windows = region(management, 'export const TestCycleWindowsPanel = (', 'export const TestCycleAudiencePanel = (', 'windows panel');
+  const block = region(windows, '{!anytime && entry.test.sitting && (', '\n              )}\n', 'the sitting block');
+  assert.match(block, /Class sat \{entry\.test\.sitting\.label\} \(\{entry\.test\.sitting\.started\} started, \{entry\.test\.sitting\.range\}\)\. Was that the Test day\?/);
+  // Two steps: "Count it" opens the confirmation, which names who is marked missed.
+  assert.match(block, /onClick=\{\(\) => setCountingSitting\(entry\.classId\)\}>\s*Count it: mark absent students missed/);
+  assert.match(block, /countingSitting === entry\.classId \? \(/);
+  assert.match(block, /who did not start it will have missed the Test and move to the Retest\./);
+  assert.match(block, /onChange\(\{ action: 'countClassSitting', classId: entry\.classId, windowId: entry\.test\.sitting\.windowId \}, 'Counting the Test day'\)/);
+  assert.equal(block.split("action: 'countClassSitting'").length - 1, 1, 'one call, behind the confirmation');
+  assert.match(block, /Or choose a new Test day below\./);
+  // The service and the server already carry every action through updateTestCycleAvailability.
+  assert.match(functionsIndex, /\} else if \(action === "countClassSitting"\) \{/);
+});
+
 test('the teacher panel shows the times, the Review as a grade, who is assigned, and archive or delete', () => {
   // The exact windows are always on the panel when the cycle has them.
   assert.match(controls, /\{testSchedule && \(\s*<TestCycleWindowsPanel\s*schedule=\{testSchedule\}/);
@@ -407,8 +422,8 @@ test('the windows panel is told each class\'s sittings, so a stranded class is f
   const server = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const schedule = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
   assert.match(schedule, /needsNewDay: shared\.schedule\.classNeedsNewTestDay\(test, classSittings\.get\(classId\)\),/);
-  assert.match(schedule, /describeTestWindow\(test, \{ timeZone, audience: "teacher", classSittings: classSittings\.get\(classId\) \|\| null \}\)/);
-  assert.match(server, /testSchedule: await teacherTestCycleSchedule\(db, shared, \{ assignment, policy, classSizes, bell, now, classSittings: classSittingsOf\(shared, rows\) \}\),/);
+  assert.match(schedule, /describeTestWindow\(test, \{ timeZone, audience: "teacher", classSittings: classSittings\.get\(classId\) \|\| null, sitting \}\)/);
+  assert.match(server, /testSchedule: await teacherTestCycleSchedule\(db, shared, \{ assignmentId, assignment, policy, classSizes, bell, now, classSittings: classSittingsOf\(shared, rows\) \}\),/);
   const counts = region(server, 'function classSittingsOf(shared, rows) {', '\n}\n', 'classSittingsOf');
   assert.match(counts, /const classId = row\.sitsWithClassId \|\| row\.classId;/);
   assert.match(counts, /if \(!notStarted\.includes\(row\.test\?\.state \|\| shared\.record\.SESSION_STATE\.NONE\)\) entry\.started \+= 1;/);

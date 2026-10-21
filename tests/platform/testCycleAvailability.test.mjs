@@ -33,6 +33,7 @@ import {
   testWindowRefusal,
   upcomingClassPeriodDays,
   withClassCustomWindow,
+  withClassSittingHeld,
   withClassTestDay,
   withClassWindowExtended,
   withFollowUpClose,
@@ -289,12 +290,14 @@ test('a day the class sat that later stops resolving (rotation, renamed or clear
 });
 
 /*
- * THE FIRST TEST START RECORDS THE CLASS SITTING — RECORD-ONLY (student pass
- * 3, wave 7). The first fresh Test start inside a class-period window records
- * the times that day resolved to. Nothing reads them: one student starting
- * the Test (from home, on a day school then closed) looks exactly like a
- * class sitting it, so a day that stops resolving behaves exactly as before
- * — absent students wait, never missed — until the owner decides otherwise.
+ * THE FIRST TEST START RECORDS THE CLASS SITTING (student pass 3, wave 7), AND
+ * THE TEACHER DECIDES WHAT IT MEANS (the owner, 2026-10-20; W7-6 decision 1,
+ * option b). The first fresh Test start inside a class-period window records
+ * the times that day resolved to. One student starting the Test (from home,
+ * on a day school then closed) looks exactly like a class sitting it, so a
+ * sitting never counts on its own: a day that stops resolving waits, absent
+ * students never missed, until the teacher counts the sitting as the Test day
+ * (withClassSittingHeld). Then the day ran at the sitting's times.
  */
 test('a start inside a class-period window records that day\'s times', () => {
   const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
@@ -335,7 +338,7 @@ test('only a start inside a bell-schedule window records a sitting', () => {
   assert.equal(classSittingToRecord({ assignmentId: 'a1', classId: 'c3', classWindows: [{ ...open, source: 'bellSchedule' }], now: at(2026, 10, 19, 10, 30) })?.data.dateKey, '2026-10-19');
 });
 
-test('nothing reads a sitting: a sat day that stops resolving waits, as before, and nobody is missed', () => {
+test('a sitting never counts on its own: a sat day that stops resolving waits, and nobody is missed', () => {
   const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
   const recorded = classSittingToRecord({ assignmentId: 'a1', classId: 'c3', classWindows: scheduleFor(sat, at(2026, 10, 12, 10, 30)).test.windows, now: at(2026, 10, 12, 10, 30) });
   // Even handed a sitting, the resolvers do not take it.
@@ -348,6 +351,69 @@ test('nothing reads a sitting: a sat day that stops resolving waits, as before, 
   assert.equal(classNeedsNewTestDay(schedule.test, { started: 1, waiting: 1 }), true, 'and the panel still flags the class');
   const [window] = resolveClassWindows({ availability: sat.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: closure, timeZone: TZ, sittings: { [MON]: recorded.data } });
   assert.equal(window.resolved, false);
+});
+
+test('the teacher counts the sitting: the day ran at its times, the Test closed, and whoever did not start it missed it', () => {
+  const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
+  const recorded = classSittingToRecord({ assignmentId: 'a1', classId: 'c3', classWindows: scheduleFor(sat, at(2026, 10, 12, 10, 30)).test.windows, now: at(2026, 10, 12, 10, 30) });
+  const renamed = { ...bell, daySchedules: { ...bell.daySchedules, A: { periods: { '3rd Period': { enabled: true, start: '10:15', end: '11:05' } } } } };
+  const now = at(2026, 10, 14, 9);
+  const counted = assignment(withClassSittingHeld(sat.testAvailability, {
+    classId: 'c3', windowId: `day-${MON}`, opensAt: recorded.data.opensAt, closesAt: recorded.data.closesAt, by: 'teacher@school.org', at: now,
+  }));
+  const [window] = resolveClassWindows({ availability: counted.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, timeZone: TZ });
+  assert.deepEqual(
+    [window.resolved, window.heldFromSitting, window.source, window.opensAt, window.closesAt],
+    [true, true, 'bellSchedule', at(2026, 10, 12, 10, 15), at(2026, 10, 12, 11, 5)],
+  );
+  const schedule = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now, timeZone: TZ });
+  assert.equal(schedule.test.state, WINDOW_STATE.CLOSED);
+  assert.equal(schedule.test.stranded, undefined);
+  assert.equal(schedule.test.closesAt, at(2026, 10, 12, 11, 5));
+  assert.equal(studentMissedOriginalTest({ record: { assignmentId: 'a1', studentId: 's-absent', test: { state: 'assigned' } }, schedule }), true, 'the absent student missed it');
+  assert.equal(studentMissedOriginalTest({ record: { assignmentId: 'a1', studentId: 's-sat', test: { state: 'released' } }, schedule }), false, 'a student who sat it did not');
+  assert.equal(schedule.followUp.state, WINDOW_STATE.OPEN, 'Corrections and the Retest are open');
+  assert.equal(classNeedsNewTestDay(schedule.test, { started: 20, waiting: 2 }), false, 'the class is no longer flagged');
+  // A student with a make-up window of their own still waits for it.
+  const makeUp = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now, timeZone: TZ, studentAvailability: withStudentTestWindow(null, { opensAt: at(2026, 10, 15, 10), closesAt: at(2026, 10, 15, 11) }) });
+  assert.equal(makeUp.test.state, WINDOW_STATE.UPCOMING);
+  assert.equal(studentMissedOriginalTest({ record: { assignmentId: 'a1', studentId: 's-absent', test: { state: 'assigned' } }, schedule: makeUp }), false);
+  // Where the bell schedule gives the day times again, its own times win.
+  const [live] = resolveClassWindows({ availability: counted.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: bell, timeZone: TZ });
+  assert.deepEqual([live.resolved, live.heldFromSitting, live.period], [true, undefined, 'Period 3']);
+});
+
+test('only a class-period day takes a counted sitting, with real times; a new Test day replaces it', () => {
+  const sat = withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) });
+  const sitting = { opensAt: at(2026, 10, 12, 10, 15), closesAt: at(2026, 10, 12, 11, 5) };
+  assert.throws(() => withClassSittingHeld(sat, { classId: 'c3', windowId: 'day-2026-10-13', ...sitting }), /That Test day was not found/);
+  assert.throws(() => withClassSittingHeld(sat, { classId: 'c4', windowId: `day-${MON}`, ...sitting }), /That Test day was not found/);
+  assert.throws(() => withClassSittingHeld(sat, { classId: 'c3', windowId: `day-${MON}`, opensAt: sitting.closesAt, closesAt: sitting.opensAt }), /no usable times/);
+  const reopen = withClassCustomWindow(null, { classId: 'c3', opensAt: at(2026, 10, 19, 10), closesAt: at(2026, 10, 19, 11) });
+  assert.throws(() => withClassSittingHeld(reopen, { classId: 'c3', windowId: normalizeTestAvailability(reopen).classWindows.c3[0].id, ...sitting }), /That Test day was not found/);
+  // Stored and read back exactly; junk in a stored one is dropped.
+  const counted = withClassSittingHeld(sat, { classId: 'c3', windowId: `day-${MON}`, ...sitting, by: 'teacher@school.org', at: at(2026, 10, 14, 9) });
+  assert.deepEqual(normalizeTestAvailability(counted).classWindows.c3[0].held, { ...sitting, by: 'teacher@school.org', at: at(2026, 10, 14, 9) });
+  const junk = { classWindows: { c3: [{ id: `day-${MON}`, mode: 'classPeriod', dateKey: MON, held: { opensAt: 'soon', closesAt: 5 } }] } };
+  assert.equal(normalizeTestAvailability(junk).classWindows.c3[0].held, undefined);
+  // Setting a new Test day is the other answer: it replaces the counted day.
+  const moved = withClassTestDay(counted, { classId: 'c3', dateKey: WED, at: at(2026, 10, 14, 9) });
+  assert.deepEqual(normalizeTestAvailability(moved).classWindows.c3.map((window) => [window.dateKey, window.held]), [[WED, undefined]]);
+});
+
+test('the teacher is shown the sitting and asked; a student never is', () => {
+  const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
+  const renamed = { ...bell, daySchedules: { ...bell.daySchedules, A: { periods: { '3rd Period': { enabled: true, start: '10:15', end: '11:05' } } } } };
+  const status = resolveStudentTestCycleSchedule({ assignment: sat, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 14, 9), timeZone: TZ }).test;
+  const sitting = { dateKey: MON, opensAt: at(2026, 10, 12, 10, 15), closesAt: at(2026, 10, 12, 11, 5) };
+  const asked = describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 20, waiting: 2 }, sitting });
+  assert.equal(asked.headline, 'Class sat Mon, Oct 12 (20 started)');
+  assert.match(asked.detail, /mark the 2 students who did not start it as missed: they move to the Retest\. Otherwise set a new Test day\.$/);
+  assert.match(describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 21, waiting: 1 }, sitting }).detail, /mark the student who did not start it as missed/);
+  // Nobody waiting: nothing to decide.
+  assert.match(describeTestWindow(status, { timeZone: TZ, audience: 'teacher', classSittings: { started: 22, waiting: 0 }, sitting }).detail, /Nobody here is waiting to start the Test/);
+  // A student reads what they always did.
+  assert.equal(describeTestWindow(status, { timeZone: TZ, classSittings: { started: 20, waiting: 2 }, sitting }).headline, 'Waiting for a new Test day');
 });
 
 test('a teacher can extend a window past the bell, reopen it, clear it, or open the Test at any time', () => {

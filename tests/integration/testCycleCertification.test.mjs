@@ -1393,15 +1393,17 @@ test('L: a reopen of a stranded day runs like any window: who sat it does Correc
 });
 
 /*
- * M (student pass 3, wave 7, item 2 — RECORD-ONLY): the first fresh Test
- * start inside a class-period window records the times that day resolved to
- * (testCycleClassSittings, create-if-absent), and NOTHING READS IT. One
- * student starting the Test looks exactly like a class sitting it (the
- * reviewer's snow day), so a day that stops resolving behaves exactly as on
- * the base: absent students wait, never missed, and a day that has passed
- * flags the class for a new day.
+ * M (student pass 3, wave 7, item 2; the owner's decision 2026-10-20, W7-6
+ * decision 1 option b — THE TEACHER DECIDES): the first fresh Test start
+ * inside a class-period window records the times that day resolved to
+ * (testCycleClassSittings, create-if-absent). One student starting the Test
+ * looks exactly like a class sitting it (the reviewer's snow day), so a day
+ * that stops resolving never counts on its own: absent students wait, never
+ * missed, and a day that has passed asks the teacher, naming the sitting.
+ * Only the teacher's countClassSitting makes it the Test day; then whoever
+ * did not start it has missed it.
  */
-test('M: the first Test start records the class sitting, and nothing reads it: a day that stops resolving still waits', async (t) => {
+test('M: the first Test start records the class sitting; a day that stops resolving waits until the teacher counts it', async (t) => {
   const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay, classSittingId, TEST_CYCLE_CLASS_SITTINGS } = await import('../../functions/shared/testCycleAvailability.mjs');
@@ -1424,6 +1426,7 @@ test('M: the first Test start records the class sitting, and nothing reads it: a
   const ABSENT = 'CERT_SITTINGM_ABSENT';
   const sittingRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: today }));
   const pastRef = db.collection(TEST_CYCLE_CLASS_SITTINGS).doc(classSittingId({ assignmentId: ASSIGNMENT, classId: CLASS, dateKey: lastWeek }));
+  const twoWeeksAgo = zonedDateKey(startedMinute - 14 * 86400000, SCHOOL_TIME_ZONE);
   t.after(async () => {
     const sessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get();
     await Promise.allSettled([
@@ -1500,6 +1503,41 @@ test('M: the first Test start records the class sitting, and nothing reads it: a
   assert.equal(stranded.schedule.test.headline, 'Waiting for a new Test day');
   const row = await classRow();
   assert.deepEqual([row.test.state, row.test.needsNewDay], ['upcoming', true], 'the teacher is asked for a new day');
+  // …and is shown the sitting, to count it or not.
+  assert.deepEqual(
+    [row.test.sitting?.windowId, row.test.sitting?.dateKey, row.test.sitting?.started, row.test.sitting?.waiting],
+    [`day-${lastWeek}`, lastWeek, 1, 1],
+  );
+  assert.match(row.test.headline, /^Class sat .+ \(1 started\)$/);
+  assert.match(row.test.detail, /mark the student who did not start it as missed: they move to the Retest\. Otherwise set a new Test day\.$/);
+  // Still nobody is missed until the teacher answers.
+  assert.equal((await cardOf(ABSENT)).schedule.missedTest, false);
+
+  // The teacher counts it: the day ran at the sitting's times, the absent
+  // student missed it and is on the Retest, and the class is not flagged.
+  const counted = await fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'countClassSitting', classId: CLASS, windowId: `day-${lastWeek}` }));
+  assert.match(counted.notes.join(' '), /counts as this class's Test day .* Students who did not start it have missed it and move to the Retest\./);
+  const [heldWindow] = counted.testAvailability.classWindows[CLASS];
+  assert.deepEqual([heldWindow.held.opensAt, heldWindow.held.closesAt], [sitting.opensAt - 7 * 86400000, sitting.closesAt - 7 * 86400000]);
+  const missed = await cardOf(ABSENT);
+  assert.deepEqual([missed.schedule.test.state, missed.schedule.missedTest, missed.stage], ['closed', true, 'retest']);
+  const after = await classRow();
+  assert.deepEqual([after.test.state, after.test.needsNewDay, after.test.sitting], ['closed', false, null]);
+  const history = (await db.collection('assignments').doc(ASSIGNMENT).get()).data().testAvailabilityHistory;
+  assert.equal(history.at(-1).action, 'countClassSitting');
+  // Counting it again is refused: the day has times now.
+  const again = await refusal(fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'countClassSitting', classId: CLASS, windowId: `day-${lastWeek}` })));
+  assert.equal(again?.code, 'failed-precondition');
+
+  // A stranded day nobody started on has no sitting to count.
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: twoWeeksAgo, at: sitting.opensAt - 15 * 86400000 }),
+  });
+  const empty = await classRow();
+  assert.equal(empty.test.sitting, null);
+  const nothing = await refusal(fns.updateTestCycleAvailability.run(teacherRequest({ assignmentId: ASSIGNMENT, action: 'countClassSitting', classId: CLASS, windowId: `day-${twoWeeksAgo}` })));
+  assert.equal(nothing?.code, 'failed-precondition');
+  assert.match(nothing.message, /Nobody started the Test in this class period on .*, so there is no sitting to count\. Set a new Test day instead\./);
 });
 
 /*
