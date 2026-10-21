@@ -12,6 +12,9 @@ on:
       - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
       - 'src/InteractiveGraphWorkspace.jsx'
       - 'functions/seeds/pathQuestionBank/**'
+      - 'functions/seeds/secureAssessments/**'
+      - 'scripts/check-family-version-bumps.mjs'
+      - 'tests/platform/familyVersionBumpCheck.test.mjs'
       - 'seed/pathQuestionBank/**'
       - 'src/grading/**'
       - 'teacher-import-jsons/**'
@@ -31,6 +34,9 @@ on:
       - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
       - 'src/InteractiveGraphWorkspace.jsx'
       - 'functions/seeds/pathQuestionBank/**'
+      - 'functions/seeds/secureAssessments/**'
+      - 'scripts/check-family-version-bumps.mjs'
+      - 'tests/platform/familyVersionBumpCheck.test.mjs'
       - 'seed/pathQuestionBank/**'
       - 'src/grading/**'
       - 'teacher-import-jsons/**'
@@ -45,7 +51,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Two commits: on a pull request, the merge commit and its base, which
+      # the familyVersion check below compares with.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -54,3 +64,12 @@ jobs:
       - run: npm --prefix functions ci
       - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/mobileEquationKeypadPolicy.test.mjs tests/platform/mathInputMobileBackspace.test.mjs tests/platform/functionInvestigationIntervalGrading.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
       - run: npm run audit:answer-acceptance
+      # A field re-asked as another kind of answer moves its familyVersion
+      # (the owner, 2026-10-20; W7-1 decision 5).
+      - name: A field that asks for another kind of answer moves familyVersion
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          node scripts/check-family-version-bumps.mjs --base "$BASE_SHA"
