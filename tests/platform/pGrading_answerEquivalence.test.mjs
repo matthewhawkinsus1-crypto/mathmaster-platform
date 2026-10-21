@@ -155,6 +155,30 @@ test('a number written with thousands separators', async () => {
   assert.equal(matchesFieldAnswer('1,250', { answer: '1,250' }), true); // written exactly as the key
 });
 
+test('point-slope form through any point of the line (the owner, 2026-10-20)', async () => {
+  // The W7-6 review's case: the key is written through (1, 5); (2, 7) is on the same line.
+  await accepts('y-5=2(x-1)', 'y-7=2(x-2)');
+  await accepts('y-5=2(x-1)', 'y+1=2(x+2)');
+  await accepts('y-5=2(x-1)', 'y-7=2\\left(x-2\\right)'); // MathLive's brackets
+  await accepts('y-5=2(x-1)', 'y−7=2(x−2)'); // Unicode minus
+  await accepts('y-5=2(x-1)', '2(x-2)=y-7'); // sides swapped
+  await accepts('y-1=-\\frac{1}{2}(x-8)', 'y-3=-\\frac{1}{2}(x-4)');
+  await accepts('y-2=\\frac{3}{4}(x-0)', 'y-\\frac{1}{2}=\\frac{3}{4}(x+2)');
+  // Another line, through the key's point or not.
+  await rejects('y-5=2(x-1)', 'y-7=3(x-2)');
+  await rejects('y-5=2(x-1)', 'y-5=3(x-1)');
+  await rejects('y-5=2(x-1)', 'y-8=2(x-2)');
+  await rejects('y-5=2(x-1)', 'y-5=-2(x-1)');
+  // Still a form question: the same line in another form is not point-slope.
+  await rejects('y-5=2(x-1)', 'y=2x+3');
+  await rejects('y-5=2(x-1)', '2x-y=-3');
+  await rejects('y-5=2(x-1)', 'y=2(x-2)+7');
+  await rejects('y-5=2(x-1)', '2y-14=4(x-2)');
+  // …and a key in another form never takes a point-slope answer.
+  await rejects('y=2x+3', 'y-7=2(x-2)');
+  await rejects('2x-y=-3', 'y-7=2(x-2)');
+});
+
 test('item 5: the same equation with its sides swapped, and vertex form with the constant first', async () => {
   await accepts('x=5', '5=x');
   await accepts('y=2x+1', '2x+1=y');

@@ -287,6 +287,8 @@ Each handoff lists its own, in full. Grouped here:
 5. Ten Algebra I fields re-asked without a version move at `dc2ae1ad` (W7-1 5).
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
+   **Decided 2026-10-20: accept any point on the line.** `samePointSlopeLine` in `answerEquivalence.mjs` (branch
+   `claude/point-slope-any-point-20261020`).
 
 **What a student is told**
 8. A slip the device could not save is not announced (W7-3 1).

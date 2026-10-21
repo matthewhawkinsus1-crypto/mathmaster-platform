@@ -16,9 +16,11 @@
 // and one about the question: requestedLineForm(texts), the form a label or
 // prompt names ("slope-intercept form", "y = mx + b", …), or null.
 //
-// NEVER A GRADE. Nothing here is read by a grader. The misconception
-// classifier (misconceptionClassifiers.mjs, `ordinary:multiAnswer`) uses it
-// to name the reason for a miss the grader already made.
+// The misconception classifier (misconceptionClassifiers.mjs,
+// `ordinary:multiAnswer`) uses it to name the reason for a miss the grader
+// already made. One grading rule reads it too: a point-slope answer through
+// another point of the key's line is right (answerEquivalence.mjs,
+// samePointSlopeLine; the owner, 2026-10-20). Nothing else here grades.
 
 import { parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
 
