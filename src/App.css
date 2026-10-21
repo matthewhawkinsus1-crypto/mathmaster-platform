@@ -1095,6 +1095,18 @@
     margin-top: 4px !important;
   }
 
+  /* ROUTINE SAVE LINES ARE NOT DRAWN ON A PHONE (the owner, 2026-10-20; W7-8).
+     "Draft saved." and the other routine states took the work area's height
+     every few seconds. A line that needs the student (offline, needs review,
+     refused, not stored) and the problem notice still show. */
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine] {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine]:first-child + * {
+    margin-top: 4px !important;
+  }
+
   /* THE TASK GIVES WAY BEFORE THE ACTION BAR. In the question's column only
      the work area shrinks, and at 200% text on a small phone (320×568,
      360×640) it is already 16–39px: any height the lines under the question

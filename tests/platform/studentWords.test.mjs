@@ -40,7 +40,7 @@ test('D9: the exit ticket is "Exit ticket (DOL)" spelled out, "Exit ticket" afte
   assert.equal(triesCount(3), '3 tries');
   // One hint sentence: the word list names the one hintCopy.js holds.
   assert.equal(HINT_COST, HINT_COST_SENTENCE);
-  assert.equal(HINT_COST, 'Hints never lower your score. Your teacher can see you used one.');
+  assert.equal(HINT_COST, 'Hints never lower your grade. Your teacher can see you used one.');
 });
 
 test('D9: the exit ticket is spelled out at the first item that names one — none when the screen already did', () => {

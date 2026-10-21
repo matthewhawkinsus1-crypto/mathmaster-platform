@@ -2,12 +2,13 @@
  * A TEST DAY THE CLASS SAT STAYS A CLOSED WINDOW — the server wiring (student
  * pass 3, wave 7, item 2; docs/handoffs/STUDENT_PASS3_SERVER_FOLLOWUPS.md).
  *
- * RECORD-ONLY in wave 7: the first fresh Test start writes the sitting and
- * nothing reads it (an owner decision decides whether anything ever may; see
- * the handoff). The record is proved in testCycleAvailability.test.mjs and
- * against the emulator in testCycleCertification scenario M. Pinned here:
- * the write happens only after a fresh Test start, can never fail it, and is
- * the only place the collection is touched.
+ * Wave 7 recorded the sitting and read it nowhere. The owner decided
+ * (2026-10-20, W7-6 decision 1, option b): THE TEACHER DECIDES. The teacher's
+ * panel names a sitting recorded on a stranded day, and only the teacher's
+ * `countClassSitting` copies its times onto the class's window. Pinned here:
+ * the write happens only after a fresh Test start and can never fail it; the
+ * collection is read only by id, by the panel and by that action; and no
+ * window resolver takes a sitting (it reads the teacher's `held` decision).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,16 +39,30 @@ test('the write is create-if-absent and a failure is logged, never thrown', () =
   assert.doesNotMatch(write, /throw /);
 });
 
-test('record-only: nothing on the server reads a sitting, and no window resolver takes one', () => {
-  // The collection is named in exactly one write and nowhere else.
+test('the teacher decides: a sitting is read only by id, by the panel and by countClassSitting; no resolver takes one', () => {
+  // Named three times: the create, the panel's read of stranded days, and the action's read.
   const uses = server.split('TEST_CYCLE_CLASS_SITTINGS').length - 1;
-  assert.equal(uses, 1, 'one reference: the create in recordClassTestSitting');
+  assert.equal(uses, 3, 'the create, the panel, the count action');
   assert.doesNotMatch(server, /testCycleClassSittings/, 'never named as a literal path either');
+  // Never queried: every read names one document.
+  [...server.matchAll(/collection\((?:shared\.schedule|sched)\.TEST_CYCLE_CLASS_SITTINGS\)([^;\n]*)/g)].forEach(([, rest]) => {
+    assert.match(rest, /^\.doc\(/, `read by id: ${rest}`);
+  });
+  const panel = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
+  assert.match(panel, /const sittingIdOf = \(\{ classId, test \}\) => \(test\.stranded\s*\? shared\.schedule\.classSittingId\(\{ assignmentId, classId, dateKey: test\.dateKey \}\)/, 'only a stranded day\'s sitting is read');
+  assert.match(panel, /sitting: sitting && Number\(classSittings\.get\(classId\)\?\.waiting\) > 0/, 'offered only while somebody waits on it');
+  const count = region(server, 'action === "countClassSitting"', '} else if (action === "extendClassWindow")', 'countClassSitting');
+  assert.match(count, /if \(!window \|\| window\.source !== "bellSchedule" \|\| window\.resolved \|\| !sched\.isDateKey\(window\.dateKey\)\)/, 'only a day that no longer resolves');
+  assert.match(count, /const sittingId = sched\.classSittingId\(\{ assignmentId, classId, dateKey: window\.dateKey \}\);/);
+  assert.match(count, /edit = \(current\) => sched\.withClassSittingHeld\(current, \{ classId, windowId, opensAt: sitting\.opensAt, closesAt: sitting\.closesAt, by: actor, at: now \}\);/);
+  // The only writer of a held day.
+  assert.equal(server.split('withClassSittingHeld(').length - 1, 1);
   // Every resolver call passes the same arguments as before: no sittings.
-  [...server.matchAll(/resolve(?:ClassWindows|StudentTestCycleSchedule)\(\{[^}]*\}\)/g)].forEach(([call]) => assert.doesNotMatch(call, /sittings/, call));
+  [...server.matchAll(/resolve(?:ClassWindows|StudentTestCycleSchedule)\(\{[^}]*\}\)/g)].forEach(([call]) => assert.doesNotMatch(call, /sittings?\b/, call));
   const shared = executableSource(readFileSync(new URL('../../functions/shared/testCycleAvailability.mjs', import.meta.url), 'utf8'));
   const resolver = region(shared, 'export const resolveClassWindows = (', '\n};\n', 'resolveClassWindows');
-  assert.doesNotMatch(resolver, /sitting/i);
+  assert.doesNotMatch(resolver.replace(/heldFromSitting/g, ''), /sitting/i, 'reads the teacher\'s held decision, never a sitting');
+  assert.match(resolver, /if \(!day\.resolved && window\.held\) \{/);
 });
 
 test('the mistake diagnosis starts loading at entry and is awaited before every grading transaction, never inside it', () => {

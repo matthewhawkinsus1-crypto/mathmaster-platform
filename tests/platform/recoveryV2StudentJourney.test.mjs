@@ -178,7 +178,7 @@ test('4–5. the DOL closes: the part-way student\'s own Practice unlocks Recove
   assert.ok(dol.masterySources.assignmentPractice.correct >= 7);
   assert.equal(dol.assignmentPractice.role, 'counts');
   assert.deepEqual(dol.assignmentPractice.countingNumbers, PRACTICE.map((_, index) => index + 1), 'every Practice question in this lesson is on the DOL\'s TEKS');
-  assert.match(dol.originalClosedLabel, /Your DOL was given in class on .*Oct.* 19 and is now closed\./);
+  assert.match(dol.originalClosedLabel, /Your exit ticket was given in class on .*Oct.* 19 and is now closed\./);
   assert.ok(dol.endsAtLabel, 'the end date is shown');
   // The Warm-Up was all right: nothing to recover.
   assert.equal(summary.find((entry) => entry.section === 'warmup'), undefined);

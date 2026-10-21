@@ -103,7 +103,7 @@ test('on-time in-progress work is not "late" and is not listed as a late window'
 test('Recovery: unlocked says try again, in progress says finish, locked says Practice to unlock — all open the result page', () => {
   const recovery = ways().filter((way) => way.kind === WAY_KIND.RECOVERY);
   const unlocked = recovery.find((way) => way.assignmentId === 'graded');
-  assert.equal(unlocked.text, 'DOL Recovery unlocked — try again (Solving One-Step Equations)');
+  assert.equal(unlocked.text, 'Exit ticket Recovery unlocked — try again (Solving One-Step Equations)');
   assert.equal(unlocked.action, WAY_ACTION.OPEN_RESULT);
   const locked = recovery.find((way) => way.assignmentId === 'in-progress');
   assert.equal(locked.text, 'Practice to unlock your Warm-Up Recovery (Distributive Property)');
@@ -120,11 +120,11 @@ test('Recovery: unlocked says try again, in progress says finish, locked says Pr
 
 test('finished, held, closed and expired Recoveries are not ways to raise anything', () => {
   for (const state of ['completed', 'held', 'closed', 'hidden', 'notNeeded', 'unavailable']) {
-    const list = ways({ recoverySummariesByAssignment: { graded: [{ section: 'dol', label: 'DOL Recovery', state }] } });
+    const list = ways({ recoverySummariesByAssignment: { graded: [{ section: 'dol', label: 'Exit ticket Recovery', state }] } });
     assert.ok(!list.some((way) => way.kind === WAY_KIND.RECOVERY), state);
   }
   const expired = ways({
-    recoverySummariesByAssignment: { graded: [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: NOW - 1 }] },
+    recoverySummariesByAssignment: { graded: [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: NOW - 1 }] },
   });
   assert.ok(!expired.some((way) => way.kind === WAY_KIND.RECOVERY));
 });
@@ -166,7 +166,7 @@ test('Test Cycle: corrections and an open retest are listed; preparing and waiti
 test('excused, closed, pending and not-open work is never listed, whatever source points at it', () => {
   const forbidden = ['excused', 'closed', 'pending', 'locked'];
   const everything = ways({
-    recoverySummariesByAssignment: Object.fromEntries(forbidden.map((id) => [id, [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked' }]])),
+    recoverySummariesByAssignment: Object.fromEntries(forbidden.map((id) => [id, [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked' }]])),
     practicePassEligibleAssignmentIds: forbidden,
     testCycleStages: Object.fromEntries(forbidden.map((id) => [id, TEST_CYCLE_DISCOVERY.RETEST_READY])),
   });
@@ -186,8 +186,8 @@ test('an assignment is listed once per kind and section, and ids are unique', ()
     practicePassEligibleAssignmentIds: ['not-started', 'not-started', { assignmentId: 'not-started' }],
     recoverySummariesByAssignment: {
       graded: [
-        { section: 'dol', label: 'DOL Recovery', state: 'unlocked' },
-        { section: 'dol', label: 'DOL Recovery', state: 'unlocked' },
+        { section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked' },
+        { section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked' },
         { section: 'warmup', label: 'Warm-Up Recovery', state: 'unlocked' },
       ],
     },
@@ -218,8 +218,8 @@ test('every way carries the fields the screen and App need', () => {
 test('within one kind, the deadline that closes first comes first', () => {
   const order = (gradedEnds, inProgressEnds) => ways({
     recoverySummariesByAssignment: {
-      'in-progress': [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: inProgressEnds }],
-      graded: [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: gradedEnds }],
+      'in-progress': [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: inProgressEnds }],
+      graded: [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: gradedEnds }],
     },
   }).filter((way) => way.kind === WAY_KIND.RECOVERY).map((way) => way.assignmentId);
   assert.deepEqual(order(NOW + 2000, NOW + 1000), ['in-progress', 'graded']);

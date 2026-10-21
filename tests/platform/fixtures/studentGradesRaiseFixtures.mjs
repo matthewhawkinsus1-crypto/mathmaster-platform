@@ -83,17 +83,17 @@ export const testCycleGrades = {
 };
 
 export const recoverySummariesByAssignment = {
-  // Unlocked DOL Recovery on an open, graded lesson.
-  graded: [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
+  // Unlocked Exit ticket Recovery on an open, graded lesson.
+  graded: [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
   // Locked Warm-Up Recovery on the in-progress lesson.
   'in-progress': [
     { section: 'warmup', label: 'Warm-Up Recovery', state: 'locked', endsAtMs: Date.parse('2026-09-16T12:00:00.000Z') },
     // Finished Recoveries are not a way to raise anything.
-    { section: 'dol', label: 'DOL Recovery', state: 'completed', endsAtMs: Date.parse('2026-09-16T12:00:00.000Z') },
+    { section: 'dol', label: 'Exit ticket Recovery', state: 'completed', endsAtMs: Date.parse('2026-09-16T12:00:00.000Z') },
   ],
   // Excused and pending work never offer a way, even with a Recovery summary.
-  excused: [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
-  pending: [{ section: 'dol', label: 'DOL Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
+  excused: [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
+  pending: [{ section: 'dol', label: 'Exit ticket Recovery', state: 'unlocked', endsAtMs: Date.parse('2026-09-12T12:00:00.000Z') }],
 };
 
 // The shape App's studentPracticePassEligibleAssignments holds.

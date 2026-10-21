@@ -3266,10 +3266,12 @@ function QuestionEngineBody({
           <section ref={scaffoldRef} role="region" aria-label="Let's back up" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
-              <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{backUpQuestionText(scaffold.prompt)}</h2>
+              {/* A family's step writes its mathematics as $…$ (linearEquations):
+                  drawn as mathematics, never as "$x$". */}
+              <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}><MathText>{backUpQuestionText(scaffold.prompt)}</MathText></h2>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {(scaffold.options || []).map((option) => (
-                  <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}>{option}</button>
+                  <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}><MathText>{option}</MathText></button>
                 ))}
               </div>
               {/* Read aloud and Translate on the question that blocks the work (pass 3, HELP-6). */}

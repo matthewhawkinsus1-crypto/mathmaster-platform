@@ -101,7 +101,7 @@ test('the consequence of using a hint is still stated before it is used', async 
   // (HELP-17) it is the platform's one sentence, which also says what it does
   // not cost — on the button and beside it while no hint is used.
   const { HINT_COST_SENTENCE } = await import('../../src/platform/supports/hints/hintCopy.js');
-  assert.match(HINT_COST_SENTENCE, /never lower your score/);
+  assert.match(HINT_COST_SENTENCE, /never lower your grade/);
   assert.match(HINT_COST_SENTENCE, /Your teacher can see you used one\./);
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   assert.match(source, /import \{ HINT_COST_SENTENCE \} from '\.\.\/\.\.\/platform\/supports\/hints\/hintCopy\.js';/);

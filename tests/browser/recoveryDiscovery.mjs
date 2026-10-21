@@ -77,7 +77,7 @@ for (const device of DEVICES) {
       const home = page.locator('[data-recovery-home]');
       await home.waitFor();
       assert.deepEqual(await home.locator('[data-recovery-opportunity]').evaluateAll((cards) => cards.map((card) => card.dataset.recoveryOpportunity)), ['dol', 'warmup']);
-      assert.deepEqual(await home.locator('[data-recovery-action]').allTextContents(), ['Practice for DOL Recovery', 'Practice for Warm-Up Recovery']);
+      assert.deepEqual(await home.locator('[data-recovery-action]').allTextContents(), ['Practice for Exit ticket Recovery', 'Practice for Warm-Up Recovery']);
       const text = await home.innerText();
       assert.match(text, /Get 7 of your last 8 practice questions right on your own to unlock it/);
       assert.match(text, /Practice Q1 and Q2 in this assignment count when you answer them without a hint or help, and so do the questions behind “Practice for …”/);
@@ -95,7 +95,7 @@ for (const device of DEVICES) {
       const unlocked = await open({ device, theme, scene: 'unlocked', view: 'home' });
       const firstUnlocked = unlocked.page.locator('[data-recovery-home] [data-recovery-opportunity]').first();
       assert.equal(await firstUnlocked.getAttribute('data-recovery-state'), 'unlocked', 'a ready second try comes first');
-      assert.equal(await firstUnlocked.locator('[data-recovery-action]').innerText(), 'Start DOL Recovery');
+      assert.equal(await firstUnlocked.locator('[data-recovery-action]').innerText(), 'Start Exit ticket Recovery');
       assert.equal(await firstUnlocked.locator('[role="meter"]').count(), 0, 'no meter once unlocked');
       await fits(unlocked.page, `${tag} unlocked`);
       await unlocked.page.screenshot({ path: path.join(OUT, `home-unlocked-${tag}.png`), fullPage: true });
@@ -105,7 +105,7 @@ for (const device of DEVICES) {
 
       const started = await open({ device, theme, scene: 'inProgress', view: 'home' });
       const firstStarted = started.page.locator('[data-recovery-home] [data-recovery-opportunity]').first();
-      assert.equal(await firstStarted.locator('[data-recovery-action]').innerText(), 'Continue DOL Recovery');
+      assert.equal(await firstStarted.locator('[data-recovery-action]').innerText(), 'Continue Exit ticket Recovery');
       assert.equal(await firstStarted.locator('[data-recovery-new]').count(), 0, 'work in progress is never NEW');
       await started.context.close();
     });
@@ -122,7 +122,7 @@ for (const device of DEVICES) {
       await panel.waitFor();
       const text = await panel.innerText();
       assert.match(text, /Answer practice questions on your own to unlock another try/);
-      assert.match(text, /Your DOL was given in class on Mon, Oct 5 and is now closed\./);
+      assert.match(text, /Your exit ticket was given in class on Mon, Oct 5 and is now closed\./);
       assert.match(text, /Practice Q1 and Q2 in this assignment count when you answer them without a hint or help/);
       assert.equal(await panel.locator('[data-recovery-section]').count(), 2);
       const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
@@ -136,7 +136,7 @@ for (const device of DEVICES) {
       const { context, page, errors } = await open({ device, theme, scene: 'available', view: 'center' });
       const notice = page.locator('[data-recovery-inline]');
       await notice.waitFor();
-      assert.deepEqual(await notice.locator('[data-recovery-action]').allTextContents(), ['Practice for DOL Recovery', 'Practice for Warm-Up Recovery']);
+      assert.deepEqual(await notice.locator('[data-recovery-action]').allTextContents(), ['Practice for Exit ticket Recovery', 'Practice for Warm-Up Recovery']);
       assert.match(await notice.innerText(), /Recovery practice mastery 0%/);
       await fits(page, `${tag} center`);
       await page.screenshot({ path: path.join(OUT, `center-available-${tag}.png`), fullPage: true });

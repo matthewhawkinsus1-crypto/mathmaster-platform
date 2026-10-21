@@ -237,7 +237,7 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
 
         <div style={{ position: 'sticky', bottom: -22, margin: '18px -22px -22px', padding: '12px 22px', borderTop: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
           {result ? (
-            <button type="button" onClick={onClose} style={{ minHeight: 44, background: '#188038', color: '#fff', border: 0, borderRadius: 8, padding: '10px 18px', fontWeight: 900 }}>Done</button>
+            <button type="button" onClick={onClose} style={{ minHeight: 44, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', border: 0, borderRadius: 8, padding: '10px 18px', fontWeight: 900 }}>Done</button>
           ) : (
             <>
               <button type="button" disabled={committing} onClick={onClose} style={{ minHeight: 44 }}>Cancel</button>
@@ -247,7 +247,7 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
                   data-recovery-upgrade-approve="true"
                   disabled={!canApprove}
                   onClick={approve}
-                  style={{ minHeight: 44, background: canApprove ? '#188038' : '#dadce0', color: canApprove ? '#fff' : 'var(--mm-text-muted)', border: 0, borderRadius: 8, padding: '10px 16px', fontWeight: 900 }}
+                  style={{ minHeight: 44, background: canApprove ? 'var(--mm-primary)' : 'var(--mm-surface-sunken)', color: canApprove ? 'var(--mm-on-primary)' : 'var(--mm-text-muted)', border: 0, borderRadius: 8, padding: '10px 16px', fontWeight: 900 }}
                 >
                   {committing ? 'Adding Recovery…' : 'Approve and Add Recovery'}
                 </button>

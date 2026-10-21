@@ -1,6 +1,7 @@
 import { formatDateTime } from '../../assignmentLifecycle.js';
 import { GRADE_STATUS } from './studentGradeCenterModel.js';
 import { TEST_CYCLE_DISCOVERY } from './testCycleDiscovery.js';
+import { RECOVERY_NAME } from './studentWords.js';
 
 /*
  * "WAYS TO RAISE YOUR GRADE" — WHAT A STUDENT CAN STILL DO, FROM DATA ALREADY
@@ -122,7 +123,7 @@ const RECOVERY_COPY = {
   locked: (label) => ({ text: `Practice to unlock your ${label}`, actionLabel: 'See how', urgency: WAY_URGENCY.LOW }),
 };
 
-const RECOVERY_SECTION_LABEL = { dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' };
+const RECOVERY_SECTION_LABEL = RECOVERY_NAME;
 
 /**
  * The ordered list: missing work, late work, Test Cycle steps, Recovery, then

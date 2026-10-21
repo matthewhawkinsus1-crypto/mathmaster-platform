@@ -58,7 +58,7 @@ const withVite = async (run) => {
 
 // ------------------------------------------------------------ the sentence
 test('one sentence says what a hint costs; Recovery practice has its own', () => {
-  assert.equal(HINT_COST_SENTENCE, 'Hints never lower your score. Your teacher can see you used one.');
+  assert.equal(HINT_COST_SENTENCE, 'Hints never lower your grade. Your teacher can see you used one.');
   assert.equal(RECOVERY_HINT_COST_SENTENCE, "Hints help you learn, but this question then won't count toward unlocking.");
   assert.equal(hintCostSentence(), HINT_COST_SENTENCE);
   assert.equal(hintCostSentence('  '), HINT_COST_SENTENCE, 'a blank override is no override');
@@ -96,11 +96,11 @@ test('the Hint panel says the sentence, or the host\'s, and nothing about cost w
     const HintPanel = (await load('/src/platform/supports/hints/HintPanel.jsx')).default;
     const render = (props) => renderToStaticMarkup(React.createElement(HintPanel, { hints: HINTS, release: RELEASE, onReveal: () => {}, ...props }));
     const before = render({ revealed: 0 });
-    assert.match(before, /<p data-hint-cost-note=""[^>]*>Hints never lower your score\. Your teacher can see you used one\.<\/p>/);
+    assert.match(before, /<p data-hint-cost-note=""[^>]*>Hints never lower your grade\. Your teacher can see you used one\.<\/p>/);
     assert.match(before, />Show a hint<\/button>/);
-    assert.match(render({ revealed: 1 }), /data-hint-cost-note=""[^>]*>Hints never lower your score/, 'still said beside "Show the next hint"');
+    assert.match(render({ revealed: 1 }), /data-hint-cost-note=""[^>]*>Hints never lower your grade/, 'still said beside "Show the next hint"');
     assert.match(render({ revealed: 0, costNote: RECOVERY_HINT_COST_SENTENCE }), /data-hint-cost-note=""[^>]*>Hints help you learn, but this question then won(&#x27;|')t count toward unlocking\.<\/p>/);
-    assert.doesNotMatch(render({ revealed: 0, costNote: RECOVERY_HINT_COST_SENTENCE }), /never lower your score/);
+    assert.doesNotMatch(render({ revealed: 0, costNote: RECOVERY_HINT_COST_SENTENCE }), /never lower your grade/);
     const askOnly = renderToStaticMarkup(React.createElement(HintPanel, { hints: [], askTeacher: { requested: false, onToggle: () => {} } }));
     assert.doesNotMatch(askOnly, /data-hint-cost-note/, 'a DOL\'s Ask-only panel says nothing about hints');
   });
@@ -218,7 +218,7 @@ test('inside a question with the platform ladder a tool shows no ladder of its o
     const render = (provider) => renderToStaticMarkup(React.createElement(ToolRuntimeProvider, provider, React.createElement(HintPanel, { hints: ['Plot the intercept first.'] })));
     const own = render({});
     assert.match(own, />Stuck\? Show a hint<\/button>/, 'the tools lab keeps the tool\'s panel');
-    assert.match(own, /data-hint-cost-note=""[^>]*>Hints never lower your score/);
+    assert.match(own, /data-hint-cost-note=""[^>]*>Hints never lower your grade/);
     assert.equal(render({ publishHints: () => () => {} }), '', 'handed to the platform ladder instead');
     assert.equal(render({ hintsAllowed: false }), '', 'and nothing where hints are withheld');
   });

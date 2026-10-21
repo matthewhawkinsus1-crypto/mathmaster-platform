@@ -743,6 +743,18 @@
     margin-top: 4px !important;
   }
 
+  /* ROUTINE SAVE LINES ARE NOT DRAWN ON A PHONE (the owner, 2026-10-20; W7-8).
+     "Draft saved." and the other routine states took the work area's height
+     every few seconds. A line that needs the student (offline, needs review,
+     refused, not stored) and the problem notice still show. */
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine] {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage-status > [data-save-line-routine]:first-child + * {
+    margin-top: 4px !important;
+  }
+
   /* THE QUESTION IS AS TALL AS ITS STAGE, SO ITS COLUMNS SCROLL.
      The question engine sits between the stage and this container. Left out
      of the rule, it grew to its content and took the container with it: a

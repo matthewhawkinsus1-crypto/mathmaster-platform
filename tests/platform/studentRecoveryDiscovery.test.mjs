@@ -126,10 +126,10 @@ test('a closed Warm-Up and DOL below the cap are listed with the one thing to do
   const dol = opportunities.find((opportunity) => opportunity.section === 'dol');
   assert.equal(dol.assignmentId, 'asg-recovery');
   assert.equal(dol.assignmentTitle, 'Two-step equations and zeros');
-  assert.equal(dol.label, 'DOL Recovery');
+  assert.equal(dol.label, 'Exit ticket Recovery');
   assert.equal(dol.phase, RECOVERY_PHASE.AVAILABLE);
   assert.equal(dol.action, RECOVERY_ACTION_KIND.PRACTICE);
-  assert.equal(dol.actionLabel, 'Practice for DOL Recovery');
+  assert.equal(dol.actionLabel, 'Practice for Exit ticket Recovery');
   assert.equal(dol.showMastery, true);
   assert.equal(dol.masteryPercent, 0);
   assert.ok(dol.endsAtMs > NOW, 'the student is told when it closes');
@@ -164,7 +164,7 @@ test('an unlocked Recovery offers Start, and one in progress offers Continue —
   assert.equal(unlocked.state, 'unlocked');
   assert.equal(unlocked.phase, RECOVERY_PHASE.UNLOCKED);
   assert.equal(unlocked.action, RECOVERY_ACTION_KIND.START);
-  assert.equal(unlocked.actionLabel, 'Start DOL Recovery');
+  assert.equal(unlocked.actionLabel, 'Start Exit ticket Recovery');
   assert.equal(unlocked.notify, true);
   assert.equal(unlocked.hint, null, 'the practice hint is for a locked Recovery only');
   assert.equal(unlocked.showMastery, false, 'the meter leads to the unlock; once unlocked it is noise');
@@ -173,7 +173,7 @@ test('an unlocked Recovery offers Start, and one in progress offers Continue —
     .find((opportunity) => opportunity.section === 'dol');
   assert.equal(started.state, 'inProgress');
   assert.equal(started.action, RECOVERY_ACTION_KIND.CONTINUE);
-  assert.equal(started.actionLabel, 'Continue DOL Recovery');
+  assert.equal(started.actionLabel, 'Continue Exit ticket Recovery');
   assert.equal(started.showMastery, false);
   assert.equal(started.notify, false, 'the student started it; there is nothing to announce');
 });
@@ -294,19 +294,19 @@ test('the list puts work in progress first, then a ready second try, then one to
 test('the announcement: one toast for everything new, never for work the student started', () => {
   const [first] = discover().filter((opportunity) => opportunity.section === 'dol');
   const single = recoveryNotice([first]);
-  assert.equal(single.title, 'DOL Recovery available');
-  assert.match(single.message, /^Two-step equations and zeros: your DOL closed, but you can earn a second try\./);
-  assert.match(single.message, /Practice for DOL Recovery/);
+  assert.equal(single.title, 'Exit ticket Recovery available');
+  assert.match(single.message, /^Two-step equations and zeros: your exit ticket closed, but you can earn a second try\./);
+  assert.match(single.message, /Practice for Exit ticket Recovery/);
   assert.match(single.message, /Open until /);
 
   const unlocked = discover({ records: { 'asg-recovery': { dol: { section: 'dol', status: 'unlocked' } } } })
     .find((opportunity) => opportunity.section === 'dol');
-  assert.equal(recoveryNotice([unlocked]).title, 'DOL Recovery unlocked');
+  assert.equal(recoveryNotice([unlocked]).title, 'Exit ticket Recovery unlocked');
   assert.equal(recoveryNotice([unlocked]).tone, 'success');
 
   const both = recoveryNotice(discover());
   assert.equal(both.title, '2 Recovery opportunities');
-  assert.match(both.message, /the DOL for Two-step equations and zeros/);
+  assert.match(both.message, /the exit ticket for Two-step equations and zeros/);
   assert.match(both.message, /the Warm-Up for Two-step equations and zeros/);
 
   const started = discover({ records: { 'asg-recovery': { dol: { section: 'dol', status: 'inProgress', opportunitiesUsed: 1 } } } })
@@ -390,8 +390,8 @@ test('a teacher\'s replacement question is announced and marked NEW — once per
   assert.equal(repaired.noticeKey, 'asg-recovery|dol|replacement:r3');
   assert.match(repaired.detail, /Your teacher added a new question/);
   const notice = recoveryNotice([repaired]);
-  assert.equal(notice.title, 'DOL Recovery: a new question');
-  assert.match(notice.message, /your teacher added a new question to your DOL Recovery/);
+  assert.equal(notice.title, 'Exit ticket Recovery: a new question');
+  assert.match(notice.message, /your teacher added a new question to your Exit ticket Recovery/);
 
   withStorage(memoryStorage(), () => {
     assert.equal(recoveryIsUnseen(STUDENT, repaired), true);
@@ -476,7 +476,7 @@ test('the Results panel\'s locked message names the bar and says which practice 
   const other = summaryFor(withPractice([OTHER_SKILL]));
   assert.match(other.message, /This assignment's own Practice questions practise other skills, so they do not count toward it\./);
   // When the original closed: the DOL was given on Sep 1, a school day before NOW.
-  assert.match(plain.originalClosedLabel, /^Your DOL was given in class on .*Sep.* 1 and is now closed\.$/);
+  assert.match(plain.originalClosedLabel, /^Your exit ticket was given in class on .*Sep.* 1 and is now closed\.$/);
 
   // The banner over a locked Recovery says where the counting practice is.
   const panel = componentSource('src/components/student/SectionRecoveryPanel.jsx');

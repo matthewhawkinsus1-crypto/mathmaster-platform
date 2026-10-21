@@ -285,8 +285,12 @@ Each handoff lists its own, in full. Grouped here:
 3. Should a key written as a mixed number ask for a mixed number (W7-1 3)?
 4. Mixed numbers inside expressions, intervals, sets and pairs stay refused (W7-1 4, its table).
 5. Ten Algebra I fields re-asked without a version move at `dc2ae1ad` (W7-1 5).
+   **Decided 2026-10-20: a field that asks for another kind of answer must move `familyVersion`.**
+   `scripts/check-family-version-bumps.mjs`, run on every pull request that touches a bank (answer-acceptance audit).
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
+   **Decided 2026-10-20: accept any point on the line.** `samePointSlopeLine` in `answerEquivalence.mjs` (branch
+   `claude/point-slope-any-point-20261020`).
 
 **What a student is told**
 8. A slip the device could not save is not announced (W7-3 1).
@@ -302,6 +306,7 @@ Each handoff lists its own, in full. Grouped here:
     multi-answer items with no family. An inclusion student there goes straight to the next try, with the hints and
     miss messages the platform already gives. Writing steps for those types (an authored `scaffold`, or a family that
     reads their structure) would give them one back.
+    **Decided 2026-10-20: write them** (see `STUDENT_PASS3_READ_ALOUD_2.md`, decision 1).
 16. A figure is read in English even under an authored Spanish translation (W7-5 2). The reader's own words are
     Spanish ("Una tabla", "Fila", "en blanco").
 17. A composed graph is named by its step's label (W7-5 3), so a DOL item reads "State the domain. x from …" before
@@ -310,6 +315,7 @@ Each handoff lists its own, in full. Grouped here:
 **Test Cycle**
 18. Should a recorded sitting ever mark absent students missed: (a) evidence, (b) the teacher decides, (c) any sitting
     (W7-6 1; shipped record-only).
+    **Decided 2026-10-20: (b), the teacher decides** (see `STUDENT_PASS3_SERVER_FOLLOWUPS.md`, decision 1).
 19. A Retest's recorded mistakes have no reader (W7-6 2).
 20. Sittings are never cleaned up (W7-6 3).
 21. While classmates still test, "the mistake to watch for" with a student's own released answer gives that student
@@ -320,6 +326,8 @@ Each handoff lists its own, in full. Grouped here:
     they load, nightly and on demand, not on every pull request. Runner minutes are in W7-7's handoff.
 23. Who watches the nightly? GitHub mails a scheduled run's failure only to whoever last edited its schedule line
     (W7-7's re-review).
+    **Decided 2026-10-20: an issue.** `nightly-failure-issue.yml` opens or updates a `nightly-failure` issue per
+    workflow when a scheduled run fails, and closes it when one passes.
 24. In a championship game, the projector shows the round table and "championship points" only after Hide solution: a
     ready worked solution takes the table's place, by design (W7-7 2h). Should the table stay in view beside it?
 25. The teacher harness's `p3StartMin` stays 0, and the bank count does not see Firestore-only teacher items (W7-7 2

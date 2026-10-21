@@ -700,7 +700,7 @@ const JOURNEYS = {
     await settle(page, 500);
     const helpDrawer = page.locator('.mathmaster-work-view-host[data-open="true"] section[aria-label="Help and instructions"][data-open="true"]');
     check(await helpDrawer.getByRole('button', { name: 'Show a hint', exact: true }).isVisible().catch(() => false), 'sideways: Help does not offer "Show a hint"');
-    check(/Hints never lower your score\./.test(await helpDrawer.textContent().catch(() => '')), 'sideways: Help does not say what a hint costs');
+    check(/Hints never lower your grade\./.test(await helpDrawer.textContent().catch(() => '')), 'sideways: Help does not say what a hint costs');
     await helpButton.tap();
     await settle(page, 400);
 

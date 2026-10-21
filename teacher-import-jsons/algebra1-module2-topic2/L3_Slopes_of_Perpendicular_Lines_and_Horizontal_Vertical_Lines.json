@@ -101,7 +101,15 @@
             "A 90° counterclockwise rotation about the origin sends (x, y) to (−y, x).",
             "A 180° rotation sends (x, y) to (−x, −y).",
             "A 270° counterclockwise rotation sends (x, y) to (y, −x)."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A 90° counterclockwise rotation about the origin sends (x, y) to…",
+            "options": [
+              "(−y, x)",
+              "(y, −x)"
+            ],
+            "correct": "(−y, x)"
+          }
         },
         {
           "questionId": "l3-wu-2",
@@ -174,7 +182,15 @@
             "Slope = (change in y) ÷ (change in x). Every segment starts at the origin.",
             "B′ = (−5, 8), so the slope of A′B′ is 8 ÷ (−5).",
             "Compare 5/8 and −8/5: flip the fraction AND change the sign."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The slope of a segment is…",
+            "options": [
+              "change in x ÷ change in y",
+              "change in y ÷ change in x"
+            ],
+            "correct": "change in y ÷ change in x"
+          }
         },
         {
           "questionId": "l3-wu-3",
@@ -223,7 +239,15 @@
             "The reciprocal of a/b is b/a. A number times its reciprocal is 1.",
             "The reciprocal keeps the sign: the reciprocal of −10 is −1/10.",
             "Negative reciprocal: flip the fraction, then change the sign."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The reciprocal of a/b is…",
+            "options": [
+              "b/a",
+              "−a/b"
+            ],
+            "correct": "b/a"
+          }
         }
       ]
     },
@@ -328,6 +352,14 @@
                 "instruction": "Perpendicular lines meet at a right angle. Rotating a line 90° about a point on it produces a perpendicular line through that point."
               }
             ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. To read a slope from a graph, start at a point on the line and count…",
+            "options": [
+              "The distance to the y-axis",
+              "The rise for every 1 to the right"
+            ],
+            "correct": "The rise for every 1 to the right"
           }
         },
         {
@@ -424,7 +456,15 @@
             "Use two points on each line: slope = (y₂ − y₁) ÷ (x₂ − x₁).",
             "Line C: from (−2, 9) to (6, 5). Line C′: from (0, −7) to (6, 5).",
             "Then use y = mx + b and one point to find b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. With two points on a line, the slope is…",
+            "options": [
+              "(y₂ − y₁) ÷ (x₂ − x₁)",
+              "(x₂ − x₁) ÷ (y₂ − y₁)"
+            ],
+            "correct": "(y₂ − y₁) ÷ (x₂ − x₁)"
+          }
         },
         {
           "questionId": "l3-cw-3",
@@ -506,6 +546,14 @@
                 "instruction": "Rotating R(a, b) 90° counterclockwise gives D(−b, a), so m₂ = a/(−b) and m₁ = b/a = −1/m₂."
               }
             ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. A 90° clockwise rotation about the origin sends (x, y) to…",
+            "options": [
+              "(−y, x)",
+              "(y, −x)"
+            ],
+            "correct": "(y, −x)"
           }
         },
         {
@@ -565,7 +613,15 @@
             "Flip the fraction, then change the sign.",
             "A whole number n is n/1, so its negative reciprocal is −1/n.",
             "Check: the two slopes should multiply to −1."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find a perpendicular slope, you…",
+            "options": [
+              "Flip the fraction and change its sign",
+              "Change only its sign"
+            ],
+            "correct": "Flip the fraction and change its sign"
+          }
         },
         {
           "questionId": "l3-cw-5",
@@ -916,6 +972,14 @@
                 "instruction": "Slope = rise ÷ run. A horizontal line has a rise of 0, so its slope is 0 ÷ run = 0. A vertical line has a run of 0, and division by 0 is undefined."
               }
             ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. On a horizontal line, which coordinate stays the same?",
+            "options": [
+              "x",
+              "y"
+            ],
+            "correct": "y"
           }
         },
         {
@@ -969,7 +1033,15 @@
             "A horizontal line keeps the same y-value: y = (that y-value).",
             "A vertical line keeps the same x-value: x = (that x-value).",
             "x = 5 is vertical, so a line perpendicular to it is horizontal."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Every point on a horizontal line has the same…",
+            "options": [
+              "y-value",
+              "x-value"
+            ],
+            "correct": "y-value"
+          }
         }
       ]
     },
@@ -1025,7 +1097,15 @@
             "The perpendicular slope is the negative reciprocal of 2.",
             "Use point-slope form: y − 2 = m(x − 6), then solve for y.",
             "Or substitute (6, 2) into y = mx + b and solve for b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The perpendicular line’s slope comes from 2 by…",
+            "options": [
+              "Changing only its sign",
+              "Flipping it and changing its sign"
+            ],
+            "correct": "Flipping it and changing its sign"
+          }
         },
         {
           "questionId": "l3-pr-2",
@@ -1070,7 +1150,15 @@
             "The negative reciprocal of −3/4 is 4/3.",
             "−8 = (4/3)(3) + b.",
             "Solve for b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get the perpendicular slope from −3/4, you…",
+            "options": [
+              "Flip it and change its sign",
+              "Change only its sign"
+            ],
+            "correct": "Flip it and change its sign"
+          }
         },
         {
           "questionId": "l3-pr-3",
@@ -1115,7 +1203,15 @@
             "Find the slope through (−5, 3) and (−1, −9) first.",
             "Take its negative reciprocal.",
             "Use (6, 2) to find b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What do you find first?",
+            "options": [
+              "The slope through (−5, 3) and (−1, −9)",
+              "The y-intercept of the new line"
+            ],
+            "correct": "The slope through (−5, 3) and (−1, −9)"
+          }
         },
         {
           "questionId": "l3-pr-4",
@@ -1160,7 +1256,15 @@
             "Slope through (−6, 1) and (0, 4) is 3/6.",
             "The negative reciprocal of 1/2 is −2.",
             "7 = −2(−2) + b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What do you find first?",
+            "options": [
+              "The y-intercept of the new line",
+              "The slope through (−6, 1) and (0, 4)"
+            ],
+            "correct": "The slope through (−6, 1) and (0, 4)"
+          }
         },
         {
           "questionId": "l3-pr-5",
@@ -1205,7 +1309,15 @@
             "Both lines pass through the intersection point (5, 9).",
             "The other line's slope is the negative reciprocal of 5/9.",
             "9 = (−9/5)(5) + b."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which point is on BOTH lines?",
+            "options": [
+              "(5, 9)",
+              "(−4, 4)"
+            ],
+            "correct": "(5, 9)"
+          }
         },
         {
           "questionId": "l3-pr-6",
@@ -1369,7 +1481,15 @@
             "The y-axis is vertical.",
             "A line perpendicular to a vertical line is horizontal: y = constant.",
             "A line parallel to the y-axis is vertical: x = constant."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The y-axis is…",
+            "options": [
+              "Horizontal",
+              "Vertical"
+            ],
+            "correct": "Vertical"
+          }
         },
         {
           "questionId": "l3-pr-9",
@@ -1552,7 +1672,15 @@
             "Compute each slope from the two given points — don't trust the picture.",
             "Perpendicular slopes multiply to −1.",
             "Different scales on the two axes change how steep a line looks."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To check whether two lines are perpendicular, you…",
+            "options": [
+              "Multiply their slopes and compare with −1",
+              "Trust how the sketch looks"
+            ],
+            "correct": "Multiply their slopes and compare with −1"
+          }
         },
         {
           "questionId": "l3-pr-11",
@@ -1682,7 +1810,15 @@
             "Compute all four slopes.",
             "Opposite sides: AB with CD, BC with DA.",
             "Adjacent sides AB and BC: does (1/2)(−2) equal −1?"
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In a rectangle, two sides that meet at a corner are…",
+            "options": [
+              "Parallel",
+              "Perpendicular"
+            ],
+            "correct": "Perpendicular"
+          }
         },
         {
           "questionId": "l3-pr-12",
@@ -1732,7 +1868,15 @@
           "hints": [
             "Check Priya's slope: does 4 · (−4) equal −1?",
             "Flip 4/1 and change the sign."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A perpendicular slope is the original slope…",
+            "options": [
+              "Flipped, with its sign changed",
+              "With only its sign changed"
+            ],
+            "correct": "Flipped, with its sign changed"
+          }
         }
       ]
     },

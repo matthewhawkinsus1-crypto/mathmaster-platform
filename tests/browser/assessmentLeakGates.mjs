@@ -742,7 +742,7 @@ const threePlaneReveal = async () => {
 const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it works', 'Worked solution', 'Why it works', 'Try a similar one', 'A similar problem, worked out', 'Let’s back up',
   // Student pass 3, Batch 4: the worked sibling after a miss, the diagnosis
   // rung, and the sentence beside every hint offer.
-  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your score', 'won\'t count toward unlocking',
+  'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your grade', 'won\'t count toward unlocking',
   // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
   // every fallback (none may reach a DOL or test).
   'These hints are general', ...Object.values(FALLBACK_HINTS).flat()];

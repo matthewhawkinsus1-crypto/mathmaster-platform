@@ -201,7 +201,7 @@ for (const role of ['practice', 'dol']) {
   const count = await hintButtons(page);
   check(count === 0, `${role} mapping: the tool shows no ladder of its own`, `${count} tool hint button(s)`);
   if (role === 'practice') {
-    check(/Hints never lower your score\. Your teacher can see you used one\./.test(await firstHintOffer(page).textContent().catch(() => '')), 'practice mapping: the first hint is offered before the first try, with what it costs');
+    check(/Hints never lower your grade\. Your teacher can see you used one\./.test(await firstHintOffer(page).textContent().catch(() => '')), 'practice mapping: the first hint is offered before the first try, with what it costs');
     check(!/Each ordered pair \(x, y\) is one arrow/.test(await bodyText(page)), 'practice mapping: offered, not shown');
     const revealed = await platformHint(page);
     check(/^(family|authored|tool): /m.test(revealed), 'practice mapping: "Show a hint" opens hint 1 of the platform ladder', revealed);
@@ -248,7 +248,7 @@ for (const role of ['practice', 'dol']) {
   const drawers = await helpDrawers(page);
   check(count === 0, `${role} graphing: the tool shows no ladder of its own, inline or in Work View Help`, `${count} tool hint button(s)`);
   if (role === 'practice') {
-    check(/Hints never lower your score/.test(drawers) && !/Stuck\? Show a hint/.test(drawers), 'practice graphing: Work View Help is the platform\'s Hint panel', drawers.slice(0, 200));
+    check(/Hints never lower your grade/.test(drawers) && !/Stuck\? Show a hint/.test(drawers), 'practice graphing: Work View Help is the platform\'s Hint panel', drawers.slice(0, 200));
     const revealed = await platformHint(page);
     check(/^(family|authored|tool): /m.test(revealed), 'practice graphing: "Show a hint" opens hint 1 of the platform ladder', revealed);
     check(/\btool\b/.test(await ladderSources(page)), 'practice graphing: Graphing2\'s rungs are in that ladder', await ladderSources(page));

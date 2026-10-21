@@ -15,9 +15,17 @@
 // 844×390), and the WCAG 1.4.12 text-spacing override — and a Chromebook for
 // reference:
 //
-//   L  after the student types, the save line is inside the screen, inside
-//      every box that clips it, and nothing (the action bar, a toast) is drawn
-//      over it;
+//   R  on a phone, after the student types, the routine save line ("Draft
+//      saved." and its kind) is not drawn, and the lines under the question
+//      take no height: the question keeps its work area (the owner,
+//      2026-10-20). On the Chromebook it is drawn as before;
+//   L  a save line that needs the student is inside the screen, inside every
+//      box that clips it, and nothing (the action bar, a toast) is drawn over
+//      it. On a phone the line is the real one with its routine mark taken
+//      off and the longest line that needs the student put in ("Not saved ·
+//      this device could not store your last change…"): this harness cannot
+//      make a real save fail (its server accepts every write, offline too).
+//      On the Chromebook it is the routine line, as before;
 //   N  with a draft the backup refused (planted the way
 //      draftSaveNoticeReloadJourneys.mjs does), the problem notice is the same;
 //   B  and upright, the question keeps its whole action bar beside either: at
@@ -43,6 +51,9 @@ const STUDENT = '910002';
 const ASSIGNMENT = 'a-today';
 const KEPT = 'mathmaster:draft-save-health:v1';
 const REFUSED = /can only be saved on this device, not backed up/;
+// The longest save line, and one that needs the student (App.jsx, the
+// device queue could not be written).
+const NEEDS_STUDENT_LINE = 'Not saved · this device could not store your last change. Keep this tab open and try it again.';
 // studentShellLargeText.mjs's text-spacing override (the bookmarklet's values).
 const SPACING = '* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }';
 
@@ -209,15 +220,43 @@ for (const setting of SETTINGS) {
     await signedIn(page, setting, { reset: true });
     await openAssignment(page, setting);
     await typeIntoFirst(page, '7');
-    await page.locator('[data-save-line]').first().waitFor({ timeout: 15000 });
+    await page.locator('[data-save-line]').first().waitFor({ state: 'attached', timeout: 15000 });
     await page.waitForTimeout(2500);
-    report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
-    await shot(page, `line ${setting.id}`);
     const barWhole = async (what) => {
       if (!setting.mobile || setting.width > setting.height) return;
       report(`B  the action bar is whole beside the ${what} (${setting.id})`, await seen(page, '.portrait-action-bar', setting));
     };
-    await barWhole('save line');
+    if (setting.mobile) {
+      const routine = await page.evaluate(() => {
+        const line = document.querySelector('[data-save-line]');
+        const status = document.querySelector('.mathmaster-question-stage-status');
+        return {
+          text: line?.textContent.trim() || '',
+          routine: line?.hasAttribute('data-save-line-routine') || false,
+          drawn: Boolean(line && line.getClientRects().length),
+          statusHeight: status ? status.getBoundingClientRect().height : null,
+        };
+      });
+      check(routine.routine && !routine.drawn && routine.statusHeight === 0,
+        `R  the routine save line is not drawn on a phone, and the question keeps the room (${setting.id})`,
+        `"${routine.text}" ${routine.routine ? 'routine' : 'not marked routine'}, ${routine.drawn ? 'drawn' : 'not drawn'}, the lines take ${routine.statusHeight}px`);
+      await shot(page, `routine ${setting.id}`);
+      // A line that needs the student is drawn: the same element, its routine
+      // mark off and the longest such sentence in it (see L above).
+      await page.evaluate((words) => {
+        const line = document.querySelector('[data-save-line]');
+        line.removeAttribute('data-save-line-routine');
+        line.textContent = words;
+      }, NEEDS_STUDENT_LINE);
+      // At 200% text the longest line is taller than the 30% cap and scrolls
+      // in place, its start in view, as the problem notice does (W7-8).
+      report(`L  a save line that needs the student is seen (the "Not saved" line, simulated; ${setting.id})`, await seen(page, '[data-save-line]', setting), { mayScroll: setting.textScale === 2 });
+      await shot(page, `line ${setting.id}`);
+      await barWhole('offline save line');
+    } else {
+      report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
+      await shot(page, `line ${setting.id}`);
+    }
 
     const keys = await draftKeys(page);
     const draft = keys.find((key) => !key.includes(':ui') && !key.endsWith(':resume')) || keys[0];

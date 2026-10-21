@@ -25,8 +25,9 @@ import { buildSectionRecoveryGradeState } from '../../../functions/shared/sectio
 import { activeRecoveryPlanItems } from '../../../functions/shared/sectionRecoveryRecord.mjs';
 import { isGradedItemStatus } from '../../../functions/shared/sectionRecoveryEvidence.mjs';
 import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
+import { RECOVERY_NAME, exitTicketInSentence } from '../student/studentWords.js';
 
-export const SECTION_RECOVERY_LABEL = Object.freeze({ dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' });
+export const SECTION_RECOVERY_LABEL = RECOVERY_NAME;
 
 const STATE_COPY = Object.freeze({
   // The message is replaced by lockedRecoveryMessage, which names the bar.
@@ -331,7 +332,7 @@ export const buildStudentRecoverySummary = ({
       assignmentPractice: practice,
       masterySources: mastery.sources || null,
       // When the original closed — the reason Recovery is open at all.
-      originalClosedLabel: originalClosedLabel(context.opportunity, section === 'dol' ? 'DOL' : 'Warm-Up'),
+      originalClosedLabel: originalClosedLabel(context.opportunity, section === 'dol' ? exitTicketInSentence : 'Warm-Up'),
       masteryPercent: mastery.percent,
       masteryCorrect: mastery.correct,
       masteryWindow: mastery.windowSize,

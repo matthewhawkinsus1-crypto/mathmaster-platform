@@ -292,7 +292,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts, saveLineIsRoutine } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -3313,6 +3313,8 @@ function App() {
     : null;
   const studentSaveLineShown = studentPersistenceStatus !== 'idle'
     && !(studentDraftSaveProblem && saveLineIsAboutDrafts({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, pendingGradeCount: studentPendingGradeCount }));
+  // A routine line is not drawn on a phone (saveStatusModel.saveLineIsRoutine).
+  const studentSaveLineRoutine = saveLineIsRoutine({ persistenceStatus: studentPersistenceStatus });
   // What the save line says aloud: only when the student must act.
   const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
     ? 'This change was not accepted because the assignment is no longer available.'
@@ -11074,7 +11076,7 @@ function App() {
                 SAVE LINE LEAVES"). Unstyled elsewhere. */}
             <div className="mathmaster-question-stage-status">
               {!preview && studentSaveLineShown && (
-                <p data-save-line="" style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
+                <p data-save-line="" data-save-line-routine={studentSaveLineRoutine ? '' : undefined} style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>
                   {/* A draft is "Draft saved"; only an answer the student sent
                       is ever "Answer recorded", and only once the server has it
                       (RUN-11, saveStatusModel.describeRuntimeSaveLine). */}

@@ -43,11 +43,12 @@ export const STUDENT_SECTION_LABEL = Object.freeze({
 });
 
 /*
- * A Recovery keeps its feature name, "DOL Recovery", which teachers and
- * Pre-Flight use too: renaming it is the owner's call (W6-1 handoff,
- * decision 1). Built from the section label it read "Exit ticket Recovery".
+ * A Recovery's name on a student screen. The owner renamed "DOL Recovery" to
+ * "Exit ticket Recovery" (2026-10-20; W6-1 handoff, decision 1), so a student
+ * reads one name for the section and its Recovery. Teachers, Pre-Flight and
+ * case review keep "DOL Recovery" (teacher words).
  */
-export const RECOVERY_NAME = Object.freeze({ dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' });
+export const RECOVERY_NAME = Object.freeze({ dol: `${EXIT_TICKET} Recovery`, warmup: 'Warm-Up Recovery' });
 
 /** Home's chip on a lesson that is done except its exit ticket (NAV-26). */
 export const EXIT_TICKET_WAITS = 'Exit ticket opens in class';
@@ -130,8 +131,11 @@ export const triesCount = (count) => {
  * exception. On an exit ticket, quiz or test no hint is offered at all, so it
  * never appears there. (This module imports nothing: the sign-in page loads it,
  * and with it in the entry chunk Home pays less than for a chunk of its own.)
+ * It says "grade", not "score" (the owner, 2026-10-20; W6-1 decision 5): a
+ * hint never lowers the grade, but it does weigh against Mastered and a CCMR
+ * session pass.
  */
-export const HINT_COST = 'Hints never lower your score. Your teacher can see you used one.';
+export const HINT_COST = 'Hints never lower your grade. Your teacher can see you used one.';
 
 // --- Dates -------------------------------------------------------------------
 

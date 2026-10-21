@@ -203,6 +203,9 @@ deploy:hosting` (or `node scripts/release-firebase.mjs --since 530ac3cf`; expect
    Matrix Lab, Systems Workspace or plain multi-answer item without a family now goes straight to the next try with
    the hints and miss messages the platform already gives. Writing steps for those types (authored `scaffold`, or a
    family that reads their structure) is the way to give them one back.
+   **Decided 2026-10-20: write them.** Matrix Lab and the three-variable Systems Workspace get a step built from the
+   tool's structure (`toolBackUpSteps.js`, source `tool`); the 40 plain multi-answer items carry an authored `scaffold`
+   in their lessons, which the V5 compiler now keeps. Branch `claude/back-up-steps-matrix-systems-multianswer-20261020`.
 2. **Read aloud of a figure is English** even when the screen shows an authored Spanish translation: the plane's
    description is English generated text (the reader's own words — "Una tabla", "Fila", "en blanco" — are Spanish).
 3. **A composed graph's name is its step's label** (WorkflowRunner names the stage figure by the stage prompt), so the
