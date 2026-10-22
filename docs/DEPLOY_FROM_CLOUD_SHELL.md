@@ -79,8 +79,8 @@ gives you and paste it back.
 
 ## Block 2 — the whole deploy, one paste
 
-**First, check main is green.** Every deploy refuses a commit whose **CI gate**
-has not passed on GitHub (open the latest commit on `main` at
+**First, check main is green.** Every deploy refuses a commit whose CI run on
+`main` has not passed (open the latest commit on `main` at
 github.com/matthewhawkinsus1-crypto/mathmaster-platform/commits/main: a green
 tick means its CI passed). After a merge main's checks take about 45 minutes.
 If one is red, fix main before deploying; for a deliberate hotfix the refusal

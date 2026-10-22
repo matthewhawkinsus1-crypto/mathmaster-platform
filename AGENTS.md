@@ -127,7 +127,8 @@ ready.
 Every deploy path (`release-firebase.mjs`, the Hosting wrapper, every
 `scripts/deploy-*.sh` and `npm run deploy:*`) first runs
 `scripts/check-deploy-provenance.mjs`, which refuses a checkout behind main, a
-dirty tree, and a commit whose **CI gate** did not pass on GitHub. Main's CI
+dirty tree, and a commit whose CI run on main did not pass (`ci.yml`'s run for
+its push to main; a pull request's **CI gate** does not count). Main's CI
 runs every workflow, about 45 minutes after a merge (the release-tier
 capability certification is the longest): deploy after it is green. Its report
 names the override (`MATHMASTER_DEPLOY_ALLOW_UNVERIFIED_CI=1`) for a

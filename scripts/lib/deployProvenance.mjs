@@ -17,8 +17,9 @@
  *
  * Containing main is not enough if main is red: the browser gates failed on
  * the merged head of #510, #511 and #513, and any of them could have been
- * deployed. So the commit must also have passed .github/workflows/ci.yml's
- * "CI gate" (scripts/lib/ciGateStatus.mjs reads it from GitHub).
+ * deployed. So the commit must also have passed .github/workflows/ci.yml on its
+ * push to main, which runs every workflow (scripts/lib/ciGateStatus.mjs reads
+ * that run from GitHub).
  */
 
 export const DEPLOY_OVERRIDE_ENV = Object.freeze({
@@ -35,7 +36,7 @@ const ciProblem = (ci = {}) => {
     case 'passed': return null;
     case 'running': return { code: 'ciRunning', message: `CI is still checking this commit${ci.startedAt ? ` (started ${ci.startedAt})` : ''}. Deploy once its CI gate passes${where}` };
     case 'failed': return { code: 'ciFailed', message: `The CI gate failed on this commit (${ci.conclusion || 'failed'})${where}. Fix main first.` };
-    case 'missing': return { code: 'ciMissing', message: 'No CI gate ran on this commit. Merge it to main and let CI pass before deploying it.' };
+    case 'missing': return { code: 'ciMissing', message: 'CI has not run on this commit as a push to main. Merge it to main and let CI pass before deploying it.' };
     default: return { code: 'ciUnverifiable', message: `Could not read this commit's CI result${ci.error ? ` (${ci.error})` : ''}.` };
   }
 };
@@ -52,7 +53,7 @@ const clean = (value) => String(value ?? '').trim();
  * @param {boolean} facts.headContainsMain origin/main is an ancestor of HEAD
  * @param {string[]} facts.missingFromBuild `git log --oneline HEAD..origin/main`
  * @param {string[]} facts.dirtyFiles      tracked files with uncommitted changes
- * @param {object} [facts.ci]              the commit's CI gate: { state: passed | failed | running | missing | unknown, url, ... }
+ * @param {object} [facts.ci]              the commit's CI run on main: { state: passed | failed | running | missing | unknown, url, ... }
  * @param {object} overrides               { behindMain, dirty, unverifiedMain, unverifiedCi } booleans
  */
 export const evaluateDeployProvenance = (facts = {}, overrides = {}) => {

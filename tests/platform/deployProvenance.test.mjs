@@ -106,7 +106,7 @@ test('the public build manifest records where the build came from', () => {
 // been deployed.
 
 test('a commit whose CI gate passed is allowed; failed, running, missing or unreadable is refused', async () => {
-  const { ciGateFromCheckRuns } = await import('../../scripts/lib/ciGateStatus.mjs');
+  const { ciGateFromWorkflowRuns } = await import('../../scripts/lib/ciGateStatus.mjs');
   assert.equal(evaluateDeployProvenance({ ...current, ci: { state: 'passed' } }).ok, true);
   const refused = {
     failed: 'ciFailed', running: 'ciRunning', missing: 'ciMissing', unknown: 'ciUnverifiable',
@@ -118,15 +118,40 @@ test('a commit whose CI gate passed is allowed; failed, running, missing or unre
     assert.match(formatDeployProvenanceReport(decision), /Deploy refused: this commit has not passed CI/);
     assert.match(formatDeployProvenanceReport(decision), new RegExp(DEPLOY_OVERRIDE_ENV.unverifiedCi));
   }
-  // The states come from GitHub's check runs for the commit.
-  const run = (status, conclusion, started = '2026-10-22T14:00:00Z') => ({ name: 'CI gate', status, conclusion, started_at: started, html_url: 'u' });
-  assert.equal(ciGateFromCheckRuns({ check_runs: [run('completed', 'success')] }).state, 'passed');
-  assert.equal(ciGateFromCheckRuns({ check_runs: [run('completed', 'failure')] }).state, 'failed');
-  assert.equal(ciGateFromCheckRuns({ check_runs: [run('completed', 'cancelled')] }).state, 'failed', 'a cancelled gate is not a pass');
-  assert.equal(ciGateFromCheckRuns({ check_runs: [run('in_progress', null)] }).state, 'running');
-  assert.equal(ciGateFromCheckRuns({ check_runs: [{ ...run('completed', 'success'), name: 'Full Platform Test Suite / lint' }] }).state, 'missing', 'only the gate counts');
-  assert.equal(ciGateFromCheckRuns({ check_runs: [run('completed', 'failure', '2026-10-22T13:00:00Z'), run('completed', 'success', '2026-10-22T14:00:00Z')] }).state, 'passed', 'the latest run of the gate decides');
-  assert.equal(ciGateFromCheckRuns({}).state, 'missing');
+  // The states come from ci.yml's runs for a push of the commit to main.
+  const run = (status, conclusion, created = '2026-10-22T14:00:00Z') => ({
+    path: '.github/workflows/ci.yml', event: 'push', head_branch: 'main', head_sha: 'abc123',
+    status, conclusion, created_at: created, run_started_at: created, html_url: 'u',
+  });
+  const state = (...runs) => ciGateFromWorkflowRuns({ workflow_runs: runs }, 'abc123').state;
+  assert.equal(state(run('completed', 'success')), 'passed');
+  assert.equal(state(run('completed', 'failure')), 'failed');
+  assert.equal(state(run('completed', 'cancelled')), 'failed', 'a cancelled run is not a pass');
+  assert.equal(state(run('in_progress', null)), 'running');
+  assert.equal(state(run('completed', 'failure', '2026-10-22T13:00:00Z'), run('completed', 'success', '2026-10-22T14:00:00Z')), 'passed', 'the latest run decides');
+  assert.equal(state(run('completed', 'success', '2026-10-22T13:00:00Z'), run('queued', null, '2026-10-22T14:00:00Z')), 'running', 'the latest run decides');
+  assert.equal(ciGateFromWorkflowRuns({}, 'abc123').state, 'missing');
+});
+
+// A pull request's run reports "CI gate" on its head commit after skipping the
+// workflows whose area it did not change. Pushed to main as it is, that commit
+// must still wait for main's own run, which runs every workflow.
+test('only ci.yml\'s run for a push to main counts, not a pull request\'s run of the same commit', async () => {
+  const { ciGateFromWorkflowRuns } = await import('../../scripts/lib/ciGateStatus.mjs');
+  const main = {
+    path: '.github/workflows/ci.yml', event: 'push', head_branch: 'main', head_sha: 'abc123',
+    status: 'in_progress', conclusion: null, created_at: '2026-10-22T14:00:00Z',
+  };
+  const pullRequest = { ...main, event: 'pull_request', head_branch: 'feature', status: 'completed', conclusion: 'success', created_at: '2026-10-22T13:00:00Z' };
+  const state = (...runs) => ciGateFromWorkflowRuns({ workflow_runs: runs }, 'abc123').state;
+  assert.equal(state(pullRequest, main), 'running', 'main\'s run is still going');
+  assert.equal(state(pullRequest), 'missing', 'main has not run it');
+  const passed = { ...main, status: 'completed', conclusion: 'success' };
+  assert.equal(state(passed), 'passed');
+  assert.equal(state({ ...passed, path: '.github/workflows/full-platform-suite.yml' }), 'missing', 'another workflow');
+  assert.equal(state({ ...passed, event: 'workflow_dispatch' }), 'missing', 'a manual run');
+  assert.equal(state({ ...passed, head_branch: 'release' }), 'missing', 'another branch');
+  assert.equal(state({ ...passed, head_sha: 'def456' }), 'missing', 'another commit');
 });
 
 test('an override deploys an unverified commit only as a recorded warning', () => {
@@ -148,24 +173,29 @@ test('the CI result is read from GitHub for the exact commit, and an unreachable
     token: 't',
     fetchImpl: async (url, init) => {
       asked = { url, init };
-      return { ok: true, json: async () => ({ check_runs: [{ name: 'CI gate', status: 'completed', conclusion: 'success' }] }) };
+      return {
+        ok: true,
+        json: async () => ({ workflow_runs: [{ path: '.github/workflows/ci.yml', event: 'push', head_branch: 'main', head_sha: 'abc123', status: 'completed', conclusion: 'success' }] }),
+      };
     },
   });
   assert.equal(ok.state, 'passed');
-  assert.match(asked.url, /^https:\/\/api\.github\.com\/repos\/o\/r\/commits\/abc123\/check-runs\?check_name=CI%20gate/);
+  assert.match(asked.url, /^https:\/\/api\.github\.com\/repos\/o\/r\/actions\/workflows\/ci\.yml\/runs\?event=push&branch=main&head_sha=abc123&/);
   assert.equal(asked.init.headers.Authorization, 'Bearer t');
   assert.equal((await fetchCiGate({ repo: 'o/r', sha: 'abc', fetchImpl: async () => ({ ok: false, status: 403 }) })).state, 'unknown');
   assert.equal((await fetchCiGate({ repo: 'o/r', sha: 'abc', fetchImpl: async () => { throw new Error('offline'); } })).state, 'unknown');
   assert.equal((await fetchCiGate({ repo: null, sha: 'abc' })).state, 'unknown');
 });
 
-test('the provenance CLI reads the CI gate for HEAD and hands it to the decision', () => {
+test('the provenance CLI reads the CI result for HEAD and hands it to the decision', async () => {
+  const { CI_WORKFLOW } = await import('../../scripts/lib/ciGateStatus.mjs');
   const cli = fs.readFileSync('scripts/check-deploy-provenance.mjs', 'utf8');
   assert.match(cli, /const ci = await fetchCiGate\(\{ repo, sha: headSha/);
   assert.match(cli, /dirtyFiles, ci \}/, 'the decision sees the CI result');
   assert.match(cli, /unverifiedCi: flag\(DEPLOY_OVERRIDE_ENV\.unverifiedCi\)/);
-  const ciWorkflow = fs.readFileSync('.github/workflows/ci.yml', 'utf8');
-  assert.match(ciWorkflow, /^ {4}name: CI gate$/m, 'the check it reads is the one ci.yml reports');
+  const ciWorkflow = fs.readFileSync(CI_WORKFLOW, 'utf8');
+  assert.match(ciWorkflow, /^ {2}push:\n {4}branches: \[main\]$/m, 'the run it reads is ci.yml\'s for a push to main');
+  assert.match(ciWorkflow, /^ {4}name: CI gate$/m);
 });
 
 // Every way to deploy runs that check first. Ten of them (eight scripts and two
