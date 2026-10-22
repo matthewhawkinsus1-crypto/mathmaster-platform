@@ -47,6 +47,23 @@ const numberOrTemplateToken = (value) => (
 );
 
 /*
+ * A FAMILY KEY'S {{name}} PLACEHOLDERS ARE TEMPLATE SYNTAX, NOT SET BRACES.
+ *
+ * '{{a}}' or '{{union}}/{{total}}' is the number the generator substitutes,
+ * and '{{pa}}a+{{ps}}s={{R}}' an equation. Read as set notation they made
+ * number and equation boxes set boxes, with the set keypad. The key is tested
+ * with each placeholder standing in as a plain literal, so only braces the
+ * author wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
+ *
+ * Shared with the teacher import (assignmentBlueprint.js), which makes the
+ * same decision before the compiler sees the field: a second copy of this
+ * rule there was missing the placeholder case.
+ */
+export const keyLooksLikeFiniteSet = (value) => looksLikeFiniteSetNotation(
+  typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value,
+);
+
+/*
  * A FAMILY TEMPLATE IS COMPILED, NEVER HALF-COMPILED.
  *
  * Compiling an assignment-local family template must carry every templated
@@ -446,13 +463,9 @@ const fieldFromIntent = (field, index) => {
         ? [out.answer]
         : [];
     // A family key's {{name}} placeholders are template syntax, not set
-    // braces: '{{a}}' or '{{union}}/{{total}}' is the number the generator
-    // substitutes. Reading them as set notation compiled such boxes (Digital
-    // SAT student-produced responses) as set fields. Test the key with each
-    // placeholder standing in as a plain literal, so only braces the author
-    // wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
-    const withoutPlaceholders = (value) => (typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value);
-    if (accepted.some((value) => looksLikeFiniteSetNotation(withoutPlaceholders(value)))) {
+    // braces (keyLooksLikeFiniteSet): reading them as set notation compiled
+    // Digital SAT student-produced responses as set fields.
+    if (accepted.some(keyLooksLikeFiniteSet)) {
       out.type = 'set';
       out.toolProfile = out.toolProfile || 'set';
     }
