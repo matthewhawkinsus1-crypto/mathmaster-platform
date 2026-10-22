@@ -15,8 +15,9 @@ import { executableSource } from './helpers/sourceContract.mjs';
  * (scripts/report-assignment-key-exposure.mjs). Proven here:
  *   - each column means what it says, on hand-made questions, variants and
  *     nested stages included;
- *   - on the repository's own 16 lesson files it reproduces the design's
- *     independent count (ANSWER_KEY_SERVER_SIDE_DESIGN.md §1.2) exactly;
+ *   - on the 16 lesson files the design counted (read from its own per-file
+ *     table) it reproduces the design's independent count
+ *     (ANSWER_KEY_SERVER_SIDE_DESIGN.md §1.2) exactly;
  *   - run against a database that throws on any write, it writes nothing and
  *     returns the documented shape, per assignment and section role;
  *   - the script has no write mode and its output goes to release-reports/,
@@ -94,9 +95,23 @@ const lessonFiles = () => {
   return files;
 };
 
+// The files the design counted, as its own per-file table (§1.2) lists them.
+// A lesson added since is not part of a count taken before it existed; every
+// file the design counted must still be one of the repository's lessons.
+const designCountedFiles = () => {
+  const design = readFileSync(path.join(repo, 'docs/handoffs/ANSWER_KEY_SERVER_SIDE_DESIGN.md'), 'utf8');
+  const start = design.indexOf('### 1.2');
+  assert.notEqual(start, -1, 'the design still has its §1.2 count');
+  const section = design.slice(start, design.indexOf('\n### ', start + 1));
+  return [...section.matchAll(/^\| `([^`]+\.json)` \|/gm)]
+    .map(([, name]) => path.join(repo, name.startsWith('docs/') ? name : path.join('teacher-import-jsons', name)));
+};
+
 test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles();
-  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+  const files = designCountedFiles();
+  assert.equal(files.length, 16, 'the design counted 16 files');
+  const lessons = new Set(lessonFiles());
+  files.forEach((file) => assert.ok(lessons.has(file), `${path.relative(repo, file)} is still a lesson file`));
   const byRole = {};
   files.forEach((file) => {
     const { assignmentV5 } = parseAssignmentBlueprintText(readFileSync(file, 'utf8'));

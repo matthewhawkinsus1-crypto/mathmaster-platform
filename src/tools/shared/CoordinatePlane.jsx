@@ -15,6 +15,7 @@ import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -75,6 +76,17 @@ const DATA_TABLE_TOGGLE = {
   cursor: 'pointer',
 };
 const DATA_CELL = { border: '1px solid var(--mm-tint-border)', padding: '3px 8px', textAlign: 'left' };
+// A block-level span, not a paragraph: the plane can sit inside a card that is
+// itself a button, where only phrasing content is valid.
+const AXIS_TITLE = {
+  display: 'block',
+  margin: '0 0 4px',
+  fontSize: 'calc(13 * var(--mm-px))',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  color: 'var(--mm-text)',
+  overflowWrap: 'anywhere',
+};
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
 // `Math.round(v / step) * step` reintroduces float noise for steps like 0.1,
@@ -234,6 +246,13 @@ export default function CoordinatePlane({
   // inside another control (a graph card that is itself a button), where a
   // nested button is invalid.
   dataTable = true,
+  // WHAT EACH AXIS MEASURES in a real-world question ("Time (hours)"). Drawn
+  // as a caption beside its axis — y above the plane, x below it — rather
+  // than inside the SVG, so the padding, the tick labels and the click-to-
+  // coordinate mapping are exactly what they are without one. Empty draws
+  // nothing and leaves the description as it was.
+  xAxisTitle = '',
+  yAxisTitle = '',
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -582,7 +601,11 @@ export default function CoordinatePlane({
     ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarks?.kinds, toolMarks?.features,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
-  const spokenDescription = authoredDescription || generatedDescription.description;
+  const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };
+  // The captions are hidden from assistive technology, so the description is
+  // where a screen reader and Read Aloud hear what the axes measure.
+  const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description]
+    .filter(Boolean).join(' ');
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
   const descriptionId = `mm-plane-desc-${descriptionUid}`;
@@ -670,6 +693,11 @@ export default function CoordinatePlane({
 
   const plane = (
     <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
+      {axisTitles.y ? (
+        <span className="mathmaster-plane-axis-title" data-plane-axis-title="y" aria-hidden="true" style={AXIS_TITLE}>
+          ↑ y: {axisTitles.y}
+        </span>
+      ) : null}
       <svg
         className={interactive ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'}
         viewBox={`0 0 ${width} ${height}`}
@@ -907,6 +935,11 @@ export default function CoordinatePlane({
             clipPath so they stop at the plotting rectangle too. */}
         {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
       </svg>
+      {axisTitles.x ? (
+        <span className="mathmaster-plane-axis-title" data-plane-axis-title="x" aria-hidden="true" style={{ ...AXIS_TITLE, margin: '4px 0 0', textAlign: 'right' }}>
+          x: {axisTitles.x} →
+        </span>
+      ) : null}
       {/* The plane's accessible description. aria-describedby reads it even
           while it is aria-hidden, so browse mode does not hear it a second
           time as a loose paragraph after the image. Inside a card that is

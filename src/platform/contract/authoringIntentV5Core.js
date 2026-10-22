@@ -215,6 +215,19 @@ const copyCommon = (source, target = {}) => {
   return target;
 };
 
+/*
+ * WHAT A REAL-WORLD TOOL'S AXES MEASURE ("Hours studied", "Total cost
+ * (dollars)"): the data and table tools draw them as axis captions and column
+ * headings (src/tools/shared/planeAxisTitles.js). Copied only when authored,
+ * so a question that names none compiles exactly as before.
+ */
+const copyAxisLabels = (q, out) => {
+  ['xAxisLabel', 'yAxisLabel'].forEach((key) => {
+    if (q[key] != null && q[key] !== '') out[key] = q[key];
+  });
+  return out;
+};
+
 const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
 const acceptedOf = (q) => q.acceptedAnswers ?? q.response?.acceptedAnswers ?? q.answerModel?.acceptedAnswers;
 
@@ -1888,6 +1901,7 @@ const compileOne = (q, index, repairs) => {
     case 'dataModelingLab': {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
+      copyAxisLabels(q, out);
       break;
     }
     case 'regressionCalculator': {
@@ -2104,6 +2118,7 @@ const compileOne = (q, index, repairs) => {
         requiredComparisons: q.requiredComparisons,
         ...(isObject(q.repair) ? { repair: q.repair } : {}),
       });
+      copyAxisLabels(q, out);
       break;
     }
     case 'matrixLab': {
@@ -2165,6 +2180,7 @@ const compileOne = (q, index, repairs) => {
         ...(snapStep != null ? { snapStep } : {}),
         ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),
       });
+      copyAxisLabels(q, out);
       break;
     }
     case 'constraintFunctionBuilder': {

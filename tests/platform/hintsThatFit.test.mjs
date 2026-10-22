@@ -204,7 +204,9 @@ test('over every real lesson, exactly three hints change to shown, and none of t
         .forEach((value) => assert.ok(!hintRevealsAnswer(hint, [value]), `${question.questionId} shows "${hint}", which contains the answer ${value}`));
     });
   });
-  assert.equal(total, 200);
+  // 200 on the base, and 39 in the Algebra I DOL #3 Review (three on each of
+  // its 13 questions), every one of them shown: the dropped count below holds.
+  assert.equal(total, 239);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',

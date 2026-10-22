@@ -328,6 +328,15 @@ const independentKey = ({ kind, question }) => {
           addKey(Array.from({ length: n }, (_, index) => termOf(reading, index + 1)).reduce((sum, value) => sum + value, 0));
         }
         if (mode === 'ruleBridge') addKey(reading.first);
+        // Build the model: the table holds the terms after the given first
+        // one, and the analysis asks for the kind and the step.
+        if (mode === 'fullBridge') {
+          const actions = question.studentActions || [];
+          const count = Math.max(3, Math.min(8, Number(question.displayCount ?? 5)));
+          for (let n = 2; n <= count; n += 1) addKey(termOf(reading, n));
+          if (actions.includes('analyzeSequence')) { keys.push(reading.kind); addKey(reading.change); }
+          if (actions.includes('writeRecursive')) addKey(reading.first);
+        }
       });
     }
   } else if (kind === 'investigation') {
@@ -694,6 +703,14 @@ const verifySequenceSibling = (example) => {
     const p = termOf({ kind: 'arithmetic', first: Number(match[1]), change: Number(match[2]) }, n);
     const q = termOf({ kind: 'geometric', first: Number(match[3]), change: 2 }, n);
     assert.equal(answer, p === q ? `equal, by 0` : `${p > q ? 'P' : 'Q'}, by ${Math.abs(p - q)}`);
+    return;
+  }
+  // Build the first terms from a recursive rule: re-applied here from a₁.
+  if ((match = /^A sequence has a₁ = (-?\d+) and aₙ = (?:aₙ₋₁ ([+-]) (\d+)|\(?(-?\d+)\)? · aₙ₋₁) for n ≥ 2\. Use the recursive rule to find the first five terms\.$/.exec(prompt))) {
+    const reading = match[2]
+      ? { kind: 'arithmetic', first: Number(match[1]), change: Number(`${match[2]}${match[3]}`) }
+      : { kind: 'geometric', first: Number(match[1]), change: Number(match[4]) };
+    assert.equal(answer, [1, 2, 3, 4, 5].map((n) => termOf(reading, n)).join(', '), prompt);
     return;
   }
   const terms = (/(?:begins|sequence|term:) ((?:-?\d+|__)(?:, (?:-?\d+|__))+)/.exec(prompt) || [])[1].split(', ');

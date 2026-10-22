@@ -46,6 +46,7 @@ import {
   relationLabel,
 } from '../functionInvestigation2/functionInvestigationMath.js';
 import { TOOL_REVIEW_BUILDERS } from './reviews/index.js';
+import { cardName } from '../openSortBoard/openSortBoardA11y.js';
 
 const finiteText = (value) => Number.isFinite(Number(value)) ? String(Number(value)) : String(value ?? '');
 const titleCase = (value) => String(value || '').replace(/^./, (character) => character.toUpperCase());
@@ -611,11 +612,15 @@ const buildFunctionReview = (question) => {
 
 const buildOpenSortReview = (question) => {
   const schemes = Array.isArray(question.validSchemes) ? question.validSchemes : [];
+  const cards = Array.isArray(question.items) ? question.items : [];
+  // Each card by the name the board shows on it ("Card C"), not by the id
+  // only the author ever sees.
+  const shownName = (id) => cardName(cards.find((card) => String(card?.id) === String(id)), id);
   return {
     title: 'Open-sort solution',
     items: schemes.slice(0, 4).map((scheme, index) => ({
       label: scheme.label || `Valid sort ${index + 1}`,
-      value: (scheme.groups || []).map((group) => `${group.label || 'Group'}: ${(group.itemIds || []).join(', ')}`).join(' · '),
+      value: (scheme.groups || []).map((group) => `${group.label || 'Group'}: ${(group.itemIds || []).map(shownName).join(', ')}`).join(' · '),
     })),
     note: schemes.length > 1 ? 'More than one mathematical partition is valid for this problem.' : null,
   };

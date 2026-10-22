@@ -10,6 +10,7 @@ import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
+import { axisLabelProblems } from './shared/planeAxisTitles.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -553,6 +554,8 @@ export const validateToolQuestion = (question = {}) => {
       if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'yIntercept' && Math.abs(Number(question.standard?.B)) <= 1e-9) errors.push('graphing2 vertical standardForm has no y-intercept anchor.');
     }
   }
+  // The quantity each axis or column measures in a real-world question.
+  if (['dataModelingLab', 'linearTableWorkbench', 'representationBridge'].includes(toolId)) errors.push(...axisLabelProblems(question, toolId));
   if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));
   if (toolId === 'constraintFunctionBuilder') errors.push(...validateConstraintBuilderQuestion(question));
   if (toolId === 'linearTableWorkbench') errors.push(...validateLinearTableWorkbenchQuestion(question));
