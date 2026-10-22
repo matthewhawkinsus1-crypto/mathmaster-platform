@@ -178,7 +178,10 @@ const code = executableSource(app);
 
 test('App: the per-student grant goes to the callable, and is imported next to where it is used', () => {
   assert.match(app, /import \{ setStudentAssignmentControls \} from '\.\/services\/studentAssignmentControlsService\.js';/);
-  assert.match(app, /import \{[^}]*\bplanStudentDolGrant\b[^}]*\brunStudentControlsCalls\b[^}]*\} from '\.\/platform\/assessment\/dolAttemptGrantClient\.js';/);
+  // The helpers are teacher-only, so App takes them from the teacher kit (kept
+  // out of every student's first load) and the kit re-exports each one.
+  assert.match(app, /const \{ controlsRequestKey, createControlsRequestGate, planStudentDolGrant, runStudentControlsCalls \} = teacherKit;/);
+  assert.match(readFileSync('src/app/teacher/teacherKit.js', 'utf8'), /export \{[^}]*\bplanStudentDolGrant\b[^}]*\brunStudentControlsCalls\b[^}]*\} from '\.\.\/\.\.\/platform\/assessment\/dolAttemptGrantClient\.js';/);
   const handler = executableSource(region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass', 'per-student DOL grant'));
   assert.match(handler, /studentControlsGateRef\.current\.pending\(requestKey\)/, 'a click while the first is in flight is ignored');
   assert.match(handler, /studentControlsGateRef\.current\.run\(requestKey,/);
