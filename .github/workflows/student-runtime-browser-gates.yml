@@ -150,73 +150,73 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/mathEntryContract.mjs
       - name: Render stability
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/renderStability.mjs
       - name: Error recovery
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/errorRecovery.mjs
       - name: Duplicate tabs
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/duplicateTabs.mjs
       - name: Graph point check follows the feedback policy
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphPointCheck.mjs
       - name: On a phone every graph tool control can be reached by touch
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/phoneToolPanelReach.mjs
       - name: Undo groups typing and agrees with the math field
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/undoTyping.mjs
       - name: Every tool's Undo, and no press throws focus to the page
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolFocusAndUndo.mjs
       - name: A composed question follows the feedback policy in every step
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/composedOutcomePolicy.mjs
       - name: Registry tools follow the feedback and hint policy
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolPolicyGates.mjs
       - name: Hints that fit — a teacher's quoted hint is shown, the fallback fits and points to Ask, a DOL offers neither
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/hintsThatFit.mjs
       - name: Work View Help reaches the steps, the hints and Ask on a phone; a DOL shows no hint and no method
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/workViewHelpReach.mjs
       - name: Relation plots are graded by their points
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
@@ -241,31 +241,31 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolAttemptOutcome.mjs
       - name: Nothing before Submit reveals correctness on a DOL, quiz or test
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assessmentLeakGates.mjs
       - name: An assignment's calculator setting reaches the student (graphing calculator)
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assignmentGraphingCalculator.mjs
       - name: The inequality workspace takes a student through every step without hunting
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/systemsWorkspaceStudio.mjs
       - name: Taps land where they are made on a letterboxed plane
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/clickMapLetterbox.mjs
       - name: Every step of a staged question fits and leaks nothing, on six screens
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
@@ -290,73 +290,73 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/unansweredChoiceGates.mjs
       - name: Graph analysis fields are named, and the keyboard route offers only what is there
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphKeyboardRoute.mjs
       - name: On a phone, plane text is readable and a missed drag keeps the line
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planePhoneReach.mjs
       - name: Self-disabling tool controls keep keyboard focus
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/focusSafeToolControls.mjs
       - name: A composed question with a graph step survives a Chromebook swap
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/composedDraftRestore.mjs
       - name: Opening a question is not an edit, in every certified family
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/draftEditTime.mjs
       - name: A fraction key drawn from a template is graded by one rule
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/fractionTemplateGrading.mjs
       - name: A closed question stays closed after its module fails
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/moduleRecoveryLock.mjs
       - name: Enter on a closed question goes on only from the page
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/closedQuestionEnter.mjs
       - name: Figures say what they show, from the accessibility tree
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/figureDescriptions.mjs
       - name: Each math keypad is one Tab stop
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/mathKeypadToolbar.mjs
       - name: Information you need stays reachable in Work View
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/workViewReference.mjs
       - name: A production build serves the math fonts
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/mathFontsProduction.mjs
@@ -381,25 +381,25 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/submitNotQueued.mjs
       - name: Every draft-backed tool saves and restores its draft
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolDraftSyncSweep.mjs
       - name: Matrix Lab feedback, and the Work View rail's Submit on a DOL
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/matrixLabFeedback.mjs
       - name: The Day 1 3×3 lesson, solved the way a student solves it (#361)
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/day1SystemsJourney.mjs
       - name: "Day 2 non-unique 3×3 systems (#390, #392)"
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
@@ -424,61 +424,61 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/afterLastMiss.mjs
       - name: Composed questions on a phone
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assignmentMobile.mjs
       - name: Home — one primary action, honest cards, the right question
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentHomeToday.mjs
       - name: Grades — Start on open work, ways to raise it, how it is figured
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentGradesRaise.mjs
       - name: The Assignments Center and the result follow the one "Today" rule
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentResultUpNext.mjs
       - name: What changed since the last visit, and the one Log Out
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentWhatChanged.mjs
       - name: The Grade Center and the result on a 390px phone
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/gradeCenterMobile.mjs
       - name: A Step Algebra step the device could not queue is not submitted
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stepNotQueued.mjs
       - name: A tool's outcome box can be reached on every screen
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolOutcomeReach.mjs
       - name: Feedback reasons, part 2
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackReasons2.mjs
       - name: Tool choices are radio groups
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
@@ -499,18 +499,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/secureResults.mjs
       - name: Moving through a secure test
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/secureExamNavigation.mjs
       - name: Start the stubbed harness server
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5203 --strictPort >/tmp/pass3-secure-vite.log 2>&1 &
           for i in {1..90}; do curl -fsS http://127.0.0.1:5203/tests/browser/secureAccessParity.html >/dev/null && exit 0; sleep 1; done
           cat /tmp/pass3-secure-vite.log; exit 1
       - name: Secure items give every student the same access
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5203"

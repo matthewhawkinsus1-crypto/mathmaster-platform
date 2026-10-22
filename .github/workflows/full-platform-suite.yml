@@ -74,7 +74,7 @@ jobs:
         run: npm run test:challenge-finish
 
   # The rest of the emulator certifications, one after another, each in its
-  # own emulator run as before. `if: always()` so one failure does not hide
+  # own emulator run as before. `!cancelled()` so one failure does not hide
   # the next suite's result.
   firestore-certifications:
     name: Firestore rules and emulator certifications
@@ -92,7 +92,7 @@ jobs:
       # through, resumes it, and reads back what landed. Source assertions cannot
       # tell a resumable release from one that silently skipped a chunk.
       - name: Certify an interrupted Path release against Firestore
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:path-release:emulator
 
@@ -102,7 +102,7 @@ jobs:
       # run filled, and academic data is untouched. Its own emulator run, so its
       # load never races the other integration suites.
       - name: Certify the student identity backfill against Firestore
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:identity-repair:emulator
 
@@ -111,7 +111,7 @@ jobs:
       # run: the report reads every submission in its window, so another
       # suite's Path answers in a shared emulator would change what it finds.
       - name: Certify the Path choice-id report against Firestore
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:path-choice-report:emulator
 
@@ -119,7 +119,7 @@ jobs:
       # Firestore, over attempts the real ingestStudentSubmissions recorded.
       # Its own emulator run, for the same reason as the Path report above.
       - name: Certify the classroom re-grade report against Firestore
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:classroom-regrade-report:emulator
 
@@ -128,7 +128,7 @@ jobs:
       # through the real callables and listeners, rounds closed by the
       # console's own rule. Its own emulator run, for the reason above.
       - name: Certify Graph the Line at class scale against Firestore
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:line-graph-launch:emulator
 
@@ -138,7 +138,7 @@ jobs:
       # real time around a class period it schedules for today, and it writes
       # the school's bell schedule, so it has its own emulator run.
       - name: Certify the Warm-Up reopen lifecycle against the real functions
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:warmup-reopen:emulator
 
@@ -147,7 +147,7 @@ jobs:
       # its project, so it has its own emulator run: beside other integration
       # suites it would finish their sessions too.
       - name: Certify the abandoned-test finalizer against the real functions
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: npm run test:secure-exam-auto-finalize
 
@@ -171,29 +171,29 @@ jobs:
       # content disagree. A malformed record stops here rather than in a Firestore
       # batch that names no document.
       - name: Certify the course Path release artifact
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run release:path:verify
 
       - name: Verify certified Algebra shipping-seed parity
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
 
       - name: Audit certified Algebra release authority
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/audit-algebra1-path-release-authority.mjs --strict
 
       - name: Re-run strict Algebra adaptive metadata audit
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
 
       - name: Re-run strict Algebra Challenge quality audit
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/audit-challenge-quality-v2.mjs --strict
 
       # Formerly algebra-challenge-dok-difficulty-audit.yml, which ran on its
       # own on a few draft paths.
       - name: Audit Algebra Challenge and independent DOK/difficulty coverage
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/audit-algebra-challenge-dok-difficulty.mjs
 
       # The CCMR V2.1 production seeds are what the functions predeploy
@@ -204,54 +204,54 @@ jobs:
       # main (a TSIA2 prompt template the same as an ACT one), which is a
       # content decision, not CI's.
       - name: Check the Digital SAT V2.1 release package
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/build-digital-sat-v2-1.mjs --release --check
       - name: Check the ACT V2.1 release package
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/build-act-v2-1.mjs --release --check
       - name: Check the coordinated CCMR V2.1 production seeds
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/build-ccmr-v2-1-production-release.mjs --check
       - name: Check the TSIA2 production seed
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/build-tsia2-production-seed.mjs --check
 
       # Formerly assignment-v5-foundation.yml (its tests are in
       # tests/platform/ and run above).
       - name: Permanent V5 validator
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run validate:authoring-v5
       - name: Legacy authoring boundary audit
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run audit:assignment-authoring-boundary
       - name: Retired assignment source audit
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run audit:legacy-assignment-source
 
       # Formerly theme-certification.yml's theme-contract job (its tests are in
       # tests/platform/ and run above).
       - name: Reject new hard-coded surface and text colors
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run audit:theme-colors
 
       - name: Audit correct-answer acceptance
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run audit:answer-acceptance
 
       - name: Build standard web runtime
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run build
 
       # What a student downloads before sign-in and before Home, against
       # scripts/first-load-baseline.json (scripts/lib/firstLoadBudget.mjs).
       - name: Student first-load budget
-        if: always()
+        if: ${{ !cancelled() }}
         run: node scripts/check-first-load-budget.mjs --report
 
       - name: Build Firebase production web runtime
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run build:firebase
 
       - name: Lint
-        if: always()
+        if: ${{ !cancelled() }}
         run: npm run lint

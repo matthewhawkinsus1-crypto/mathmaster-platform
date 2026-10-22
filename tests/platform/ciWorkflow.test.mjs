@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { CI_AREAS, RUN_EVERYTHING, changedAreas, patternRegExp, reachedBy } from '../../scripts/lib/ciAreas.mjs';
 import { gateVerdict } from '../../scripts/lib/ciGate.mjs';
-import { calledWorkflows, jobsOf, readWorkflow, triggersOf, workflowFiles } from './helpers/ciWorkflows.mjs';
+import { calledWorkflows, jobsOf, readWorkflow, stepsOf, triggersOf, workflowFiles } from './helpers/ciWorkflows.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ci = readWorkflow('ci.yml');
@@ -95,6 +95,27 @@ test('no called workflow sets its own concurrency (it would cancel a nightly, or
   for (const { workflow } of Object.values(calls)) {
     assert.doesNotMatch(readWorkflow(workflow), /^concurrency:/m, workflow);
   }
+});
+
+// always() is true for a cancelled run as well. A new push cancels a pull
+// request's run, and its new run waits in the same concurrency group until the
+// old one has stopped, so a test step under always() holds the new run until
+// it ends. !cancelled() runs after a failure and stops on a cancel.
+test('a step that runs after a failed one still stops when its run is cancelled; only uploads keep always()', () => {
+  const offenders = [];
+  let steps = 0;
+  for (const name of workflowFiles()) {
+    for (const [job, text] of Object.entries(jobsOf(readWorkflow(name)))) {
+      for (const step of stepsOf(text)) {
+        steps += 1;
+        if (!/^ {6}(?:- | {2})if: .*\balways\(\)/m.test(step)) continue;
+        if (/^ {6}(?:- | {2})uses: actions\/upload-artifact@/m.test(step)) continue;
+        offenders.push(`${name} ${job}: ${(step.match(/name: (.+)/) || [])[1] || step.trim().split('\n')[0]}`);
+      }
+    }
+  }
+  assert.ok(steps > 200, `${steps} steps read`);
+  assert.deepEqual(offenders, [], 'use if: ${{ !cancelled() }}');
 });
 
 /* --- the matching rule ----------------------------------------------------- */

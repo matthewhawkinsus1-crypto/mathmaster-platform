@@ -28,6 +28,11 @@ permissions:
 # A new push to a pull request replaces its running checks. On main every
 # merge is checked to the end: a burst of merges waits its turn, and only the
 # newest waiting run is kept, so the last commit is always checked whole.
+#
+# The new run waits until the cancelled one has stopped. A step that should run
+# after a failed one uses `if: ${{ !cancelled() }}`: under `always()` it also
+# runs on after the cancel, and holds the new run until it ends. Only uploads
+# keep `always()` (seconds, and the evidence of a job that ran out of time).
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

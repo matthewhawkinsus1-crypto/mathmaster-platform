@@ -16,10 +16,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { jobsOf, readWorkflow as read, runsOnPullRequest } from './helpers/ciWorkflows.mjs';
-
-/** The steps of a job, split on `- name:` / `- run:` / `- uses:` entries. */
-const stepsOf = (jobText) => jobText.split(/\n(?= {6}- )/).filter((step) => /^ {6}- /.test(step.trim() ? step.replace(/^\n/, '') : ''));
+import { jobsOf, readWorkflow as read, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 
 const SERVERS = {
   plain: /npx vite --host 127\.0\.0\.1 --port 5199 --strictPort/,
@@ -64,9 +61,10 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
       const index = steps.findIndex((step) => command.test(step));
       assert.ok(index >= 0, `${job} runs tests/browser/${driver}.mjs`);
       const step = steps[index];
-      // Every step after the first runs whatever the step before it did.
+      // Every step after the first runs whatever the step before it did, and
+      // stops when the run is cancelled (ciWorkflow.test.mjs says why).
       if (steps.slice(0, index).some((earlier) => /run: node tests\/browser\//.test(earlier))) {
-        assert.match(step, /if: always\(\)/, `${driver} runs even when an earlier driver fails`);
+        assert.match(step, /if: \$\{\{ !cancelled\(\) \}\}/, `${driver} runs even when an earlier driver fails`);
       }
       assert.doesNotMatch(step, /github\.event_name == 'schedule'/, `${driver} runs on pull requests, not only at night`);
       // The emulator drivers load the real callables, whose dependencies

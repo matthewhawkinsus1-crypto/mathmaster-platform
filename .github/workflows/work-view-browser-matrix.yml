@@ -81,7 +81,7 @@ jobs:
           retention-days: 14
 
       - name: Show findings drift
-        if: always()
+        if: ${{ !cancelled() }}
         run: git diff -- tests/platform/fixtures/workViewMatrixFindings.json || true
 
       - name: Require the committed findings to match the real browser

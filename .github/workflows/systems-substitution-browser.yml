@@ -41,7 +41,7 @@ jobs:
       # global rule that a staged balanced move never appears inside the
       # equation before both sides are placed.
       - name: Drive 3×3 substitution and the no-staged-preview rule
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: http://127.0.0.1:5199

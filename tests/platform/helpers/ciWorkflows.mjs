@@ -34,6 +34,11 @@ export const jobsOf = (text) => {
   return jobs;
 };
 
+/** A job's steps, each as its own text (`- ` at six spaces under `steps:`). */
+export const stepsOf = (job) => (job.split(/^ {4}steps:\n/m)[1] || '')
+  .split(/^(?= {6}- )/m)
+  .filter((step) => /^ {6}- /.test(step));
+
 /** ci.yml's jobs that call a workflow: { job: { workflow, condition, needs } }. */
 export const calledWorkflows = () => Object.fromEntries(Object.entries(jobsOf(readWorkflow('ci.yml')))
   .map(([job, text]) => [job, {

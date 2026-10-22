@@ -28,12 +28,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: npm run test:class-rewards-browser
       - name: Live Challenge teaching journeys (student)
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
         run: npm run test:live-challenge-teaching-browser
       - name: Live Challenge projector privacy
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
         run: npm run test:live-challenge-projector-privacy-browser

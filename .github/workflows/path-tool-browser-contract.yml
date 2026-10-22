@@ -45,7 +45,7 @@ jobs:
         run: node tests/browser/regressionCalculatorPhone.mjs
 
       - name: Show browser-contract drift
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           git diff -- tests/platform/fixtures/capturedToolResponses.json || true
 

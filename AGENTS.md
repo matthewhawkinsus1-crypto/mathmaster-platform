@@ -91,6 +91,9 @@ written anywhere else never runs — check your new file is inside one of them.
 - **Setup is shared.** Every job uses `.github/actions/setup` (Node, `npm ci`
   and, with `browser: "true"`, Playwright from a cache). Never call
   `actions/setup-node` or `playwright install --with-deps` in a workflow.
+- **A step that runs after a failure uses `if: ${{ !cancelled() }}`,** not
+  `always()`: a new push cancels the pull request's run, and the new run waits
+  until the old one stops. Only uploads keep `always()`.
 - **Nightly runs** (`schedule:`) stay in their own workflows, and
   `nightly-failure-issue.yml` opens an issue when one fails or times out.
 
