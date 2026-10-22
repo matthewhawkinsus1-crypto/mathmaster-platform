@@ -31,18 +31,25 @@ runs:
       shell: bash
       run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
 
-    # The cache of Playwright's system packages is per runner image: a new image
-    # may already have some of them, or need others.
+    # The cache of Playwright's system packages has a key per runner image, and a
+    # new image (they change about weekly) starts from the newest cache for the
+    # same OS, architecture and Playwright: without it every image would go back
+    # to the mirror once. install-chromium.sh installs from a cache only when it
+    # holds exactly what this runner lacks.
     - if: inputs.browser == 'true'
       id: image
       shell: bash
-      run: echo "key=playwright-debs-${ImageOS:-unknown}-${ImageVersion:-unknown}-${RUNNER_ARCH}-$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      run: |
+        prefix="playwright-debs-${ImageOS:-unknown}-${RUNNER_ARCH}-$(npx playwright --version | awk '{print $2}')-"
+        echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+        echo "key=$prefix${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
 
     - if: inputs.browser == 'true'
       uses: actions/cache/restore@v4
       with:
         path: ~/.cache/playwright-debs
         key: ${{ steps.image.outputs.key }}
+        restore-keys: ${{ steps.image.outputs.prefix }}
 
     - if: inputs.browser == 'true'
       id: chromium

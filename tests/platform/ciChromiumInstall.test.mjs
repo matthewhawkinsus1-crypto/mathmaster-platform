@@ -160,14 +160,18 @@ test('an unreadable package list falls back to Playwright\'s own install', () =>
   assert.ok(run.calls.includes('npx playwright install --with-deps chromium'));
 });
 
-test('the setup action restores the cache before the script and saves it only after a download, keyed to the runner image', () => {
+test('the setup action restores the cache before the script and saves it only after a download, a key per runner image', () => {
   const action = readFileSync(path.join(repo, '.github/actions/setup/action.yml'), 'utf8');
   const restore = action.indexOf('uses: actions/cache/restore@');
-  const install = action.indexOf('install-chromium.sh');
+  const install = action.indexOf('run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"');
   const save = action.indexOf('uses: actions/cache/save@');
   assert.ok(restore > 0 && restore < install && install < save, 'restore, install, then save');
   assert.match(action.slice(save - 200, save), /if: inputs\.browser == 'true' && steps\.chromium\.outputs\.fetched == 'true'/);
-  assert.match(action, /key=playwright-debs-\$\{ImageOS:-unknown\}-\$\{ImageVersion:-unknown\}-/, 'a new runner image gets its own cache');
-  assert.match(action, /\$\(npx playwright --version/, 'and so does a new Playwright');
+  assert.match(action, /prefix="playwright-debs-\$\{ImageOS:-unknown\}-\$\{RUNNER_ARCH\}-\$\(npx playwright --version[^"]*\)-"/,
+    'one OS, architecture and Playwright');
+  assert.match(action, /echo "key=\$prefix\$\{ImageVersion:-unknown\}"/, 'a new runner image gets its own cache');
+  // and starts from the newest one before it, which the script installs only
+  // when it holds exactly the missing packages (the tests above).
+  assert.match(action, /key: \$\{\{ steps\.image\.outputs\.key \}\}\n\s+restore-keys: \$\{\{ steps\.image\.outputs\.prefix \}\}/);
   assert.doesNotMatch(action, /--with-deps/, 'the setup itself never asks apt for everything');
 });

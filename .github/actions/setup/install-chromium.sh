@@ -6,10 +6,10 @@
 # lacks: nine font packages on ubuntu-24.04. From the mirror that took anything
 # from 17 seconds to 16 minutes (PR #513: 6, 7.7, 9.5 and 16 minutes in four
 # jobs of one run, at 38 kB/s), while Chromium itself downloads in seconds.
-# Here the packages come from a cache of their .deb files, keyed to the runner
-# image (../setup/action.yml), and the mirror is used only when the cache
-# cannot supply them: once per image. They are the same packages either way,
-# so pages render with the same fonts as before.
+# Here the packages come from a cache of their .deb files (../setup/action.yml),
+# and the mirror is used only when the cache does not hold exactly the
+# packages this runner lacks. They are the same packages either way, so pages
+# render with the same fonts as before.
 #
 # Writes fetched=true to GITHUB_OUTPUT when it went to the mirror, so the
 # action saves what it downloaded.
