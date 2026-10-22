@@ -25,7 +25,9 @@
 //     opens the question with `responses` answered and the step `openAt` (an
 //     id) current, and returns { stageIndex, openIndex, total }: where
 //     `stageId` sits among the steps a student is asked once those answers
-//     are in.
+//     are in, and the count the runner shows — the most steps the question
+//     can still ask (#517: "1 of 17" from the start, not "1 of 12" until a
+//     yes/no step reveals its follow-ups).
 //
 // HOW TO RUN: see tests/browser/stagedQuestion.mjs.
 import React, { useEffect, useState } from 'react';
@@ -33,7 +35,7 @@ import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import StudentIdentityBar from '../../src/components/student/StudentIdentityBar.jsx';
 import { writeQuestionDraft } from '../../src/questionDraftStorage.js';
-import { activeStages, readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import { activeStages, projectedStageCount, readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import '../../src/index.css';
 import '../../src/App.css';
@@ -46,14 +48,15 @@ window.__mmStaged = (scene) => {
   const responses = scene.responses || {};
   // The steps a student is asked once these answers are in: a branch whose
   // controlling choice is not answered yet is not a step yet.
-  const steps = activeStages(readComposedQuestion(scene.question).workflow, responses);
+  const { workflow } = readComposedQuestion(scene.question);
+  const steps = activeStages(workflow, responses);
   const stageIndex = steps.findIndex((stage) => stage.id === scene.stageId);
   const openIndex = steps.findIndex((stage) => stage.id === (scene.openAt || scene.stageId));
   writeQuestionDraft(`${draftKey}:workflow-responses`, responses);
   writeQuestionDraft(`${draftKey}:workflow-stage`, Math.max(0, openIndex));
   current = { ...scene, draftKey };
   listeners.forEach((listen) => listen(current));
-  return { stageIndex, openIndex, total: steps.length };
+  return { stageIndex, openIndex, total: Math.max(steps.length, projectedStageCount(workflow, responses)) };
 };
 
 const SECTIONS = [
