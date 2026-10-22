@@ -94,9 +94,25 @@ const lessonFiles = () => {
   return files;
 };
 
-test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles();
-  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+// Lesson files added after the design's count, each with the row the report
+// gives it, so the design's own table below stays exactly the design's.
+//
+// The Algebra II Honors DOL #2 review's Warm-Up, Practice and DOL items are
+// assignment-local Question Families. The stored template carries its
+// `generator`, which this report counts as device-only (generated-question);
+// ingestion marks each student's instance, rebuilt from its delivery pin
+// (questionFamilyGrading.mjs). Its two family slots are the platform-family
+// Matrix Lab systems items.
+const ADDED_AFTER_DESIGN = {
+  'District_DOL2_Absolute_Value_and_3x3_Systems_Review.json': {
+    warmup: { questions: 4, withStoredKey: 4, serverGradable: 0, familySlots: 0, deviceOnly: 4, withHints: 4 },
+    classwork: { questions: 11, withStoredKey: 8, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
+    practice: { questions: 18, withStoredKey: 17, serverGradable: 0, familySlots: 1, deviceOnly: 17, withHints: 18 },
+    dol: { questions: 7, withStoredKey: 6, serverGradable: 0, familySlots: 1, deviceOnly: 6, withHints: 0 },
+  },
+};
+
+const exposureByRole = (files) => {
   const byRole = {};
   files.forEach((file) => {
     const { assignmentV5 } = parseAssignmentBlueprintText(readFileSync(file, 'utf8'));
@@ -105,6 +121,16 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
       Object.keys(row).forEach((key) => { row[key] += section[key]; });
     });
   });
+  return byRole;
+};
+
+test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
+  const all = lessonFiles();
+  const added = all.filter((file) => Object.hasOwn(ADDED_AFTER_DESIGN, path.basename(file)));
+  assert.deepEqual(added.map((file) => path.basename(file)).sort(), Object.keys(ADDED_AFTER_DESIGN).sort(), 'every file listed as added is in the repository');
+  const files = all.filter((file) => !added.includes(file));
+  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+  const byRole = exposureByRole(files);
   // Design §1.2: Q / stored key / has hints / server can grade as stored.
   // Hints are one higher in Practice: the report also counts `supportHints`
   // (design §1.1 lists both), and one Absolute Value item has only those.
@@ -113,6 +139,12 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
     classwork: { questions: 108, withStoredKey: 51, serverGradable: 105, familySlots: 3, deviceOnly: 0, withHints: 27 },
     practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 2, deviceOnly: 1, withHints: 37 },
     dol: { questions: 45, withStoredKey: 30, serverGradable: 44, familySlots: 1, deviceOnly: 0, withHints: 0 },
+  });
+});
+
+test('each lesson file added after the design has its own row', () => {
+  lessonFiles().filter((file) => Object.hasOwn(ADDED_AFTER_DESIGN, path.basename(file))).forEach((file) => {
+    assert.deepEqual(exposureByRole([file]), ADDED_AFTER_DESIGN[path.basename(file)], path.basename(file));
   });
 });
 

@@ -204,7 +204,8 @@ test('over every real lesson, exactly three hints change to shown, and none of t
         .forEach((value) => assert.ok(!hintRevealsAnswer(hint, [value]), `${question.questionId} shows "${hint}", which contains the answer ${value}`));
     });
   });
-  assert.equal(total, 200);
+  // 266 since the Algebra II Honors DOL #2 review added 66, every one shown.
+  assert.equal(total, 266);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',
