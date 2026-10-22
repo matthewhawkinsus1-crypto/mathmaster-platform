@@ -85,8 +85,8 @@ process; the simplest-form rules mirror Step Algebra's Simplify
 lesson question, keeps its DOK and band, and has 127,000+ fresh versions;
 certification grades Workshop work through `polynomialWorkshopKeyWork`
 (`recoveryCertificationGrading.mjs`). Honors audit: BLOCKED in Algebra II with
-the knob that would unblock each; in Algebra I the two cubic families are NOT
-APPROPRIATE and the other four BLOCKED (aligned to A2.7B).
+the knob that would unblock each; in Algebra I subtracting cubics is NOT
+APPROPRIATE and the other five are BLOCKED (aligned to A2.7B).
 
 ## First load
 

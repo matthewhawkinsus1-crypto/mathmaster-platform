@@ -134,10 +134,12 @@ test('the committed report is generated from the live registry and audit, never 
   // families are Algebra II content: NOT APPROPRIATE in Algebra I; in Algebra
   // II five are BLOCKED and matrices.solveSystem3x3 is CAPABLE (an extension
   // can target matrices.singularSystem3x3; no recipe yet). The six
-  // operations-on-polynomials Recovery families ask exactly their original's
-  // skill: BLOCKED in Algebra II; in Algebra I the two cubic ones are NOT
-  // APPROPRIATE and the four whose skill Algebra I also teaches are BLOCKED
+  // perpendicular-line Recovery families are Algebra I content, asking exactly
+  // their originals' skills: BLOCKED in Algebra I, NOT APPROPRIATE in Algebra II.
+  // The six operations-on-polynomials Recovery families ask exactly their
+  // original's skill: BLOCKED in Algebra II; in Algebra I subtracting cubics is
+  // NOT APPROPRIATE and the five whose skill Algebra I also teaches are BLOCKED
   // (aligned to A2.7B, so an Algebra I lesson never binds to them).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 29 \| 4 \| 5 \| 12 \| 8 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 29 \| 0 \| 1 \| 17 \| 11 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 35 \| 4 \| 5 \| 18 \| 8 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 35 \| 0 \| 1 \| 17 \| 17 \|/);
 });
