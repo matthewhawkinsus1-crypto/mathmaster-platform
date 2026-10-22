@@ -5,8 +5,9 @@
  * their grade-transfer units, return check-ins and Test Cycle retest
  * actions), opens Assignment Review, offers a teacher's worksheets, publishes
  * to Google Classroom, reconciles extensions after an attendance correction,
- * opens, grants, closes, extends and moves a DOL and writes its attempts, and
- * reads and records student support history with these. Only a teacher's
+ * opens, grants, closes, extends and moves a DOL and writes its attempts,
+ * reads and records student support history, and names who is still working
+ * before a feedback release with these. Only a teacher's
  * screen ever uses them, but imported by App they rode in every student's
  * first load (scripts/check-first-load-budget.mjs). App loads this module for a teacher
  * (./teacherKitLoader.js), and the teacher's screen waits for it, so nothing a
@@ -37,6 +38,7 @@ export {
   mappedCourseIdsForAssignment,
   shouldAutoPublishClassroomPackage,
 } from '../../platform/classroom/automaticClassroomPublishing.js';
+export { automaticClassroomTopicName } from '../../platform/classroom/classroomTopicNaming.js';
 export { listTeacherTestCycleRecords } from '../../services/testCycleService.js';
 export {
   fetchAttendanceForClassDateRange,
@@ -54,3 +56,5 @@ export {
   buildDolWindowOpening,
   scheduledDolDateFor,
 } from '../../platform/assessment/assessmentRecovery.js';
+export { describeFeedbackRelease, releaseHoldReport } from './feedbackReleaseHold.js';
+export { readReleaseControls } from './feedbackReleaseControls.js';

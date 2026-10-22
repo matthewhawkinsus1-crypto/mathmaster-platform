@@ -309,8 +309,6 @@ import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/b
 import { parseAppPath } from './app/routes/appUrl.js';
 import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
-import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
-import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   DISPLAYED_CHECKPOINT_OUTCOMES,
@@ -450,13 +448,11 @@ import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDa
 // Assignment Review's publishing intent, worksheets, Classroom publishing)
 // loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
 import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './app/teacher/teacherKitLoader.js';
-import { automaticClassroomTopicName } from './platform/classroom/classroomTopicNaming.js';
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
-import {
-  SUPPORT_EVENT_KIND,
-  SUPPORT_EVENT_STAGE,
-  summarizeRapidCorrectness,
-} from './platform/teacher/studentSupportSignals.js';
+// Only the event kinds and the live rapid-correct summary: the rest of
+// teacher/studentSupportSignals.js is the teacher's (first-load budget).
+import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './platform/teacher/supportEventKinds.js';
+import { summarizeRapidCorrectness } from './platform/teacher/rapidCorrectness.js';
 import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
@@ -2632,7 +2628,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
-    const { classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
+    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -8041,7 +8037,9 @@ function App() {
     if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
     // One release opens worked solutions in EVERY class this is assigned to:
     // name everyone who has not finished, by class, before it goes
-    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3).
+    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3). Only a teacher
+    // releases feedback, so all three come from the teacher kit.
+    const { describeFeedbackRelease, readReleaseControls, releaseHoldReport } = requireTeacherKit();
     // Every assigned class's extensions, not only the classes on screen.
     const privateRecords = await readReleaseControls({
       db, assignment, email: user?.email || '', isRootAdmin: user?.isRootAdmin === true,

@@ -7,6 +7,7 @@ import {
   assignmentGradeOverrideFor,
 } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { splitIntegrityConsequence } from '../../functions/shared/integrityOverridePrivacy.mjs';
+import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_LABEL } from '../../src/platform/teacher/studentSupportSignals.js';
 import { region } from './helpers/sourceContract.mjs';
 
 test('assignment override helper accepts only active numeric server projection', () => {
@@ -120,7 +121,13 @@ test('server enforces confirmed section zeros, preserves prior corrections, upda
 });
 
 test('teacher support history labels confirmed academic-integrity incidents separately from automated review signals', () => {
-  const support = readFileSync(new URL('../../src/platform/teacher/studentSupportSignals.js', import.meta.url), 'utf8');
-  assert.match(support, /ACADEMIC_INTEGRITY_INCIDENT:\s*['"]academicIntegrityIncident['"]/);
-  assert.match(support, /Academic Integrity Incident/);
+  // The kinds live in teacher/supportEventKinds.js; studentSupportSignals.js
+  // re-exports them with the labels the history shows.
+  assert.equal(SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT, 'academicIntegrityIncident');
+  assert.equal(SUPPORT_EVENT_LABEL[SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT], 'Academic Integrity Incident');
+  assert.notEqual(
+    SUPPORT_EVENT_LABEL[SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT],
+    SUPPORT_EVENT_LABEL[SUPPORT_EVENT_KIND.INTEGRITY_REVIEW],
+    'a confirmed incident is labeled apart from an automated review signal',
+  );
 });

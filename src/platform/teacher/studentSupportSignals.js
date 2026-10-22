@@ -1,31 +1,11 @@
 import { LIVE_FLAGS, LIVE_SEVERITY } from '../../livePresence.js';
 import { acceptStudentName } from '../studentName.js';
+import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './supportEventKinds.js';
 
-export const SUPPORT_EVENT_KIND = Object.freeze({
-  WATCH_PRACTICE: 'watchPractice',
-  SMALL_GROUP: 'smallGroup',
-  PARENT_FOLLOW_UP: 'parentFollowUp',
-  TEACHER_INTERVENTION: 'teacherIntervention',
-  OFF_TASK_CONCERN: 'offTaskConcern',
-  INTEGRITY_REVIEW: 'integrityReview',
-  ACADEMIC_INTEGRITY_INCIDENT: 'academicIntegrityIncident',
-  SIGNAL_DISMISSED: 'signalDismissed',
-  RESOLVED: 'resolved',
-  // Absence recovery. See src/platform/attendance/returnCheckIn.js — these
-  // live in the same append-only studentSupportEvents stream as every other
-  // kind here, not a second task/action-item collection.
-  RETURN_FROM_ABSENCE: 'returnFromAbsence',
-  ATTENDANCE_CORRECTION_REVIEW: 'attendanceCorrectionReview',
-  ATTENDANCE_EXTENSION_RECONCILIATION_PENDING: 'attendanceExtensionReconciliationPending',
-});
-
-export const SUPPORT_EVENT_STAGE = Object.freeze({
-  SYSTEM_SIGNAL: 'systemSignal',
-  TEACHER_CONFIRMED: 'teacherConfirmed',
-  ACTION_TAKEN: 'actionTaken',
-  DISMISSED: 'dismissed',
-  RESOLVED: 'resolved',
-});
+// The event kinds and stages, and the rapid-correct summary a student's
+// device computes, live in their own modules (App reads only those).
+export { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE };
+export { rapidCorrectThresholdSeconds, summarizeRapidCorrectness } from './rapidCorrectness.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -40,100 +20,6 @@ const byStoredName = (a, b) => Number(!a.studentName) - Number(!b.studentName)
 const num = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const isIndependentRecord = (record = {}) => (
-  record?.supportUsage?.isMathematicallyIndependent !== false
-  && record?.supportUsage?.teacherAssisted !== true
-  && record?.supportUsage?.hintUsed !== true
-  && record?.supportUsage?.scaffoldUsed !== true
-  && record?.supportUsage?.workedExampleUsed !== true
-  && record?.supportUsage?.remediationUsed !== true
-);
-
-const questionDemand = (question = {}) => {
-  const dok = Math.max(1, num(question.dok ?? question.cognitiveDemand?.dok, 1));
-  const difficulty = Math.max(1, num(
-    question.difficultyBand
-      ?? question.difficulty
-      ?? question.cognitiveDemand?.difficultyBand,
-    1,
-  ));
-  const type = clean(question.type || question.toolId).toLowerCase();
-  const constructed = [
-    'functiongraph', 'modelinglab', 'relationshipmodel', 'equationinput',
-    'stepalgebra2', 'systemsworkspace', 'sequenceexplorer', 'transformationslab',
-  ].some((token) => type.includes(token));
-  return { dok, difficulty, constructed };
-};
-
-/**
- * "Fast" is contextual, not one magic number. A DOK-1 recognition item and a
- * multi-step graphing/modeling task should never share the same threshold.
- *
- * These thresholds are deliberately conservative because they are only one
- * ingredient in an Integrity Review signal; speed alone never produces one.
- */
-export const rapidCorrectThresholdSeconds = (question = {}) => {
-  const { dok, difficulty, constructed } = questionDemand(question);
-  if (constructed || dok >= 3 || difficulty >= 4) return 12;
-  if (dok >= 2 || difficulty >= 3) return 8;
-  return 5;
-};
-
-/**
- * Compact live response-timing summary. No response text, answer key, or raw
- * keystroke history leaves the student device.
- */
-export const summarizeRapidCorrectness = ({
-  questions = [],
-  tracker = {},
-  includedIndices = null,
-} = {}) => {
-  const indices = Array.isArray(includedIndices)
-    ? includedIndices
-    : list(questions).map((unused, index) => index);
-
-  let answered = 0;
-  let correct = 0;
-  let rapidCorrect = 0;
-  let rapidDeepCorrect = 0;
-  let timedIndependentCorrect = 0;
-
-  indices.forEach((index) => {
-    const record = tracker?.[index] || {};
-    const status = clean(record.status);
-    if (!['correct', 'expired', 'incorrect'].includes(status)) return;
-    answered += 1;
-    if (status !== 'correct') return;
-    correct += 1;
-
-    const seconds = num(record.timeSpent, 0);
-    if (seconds <= 0 || !isIndependentRecord(record)) return;
-    timedIndependentCorrect += 1;
-
-    const question = questions[index] || {};
-    const threshold = rapidCorrectThresholdSeconds(question);
-    if (seconds > threshold) return;
-
-    rapidCorrect += 1;
-    const demand = questionDemand(question);
-    if (demand.dok >= 2 || demand.difficulty >= 3 || demand.constructed) {
-      rapidDeepCorrect += 1;
-    }
-  });
-
-  return {
-    answered,
-    correct,
-    accuracy: answered ? Math.round((correct / answered) * 100) : null,
-    timedIndependentCorrect,
-    rapidCorrect,
-    rapidDeepCorrect,
-    rapidShare: timedIndependentCorrect
-      ? rapidCorrect / timedIndependentCorrect
-      : 0,
-  };
 };
 
 const profileMismatch = (profile = null) => {

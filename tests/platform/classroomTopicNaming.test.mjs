@@ -100,11 +100,15 @@ test('the choice is remembered per browser, and storage failures fall back to th
   }
 });
 
-test('App.jsx: automatic publishing sends the resolved topic to BOTH posts, and imports the resolver it calls', () => {
+test('App.jsx: automatic publishing sends the resolved topic to BOTH posts, from the resolver the teacher kit carries', async () => {
   const app = read('src/App.jsx');
-  assert.match(app, /import \{ automaticClassroomTopicName \} from '\.\/platform\/classroom\/classroomTopicNaming\.js';/);
+  // Only a teacher publishes to Classroom: the resolver comes with the teacher
+  // kit (src/app/teacher/teacherKit.js), never with a student's first load.
+  const kit = await import('../../src/app/teacher/teacherKit.js');
+  assert.equal(kit.automaticClassroomTopicName, automaticClassroomTopicName);
+  assert.doesNotMatch(app, /from '\.\/platform\/classroom\/classroomTopicNaming\.js'/);
   const publish = executableSource(region(app, 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
-  assert.match(publish, /const topicName = automaticClassroomTopicName\(assignment\);/);
+  assert.match(publish, /const \{ automaticClassroomTopicName, [\w, ]+ \} = requireTeacherKit\(\);[\s\S]*const topicName = automaticClassroomTopicName\(assignment\);/);
   const material = region(publish, 'publishClassroomMaterial({', '});', 'materials post');
   const post = region(publish, 'publishAssignmentToClassrooms({', '});', 'assignment post');
   for (const [name, call] of [['materials post', material], ['assignment post', post]]) {
