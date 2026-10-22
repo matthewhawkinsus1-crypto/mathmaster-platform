@@ -51,6 +51,25 @@ test('what counts as simplest form', () => {
 
 const field = (answer, extra = {}) => ({ id: 'simplified', label: 'Simplified polynomial', answer, answerForm: SIMPLIFIED_POLYNOMIAL_FORM, ...extra });
 
+// Review (PR #514): a bracket the student typed around a letter, and a sign
+// under the bar or written twice, were read as simplified.
+test('a typed bracket around a letter is grouping, and a term has one sign, never under the bar', () => {
+  [
+    ['(x)(y)', P.GROUPING], ['(x)', P.GROUPING], ['-(x)', P.GROUPING], ['x(y)', P.GROUPING], ['2(x)', P.GROUPING],
+    ['\\left(x\\right)\\left(y\\right)', P.GROUPING],
+    ['\\frac{-3x}{-2}', P.PRODUCT], ['\\frac{3x}{-2}', P.PRODUCT], ['-\\frac{-3x}{2}', P.PRODUCT],
+    ['x+\\frac{-1}{2}', P.PRODUCT], ['-(-x)', P.PRODUCT],
+  ].forEach(([answer, problem]) => assert.equal(simplifiedPolynomialProblem(answer), problem, answer));
+  // A fraction's own grouping is not a typed bracket, and one sign may sit
+  // in front of the fraction or inside its numerator.
+  ['\\frac{x}{2}', '\\frac{-3x}{2}', '-\\frac{3x}{2}', 'x-\\frac{1}{2}', '\\left(\\frac{1}{2}\\right)x', 'x^{(2)}']
+    .forEach((answer) => assert.equal(simplifiedPolynomialProblem(answer), null, answer));
+  assert.equal(matchesFieldAnswer('(x)(y)', field('xy')), false);
+  assert.equal(matchesFieldAnswer('xy', field('xy')), true);
+  assert.equal(matchesFieldAnswer('\\frac{-3x}{-2}', field('1.5x')), false);
+  assert.equal(matchesFieldAnswer('\\frac{3x}{2}', field('1.5x')), true);
+});
+
 test('a field that asks for simplest form takes the value only when it is simplified', () => {
   const key = field('a^3+8a-9');
   assert.equal(matchesFieldAnswer('a^3+8a-9', key), true);

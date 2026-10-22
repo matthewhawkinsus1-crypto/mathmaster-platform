@@ -11,9 +11,11 @@
 // answer must then still have the key's value (the ordinary grader decides
 // that), AND be written so that nothing is left to do:
 //
-//   grouping     no brackets around letters:  (2a^2b)(4a^3b),  -(x - 4)
+//   grouping     no brackets around letters:  (2a^2b)(4a^3b),  -(x - 4),
+//                (x)(y),  2(x)
 //   product      each term is ONE number times each letter at most once:
-//                2·3x, x·x^2, aa, 2^3x, (2+3)x are all work left to do
+//                2·3x, x·x^2, aa, 2^3x, (2+3)x are all work left to do; and
+//                ONE sign, never under the bar: \frac{3x}{-2}, -\frac{-3x}{2}
 //   power        an exponent is a whole number of at least 2 (x^1, x^0 are
 //                not simplest; x^-2 and x^(1/2) are not polynomials)
 //   lowestTerms  a fraction coefficient in lowest terms, and no written 1
@@ -187,8 +189,10 @@ const hasBinaryAdditive = (tokens) => {
  * That is also what catches a retyped product: `(2a^2b)(4a^3b)` is one term
  * with two numbers and each letter twice.
  */
-const readTerm = (tokens) => {
+const readTerm = (tokens, leadingSigns = 0) => {
   const powers = new Map();
+  // The term's own sign is one; `\frac{-1}{2}` may write it inside instead.
+  let signs = leadingSigns;
   const numerator = [];
   const denominator = [];
   let value = 1;
@@ -216,8 +220,10 @@ const readTerm = (tokens) => {
       if (token.kind === '/') { dividing = true; position += 1; continue; }
       if (token.kind === '+' || token.kind === '-') {
         // `\frac{-1}{2}` writes its sign inside the bracket; anywhere else a
-        // sign between factors is work left to do.
-        if (!(insideGroup && position === 0)) flag(P.PRODUCT);
+        // sign between factors is work left to do, and so is one under the
+        // bar (`\frac{3x}{-2}`): the coefficient check reads magnitudes only.
+        if (!(insideGroup && position === 0) || below) flag(P.PRODUCT);
+        signs += 1;
         if (token.kind === '-') value = -value;
         position += 1;
         continue;
@@ -290,6 +296,9 @@ const readTerm = (tokens) => {
   };
 
   if (!readFactors(tokens, false, false)) return { problem: P.UNREADABLE };
+  // Two signs in one term (`-\frac{-3x}{2}`, `x + \frac{-1}{2}`) cancel or
+  // combine: a sign left to resolve.
+  if (signs > 1) flag(P.PRODUCT);
 
   const letters = [...powers.entries()]
     .filter(([, power]) => power !== 0)
@@ -327,6 +336,28 @@ const readTerm = (tokens) => {
     }
   }
   return { signature, coefficient: value, powers: Object.fromEntries(letters), problem };
+};
+
+/*
+ * A bracket the student typed around a letter: `(x)(y)`, `2(x)`, `-(x)`.
+ * Read from the RAW text, because normalizing writes `\frac{x}{2}` as
+ * `((x)/(2))`, where a fraction's grouping and a typed bracket look the same;
+ * in the raw text a fraction uses braces and only a typed bracket is ( or [.
+ * A bracket around a number alone (`\left(\frac{1}{2}\right)x`) is not.
+ */
+const typedBracketAroundLetter = (raw) => {
+  const text = raw.replace(/\\(?:left|right|[bB]igg?[lr]?)/g, '').replace(/\\[a-zA-Z]+/g, ' ');
+  const open = [];
+  for (const char of text) {
+    if (char === '(' || char === '[') open.push('');
+    else if (char === ')' || char === ']') {
+      const inner = open.pop();
+      if (inner === undefined) return false;
+      if (/[a-zA-Z]/.test(inner)) return true;
+      if (open.length) open[open.length - 1] += inner;
+    } else if (open.length) open[open.length - 1] += char;
+  }
+  return false;
 };
 
 /*
@@ -395,7 +426,7 @@ export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
     if (start > 1) firstProblem = firstProblem || P.PRODUCT;
     const body = term.slice(start);
     if (!body.length) return unreadable;
-    const read = readTerm(body);
+    const read = readTerm(body, start);
     if (read.problem === P.UNREADABLE) return unreadable;
     terms.push({ coefficient: sign * read.coefficient, powers: read.powers, signature: read.signature });
     // A lone 0 is the simplified zero polynomial.
@@ -404,6 +435,7 @@ export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
     if (seen.has(read.signature)) firstProblem = firstProblem || P.LIKE_TERMS;
     seen.add(read.signature);
   }
+  if (!firstProblem && typedBracketAroundLetter(raw)) firstProblem = P.GROUPING;
   return { problem: firstProblem, terms };
 };
 
