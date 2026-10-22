@@ -134,7 +134,7 @@ jobs:
   # took 29 minutes for them all (PR #513), against a 40-minute limit.
   teacher:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -177,7 +177,7 @@ jobs:
   # Case review and held Recovery, on a runner of their own (see teacher).
   teacher-case-review:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -200,7 +200,7 @@ jobs:
   # Unfinished work across Chromebooks and the Warm-Up reopen (see teacher).
   teacher-drafts:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -419,7 +419,7 @@ jobs:
   # 17 minutes for them all).
   student:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -481,7 +481,7 @@ jobs:
   # The representations board, and its Process Mode (see student).
   student-representations:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup

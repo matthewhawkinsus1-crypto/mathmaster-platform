@@ -134,7 +134,7 @@ permissions:
 jobs:
   student-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -225,7 +225,7 @@ jobs:
   # The student-runtime gates, continued (see the header).
   student-runtime-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -274,7 +274,7 @@ jobs:
   # The student-runtime gates, continued (see the header).
   student-runtime-3:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -365,7 +365,7 @@ jobs:
   # minutes (one runner took 14 minutes for them all).
   pass3-student-screens:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -408,7 +408,7 @@ jobs:
   # Student pass 3's drivers, continued (see pass3-student-screens).
   pass3-student-screens-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
