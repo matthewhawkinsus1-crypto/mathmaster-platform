@@ -10,6 +10,8 @@ import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
+import { GRAPHING2_DEFAULT_BOUNDS, targetLineFromQuestion } from './graphing2/graphingMath.js';
+import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -24,6 +26,31 @@ const isFiniteComplex = (value) => value && Number.isFinite(Number(value.re)) &&
 const FUNCTION_FAMILIES = ['linear','quadratic','absolute','cubic','cubeRoot','squareRoot','exponential','logarithmic','rational'];
 const FUNCTION_OPERATION_FAMILIES = ['linear','line','quadratic','cubic','polynomial'];
 const FUNCTION_OPERATION_NAMES = ['sum','difference','product','quotient','composition'];
+/*
+ * A student can place points only inside the window Graphing2 draws (its
+ * graphBounds, else ±7). A line that never crosses that window — 5x + 10y =
+ * 3000 on the default grid — or an intercept a formAware policy requires
+ * outside it leaves the question with no answer that can be marked right.
+ */
+const graphing2WindowErrors = (question, mode) => {
+  const target = targetLineFromQuestion(question);
+  const bounds = question.graphBounds || GRAPHING2_DEFAULT_BOUNDS;
+  const { xMin, xMax, yMin, yMax } = Object.fromEntries(['xMin', 'xMax', 'yMin', 'yMax'].map((key) => [key, Number(bounds?.[key])]));
+  if (!target || ![xMin, xMax, yMin, yMax].every(Number.isFinite)) return [];
+  const window = `x from ${xMin} to ${xMax}, y from ${yMin} to ${yMax}`;
+  const ends = target.kind === 'vertical' ? null : [xMin, xMax].map((x) => target.m * x + target.b);
+  const crosses = target.kind === 'vertical'
+    ? target.x >= xMin && target.x <= xMax
+    : Math.max(...ends) >= yMin && Math.min(...ends) <= yMax;
+  if (!crosses) return [`graphing2 line never crosses the drawn window (${window}); add graphBounds that contain it.`];
+  if (resolveConstructionPolicy(question).strategy !== 'formAware') return [];
+  const tolerance = 1e-9;
+  const outside = formAwareAnchorsForMode(mode, question, target).anchors.filter(({ point: [x, y] }) => (
+    x < xMin - tolerance || x > xMax + tolerance || y < yMin - tolerance || y > yMax + tolerance
+  ));
+  return outside.map(({ id, point: [x, y] }) => `graphing2 requires the student to plot the ${id === 'givenPoint' ? 'given point' : id === 'xIntercept' ? 'x-intercept' : 'y-intercept'} (${x}, ${y}), which is outside the drawn window (${window}); add graphBounds that contain it.`);
+};
+
 const isFinitePoint = (value) => {
   if (Array.isArray(value)) return value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
   return Boolean(value && typeof value === 'object'
@@ -129,7 +156,12 @@ export const validateToolQuestion = (question = {}) => {
     // to the algebraic workspace is checked as an algebraic system (#341).
     const mode = resolveSystemsWorkspaceMode(question);
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
-    if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
+    // Graph mode draws and grades `system`: the lines y = m1·x + b1 and
+    // y = m2·x + b2. Without all four numbers it draws its own demo system
+    // (y = 2x + 1, y = −x + 7) and grades the student against that instead.
+    if (mode === 'linear' && !['m1', 'b1', 'm2', 'b2'].every((key) => question.system?.[key] != null && question.system[key] !== '' && Number.isFinite(Number(question.system[key])))) {
+      errors.push('systemsWorkspace graph mode needs `system` with finite m1, b1, m2 and b2 (the lines y = m1x + b1 and y = m2x + b2); without them it shows and grades a demo system instead.');
+    }
     if (mode === 'inequalities' && (question.inequalities || question.expectedConstraints)) {
       const gradingConstraints = question.expectedConstraints || question.inequalities;
       const minimumInequalities = question.studentBuild || question.reasoning || question.modeling ? 1 : 2;
@@ -552,6 +584,7 @@ export const validateToolQuestion = (question = {}) => {
       if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'xIntercept' && Math.abs(Number(question.standard?.A)) <= 1e-9) errors.push('graphing2 horizontal standardForm has no unique x-intercept anchor.');
       if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'yIntercept' && Math.abs(Number(question.standard?.B)) <= 1e-9) errors.push('graphing2 vertical standardForm has no y-intercept anchor.');
     }
+    errors.push(...graphing2WindowErrors(question, mode));
   }
   if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));
   if (toolId === 'constraintFunctionBuilder') errors.push(...validateConstraintBuilderQuestion(question));

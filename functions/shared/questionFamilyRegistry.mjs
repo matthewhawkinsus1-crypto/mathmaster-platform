@@ -23,12 +23,20 @@ import { LINEAR_GRAPH_FAMILIES } from './questionFamiliesLinearGraphs.mjs';
 import { TRANSFORMATION_FAMILIES } from './questionFamiliesTransformations.mjs';
 import { MATRIX_FAMILIES } from './questionFamiliesMatrices.mjs';
 import { PERPENDICULAR_FAMILIES } from './questionFamiliesPerpendicular.mjs';
+import { SOLVING_EQUATION_FAMILIES } from './questionFamiliesSolvingEquations.mjs';
+import { INEQUALITY_FAMILIES } from './questionFamiliesInequalities.mjs';
+import { INEQUALITY_SOLVING_FAMILIES } from './questionFamiliesInequalitySolving.mjs';
+import { SYSTEMS_GRAPHING_FAMILIES } from './questionFamiliesSystemsGraphing.mjs';
+import { SUBSTITUTION_FAMILIES } from './questionFamiliesSubstitution.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
 // distribution and exact fractions); an unpinned reference still means v1.
 // The linear-graph, transformation, matrix and perpendicular-line families
 // are Recovery V2's: each can recognize the static questions it recovers (recoveryContent.mjs).
+// The Module 3 families (solving equations, inequalities, systems by graphing
+// and by substitution) back the Warm-Up and DOL slots of those lessons
+// directly: each lesson question references its family.
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -40,6 +48,11 @@ const REGISTERED = Object.freeze([
   ...TRANSFORMATION_FAMILIES,
   ...MATRIX_FAMILIES,
   ...PERPENDICULAR_FAMILIES,
+  ...SOLVING_EQUATION_FAMILIES,
+  ...INEQUALITY_FAMILIES,
+  ...INEQUALITY_SOLVING_FAMILIES,
+  ...SYSTEMS_GRAPHING_FAMILIES,
+  ...SUBSTITUTION_FAMILIES,
 ]);
 
 const byKey = new Map();

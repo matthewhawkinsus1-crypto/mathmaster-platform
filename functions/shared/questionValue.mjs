@@ -417,11 +417,13 @@ const systemsWorkspaceWork = (question, mode) => {
         ...construct('Solve the system', Math.max(1, equations - 1)),
         ...(question?.requireVerification === false ? [] : respond('Verify each equation', equations)),
       ];
-    default: {
-      const system = question?.system || {};
-      const unique = system.m1 == null || system.m2 == null || Number(system.m1) !== Number(system.m2);
-      return [...select('Classification'), ...(unique ? respond('Solution') : [])];
-    }
+    default:
+      // Every graphed system asks the same thing — how many solutions, and
+      // the intersection when there is one — so its value is the same
+      // whatever the answer. Counting the intersection only for a
+      // one-solution system made its "Grade weight ×1.25" banner tell the
+      // student the answer before they looked at the graph.
+      return [...select('Classification'), ...respond('Solution')];
   }
 };
 

@@ -10,6 +10,8 @@ import {
   isFamilyBackedQuestion,
   resolveFamilyPreviewInstance,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
+import { inequalitySolutionRepresentationStages } from '../../../functions/shared/toolMath/algebra-relations/inequalityRepresentationPolicy.mjs';
+import { relationSourceFromQuestion, usesRelationWorkspace } from '../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -239,7 +241,8 @@ const VISUAL_PROMISES = [
     label: 'a number line',
     satisfied: (question, composed) => nonEmptyArray(question.intervals) || nonEmptyArray(question.choices)
       || String(question.type) === 'numberLine' || String(question.type) === 'intervalNumberLine'
-      || composedHasStage(composed, ['numberLine', 'intervalInput']),
+      || composedHasStage(composed, ['numberLine', 'intervalInput'])
+      || stepAlgebraGraphsInequality(question),
     remedy: 'Use `intervalNumberLine` with an `intervals` array, or `numberLine` with `choices`.',
   },
   {
@@ -252,6 +255,16 @@ const VISUAL_PROMISES = [
     remedy: 'Use `relationMapping` with a `pairs` array, or supply the diagram the prompt refers to.',
   },
 ];
+
+// A solved inequality in Step Algebra is graphed on the relation workspace's
+// own number line (inequalityRepresentationPolicy.mjs: in Algebra I it is the
+// only representation asked for), so "graph the solution on the number line"
+// describes a number line the student is given.
+const RELATION_SYMBOL = /(?:<=|>=|[<>≤≥])/;
+const stepAlgebraGraphsInequality = (question) => String(question.type) === 'stepAlgebra'
+  && usesRelationWorkspace(question)
+  && RELATION_SYMBOL.test(relationSourceFromQuestion(question) || String(question.inequalityText || ''))
+  && inequalitySolutionRepresentationStages(question).includes('graph');
 
 // Every string a student could read, gathered so LaTeX in a label or an answer
 // is caught as readily as LaTeX in the prompt.
@@ -374,8 +387,18 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
 
 const SUPPORTED_PROMPT_MATH = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
 
+// Fields that are never shown as plain UI text. A generated `solutionKey` is
+// the answer key a Question Family writes beside its question: its `latex` is
+// LaTeX on purpose (SolutionReview renders it through MathDisplay after the
+// question is finished), so reading it as a prompt string warned on every
+// fractional version of linear.multiStepEquation v2 and linear.twoStepEquation
+// v2 — a warning the teacher could do nothing about.
+const NON_UI_TEXT_FIELDS = new Set(['solutionKey']);
+
 const checkPlainTextMath = (question, label, errors, warnings) => {
-  const strings = collectStrings(question);
+  const strings = collectStrings(isObject(question)
+    ? Object.fromEntries(Object.entries(question).filter(([key]) => !NON_UI_TEXT_FIELDS.has(key)))
+    : question);
 
   if (strings.some((text) => CONTROL_CHARACTERS.test(text))) {
     errors.push(
@@ -420,10 +443,20 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
         warnings: [],
       };
     }
-    return validateBuiltQuestionSemantics(preview.question, { label });
+    const built = validateBuiltQuestionSemantics(preview.question, { label });
+    // A systems family builds its Systems Workspace version with the slot's
+    // method, and quietly lets the student choose when it does not know the
+    // spelling. A hand-authored system is refused for the same spelling
+    // (validateAlgebraicSystemAuthoring), so the slot is too.
+    if (String(preview.question.type) === 'systemsWorkspace' && question.method != null && !SYSTEM_METHODS.includes(question.method)) {
+      built.errors.push(`${label} method "${question.method}" is not one of ${SYSTEM_METHODS.join(', ')}; the workspace would let the student choose instead.`);
+    }
+    return built;
   }
   return validateBuiltQuestionSemantics(question, { label });
 };
+
+const SYSTEM_METHODS = Object.freeze(['substitution', 'elimination', 'studentChoice']);
 
 const validateBuiltQuestionSemantics = (question = {}, { label = 'Question' } = {}) => {
   const errors = [];

@@ -268,7 +268,20 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   walk(new URL('teacher-import-jsons', ROOT).pathname);
   const questions = corpus.flatMap((path) => compileAuthoringIntentV5(JSON.parse(readFileSync(path, 'utf8'))).package.sections.flatMap((section) => section.questions));
   assert.ok(questions.length > 150);
-  questions.forEach((question) => assert.equal(linearEquations.matches(question), false, `corpus: ${question.type} ${String(question.prompt).slice(0, 80)}`));
+  // Algebra I Module 3 Lesson 1 brought real one-variable linear equations
+  // into the corpus. Those are claimed — every hand-written one — and
+  // anything claimed is a linear equation the oracle reads on its own.
+  const claimed = questions.filter((question) => linearEquations.matches(question));
+  claimed.forEach((question) => {
+    assert.equal(question.type, 'stepAlgebra', `corpus: ${question.type} ${String(question.prompt).slice(0, 80)}`);
+    assert.ok(['one', 'none', 'infinite'].includes(numericOracle(question).case), `corpus: ${String(question.prompt).slice(0, 80)}`);
+  });
+  const handWrittenEquations = questions.filter((question) => (
+    String(question.questionId).startsWith('m3l1-') && question.type === 'stepAlgebra' && !question.questionFamily
+  ));
+  assert.ok(handWrittenEquations.length >= 10);
+  handWrittenEquations.forEach((question) => assert.ok(claimed.includes(question), `claimed: ${question.questionId}`));
+  assert.equal(claimed.length, handWrittenEquations.length, 'nothing else in the corpus is claimed');
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
     .forEach((question) => assert.equal(linearEquations.matches(question), false, `district DOL: ${question.heading}`));
 

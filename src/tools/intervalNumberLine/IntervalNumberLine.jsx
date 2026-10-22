@@ -12,7 +12,8 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import intervalNumberLineGrader from '../../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
-import { describeNumberLine } from '../../platform/language/numberLineDescription.js';
+import { describeNumberLine, describeNumberLinePiece } from '../../platform/language/numberLineDescription.js';
+import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import {
   intervalsToNotation,
@@ -202,6 +203,11 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const asksInterval = ask.includes('interval');
   const asksInequality = ask.includes('inequality');
   const asksNotation = asksInterval || asksInequality;
+  // The readout of the student's own graph is in words when they are asked
+  // to write its inequality (notation there would write it for them), and in
+  // Algebra I, whose course does not teach interval notation
+  // (inequalityRepresentationPolicy.mjs).
+  const readsGraphAsNotation = !asksNotation && !isAlgebraOneQuestion(questionData);
   const toolTitle = asksInterval
     ? 'Number Line and Intervals'
     : asksInequality
@@ -973,7 +979,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               : drawn.length
                 ? asksInterval
                   ? `${drawn.length} graph ${drawn.length === 1 ? 'piece' : 'pieces'} placed. Write the interval notation yourself.`
-                  : `Your graph: ${intervalsToNotation(drawn)}`
+                  : readsGraphAsNotation
+                    ? `Your graph: ${intervalsToNotation(drawn)}`
+                    : `Your graph: ${drawn.map(describeNumberLinePiece).join(' ')}`
                 : 'Click the line for a quick placement, or type an exact endpoint above.'}
           </p>
         </Panel>

@@ -1,0 +1,2278 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Solving Linear Equations (M3 T1 L1)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 1/Lesson 1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Solving and Checking Equations",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l1-wu-1",
+          "standard": "7.11A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "7.11A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Hey, I remember this! Solve {{equation}}. Use the workspace to do the same thing to both sides, one step at a time.",
+          "questionFamily": {
+            "id": "linear.twoStepEquation",
+            "version": 2,
+            "constraints": {
+              "distribute": false,
+              "solutionRange": [
+                -9,
+                9
+              ]
+            }
+          },
+          "hints": [
+            "Undo the addition or subtraction first.",
+            "Then undo the multiplication by dividing both sides by the coefficient.",
+            "Check: substitute your answer into the original equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To solve an equation, whatever you do to one side you must…",
+            "options": [
+              "do to the other side too",
+              "do to the variable only"
+            ],
+            "correct": "do to the other side too"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Undo the constant term first: add or subtract it on both sides.",
+              "Then divide both sides by the coefficient of the variable.",
+              "Check the value in the original equation."
+            ],
+            "commonError": "Dividing only one term by the coefficient, instead of the whole side."
+          }
+        },
+        {
+          "questionId": "m3l1-wu-2",
+          "standard": "7.11A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "7.11A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve {{equation}}. Distribute first, or divide both sides first — your choice.",
+          "questionFamily": {
+            "id": "linear.twoStepEquation",
+            "version": 2,
+            "constraints": {
+              "distribute": true,
+              "solutionRange": [
+                -9,
+                9
+              ]
+            }
+          },
+          "hints": [
+            "You can distribute: multiply the number outside the parentheses by each term inside.",
+            "Or divide both sides by the number outside the parentheses first.",
+            "Finish by undoing the addition or subtraction, then check your answer."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 3(x + 4), the 3 multiplies…",
+            "options": [
+              "both x and 4",
+              "only x"
+            ],
+            "correct": "both x and 4"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Either distribute the number outside the parentheses to every term inside, or divide both sides by it.",
+              "Undo the remaining addition or subtraction on both sides.",
+              "Get the variable alone, then check the value in the original equation."
+            ],
+            "commonError": "Multiplying the number outside the parentheses by the first term only."
+          }
+        },
+        {
+          "questionId": "m3l1-wu-3",
+          "standard": "8.8C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "8.8C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Equation check. Is {{value}} a solution of {{equation}}? Substitute it into each side and compare.",
+          "questionFamily": {
+            "id": "equations.verifySolution"
+          },
+          "hints": [
+            "Replace the variable with the value in parentheses, on the left side and on the right side.",
+            "Use the order of operations: multiply before you add.",
+            "A value is a solution only when both sides come out equal."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To check whether a value is a solution, you…",
+            "options": [
+              "substitute it into both sides and compare",
+              "add it to both sides"
+            ],
+            "correct": "substitute it into both sides and compare"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Substitute the value, in parentheses, for the variable on each side.",
+              "Evaluate each side with the order of operations.",
+              "Equal sides mean the value is a solution; different sides mean it is not."
+            ],
+            "commonError": "Forgetting the parentheses when substituting a negative value, so −3² is computed instead of (−3)²."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Justifying Steps and Counting Solutions",
+      "recommendedMinutes": 55,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l1-cw-1",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Equation Creation. Harper started with the solution statement x = 2 and did the same thing to both sides, three times:\nx = 2  →  x + 7 = 9  →  4x + 28 = 36  →  −2x + 28 = 36 − 6x\nName the property of equality Harper used in each step. Then check that x = 2 still makes her final equation true.",
+          "responses": [
+            {
+              "id": "s1",
+              "label": "Step 1: x = 2 → x + 7 = 9",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Addition Property of Equality"
+            },
+            {
+              "id": "s2",
+              "label": "Step 2: x + 7 = 9 → 4x + 28 = 36",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Multiplication Property of Equality"
+            },
+            {
+              "id": "s3",
+              "label": "Step 3: 4x + 28 = 36 → −2x + 28 = 36 − 6x",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Subtraction Property of Equality"
+            },
+            {
+              "id": "left",
+              "label": "Value of −2x + 28 when x = 2",
+              "answer": "24"
+            },
+            {
+              "id": "right",
+              "label": "Value of 36 − 6x when x = 2",
+              "answer": "24"
+            },
+            {
+              "id": "idea",
+              "label": "Doing the same operation to both sides of an equation …",
+              "type": "choice",
+              "options": [
+                "creates an equivalent equation with the same solution",
+                "changes the solution each time",
+                "only works with addition",
+                "makes the equation false"
+              ],
+              "answer": "creates an equivalent equation with the same solution"
+            }
+          ],
+          "hints": [
+            "Step 1 changed both sides by the same amount. Which operation does that?",
+            "Step 2: compare 4x + 28 with x + 7 — every term changed by the same factor.",
+            "Step 3: an x-term was taken away from both sides. Then substitute x = 2 into −2x + 28 and into 36 − 6x."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Equation",
+                "instruction": "An equation is a mathematical sentence that uses an equals sign to show that two expressions are equivalent."
+              },
+              {
+                "title": "Solution",
+                "instruction": "A solution is a value of the variable that makes the equation a true statement. x = 2 has one solution: 2."
+              },
+              {
+                "title": "Properties of equality",
+                "instruction": "For all numbers a, b and c: if a = b, then a + c = b + c, a − c = b − c, ac = bc, and a ÷ c = b ÷ c (c ≠ 0). Doing the same operation to both sides keeps the equation balanced and keeps its solution."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Going from x + 7 = 9 to 4x + 28 = 36, both sides were…",
+            "options": [
+              "multiplied by 4",
+              "added to 4"
+            ],
+            "correct": "multiplied by 4"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "x = 2 → x + 7 = 9: 7 was added to both sides (Addition Property of Equality).",
+              "x + 7 = 9 → 4x + 28 = 36: both sides were multiplied by 4 (Multiplication Property of Equality).",
+              "4x + 28 = 36 → −2x + 28 = 36 − 6x: 6x was subtracted from both sides (Subtraction Property of Equality).",
+              "Check: −2(2) + 28 = 24 and 36 − 6(2) = 24, so x = 2 is still the solution."
+            ],
+            "commonError": "Naming the operation instead of the property it uses on BOTH sides — the property is what keeps the equation balanced."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-2",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Activity 1.1 — Harper and Sofia both built new equations from the solution statement x = 2.\nHarper: −3x + 14 = 18 − 5x      Sofia: 2x = 5 − (1/2)x\nVerify by substitution that x = 2 is a solution of both equations.",
+          "responses": [
+            {
+              "id": "hl",
+              "label": "Harper: value of −3x + 14 when x = 2",
+              "answer": "8"
+            },
+            {
+              "id": "hr",
+              "label": "Harper: value of 18 − 5x when x = 2",
+              "answer": "8"
+            },
+            {
+              "id": "sl",
+              "label": "Sofia: value of 2x when x = 2",
+              "answer": "4"
+            },
+            {
+              "id": "sr",
+              "label": "Sofia: value of 5 − (1/2)x when x = 2",
+              "answer": "4"
+            },
+            {
+              "id": "both",
+              "label": "Are both equations equivalent to x = 2?",
+              "type": "choice",
+              "options": [
+                "Yes — x = 2 makes both equations true.",
+                "Only Harper’s — Sofia’s has a fraction.",
+                "Only Sofia’s — Harper’s has variables on both sides.",
+                "Neither — the two sides of each are different expressions."
+              ],
+              "answer": "Yes — x = 2 makes both equations true."
+            }
+          ],
+          "hints": [
+            "Replace every x with (2).",
+            "Harper: −3(2) + 14 and 18 − 5(2).",
+            "Sofia: (1/2)(2) = 1."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To substitute x = 2 into −3x + 14, you compute…",
+            "options": [
+              "−3(2) + 14",
+              "−32 + 14"
+            ],
+            "correct": "−3(2) + 14"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Harper: −3(2) + 14 = 8 and 18 − 5(2) = 8. The sides are equal.",
+              "Sofia: 2(2) = 4 and 5 − (1/2)(2) = 4. The sides are equal.",
+              "x = 2 makes both equations true, so both are equivalent to x = 2."
+            ],
+            "commonError": "Writing −3x with x = 2 as −32 instead of −3 · 2."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-3",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Now verify Harper’s equation with the properties of equality instead: solve −3x + 14 = 18 − 5x step by step.",
+          "equation": "-3x + 14 = 18 - 5x",
+          "hints": [
+            "Simplify each side first: distribute and combine like terms.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Finish with the Multiplication or Division Property of Equality, then check your solution in the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A good first move for −3x + 14 = 18 − 5x is to…",
+            "options": [
+              "add 5x to both sides",
+              "subtract 14 from the left side only"
+            ],
+            "correct": "add 5x to both sides"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Add 5x to both sides: 2x + 14 = 18.",
+              "Subtract 14 from both sides: 2x = 4.",
+              "Divide both sides by 2: x = 2 — the solution Harper started from."
+            ],
+            "commonError": "Adding 5x to one side only, which gives −3x + 14 + 5x = 18."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-4",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Verify Sofia’s equation with the properties of equality: solve 2x = 5 − (1/2)x step by step.",
+          "equation": "2x = 5 - (1/2)x",
+          "hints": [
+            "Collect the variable terms on the left: add one-half x to both sides.",
+            "The x-terms on the left combine into five-halves x. Now undo that coefficient.",
+            "Multiply both sides by the reciprocal of the coefficient of x — or divide by the coefficient."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get every x-term on the left of 2x = 5 − (1/2)x, you…",
+            "options": [
+              "add (1/2)x to both sides",
+              "subtract 2x from both sides"
+            ],
+            "correct": "add (1/2)x to both sides"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Add (1/2)x to both sides: (5/2)x = 5.",
+              "Multiply both sides by 2/5 (or divide by 5/2): x = 2."
+            ],
+            "commonError": "Subtracting (1/2)x from both sides, which leaves the variable on both sides."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-5",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Justify each step. Here is a correct solution of 24x + 7 = −4x. Choose the property that justifies each step.\n24x + 7 = −4x\nStep 1:  28x + 7 = 0\nStep 2:  28x = −7\nStep 3:  x = −1/4",
+          "responses": [
+            {
+              "id": "j1",
+              "label": "Step 1: 24x + 7 = −4x → 28x + 7 = 0",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Addition Property of Equality"
+            },
+            {
+              "id": "j2",
+              "label": "Step 2: 28x + 7 = 0 → 28x = −7",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Subtraction Property of Equality"
+            },
+            {
+              "id": "j3",
+              "label": "Step 3: 28x = −7 → x = −1/4",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Division Property of Equality"
+            },
+            {
+              "id": "check",
+              "label": "Check: the value of 24x + 7 when x = −1/4",
+              "answer": "-1"
+            }
+          ],
+          "hints": [
+            "Compare the two sides of each line with the line before: what changed on BOTH sides?",
+            "In Step 2 the 7 is no longer on the left side.",
+            "For the check, multiply 24 by the solution first, then add 7."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Justifying a step",
+                "instruction": "Name the property that makes each new equation equivalent to the one before it. Writing the reason for each step is how mathematicians prove a solution is correct."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Going from 24x + 7 = −4x to 28x + 7 = 0, both sides…",
+            "options": [
+              "were multiplied by 4",
+              "had 4x added"
+            ],
+            "correct": "had 4x added"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Step 1: 4x was added to both sides — Addition Property of Equality.",
+              "Step 2: 7 was subtracted from both sides — Subtraction Property of Equality.",
+              "Step 3: both sides were divided by 28 — Division Property of Equality.",
+              "Check: 24(−1/4) + 7 = −6 + 7 = 1, and −4(−1/4) = 1. The sides match."
+            ],
+            "commonError": "Calling Step 1 the Subtraction Property because −4x “moved”: terms do not move — the same amount is added to both sides."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-6",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 0.6(2x + 1) = 4x + 6.2 step by step.",
+          "equation": "0.6(2x + 1) = 4x + 6.2",
+          "hints": [
+            "Distribute 0.6 to both terms inside the parentheses.",
+            "Collect the x-terms on one side and the constants on the other.",
+            "Divide both sides by the coefficient of x — watch its sign."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 0.6(2x + 1) is equal to…",
+            "options": [
+              "1.2x + 0.6",
+              "1.2x + 1"
+            ],
+            "correct": "1.2x + 0.6"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 1.2x + 0.6 = 4x + 6.2.",
+              "Subtract 4x from both sides: −2.8x + 0.6 = 6.2.",
+              "Subtract 0.6 from both sides: −2.8x = 5.6.",
+              "Divide both sides by −2.8: x = −2."
+            ],
+            "commonError": "Distributing 0.6 to 2x only and leaving + 1 unchanged."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-7",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve (1/2)x − 6 = 2 + (2x + 1) step by step.",
+          "equation": "(1/2)x - 6 = 2 + (2x + 1)",
+          "hints": [
+            "Simplify the right side first: combine the constants.",
+            "Collect the x-terms on one side and the constants on the other.",
+            "You can also multiply both sides by 2 at the start to clear the fraction."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The right side, 2 + (2x + 1), simplifies to…",
+            "options": [
+              "4x + 2",
+              "2x + 3"
+            ],
+            "correct": "2x + 3"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify the right side: (1/2)x − 6 = 2x + 3.",
+              "Subtract 2x from both sides: −(3/2)x − 6 = 3.",
+              "Add 6 to both sides: −(3/2)x = 9.",
+              "Multiply both sides by −2/3: x = −6."
+            ],
+            "commonError": "Treating 2 + (2x + 1) as 2(2x + 1) — there is no multiplication there."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-8",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Compare strategies. Daniel and Chloe both solved 4(3x + 2) = 8x + 4 correctly.\nDaniel:  12x + 8 = 8x + 4  →  4x = −4  →  x = −1\nChloe:  3x + 2 = 2x + 1  →  x = −1",
+          "responses": [
+            {
+              "id": "d1",
+              "label": "Daniel’s first step uses the …",
+              "type": "choice",
+              "options": [
+                "Distributive Property",
+                "Division Property of Equality",
+                "Multiplication Property of Equality",
+                "Subtraction Property of Equality"
+              ],
+              "answer": "Distributive Property"
+            },
+            {
+              "id": "c1",
+              "label": "Chloe’s first step uses the …",
+              "type": "choice",
+              "options": [
+                "Division Property of Equality",
+                "Distributive Property",
+                "Subtraction Property of Equality",
+                "Addition Property of Equality"
+              ],
+              "answer": "Division Property of Equality"
+            },
+            {
+              "id": "why",
+              "label": "Why does Chloe’s first step work for this equation?",
+              "type": "choice",
+              "options": [
+                "Every term on both sides can be divided evenly by 4.",
+                "Dividing by 4 removes the variable.",
+                "You must always divide before you distribute.",
+                "It only works because the answer is negative."
+              ],
+              "answer": "Every term on both sides can be divided evenly by 4."
+            },
+            {
+              "id": "same",
+              "label": "Which conclusion is correct?",
+              "type": "choice",
+              "options": [
+                "Different correct strategies lead to the same solution.",
+                "Only Daniel is correct because you must distribute first.",
+                "Only Chloe is correct because her work is shorter.",
+                "They should get different solutions."
+              ],
+              "answer": "Different correct strategies lead to the same solution."
+            },
+            {
+              "id": "chk",
+              "label": "Check x = −1: the value of 4(3x + 2) — and of 8x + 4 — when x = −1",
+              "answer": "-4"
+            }
+          ],
+          "hints": [
+            "Look at what happened to the parentheses in each first step.",
+            "Chloe’s first line is the original equation with BOTH sides divided by the same number.",
+            "For the check, substitute x = −1 into 4(3x + 2): work inside the parentheses first."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Chloe’s first step changed 8x + 4 into 2x + 1. Both sides were…",
+            "options": [
+              "divided by 4",
+              "distributed by 4"
+            ],
+            "correct": "divided by 4"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Daniel distributed the 4: 12x + 8 = 8x + 4 (Distributive Property).",
+              "Chloe divided both sides by 4: 3x + 2 = 2x + 1 (Division Property of Equality). Every term divides evenly by 4.",
+              "Both reach x = −1. Check: 4(3(−1) + 2) = 4(−1) = −4 and 8(−1) + 4 = −4."
+            ],
+            "commonError": "Dividing only the parentheses by 4 and not the right side as well."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-9",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Your turn — use either strategy. Solve 6(x − 1) = 3x + 9.",
+          "equation": "6(x - 1) = 3x + 9",
+          "hints": [
+            "Distribute the 6 — or divide every term on both sides by 3 first.",
+            "Collect the x-terms on one side.",
+            "Check your answer in the original equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 6(x − 1) is equal to…",
+            "options": [
+              "6x − 1",
+              "6x − 6"
+            ],
+            "correct": "6x − 6"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 6x − 6 = 3x + 9. (Or divide both sides by 3: 2(x − 1) = x + 3.)",
+              "Subtract 3x from both sides: 3x − 6 = 9.",
+              "Add 6 to both sides: 3x = 15. Divide by 3: x = 5.",
+              "Check: 6(5 − 1) = 24 and 3(5) + 9 = 24."
+            ],
+            "commonError": "Writing 6(x − 1) as 6x − 1."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-10",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 1.2 — True and false sentences. Start with the true sentence 2 = 2 and the false sentence 2 = 3. Add the variable term 5x to both sides of each.",
+          "responses": [
+            {
+              "id": "t",
+              "label": "After adding 5x to both sides of 2 = 2, you have 2 + 5x = 2 + 5x. Which values of x make it true?",
+              "type": "choice",
+              "options": [
+                "Every real number",
+                "Only x = 0",
+                "Only x = 2",
+                "No value of x"
+              ],
+              "answer": "Every real number"
+            },
+            {
+              "id": "f",
+              "label": "After adding 5x to both sides of 2 = 3, you have 2 + 5x = 3 + 5x. Which values of x make it true?",
+              "type": "choice",
+              "options": [
+                "No value of x",
+                "Every real number",
+                "Only x = 0",
+                "Only x = 1"
+              ],
+              "answer": "No value of x"
+            },
+            {
+              "id": "idea",
+              "label": "Adding, subtracting, multiplying or dividing (not by 0) on both sides …",
+              "type": "choice",
+              "options": [
+                "never changes whether a sentence is true or false",
+                "can turn a false sentence into a true one",
+                "always produces one solution",
+                "only works on true sentences"
+              ],
+              "answer": "never changes whether a sentence is true or false"
+            },
+            {
+              "id": "ex",
+              "label": "Consider 2x = 3x. How many solutions does it have?",
+              "type": "choice",
+              "options": [
+                "Exactly one solution",
+                "No solution",
+                "Infinitely many solutions"
+              ],
+              "answer": "Exactly one solution"
+            },
+            {
+              "id": "exv",
+              "label": "The solution of 2x = 3x",
+              "answer": "0"
+            }
+          ],
+          "hints": [
+            "Try a few different values of x in 2 + 5x = 2 + 5x: a positive number, a negative number and a fraction.",
+            "In 2 + 5x = 3 + 5x, the two sides always differ by 1.",
+            "In 2x = 3x, subtract 2x from both sides. Which value of x makes the statement you get true?"
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "No solution",
+                "instruction": "A linear equation with no solution has no value of the variable that makes it true (it simplifies to a false statement such as 2 = 3)."
+              },
+              {
+                "title": "Infinite solutions",
+                "instruction": "A linear equation with infinite solutions is true for every value of the variable (it simplifies to a true statement such as 2 = 2)."
+              },
+              {
+                "title": "Careful",
+                "instruction": "x = 0 is a solution, not \"no solution\". An equation that simplifies to x = 0 has exactly one solution: 0."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. An equation that simplifies to 0 = x has…",
+            "options": [
+              "one solution, x = 0",
+              "no solution"
+            ],
+            "correct": "one solution, x = 0"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "2 + 5x = 2 + 5x: both sides are the same expression, so every real number makes it true.",
+              "2 + 5x = 3 + 5x: the right side is always 1 more, so no value makes it true.",
+              "Doing the same operation to both sides never changes whether a sentence is true or false.",
+              "2x = 3x: subtracting 2x gives 0 = x, so the only solution is x = 0."
+            ],
+            "commonError": "Deciding that 2x = 3x has no solution because 2 ≠ 3. The coefficients being different means exactly ONE solution."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-11",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve x + 3(x + 1) = 2x + 2(x + 2) − 5. If no value of x makes the equation true, or every value does, say so.",
+          "equation": "x + 3(x + 1) = 2x + 2(x + 2) - 5",
+          "relationWorkspace": true,
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After simplifying, the left side is 4x + 3 and the right side is…",
+            "options": [
+              "4x − 1",
+              "4x + 9"
+            ],
+            "correct": "4x − 1"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: 4x + 3 = 4x − 1.",
+              "Subtract 4x from both sides: 3 = −1.",
+              "3 = −1 is false, so no value of x makes the equation true: no solution."
+            ],
+            "commonError": "Writing x = 0 after the x-terms cancel. When the variable disappears, the statement left decides."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-12",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 2(3x − 1) + x = 4x + 7. If no value of x makes the equation true, or every value does, say so.",
+          "equation": "2(3x - 1) + x = 4x + 7",
+          "relationWorkspace": true,
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After simplifying, the left side is…",
+            "options": [
+              "7x − 2",
+              "6x − 1"
+            ],
+            "correct": "7x − 2"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify the left side: 7x − 2 = 4x + 7.",
+              "The x-coefficients are different, so there is exactly one solution.",
+              "Subtract 4x: 3x − 2 = 7. Add 2: 3x = 9. Divide by 3: x = 3."
+            ],
+            "commonError": "Deciding the case before simplifying: the left side has two x-terms, 6x and x."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-13",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 3(x − 2) + 2 = x + 2(x − 2). If no value of x makes the equation true, or every value does, say so.",
+          "equation": "3(x - 2) + 2 = x + 2(x - 2)",
+          "relationWorkspace": true,
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After simplifying, the left side is 3x − 4 and the right side is…",
+            "options": [
+              "3x − 2",
+              "3x − 4"
+            ],
+            "correct": "3x − 4"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: 3x − 4 = 3x − 4.",
+              "Subtract 3x from both sides: −4 = −4.",
+              "−4 = −4 is always true, so every real number is a solution."
+            ],
+            "commonError": "Stopping at 3x − 4 = 3x − 4 and calling it “no answer” — identical sides mean every value works."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-14",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 1.3 — Tic-Tac-Bingo. Each equation was made by setting two expression cards equal. Simplify each side, then sort the equation by its solution.",
+          "figures": [
+            {
+              "id": "e1",
+              "math": "x + 3(x + 1) = 8x − 3(2x − 1)",
+              "category": "zero"
+            },
+            {
+              "id": "e2",
+              "math": "x + 3(x + 1) = 2(x − 2) + 3(x + 1)",
+              "category": "pos"
+            },
+            {
+              "id": "e3",
+              "math": "−2(3x − 1) + 3 = 8x − 3(2x − 1)",
+              "category": "pos"
+            },
+            {
+              "id": "e4",
+              "math": "2x + 2(x + 2) − 5 = −2(2x + 3) + 1",
+              "category": "neg"
+            },
+            {
+              "id": "e5",
+              "math": "9x − 2(3x + 1) + 7 = −4(2x − 2) + 2(2x − 3)",
+              "category": "neg"
+            },
+            {
+              "id": "e6",
+              "math": "−2(3x − 1) + 3 = 2(1 − 3x)",
+              "category": "none"
+            },
+            {
+              "id": "e7",
+              "math": "3(x − 2) + 2 = 9x − 2(3x + 1) + 7",
+              "category": "none"
+            },
+            {
+              "id": "e8",
+              "math": "2(1 − 3x) = 2x − 2(4x − 1)",
+              "category": "all"
+            },
+            {
+              "id": "e9",
+              "math": "−2(2x + 3) + 1 = (4x + 1) − 2(4x + 3)",
+              "category": "all"
+            },
+            {
+              "id": "e10",
+              "math": "5(x − 1) + 1 = −2(x + 2) + 7x",
+              "category": "all"
+            }
+          ],
+          "categories": [
+            {
+              "id": "pos",
+              "label": "One solution — positive"
+            },
+            {
+              "id": "neg",
+              "label": "One solution — negative"
+            },
+            {
+              "id": "zero",
+              "label": "One solution — neither positive nor negative (0)"
+            },
+            {
+              "id": "none",
+              "label": "No solution"
+            },
+            {
+              "id": "all",
+              "label": "Infinite solutions"
+            }
+          ],
+          "hints": [
+            "Simplify each side to the form ax + b before deciding.",
+            "Same x-coefficient and different constants → no value works. Same x-coefficient and same constant → every value works.",
+            "Different x-coefficients → exactly one value works; solve it to see its sign."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side to ax + b. For example, x + 3(x + 1) = 4x + 3 and 8x − 3(2x − 1) = 2x + 3.",
+              "Different x-coefficients: one solution. Solve it and look at its sign (4x + 3 = 2x + 3 gives x = 0).",
+              "Same x-coefficients with different constants: no solution. Same x-coefficients and same constants: infinite solutions."
+            ],
+            "commonError": "Sorting by the numbers you can see before simplifying — 5(x − 1) + 1 and −2(x + 2) + 7x look different but are both 5x − 4."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-15",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Reflect on the equations you sorted. After you simplify each side of a linear equation to the form ax + b …",
+          "responses": [
+            {
+              "id": "none",
+              "label": "An equation has NO solution when …",
+              "type": "choice",
+              "options": [
+                "the x-coefficients are the same and the constants are different",
+                "the x-coefficients are different",
+                "both sides are exactly the same",
+                "the solution is 0"
+              ],
+              "answer": "the x-coefficients are the same and the constants are different"
+            },
+            {
+              "id": "all",
+              "label": "An equation has INFINITE solutions when …",
+              "type": "choice",
+              "options": [
+                "both sides are exactly the same",
+                "the x-coefficients are different",
+                "the constants are both 0",
+                "the x-coefficients are the same and the constants are different"
+              ],
+              "answer": "both sides are exactly the same"
+            },
+            {
+              "id": "one",
+              "label": "An equation has EXACTLY ONE solution when …",
+              "type": "choice",
+              "options": [
+                "the x-coefficients are different",
+                "the constants are different",
+                "both sides are exactly the same",
+                "there are parentheses on both sides"
+              ],
+              "answer": "the x-coefficients are different"
+            },
+            {
+              "id": "k",
+              "label": "Complete 2(3x − 4) = 6x + k so the equation has infinitely many solutions: k =",
+              "answer": "-8"
+            },
+            {
+              "id": "m",
+              "label": "If the right side is changed to 5x − 8, the equation 2(3x − 4) = 5x − 8 has exactly one solution. x =",
+              "answer": "0"
+            }
+          ],
+          "hints": [
+            "Look back at 4x + 3 = 4x − 1.",
+            "Look back at 3x − 4 = 3x − 4.",
+            "Look back at 4x + 3 = 2x + 3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 4x + 3 = 4x − 1 has…",
+            "options": [
+              "no solution",
+              "one solution"
+            ],
+            "correct": "no solution"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Same x-coefficients and different constants: the variable cancels and a false statement is left — no solution.",
+              "Both sides exactly the same: a true statement is left — infinitely many solutions.",
+              "Different x-coefficients: exactly one solution.",
+              "2(3x − 4) = 6x − 8, so k = −8 makes the sides identical. 6x − 8 = 5x − 8 gives x = 0."
+            ],
+            "commonError": "Thinking “different constants” alone means no solution — it is only no solution when the x-coefficients also match."
+          }
+        },
+        {
+          "questionId": "m3l1-cw-16",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Talk the Talk — One Step at a Time. Rectangle A has a width of (5 + 2x) inches and a length of 6 inches. Rectangle B has a width of 8 inches and a length of (x + 5) inches. The rectangles have the same area.",
+          "responses": [
+            {
+              "id": "areaA",
+              "label": "The area of rectangle A, as an expression in x",
+              "answer": "6(5+2x)",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "areaB",
+              "label": "The area of rectangle B, as an expression in x",
+              "answer": "8(x+5)",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "step",
+              "label": "After distributing, 30 + 12x = 8x + 40. Subtracting 8x from both sides is justified by the …",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality"
+              ],
+              "answer": "Subtraction Property of Equality"
+            },
+            {
+              "id": "x",
+              "label": "The value of x (inches)",
+              "answer": "2.5"
+            },
+            {
+              "id": "area",
+              "label": "The area of each rectangle (square inches)",
+              "answer": "60"
+            }
+          ],
+          "hints": [
+            "The area of a rectangle is its length times its width.",
+            "Write both areas, set them equal, distribute, and collect the x-terms on one side.",
+            "Substitute your value of x into either area expression to find the area."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The area of a rectangle is…",
+            "options": [
+              "length + width",
+              "length × width"
+            ],
+            "correct": "length × width"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Area A = 6(5 + 2x) and Area B = 8(x + 5).",
+              "Set them equal and distribute: 30 + 12x = 8x + 40.",
+              "Subtract 8x (Subtraction Property of Equality): 30 + 4x = 40. Subtract 30: 4x = 10. Divide by 4: x = 2.5.",
+              "Area: 6(5 + 2(2.5)) = 6(10) = 60 square inches, and 8(2.5 + 5) = 60."
+            ],
+            "commonError": "Adding length and width (perimeter thinking) instead of multiplying them."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving Linear Equations",
+      "recommendedMinutes": 40,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l1-pr-1",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve {{equation}}.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one"
+            }
+          },
+          "hints": [
+            "Simplify each side first: distribute and combine like terms.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Finish with the Multiplication or Division Property of Equality, then check your solution in the ORIGINAL equation."
+          ],
+          "attemptFeedback": [
+            "Check each move: did you do exactly the same thing to both sides?",
+            "Substitute your value into the ORIGINAL equation. If the two sides are not equal, look for a sign error or a term you forgot to distribute to."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Distributing to only the first term in the parentheses, for example writing 3(x − 4) as 3x − 4."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-2",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "distribute": true
+            }
+          },
+          "hints": [
+            "Simplify each side first: distribute and combine like terms.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Finish with the Multiplication or Division Property of Equality, then check your solution in the ORIGINAL equation."
+          ],
+          "attemptFeedback": [
+            "Check each move: did you do exactly the same thing to both sides?",
+            "Substitute your value into the ORIGINAL equation. If the two sides are not equal, look for a sign error or a term you forgot to distribute to."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Distributing to only the first term in the parentheses, for example writing 3(x − 4) as 3x − 4."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-3",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}. Write a fractional answer as a fraction.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "fraction"
+            }
+          },
+          "hints": [
+            "Simplify each side first: distribute and combine like terms.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Finish with the Multiplication or Division Property of Equality, then check your solution in the ORIGINAL equation."
+          ],
+          "attemptFeedback": [
+            "Keep the answer exact: a fraction such as 7/3, not a rounded decimal.",
+            "Substitute your value into the ORIGINAL equation. If the two sides are not equal, look for a sign error or a term you forgot to distribute to."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Rounding the fraction to a decimal — 7/3 is exact; 2.33 is not the solution."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-4",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "coefficientForm": "fraction"
+            }
+          },
+          "hints": [
+            "You can multiply both sides by a common denominator to clear the fractions first.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Finish with the Multiplication or Division Property of Equality, then check your solution in the ORIGINAL equation."
+          ],
+          "attemptFeedback": [
+            "If you cleared the fractions, check that you multiplied EVERY term on both sides by the common denominator.",
+            "Substitute your value into the ORIGINAL equation. If the two sides are not equal, look for a sign error or a term you forgot to distribute to."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Optional first move: multiply every term on both sides by a common denominator to clear the fractions.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Multiplying only the fraction terms by the common denominator and not the whole-number terms."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-5",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}. If no value makes the equation true, or every value does, say so.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "mixed",
+              "distribute": true
+            }
+          },
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "attemptFeedback": [
+            "Simplify each side completely, then compare the variable terms on the two sides.",
+            "If the variable terms cancel, decide whether the statement that is left is true or false — that decides the conclusion."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side to the form ax + b.",
+              "If the x-coefficients are different, solve as usual: the equation has exactly one solution.",
+              "If the x-coefficients are the same, subtracting the variable term from both sides removes the variable.",
+              "A false statement (such as 5 = −2) means no solution; a true statement (such as 4 = 4) means every real number is a solution."
+            ],
+            "commonError": "Calling x = 0 “no solution.” Zero is a value: an equation that ends with x = 0 has exactly one solution."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-6",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}. If no value makes the equation true, or every value does, say so.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "mixed"
+            }
+          },
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "attemptFeedback": [
+            "Simplify each side completely, then compare the variable terms on the two sides.",
+            "If the variable terms cancel, decide whether the statement that is left is true or false — that decides the conclusion."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side to the form ax + b.",
+              "If the x-coefficients are different, solve as usual: the equation has exactly one solution.",
+              "If the x-coefficients are the same, subtracting the variable term from both sides removes the variable.",
+              "A false statement (such as 5 = −2) means no solution; a true statement (such as 4 = 4) means every real number is a solution."
+            ],
+            "commonError": "Calling x = 0 “no solution.” Zero is a value: an equation that ends with x = 0 has exactly one solution."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-7",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 1.5(4x − 2) = 3x + 6.",
+          "equation": "1.5(4x - 2) = 3x + 6",
+          "hints": [
+            "Distribute 1.5 to both terms in the parentheses.",
+            "After distributing, collect the x-terms on the left side.",
+            "Then undo the constant and divide by the coefficient of x."
+          ],
+          "attemptFeedback": [
+            "1.5 multiplies BOTH terms inside the parentheses — check your distribution.",
+            "Substitute your value into the ORIGINAL equation. If the two sides are not equal, look for a sign error or a term you forgot to distribute to."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 6x − 3 = 3x + 6.",
+              "Subtract 3x from both sides: 3x − 3 = 6.",
+              "Add 3 to both sides: 3x = 9. Divide by 3: x = 3."
+            ],
+            "commonError": "Writing 1.5(4x − 2) as 6x − 2."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-8",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write a reason for each step. Maya solved 5(x − 3) + 2x = 3x + 9 correctly:\nStep 1:  5x − 15 + 2x = 3x + 9\nStep 2:  7x − 15 = 3x + 9\nStep 3:  4x − 15 = 9\nStep 4:  4x = 24\nStep 5:  x = 6",
+          "responses": [
+            {
+              "id": "r1",
+              "label": "Step 1",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality",
+                "Distributive Property",
+                "Combine like terms (Commutative and Associative Properties)"
+              ],
+              "answer": "Distributive Property"
+            },
+            {
+              "id": "r2",
+              "label": "Step 2",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality",
+                "Distributive Property",
+                "Combine like terms (Commutative and Associative Properties)"
+              ],
+              "answer": "Combine like terms (Commutative and Associative Properties)"
+            },
+            {
+              "id": "r3",
+              "label": "Step 3",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality",
+                "Distributive Property",
+                "Combine like terms (Commutative and Associative Properties)"
+              ],
+              "answer": "Subtraction Property of Equality"
+            },
+            {
+              "id": "r4",
+              "label": "Step 4",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality",
+                "Distributive Property",
+                "Combine like terms (Commutative and Associative Properties)"
+              ],
+              "answer": "Addition Property of Equality"
+            },
+            {
+              "id": "r5",
+              "label": "Step 5",
+              "type": "choice",
+              "options": [
+                "Addition Property of Equality",
+                "Subtraction Property of Equality",
+                "Multiplication Property of Equality",
+                "Division Property of Equality",
+                "Distributive Property",
+                "Combine like terms (Commutative and Associative Properties)"
+              ],
+              "answer": "Division Property of Equality"
+            },
+            {
+              "id": "lv",
+              "label": "Check: the value of 5(x − 3) + 2x when x = 6",
+              "answer": "27"
+            },
+            {
+              "id": "rv",
+              "label": "Check: the value of 3x + 9 when x = 6",
+              "answer": "27"
+            }
+          ],
+          "hints": [
+            "Step 1 removed the parentheses.",
+            "Step 2 put 5x and 2x together on the same side.",
+            "Steps 3–5 did the same thing to both sides: which operation each time?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which line changed only ONE side of the equation?",
+            "options": [
+              "Step 4",
+              "Step 2"
+            ],
+            "correct": "Step 2"
+          },
+          "attemptFeedback": [
+            "Compare each line with the line before it: were parentheses removed, were terms on one side combined, or was the same operation done to both sides?",
+            "For the check, substitute 6 for x on each side separately and evaluate with the order of operations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Step 1 distributes the 5 (Distributive Property). Step 2 combines 5x and 2x (combine like terms).",
+              "Step 3 subtracts 3x from both sides; Step 4 adds 15 to both sides; Step 5 divides both sides by 4.",
+              "Check: 5(6 − 3) + 2(6) = 15 + 12 = 27 and 3(6) + 9 = 27."
+            ],
+            "commonError": "Calling Step 2 a property of equality: only ONE side changed, so it is combining like terms."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-9",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Marcus solved 3(x − 4) = 2x + 5 and got x = 9:\nStep 1:  3x − 4 = 2x + 5\nStep 2:  x − 4 = 5\nStep 3:  x = 9",
+          "responses": [
+            {
+              "id": "err",
+              "label": "Which step has the first error?",
+              "type": "choice",
+              "options": [
+                "Step 1",
+                "Step 2",
+                "Step 3",
+                "There is no error"
+              ],
+              "answer": "Step 1"
+            },
+            {
+              "id": "why",
+              "label": "What went wrong?",
+              "type": "choice",
+              "options": [
+                "He multiplied only x by 3, not −4.",
+                "He subtracted 2x from only one side.",
+                "He added 4 to only one side.",
+                "He should have divided by 3 first."
+              ],
+              "answer": "He multiplied only x by 3, not −4."
+            },
+            {
+              "id": "x",
+              "label": "The correct solution",
+              "answer": "17"
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 3(x − 4) means 3 times the whole group (x − 4). It is equal to…",
+            "options": [
+              "3x − 12",
+              "3x − 4"
+            ],
+            "correct": "3x − 12"
+          },
+          "hints": [
+            "Distribute the 3 to each term inside the parentheses yourself, then compare your line with Marcus’s first line.",
+            "Check Marcus’s answer: substitute 9 into both sides of the ORIGINAL equation.",
+            "Solve the equation correctly and check your answer in the original equation."
+          ],
+          "attemptFeedback": [
+            "Substitute Marcus’s answer into the ORIGINAL equation — the sides do not match, so look for the first line that is not equivalent.",
+            "Distribute carefully: the number outside multiplies every term inside the parentheses."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Step 1 is wrong: 3(x − 4) = 3x − 12, not 3x − 4.",
+              "Correct work: 3x − 12 = 2x + 5 → x − 12 = 5 → x = 17.",
+              "Check: 3(17 − 4) = 39 and 2(17) + 5 = 39."
+            ],
+            "commonError": "Distributing to the first term only."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-10",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Jada says that 6x = 2x has no solution because 6 is not equal to 2.",
+          "responses": [
+            {
+              "id": "right",
+              "label": "Is Jada correct?",
+              "type": "choice",
+              "options": [
+                "No — x = 0 makes both sides 0, so there is exactly one solution.",
+                "Yes — the coefficients are different, so it has no solution.",
+                "No — every number is a solution.",
+                "Yes — you cannot divide by x."
+              ],
+              "answer": "No — x = 0 makes both sides 0, so there is exactly one solution."
+            },
+            {
+              "id": "sol",
+              "label": "The solution of 6x = 2x",
+              "answer": "0"
+            },
+            {
+              "id": "fix",
+              "label": "Which change to the right side would make the equation have NO solution?",
+              "type": "choice",
+              "options": [
+                "6x + 1",
+                "2x + 1",
+                "6x",
+                "3x"
+              ],
+              "answer": "6x + 1"
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Try x = 0 in 6x = 2x. The two sides are…",
+            "options": [
+              "6 and 2",
+              "0 and 0"
+            ],
+            "correct": "0 and 0"
+          },
+          "hints": [
+            "Is there any number that makes 6x and 2x equal? Try a few.",
+            "Subtract 2x from both sides and solve what is left.",
+            "For an equation with no value that works, the x-coefficients must match and the constants must differ."
+          ],
+          "attemptFeedback": [
+            "Different x-coefficients always give exactly one solution — find it by solving.",
+            "To make an equation with no solution, the x-terms must cancel and leave a false statement."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Subtract 2x from both sides: 4x = 0, so x = 0. Check: 6(0) = 0 and 2(0) = 0.",
+              "Jada is not correct: different coefficients mean exactly one solution, and here it is 0.",
+              "6x = 6x + 1 has the same x-coefficient and different constants, so it has no solution."
+            ],
+            "commonError": "Confusing “the solution is 0” with “no solution.”"
+          }
+        },
+        {
+          "questionId": "m3l1-pr-11",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Build an equation. Complete 4(x − 2) + 3 = 4x + ___ in different ways.",
+          "responses": [
+            {
+              "id": "inf",
+              "label": "The number in the blank that gives infinitely many solutions",
+              "answer": "-5"
+            },
+            {
+              "id": "one",
+              "label": "If the blank is 1, the equation has …",
+              "type": "choice",
+              "options": [
+                "no solution",
+                "exactly one solution",
+                "infinitely many solutions"
+              ],
+              "answer": "no solution"
+            },
+            {
+              "id": "change",
+              "label": "To get exactly ONE solution, you would need to change …",
+              "type": "choice",
+              "options": [
+                "the coefficient of x on one side",
+                "only the number in the blank",
+                "nothing — it already has one solution",
+                "the 3 on the left side"
+              ],
+              "answer": "the coefficient of x on one side"
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 4(x − 2) + 3 simplifies to…",
+            "options": [
+              "4x + 1",
+              "4x − 5"
+            ],
+            "correct": "4x − 5"
+          },
+          "hints": [
+            "Simplify the left side first: distribute, then combine the constants.",
+            "For every value to work, the two sides must be exactly the same expression.",
+            "With the same x-coefficient on both sides, any other blank leaves two different constants."
+          ],
+          "attemptFeedback": [
+            "Simplify the left side completely before you compare it with 4x + ___.",
+            "The case depends on the x-coefficients first, then on the constants."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify the left side: 4x − 8 + 3 = 4x − 5.",
+              "Infinitely many solutions: the sides must be identical, so the blank is −5.",
+              "Any other blank, such as 1, gives the same x-coefficient with different constants: no solution.",
+              "Exactly one solution needs different x-coefficients, so the coefficient of x must change."
+            ],
+            "commonError": "Choosing a blank of −8 or 3 by copying a constant you see, instead of simplifying first."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-12",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each equation by its number of solutions. Simplify each side first.",
+          "figures": [
+            {
+              "id": "f1",
+              "math": "5(x + 2) = 5x + 10",
+              "category": "all"
+            },
+            {
+              "id": "f2",
+              "math": "3x − 7 = 3x + 7",
+              "category": "none"
+            },
+            {
+              "id": "f3",
+              "math": "4x + 2 = 2(2x + 1)",
+              "category": "all"
+            },
+            {
+              "id": "f4",
+              "math": "2(x − 1) = 3x − 1",
+              "category": "one"
+            },
+            {
+              "id": "f5",
+              "math": "−(x − 4) = −x + 6",
+              "category": "none"
+            },
+            {
+              "id": "f6",
+              "math": "7x = 9x",
+              "category": "one"
+            },
+            {
+              "id": "f7",
+              "math": "6 − 2x = −2(x − 3)",
+              "category": "all"
+            },
+            {
+              "id": "f8",
+              "math": "0.5(4x + 6) = 2x + 1",
+              "category": "none"
+            }
+          ],
+          "categories": [
+            {
+              "id": "one",
+              "label": "Exactly one solution"
+            },
+            {
+              "id": "none",
+              "label": "No solution"
+            },
+            {
+              "id": "all",
+              "label": "Infinitely many solutions"
+            }
+          ],
+          "hints": [
+            "Distribute and combine like terms on each side.",
+            "Compare the x-coefficients first, then the constants.",
+            "Different x-coefficients on the two sides: solve to find the value that works — it can be zero."
+          ],
+          "attemptFeedback": [
+            "Simplify both sides of each equation before you sort it — some equations look different but simplify to the same expression.",
+            "Remember: x = 0 is a solution. Equations with different x-coefficients have one solution even if it is 0."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Identical sides after simplifying (5x + 10 = 5x + 10, 4x + 2 = 4x + 2, 6 − 2x = 6 − 2x): infinitely many solutions.",
+              "Same x-coefficient, different constants (3x − 7 = 3x + 7, −x + 4 = −x + 6, 2x + 3 = 2x + 1): no solution.",
+              "Different x-coefficients (2x − 2 = 3x − 1, 7x = 9x): exactly one solution (x = −1 and x = 0)."
+            ],
+            "commonError": "Putting 7x = 9x under “No solution” because 7 ≠ 9 — it has the one solution x = 0."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-13",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Two phone plans. Plan A costs $25 per month plus $0.10 per text. Plan B costs $15 per month plus $0.15 per text. Solve 25 + 0.10t = 15 + 0.15t to find the number of texts, t, for which the plans cost the same. If no value of t works, or every value does, say so.",
+          "equation": "25 + 0.10t = 15 + 0.15t",
+          "relationWorkspace": true,
+          "hints": [
+            "Collect the t-terms: subtract 0.10t from both sides.",
+            "Then subtract 15 from both sides.",
+            "Divide both sides by the coefficient of t."
+          ],
+          "attemptFeedback": [
+            "Collect the t-terms on one side and the constants on the other before you divide.",
+            "Check: substitute your value into both plans. The costs must be equal."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Subtract 0.10t from both sides: 25 = 15 + 0.05t.",
+              "Subtract 15 from both sides: 10 = 0.05t.",
+              "Divide both sides by 0.05: t = 200. At 200 texts both plans cost $45."
+            ],
+            "commonError": "Dividing 10 by 0.05 as 10 ÷ 5 = 2 — dividing by a number less than 1 makes the result larger."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-14",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Gym memberships. Gym A charges a $40 joining fee plus $20 per month. Gym B charges a $25 joining fee plus $20 per month. Solve 40 + 20m = 25 + 20m to decide when the total costs are the same. If no value of m works, or every value does, say so.",
+          "equation": "40 + 20m = 25 + 20m",
+          "relationWorkspace": true,
+          "hints": [
+            "Simplify both sides completely before you move any terms.",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable entirely.",
+            "When the variable is gone, read the statement that is left. A false statement means no value works; a true statement means every value works."
+          ],
+          "attemptFeedback": [
+            "Simplify each side completely, then compare the variable terms on the two sides.",
+            "If the variable terms cancel, decide whether the statement that is left is true or false — that decides the conclusion."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Subtract 20m from both sides: 40 = 25.",
+              "40 = 25 is false, so the costs are never the same: no solution.",
+              "In context: both gyms add $20 each month, so Gym A always costs $15 more."
+            ],
+            "commonError": "Writing m = 0 or m = 15 after the m-terms cancel. No month makes the costs equal."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-15",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Rectangle A has a width of (x + 4) feet and a length of 5 feet. Rectangle B has a width of 3 feet and a length of (2x + 1) feet. The areas are equal, so 5(x + 4) = 3(2x + 1). Solve for x. If no value of x works, or every value does, say so.",
+          "equation": "5(x + 4) = 3(2x + 1)",
+          "relationWorkspace": true,
+          "hints": [
+            "Distribute on both sides.",
+            "Collect the x-terms on the side with the larger coefficient.",
+            "Then collect the constants on the other side."
+          ],
+          "attemptFeedback": [
+            "Distribute on BOTH sides before you collect terms.",
+            "Check: substitute your value into both area expressions. The areas must be equal."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 5x + 20 = 6x + 3.",
+              "Subtract 5x from both sides: 20 = x + 3.",
+              "Subtract 3 from both sides: x = 17. Both areas are 105 square feet."
+            ],
+            "commonError": "Distributing 3 to 2x only, which gives 6x + 1."
+          }
+        },
+        {
+          "questionId": "m3l1-pr-16",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Which statement is true? Analyze each equation without fully solving it.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "7(x − 1) = 7x − 7 has …",
+              "type": "choice",
+              "options": [
+                "infinitely many solutions",
+                "no solution",
+                "exactly one solution"
+              ],
+              "answer": "infinitely many solutions"
+            },
+            {
+              "id": "b",
+              "label": "−2x + 9 = −2x − 9 has …",
+              "type": "choice",
+              "options": [
+                "no solution",
+                "infinitely many solutions",
+                "exactly one solution"
+              ],
+              "answer": "no solution"
+            },
+            {
+              "id": "c",
+              "label": "8x + 1 = 3x + 1 has …",
+              "type": "choice",
+              "options": [
+                "exactly one solution",
+                "no solution",
+                "infinitely many solutions"
+              ],
+              "answer": "exactly one solution"
+            },
+            {
+              "id": "cv",
+              "label": "The solution of 8x + 1 = 3x + 1",
+              "answer": "0"
+            }
+          ],
+          "hints": [
+            "Distribute where you need to, then compare the x-coefficients and the constants.",
+            "If the x-terms cancel, look at what is left: is it true or false?",
+            "If the x-coefficients are different, solve: subtract the smaller x-term from both sides first."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Subtracting 3x from both sides of 8x + 1 = 3x + 1 gives…",
+            "options": [
+              "5x + 1 = 1",
+              "11x + 1 = 1"
+            ],
+            "correct": "5x + 1 = 1"
+          },
+          "attemptFeedback": [
+            "Compare the x-coefficients first. Only when they match do the constants decide between the two special cases.",
+            "An equation with different x-coefficients always has exactly one solution — solve for it."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "7(x − 1) = 7x − 7: identical sides, so infinitely many solutions.",
+              "−2x + 9 = −2x − 9: same x-coefficient, different constants, so no solution.",
+              "8x + 1 = 3x + 1: different x-coefficients, so one solution: 5x = 0 gives x = 0."
+            ],
+            "commonError": "Saying 8x + 1 = 3x + 1 has no solution because the constants match — the x-coefficients differ, so it has one solution."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Linear Equations",
+      "recommendedMinutes": 7,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3l1-dol-1",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "distribute": true
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Distributing to only the first term in the parentheses, for example writing 3(x − 4) as 3x − 4."
+          }
+        },
+        {
+          "questionId": "m3l1-dol-2",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}. If no value of the variable makes the equation true, or every value does, say so.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "mixed",
+              "distribute": true
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side to the form ax + b.",
+              "If the x-coefficients are different, solve as usual: the equation has exactly one solution.",
+              "If the x-coefficients are the same, subtracting the variable term from both sides removes the variable.",
+              "A false statement (such as 5 = −2) means no solution; a true statement (such as 4 = 4) means every real number is a solution."
+            ],
+            "commonError": "Calling x = 0 “no solution.” Zero is a value: an equation that ends with x = 0 has exactly one solution."
+          }
+        }
+      ]
+    }
+  ]
+}

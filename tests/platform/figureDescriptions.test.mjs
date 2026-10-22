@@ -95,7 +95,7 @@ test('the legacy graph workspace reads back the student\'s work, and a given gra
  */
 test('the interval number line is described by the student\'s drawing, then its keys', () => {
   const source = executableSource(read('src/tools/intervalNumberLine/IntervalNumberLine.jsx'));
-  assert.match(source, /^import \{ describeNumberLine \} from '\.\.\/\.\.\/platform\/language\/numberLineDescription\.js';$/m);
+  assert.match(source, /^import \{[^}]*\bdescribeNumberLine\b[^}]*\} from '\.\.\/\.\.\/platform\/language\/numberLineDescription\.js';$/m);
   assert.match(source, /const lineDescription = describeNumberLine\(\{ min, max, labelStep: majorStep, pieces: drawn, pending \}\);/, 'from the drawn pieces and the waiting endpoint');
   const svg = region(source, '<svg\n            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}\n            role="application"', 'onFocus={handleLineFocus}', 'the line');
   assert.match(svg, /aria-label=\{`Number line from \$\{lineEndLabel\(min\)\} to \$\{lineEndLabel\(max\)\}`\}/, 'named by the line, not its instructions');

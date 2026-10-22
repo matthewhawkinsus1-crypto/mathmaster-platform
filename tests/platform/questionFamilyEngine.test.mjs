@@ -196,6 +196,23 @@ test('every family: the answer key is correct for its own question, on the serve
         const question = buildFamilyQuestion({ family, instance, constraintValues: values, authored: { questionId: 'q' }, tool: toolType });
         assert.equal(question.generator, undefined, 'a built instance never carries its template generator');
         assert.equal(question.questionFamily, undefined);
+        if (question.type === 'stepAlgebra' && instance.answer.kind === 'inequality') {
+          // An inequality's key is its solved form, x R k. The DISPLAYED
+          // inequality must hold exactly where that says: just below, at and
+          // just above the boundary.
+          const { relation, boundary } = instance.answer;
+          const [, left, shown, right] = /^(.*?)\s*(<=|>=|<|>)\s*(.*)$/.exec(question.equation);
+          const compare = (a, symbol, b) => ({ '<': a < b, '<=': a <= b, '>': a > b, '>=': a >= b }[symbol]);
+          [boundary - 1, boundary, boundary + 1].forEach((value) => {
+            const scope = { [question.variable]: value };
+            assert.equal(
+              compare(evaluateExpression(left, scope), shown, evaluateExpression(right, scope)),
+              compare(value, relation, boundary),
+              `${family.id}: ${question.equation} at ${question.variable} = ${value} agrees with ${instance.answer.display}`,
+            );
+          });
+          return;
+        }
         if (question.type === 'stepAlgebra') {
           const x = instance.answer.value;
           const scope = { [question.variable]: x };

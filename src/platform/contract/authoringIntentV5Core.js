@@ -1459,7 +1459,24 @@ const compileOne = (q, index, repairs) => {
       const ask = [];
       if (actions.includes('constructInterval')) ask.push('graph');
       if (actions.includes('writeInterval')) ask.push('interval');
-      out = copyCommon(q, { type, inequalityText: q.inequalityText || q.inequality, intervals: q.intervals, ask: q.ask || (ask.length ? ask : ['graph','interval']), min: q.min, max: q.max, step: q.step });
+      // The letter the inequality is written in (b ≤ 420). The tool, its
+      // grader and Pre-Flight's interval check all read `variable`; dropping
+      // it made each of them expect x, so "b ≤ 420" was marked wrong.
+      const letter = /^[A-Za-z]$/.test(clean(q.variable)) ? clean(q.variable) : inferSingleEquationVariable(q.inequalityText || q.inequality);
+      out = copyCommon(q, {
+        type,
+        inequalityText: q.inequalityText || q.inequality,
+        intervals: q.intervals,
+        ask: q.ask || (ask.length ? ask : ['graph','interval']),
+        min: q.min,
+        max: q.max,
+        step: q.step,
+        variable: letter && letter !== 'x' ? letter : undefined,
+        // `"autoViewport": false` keeps the authored window (0 to 600,
+        // counting by 60) on screen, as the printed copy already does,
+        // instead of a window fitted around the answer.
+        autoViewport: q.autoViewport === false ? false : undefined,
+      });
       break;
     }
     case 'graphing':
@@ -1620,6 +1637,11 @@ const compileOne = (q, index, repairs) => {
       : undefined,
     generator: q.generator,
     workspaceDifficulty: q.workspaceDifficulty,
+    // The relation workspace is the one with "No solution" and "All real
+    // numbers" conclusions. An author opens an equation there on purpose —
+    // for a one-solution equation too, so the workspace never tells a student
+    // which equations are the special cases. Copied only when it is asked for.
+    relationWorkspace: q.relationWorkspace === true ? true : undefined,
     solveFor: q.solveFor || inferSingleEquationVariable(equation),
     targetForm: isRewriteToSlopeIntercept ? 'slopeIntercept' : q.targetForm,
     requireSimplifiedFinalForm: isRewriteToSlopeIntercept ? true : q.requireSimplifiedFinalForm,
@@ -1640,6 +1662,15 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'system':
       out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
+      // A Question Family slot writes its own equations, and a systems
+      // family builds its Systems Workspace version from this slot. The
+      // slot's instructional choices travel with it — dropping them let
+      // every student choose a method the author had set.
+      if (isObject(q.questionFamily)) {
+        ['method', 'requireVerification', 'askEfficiency'].forEach((key) => {
+          if (q[key] != null) out[key] = q[key];
+        });
+      }
       break;
     case 'table': {
       const functionIntent = authoredFunctionIntent(q);
