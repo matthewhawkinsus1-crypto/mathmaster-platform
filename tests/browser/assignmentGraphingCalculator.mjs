@@ -183,6 +183,9 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.waitForFunction(() => window.__mmGraded.length === 1);
   await page.getByRole('button', { name: 'Close graphing calculator' }).click();
   await page.waitForFunction((s) => !document.querySelector(s), PANEL);
+  // close() hands focus back on the next frame, after the panel has gone: wait for it before clicking away. A
+  // hand-back landing after the click put Enter on the control, which reopened the calculator (CI, PR #515).
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Graphing calculator', null, { timeout: 5000 }).catch(() => {});
   await page.mouse.click(1300, 400);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1200);
