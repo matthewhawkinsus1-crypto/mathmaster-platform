@@ -52,6 +52,7 @@ const STATIC_REQUIRED_TOOLS = Object.freeze({
   'xⁿ': { label: 'xⁿ', command: '#@^{#?}', ariaLabel: 'Insert exponent' },
   '|': { label: '|', command: '|', ariaLabel: 'Insert vertical bar' },
   ':': { label: ':', command: ':', ariaLabel: 'Insert colon' },
+  '±': { label: '±', command: '\\pm', ariaLabel: 'Insert plus or minus' },
 });
 
 const normalizeExplicitSymbols = (symbols) => {
@@ -80,6 +81,8 @@ const normalizedMathText = (value) => String(value ?? '')
   .replace(/\\operatorname\{[^}]+\}/g, '')
   .replace(/\\text\{[^}]*\}/g, '')
   .replace(/\\(?:frac|sqrt|infty|cup|varnothing|emptyset|leq?|geq?|neq?|pi|lbrace|rbrace)\b/g, ' ')
+  // `\pm` is the ± sign, also when a digit follows it (`\pm1`).
+  .replace(/\\pm(?![A-Za-z])/g, ' ')
   .replace(/\b(?:sqrt|infinity|inf|pi)\b/gi, ' ')
   // `cbrt(…)` and `root(n)(…)` spell roots in a key (algebraicForm.mjs reads
   // them as \sqrt[n]{…}); their letters are not variables.
@@ -127,6 +130,7 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/\^|[⁰¹²³⁴⁵⁶⁷⁸⁹]|⁻¹/.test(text)) add('xⁿ');
   if (/\|/.test(text)) add('|');
   if (/:/.test(text)) add(':');
+  if (/±|\\pm(?![A-Za-z])/.test(text)) add('±');
 
   const variableText = normalizedMathText(text);
   const categoricalSet = /(?:\\lbrace|\\\{|\{)\s*[A-Za-z](?:\s*,\s*[A-Za-z])+\s*(?:\\rbrace|\\\}|\})/.test(text);

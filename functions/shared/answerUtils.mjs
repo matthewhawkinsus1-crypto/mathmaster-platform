@@ -27,6 +27,7 @@ const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;
 
 const normalizeSequenceToken = (value) => String(value ?? '')
   .replace(ELLIPSIS_PATTERN, ELLIPSIS_TOKEN);
+const PLUS_MINUS = /^(?:\\pm(?![A-Za-z])|±)\s*/;
 
 const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
   const prepared = normalizeSequenceToken(value);
@@ -65,7 +66,14 @@ const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
     .filter((index) => index >= 0);
 
   if (!ellipsisIndexes.length) {
-    const numbers = normalizedParts.map((part) => asNumber(part));
+    // "±a" is the two numbers a and −a: the Rational Zero Theorem lists its
+    // candidates that way ({±1, ±2, ±1/3}), and a key written so was never
+    // matched — not even by itself.
+    const numbers = normalizedParts.flatMap((part) => {
+      if (!PLUS_MINUS.test(part)) return [asNumber(part)];
+      const magnitude = asNumber(part.replace(PLUS_MINUS, ''));
+      return magnitude === null ? [null] : [magnitude, -magnitude];
+    });
     return numbers.every((number) => number !== null) ? numbers : null;
   }
 
