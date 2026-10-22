@@ -51,6 +51,20 @@ import {
   rationalFeatureTypeAt,
   sameCoefficientList,
   sameNumberMultiset,
+  addSubtractKey,
+  areaModelKey,
+  columnPlainText,
+  termPlainText,
+  typedPolynomialMatches,
+  typedTermMatches,
+  broughtDownLineMatches,
+  exactPolynomialPlainText,
+  gradedTerms,
+  longDivisionKey,
+  powerName,
+  ratioValue,
+  syntheticDivisionKey,
+  workingLineMatches,
 } from '../../toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 // A typed box holds a string (a number reads the same way). Any other type is
@@ -134,7 +148,7 @@ const factorZero = (question, work) => withKey(
 
 const CELL_LABELS = Object.freeze(['Area cell 1 (x² term)', 'Area cell 2 (x term)', 'Area cell 3 (x term)', 'Area cell 4 (constant)']);
 
-const multiplyArea = (question, work) => withKey(
+const multiplyBinomials = (question, work) => withKey(
   () => {
     const left = question.leftBinomial || DEFAULTS.multiplyArea.leftBinomial;
     const right = question.rightBinomial || DEFAULTS.multiplyArea.rightBinomial;
@@ -150,6 +164,95 @@ const multiplyArea = (question, work) => withKey(
         ...key.cells.map((expected, index) => numberPart(`cell-${index + 1}`, CELL_LABELS[index], cells[index], expected)),
         // Highest degree first, term by term: "-12, -5, 2" is not 2x² − 5x − 12.
         listPart('expanded', 'Expanded coefficients', work.expanded, key.product),
+      ],
+    });
+  },
+);
+
+/*
+ * THE AREA MODEL OF ANY SIZE: a question written with `leftFactor` /
+ * `rightFactor` (polynomials as text, any letters). Work:
+ * { terms: [one typed term per cell, row by row], product: 'typed polynomial' }.
+ * Each cell is right when it is the ONE term its row times its column makes,
+ * written in simplest form (−4y³, not −y·4y² and not −4y·y²); the product is
+ * right when it is the full product in simplest form. Every cell is a part, so
+ * an answer typed without the model earns only the product's share.
+ *
+ * A question with no factor text keeps the binomial model above, check for
+ * check: its work is { cells, expanded }, and nothing here reads it.
+ */
+const writesFactors = (question) => typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string';
+
+const termPart = (id, label, value, expected) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && typedTermMatches(entry(value), expected),
+  response: entry(value),
+});
+
+const polynomialPart = (id, label, value, expected) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && typedPolynomialMatches(entry(value), expected),
+  response: entry(value),
+});
+
+const unrenderable = (key) => {
+  if (!key) throw new Error('The workshop cannot draw this question.');
+  return key;
+};
+
+const multiplyFactors = (question, work) => withKey(
+  () => unrenderable(areaModelKey(question)),
+  (key) => {
+    const terms = Array.isArray(work.terms) ? work.terms : [];
+    const width = key.columns.length;
+    return gradedResult({
+      parts: [
+        ...key.cells.map((expected, index) => {
+          const row = Math.floor(index / width);
+          const column = index % width;
+          const label = `Row ${row + 1} × column ${column + 1} (${termPlainText(key.rows[row])} · ${termPlainText(key.columns[column])})`;
+          return termPart(`term-${row + 1}-${column + 1}`, label, terms[index], expected);
+        }),
+        polynomialPart('product', 'Product in simplest form', work.product, key.product),
+      ],
+    });
+  },
+);
+
+const multiplyArea = (question, work) => (writesFactors(question) ? multiplyFactors(question, work) : multiplyBinomials(question, work));
+
+/*
+ * ADD & SUBTRACT: `operation`, `firstPolynomial`, `secondPolynomial`, as text.
+ * One column per kind of term (like terms share a column). Work:
+ *   { opposites: [one typed term per column], sums: [one per column], result }
+ *   opposites   subtracting only: the opposite of the second polynomial's term
+ *               in that column — every term changes sign, not just the first.
+ *               A column the second polynomial has no term in asks nothing.
+ *   sums        each column's like terms combined; a column that cancels is 0,
+ *               typed: cancelling is a step the student shows.
+ *   result      the whole answer in simplest form.
+ * Adding has no opposites: the second polynomial is lined up as written.
+ */
+const addSubtract = (question, work) => withKey(
+  () => unrenderable(addSubtractKey(question)),
+  (key) => {
+    const opposites = Array.isArray(work.opposites) ? work.opposites : [];
+    const sums = Array.isArray(work.sums) ? work.sums : [];
+    const name = (index) => `${columnPlainText(key.columns[index])} column`;
+    const oppositeParts = key.operation === 'subtract'
+      ? key.columns.flatMap((column, index) => (key.secondByColumn[index]
+        ? [termPart(`opposite-${index + 1}`, `Opposite of ${termPlainText(key.secondByColumn[index])} (${name(index)})`, opposites[index], key.added[index])]
+        : []))
+      : [];
+    return gradedResult({
+      parts: [
+        ...oppositeParts,
+        ...key.columns.map((column, index) => termPart(`sum-${index + 1}`, `Combined ${name(index)}`, sums[index], key.sums[index])),
+        polynomialPart('result', 'Result in simplest form', work.result, key.result),
       ],
     });
   },
@@ -179,6 +282,96 @@ const division = (question, work) => withKey(
       listPart('remainder', 'Remainder coefficients', work.remainder, result.remainder),
     ],
   }),
+);
+
+/*
+ * LONG DIVISION, written as text (`dividend`, `divisor`; polynomialMath.mjs
+ * longDivisionKey). Work:
+ *   { terms: [one typed term per round], products: [one per round],
+ *     differences: [one per round], quotient, remainder }
+ *   terms        the round's quotient term: the leading term of what is left
+ *                divided by the divisor's leading term, as ONE term.
+ *   products     that term times the divisor, multiplied out.
+ *   differences  what is left after subtracting the product, with the next
+ *                term brought down (or more of them: any line from one term
+ *                brought down to all of them is the same division).
+ *   quotient, remainder   in simplest form; a remainder of 0 is a typed 0.
+ * A 0 holding a power's place is allowed in a working line (2x² + 0x), never
+ * in the answer. Every box is a part: the quotient and remainder typed from a
+ * solver earn 2 of the 3·rounds + 2 parts.
+ */
+const workingPart = (id, label, value, isCorrect) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && isCorrect(entry(value)),
+  response: entry(value),
+});
+
+const longDivision = (question, work) => withKey(
+  () => unrenderable(longDivisionKey(question)),
+  (key) => {
+    const terms = Array.isArray(work.terms) ? work.terms : [];
+    const products = Array.isArray(work.products) ? work.products : [];
+    const differences = Array.isArray(work.differences) ? work.differences : [];
+    const { letter } = key;
+    return gradedResult({
+      parts: [
+        ...key.rounds.flatMap((round, index) => {
+          const name = `Round ${index + 1}`;
+          const [term] = gradedTerms([round.term], letter);
+          return [
+            termPart(`round-${index + 1}-term`, `${name}: divide the leading terms`, terms[index], term),
+            workingPart(`round-${index + 1}-product`, `${name}: multiply back`, products[index], (value) => workingLineMatches(value, gradedTerms(round.product, letter))),
+            workingPart(`round-${index + 1}-difference`, `${name}: subtract and bring down`, differences[index], (value) => broughtDownLineMatches(value, round.left, round.lowestBroughtDown, letter)),
+          ];
+        }),
+        polynomialPart('quotient', 'Quotient in simplest form', work.quotient, gradedTerms(key.quotient, letter)),
+        polynomialPart('remainder', 'Remainder in simplest form', work.remainder, gradedTerms(key.remainder, letter)),
+      ],
+    });
+  },
+);
+
+/*
+ * SYNTHETIC DIVISION, written as text: a divisor ax + b
+ * (polynomialMath.mjs syntheticDivisionKey). Work:
+ *   { r, coefficients: [one per column], products: [one per column after the
+ *     first], sums: [one per column], quotient, remainder }
+ *   r             the number in the corner: the divisor is x − r (after
+ *                 dividing through by a when a ≠ 1).
+ *   coefficients  the dividend's, highest power first, a 0 for every missing
+ *                 power (divided by a when a ≠ 1).
+ *   products      r times the bottom number of the column before.
+ *   sums          the bottom row: the first coefficient brought down, then
+ *                 each column added; the last is the remainder.
+ *   quotient      in simplest form, one degree lower than the dividend.
+ *   remainder     only when a ≠ 1: the remainder over the ORIGINAL divisor
+ *                 (a times the last bottom number) — when a = 1 the last
+ *                 bottom number already is it.
+ * Numbers are read as the workshop reads every number (fractions, the U+2212
+ * minus; within 0.01).
+ */
+const syntheticDivision = (question, work) => withKey(
+  () => unrenderable(syntheticDivisionKey(question)),
+  (key) => {
+    const coefficients = Array.isArray(work.coefficients) ? work.coefficients : [];
+    const products = Array.isArray(work.products) ? work.products : [];
+    const sums = Array.isArray(work.sums) ? work.sums : [];
+    const { letter } = key;
+    const n = key.dividend.degree;
+    const divisorText = exactPolynomialPlainText(key.divisor.coefficients.map((coefficient, index) => ({ coefficient, power: 1 - index })), letter);
+    return gradedResult({
+      parts: [
+        numberPart('r', key.scaled ? `r (divide by ${ratioValue(key.leading)} first; then the divisor is ${letter} − r)` : `r (the divisor is ${letter} − r)`, work.r, ratioValue(key.r)),
+        ...key.coefficients.map((coefficient, index) => numberPart(`coefficient-${index + 1}`, `Coefficient row, column ${index + 1} (${powerName(n - index, letter)})`, coefficients[index], ratioValue(coefficient))),
+        ...key.products.map((product, index) => numberPart(`product-${index + 2}`, `Multiply r into column ${index + 2}`, products[index], ratioValue(product))),
+        ...key.bottom.map((sum, index) => numberPart(`sum-${index + 1}`, index === 0 ? 'Bottom row, column 1: bring down' : index === n ? `Bottom row, column ${index + 1}: the remainder` : `Bottom row, column ${index + 1}: add`, sums[index], ratioValue(sum))),
+        polynomialPart('quotient', 'Quotient in simplest form', work.quotient, gradedTerms(key.quotient, letter)),
+        ...(key.scaled ? [numberPart('remainder', `Remainder over the divisor ${divisorText}`, work.remainder, ratioValue(key.remainderOverDivisor))] : []),
+      ],
+    });
+  },
 );
 
 const graphConnection = (question, work) => withKey(
@@ -212,8 +405,11 @@ const rationalFeatures = (question, work) => withKey(
 export default bindToolGrader(declaration, 'polynomialWorkshop', {
   factorZero,
   multiplyArea,
+  addSubtract,
   factorQuadratic,
   division,
+  longDivision,
+  syntheticDivision,
   graphConnection,
   rationalFeatures,
 });

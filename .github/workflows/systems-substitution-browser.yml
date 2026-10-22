@@ -1,23 +1,7 @@
 name: Systems Substitution Browser Certification
 
 on:
-  pull_request:
-    paths:
-      - "src/tools/systemsWorkspace/**"
-      - "src/StepByStepAlgebraCore.jsx"
-      - "src/StepByStepAlgebra.css"
-      - "src/AlgebraTermRow.jsx"
-      - "src/algebraAstEngine.js"
-      - "src/algebraDistributionModel.js"
-      - "src/algebraLikeTermsModel.js"
-      - "src/tools/stepAlgebra2/StepAlgebra2.jsx"
-      - "src/tools/shared/usePersistentToolState.js"
-      - "src/platform/workView/useMathUndoHistory.js"
-      - "tests/browser/algebraicSubstitutionHandoff*"
-      - "tests/browser/algebraicSystems3x3*"
-      - "tests/browser/stepAlgebraDriver.mjs"
-      - "tests/platform/fixtures/classworkQ2RuntimeCapture.json"
-      - ".github/workflows/systems-substitution-browser.yml"
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -29,19 +13,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install Chromium
-        run: |
-          npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-          npx playwright install --with-deps chromium
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
 
       - name: Start browser harness
         run: |
@@ -67,7 +41,7 @@ jobs:
       # global rule that a staged balanced move never appears inside the
       # equation before both sides are placed.
       - name: Drive 3×3 substitution and the no-staged-preview rule
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: http://127.0.0.1:5199

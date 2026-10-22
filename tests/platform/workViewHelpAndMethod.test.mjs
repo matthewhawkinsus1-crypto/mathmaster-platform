@@ -158,7 +158,17 @@ test('R-10: Transformations Lab withholds its bridge and its first step where th
   assert.match(lab, /const methodWithheld = useMethodWithheld\(\);/);
   assert.match(lab, /instruction: methodWithheld \? null : \{ text: \(MODE_STEPS\[mode\]/);
   assert.match(lab, /help: methodWithheld \? null : \{\s*content: \(\s*<>\s*<TransformationBridge \/>/);
-  assert.match(lab, /\{methodWithheld \? null : \(\s*<div className="mathmaster-work-view-secondary">\s*<Panel title="Transformation bridge"/);
+  assert.match(lab, /\{methodWithheld \|\| BRIDGE_IN_HELP_ONLY\.includes\(mode\) \? null : \(\s*<div className="mathmaster-work-view-secondary">\s*<Panel title="Transformation bridge"/);
+});
+
+test('Transformations Lab keeps its bridge in Help only where the mapping rule is the answer (owner decision 2026-10-22)', () => {
+  // A Warm-Up point-map item showed "(x/b + h, ay + k)" open beside the
+  // question. There the bridge stays in Help, after the item's hints.
+  const lab = code('src/tools/transformations/TransformationsLab.jsx');
+  const listed = JSON.parse(lab.match(/BRIDGE_IN_HELP_ONLY = Object\.freeze\((\[[^\]]*\])\)/)[1].replace(/'/g, '"'));
+  assert.deepEqual(listed.sort(), ['plotTransform', 'pointMap']);
+  // Help still carries it wherever the method may be shown.
+  assert.match(lab, /help: methodWithheld \? null : \{\s*content: \(\s*<>\s*<TransformationBridge \/>/);
 });
 
 test('TOOL-3: a tool with no TaskCard still describes itself in Work View Help', () => {

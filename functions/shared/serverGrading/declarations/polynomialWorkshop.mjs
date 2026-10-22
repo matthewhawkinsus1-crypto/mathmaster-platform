@@ -14,14 +14,25 @@ import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 // The views PolynomialWorkshop.jsx routes to by exact `mode` match; anything
 // else (missing, unknown, mis-cased, padded, not a string) renders FactorZero.
-const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'factorQuadratic', 'division', 'graphConnection', 'rationalFeatures']);
+const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'addSubtract', 'factorQuadratic', 'division', 'longDivision', 'syntheticDivision', 'graphConnection', 'rationalFeatures']);
 
 export default declareTool({
   // Work shape v1 — per mode, exactly the state the workshop's inputs hold:
   //   factorZero        { value, factorChoice: 'yes'|'no' }
   //   multiplyArea      { cells: [4 typed coefficients], expanded: 'a, b, c' }
+  //                     — or, for a question written with leftFactor /
+  //                     rightFactor (any size, any letters):
+  //                     { terms: [one typed term per cell, row by row], product }
+  //   addSubtract       { opposites: [one typed term per column] (subtracting
+  //                     only), sums: [one per column], result }
   //   factorQuadratic   { p, q }
   //   division          { quotient: 'a, b, …', remainder: 'r, …' }
+  //   longDivision      { terms: [one typed term per round], products: [one
+  //                     typed polynomial per round], differences: [one per
+  //                     round], quotient, remainder }
+  //   syntheticDivision { r, coefficients: [one per column], products: [one
+  //                     per column after the first], sums: [one per column],
+  //                     quotient, remainder (a divisor ax + b with a ≠ 1 only) }
   //   graphConnection   { behavior: 'crosses'|'touches', end: <one of four end-behaviour labels> }
   //   rationalFeatures  { choice: 'hole'|'verticalAsymptote'|'zero'|'none' }
   //   (both also carry choicesOpenUnanswered: true from a workshop whose
@@ -41,8 +52,11 @@ export default declareTool({
   modes: {
     factorZero: SHARED,
     multiplyArea: SHARED,
+    addSubtract: SHARED,
     factorQuadratic: SHARED,
     division: SHARED,
+    longDivision: SHARED,
+    syntheticDivision: SHARED,
     graphConnection: SHARED,
     rationalFeatures: SHARED,
   },

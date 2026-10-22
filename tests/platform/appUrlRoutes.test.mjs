@@ -238,12 +238,13 @@ test('Hosting serves index.html, uncached, at every address the app writes; stat
   assert.ok(indexRule, '/ and /index.html keep their own rule');
 });
 
-test('Vercel previews fall back to the app at every address too (static files are served first)', () => {
+// Vercel is retired (the owner, 2026-10-22): Firebase Hosting is the one
+// production site. Vercel still built every pull request into a public copy
+// wired to the production project (src/firebase.js), so vercel.json now tells
+// it to skip every build: its Ignored Build Step skips on exit code 0. The
+// Vercel project itself is deleted in Vercel's dashboard.
+test('Vercel builds nothing: every build is skipped, and no routing for a Vercel copy is kept', () => {
   const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(config.rewrites, [{ source: '/((?!assets/).*)', destination: '/index.html' }]);
-  const vercelFallback = /^\/((?!assets\/).*)$/;
-  assert.match('/grades', vercelFallback);
-  assert.doesNotMatch('/assets/App-old.js', vercelFallback);
-  const assets = config.headers.find((rule) => rule.source === '/assets/(.*)');
-  assert.match(assets.headers[0].value, /immutable/);
+  assert.equal(config.ignoreCommand, 'exit 0', 'exit 0 skips the build; anything else builds');
+  assert.deepEqual(Object.keys(config).filter((key) => key !== '$schema'), ['ignoreCommand']);
 });

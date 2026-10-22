@@ -484,7 +484,20 @@ export default function MathInput({
   // question's deferred-focus authority: the action that raised the signal
   // already happened, so only a press or key AFTER it cancels the focus (the
   // student clicked somewhere else first), as does the question going away.
+  //
+  // ONLY THE SIGNAL FOCUSES. Whether this is a phone is read when the focus
+  // happens; it is not a reason to focus again. `isMobile` follows the
+  // window's width, and while it was one of this effect's dependencies every
+  // window that crossed 768px ran it again and pulled focus back into this
+  // field from wherever the student was; zooming a 1366px Chromebook to 200%
+  // or snapping it to half the screen is enough. On a secure test that took
+  // focus out of the open question list: Escape no longer closed the list,
+  // and the next keys typed into the answer under it
+  // (tests/browser/secureExamNavigation.mjs; in CI a full-page screenshot's
+  // momentary 1x1 viewport did it).
   const deferredFocusHost = useDeferredFocusHost();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
   useEffect(() => {
     if (!focusSignal || !mfRef.current) return undefined;
     const focusField = () => {
@@ -498,12 +511,12 @@ export default function MathInput({
       // their own viewport stabilisation.
       // Pinch-zoomed onto a field that is already on the magnified screen, it
       // is left exactly where it is.
-      if (!isMobile) revealUnlessVisibleWhileZoomed(mathField, { block: 'nearest', inline: 'nearest' });
+      if (!isMobileRef.current) revealUnlessVisibleWhileZoomed(mathField, { block: 'nearest', inline: 'nearest' });
     };
     if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now', channel: 'field' });
     const frame = window.requestAnimationFrame(focusField);
     return () => window.cancelAnimationFrame(frame);
-  }, [focusSignal, isMobile, deferredFocusHost]);
+  }, [focusSignal, deferredFocusHost]);
 
   useEffect(() => {
     if (!collapseSignal) return;

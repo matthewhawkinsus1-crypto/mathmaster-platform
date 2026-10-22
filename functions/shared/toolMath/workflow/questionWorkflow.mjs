@@ -241,6 +241,34 @@ const choiceIdsOf = (stage) => (Array.isArray(stage?.choices) ? stage.choices : 
   .map(String);
 
 /**
+ * How many steps the student can still be asked: the steps shown now plus, for
+ * a choice not yet made, its LONGEST branch. A counter that reads this only
+ * ever shrinks. Counting only the shown steps made "4 of 5" turn into "5 of 7"
+ * the moment a classification opened its domain and range (walkthrough
+ * 2026-10-22, DOL #3 PR 2 and PR 8): the student thought they were nearly done.
+ * It leaks nothing: the projection is the same whatever the right answer is,
+ * and the branch steps themselves stay hidden until the choice is made.
+ */
+export const projectedStageCount = (workflow = [], responses = {}) => {
+  const stages = Array.isArray(workflow) ? workflow : [];
+  const controllers = new Set(stages.filter((stage) => isObject(stage?.showWhen)).map((stage) => String(stage.showWhen.stage || '')));
+  const answered = (current, id) => {
+    const value = current?.[id];
+    const chosen = typeof value === 'string' ? value : (value?.id ?? value?.choice ?? null);
+    return chosen !== null && chosen !== '';
+  };
+  const count = (current, depth) => {
+    const active = activeStageIds(stages, current);
+    // Depth-bounded: a chain of more than eight nested choices is not authored.
+    const pending = depth < 8 ? stages.find((stage) => active.has(stage.id) && controllers.has(stage.id) && !answered(current, stage.id)) : null;
+    const choices = pending ? choiceIdsOf(pending) : [];
+    if (!choices.length) return active.size;
+    return Math.max(...choices.map((choice) => count({ ...current, [pending.id]: choice }, depth + 1)));
+  };
+  return count({ ...responses }, 0);
+};
+
+/**
  * Validate a composed workflow.
  *
  * Every failure here is one a student would otherwise meet as a blank panel or

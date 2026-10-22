@@ -15,6 +15,11 @@ export no_proxy="$NO_PROXY"
 
 cd "$REPO_ROOT"
 
+# Only a clean checkout of current main that has passed CI is deployed
+# (scripts/check-deploy-provenance.mjs; its report names the override for a
+# deliberate hotfix).
+node scripts/check-deploy-provenance.mjs || exit 5
+
 echo "=== MathMaster Assignment V5 focused deploy ==="
 echo "Project: $PROJECT"
 echo "Surfaces: Hosting + the Assignment AI callables + the weekly Path Classroom functions"

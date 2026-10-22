@@ -18,7 +18,7 @@ import {
   guardStaleMathFieldFocus,
   mathFieldKeyboardSink,
 } from '../../src/platform/interaction/mathFieldFocusHandoff.js';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const makeDocument = () => {
   const doc = { activeElement: null, fields: [] };
@@ -171,6 +171,30 @@ test('autofocus focuses the sink with preventScroll instead of MathfieldElement.
   assert.deepEqual(field.sink.focusCalls, [{ preventScroll: true }]);
   assert.equal(mathFieldKeyboardSink({}), null);
   assert.equal(focusMathFieldWithoutScroll({}), false);
+});
+
+/*
+ * A WINDOW CHANGING WIDTH IS NOT A REASON TO TAKE FOCUS.
+ *
+ * MathInput focuses its field for a signal (focusSignal): a question opening
+ * with its first box, a Step Algebra action sending the student on. `isMobile`
+ * follows the window's width, and while it was a dependency of that effect,
+ * any window crossing 768px (a Chromebook zoomed to 200% or snapped to half the
+ * screen) ran the effect again and pulled focus back into the field — out of a
+ * secure test's open question list, whose Escape then did nothing while the
+ * next key went into the answer under it. tests/browser/secureExamNavigation.mjs
+ * drives that ("the list keeps focus when the window changes width"); this pins
+ * the cause without a browser.
+ */
+test('a math field takes focus for its signal, never because the window crossed the phone width', () => {
+  const input = executableSource(readFileSync('src/MathInput.jsx', 'utf8'));
+  const start = 'if (!focusSignal || !mfRef.current) return undefined;';
+  const effect = region(input, start, '}, [focusSignal', 'the focusSignal effect');
+  const dependencies = region(input.slice(input.indexOf(start)), '}, [focusSignal', ']);', 'its dependency list');
+  assert.doesNotMatch(dependencies, /\bisMobile/, 'a width change must not run the focus again');
+  // The desktop-only reveal still reads the device as it is when focus lands.
+  assert.match(effect, /if \(!isMobileRef\.current\) revealUnlessVisibleWhileZoomed\(mathField, /);
+  assert.match(input, /\bisMobileRef\.current = isMobile\b/, 'the ref follows the device');
 });
 
 test('every math field the student types into is bound, and bound first', () => {

@@ -67,6 +67,14 @@ const TransformationBridge = () => (
   </>
 );
 
+// Where the bridge's mapping rule IS the answer — give a point's image, or move
+// each defining point — it is not left open beside the item: it lives only in
+// Help, after the item's own hints, which release the same rule one rung at a
+// time. A Warm-Up retrieval item showed "(x/b + h, ay + k)" open next to the
+// question (walkthrough 2026-10-22, Algebra II Honors DOL #2 WU 2; owner
+// decision 2026-10-22). Other modes keep it as a working reference.
+export const BRIDGE_IN_HELP_ONLY = Object.freeze(['pointMap', 'plotTransform']);
+
 const parameterFields = (values, setters, keys) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 10 }}>
     {keys.map((key, index) => <label key={key}><strong>{key}</strong><input type="number" step="0.5" value={values[index]} onChange={(event) => setters[index](event.target.value)} style={inputStyle} /></label>)}
@@ -403,7 +411,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      {methodWithheld ? null : (
+      {methodWithheld || BRIDGE_IN_HELP_ONLY.includes(mode) ? null : (
         <div className="mathmaster-work-view-secondary">
           <Panel title="Transformation bridge" collapsible>
             <TransformationBridge />

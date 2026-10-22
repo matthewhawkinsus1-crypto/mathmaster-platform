@@ -97,6 +97,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   signSolutionAnalyzer: entry(['signSolutionAnalyzer/SignSolutionAnalyzer.jsx']),
   sequenceExplorer: entry(['sequenceExplorer/SequenceExplorer.jsx'], {
     plotMessage: 'Why a click was not a valid term position. Error text.',
+    missMessage: 'What the last wrong check was missing, worked out from the grader\'s parts. Feedback text, not an answer.',
   }),
   complexPlaneLab: entry(['complexPlane/ComplexPlaneLab.jsx']),
   exponentialLogBridge: entry(['exponentialLog/ExponentialLogBridge.jsx']),

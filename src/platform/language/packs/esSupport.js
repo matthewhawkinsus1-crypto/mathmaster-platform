@@ -73,6 +73,8 @@ const missMessages = [
   ['Right line, wrong form: write it as {1} mx {2}.', 'La recta es correcta, pero la forma no: escríbela como {1} mx {2}.'],
   ['Right line, wrong form: write it as {1}₁ {2}({3}₁).', 'La recta es correcta, pero la forma no: escríbela como {1}₁ {2}({3}₁).'],
   ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
+  // Right value, not simplified (operations on polynomials).
+  ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
 
   // src/platform/supports/feedback/genericMissChecks.js
   ['Check the order of your coordinates.', 'Revisa el orden de tus coordenadas.'],

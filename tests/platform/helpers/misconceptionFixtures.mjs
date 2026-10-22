@@ -69,6 +69,19 @@ const lineFormCase = (name, label, answer, typed, expected, { prompt = 'A line i
   expected,
 });
 
+// A typed polynomial on a field that asks for simplest form.
+const simplestFormCase = (name, answer, typed, expected, { answerForm = 'simplifiedPolynomial' } = {}) => ({
+  name,
+  question: {
+    type: 'multiAnswer',
+    prompt: 'Simplify (2a^3 + 5a - 7) - (a^3 - 3a + 2).',
+    answerFields: [{ id: 'simplified', label: 'Simplified polynomial', answer, ...(answerForm ? { answerForm } : {}) }],
+  },
+  response: fieldsResponse({ simplified: typed }),
+  familyValues: null,
+  expected,
+});
+
 /** The server's grading of a fixture — what ingestion would hand the classifier. */
 export const gradeFixture = (fixture) => gradeServerResponse({ question: fixture.question, response: fixture.response });
 
@@ -224,6 +237,12 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
     prompt: 'Write line A in standard form.',
     before: { label: 'Line A', answer: '3x+y=5' },
   }),
+  // --- ordinary / multiAnswer: right value, not simplified (operations on polynomials) ----
+  simplestFormCase('simplest form: correct', 'a^3+8a-9', 'a^3+8a-9', []),
+  simplestFormCase('simplest form: distributed, like terms not combined', 'a^3+8a-9', '2a^3+5a-7-a^3+3a-2', ['polynomial-not-simplified']),
+  simplestFormCase('simplest form: a retyped product', '8a^5b^2', '(2a^2b)(4a^3b)', ['polynomial-not-simplified']),
+  simplestFormCase('simplest form: a wrong value is not named', 'a^3+8a-9', 'a^3+2a-5', []),
+  simplestFormCase('simplest form: a field that does not ask for it is not named', 'a^3+8a-9', '2a^3+5a-7-a^3+3a-2', [], { answerForm: null }),
   // Review S5a: a CORRECT field written in another accepted form is never classified.
   // Another field is wrong, so the question is graded wrong and the
   // classifier runs: only the per-part gate keeps the correct field out.

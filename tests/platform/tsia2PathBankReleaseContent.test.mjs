@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readWorkflow, runsOnPullRequest } from './helpers/ciWorkflows.mjs';
 
 const CURRENT_RELEASE = 'tsia2-v2.1-authentic-language';
 
@@ -217,8 +218,16 @@ test('built-in Path seed refresh retires stale TSIA2 runtime state only after ba
   assert.match(source.slice(retirementIndex), /tsia2PathBankRelease/, 'seed refresh should return the runtime release result to the administrator');
 });
 
+// The TSIA2 content suites (tests/platform/tsia2*Content.test.mjs) and the
+// TSIA2 production seed check run in full-platform-suite.yml, which ci.yml runs
+// on every pull request. Their old workflow (ccmr-v2-1-tsia2-content-audit.yml)
+// watched these files but ran only on a branch idle since August.
 test('TSIA2 content CI watches the runtime release module and Functions wiring', () => {
-  const workflow = fs.readFileSync(new URL('../../.github/workflows/ccmr-v2-1-tsia2-content-audit.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /functions\/shared\/pathBankRelease\.mjs/);
-  assert.match(workflow, /functions\/index\.js/);
+  for (const changed of ['functions/shared/pathBankRelease.mjs', 'functions/index.js']) {
+    assert.ok(runsOnPullRequest('full-platform-suite.yml', changed), `a pull request changing ${changed} runs the full suite`);
+  }
+  const suite = readWorkflow('full-platform-suite.yml');
+  assert.match(suite, /run: npm run test:platform -- --test-shard=/, 'which runs every tests/platform/*.test.mjs');
+  assert.ok(fs.readdirSync(new URL('./', import.meta.url)).filter((name) => /^tsia2.*Content\.test\.mjs$/.test(name)).length >= 2, 'the TSIA2 content suites are top-level platform tests');
+  assert.match(suite, /run: node scripts\/build-tsia2-production-seed\.mjs --check/);
 });

@@ -7,7 +7,9 @@
 // was published, and the app refused to start in two certifications on main.
 //
 // The workflows now add Playwright on top of the lockfile and then run
-// scripts/check-lockfile-install.mjs, which fails if anything differs.
+// scripts/check-lockfile-install.mjs, which fails if anything differs. They do
+// it in one place, the shared setup action (.github/actions/setup), which
+// every job that drives a browser uses.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,29 +20,48 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { installDriftFromLockfile } from '../../scripts/lib/lockfileInstall.mjs';
+import { jobsOf } from './helpers/ciWorkflows.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const workflowDir = path.join(root, '.github/workflows');
 const workflows = readdirSync(workflowDir)
   .filter((name) => /\.ya?ml$/.test(name))
   .map((name) => ({ name, text: readFileSync(path.join(workflowDir, name), 'utf8') }));
+const actionDir = path.join(root, '.github/actions');
+const actions = readdirSync(actionDir, { recursive: true })
+  .map((name) => String(name).split(path.sep).join('/'))
+  .filter((name) => /(^|\/)action\.ya?ml$/.test(name))
+  .map((name) => ({ name: `.github/actions/${name}`, text: readFileSync(path.join(actionDir, name), 'utf8') }));
+const ciFiles = [...workflows, ...actions];
 
 /* --- the workflows ------------------------------------------------------- */
 
 test('no workflow installs packages without the lockfile', () => {
-  for (const { name, text } of workflows) {
+  for (const { name, text } of ciFiles) {
     assert.doesNotMatch(text, /--package-lock=false|--no-package-lock/, `${name} bypasses package-lock.json`);
   }
 });
 
 test('every package added after npm ci is checked against the lockfile in the same step', () => {
-  const installs = workflows.flatMap(({ name, text }) => text.split('\n')
+  const installs = ciFiles.flatMap(({ name, text }) => text.split('\n')
     .filter((line) => /\bnpm (install|i|add)\b/.test(line))
     .map((line) => ({ name, line: line.trim() })));
-  assert.ok(installs.length >= 16, `found ${installs.length} installs; the browser workflows have 16`);
+  assert.ok(installs.length >= 1, `found ${installs.length} installs; the shared setup has one`);
   for (const { name, line } of installs) {
     assert.match(line, /--no-save\b/, `${name}: ${line} would rewrite package.json`);
     assert.match(line, /&& node scripts\/check-lockfile-install\.mjs$/, `${name}: ${line} is not checked`);
+  }
+  assert.deepEqual([...new Set(installs.map(({ name }) => name))], ['.github/actions/setup/action.yml'],
+    'packages are added in the shared setup only');
+});
+
+test('every job that drives a browser gets Playwright from the shared, lockfile-checked setup', () => {
+  const browserJobs = workflows.flatMap(({ name, text }) => Object.entries(jobsOf(text))
+    .filter(([, job]) => /PLAYWRIGHT_MODULE: playwright/.test(job))
+    .map(([job, body]) => ({ name: `${name} ${job}`, body })));
+  assert.ok(browserJobs.length >= 16, `found ${browserJobs.length} browser jobs`);
+  for (const { name, body } of browserJobs) {
+    assert.match(body, /uses: \.\/\.github\/actions\/setup\n\s+with: \{ browser: "true" \}/, `${name} sets up Playwright through .github/actions/setup`);
   }
 });
 

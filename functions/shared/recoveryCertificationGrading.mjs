@@ -75,6 +75,22 @@ export const matrixLabKeyWork = (answer = {}) => {
   return null;
 };
 
+/**
+ * The Polynomial Workshop work a student who solved a polynomials.* version
+ * would send (serverGrading/declarations/polynomialWorkshop.mjs: each cell or
+ * column as a typed term, then the answer), and the same work with the answer
+ * wrong; null for an answer that is not Workshop work.
+ */
+export const polynomialWorkshopKeyWork = (answer = {}) => {
+  if (answer.kind !== 'polynomialWorkshop' || !answer.value || typeof answer.value !== 'object') return null;
+  const right = answer.value;
+  // The answer the work ends in: the area model's product, add & subtract's
+  // result, a division's quotient.
+  const finalField = ['product', 'result', 'quotient'].find((field) => typeof right[field] === 'string') || 'result';
+  // 999 has the form of an answer and never its value.
+  return { right, wrong: { ...right, [finalField]: '999' } };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -113,6 +129,14 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'matrixLab', work: matrixWork.right }),
       wrong: buildToolResponse({ question, toolId: 'matrixLab', work: matrixWork.wrong }),
+    };
+  }
+  // Polynomial Workshop (polynomials.*): the work the workshop's Check sends.
+  const workshopWork = question.type === 'polynomialWorkshop' ? polynomialWorkshopKeyWork(answer) : null;
+  if (workshopWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'polynomialWorkshop', work: workshopWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'polynomialWorkshop', work: workshopWork.wrong }),
     };
   }
   return null;
