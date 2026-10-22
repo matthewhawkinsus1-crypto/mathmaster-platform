@@ -4845,7 +4845,7 @@ function App() {
    * has not yet been reflected in the student's deadline.
    */
   const reconcileAttendanceExtensions = async (event, record) => {
-    const { buildStudentExtensionPatch, fetchAttendanceForClassDateRange, reconcileAssignmentExtensionsForCorrection } = requireTeacherKit();
+    const { fetchAttendanceForClassDateRange } = requireTeacherKit();
     const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
     const affectedAssignments = assignments
       .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
