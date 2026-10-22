@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 23,
+  "familyCount": 29,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -285,6 +285,76 @@
           "teacherReason": "MathMaster can now generate the distributive and fraction-coefficient equations an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
         {
+          "familyId": "lines.horizontalVertical",
+          "familyTitle": "Horizontal and vertical lines through a point",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It writes the horizontal and the vertical line through one named point and the vertical line's slope; there is no deeper reading of the same skill to ask.",
+          "missingCapability": "A `given` knob that names two points (which may share an x or a y) and asks the student to classify the line they determine and write it, answered with the same equation fields.",
+          "teacherReason": "MathMaster's horizontal-and-vertical generator only names one point, so it cannot yet build the classify-the-line-through-two-points work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "lines.perpendicularFromEquation",
+          "familyTitle": "The line perpendicular to a given line through a point",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "The given line is always in slope-intercept form with a whole-number slope, and the answer's y-intercept is always whole; the remaining levers are other numbers, which are not rigor.",
+          "missingCapability": "A `form` knob that gives the line in standard form (Ax + By = C), allows fractional intercepts, and accepts the answer in standard form.",
+          "teacherReason": "MathMaster's perpendicular-line generator only starts from slope-intercept form with whole answers, so it cannot yet build the standard-form work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "lines.perpendicularFromPoints",
+          "familyTitle": "The line perpendicular to the line through two points",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "The line through two points always has a unit-fraction slope and the perpendicular passes through one of those points; the next depth is the perpendicular bisector, which needs a midpoint.",
+          "missingCapability": "A `bisector` knob that asks for the perpendicular bisector of the segment (through the midpoint, with fractional midpoints and intercepts), answered in the same equation field.",
+          "teacherReason": "MathMaster's two-point perpendicular generator only passes through a given point, so it cannot yet build the perpendicular-bisector work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "lines.rotationImages",
+          "familyTitle": "Rotate a segment about the origin",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version rotates one point about the origin through a quarter, half or three-quarter turn, counterclockwise; the remaining levers are other points, which are not rigor.",
+          "missingCapability": "A `center` knob that rotates about a point other than the origin, and a `direction` knob for clockwise turns, answered as the same ordered pairs.",
+          "teacherReason": "MathMaster's rotation generator only turns a point about the origin, so it cannot yet build the rotate-about-another-point work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "lines.rotationSlopes",
+          "familyTitle": "Slopes of a rotated segment",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It asks the slopes of one segment and its three rotations and the pattern between them, with whole-number coordinates; the remaining levers are bigger coordinates, which are not rigor.",
+          "missingCapability": "A `symbolic` knob that gives B as (a, b) and answers each slope as an expression, so the student shows the quarter-turn slope is −a/b in general.",
+          "teacherReason": "MathMaster's rotated-slopes generator only uses numbers, so it cannot yet build the prove-it-for-any-point work a built-in Honors extension needs."
+        },
+        {
           "familyId": "matrices.addition",
           "familyTitle": "Add two matrices of data",
           "familyDifficulty": {
@@ -367,6 +437,20 @@
           "reason": "Multiplicative inverses as the idea behind an inverse matrix is Algebra II content (A2.3B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.3B is the course/TEKS conflict selection already refuses.",
           "missingCapability": null,
           "teacherReason": "Multiplicative inverses as the idea behind an inverse matrix is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "numbers.reciprocals",
+          "familyTitle": "Reciprocals and a negative reciprocal",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review: reciprocals of whole numbers and fractions and one negative reciprocal. Its Honors depth is the negative reciprocal of an expression, which this family does not generate.",
+          "missingCapability": "A `form` knob that writes the values as variable fractions (a/b, −2/3x), graded as expressions in the answer fields.",
+          "teacherReason": "MathMaster's reciprocal generator only works with numbers, so it cannot yet build the reciprocal-of-an-expression work a built-in Honors extension needs."
         },
         {
           "familyId": "quadratics.identifyVertex",
@@ -573,7 +657,7 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 5,
-        "BLOCKED": 7,
+        "BLOCKED": 13,
         "NOT APPROPRIATE": 7
       }
     },
@@ -722,6 +806,76 @@
           "teacherReason": "Solving a two-step linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
+          "familyId": "lines.horizontalVertical",
+          "familyTitle": "Horizontal and vertical lines through a point",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Horizontal and vertical lines is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Horizontal and vertical lines is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "lines.perpendicularFromEquation",
+          "familyTitle": "The line perpendicular to a given line through a point",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "The line perpendicular to a given line through a point is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "The line perpendicular to a given line through a point is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "lines.perpendicularFromPoints",
+          "familyTitle": "The line perpendicular to the line through two points",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "The line perpendicular to the line through two points is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "The line perpendicular to the line through two points is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "lines.rotationImages",
+          "familyTitle": "Rotate a segment about the origin",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Rotating a point to see perpendicular slopes is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Rotating a point to see perpendicular slopes is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "lines.rotationSlopes",
+          "familyTitle": "Slopes of a rotated segment",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Slopes of a rotated segment is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Slopes of a rotated segment is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
           "familyId": "matrices.addition",
           "familyTitle": "Add two matrices of data",
           "familyDifficulty": {
@@ -804,6 +958,20 @@
           "reason": "It is the lesson's Warm-Up review: the inverse of a whole number and of a fraction, that a number times its inverse is 1, and that 0 has none. Its Honors depth is the inverse of a matrix, which this family does not generate.",
           "missingCapability": "A Question Family for the Matrix Lab's inverse work (judgeInverse / askInverse): find or verify A⁻¹ for a 2×2 matrix, and recognize a matrix with no inverse.",
           "teacherReason": "MathMaster's inverse generator only works with numbers, so it cannot yet build the inverse-matrix work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "numbers.reciprocals",
+          "familyTitle": "Reciprocals and a negative reciprocal",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Reciprocals and negative reciprocals is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Reciprocals and negative reciprocals is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "quadratics.identifyVertex",
@@ -1106,7 +1274,7 @@
         "READY": 0,
         "CAPABLE": 1,
         "BLOCKED": 11,
-        "NOT APPROPRIATE": 11
+        "NOT APPROPRIATE": 17
       }
     }
   }

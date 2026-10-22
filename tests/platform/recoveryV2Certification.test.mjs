@@ -55,6 +55,21 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 const lessonModel = (file) => compileTeacherImport(readFileSync(new URL(`../../teacher-import-jsons/algebra1-module2-topic2/${file}`, import.meta.url), 'utf8')).model;
 const L2 = lessonModel('L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json');
 const L3 = lessonModel('L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json');
+// A lesson no family can pair. L3 used to be it; Recovery V2 now has families
+// for every L3 Warm-Up and DOL question (recoveryPerpendicularFamilies.test.mjs),
+// so the same shape is built here with free-text questions no family recognizes.
+const UNPAIRABLE = (() => {
+  const assignmentV5 = structuredClone(L3.assignmentV5);
+  assignmentV5.sections.filter((section) => ['warmup', 'dol'].includes(section.role)).forEach((section) => {
+    section.questions = section.questions.map((question) => ({
+      ...question,
+      type: 'multiAnswer',
+      prompt: `Explain, in your own words, how you decided ${question.questionId}.`,
+      answerFields: [{ id: 'explanation', type: 'text', answer: 'a reasoned explanation' }],
+    }));
+  });
+  return { ...L3, assignmentV5 };
+})();
 
 const liveCopy = (model, overrides = {}) => ({
   ...structuredClone(model.assignmentV5),
@@ -280,7 +295,7 @@ for (const [name, build] of [['Standard', () => liveCopy(L2)], ['Honors', () => 
 }
 
 test('a lesson MathMaster cannot pair says exactly why, and is never called ready', () => {
-  const assignment = liveCopy(L3, { id: 'live-l3', title: L3.assignmentV5.assignment.title });
+  const assignment = liveCopy(UNPAIRABLE, { id: 'live-unpairable', title: L3.assignmentV5.assignment.title });
   const plan = planAssignmentRecoveryContent({ assignment, gradeSample: serverRecoveryKeyCheck });
   assert.equal(plan.changed, false);
   assert.equal(plan.fullyReady, false);
@@ -346,18 +361,22 @@ test('creation stores Recovery for the Standard and the Honors payload separatel
     assert.equal(assignmentRecoveryContent(stored).version, 1);
     assert.equal(planAssignmentRecoveryContent({ assignment: stored, gradeSample: lightRecoveryKeyCheck }).fullyReady, true);
   });
-  assert.equal(creationRecoveryContent(liveCopy(L3, { id: 'new-l3' })), null, 'nothing to store for a lesson no family can pair');
+  assert.equal(creationRecoveryContent(liveCopy(UNPAIRABLE, { id: 'new-unpairable' })), null, 'nothing to store for a lesson no family can pair');
 });
 
-test('Pre-Flight reports the L2 lesson fully Recovery-ready without a single warning, and L3 as notes with reasons', () => {
+test('Pre-Flight reports the L2 lesson fully Recovery-ready without a single warning, and a lesson no family can pair as notes with reasons', () => {
   const l2 = buildAssignmentV5PreflightModel(L2.assignmentV5).questionGeneration;
   assert.equal(l2.recoveryReadiness.fullyReady, true);
   assert.equal(l2.recovery.warmup.status, 'ready');
   assert.equal(l2.recovery.dol.status, 'ready');
   assert.equal(l2.warnings.filter((warning) => /Recovery/.test(warning)).length, 0);
   assert.ok(l2.notes.some((note) => /paired automatically with a certified Recovery family; the questions themselves are unchanged/.test(note)));
-  const l3 = buildAssignmentV5PreflightModel(L3.assignmentV5).questionGeneration;
+  const l3 = buildAssignmentV5PreflightModel(UNPAIRABLE.assignmentV5).questionGeneration;
   assert.equal(l3.recoveryReadiness.fullyReady, false);
   assert.equal(l3.warnings.filter((warning) => /Recovery/.test(warning)).length, 0, 'a legacy lesson is not turned into one that needs review');
   assert.ok(l3.notes.some((note) => /Recovery is not available/.test(note)));
+  // And L3 itself, now paired: fully ready without a warning.
+  const real = buildAssignmentV5PreflightModel(L3.assignmentV5).questionGeneration;
+  assert.equal(real.recoveryReadiness.fullyReady, true);
+  assert.equal(real.warnings.filter((warning) => /Recovery/.test(warning)).length, 0);
 });

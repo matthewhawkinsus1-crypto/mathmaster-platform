@@ -32,12 +32,18 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `linear.slopeFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 64,231 — every student unique | — |
 | `linear.twoStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 10,080 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6] |
 | `linear.twoStepEquation` | v2 · only when pinned (`"version": 2`) | one | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 9,671 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6]; keeps distribute, solutionForm, coefficientForm |
+| `lines.horizontalVertical` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 306 — every student unique | — |
+| `lines.perpendicularFromEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 14,468 — every student unique | — |
+| `lines.perpendicularFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,656 — every student unique | — |
+| `lines.rotationImages` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 288 — every student unique | — |
+| `lines.rotationSlopes` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 288 — every student unique | — |
 | `matrices.addition` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 956,718 — every student unique | — |
 | `matrices.arrayRecordTotals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 907,031 — every student unique | — |
 | `matrices.multiplication` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 140,390 — every student unique | — |
 | `matrices.singularSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 91,328 — every student unique | — |
 | `matrices.solveSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,390 — every student unique | — |
 | `numbers.multiplicativeInverse` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,695 — every student unique | — |
+| `numbers.reciprocals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,257,376 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.elimination` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 2,174,110 — every student unique | — |
@@ -362,6 +368,96 @@ Two-step linear equation (distribution and fractions).
 
 - **reduce-complexity:** `coefficientRange` [2, 6], `constantRange` [-8, 8], `solutionRange` [-6, 6] — about 1,020 distinct questions; never changes `distribute`, `solutionForm`, `coefficientForm`.
 
+### `lines.horizontalVertical` v1
+
+Horizontal and vertical lines through a point.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2G, A.2F
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 306 | — |
+
+### `lines.perpendicularFromEquation` v1
+
+The line perpendicular to a given line through a point.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2F, A.2B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 14,468 | — |
+
+### `lines.perpendicularFromPoints` v1
+
+The line perpendicular to the line through two points.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2F, A.2B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 2,656 | — |
+
+### `lines.rotationImages` v1
+
+Rotate a segment about the origin.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2F, A.3A
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 288 | — |
+
+### `lines.rotationSlopes` v1
+
+Slopes of a rotated segment.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2F, A.3A
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 288 | — |
+
 ### `matrices.addition` v1
 
 Add two matrices of data.
@@ -472,6 +568,24 @@ The multiplicative inverse of a number.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 1,695 | — |
+
+### `numbers.reciprocals` v1
+
+Reciprocals and a negative reciprocal.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2F
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 2,257,376 | — |
 
 ### `quadratics.identifyVertex` v1
 

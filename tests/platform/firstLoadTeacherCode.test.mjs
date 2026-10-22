@@ -43,6 +43,9 @@ for (const [file, why] of [
   ['src/platform/teacher/needsAttention.js', 'only Teacher Home shows the queue'],
   ['src/platform/teacher/teacherActionCenter.js', 'only the Action Center shows its items'],
   ['src/platform/gradeTransfer/gradeTransferProjection.js', 'only the Action Center projects grade-transfer units'],
+  ['src/platform/assessment/dolAttemptGrantClient.js', 'only a teacher grants DOL attempts or writes a class\'s DOL fields'],
+  ['src/platform/attendance/returnCheckIn.js', 'only the Action Center resolves return check-ins, and only a teacher resolves an attendance correction'],
+  ['src/platform/attendance/extensionReconciliation.js', 'only a teacher\'s attendance correction reconciles extensions'],
   ['src/platform/authoring/lessonPublishingIntent.js', 'only Assignment Review reads it'],
   ['src/platform/resources/teacherWorksheetEligibility.js', 'only a teacher\'s worksheet export reads it'],
   ['src/platform/classroom/automaticClassroomPublishing.js', 'only a teacher publishes to Classroom'],
@@ -72,7 +75,8 @@ test('the teacher kit loads once, is handed out at once after that, and exports 
   // (App.jsx is .jsx: no test imports it, and a call with no import is a
   // ReferenceError that passes every other check).
   const used = [...appCode.matchAll(/(?:teacherKit\.|requireTeacherKit\(\)\.)(\w+)\(/g)].map((match) => match[1]);
-  const destructured = appCode.match(/const \{ ([\w, ]+) \} = requireTeacherKit\(\);/)?.[1].split(', ') || [];
+  // (a destructure from requireTeacherKit(), or from teacherKit after a handler has checked it loaded)
+  const destructured = [...appCode.matchAll(/const \{ ([\w, ]+) \} = (?:requireTeacherKit\(\)|teacherKit);/g)].flatMap((match) => match[1].split(', '));
   const members = [...new Set([...used, ...destructured])].sort();
   assert.deepEqual(members, Object.keys(kit).sort(), 'App uses exactly the kit\'s members, through the kit');
   for (const name of members) {
@@ -115,6 +119,13 @@ test('the needs-attention queue and the Action Center wait for the kit, and rebu
   assert.match(scope, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) \{\s*return \{ units: \[\], authorizedClassIds: \[\] \};/);
   assert.match(scope, /return teacherKit\.projectGradeTransferUnits\(\{/);
   assert.match(scope, /\}, \[teacherKit, /, 'the memo depends on the kit');
+  // Its return check-ins, and the attendance correction helpers, are the kit's too.
+  const returns = region(appCode, 'const actionReturnCheckIns = useMemo(() => {', '\n  const teacherActionItems', 'return check-ins memo');
+  assert.match(returns, /if \(!teacherKit \|\| teacherWorkspaceMode !== 'teacher' \|\| teacherTab !== 'actionCenter'\) return \[\];/);
+  assert.match(returns, /teacherKit\.resolveReturnCheckIns\(\{/);
+  assert.match(returns, /\}, \[teacherKit, /, 'the memo depends on the kit');
+  assert.match(appCode, /requireTeacherKit\(\)\.reconcileAssignmentExtensionsForCorrection\(\{/);
+  assert.match(appCode, /requireTeacherKit\(\)\.buildStudentExtensionPatch\(\{/);
 });
 
 test('the authoring states and the exam-practice rule are the same values from their new homes', async () => {

@@ -133,7 +133,9 @@ test('the committed report is generated from the live registry and audit, never 
   // Algebra I, NOT APPROPRIATE in Algebra II. The six matrices Recovery
   // families are Algebra II content: NOT APPROPRIATE in Algebra I; in Algebra
   // II five are BLOCKED and matrices.solveSystem3x3 is CAPABLE (an extension
-  // can target matrices.singularSystem3x3; no recipe yet).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 23 \| 4 \| 5 \| 7 \| 7 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 23 \| 0 \| 1 \| 11 \| 11 \|/);
+  // can target matrices.singularSystem3x3; no recipe yet). The six
+  // perpendicular-line Recovery families are Algebra I content, asking exactly
+  // their originals' skills: BLOCKED in Algebra I, NOT APPROPRIATE in Algebra II.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 29 \| 4 \| 5 \| 13 \| 7 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 29 \| 0 \| 1 \| 11 \| 17 \|/);
 });
