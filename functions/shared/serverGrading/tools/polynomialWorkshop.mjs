@@ -51,7 +51,11 @@ import {
   rationalFeatureTypeAt,
   sameCoefficientList,
   sameNumberMultiset,
+  syntheticAsks,
+  syntheticDivision,
+  syntheticDivisionRoot,
 } from '../../toolMath/polynomialWorkshop/polynomialMath.mjs';
+import { parsePolynomial, samePolynomial } from '../../algebraicForm.mjs';
 
 // A typed box holds a string (a number reads the same way). Any other type is
 // not something the workshop's inputs can produce, so it counts as no entry.
@@ -209,6 +213,69 @@ const rationalFeatures = (question, work) => withKey(
   ),
 );
 
+/*
+ * SYNTHETIC DIVISION: the table, then what it says.
+ *
+ * Each row is one part, right only when every cell is (a row is one act of
+ * the algorithm: write the coefficients with their 0 placeholders, multiply
+ * down the diagonal, add down the columns). Then, as the question asks
+ * (syntheticAsks): P(r) is the remainder (the Remainder Theorem), the quotient
+ * written as a polynomial in x, and whether x − r is a factor (the Factor
+ * Theorem). Every cell is checked against the key, not against the student's
+ * own earlier cells: the table is a calculation with one right outcome.
+ */
+const quotientPolynomial = (coefficients) => new Map(coefficients
+  .map((value, index) => {
+    const degree = coefficients.length - 1 - index;
+    return [degree === 0 ? '' : degree === 1 ? 'x' : `x^${degree}`, value];
+  })
+  .filter(([, value]) => Math.abs(value) > 1e-12));
+
+const rowPart = (id, label, cells, expected) => {
+  const row = Array.isArray(cells) ? cells : [];
+  const typed = expected.map((_, index) => entry(row[index]));
+  const complete = typed.every((value) => value.trim() !== '');
+  return {
+    id,
+    label,
+    isComplete: complete,
+    isCorrect: complete && expected.every((value, index) => matchesNumericAnswer(typed[index], value, 0.01)),
+    response: typed.join(', '),
+  };
+};
+
+const synthetic = (question, work) => withKey(
+  () => {
+    const dividend = question.dividend || DEFAULTS.synthetic.dividend;
+    const root = question.dividend ? syntheticDivisionRoot(question) : (syntheticDivisionRoot(question) ?? DEFAULTS.synthetic.candidateRoot);
+    if (!Array.isArray(dividend) || root === null) throw new Error('A synthetic division needs a dividend and x − r.');
+    const table = syntheticDivision(dividend, root);
+    if (table.top.length < 2 || !table.top.every(Number.isFinite)) throw new Error('A synthetic division needs a polynomial of degree 1 or more.');
+    return table;
+  },
+  (key) => {
+    const asks = syntheticAsks(question);
+    const quotient = parsePolynomial(entry(work.quotient));
+    return gradedResult({
+      parts: [
+        numberPart('divisor-root', 'Number in the box', work.root, key.root),
+        rowPart('coefficients', 'Coefficients of the dividend', work.top, key.top),
+        rowPart('products', 'Middle row (products)', work.middle, key.middle),
+        rowPart('sums', 'Bottom row (sums)', work.bottom, key.bottom),
+        ...(asks.includes('value') ? [numberPart('value', 'P(r)', work.value, key.remainder)] : []),
+        ...(asks.includes('quotient') ? [{
+          id: 'quotient',
+          label: 'Quotient',
+          isComplete: filled(work.quotient),
+          isCorrect: Boolean(quotient) && samePolynomial(quotient, quotientPolynomial(key.quotient), 0.01),
+          response: entry(work.quotient),
+        }] : []),
+        ...(asks.includes('factor') ? [choicePart('factor', 'Is (x − r) a factor?', work.factorChoice, YES_NO, Math.abs(key.remainder) < 1e-9 ? 'yes' : 'no')] : []),
+      ],
+    });
+  },
+);
+
 export default bindToolGrader(declaration, 'polynomialWorkshop', {
   factorZero,
   multiplyArea,
@@ -216,4 +283,5 @@ export default bindToolGrader(declaration, 'polynomialWorkshop', {
   division,
   graphConnection,
   rationalFeatures,
+  synthetic,
 });

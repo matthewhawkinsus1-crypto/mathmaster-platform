@@ -37,6 +37,59 @@ export const polynomialLongDivide = (dividend = [], divisor = []) => {
   return { quotient: trimLeadingZeros(quotient), remainder: trimLeadingZeros(remainder.length ? remainder : [0]) };
 };
 
+/*
+ * SYNTHETIC DIVISION BY x − r.
+ *
+ *   r | a₃   a₂    a₁    a₀        top: the dividend's coefficients, a 0
+ *     |      r·b₁  r·b₂  r·b₃           holding every missing power
+ *     ----------------------       middle: r times the entry before it
+ *       b₁   b₂    b₃  | b₄        bottom: top + middle, column by column
+ *
+ * The bottom row is the quotient's coefficients (one degree lower) and,
+ * last, the remainder — which is P(r), the Remainder Theorem. The dividend is
+ * read as written (its leading zeros trimmed), so a cell for every power
+ * exists whether or not that power appears.
+ */
+export const syntheticDivision = (dividend = [], root = 0) => {
+  const top = trimLeadingZeros(dividend);
+  // (+ 0 turns a −0 — from x + 0, or r · 0 — into the 0 a student writes.)
+  const r = Number(root) + 0;
+  const middle = [];
+  const bottom = [top[0]];
+  for (let index = 1; index < top.length; index += 1) {
+    const product = r * bottom[index - 1] + 0;
+    middle.push(product);
+    bottom.push(top[index] + product);
+  }
+  return { root: r, top, middle, bottom, quotient: bottom.slice(0, -1), remainder: bottom[bottom.length - 1] };
+};
+
+/**
+ * The r in "divide by x − r": an authored candidateRoot, else a monic linear
+ * divisor [1, −r]. Null when neither names one.
+ */
+export const syntheticDivisionRoot = (question = {}) => {
+  if (question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '') {
+    const root = Number(question.candidateRoot);
+    return Number.isFinite(root) ? root : null;
+  }
+  const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
+  if (divisor && divisor.length === 2 && nearlyEqual(divisor[0], 1) && Number.isFinite(divisor[1])) return 0 - divisor[1];
+  return null;
+};
+
+/*
+ * What the synthetic view asks after the table: the remainder as P(r)
+ * (`value`), the quotient as a polynomial (`quotient`) and whether x − r is a
+ * factor (`factor`). An authored `ask` chooses among them; the default asks
+ * all three.
+ */
+export const SYNTHETIC_ASKS = Object.freeze(['value', 'quotient', 'factor']);
+export const syntheticAsks = (question = {}) => {
+  const asked = Array.isArray(question.ask) ? question.ask.filter((entry) => SYNTHETIC_ASKS.includes(entry)) : [];
+  return asked.length ? SYNTHETIC_ASKS.filter((entry) => asked.includes(entry)) : [...SYNTHETIC_ASKS];
+};
+
 export const quadraticRoots = (coefficients = []) => {
   const [a, b, c] = trimLeadingZeros(coefficients);
   if (coefficients.length !== 3 || nearlyEqual(a, 0)) return [];
@@ -133,6 +186,8 @@ export const POLYNOMIAL_WORKSHOP_DEFAULTS = Object.freeze({
     leadingCoefficient: 1,
   }),
   rationalFeatures: Object.freeze({ numeratorRoots: Object.freeze([2, -1]), denominatorRoots: Object.freeze([2, 4]) }),
+  // x³ + 4x² − 15x − 18 ÷ (x − 3): remainder 0, quotient x² + 7x + 6.
+  synthetic: Object.freeze({ dividend: Object.freeze([1, 4, -15, -18]), candidateRoot: 3 }),
 });
 
 /*

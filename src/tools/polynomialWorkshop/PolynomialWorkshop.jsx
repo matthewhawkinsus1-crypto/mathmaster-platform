@@ -13,8 +13,11 @@ import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
   coefficientsFromRoots,
   graphConnectionTargetEntry,
+  polynomialDegree,
   rationalFeatureMap,
   rationalFeatureTargetValue,
+  syntheticAsks,
+  syntheticDivisionRoot,
 } from './polynomialMath';
 import { polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
@@ -38,6 +41,7 @@ export default function PolynomialWorkshop({ questionData = {}, onAction }) {
   if (mode === 'division') return <DivisionMode questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'graphConnection') return <GraphConnection questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'rationalFeatures') return <RationalFeatures questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
+  if (mode === 'synthetic') return <SyntheticDivision questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   return <FactorZero questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
 }
 
@@ -169,4 +173,89 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
   };
   return <ToolShell title="Polynomial Workshop" subtitle="Track common factors to distinguish zeros, holes, and vertical asymptotes." badge="Algebra II · Rational Bridge">
     <TaskCard question={questionData} task={'Decide what happens to the rational function at the given x-value.'} steps={['Check whether the value is a root of the numerator, the denominator, or both.', 'A factor in both cancels.', 'Choose the feature that survives cancellation.']} /><ToolGrid min={320}><Panel title="Factored structure"><p><strong>Numerator roots:</strong> {numeratorRoots.join(', ')}</p><p><strong>Denominator roots:</strong> {denominatorRoots.join(', ')}</p><p style={{color:'var(--mm-text-muted)'}}>A common factor cancels algebraically but remains excluded from the original domain.</p></Panel><Panel title={`What happens at x = ${targetValue}?`}><select aria-label={`What happens at x = ${targetValue}?`} value={choice} onChange={e=>setChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="hole">Hole</option><option value="verticalAsymptote">Vertical asymptote</option><option value="zero">Zero / x-intercept</option><option value="none">None of these</option></select><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check feature</SubmitText></button><Feedback feedback={feedback} success="You tracked cancellation and domain restrictions correctly." retry="Compare numerator and denominator multiplicities before and after cancellation."/><HintPanel hints={['Every interesting point on a rational function comes from a factor in the numerator, the denominator, or both.', 'A factor in the denominator only gives a vertical asymptote. A factor in the numerator only gives an x-intercept.', 'A factor in both cancels and leaves a hole — but the value is still excluded from the domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
+}
+
+/*
+ * SYNTHETIC DIVISION, DONE BY THE STUDENT CELL BY CELL.
+ *
+ * The polynomial is shown as it is written — its missing powers missing — so
+ * writing the coefficient row (a 0 holding each missing power) is the
+ * student's first act, then the number in the box, then every product and
+ * every sum. Nothing is filled in for them: the table IS the work, and the
+ * shared grader marks each row (functions/shared/serverGrading/tools/
+ * polynomialWorkshop.mjs `synthetic`). Then the table is read: the remainder
+ * is P(r), the rest of the bottom row is the quotient one degree lower, and a
+ * remainder of 0 means x − r is a factor — as many of those as the question
+ * asks (`ask`).
+ */
+const cellStyle = { width: '100%', minWidth: 0, padding: '8px 4px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, boxSizing: 'border-box', textAlign: 'center', fontSize: 'calc(16 * var(--mm-px))' };
+const powerName = (degree) => (degree === 0 ? 'constant term' : degree === 1 ? 'x term' : `x to the ${degree} term`);
+
+function SyntheticDivision({ questionData, feedback, submit, onAction }) {
+  const dividend = questionData.dividend || DEFAULTS.synthetic.dividend;
+  const authoredRoot = syntheticDivisionRoot(questionData);
+  const root = questionData.dividend ? authoredRoot : (authoredRoot ?? DEFAULTS.synthetic.candidateRoot);
+  const asks = syntheticAsks(questionData);
+  // The table's shape only — one column per power, as written. Its entries
+  // are the student's to find; the shared grader holds the key.
+  const degree = polynomialDegree(dividend);
+  const size = degree + 1;
+  const columnIndexes = (count) => Array.from({ length: Math.max(0, count) }, (_, index) => index);
+  const blank = (count) => Array.from({ length: Math.max(0, count) }, () => '');
+  const [rootBox, setRootBox] = usePersistentToolState('root', '');
+  const [top, setTop] = usePersistentToolState('top', blank(size));
+  const [middle, setMiddle] = usePersistentToolState('middle', blank(size - 1));
+  const [bottom, setBottom] = usePersistentToolState('bottom', blank(size));
+  const [value, setValue] = usePersistentToolState('value', '');
+  const [quotient, setQuotient] = usePersistentToolState('quotient', '');
+  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', UNANSWERED);
+  useFieldUndoHistory({ questionData, fields: {
+    root: [rootBox, setRootBox], top: [top, setTop], middle: [middle, setMiddle], bottom: [bottom, setBottom],
+    value: [value, setValue], quotient: [quotient, setQuotient], factorChoice: [factorChoice, setFactorChoice],
+  } });
+  const work={root:rootBox,top,middle,bottom,value,quotient,factorChoice};
+  useReportToolWork(work);
+  const setCell = (setter, index) => (event) => setter((old) => {
+    const next = Array.isArray(old) ? [...old] : [];
+    next[index] = event.target.value;
+    return next;
+  });
+  const check=()=>{
+    const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'synthetic',parts:result.parts});
+  };
+  const divisorText = polynomialReadoutText([1, -(root ?? 0)]);
+  const columns = `minmax(52px, 64px) repeat(${size}, minmax(44px, 1fr))`;
+  const ruled = { borderTop: '2px solid var(--mm-text-strong)', paddingTop: 6 };
+  return <ToolShell title="Polynomial Workshop" subtitle="Divide by x − r with synthetic division, then read what the table tells you." badge="Algebra II · Synthetic Division">
+    <TaskCard question={questionData} task={`Divide P(x) by (${divisorText}) with synthetic division, then interpret the bottom row.`} steps={['Write the number that makes the divisor zero in the box.', 'Write every coefficient of P(x) from the highest power down, with a 0 for any missing power.', 'Bring down the first coefficient. Multiply it by the box number, write the product under the next coefficient, and add. Repeat to the end.', 'The last number of the bottom row is the remainder; the others are the coefficients of the quotient, one degree lower than P(x).']} />
+    <ToolGrid min={330}>
+      <Panel title="Synthetic division">
+        <p style={{ fontSize: 'calc(19 * var(--mm-px))', fontWeight: 800, margin: '0 0 6px' }}>P(x) = {polynomialText(dividend)}</p>
+        <p style={{ margin: '0 0 12px' }}>Divisor: <strong>{divisorText}</strong></p>
+        <div role="group" aria-label="Synthetic division table" style={{ display: 'grid', gridTemplateColumns: columns, gap: 6, alignItems: 'end' }}>
+          <div style={{ borderRight: '2px solid var(--mm-text-strong)', paddingRight: 6 }}>
+            <input value={rootBox} onChange={(event) => setRootBox(event.target.value)} style={cellStyle} aria-label="Number in the box" placeholder="r" />
+          </div>
+          {columnIndexes(size).map((index) => <input key={`top-${index}`} value={top[index] ?? ''} onChange={setCell(setTop, index)} style={cellStyle} aria-label={`Coefficient of the ${powerName(degree - index)}`} />)}
+          <div style={{ borderRight: '2px solid var(--mm-text-strong)', paddingRight: 6, alignSelf: 'stretch' }} />
+          <div />
+          {columnIndexes(size - 1).map((index) => <input key={`middle-${index}`} value={middle[index] ?? ''} onChange={setCell(setMiddle, index)} style={cellStyle} aria-label={`Middle row, product under the ${powerName(degree - index - 1)}`} />)}
+          <div />
+          {columnIndexes(size).map((index) => <div key={`bottom-${index}`} style={ruled}>
+            <input value={bottom[index] ?? ''} onChange={setCell(setBottom, index)} style={index === size - 1 ? { ...cellStyle, border: '2px solid var(--mm-text-strong)' } : cellStyle} aria-label={index === size - 1 ? 'Bottom row, remainder' : `Bottom row, number ${index + 1}`} />
+          </div>)}
+        </div>
+        <p style={{ color: 'var(--mm-text-muted)', margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>The boxed bottom-right number is the remainder.</p>
+      </Panel>
+      <Panel title="What the table tells you">
+        {asks.includes('value') && <label style={{ display: 'block', marginBottom: 10 }}>P({root ?? 'r'}) = <input value={value} onChange={(event) => setValue(event.target.value)} style={{ ...inputStyle, width: 140, marginLeft: 8 }} aria-label={`P of ${root ?? 'r'}`} /></label>}
+        {asks.includes('quotient') && <label style={{ display: 'block', marginBottom: 10 }}>Quotient (a polynomial in x)<input value={quotient} onChange={(event) => setQuotient(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="for example x^2 + 7x + 6" /></label>}
+        {asks.includes('factor') && <label style={{ display: 'block', marginBottom: 10 }}>Is ({divisorText}) a factor of P(x)?<select value={factorChoice} onChange={(event) => setFactorChoice(event.target.value)} style={{ ...inputStyle, marginTop: 6 }}><option value={UNANSWERED}>Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>}
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check synthetic division</SubmitText></button>
+        <Feedback feedback={feedback} success="Every row is right, and so is what it tells you." retry="Check the coefficient row first (a 0 for each missing power), then each multiply-and-add." />
+        <HintPanel hints={['Synthetic division only needs the coefficients — but every power from the highest down needs a place, so a missing power gets a 0.', 'The box holds the number that makes the divisor zero: for x − r it is r, and for x + a it is the opposite of a.', 'Multiply the number you just wrote in the bottom row by the box number, put the product in the next column, and add down. The last sum is P(r).']} onHintUsed={() => onAction?.('HINT_USED')} />
+      </Panel>
+    </ToolGrid>
+  </ToolShell>;
 }

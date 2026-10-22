@@ -289,7 +289,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'polynomialWorkshop') {
-    const modes = ['factorZero','multiplyArea','factorQuadratic','division','graphConnection','rationalFeatures'];
+    const modes = ['factorZero','multiplyArea','factorQuadratic','division','graphConnection','rationalFeatures','synthetic'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported polynomialWorkshop mode: ${question.mode}.`);
     if (question.coefficients && (!Array.isArray(question.coefficients) || question.coefficients.length < 2)) errors.push('Polynomial must have degree at least 1.');
     if (question.mode === 'multiplyArea' && (!Array.isArray(question.leftBinomial) || question.leftBinomial.length !== 2 || !Array.isArray(question.rightBinomial) || question.rightBinomial.length !== 2)) errors.push('multiplyArea mode requires two binomial coefficient arrays of length 2.');
@@ -298,6 +298,18 @@ export const validateToolQuestion = (question = {}) => {
       if (!Array.isArray(question.divisor) || question.divisor.length < 1 || question.divisor.every((value) => Number(value) === 0)) errors.push('division mode requires a nonzero divisor coefficient array.');
     }
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
+    if (question.mode === 'synthetic') {
+      // Synthetic division divides by x − r: the dividend's full coefficient
+      // list (a 0 for each missing power) and r, as candidateRoot or a monic
+      // linear divisor [1, −r].
+      const dividend = Array.isArray(question.dividend) ? question.dividend.map(Number) : null;
+      if (!dividend || dividend.length < 2 || !dividend.every(Number.isFinite) || dividend[0] === 0) errors.push('synthetic mode requires a dividend coefficient array of degree at least 1 with a nonzero leading coefficient.');
+      const rootGiven = question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '';
+      const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
+      if (rootGiven && !Number.isFinite(Number(question.candidateRoot))) errors.push('synthetic mode candidateRoot must be a number.');
+      if (!rootGiven && !(divisor && divisor.length === 2 && divisor[0] === 1 && Number.isFinite(divisor[1]))) errors.push('synthetic mode divides by x − r: give candidateRoot r or a divisor [1, -r].');
+      if (question.ask !== undefined && (!Array.isArray(question.ask) || !question.ask.length || question.ask.some((entry) => !['value', 'quotient', 'factor'].includes(entry)))) errors.push('synthetic mode ask must list one or more of "value", "quotient", "factor".');
+    }
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
   }
   if (toolId === 'signSolutionAnalyzer') {

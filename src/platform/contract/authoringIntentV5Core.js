@@ -114,6 +114,7 @@ const ACTION_ALIASES = Object.freeze({
   inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
   parabolageometry: 'analyzeParabolaGeometry', focusdirectrix: 'analyzeParabolaGeometry',
   factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
+  syntheticdivision: 'syntheticDivision', syntheticsubstitution: 'syntheticDivision', remaindertheorem: 'syntheticDivision',
   solveinequality: 'solveInequality', signchart: 'solveInequality',
   complexoperations: 'complexOperations', complexplane: 'analyzeComplex',
   exponentiallog: 'exponentialLogBridge', solveexponential: 'solveExponential', solvelogarithmic: 'solveLogarithmic',
@@ -1116,7 +1117,7 @@ const resolveIntentType = (q, actions) => {
   if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
   if (q.inverse || q.composition || actions.some((a) => ['findInverse','composeFunctions'].includes(a))) return 'inverseCompositionLab';
   if (q.parabola || actions.includes('analyzeParabolaGeometry')) return 'parabolaGeometryLab';
-  if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','multiplyPolynomials'].includes(a))) return 'polynomialWorkshop';
+  if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','multiplyPolynomials','syntheticDivision'].includes(a))) return 'polynomialWorkshop';
   // A sign chart needs its factors. Without them the analyzer draws its demo
   // factors (x + 2)(x − 3) — a different problem from the prompt — so a
   // linear or absolute-value inequality goes to the Step Algebra relation
@@ -1979,7 +1980,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
-      const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
+      const mode = q.mode || (actions.includes('syntheticDivision') ? 'synthetic' : actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
       // The factorZero, graphConnection and rationalFeatures views also read
       // these. Dropping them graded the question with the workshop's defaults
@@ -1987,7 +1988,7 @@ const compileOne = (q, index, repairs) => {
       {
         const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
         if (numeratorRoots) out.numeratorRoots = numeratorRoots;
-        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot', 'ask'].forEach((key) => {
           const value = q[key] ?? p[key];
           if (value != null) out[key] = value;
         });
@@ -2295,7 +2296,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
-  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
+  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','syntheticDivision','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
   'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',

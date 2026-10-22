@@ -606,6 +606,10 @@ const coefficientList = (value) => {
 };
 const polynomialMode = (question) => {
   const mode = question?.mode || 'factorZero';
+  // The synthetic-division view is routed by the workshop but not modelled
+  // here yet: its own authored hints and back-up step serve it, and this
+  // family claims nothing it would have to read as another view.
+  if (mode === 'synthetic') return 'synthetic';
   return POLYNOMIAL_VIEWS.includes(mode) ? mode : 'factorZero';
 };
 
@@ -637,6 +641,7 @@ const endLabel = (degree, lead) => END_LABELS[`${degree % 2 === 0 ? 'even' : 'od
 const polynomialModel = (question) => {
   if (typeOf(question) !== 'polynomialWorkshop') return null;
   const mode = polynomialMode(question);
+  if (mode === 'synthetic') return null;
   const D = POLYNOMIAL_WORKSHOP_DEFAULTS[mode];
   if (mode === 'factorZero') {
     const coefficients = coefficientList(question.coefficients || D.coefficients);

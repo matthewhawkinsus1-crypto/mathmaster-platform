@@ -571,6 +571,15 @@ const SURFACE_WORK = Object.freeze({
     if (mode === 'factorQuadratic') return respond('Factor', 2);
     if (mode === 'division') return respond('Quotient and remainder', 2);
     if (mode === 'graphConnection') return select('Graph feature', 2);
+    if (mode === 'synthetic') {
+      const asks = Array.isArray(question?.ask) && question.ask.length ? question.ask : ['value', 'quotient', 'factor'];
+      return [
+        ...construct('Synthetic division table'),
+        ...(asks.includes('value') ? respond('Remainder as P(r)') : []),
+        ...(asks.includes('quotient') ? respond('Quotient') : []),
+        ...(asks.includes('factor') ? select('Is it a factor?') : []),
+      ];
+    }
     return select('Feature');
   },
   signSolutionAnalyzer: (question, mode) => {
