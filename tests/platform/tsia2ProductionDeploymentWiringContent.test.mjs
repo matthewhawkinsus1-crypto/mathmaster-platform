@@ -20,10 +20,12 @@ test('Firebase Functions predeploy regenerates the coordinated SAT ACT TSIA2 V2.
     'Firebase predeploy must not regenerate TSIA2 independently of SAT and ACT');
 });
 
+// The check runs in full-platform-suite.yml, on every pull request and push to
+// main. It lived in ccmr-v2-1-tsia2-content-audit.yml, which ran only on a
+// branch idle since August.
 test('TSIA2 content CI keeps its framework-specific production seed check read-only', () => {
-  const workflow = readFileSync(path.join(repoRoot, '.github', 'workflows', 'ccmr-v2-1-tsia2-content-audit.yml'), 'utf8');
-  assert.match(workflow, /Check TSIA2 production seed package/);
-  assert.ok(workflow.includes(tsia2Check), `workflow must run: ${tsia2Check}`);
+  const workflow = readFileSync(path.join(repoRoot, '.github', 'workflows', 'full-platform-suite.yml'), 'utf8');
+  assert.ok(workflow.includes(`run: ${tsia2Check}`), `workflow must run: ${tsia2Check}`);
   assert.ok(!workflow.includes('node scripts/build-tsia2-production-seed.mjs --write'),
     'TSIA2 content audit must not rewrite production seed files');
 });

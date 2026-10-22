@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
 const RELEASE = 'ccmr-fidelity-v2.1-authentic-language';
 const FRAMEWORKS = ['act', 'digitalSAT', 'tsia2'];
@@ -112,12 +113,18 @@ test('Firebase predeploy uses the unified CCMR writer and never the TSIA2-only w
     'functions predeploy must not regenerate TSIA2 independently');
 });
 
-test('release CI checks all three authored frameworks and never rewrites production seeds', () => {
-  const workflow = fs.readFileSync('.github/workflows/ccmr-v2-1-release-integration-audit.yml', 'utf8');
+// The release checks run in full-platform-suite.yml, which ci.yml runs on every
+// pull request and every push to main. They lived in
+// ccmr-v2-1-release-integration-audit.yml, which ran only on a branch idle
+// since August, so for two months nothing ran them.
+const RELEASE_CI = '.github/workflows/full-platform-suite.yml';
+const TSIA2_CHECK = 'node scripts/build-tsia2-v2-1.mjs --release --check';
+
+test('release CI checks the authored frameworks and never rewrites production seeds', () => {
+  const workflow = fs.readFileSync(RELEASE_CI, 'utf8');
   const requiredChecks = [
     'node scripts/build-digital-sat-v2-1.mjs --release --check',
     'node scripts/build-act-v2-1.mjs --release --check',
-    'node scripts/build-tsia2-v2-1.mjs --release --check',
     UNIFIED_CHECK,
   ];
 
@@ -127,4 +134,21 @@ test('release CI checks all three authored frameworks and never rewrites product
   assert.ok(!workflow.includes(UNIFIED_WRITE), 'release CI must never rewrite coordinated production seeds');
   assert.ok(!workflow.includes('node scripts/build-tsia2-production-seed.mjs --write'),
     'release CI must never run the TSIA2-only writer');
+});
+
+// Since Oct 18 the TSIA2 V2.1 release check fails on main for one reason: a
+// TSIA2 item and an ACT item share a prompt template, which it forbids across
+// frameworks. Rewording a live question is a content decision, not CI's. Until
+// then this holds the check to that one known finding (any other failure is
+// red here), and the day it passes, this is red until CI runs it.
+const KNOWN_TSIA2_FAILURES = [
+  'Cross-framework exact prompt clone: TSIA2 mm_tsia2_qr_leei_5_v21 matches ACT mm_act_ies_simpleequationsinequalities_1_two-step-equation_v21',
+];
+
+test('the TSIA2 V2.1 release check runs in CI, or fails only for its one known finding', () => {
+  if (fs.readFileSync(RELEASE_CI, 'utf8').includes(TSIA2_CHECK)) return;
+  const run = spawnSync(process.execPath, ['scripts/build-tsia2-v2-1.mjs', '--release', '--check'], { encoding: 'utf8' });
+  assert.notEqual(run.status, 0, `${TSIA2_CHECK} passes now: add it to ${RELEASE_CI} beside the Digital SAT and ACT checks`);
+  const report = JSON.parse(run.stderr);
+  assert.deepEqual(report.failures, KNOWN_TSIA2_FAILURES, 'a new TSIA2 release finding');
 });

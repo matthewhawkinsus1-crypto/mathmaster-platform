@@ -16,69 +16,7 @@ name: Work View Browser Matrix
 # ahead of what the browser does.
 
 on:
-  pull_request:
-    paths:
-      - "src/components/common/EnlargeableFigure.jsx"
-      - "src/components/common/WorkViewShell.css"
-      - "src/components/student/MobileViewportContainer.jsx"
-      - "src/components/student/MathToolMobileLayout.css"
-      - "src/platform/workView/**"
-      - "src/platform/graph/graphScaleService.js"
-      - "src/QuestionEngine.jsx"
-      - "src/questionDraftStorage.js"
-      - "src/tools/shared/usePersistentToolState.js"
-      - "src/tools/toolStatePersistence.js"
-      - "src/platform/workflow/WorkflowRunner.jsx"
-      - "src/tools/**"
-      - "scripts/run-draft-persistence-certification.mjs"
-      - "scripts/lib/gateServer.mjs"
-      - "tests/browser/emulator/**"
-      - "tests/browser/draftPersistence*"
-      - "tests/platform/toolDraftPersistence*.test.mjs"
-      - "tests/platform/draftPersistenceFindings.test.mjs"
-      - "tests/platform/fixtures/draftPersistenceFindings.json"
-      - "src/platform/performance/**"
-      - "scripts/certify-performance*.mjs"
-      - "tests/platform/durableActionOutbox.test.mjs"
-      - "tests/browser/testCycleDevice.mjs"
-      - "tests/browser/durableOutbox*"
-      - "src/InteractiveGraphWorkspace.jsx"
-      - "src/tools/shared/CoordinatePlane.jsx"
-      - "src/tools/transformations/**"
-      - "src/tools/graphing2/**"
-      - "src/tools/functionInvestigation2/**"
-      - "src/tools/constraintFunctionBuilder/**"
-      - "src/tools/sequenceExplorer/**"
-      - "src/tools/systemsWorkspace/**"
-      - "src/algebraAstEngine.js"
-      - "tests/browser/algebraicSubstitutionHandoff*"
-      - "tests/platform/fixtures/classworkQ2RuntimeCapture.json"
-      - "src/SystemGrader.jsx"
-      - "src/StepByStepAlgebra.jsx"
-      - "src/StepByStepAlgebraCore.jsx"
-      - "src/MultiRelationAlgebra.jsx"
-      - "src/MultiRelationAlgebraCore.jsx"
-      - "src/tools/stepAlgebra2/**"
-      - "src/tools/inverseComposition/**"
-      - "src/tools/functionOperations/**"
-      - "src/tools/parabolaGeometry/**"
-      - "src/tools/polynomialWorkshop/**"
-      - "src/tools/signSolutionAnalyzer/**"
-      - "src/tools/complexPlane/**"
-      - "src/tools/exponentialLog/**"
-      - "src/tools/representationMatch/**"
-      - "src/tools/intervalNumberLine/**"
-      - "src/tools/relationMapping/**"
-      - "src/tools/openSortBoard/**"
-      - "src/tools/workViewInventory.js"
-      - "src/tools/workViewCertificationManifest.js"
-      - "tests/browser/workViewCertification*"
-      - "tests/platform/workViewStage4Certification.test.mjs"
-      - "src/ScratchpadOverlay.jsx"
-      - "tests/browser/workViewMatrix*"
-      - "tests/platform/fixtures/workViewMatrixFindings.json"
-      - "tests/platform/workViewMatrixFindings.test.mjs"
-      - ".github/workflows/work-view-browser-matrix.yml"
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -90,19 +28,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install browser driver
-        run: |
-          npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-          npx playwright install --with-deps chromium
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
 
       - name: Certify Test Cycle Chromebook and phone
         env:

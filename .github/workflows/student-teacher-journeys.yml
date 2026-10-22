@@ -114,32 +114,14 @@ name: Student and Teacher Journeys
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
 #
-# Pull requests that touch the app run the journeys; the long endurance run is
-# nightly and on demand. Read-only: this workflow writes nothing back.
+# Pull requests that touch the app run the journeys (ci.yml calls this when a
+# file in its area changes: scripts/lib/ciAreas.mjs). The throttled runs and
+# the long endurance run are nightly and on demand, each in a job of its own
+# (teacher-nightly-*), so they have the time to finish. Read-only: this
+# workflow writes nothing back.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "functions/shared/**"
-      - "functions/lib/ccmrAssignmentBank.js"
-      - "tests/browser/teacherWorkflow/**"
-      - "tests/browser/accessibilityAppHarness*"
-      - "tests/browser/accessibilityFakeFirestore.js"
-      - "tests/browser/studentUxPlatform*"
-      - "tests/browser/linearMultipleRepresentations*"
-      - "tests/browser/lmrProcess*"
-      - "tests/browser/warmupReopenDraft*"
-      - "tests/browser/familyPinContainment*"
-      - "tests/browser/feedbackTeaches*"
-      - "tests/browser/readAloudTranslate*"
-      - "tests/browser/reviewMyWork*"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/student-teacher-journeys.yml"
-      - "firebase.json"
-      - "vercel.json"
+  workflow_call:
   schedule:
     - cron: "17 7 * * *"
   workflow_dispatch:
@@ -147,21 +129,16 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: student-teacher-journeys-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
+  # The teacher journeys, in three jobs of about ten minutes each: one runner
+  # took 29 minutes for them all (PR #513), against a 40-minute limit.
   teacher:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -176,26 +153,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
-      - name: Case review journeys
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/teacherWorkflow/caseReviewJourneys.mjs
       - name: Walkthrough offers only the selected class's live work
         if: always()
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/walkthroughJourneys.mjs
-      - name: Unfinished work across Chromebooks
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
-      - name: Warm-Up close and reopen under unfinished work
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
       - name: A prerequisite met early opens Classwork and Practice (and nothing timed)
         if: always()
         env:
@@ -206,28 +168,112 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/dolExtraTimeJourneys.mjs
-      - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
-        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
-      - name: Held Recovery — a question MathMaster could not grade
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-        run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
       - name: Recovery answers saved on one Chromebook, submitted from another
         if: always()
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+
+  # Case review and held Recovery, on a runner of their own (see teacher).
+  teacher-case-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Case review journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+      - name: Held Recovery — a question MathMaster could not grade
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+
+  # Unfinished work across Chromebooks and the Warm-Up reopen (see teacher).
+  teacher-drafts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Unfinished work across Chromebooks
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
+      - name: Warm-Up close and reopen under unfinished work
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+
+  # The throttled and endurance runs, nightly and on demand, each on a runner
+  # of its own. In the teacher job they ran past its 40-minute limit every
+  # night from at least Oct 13 to Oct 22: the run was cancelled before
+  # Endurance began, and a cancelled nightly was never reported.
+  teacher-nightly-warmup:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
+
+  teacher-nightly-held-recovery:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
       - name: Held Recovery, throttled Chromebook (nightly and on demand)
-        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
           PLAYWRIGHT_MODULE: playwright
         run: VIEWPORTS=1366x768 node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs --slow
+
+  teacher-nightly-endurance:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
       - name: Endurance (nightly and on demand)
-        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/enduranceJourneys.mjs
@@ -239,11 +285,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -262,11 +305,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -284,11 +324,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -306,11 +343,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -331,11 +365,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -362,11 +393,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
@@ -387,16 +415,15 @@ jobs:
           VIEWPORTS: "1366x768,390x844"
         run: node tests/browser/teacherWorkflow/studentScreenChange.mjs
 
+  # The student journeys on the plain dev server, in two jobs (one runner took
+  # 17 minutes for them all).
   student:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the student harness server
         run: |
           npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/student-harness.log 2>&1 &
@@ -407,18 +434,6 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentUxPlatform.mjs
-      - name: Representations board journeys
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-          AUDIT_ORIGIN: "http://127.0.0.1:5199"
-        run: node tests/browser/linearMultipleRepresentations.mjs
-      - name: Representations board Process Mode journeys
-        if: always()
-        env:
-          PLAYWRIGHT_MODULE: playwright
-          AUDIT_ORIGIN: "http://127.0.0.1:5199"
-        run: node tests/browser/lmrProcessMode.mjs
       - name: Warm-Up reopen on QuestionEngine (final and family-backed lmr-wu-1)
         if: always()
         env:
@@ -463,6 +478,31 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/familyPinContainment.mjs --slow
 
+  # The representations board, and its Process Mode (see student).
+  student-representations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the student harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/student-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5199/tests/browser/studentUxPlatform.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/student-harness.log; exit 1
+      - name: Representations board journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/linearMultipleRepresentations.mjs
+      - name: Representations board Process Mode journeys
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/lmrProcessMode.mjs
+
   # Student pass 3's journeys in the real App. Their own job: the teacher job
   # is near its limit. About 6 minutes locally.
   pass3-student-journeys:
@@ -470,11 +510,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start the teacher harness
         run: |
           npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &

@@ -1,62 +1,98 @@
 name: Full Platform Test Suite
 
-concurrency:
-  group: full-platform-${{ github.ref }}
-  cancel-in-progress: true
+# Every platform test, the Firestore rules, the emulator certifications, the
+# release audits, the builds and lint. ci.yml calls this on every pull request,
+# whatever it changes, and on every push to main.
+#
+# One runner used to do all of it in a row: 31 minutes on PR #513, against a
+# 40-minute limit. The jobs below run side by side, each with the commands it
+# had, and the longest takes about six minutes. The emulator suites that need
+# an emulator to themselves still have one: each is its own
+# `firebase emulators:exec` run, in a job of its own or one after another.
 
 on:
-  push:
-    branches:
-      # main is listed so the suite keeps guarding the branch itself after this
-      # cleanup merges. Without it the only push coverage would be a branch that
-      # stops existing, and main could go red again unnoticed between PRs.
-      - main
-      - fix/main-full-platform-suite-green
-      - audit/teks-fidelity-v2-algebra2-current
-  pull_request:
-    branches:
-      - main
+  workflow_call:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  full-platform:
+  platform-tests:
+    name: Platform tests (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup
       # The Live Challenge integration suite loads functions/index.js and the
       # Admin SDK, and firebase-admin lives only in functions/. Without this the
       # suite fails on a missing module rather than on anything it tests.
       - run: npm --prefix functions ci
-      - name: Run every platform test
+      - name: Run every platform test, a quarter per runner
         # Wrapped so a failure explains itself in the CI log. The wrapper runs the
         # same tests and exits non-zero the same way; it only adds guidance
         # after the TAP output. See docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md.
-        run: npm run test:platform
+        # Node splits the files by name, so the four shards together run every
+        # file exactly once.
+        run: npm run test:platform -- --test-shard=${{ matrix.shard }}/4
 
-      - name: Run standalone tool tests
-        run: node --test tests/tools/*.test.mjs
+  # Whole classes (5-64 students) launching Live Challenge against the real
+  # callables and real listeners, then 4 matches in a row on the same open
+  # screens. Its budgets and waits are measured for one class at a time, so
+  # it has its own emulator run: sharing one with the parallel integration
+  # suites made it fail on their load, not on the game.
+  live-challenge-launch:
+    name: Live Challenge launch at class scale
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm --prefix functions ci
+      - name: Certify Live Challenge launch at class scale against Firestore
+        timeout-minutes: 12
+        run: npm run test:live-challenge-launch:emulator
+
+  # Runs the real finishLiveChallenge against the emulator and reads back
+  # the report, the Warm-Up credit and the mastery evidence. Source
+  # assertions cannot tell a correct write from a wrong field path.
+  live-challenge-finish:
+    name: Live Challenge finish integration suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm --prefix functions ci
+      - name: Run Live Challenge finish integration suite
+        timeout-minutes: 10
+        run: npm run test:challenge-finish
+
+  # The rest of the emulator certifications, one after another, each in its
+  # own emulator run as before. `if: always()` so one failure does not hide
+  # the next suite's result.
+  firestore-certifications:
+    name: Firestore rules and emulator certifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm --prefix functions ci
 
       - name: Run Firestore security-rule suites
         run: npm run test:rules
-
-      # The Path release gate. `--verify` recompiles every built-in course family
-      # from the seeds, certifies its Firestore storage shape, proves it issuable
-      # through the production issuer, and fails if the committed manifest and the
-      # content disagree. A malformed record stops here rather than in a Firestore
-      # batch that names no document.
-      - name: Certify the course Path release artifact
-        run: npm run release:path:verify
 
       # Stages the real certified release into Firestore, kills it part way
       # through, resumes it, and reads back what landed. Source assertions cannot
       # tell a resumable release from one that silently skipped a chunk.
       - name: Certify an interrupted Path release against Firestore
+        if: always()
         timeout-minutes: 10
         run: npm run test:path-release:emulator
 
@@ -64,8 +100,9 @@ jobs:
       # nothing, execute fills only missing names inside re-checking
       # transactions, a re-run writes nothing, rollback removes exactly what a
       # run filled, and academic data is untouched. Its own emulator run, so its
-      # load never races the parallel integration suites below.
+      # load never races the other integration suites.
       - name: Certify the student identity backfill against Firestore
+        if: always()
         timeout-minutes: 10
         run: npm run test:identity-repair:emulator
 
@@ -74,6 +111,7 @@ jobs:
       # run: the report reads every submission in its window, so another
       # suite's Path answers in a shared emulator would change what it finds.
       - name: Certify the Path choice-id report against Firestore
+        if: always()
         timeout-minutes: 10
         run: npm run test:path-choice-report:emulator
 
@@ -81,23 +119,16 @@ jobs:
       # Firestore, over attempts the real ingestStudentSubmissions recorded.
       # Its own emulator run, for the same reason as the Path report above.
       - name: Certify the classroom re-grade report against Firestore
+        if: always()
         timeout-minutes: 10
         run: npm run test:classroom-regrade-report:emulator
-
-      # Whole classes (5-64 students) launching Live Challenge against the real
-      # callables and real listeners, then 4 matches in a row on the same open
-      # screens. Its budgets and waits are measured for one class at a time, so
-      # it has its own emulator run: sharing one with the parallel integration
-      # suites below made it fail on their load, not on the game.
-      - name: Certify Live Challenge launch at class scale against Firestore
-        timeout-minutes: 12
-        run: npm run test:live-challenge-launch:emulator
 
       # Graph the Line at class scale: a 30-student Sprint, a 35-student
       # Classic with its reveal, a 30-student Rush — whole classes playing
       # through the real callables and listeners, rounds closed by the
       # console's own rule. Its own emulator run, for the reason above.
       - name: Certify Graph the Line at class scale against Firestore
+        if: always()
         timeout-minutes: 10
         run: npm run test:line-graph-launch:emulator
 
@@ -107,37 +138,104 @@ jobs:
       # real time around a class period it schedules for today, and it writes
       # the school's bell schedule, so it has its own emulator run.
       - name: Certify the Warm-Up reopen lifecycle against the real functions
+        if: always()
         timeout-minutes: 10
         run: npm run test:warmup-reopen:emulator
 
       # The scheduled finalizer for abandoned timed tests, run by hand against
       # the real secure-exam callables. It finishes every expired session in
-      # its project, so it has its own emulator run: beside the parallel
-      # integration suites below it would finish their sessions too.
+      # its project, so it has its own emulator run: beside other integration
+      # suites it would finish their sessions too.
       - name: Certify the abandoned-test finalizer against the real functions
+        if: always()
         timeout-minutes: 10
         run: npm run test:secure-exam-auto-finalize
 
-      # Runs the real finishLiveChallenge against the emulator and reads back
-      # the report, the Warm-Up credit and the mastery evidence. Source
-      # assertions cannot tell a correct write from a wrong field path.
-      - name: Run Live Challenge finish integration suite
-        timeout-minutes: 10
-        run: npm run test:challenge-finish
+  # The standalone tool tests, the release and content audits, the builds and
+  # lint.
+  audits-and-builds:
+    name: Tool tests, audits, builds and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm --prefix functions ci
+
+      - name: Run standalone tool tests
+        run: node --test tests/tools/*.test.mjs
+
+      # The Path release gate. `--verify` recompiles every built-in course family
+      # from the seeds, certifies its Firestore storage shape, proves it issuable
+      # through the production issuer, and fails if the committed manifest and the
+      # content disagree. A malformed record stops here rather than in a Firestore
+      # batch that names no document.
+      - name: Certify the course Path release artifact
+        if: always()
+        run: npm run release:path:verify
 
       - name: Verify certified Algebra shipping-seed parity
+        if: always()
         run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
 
       - name: Audit certified Algebra release authority
+        if: always()
         run: node scripts/audit-algebra1-path-release-authority.mjs --strict
 
       - name: Re-run strict Algebra adaptive metadata audit
+        if: always()
         run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
 
       - name: Re-run strict Algebra Challenge quality audit
+        if: always()
         run: node scripts/audit-challenge-quality-v2.mjs --strict
 
+      # Formerly algebra-challenge-dok-difficulty-audit.yml, which ran on its
+      # own on a few draft paths.
+      - name: Audit Algebra Challenge and independent DOK/difficulty coverage
+        if: always()
+        run: node scripts/audit-algebra-challenge-dok-difficulty.mjs
+
+      # The CCMR V2.1 production seeds are what the functions predeploy
+      # regenerates (firebase.json), so a seed that drifted from its source
+      # would dirty the tree at deploy time and stop the release. These checks
+      # lived in ccmr-v2-1-*.yml, which ran only on a branch idle since August.
+      # The TSIA2 V2.1 release check is not here yet: since Oct 18 it fails on
+      # main (a TSIA2 prompt template the same as an ACT one), which is a
+      # content decision, not CI's.
+      - name: Check the Digital SAT V2.1 release package
+        if: always()
+        run: node scripts/build-digital-sat-v2-1.mjs --release --check
+      - name: Check the ACT V2.1 release package
+        if: always()
+        run: node scripts/build-act-v2-1.mjs --release --check
+      - name: Check the coordinated CCMR V2.1 production seeds
+        if: always()
+        run: node scripts/build-ccmr-v2-1-production-release.mjs --check
+      - name: Check the TSIA2 production seed
+        if: always()
+        run: node scripts/build-tsia2-production-seed.mjs --check
+
+      # Formerly assignment-v5-foundation.yml (its tests are in
+      # tests/platform/ and run above).
+      - name: Permanent V5 validator
+        if: always()
+        run: npm run validate:authoring-v5
+      - name: Legacy authoring boundary audit
+        if: always()
+        run: npm run audit:assignment-authoring-boundary
+      - name: Retired assignment source audit
+        if: always()
+        run: npm run audit:legacy-assignment-source
+
+      # Formerly theme-certification.yml's theme-contract job (its tests are in
+      # tests/platform/ and run above).
+      - name: Reject new hard-coded surface and text colors
+        if: always()
+        run: npm run audit:theme-colors
+
       - name: Audit correct-answer acceptance
+        if: always()
         run: npm run audit:answer-acceptance
 
       - name: Build standard web runtime

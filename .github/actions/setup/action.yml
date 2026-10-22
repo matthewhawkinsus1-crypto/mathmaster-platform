@@ -1,0 +1,60 @@
+name: Set up MathMaster
+description: >-
+  Node, the locked dependencies and, for the browser drivers, Playwright's
+  Chromium with its system packages from a cache instead of the Ubuntu mirror.
+  Every job checks out first, then uses this.
+
+inputs:
+  browser:
+    description: Install Playwright and Chromium for the browser drivers.
+    default: "false"
+  node-version:
+    # Functions deploy on this major (functions/package.json engines), so the
+    # tests run on it too (tests/platform/functionsRuntime.test.mjs).
+    description: The Node major.
+    default: "22"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - shell: bash
+      run: npm ci
+
+    # Playwright is not in package.json. CI adds it on top of the lockfile and
+    # then proves nothing else moved (tests/platform/ciLockfileInstall.test.mjs).
+    - if: inputs.browser == 'true'
+      shell: bash
+      run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+
+    # The cache of Playwright's system packages is per runner image: a new image
+    # may already have some of them, or need others.
+    - if: inputs.browser == 'true'
+      id: image
+      shell: bash
+      run: echo "key=playwright-debs-${ImageOS:-unknown}-${ImageVersion:-unknown}-${RUNNER_ARCH}-$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.browser == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/playwright-debs
+        key: ${{ steps.image.outputs.key }}
+
+    - if: inputs.browser == 'true'
+      id: chromium
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
+
+    # Saved as soon as it is downloaded, not when the job ends, so a job whose
+    # tests fail still spares the next one the mirror. Best effort: another job
+    # on the same image may have saved it first.
+    - if: inputs.browser == 'true' && steps.chromium.outputs.fetched == 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: ~/.cache/playwright-debs
+        key: ${{ steps.image.outputs.key }}

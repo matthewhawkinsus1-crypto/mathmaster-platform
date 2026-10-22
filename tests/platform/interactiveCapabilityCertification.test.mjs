@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { runsOnPullRequest, triggersOf } from './helpers/ciWorkflows.mjs';
 import {
   CERTIFICATION_SUBSYSTEMS,
   CERTIFICATION_SUITES,
@@ -267,12 +268,14 @@ test('every report section is backed by a capability or a suite, and every suite
 
 test('the browser certification runs for every runtime code change, and on main', () => {
   const workflow = read('.github/workflows/interactive-capability-certification.yml');
-  const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('jobs:'));
-  assert.match(triggers, /pull_request:/);
   // A capability disappears through routing, compiler or repair changes as
-  // easily as through the tool itself, so the filter must cover all of src/.
-  const prTriggers = triggers.slice(triggers.indexOf('pull_request:'), triggers.indexOf('push:'));
-  if (/paths:/.test(prTriggers)) assert.match(prTriggers, /"src\/\*\*"/, 'every change under src/ runs the certification');
-  assert.match(triggers, /push:\s*\n\s*branches:\s*\n\s*- main/);
+  // easily as through the tool itself, so every change under src/ runs it.
+  for (const changed of ['src/QuestionEngine.jsx', 'src/platform/algebra/algebraWorkspaceRoute.js', 'src/platform/authoring/compiler/deep/anything.js']) {
+    assert.ok(runsOnPullRequest('interactive-capability-certification.yml', changed), `a pull request changing ${changed} runs it`);
+  }
+  // ci.yml calls it on every push to main (every workflow runs there), and it
+  // runs nightly on its own.
+  assert.match(triggersOf(read('.github/workflows/ci.yml')), /^ {2}push:\n {4}branches: \[main\]$/m);
+  assert.match(triggersOf(workflow), /^ {2}schedule:/m);
   assert.match(workflow, /node scripts\/certify-interactive-capabilities\.mjs/);
 });

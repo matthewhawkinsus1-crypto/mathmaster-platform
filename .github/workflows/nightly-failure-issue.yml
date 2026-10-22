@@ -8,6 +8,10 @@ name: Nightly Failure Issue
 # one already open for that workflow. When a later scheduled run passes, it
 # says so on that issue and closes it.
 #
+# A cancelled run is reported too. A job that reaches its timeout-minutes ends
+# `cancelled`, not `failed`, and that is how the journeys' teacher job ended
+# every night from at least Oct 13 to Oct 22 without anyone hearing of it.
+#
 # Every workflow with a `schedule:` trigger is listed here, by its `name:`
 # (tests/platform/nightlyFailureIssueWorkflow.test.mjs keeps the two in step).
 # It runs from main with the token's issue rights only: it reads the run's
@@ -56,15 +60,17 @@ jobs:
               | awk -F '\t' -v want="$title" '$2 == want && !found { print $1; found = 1 }'
           }
           case "$CONCLUSION" in
-            failure|timed_out|startup_failure)
+            failure|timed_out|startup_failure|cancelled)
               failed_jobs="$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
-                --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | "- \(.name)"' || true)"
+                --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled") | "- \(.name) (\(.conclusion))"' || true)"
               body="$(printf '%s\n' \
                 "The scheduled run of **${WORKFLOW}** ended \`${CONCLUSION}\`." \
                 "" \
                 "- Run: ${RUN_URL}" \
                 "- Commit: ${HEAD_SHA}" \
                 "- Started: ${STARTED}" \
+                "" \
+                "A \`cancelled\` job usually reached its timeout-minutes." \
                 "" \
                 "Failed jobs:" \
                 "${failed_jobs:-- (none listed; open the run)}")"
@@ -89,6 +95,6 @@ jobs:
               fi
               ;;
             *)
-              echo "Scheduled run ended '${CONCLUSION}' (cancelled or skipped): nothing to report."
+              echo "Scheduled run ended '${CONCLUSION}' (skipped or neutral): nothing to report."
               ;;
           esac
