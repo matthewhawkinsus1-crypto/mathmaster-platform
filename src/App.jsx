@@ -468,7 +468,9 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 // every call below is requireTeacherKit().name( or teacherKit.name(.
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendanceEventKind.js';
-import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceHistory.js';
+// From the shared day rules, not ./platform/attendance/attendanceHistory.js:
+// App reads only this name, and that module is a teacher's history screen.
+import { ATTENDANCE_HISTORY_EVENT_KIND } from '../functions/shared/attendanceDay.mjs';
 import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 import {
   defaultCourseProfiles,

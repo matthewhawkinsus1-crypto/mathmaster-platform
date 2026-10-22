@@ -53,12 +53,12 @@ for (const [file, why] of [
   ['src/platform/student/questionAlignmentInfo.js', 'the navigator reads only questionAssessmentFramework'],
   ['src/platform/ccmr/assessmentStandardReferences.js', 'the standard references belong to the alignment panel'],
   // Operations on polynomials: the Recovery families joined the first load,
-  // so three more teacher-only modules left it.
+  // so more teacher-only modules left it.
   ['src/services/testCycleService.js', 'only the Action Center lists Test Cycle records (teacher kit)'],
   ['src/platform/teacher/testCycleActionProjection.js', 'only the Action Center projects Test Cycle actions (teacher kit)'],
   ['src/platform/teacher/studentSupportStore.js', 'only a teacher reads or records support history (teacher kit)'],
-  ['src/platform/attendance/extensionReconciliation.js', 'only a teacher\'s attendance correction reconciles extensions (teacher kit)'],
   ['src/platform/teacher/liveAttendance.js', 'App reads only the event kind (teacher/liveAttendanceEventKind.js)'],
+  ['src/platform/attendance/attendanceHistory.js', 'App reads only the event kind (functions/shared/attendanceDay.mjs)'],
   ['src/platform/assessment/assessmentRecovery.js', 'the DOL recovery builders are teacher actions (teacher kit); a student reads assessment/studentRecoverySummary.js'],
 ]) {
   test(`${path.basename(file)} is not in the first load: ${why}`, () => {
