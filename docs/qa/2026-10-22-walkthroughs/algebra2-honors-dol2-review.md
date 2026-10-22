@@ -25,7 +25,7 @@ Screen of all 40 (1366, first screen + contact sheets): no unresolved {{template
 
 ## WU 3 — stepAlgebra (|x − 2| + 4 = 13; another student got |x − 7| + 2 = 7)
 - OK: splitting before isolating (Other operations → Reverse absolute value → Two branches) is refused: "An isolated absolute-value expression is required."
-- F-PLACEMENT-HIDDEN (P1, platform — this solver is used by WU 3, CW 6–8, PR 7–10, PR 18, DOL 4–5): after choosing Subtract and typing the value, "Commit step" stays disabled. The solver needs the operation placed on a term of each side (click a term → placement menu), but the only guidance is "Place the balanced operation on both sides."; the terms show no target cue, and nothing says why Commit is disabled. Tab/Enter do not help. I could not commit the first step from the visible guidance alone.
+- F-PLACEMENT-HIDDEN (not an issue: students are taught to drag the value onto each side — owner, 2026-10-22; was P1, platform — this solver is used by WU 3, CW 6–8, PR 7–10, PR 18, DOL 4–5): after choosing Subtract and typing the value, "Commit step" stays disabled. The solver needs the operation placed on a term of each side (click a term → placement menu), but the only guidance is "Place the balanced operation on both sides."; the terms show no target cue, and nothing says why Commit is disabled. Tab/Enter do not help. I could not commit the first step from the visible guidance alone.
 - F-REVERSE-WORDING (P3): the split prompt reads "Choose the equivalent structure yourself. Then enter the split bounds and relation symbols MathMaster should check." — dense for a Warm-Up; options "Two branches (OR)" / "Three-part compound (AND)".
 
 

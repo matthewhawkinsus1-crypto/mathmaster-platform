@@ -40,30 +40,26 @@ These four assignments were done as a student in a real browser, to find what wo
 
 ## Fix first (P1)
 
-1. **Step Algebra: a student cannot tell how to make the first move** (DOL #2 — WU 3, CW 6–8, PR 7–10, PR 18, DOL 4–5).
-   - What happens: after choosing Subtract and typing the value, *Commit step* stays disabled.
-   - Why: the solver wants the operation placed on a term of each side, but the only guidance is "Place the balanced operation on both sides.".
-   - What's missing: the terms show no target cue, and nothing says why Commit is disabled.
-   - Scope: 13 items, two of them exit tickets.
-   - Note: I could not commit the first step from the visible guidance. Please confirm with a teacher who has used this solver in class.
-2. **The Add & Subtract Workshop runs off a phone screen** (Operations — PR 6 and the DOL 1 exit ticket).
+1. **The Add & Subtract Workshop runs off a phone screen** (Operations — PR 6 and the DOL 1 exit ticket).
    - What happens: the four-column board is 436–480 px wide on a 390 px phone, and the page clips rather than scrolls.
    - What's cut off: the task sentence, the expression being subtracted, the second column and the Calculator are cut off with no way to reach them.
-3. **The Data Modeling Lab gives away the model after one wrong try** (DOL #3 — PR 11).
+2. **The Data Modeling Lab gives away the model after one wrong try** (DOL #3 — PR 11).
    - What happens: the feedback shows "Reference after submit: linear regression y ≈ 6.13x + 54.9" with two tries left, which is exactly what the item asks the student to produce.
    - It also says "best candidate by RMSE: Quadratic." on an Algebra I linear-regression item.
-4. **The relationship model's graph step skips a table row** (DOL #3 — PR 2).
+3. **The relationship model's graph step skips a table row** (DOL #3 — PR 2).
    - What happens: the table has x = 0…5, but the graph step offers P1–P5 (x = 0…4), so (5, 30) can't be placed. "All point placements are correct" is shown anyway.
    - A connected line through five points is credited as the graph when the student says "continuous".
    - The later analysis graph shows a sixth point the student never placed.
-5. **Feedback that points away from the fix** (DOL #3 — PR 3, PR 5). The authored mistake, using Δy as the rate when x jumps by 2, 3 or 4, gets "Recheck subtraction order and signs before changing anything else." The signs were right; the fix is to divide by Δx. In PR 5 the mistake also flips the conclusion from linear to nonlinear.
-6. **A graph too small to read on the steps that need it** (DOL #3 — PR 8; the same tool appears in DOL #2 CW 1, PR 1).
+4. **Feedback that points away from the fix** (DOL #3 — PR 3, PR 5). The authored mistake, using Δy as the rate when x jumps by 2, 3 or 4, gets "Recheck subtraction order and signs before changing anything else." The signs were right; the fix is to divide by Δx. In PR 5 the mistake also flips the conclusion from linear to nonlinear.
+5. **A graph too small to read on the steps that need it** (DOL #3 — PR 8; the same tool appears in DOL #2 CW 1, PR 1).
    - What happens: the yes/no and typed steps put the graph in a ~280 px side panel with ~6 px labels.
    - Why it matters: 48 gallons has to be read between labels at 40 and 50.
-7. **Correct math refused for the wrong stated reason** (Operations — CW 5).
+6. **Correct math refused for the wrong stated reason** (Operations — CW 5).
    - What happens: −1x² + x + 2 gets "Equal, but not simplified: multiply out every product and combine like terms."
    - Why it's wrong: nothing was left to combine; only the written 1 is the issue. It cost a try.
    - Suggested fix: accept the written 1, or name the real problem.
+
+**Not an issue (owner, 2026-10-22):** the Step Algebra solver's balanced-operation placement. Students know they drag the value onto each side; the disabled *Commit step* until both sides are placed is the trained interaction. It's kept in the DOL #2 file as an observation only.
 
 ## Then (P2)
 
