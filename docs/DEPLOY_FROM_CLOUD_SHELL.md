@@ -79,6 +79,13 @@ gives you and paste it back.
 
 ## Block 2 — the whole deploy, one paste
 
+**First, check main is green.** Every deploy refuses a commit whose **CI gate**
+has not passed on GitHub (open the latest commit on `main` at
+github.com/matthewhawkinsus1-crypto/mathmaster-platform/commits/main: a green
+tick means its CI passed). After a merge main's checks take about 45 minutes.
+If one is red, fix main before deploying; for a deliberate hotfix the refusal
+names the override, `MATHMASTER_DEPLOY_ALLOW_UNVERIFIED_CI=1`.
+
 Use the guarded helper. It pulls the exact latest `main`, verifies the required
 server secret, installs exact dependencies, runs the release gates, builds the
 Firebase production web runtime, deploys **Cloud Functions first**, then
