@@ -1,5 +1,7 @@
 # MathMaster Path / Vercel deployment fix — 2026-08-11
 
+> **Superseded (2026-10-22).** Vercel is retired: Firebase Hosting is the only web host, and `vercel.json` makes Vercel skip every build. This note is kept as history; do not follow its deploy steps.
+
 ## What the screenshots proved
 
 The live site shown in the screenshots is `mathmaster-platform.vercel.app`. Its Path Simulator still displays the old message:

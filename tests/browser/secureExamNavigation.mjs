@@ -755,6 +755,28 @@ const backtrackJourney = async (context, device) => {
   await page.locator('[data-secure-navigator-toggle]').click();
   await page.waitForSelector('[data-secure-navigator]');
   check(await focusIn(page, '[data-secure-navigator]'), label('the question list takes focus when it opens'));
+  // A window that changes width under the open list (a Chromebook zoomed to
+  // 200% or snapped to half the screen, a phone turned sideways) is not the
+  // student moving: the list keeps focus. The answer box under it used to take
+  // focus back whenever the window crossed 768px without a touch pointer,
+  // where its keypad changes (MathInput's autofocus ran again), so Escape left
+  // the list open and the next key went into the answer. In CI a full-page
+  // screenshot's momentary 1x1 viewport did it, to "Escape inside the list
+  // closes it" (practice). (This harness's phone reports a fine pointer after
+  // its first full-page screenshot, so turning it crosses the line too.)
+  const turned = device.mobile ? { width: device.height, height: device.width } : { width: 700, height: device.height };
+  for (const size of [turned, { width: device.width, height: device.height }]) {
+    await page.setViewportSize(size);
+    await page.waitForFunction((width) => window.innerWidth === width, size.width);
+    // Time for a focus the resize asked for to land: the re-render, the frame
+    // it focuses in, and MathLive's own 60 ms.
+    await page.evaluate(() => new Promise((resolve) => { requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 150))); }));
+  }
+  const focusAfterResize = await page.evaluate(() => {
+    const element = document.activeElement;
+    return element?.closest('[data-secure-navigator]') ? '' : `focus is on ${element?.closest('fieldset')?.querySelector('legend')?.textContent || element?.tagName}`;
+  });
+  check(await focusIn(page, '[data-secure-navigator]'), label('the list keeps focus when the window changes width'), focusAfterResize);
   const listShape = await page.evaluate(() => {
     const list = document.querySelector('[data-secure-navigator]');
     return {

@@ -1,33 +1,9 @@
 name: Universal Work View Stage 4 Certification
 on:
-  pull_request:
-    paths:
-      - "src/tools/**"
-      - "src/QuestionEngine.jsx"
-      - "src/dev/MathToolsLab.jsx"
-      - "src/App.css"
-      - "src/index.css"
-      - "src/components/common/**"
-      - "src/components/student/**"
-      - "src/platform/workView/**"
-      - "src/platform/mobile/**"
-      - "src/ScratchpadOverlay.jsx"
-      - "tests/browser/workViewCertification*"
-      - "tests/platform/workViewStage4Certification.test.mjs"
-      - ".github/workflows/work-view-stage-4-certification.yml"
+  workflow_call:
   workflow_dispatch:
 
 jobs:
-  contract:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: node --test tests/platform/workViewStage4Certification.test.mjs
-
   certify:
     strategy:
       fail-fast: false
@@ -45,11 +21,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - name: Start production-style harness
         run: |
           npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/stage4-vite.log 2>&1 &

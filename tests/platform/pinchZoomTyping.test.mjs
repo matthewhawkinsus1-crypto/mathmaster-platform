@@ -157,7 +157,8 @@ test('every <math-field> MathMaster creates hands MathLive the zoom-aware reveal
     assert.match(source, /mathField\.onScrollIntoView = revealMathFieldHost;/, `${file} sets the hook on its field`);
   }
   const mathInput = executableSource(read('src/MathInput.jsx'));
-  const focusEffect = region(mathInput, 'if (!focusSignal || !mfRef.current) return undefined;', '}, [focusSignal, isMobile, deferredFocusHost]);', 'focusSignal effect');
+  // Up to its dependency list, whatever is in it (mathFieldFocusHandoff.test.mjs pins that).
+  const focusEffect = region(mathInput, 'if (!focusSignal || !mfRef.current) return undefined;', '}, [focusSignal', 'focusSignal effect');
   assert.match(focusEffect, /revealUnlessVisibleWhileZoomed\(mathField, \{ block: 'nearest', inline: 'nearest' \}\)/);
   assert.doesNotMatch(focusEffect, /mathField\?\.scrollIntoView/, 'the app\'s own reveal is zoom-aware too');
 });

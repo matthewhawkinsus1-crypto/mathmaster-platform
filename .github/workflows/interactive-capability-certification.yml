@@ -12,26 +12,13 @@ name: Interactive Capability Certification
 #                                  statistics and Work View suites
 # The node tier runs inside the Full Platform Test Suite on every PR.
 #
-# Deliberately broad paths: a capability disappears as easily through a
-# routing, compiler or runtime-repair change as through the tool itself, so any
-# runtime code change runs the whole certification.
+# Deliberately broad area (scripts/lib/ciAreas.mjs, which ci.yml reads): a
+# capability disappears as easily through a routing, compiler or runtime-repair
+# change as through the tool itself, so any runtime code change runs the whole
+# certification.
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "tests/browser/**"
-      - "index.html"
-      - "vite.config.js"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/certify-interactive-capabilities.mjs"
-      - ".github/workflows/interactive-capability-certification.yml"
-  push:
-    branches:
-      - main
+  workflow_call:
   schedule:
     - cron: "17 9 * * *"
   workflow_dispatch:
@@ -42,12 +29,9 @@ on:
         default: "release"
 
 # Reads the repository and uploads artifacts; never writes.
+
 permissions:
   contents: read
-
-concurrency:
-  group: capability-certification-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   certify:
@@ -59,19 +43,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install Chromium
-        run: |
-          npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-          npx playwright install --with-deps chromium
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
 
       - name: Certify interactive capabilities
         env:

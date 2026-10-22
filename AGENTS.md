@@ -63,8 +63,7 @@ Helpers: `tests/platform/helpers/sourceContract.mjs`
 ## Verify with the gate CI runs
 
 ```
-node --test tests/platform/*.test.mjs
-npm run test:authoring-v5
+npm run test:platform       # every tests/platform/*.test.mjs (CI: four shards)
 npm run test:rules          # Firestore emulator
 npm run lint
 npm run build
@@ -73,6 +72,30 @@ npm run build:firebase
 
 CI globs `tests/platform/*.test.mjs` and `tests/tools/*.test.mjs` only. A test
 written anywhere else never runs — check your new file is inside one of them.
+(`npm run test:authoring-v5` is a hand-picked subset of `test:platform`.)
+
+## How CI is wired
+
+- **One entry point, one required check.** `.github/workflows/ci.yml` runs on
+  every pull request and every push to main. It calls the other workflows and
+  ends in **CI gate**, the only check branch protection requires: red anywhere
+  is red there. Nothing else triggers on `pull_request` or `push`.
+- **Areas.** `full-platform-suite.yml` runs on every pull request. Each other
+  workflow runs only when the pull request changes a file in its area,
+  `scripts/lib/ciAreas.mjs` (GitHub's `paths` rules: in order, the last match
+  wins). A push to main, or any change to CI itself, runs everything. To see
+  what a branch would run: `node scripts/ci-changed-areas.mjs --base origin/main`.
+- **Adding a browser driver or a workflow:** put its files in the right area,
+  and a new workflow in `ci.yml` and the gate's `needs`
+  (`tests/platform/ciWorkflow.test.mjs` fails until both are true).
+- **Setup is shared.** Every job uses `.github/actions/setup` (Node, `npm ci`
+  and, with `browser: "true"`, Playwright from a cache). Never call
+  `actions/setup-node` or `playwright install --with-deps` in a workflow.
+- **A step that runs after a failure uses `if: ${{ !cancelled() }}`,** not
+  `always()`: a new push cancels the pull request's run, and the new run waits
+  until the old one stops. Only uploads keep `always()`.
+- **Nightly runs** (`schedule:`) stay in their own workflows, and
+  `nightly-failure-issue.yml` opens an issue when one fails or times out.
 
 ## Assertions must be able to fail
 
@@ -81,12 +104,13 @@ passes for an unrelated reason, while the behaviour it stands for can be
 deleted. Anchor to a statement, a return, or a `region(...)` slice. If you add
 or change an assertion, break the behaviour once and confirm it goes red.
 
-## Two things the whole gate misses
+## What the gate is weak on
 
-- **A call with no import.** `App.jsx` is `.jsx`: no test imports it, the build
-  does not resolve free identifiers, and lint has no `no-undef` here. Wiring a
-  module into `App.jsx` without importing it is a runtime `ReferenceError` that
-  passes every check. Assert the import next to the call.
+- **A call with no import.** `App.jsx` is `.jsx`: no test imports it, and the
+  build does not resolve free identifiers. Lint does: `no-undef` covers `src/**`
+  (since 2026-10-18), so `npm run lint` fails on a wired-in module with no
+  import. Run it; before then this was a runtime `ReferenceError` that passed
+  every check.
 - **Firestore rules for a new collection.** Rules are only covered by
   `npm run test:rules` against the emulator. A new collection needs cases there,
   and its deploy needs `firestore:rules`, not hosting alone.
@@ -98,6 +122,20 @@ push to their own branch have reached three PRs. Delete them before the PR is
 ready.
 
 ## Deploy
+
+**Only a clean checkout of current main that has passed CI is deployed.**
+Every deploy path (`release-firebase.mjs`, the Hosting wrapper, every
+`scripts/deploy-*.sh` and `npm run deploy:*`) first runs
+`scripts/check-deploy-provenance.mjs`, which refuses a checkout behind main, a
+dirty tree, and a commit whose CI run on main did not pass (`ci.yml`'s run for
+its push to main; a pull request's **CI gate** does not count). Main's CI
+runs every workflow, about 45 minutes after a merge (the release-tier
+capability certification is the longest): deploy after it is green. Its report
+names the override (`MATHMASTER_DEPLOY_ALLOW_UNVERIFIED_CI=1`) for a
+deliberate hotfix, and an override is printed, never silent.
+
+Firebase Hosting is the only web host. Vercel is retired: `vercel.json` makes
+it skip every build.
 
 **Never deploy Hosting with a raw `firebase deploy --only hosting...` command.**
 Cloud Shell repeatedly hits Firebase Hosting upload timeouts when the CLI uses its

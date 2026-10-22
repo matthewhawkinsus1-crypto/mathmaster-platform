@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Refuse a Hosting deploy whose build does not contain current origin/main.
+// Refuse a deploy whose build does not contain current origin/main, or whose
+// commit has not passed CI (the "CI gate" of .github/workflows/ci.yml).
 //
 //   node scripts/check-deploy-provenance.mjs            (exit 5 when refused)
 //   node scripts/check-deploy-provenance.mjs --json     (machine-readable)
@@ -7,6 +8,7 @@
 // Called by scripts/deploy-hosting-resilient.sh before it builds. See
 // scripts/lib/deployProvenance.mjs for why.
 import { spawnSync } from 'node:child_process';
+import { fetchCiGate, repoFromRemote } from './lib/ciGateStatus.mjs';
 import {
   DEPLOY_OVERRIDE_ENV,
   evaluateDeployProvenance,
@@ -35,13 +37,16 @@ const aheadOfMain = mainFetched && headContainsMain
   ? Number(git(['rev-list', '--count', `${originMainSha}..HEAD`]).out) || 0
   : 0;
 const dirtyFiles = lines(git(['status', '--porcelain', '--untracked-files=no']).out);
+const repo = process.env.MATHMASTER_GITHUB_REPO || repoFromRemote(git(['remote', 'get-url', 'origin']).out);
+const ci = await fetchCiGate({ repo, sha: headSha, token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null });
 
 const decision = evaluateDeployProvenance(
-  { headSha, branch: branch === 'HEAD' ? '' : branch, mainFetched, originMainSha, headContainsMain, aheadOfMain, missingFromBuild, dirtyFiles },
+  { headSha, branch: branch === 'HEAD' ? '' : branch, mainFetched, originMainSha, headContainsMain, aheadOfMain, missingFromBuild, dirtyFiles, ci },
   {
     behindMain: flag(DEPLOY_OVERRIDE_ENV.behindMain),
     dirty: flag(DEPLOY_OVERRIDE_ENV.dirty),
     unverifiedMain: flag(DEPLOY_OVERRIDE_ENV.unverifiedMain),
+    unverifiedCi: flag(DEPLOY_OVERRIDE_ENV.unverifiedCi),
   },
 );
 
