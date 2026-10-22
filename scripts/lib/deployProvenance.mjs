@@ -14,13 +14,31 @@
  *
  * This module is the pure decision. `scripts/check-deploy-provenance.mjs`
  * gathers the git facts and exits non-zero when the decision is to refuse.
+ *
+ * Containing main is not enough if main is red: the browser gates failed on
+ * the merged head of #510, #511 and #513, and any of them could have been
+ * deployed. So the commit must also have passed .github/workflows/ci.yml's
+ * "CI gate" (scripts/lib/ciGateStatus.mjs reads it from GitHub).
  */
 
 export const DEPLOY_OVERRIDE_ENV = Object.freeze({
   behindMain: 'MATHMASTER_DEPLOY_ALLOW_BEHIND_MAIN',
   dirty: 'MATHMASTER_DEPLOY_ALLOW_DIRTY',
   unverifiedMain: 'MATHMASTER_DEPLOY_ALLOW_UNVERIFIED_MAIN',
+  unverifiedCi: 'MATHMASTER_DEPLOY_ALLOW_UNVERIFIED_CI',
 });
+
+/** Why a CI gate that did not pass refuses the deploy. */
+const ciProblem = (ci = {}) => {
+  const where = ci.url ? `: ${ci.url}` : '';
+  switch (ci.state) {
+    case 'passed': return null;
+    case 'running': return { code: 'ciRunning', message: `CI is still checking this commit${ci.startedAt ? ` (started ${ci.startedAt})` : ''}. Deploy once its CI gate passes${where}` };
+    case 'failed': return { code: 'ciFailed', message: `The CI gate failed on this commit (${ci.conclusion || 'failed'})${where}. Fix main first.` };
+    case 'missing': return { code: 'ciMissing', message: 'No CI gate ran on this commit. Merge it to main and let CI pass before deploying it.' };
+    default: return { code: 'ciUnverifiable', message: `Could not read this commit's CI result${ci.error ? ` (${ci.error})` : ''}.` };
+  }
+};
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -34,7 +52,8 @@ const clean = (value) => String(value ?? '').trim();
  * @param {boolean} facts.headContainsMain origin/main is an ancestor of HEAD
  * @param {string[]} facts.missingFromBuild `git log --oneline HEAD..origin/main`
  * @param {string[]} facts.dirtyFiles      tracked files with uncommitted changes
- * @param {object} overrides               { behindMain, dirty, unverifiedMain } booleans
+ * @param {object} [facts.ci]              the commit's CI gate: { state: passed | failed | running | missing | unknown, url, ... }
+ * @param {object} overrides               { behindMain, dirty, unverifiedMain, unverifiedCi } booleans
  */
 export const evaluateDeployProvenance = (facts = {}, overrides = {}) => {
   const missingFromBuild = list(facts.missingFromBuild).map(clean).filter(Boolean);
@@ -80,12 +99,18 @@ export const evaluateDeployProvenance = (facts = {}, overrides = {}) => {
     });
   }
 
+  if (facts.ci !== undefined) {
+    const problem = ciProblem(facts.ci);
+    if (problem) push(overrides.unverifiedCi, { ...problem, override: DEPLOY_OVERRIDE_ENV.unverifiedCi });
+  }
+
   return {
     ok: problems.length === 0,
     headSha: clean(facts.headSha),
     branch: clean(facts.branch) || '(detached)',
     originMainSha: clean(facts.originMainSha),
     headContainsMain: facts.headContainsMain === true,
+    ci: facts.ci === undefined ? 'not checked' : clean(facts.ci?.state) || 'unknown',
     problems,
     warnings,
   };
@@ -97,6 +122,7 @@ export const formatDeployProvenanceReport = (decision) => {
   lines.push(`Building:     ${decision.headSha.slice(0, 12) || 'unknown'} on ${decision.branch}`);
   lines.push(`origin/main:  ${decision.originMainSha.slice(0, 12) || 'unknown'}`);
   lines.push(`Contains main: ${decision.headContainsMain ? 'yes' : 'NO'}`);
+  if (decision.ci) lines.push(`CI gate:      ${decision.ci === 'passed' ? 'passed' : decision.ci.toUpperCase()}`);
   const describe = (entry, label) => {
     if (entry.code === 'aheadOfMain') {
       lines.push('');
@@ -113,9 +139,12 @@ export const formatDeployProvenanceReport = (decision) => {
   decision.problems.forEach((entry) => describe(entry, 'REFUSED'));
   decision.warnings.forEach((entry) => describe(entry, 'OVERRIDDEN'));
   lines.push('');
+  const onlyCi = decision.problems.length > 0 && decision.problems.every((entry) => entry.code.startsWith('ci'));
   lines.push(decision.ok
-    ? 'Provenance OK — this build contains every commit on origin/main.'
-    : 'Deploy refused. Run: git checkout main && git pull --ff-only origin main');
+    ? `Provenance OK — this build contains every commit on origin/main${decision.ci === 'passed' ? ' and passed CI' : ''}.`
+    : onlyCi
+      ? 'Deploy refused: this commit has not passed CI. Wait for its CI gate, or fix main.'
+      : 'Deploy refused. Run: git checkout main && git pull --ff-only origin main');
   return lines.join('\n');
 };
 
