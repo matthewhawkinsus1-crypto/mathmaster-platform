@@ -1,0 +1,175 @@
+name: CI
+
+# The one entry point for pull requests and for main.
+#
+# It calls every workflow that guards main, then "CI gate", the one check
+# branch protection requires: the gate fails if any workflow it waited on
+# failed or was cancelled. A workflow added here is required the moment it is
+# in the gate's `needs` (tests/platform/ciWorkflow.test.mjs checks that each
+# one is).
+#
+# On a pull request, a workflow with an area in scripts/lib/ciAreas.mjs runs
+# only when the pull request changes a file in that area, and a skipped one
+# counts as passed; full-platform-suite.yml always runs. A push to main runs
+# every workflow on the very commit that will be deployed, and
+# scripts/release-firebase.mjs deploys only a commit whose gate passed. The
+# nightly and on-demand runs stay with the workflows themselves.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request replaces its running checks. On main every
+# merge is checked to the end: a burst of merges waits its turn, and only the
+# newest waiting run is kept, so the last commit is always checked whole.
+#
+# The new run waits until the cancelled one has stopped. A step that should run
+# after a failed one uses `if: ${{ !cancelled() }}`: under `always()` it also
+# runs on after the cancel, and holds the new run until it ends. Only uploads
+# keep `always()` (seconds, and the evidence of a job that ran out of time).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      areas: ${{ steps.areas.outputs.areas }}
+    steps:
+      # The merge of the pull request and its base, which the diff is against.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: areas
+        run: node scripts/ci-changed-areas.mjs
+
+  full-platform-suite:
+    name: Full Platform Test Suite
+    uses: ./.github/workflows/full-platform-suite.yml
+
+  accessibility-certification:
+    name: Accessibility Certification (WCAG 2.1 AA)
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['accessibility-certification']
+    uses: ./.github/workflows/accessibility-certification.yml
+
+  algebra1-fidelity-v2-certification:
+    name: Algebra I Fidelity V2 Certification
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['algebra1-fidelity-v2-certification']
+    uses: ./.github/workflows/algebra1-fidelity-v2-certification.yml
+
+  answer-acceptance-audit:
+    name: Correct Answer Acceptance Audit
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['answer-acceptance-audit']
+    uses: ./.github/workflows/answer-acceptance-audit.yml
+
+  interactive-capability-certification:
+    name: Interactive Capability Certification
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['interactive-capability-certification']
+    uses: ./.github/workflows/interactive-capability-certification.yml
+
+  live-challenge-option-b:
+    name: Live Challenge Option B
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['live-challenge-option-b']
+    uses: ./.github/workflows/live-challenge-option-b.yml
+
+  path-tool-browser-contract:
+    name: Path Tool Browser Contract
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['path-tool-browser-contract']
+    uses: ./.github/workflows/path-tool-browser-contract.yml
+
+  question-family-cases-browser:
+    name: Question Family Special Cases (Browser)
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['question-family-cases-browser']
+    uses: ./.github/workflows/question-family-cases-browser.yml
+
+  student-pass3-emulator-journeys:
+    name: Student Pass 3 Emulator Journeys
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['student-pass3-emulator-journeys']
+    uses: ./.github/workflows/student-pass3-emulator-journeys.yml
+
+  student-runtime-browser-gates:
+    name: Student Runtime Browser Gates
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['student-runtime-browser-gates']
+    uses: ./.github/workflows/student-runtime-browser-gates.yml
+
+  student-teacher-journeys:
+    name: Student and Teacher Journeys
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['student-teacher-journeys']
+    uses: ./.github/workflows/student-teacher-journeys.yml
+
+  systems-substitution-browser:
+    name: Systems Substitution Browser Certification
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['systems-substitution-browser']
+    uses: ./.github/workflows/systems-substitution-browser.yml
+
+  theme-certification:
+    name: Theme Readability Certification
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['theme-certification']
+    uses: ./.github/workflows/theme-certification.yml
+
+  work-view-browser-matrix:
+    name: Work View Browser Matrix
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['work-view-browser-matrix']
+    uses: ./.github/workflows/work-view-browser-matrix.yml
+
+  work-view-stage-4-certification:
+    name: Universal Work View Stage 4 Certification
+    needs: changes
+    if: fromJSON(needs.changes.outputs.areas)['work-view-stage-4-certification']
+    uses: ./.github/workflows/work-view-stage-4-certification.yml
+
+  gate:
+    name: CI gate
+    # Runs whatever happened above, and fails unless every workflow passed or
+    # was skipped for an unchanged area: a cancelled run fails the gate rather
+    # than skipping it, since branch protection reads a skipped check as passed.
+    if: always()
+    needs:
+      - changes
+      - full-platform-suite
+      - accessibility-certification
+      - algebra1-fidelity-v2-certification
+      - answer-acceptance-audit
+      - interactive-capability-certification
+      - live-challenge-option-b
+      - path-tool-browser-contract
+      - question-family-cases-browser
+      - student-pass3-emulator-journeys
+      - student-runtime-browser-gates
+      - student-teacher-journeys
+      - systems-substitution-browser
+      - theme-certification
+      - work-view-browser-matrix
+      - work-view-stage-4-certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - name: Every workflow that had to run passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci-gate.mjs

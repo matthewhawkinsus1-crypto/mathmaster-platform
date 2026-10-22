@@ -1,0 +1,67 @@
+name: Set up MathMaster
+description: >-
+  Node, the locked dependencies and, for the browser drivers, Playwright's
+  Chromium with its system packages from a cache instead of the Ubuntu mirror.
+  Every job checks out first, then uses this.
+
+inputs:
+  browser:
+    description: Install Playwright and Chromium for the browser drivers.
+    default: "false"
+  node-version:
+    # Functions deploy on this major (functions/package.json engines), so the
+    # tests run on it too (tests/platform/functionsRuntime.test.mjs).
+    description: The Node major.
+    default: "22"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - shell: bash
+      run: npm ci
+
+    # Playwright is not in package.json. CI adds it on top of the lockfile and
+    # then proves nothing else moved (tests/platform/ciLockfileInstall.test.mjs).
+    - if: inputs.browser == 'true'
+      shell: bash
+      run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
+
+    # The cache of Playwright's system packages has a key per runner image, and a
+    # new image (they change about weekly) starts from the newest cache for the
+    # same OS, architecture and Playwright: without it every image would go back
+    # to the mirror once. install-chromium.sh installs from a cache only when it
+    # holds exactly what this runner lacks.
+    - if: inputs.browser == 'true'
+      id: image
+      shell: bash
+      run: |
+        prefix="playwright-debs-${ImageOS:-unknown}-${RUNNER_ARCH}-$(npx playwright --version | awk '{print $2}')-"
+        echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+        echo "key=$prefix${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.browser == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/playwright-debs
+        key: ${{ steps.image.outputs.key }}
+        restore-keys: ${{ steps.image.outputs.prefix }}
+
+    - if: inputs.browser == 'true'
+      id: chromium
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
+
+    # Saved as soon as it is downloaded, not when the job ends, so a job whose
+    # tests fail still spares the next one the mirror. Best effort: another job
+    # on the same image may have saved it first.
+    - if: inputs.browser == 'true' && steps.chromium.outputs.fetched == 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: ~/.cache/playwright-debs
+        key: ${{ steps.image.outputs.key }}
