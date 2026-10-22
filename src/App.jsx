@@ -47,13 +47,8 @@ import { summarizeStudentRecovery } from './platform/assessment/studentRecoveryS
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
-import {
-  classDolFieldPatch,
-  controlsRequestKey,
-  createControlsRequestGate,
-  planStudentDolGrant,
-  runStudentControlsCalls,
-} from './platform/assessment/dolAttemptGrantClient.js';
+// The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
+// teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
 import { setStudentAssignmentControls } from './services/studentAssignmentControlsService.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
@@ -468,8 +463,9 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 // buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
 // and "Apply shorter extension" without being imported — a ReferenceError that
 // made every attendance correction review impossible to resolve.
-import { buildAttendanceCorrectionReviewEvent } from './platform/attendance/returnCheckIn.js';
-import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
+// The attendance helpers (returnCheckIn.js, extensionReconciliation.js) are
+// teacher-only, so they come from the teacher kit (app/teacher/teacherKit.js):
+// every call below is requireTeacherKit().name( or teacherKit.name(.
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendanceEventKind.js';
 import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceHistory.js';
@@ -4725,14 +4721,14 @@ function App() {
   }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
 
   const actionReturnCheckIns = useMemo(() => {
-    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
-    return classes.flatMap((classRecord) => resolveReturnCheckIns({
+    if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return classes.flatMap((classRecord) => teacherKit.resolveReturnCheckIns({
       roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
       supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
       classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
       nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
     }));
-  }, [teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
+  }, [teacherKit, teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
 
   const teacherActionItems = useMemo(() => {
     if (!teacherKit || teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
@@ -4847,7 +4843,7 @@ function App() {
    * has not yet been reflected in the student's deadline.
    */
   const reconcileAttendanceExtensions = async (event, record) => {
-    const { buildStudentExtensionPatch, fetchAttendanceForClassDateRange, reconcileAssignmentExtensionsForCorrection } = requireTeacherKit();
+    const { fetchAttendanceForClassDateRange } = requireTeacherKit();
     const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
     const affectedAssignments = assignments
       .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
@@ -4871,7 +4867,7 @@ function App() {
         toDateKey: windowEnds.sort().at(-1) || event.evidence?.dateKey,
       })
       : [];
-    const results = reconcileAssignmentExtensionsForCorrection({
+    const results = requireTeacherKit().reconcileAssignmentExtensionsForCorrection({
       assignments: affectedAssignments,
       studentId: event.studentId,
       classId: event.classId,
@@ -4888,7 +4884,7 @@ function App() {
     let reviewCount = 0;
     await Promise.all(results.map(async ({ assignment, resolution }) => {
       if (resolution.reviewNeeded) { reviewCount += 1; return; }
-      const patch = buildStudentExtensionPatch({
+      const patch = requireTeacherKit().buildStudentExtensionPatch({
         assignment, studentId: event.studentId, resolution, actorEmail: user.email,
       });
       if (patch) await applyStudentOverridePatch({ assignmentId: assignment.id, studentId: event.studentId, classId: event.classId, patch });
@@ -4910,7 +4906,7 @@ function App() {
     try {
       await requireTeacherKit().recordStudentSupportEvent({
         db, teacherEmail: user.email,
-        event: buildAttendanceCorrectionReviewEvent({
+        event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
           studentId: student.id || student.studentId,
           studentName: rosterStudentNameForStorage({
             studentId: student.id || student.studentId,
@@ -4944,7 +4940,7 @@ function App() {
     try {
       await requireTeacherKit().recordStudentSupportEvent({
         db, teacherEmail: user.email,
-        event: buildAttendanceCorrectionReviewEvent({
+        event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
           studentId,
           studentName: rosterStudentNameForStorage({
             studentId,
@@ -8178,7 +8174,7 @@ function App() {
       });
 
       // Only the class's DOL fields this opening changed; never a student's grant.
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, opening.dol, { deleteValue: deleteField() }), updatedAt: openedAt });
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, opening.dol, { deleteValue: deleteField() }), updatedAt: openedAt });
       if (recoveryNow) {
         toastSuccess('DOL reopened', `${assignment.title} has a fresh ${durationMinutes}-minute recovery window for ${classLabel}. Existing work and attempt history were preserved.`);
       } else if (canRestart) {
@@ -8221,7 +8217,7 @@ function App() {
         now: nowMs,
       });
       // The class grant only (`dol.attemptGrantsByClassId`, its audit entry).
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: changedAt });
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: changedAt });
       toastSuccess('Extra DOL attempt granted', `${classLabel} now has ${Math.min(20, currentBonus + 1)} teacher-granted extra DOL attempt${Math.min(20, currentBonus + 1) === 1 ? '' : 's'}.`);
     } catch (error) {
       console.error(error);
@@ -8243,10 +8239,15 @@ function App() {
    * in flight at a time, so a double-click grants once.
    */
   const studentControlsGateRef = useRef(null);
-  if (!studentControlsGateRef.current) studentControlsGateRef.current = createControlsRequestGate();
   const handleGrantDOLAttemptForStudents = async (assignment, students = []) => {
     const chosen = (students || []).filter((student) => student?.id);
     if (!assignment?.id || !chosen.length) return;
+    if (!teacherKit) {
+      toastError('Could not grant DOL attempt', 'The teacher workspace has not finished loading. Try again in a moment.');
+      return;
+    }
+    const { controlsRequestKey, createControlsRequestGate, planStudentDolGrant, runStudentControlsCalls } = teacherKit;
+    if (!studentControlsGateRef.current) studentControlsGateRef.current = createControlsRequestGate();
     const requestKey = controlsRequestKey({ assignmentId: assignment.id, studentIds: chosen.map((student) => student.id), kind: 'dolAttempts' });
     // The first click is still on its way to the server: nothing to confirm twice.
     if (studentControlsGateRef.current.pending(requestKey)) return;
@@ -8394,7 +8395,7 @@ function App() {
     setDolControlBusyKey(busyKey);
     try {
       const { dol } = build();
-      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: new Date().toISOString() });
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...requireTeacherKit().classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: new Date().toISOString() });
       toastSuccess(success[0], success[1]);
     } catch (error) {
       console.error(error);

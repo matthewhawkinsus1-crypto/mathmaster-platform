@@ -22,13 +22,15 @@ import { REPRESENTATION_FAMILIES } from './questionFamiliesRepresentations.mjs';
 import { LINEAR_GRAPH_FAMILIES } from './questionFamiliesLinearGraphs.mjs';
 import { TRANSFORMATION_FAMILIES } from './questionFamiliesTransformations.mjs';
 import { MATRIX_FAMILIES } from './questionFamiliesMatrices.mjs';
+import { PERPENDICULAR_FAMILIES } from './questionFamiliesPerpendicular.mjs';
 import { POLYNOMIAL_FAMILIES } from './questionFamiliesPolynomials.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
 // distribution and exact fractions); an unpinned reference still means v1.
-// The linear-graph, transformation, matrix and polynomial families are Recovery V2's:
-// each can recognize the static questions it recovers (recoveryContent.mjs).
+// The linear-graph, transformation, matrix, perpendicular-line and polynomial
+// families are Recovery V2's: each can recognize the static questions it
+// recovers (recoveryContent.mjs).
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -39,6 +41,7 @@ const REGISTERED = Object.freeze([
   ...LINEAR_GRAPH_FAMILIES,
   ...TRANSFORMATION_FAMILIES,
   ...MATRIX_FAMILIES,
+  ...PERPENDICULAR_FAMILIES,
   ...POLYNOMIAL_FAMILIES,
 ]);
 

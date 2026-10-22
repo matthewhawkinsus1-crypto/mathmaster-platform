@@ -50,8 +50,15 @@ test('App.jsx and the teacher screens call no undefined name', { skip: !existsSy
   assert.deepEqual(unresolved, [], `Undefined names (missing imports?):\n${unresolved.join('\n')}`);
 });
 
-test('the attendance correction review builder is imported where App.jsx calls it', () => {
-  // The specific regression, asserted without the linter.
+test('the attendance correction review builder resolves where App.jsx calls it: from the teacher kit, which exports it', () => {
+  // The specific regression, asserted without the linter. The attendance
+  // helpers are teacher-only, so App no longer imports them (they would ride
+  // in every student's first load); every call must take them from the kit.
   const app = readFileSync(`${root}src/App.jsx`, 'utf8');
-  assert.match(app, /import \{[^}]*\bbuildAttendanceCorrectionReviewEvent\b[^}]*\} from '\.\/platform\/attendance\/returnCheckIn\.js';/);
+  const calls = app.match(/\bbuildAttendanceCorrectionReviewEvent\(/g) || [];
+  const fromKit = app.match(/requireTeacherKit\(\)\.buildAttendanceCorrectionReviewEvent\(/g) || [];
+  assert.equal(calls.length, 2, 'both "Keep current extension" and "Apply shorter extension" build the review event');
+  assert.equal(fromKit.length, calls.length, 'every call resolves through the teacher kit');
+  const kit = readFileSync(`${root}src/app/teacher/teacherKit.js`, 'utf8');
+  assert.match(kit, /export \{[^}]*\bbuildAttendanceCorrectionReviewEvent\b[^}]*\} from '\.\.\/\.\.\/platform\/attendance\/returnCheckIn\.js';/);
 });
