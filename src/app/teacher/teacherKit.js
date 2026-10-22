@@ -2,9 +2,12 @@
  * THE TEACHER-ONLY LOGIC APP.JSX RUNS ITSELF (student pass 3, first load 2).
  *
  * App builds the needs-attention queue and the Action Center's items (and
- * their grade-transfer units and return check-ins), grants and writes DOL attempts,
- * reconciles attendance extensions, opens Assignment Review, offers a teacher's
- * worksheets and publishes to Google Classroom with these. Only a teacher's
+ * their grade-transfer units, return check-ins and Test Cycle retest
+ * actions), opens Assignment Review, offers a teacher's worksheets, publishes
+ * to Google Classroom, reconciles extensions after an attendance correction,
+ * opens, grants, closes, extends and moves a DOL and writes its attempts,
+ * reads and records student support history, and names who is still working
+ * before a feedback release with these. Only a teacher's
  * screen ever uses them, but imported by App they rode in every student's
  * first load (scripts/check-first-load-budget.mjs). App loads this module for a teacher
  * (./teacherKitLoader.js), and the teacher's screen waits for it, so nothing a
@@ -15,6 +18,7 @@
 export { buildNeedsAttentionQueue } from '../../platform/teacher/needsAttention.js';
 export { buildTeacherActionItems, openTeacherActionCount } from '../../platform/teacher/teacherActionCenter.js';
 export { projectGradeTransferUnits } from '../../platform/gradeTransfer/gradeTransferProjection.js';
+export { projectTestCycleTeacherActions } from '../../platform/teacher/testCycleActionProjection.js';
 export {
   classDolFieldPatch,
   controlsRequestKey,
@@ -34,3 +38,23 @@ export {
   mappedCourseIdsForAssignment,
   shouldAutoPublishClassroomPackage,
 } from '../../platform/classroom/automaticClassroomPublishing.js';
+export { automaticClassroomTopicName } from '../../platform/classroom/classroomTopicNaming.js';
+export { listTeacherTestCycleRecords } from '../../services/testCycleService.js';
+export {
+  fetchAttendanceForClassDateRange,
+  fetchStudentSupportHistory,
+  recordStudentSupportEvent,
+  subscribeStudentSessionSummaries,
+  subscribeStudentSupportEvents,
+} from '../../platform/teacher/studentSupportStore.js';
+export {
+  buildDolAttemptGrant,
+  buildDolClose,
+  buildDolDateMove,
+  buildDolExtension,
+  buildDolScheduleRestore,
+  buildDolWindowOpening,
+  scheduledDolDateFor,
+} from '../../platform/assessment/assessmentRecovery.js';
+export { describeFeedbackRelease, releaseHoldReport } from './feedbackReleaseHold.js';
+export { readReleaseControls } from './feedbackReleaseControls.js';

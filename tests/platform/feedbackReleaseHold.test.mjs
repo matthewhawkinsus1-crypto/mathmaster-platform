@@ -147,12 +147,17 @@ test('the release reads the extension records of EVERY assigned class, in listen
   assert.equal(failed, null, 'a failed read is reported, never treated as "no extensions"');
 });
 
-test('App asks before releasing, with the still-working list, and imports what it calls', () => {
+test('App asks before releasing, with the still-working list, from what the teacher kit carries', async () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /^import \{ describeFeedbackRelease, releaseHoldReport \} from '\.\/app\/teacher\/feedbackReleaseHold\.js';$/m);
-  assert.match(app, /^import \{ readReleaseControls \} from '\.\/app\/teacher\/feedbackReleaseControls\.js';$/m);
+  // Only a teacher releases feedback: the three come from the teacher kit
+  // (src/app/teacher/teacherKit.js), never with a student's first load.
+  const kit = await import('../../src/app/teacher/teacherKit.js');
+  assert.equal(kit.describeFeedbackRelease, describeFeedbackRelease);
+  assert.equal(kit.releaseHoldReport, releaseHoldReport);
+  assert.equal(kit.readReleaseControls, readReleaseControls);
+  assert.doesNotMatch(app, /from '\.\/app\/teacher\/feedbackRelease(?:Hold|Controls)\.js'/);
   const handler = region(executableSource(app), 'const handleReleaseAssignmentFeedback = async (assignment) => {', 'setFeedbackReleaseBusyId(assignment.id);', 'release handler');
-  assert.match(handler, /const privateRecords = await readReleaseControls\(\{/);
+  assert.match(handler, /const \{ describeFeedbackRelease, readReleaseControls, releaseHoldReport \} = requireTeacherKit\(\);[\s\S]*const privateRecords = await readReleaseControls\(\{/);
   assert.match(handler, /releaseHoldReport\(\{ assignment, privateRecords, students: allStudents, classes, nowValue: Date\.now\(\) \}\)/);
   assert.match(handler, /confirmAction\(\{\s*title: release\.title,\s*message: release\.message,\s*confirmLabel: release\.confirmLabel,\s*\}\)/);
   assert.match(handler, /if \(!proceedWithRelease\) return;/);

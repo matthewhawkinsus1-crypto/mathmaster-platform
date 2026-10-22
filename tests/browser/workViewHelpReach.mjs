@@ -174,6 +174,9 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
 // ------------------------------------------------------- Transformations Lab
 {
   const page = await open('practice', 'transform');
+  // A point-map item's answer is the bridge's mapping rule: the bridge is not
+  // open beside it, only in Help (owner decision 2026-10-22).
+  check(!(await page.evaluate(() => document.body.textContent.includes('Transformation bridge'))), 'transform practice (pointMap): no bridge panel beside the item');
   await openWorkView(page);
   await openHelp(page);
   check(await drawerShows(page, 'X’s lie') || await drawerShows(page, "X's lie"), 'transform practice: the tool\'s bridge is in Help');

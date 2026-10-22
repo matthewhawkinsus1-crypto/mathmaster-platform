@@ -1,0 +1,40 @@
+// READ ALOUD, AS THE 2026-10-22 WALKTHROUGHS HEARD IT.
+//
+// Algebra II Honors DOL #2: g(x) = 2|x − 2| − 4 was "2 the absolute value of x
+// minus 2 minus 4" — no "times", and nothing to say where the bars close.
+// Algebra I DOL #3: f(n) = f(n − 1) + 4 was "f of the quantity n minus 1 plus
+// 4", which is also how f(n − 1 + 4) sounds; "aₙ" went to the engine raw.
+// Operations / Dividing polynomials: "plus 5a-7", "x-7 minus the fraction …"
+// — a term just before a second sign kept its hyphen.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
+
+test('absolute value: a coefficient is "times", and a multi-term inside ends where more follows', () => {
+  assert.equal(mathToSpeech('g(x) = 2|x - 2| - 4'), 'g of x equals 2 times the absolute value of x minus 2 end absolute value minus 4');
+  assert.equal(mathToSpeech('|2x-5|=7'), 'the absolute value of 2x minus 5 end absolute value equals 7');
+  assert.equal(mathToSpeech('-2\\left|x+1\\right|+3'), 'negative 2 times the absolute value of x plus 1 end absolute value plus 3');
+  // Nothing to close at the end, and one term needs no end.
+  assert.equal(speechTextFor('If 3 < x ≤ 7, what is |x - 5|?'), 'If 3 is less than x is less than or equal to 7, what is the absolute value of x minus 5?');
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x plus the quantity 2');
+  assert.equal(mathToSpeech('2|x-2|-4', { language: 'es' }), '2 por el valor absoluto de x menos 2 fin del valor absoluto menos 4');
+});
+
+test('a function input of more than one term ends at a pause where more follows', () => {
+  assert.equal(mathToSpeech('f(n) = f(n-1) + 4'), 'f of n equals f of the quantity n minus 1, plus 4');
+  assert.equal(mathToSpeech('f(x+h)-f(x)'), 'f of the quantity x plus h, minus f of x', 'a sign after the pause is still "minus"');
+  assert.equal(mathToSpeech('g(x) = f(x − 7)'), 'g of x equals f of the quantity x minus 7');
+});
+
+test('no term keeps a hyphen, whatever sign comes after it', () => {
+  assert.equal(mathToSpeech('x-7-\\frac{50}{x-5}'), 'x minus 7 minus the fraction 50 over x minus 5 end fraction');
+  assert.equal(mathToSpeech('(3a^2-4a+2)+(a^2+5a-7)'), 'the quantity 3a squared minus 4a plus 2 plus the quantity a squared plus 5a minus 7');
+  assert.equal(mathToSpeech('y = -(x-3) - 2'), 'y equals negative the quantity x minus 3 minus 2');
+  assert.equal(mathToSpeech('3 - -2'), '3 minus negative 2');
+});
+
+test('subscript letters and signs are said, not passed to the engine raw', () => {
+  assert.equal(speechTextFor('The table lists n and aₙ.'), 'The table lists n and a sub n.');
+  assert.equal(speechTextFor('Find a₍₁₂₎ and aₙ₋₁.'), 'Find a sub 12 and a sub n minus 1.');
+  assert.equal(speechTextFor('y − y₁ = m(x − x₁)'), 'y minus y sub 1 equals m times the quantity x minus x sub 1');
+});

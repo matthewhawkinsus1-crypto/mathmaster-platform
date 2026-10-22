@@ -25,6 +25,11 @@
 #
 set -uo pipefail
 
+# Only a clean checkout of current main that has passed CI is deployed
+# (scripts/check-deploy-provenance.mjs; its report names the override for a
+# deliberate hotfix).
+node scripts/check-deploy-provenance.mjs || exit 5
+
 PROJECT="${FIREBASE_PROJECT:-mathmaster-aleks}"
 GROUP_SIZE="${GROUP_SIZE:-10}"
 PAUSE_SECONDS="${PAUSE_SECONDS:-30}"

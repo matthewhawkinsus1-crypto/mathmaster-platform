@@ -16,6 +16,7 @@ import {
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
+import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './simplifiedPolynomialForm.mjs';
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
@@ -195,6 +196,12 @@ export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedA
 
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+
+  // A field that asks for a polynomial in simplest form (answerForm:
+  // 'simplifiedPolynomial') takes only an answer with nothing left to do:
+  // 2a^3+5a-7-a^3+3a-2 has a^3+8a-9's value, and is still not simplified.
+  // The value is then compared as for any other field.
+  if (fieldRequiresSimplifiedPolynomial(field) && !isSimplifiedPolynomial(studentAnswer)) return false;
 
   // Job P: a Digital SAT number box (set from the item by the CCMR
   // hydration) also takes the decimal the SAT accepts.

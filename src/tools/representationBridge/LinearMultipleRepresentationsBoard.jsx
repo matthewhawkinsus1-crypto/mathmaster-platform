@@ -7,6 +7,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import { questionAxisLabels } from '../shared/planeAxisTitles.js';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
@@ -405,6 +406,18 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
   );
 }
 
+// The quantity a column holds in a real-world table ("Time (hours)"), under
+// its variable. Upright and in the page's font: the italic serif belongs to
+// the variable alone.
+function ColumnQuantity({ label }) {
+  if (!label) return null;
+  return (
+    <span style={{ display: 'block', fontStyle: 'normal', fontFamily: 'inherit', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.3 }}>
+      {label}
+    </span>
+  );
+}
+
 function GivenRepresentation({ description, graphBounds }) {
   const headingId = useId();
   let body = null;
@@ -429,8 +442,8 @@ function GivenRepresentation({ description, graphBounds }) {
       >
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>x</th>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>y</th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>x<ColumnQuantity label={description.axisLabels?.x} /></th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 'calc(20 * var(--mm-px))' }}>y<ColumnQuantity label={description.axisLabels?.y} /></th>
           </tr>
         </thead>
         <tbody>
@@ -462,6 +475,8 @@ function GivenRepresentation({ description, graphBounds }) {
           pointHoverEnabled={false}
           revealCoordinates={false}
           enlargeable={false}
+          xAxisTitle={description.axisLabels?.x}
+          yAxisTitle={description.axisLabels?.y}
           ariaLabel="Given graph of the line"
         />
       </div>
@@ -560,7 +575,13 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
 
 export default function LinearMultipleRepresentationsBoard({ questionData = {}, onAction }) {
   const canonicalFacts = useMemo(() => deriveLinearMultipleRepresentations(questionData), [questionData]);
-  const givenDescription = useMemo(() => describeGivenRepresentation(questionData, canonicalFacts), [questionData, canonicalFacts]);
+  // What a real-world GIVEN's axes measure travels with it, so the given
+  // graph, its table headings and the graph a process picks points on all
+  // name the same quantities (planeAxisTitles.js).
+  const givenDescription = useMemo(() => ({
+    ...describeGivenRepresentation(questionData, canonicalFacts),
+    axisLabels: questionAxisLabels(questionData),
+  }), [questionData, canonicalFacts]);
   const required = useMemo(() => resolveRequiredCards(questionData), [questionData]);
   const needs = useCallback((cardId) => required.includes(cardId), [required]);
   const tolerance = resolveGraphTolerance(questionData);
@@ -1045,6 +1066,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         onPlot={(point) => plotPoint(graph.key, point)}
         onMovePoint={(index, point) => movePoint(graph.key, index, point)}
         enlargeable={false}
+        xAxisTitle={givenDescription.axisLabels?.x}
+        yAxisTitle={givenDescription.axisLabels?.y}
         ariaLabel={`Coordinate plane for ${graph.title}`}
         viewResetKey={`${questionData.questionId || ''}:${graph.key}`}
         {...extra}

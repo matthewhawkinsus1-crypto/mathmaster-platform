@@ -34,9 +34,12 @@ const classify = (code, index, name) => {
   const after = code.slice(index);
   if (/export const\s+\w+\s*=\s*\(?[^=]*$/.test(before) || /function\s*$/.test(before)) return 'definition';
   if (/^\s*(?:export\s+)?(?:const|let)\s+\w+\s*=\s*(?:\([^)]*\)|[\w]+)\s*=>\s*$/.test(before)) return 'definition';
-  if (/return\s+$/.test(before)) return 'returned';
+  // A call may be made through an object (the teacher kit: `teacherKit.subscribe…(`);
+  // what makes it owned is still where its unsubscribe goes.
+  const via = '(?:[\\w$]+\\??\\.)*';
+  if (new RegExp(`return\\s+${via}$`).test(before)) return 'returned';
   if (/useEffect\(\(\)\s*=>\s*$/.test(before)) return 'returned';
-  const assigned = before.match(/(?:const|let)\s+(\w+)\s*=\s*$/);
+  const assigned = before.match(new RegExp(`(?:const|let)\\s+(\\w+)\\s*=\\s*${via}$`));
   if (assigned) {
     const variable = assigned[1];
     return new RegExp(`\\b${variable}(?:\\?\\.)?\\(\\)`).test(after) ? 'released' : `never released: ${variable}`;
@@ -68,6 +71,22 @@ test('every Firestore listener and subscription is owned and released', () => {
   }
   assert.ok(calls >= 40, `the guard found the listeners (${calls})`);
   assert.deepEqual(problems, []);
+});
+
+test('a subscription made through the teacher kit is owned only when it is returned', () => {
+  const owned = executableSource(`
+    useEffect(() => {
+      if (!teacherKit) return undefined;
+      return teacherKit.subscribeStudentSupportEvents({ db, onChange: setEvents });
+    }, [teacherKit]);
+  `);
+  assert.equal(classify(owned, owned.indexOf('subscribeStudentSupportEvents('), 'subscribeStudentSupportEvents'), 'returned');
+  const dropped = executableSource(`
+    useEffect(() => {
+      teacherKit.subscribeStudentSupportEvents({ db, onChange: setEvents });
+    }, [teacherKit]);
+  `);
+  assert.match(classify(dropped, dropped.indexOf('subscribeStudentSupportEvents('), 'subscribeStudentSupportEvents'), /unowned/);
 });
 
 test('the guard catches a listener opened and never released', () => {

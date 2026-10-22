@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { revealUnlessVisibleWhileZoomed } from '../../src/platform/layout/pinchZoomReveal.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -10,12 +11,14 @@ const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), '
 // its "Pick up" chip — dragging from there selected the toolbar's text instead.
 test('a field focused on the student\'s behalf is scrolled clear of the sticky action bar on desktop', () => {
   const source = read('src/MathInput.jsx');
-  const effect = source.slice(source.indexOf('if (!focusSignal || !mfRef.current)'), source.indexOf('}, [focusSignal, isMobile'));
+  const effect = region(source, 'if (!focusSignal || !mfRef.current)', '}, [focusSignal', 'the focusSignal effect');
   const focusAt = effect.indexOf("focus?.({ preventScroll: true })");
   // The reveal is the field's own scrollIntoView, or the zoom-aware helper that
   // makes that same call unless the person is pinch-zoomed onto a field they
-  // can already see (platform/layout/pinchZoomReveal.js).
-  const revealAt = effect.search(/if \(!isMobile\) (mathField\?\.scrollIntoView\?\.\(|revealUnlessVisibleWhileZoomed\(mathField, )\{ block: 'nearest'/);
+  // can already see (platform/layout/pinchZoomReveal.js). "Not a phone" is
+  // read when the focus happens, from a ref: a width change must not run the
+  // effect again (mathFieldFocusHandoff.test.mjs).
+  const revealAt = effect.search(/if \(!isMobile(Ref\.current)?\) (mathField\?\.scrollIntoView\?\.\(|revealUnlessVisibleWhileZoomed\(mathField, )\{ block: 'nearest'/);
   assert.ok(focusAt > 0 && revealAt > focusAt, 'focus first, then reveal on non-mobile');
   // Unzoomed, the helper IS the reveal: a field under the bar is scrolled clear.
   const calls = [];

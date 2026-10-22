@@ -24,7 +24,7 @@ const WORDS = {
     inverse: 'inverse', squared: 'squared', cubed: 'cubed', power: 'to the power',
     le: 'is less than or equal to', ge: 'is greater than or equal to', ne: 'is not equal to', lt: 'is less than', gt: 'is greater than',
     eq: 'equals', pm: 'plus or minus', infinity: 'infinity', times: 'times', divided: 'divided by', plus: 'plus', minus: 'minus',
-    negative: 'negative', abs: 'the absolute value of', point: 'the point', pi: 'pi', percent: 'percent', dollars: 'dollars',
+    negative: 'negative', abs: 'the absolute value of', endAbs: 'end absolute value', point: 'the point', pi: 'pi', percent: 'percent', dollars: 'dollars',
     dollar: 'dollar', cent: 'cent', cents: 'cents', moneyAnd: 'and', composed: 'composed with',
     matrix: (rows, columns) => `a ${rows} by ${columns} matrix`, row: 'row', endMatrix: 'end matrix', determinant: 'the determinant of',
     quantity: 'the quantity', by: 'by',
@@ -39,7 +39,7 @@ const WORDS = {
     inverse: 'inversa', squared: 'al cuadrado', cubed: 'al cubo', power: 'a la potencia',
     le: 'es menor o igual que', ge: 'es mayor o igual que', ne: 'no es igual a', lt: 'es menor que', gt: 'es mayor que',
     eq: 'es igual a', pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
-    negative: 'negativo', abs: 'el valor absoluto de', point: 'el punto', pi: 'pi', percent: 'por ciento', dollars: 'dólares',
+    negative: 'negativo', abs: 'el valor absoluto de', endAbs: 'fin del valor absoluto', point: 'el punto', pi: 'pi', percent: 'por ciento', dollars: 'dólares',
     dollar: 'dólar', cent: 'centavo', cents: 'centavos', moneyAnd: 'con', composed: 'compuesta con',
     matrix: (rows, columns) => `una matriz de ${rows} por ${columns}`, row: 'fila', endMatrix: 'fin de matriz', determinant: 'el determinante de',
     quantity: 'la cantidad', by: 'por',
@@ -121,12 +121,19 @@ const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^
 
 // f(x − 7) and f(x) − 7 are opposite transformations, so the words must differ:
 // an input of more than one term is "the quantity", as a bracket is everywhere
-// else ("f of the quantity x minus 7" against "f of x minus 7").
-const functionApplicationSpeech = (w) => (match, before, name, argument) => (
+// else ("f of the quantity x minus 7" against "f of x minus 7"). Where more
+// follows, the input ends at a pause: f(n − 1) + 4 was "f of the quantity n
+// minus 1 plus 4", which is also how f(n − 1 + 4) sounds (walkthrough
+// 2026-10-22). The pause is PAUSE until the minus signs are read, so a "−"
+// after it is still "minus", never "negative".
+const PAUSE = '\uE003';
+const moreMathFollows = (offset, whole, match) => typeof whole === 'string'
+  && /[^\s.,;:?!)\]]/.test(whole.slice(offset + match.length));
+const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
   // An operator after the first character: f(−3) is one term, f(x − 3) is two.
   // An inner application already read ("d of 2" in c(d(2))) is one term.
   /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z] ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
-    ? `${before} ${name} ${w.of} ${w.quantity} ${argument} `
+    ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${moreMathFollows(offset, whole, match) ? PAUSE : ''} `
     : `${before} ${name} ${w.of} ${argument} `
 );
 
@@ -284,7 +291,14 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     ` ${w.point} ${a}, ${b}${c ? `, ${c}` : ''} `
   ));
   text = text
-    .replace(/\|([^|]+)\|/g, ` ${w.abs} $1 `)
+    // |x − 2|: "times" after a coefficient (2|x − 2| was "2 the absolute value
+    // of"), and an end where more follows a multi-term inside, so 2|x − 2| − 4
+    // is not heard as 2|x − 2 − 4| (walkthrough 2026-10-22).
+    .replace(/\|([^|]+)\|/g, (match, body, offset, whole) => {
+      const coefficient = /[A-Za-z0-9)]$/.test(whole.slice(0, offset).trimEnd());
+      const ends = /.[\s+\-−*/·=<>]/.test(body.trim()) && moreMathFollows(offset, whole, match);
+      return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
+    })
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
     // applied — "f plus g of x", never "the quantity f plus g times x".
     .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘])\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
@@ -341,12 +355,15 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
-  text = text.replace(/(\S*)\s*[-−]\s*(?=[A-Za-z0-9.(√])/g, (match, before) => {
+  // The word before a sign never holds a sign itself: "x-7 - 50/(x-5)" kept
+  // "x-7" whole as the word before the second sign and read it with its
+  // hyphen (walkthrough 2026-10-22, "x-7 minus the fraction …").
+  text = text.replace(/([^\s\-−]*)\s*[-−]\s*(?=[A-Za-z0-9.(√]|[-−]\s*[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();
     const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
   });
-  return text.replace(/[()[\]]/g, ' ');
+  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',');
 };
 
 /** Speech for one math segment. */
@@ -370,12 +387,25 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) 
  * the quantity x minus x sub 1"); any other subscript digit is "sub N".
  */
 const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const SUBSCRIPT_LETTERS = { 'ₐ': 'a', 'ₑ': 'e', 'ₒ': 'o', 'ₓ': 'x', 'ₕ': 'h', 'ₖ': 'k', 'ₗ': 'l', 'ₘ': 'm', 'ₙ': 'n', 'ₚ': 'p', 'ₛ': 's', 'ₜ': 't', 'ᵢ': 'i', 'ⱼ': 'j', 'ᵣ': 'r', 'ᵤ': 'u', 'ᵥ': 'v' };
+const SUBSCRIPT_SPOKEN = {
+  ...Object.fromEntries([...SUBSCRIPT_DIGITS].map((digit, value) => [digit, () => String(value)])),
+  ...Object.fromEntries(Object.entries(SUBSCRIPT_LETTERS).map(([mark, letter]) => [mark, () => letter])),
+  '₊': (w) => w.plus, '₋': (w) => w.minus, '₌': (w) => w.eq, '₍': () => '', '₎': () => '',
+};
+const SUBSCRIPT_SOURCE = Object.keys(SUBSCRIPT_SPOKEN).join('');
 const spokenLineForms = (text, w) => text
   .replace(/\by\s*[-−]\s*y₁\s*=\s*m\s*\(\s*x\s*[-−]\s*x₁\s*\)/g,
     `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
   .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')
   .replace(/\bAx\s*\+\s*By\s*=\s*C\b/g, 'A x + B y = C')
-  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`);
+  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`)
+  // aₙ, aₙ₋₁, a₍₁₂₎: an engine gets the raw character and says nothing or
+  // its name (walkthrough 2026-10-22). Letters, signs and brackets too.
+  .replace(new RegExp(`([A-Za-z])([${SUBSCRIPT_SOURCE}]+)`, 'g'), (match, letter, marks) => (
+    // Digits side by side are one number: a₍₁₂₎ is "a sub 12".
+    `${letter} ${w.sub} ${[...marks].map((mark) => SUBSCRIPT_SPOKEN[mark]?.(w) ?? '').join(' ').replace(/(\d) (?=\d)/g, '$1').replace(/\s+/g, ' ').trim()} `
+  ));
 
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);

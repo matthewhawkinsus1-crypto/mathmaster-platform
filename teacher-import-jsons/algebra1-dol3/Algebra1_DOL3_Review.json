@@ -1,0 +1,1002 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — DOL #3 Review",
+    "courseId": "algebra1",
+    "folder": "Algebra I/DOL Reviews",
+    "instructionalPurpose": "review",
+    "gradingPurpose": "practice",
+    "instructions": "Review for District DOL #3, which you will take in Eduphoria. Its 13 questions follow the DOL #3 blueprint, one for each question on the test. Every question uses an interactive tool, so show your work inside the tool: record the intervals you compare, establish the slope and intercepts with a process, plot the points, and explain your sorts. You have 3 tries on each question, and hints are there when you need them."
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "practice": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "dol3-review-practice",
+      "role": "practice",
+      "title": "DOL #3 Review — Practice",
+      "recommendedMinutes": 90,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dol3-review-q01",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Maya streams a movie on her phone. The graph shows the battery charge, y percent, x hours after she starts streaming, from the moment she starts until the moment she stops. Determine the reasonable domain and range for this situation. Write each one as an inequality.",
+          "function": {
+            "family": "linear",
+            "m": -10,
+            "b": 80,
+            "domain": {
+              "min": 0,
+              "max": 6,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -1,
+            "xMax": 8,
+            "yMin": -10,
+            "yMax": 100,
+            "xAxisLabel": "Time streaming",
+            "xAxisUnit": "hours",
+            "yAxisLabel": "Battery charge",
+            "yAxisUnit": "percent",
+            "accessibleDescription": "A line segment that falls from left to right. It starts at a closed dot on the vertical axis and ends at a closed dot to the right. The horizontal axis is time streaming in hours, marked every hour. The vertical axis is battery charge in percent, marked every 10 percent."
+          },
+          "correctDomain": "0 <= x <= 6",
+          "correctRange": "20 <= y <= 80",
+          "notation": "inequality",
+          "hints": [
+            "The domain is the set of x-values the graph covers. Read the graph from its left end to its right end.",
+            "The range is the set of y-values the graph covers. Read it from the lowest point of the graph to the highest point.",
+            "Both ends of the graph are closed dots, so both endpoint values belong in the inequality. Use ≤, not <."
+          ],
+          "solutionReview": {
+            "commonError": "Writing the range as 0 ≤ y ≤ 80 or 0 ≤ y ≤ 100; the battery never drops below 20% on this graph, so the range is only the charges the graph reaches: 20 ≤ y ≤ 80."
+          }
+        },
+        {
+          "questionId": "dol3-review-q02",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "classifyContinuity",
+            "constructGraph",
+            "stateDomain",
+            "stateRange"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Popcorn buckets at a movie theater cost $6 each. A group of friends has $30 to spend on popcorn, and they might decide not to buy any. Let x be the number of buckets they buy and f(x) be the total cost, in dollars.",
+          "scenario": "Popcorn buckets at a movie theater cost $6 each. A group of friends has $30 to spend on popcorn, and they might decide not to buy any. Let x be the number of buckets they buy and f(x) be the total cost, in dollars.",
+          "quantities": [
+            {
+              "id": "buckets",
+              "label": "Number of popcorn buckets bought"
+            },
+            {
+              "id": "cost",
+              "label": "Total cost of the popcorn (dollars)"
+            },
+            {
+              "id": "price",
+              "label": "Price of one bucket (dollars)"
+            }
+          ],
+          "correctIndependentId": "buckets",
+          "correctDependentId": "cost",
+          "answerModel": {
+            "equation": "f(x)=6x",
+            "domain": "{0, 1, 2, 3, 4, 5}",
+            "range": "{0, 6, 12, 18, 24, 30}",
+            "continuity": "discrete"
+          },
+          "tableXValues": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "graph": {
+            "xMin": -1,
+            "xMax": 7,
+            "yMin": -5,
+            "yMax": 40,
+            "xAxisLabel": "Buckets bought",
+            "yAxisLabel": "Total cost",
+            "yAxisUnit": "dollars"
+          },
+          "hints": [
+            "The total cost depends on how many buckets the group buys, so the number of buckets is the input.",
+            "The group's money limits how many buckets they can buy, and they can only buy whole buckets. How many buckets can their money pay for?",
+            "List every number of buckets that makes sense in this situation. Then find the total cost for each one."
+          ],
+          "solutionReview": {
+            "commonError": "Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points."
+          }
+        },
+        {
+          "questionId": "dol3-review-q03",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "proveConstantRate"
+          ],
+          "mode": "deriveEquation",
+          "requiredComparisons": 3,
+          "rows": [
+            {
+              "x": -2,
+              "y": -4
+            },
+            {
+              "x": 2,
+              "y": 2
+            },
+            {
+              "x": 6,
+              "y": 8
+            },
+            {
+              "x": 10,
+              "y": 14
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "The table shows values of a linear function. Use three different pairs of rows to prove that the rate of change is constant. Then write the equation of the line in slope-intercept form, y = mx + b.",
+          "hints": [
+            "For each pair of rows, Δx is the change in x and Δy is the change in y. The rate of change is Δy ÷ Δx.",
+            "The x-values do not go up by 1, so the slope is not just the change in y from one row to the next.",
+            "Substitute your slope and the x- and y-values from one row into y = mx + b, then solve for b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The rate of change between two rows of a table is…",
+            "options": [
+              "the change in x divided by the change in y",
+              "the change in y divided by the change in x"
+            ],
+            "correct": "the change in y divided by the change in x"
+          },
+          "solutionReview": {
+            "commonError": "Using the change in y alone as the slope; the x-values go up by 4, not 1, so the rate of change is Δy ÷ Δx = 6 ÷ 4 = 3/2."
+          }
+        },
+        {
+          "questionId": "dol3-review-q04",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Read the rideshare situation. Decide what x and y stand for, write the equation of the relationship in slope-intercept form, and graph it.",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A rideshare company charges a $3 pickup fee plus $2 for each mile of the ride. Let x be the length of the ride, in miles, and y be the total cost of the ride, in dollars.",
+            "rate": 2,
+            "initialValue": 3
+          },
+          "requiredCards": [
+            "slope",
+            "yIntercept",
+            "slopeIntercept",
+            "graphSlopeIntercept"
+          ],
+          "context": {
+            "independentQuantity": {
+              "value": "length of the ride (miles)",
+              "choices": [
+                "length of the ride (miles)",
+                "total cost of the ride (dollars)",
+                "cost for each mile (dollars)"
+              ]
+            },
+            "dependentQuantity": {
+              "value": "total cost of the ride (dollars)",
+              "choices": [
+                "length of the ride (miles)",
+                "total cost of the ride (dollars)",
+                "cost for each mile (dollars)"
+              ]
+            },
+            "slopeMeaning": {
+              "value": "The total cost goes up $2 for each mile of the ride.",
+              "choices": [
+                "The total cost goes up $2 for each mile of the ride.",
+                "The total cost goes up $3 for each mile of the ride.",
+                "The ride is 2 miles long.",
+                "The pickup fee is $2."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The rider pays $3 before the car drives any miles.",
+              "choices": [
+                "The rider pays $3 before the car drives any miles.",
+                "The rider pays $2 before the car drives any miles.",
+                "The ride is 3 miles long.",
+                "Each mile costs $3."
+              ]
+            }
+          },
+          "hints": [
+            "The amount added for every mile is the rate of change, so it is the slope.",
+            "The one-time fee is what the rider pays when x = 0, so it is the y-intercept.",
+            "Write y = mx + b with your slope and y-intercept. To graph it, start at the y-intercept and use the slope to find a second point."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y = mx + b, which part is the starting amount?",
+            "options": [
+              "b, the y-intercept",
+              "m, the slope"
+            ],
+            "correct": "b, the y-intercept"
+          },
+          "solutionReview": {
+            "commonError": "Using the $3 pickup fee as the slope; the fee is paid once, before any miles, so it is the y-intercept, and the $2 for each mile is the slope: y = 2x + 3."
+          }
+        },
+        {
+          "questionId": "dol3-review-q05",
+          "standard": "A.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "proveConstantRate"
+          ],
+          "mode": "constantRate",
+          "requiredComparisons": 3,
+          "xAxisLabel": "Rental time (hours)",
+          "yAxisLabel": "Total cost (dollars)",
+          "rows": [
+            {
+              "x": 1,
+              "y": 27
+            },
+            {
+              "x": 3,
+              "y": 51
+            },
+            {
+              "x": 4,
+              "y": 63
+            },
+            {
+              "x": 7,
+              "y": 99
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A shop rents kayaks. The table shows the total cost, y dollars, to rent a kayak for x hours. Calculate the rate of change for three different pairs of rows, then decide whether the rate of change is constant.",
+          "hints": [
+            "Pick two rows. Δx is how many more hours, and Δy is how many more dollars.",
+            "The rate of change is Δy ÷ Δx. In this situation its units are dollars per hour.",
+            "If every pair of rows gives the same rate, the rate of change is constant. If any two rates differ, it is not."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For two rows of a table, Δx is…",
+            "options": [
+              "the change in x from one row to the other",
+              "the change in y from one row to the other"
+            ],
+            "correct": "the change in x from one row to the other"
+          },
+          "solutionReview": {
+            "commonError": "Taking the change in cost between two rows as the rate; the hours jump by different amounts, so divide each change in cost by its change in hours: 24 ÷ 2, 12 ÷ 1 and 36 ÷ 3 each give 12 dollars per hour."
+          }
+        },
+        {
+          "questionId": "dol3-review-q06",
+          "standard": "A.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Jordan walks home from a park at a constant speed. The graph shows Jordan’s distance from home, y miles, x hours after leaving the park. Find the rate of change from the graph and tell what it means. Then write the equation of the line.",
+          "xAxisLabel": "Time since leaving the park (hours)",
+          "yAxisLabel": "Distance from home (miles)",
+          "source": {
+            "kind": "graph",
+            "points": [
+              {
+                "x": 0,
+                "y": 9
+              },
+              {
+                "x": 1,
+                "y": 6
+              },
+              {
+                "x": 2,
+                "y": 3
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          "graphBounds": {
+            "xMin": -1,
+            "xMax": 5,
+            "yMin": -1,
+            "yMax": 11
+          },
+          "requiredCards": [
+            "slope",
+            "yIntercept",
+            "slopeIntercept"
+          ],
+          "context": {
+            "slopeMeaning": {
+              "value": "Jordan gets 3 miles closer to home each hour.",
+              "choices": [
+                "Jordan gets 3 miles closer to home each hour.",
+                "Jordan gets 3 miles farther from home each hour.",
+                "Jordan gets home after 3 hours.",
+                "Jordan starts 3 miles from home."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "Jordan starts 9 miles from home.",
+              "choices": [
+                "Jordan starts 9 miles from home.",
+                "Jordan walks 9 miles each hour.",
+                "Jordan gets home after 9 hours.",
+                "Jordan is 9 miles from the park after 1 hour."
+              ]
+            }
+          },
+          "hints": [
+            "Pick two points where the line crosses grid intersections. Count the rise (change in y) and the run (change in x) between them.",
+            "The distance from home is going down as time goes on, so the rate of change is negative.",
+            "The y-intercept is the distance from home when x = 0, the moment Jordan leaves the park."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. On a distance-from-home graph, a negative rate of change means…",
+            "options": [
+              "the distance from home goes up as time goes on",
+              "the distance from home goes down as time goes on"
+            ],
+            "correct": "the distance from home goes down as time goes on"
+          },
+          "solutionReview": {
+            "commonError": "Dropping the negative sign; the distance from home goes down as time goes up, so the rate of change is −3 miles per hour: Jordan gets 3 miles closer to home each hour."
+          }
+        },
+        {
+          "questionId": "dol3-review-q07",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Graph the linear function 3x − 4y = 24. Find its x-intercept (which gives the zero of the function), its y-intercept and its slope, then graph the line using its intercepts.",
+          "source": {
+            "kind": "standardForm",
+            "equation": "3x-4y=24"
+          },
+          "graphBounds": {
+            "xMin": -2,
+            "xMax": 10,
+            "yMin": -8,
+            "yMax": 4
+          },
+          "requiredCards": [
+            "xIntercept",
+            "yIntercept",
+            "slope",
+            "graphIntercepts"
+          ],
+          "hints": [
+            "Every point on the x-axis has y = 0. Substitute 0 for y and solve to find the x-intercept.",
+            "Every point on the y-axis has x = 0. Substitute 0 for x and solve to find the y-intercept.",
+            "The zero of the function is the x-value of the x-intercept. Use the two intercepts as two points to find the slope."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find the x-intercept of an equation, you substitute…",
+            "options": [
+              "0 for x",
+              "0 for y"
+            ],
+            "correct": "0 for y"
+          },
+          "solutionReview": {
+            "commonError": "Dividing by 4 instead of −4 for the y-intercept; with x = 0 the equation is −4y = 24, so y = −6, not 6."
+          }
+        },
+        {
+          "questionId": "dol3-review-q08",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A tank is drained at a constant rate. The graph shows the amount of water left in the tank, y gallons, x minutes after the draining starts. Find the x-intercept, the zero and the y-intercept of the function.",
+          "function": {
+            "family": "linear",
+            "m": -4,
+            "b": 48,
+            "domain": {
+              "min": 0,
+              "max": 12,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -1,
+            "xMax": 14,
+            "yMin": -4,
+            "yMax": 56,
+            "xAxisLabel": "Time draining",
+            "xAxisUnit": "minutes",
+            "yAxisLabel": "Water in the tank",
+            "yAxisUnit": "gallons",
+            "accessibleDescription": "A line segment that falls from left to right. It starts at a closed dot on the vertical axis and ends at a closed dot on the horizontal axis. The horizontal axis is time draining in minutes, marked every minute. The vertical axis is water in the tank in gallons, marked every 4 gallons."
+          },
+          "xIntercepts": [
+            {
+              "x": 12,
+              "y": 0
+            }
+          ],
+          "yIntercept": [
+            0,
+            48
+          ],
+          "hints": [
+            "The x-intercept is where the graph meets the x-axis. There, the tank has 0 gallons left.",
+            "The zero of the function is the x-value that makes y = 0.",
+            "The y-intercept is where the graph meets the y-axis, the moment the draining starts."
+          ],
+          "solutionReview": {
+            "commonError": "Mixing up the zero and the y-intercept; the zero is the x-value that makes y = 0 (12 minutes, when the tank is empty), and the y-intercept is the starting amount, 48 gallons."
+          }
+        },
+        {
+          "questionId": "dol3-review-q09",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A line passes through the points (−2, 7) and (4, −2). Find its slope, then write its equation in point-slope form, slope-intercept form and standard form.",
+          "source": {
+            "kind": "twoPoints",
+            "points": [
+              {
+                "x": -2,
+                "y": 7
+              },
+              {
+                "x": 4,
+                "y": -2
+              }
+            ]
+          },
+          "requiredCards": [
+            "slope",
+            "pointSlope",
+            "slopeIntercept",
+            "standardForm"
+          ],
+          "hints": [
+            "Use the slope formula: (y₂ − y₁) ÷ (x₂ − x₁). Subtract in the same order on the top and the bottom.",
+            "Point-slope form is y − y₁ = m(x − x₁). Use your slope and either given point.",
+            "Solve your point-slope equation for y to get slope-intercept form. For standard form, Ax + By = C, clear the fractions and move the x-term to the left side."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y − y₁ = m(x − x₁), the values x₁ and y₁ come from…",
+            "options": [
+              "a point on the line",
+              "the slope and the y-intercept"
+            ],
+            "correct": "a point on the line"
+          },
+          "solutionReview": {
+            "commonError": "Subtracting the coordinates in different orders; if the top is −2 − 7, the bottom must be 4 − (−2), so the slope is −9/6 = −3/2."
+          }
+        },
+        {
+          "questionId": "dol3-review-q10",
+          "standard": "A.4B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.4B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoOwnGroups"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Each card names two quantities that are related. Sort the cards into exactly two groups: pairs where a change in the first quantity causes the change in the second, and pairs that are only associated (they change together, but one does not cause the other). Name each group and explain how you decided.",
+          "items": [
+            {
+              "id": "gas",
+              "label": "Card A",
+              "text": "The number of gallons of gas pumped and the total cost of the gas"
+            },
+            {
+              "id": "icecream",
+              "label": "Card B",
+              "text": "Daily ice cream sales and the number of sunburns at a beach"
+            },
+            {
+              "id": "candle",
+              "label": "Card C",
+              "text": "The number of hours a candle burns and the height of the candle"
+            },
+            {
+              "id": "shoes",
+              "label": "Card D",
+              "text": "The shoe size of elementary school students and their reading level"
+            },
+            {
+              "id": "wages",
+              "label": "Card E",
+              "text": "The number of hours Mia works at $12 per hour and the amount she earns"
+            },
+            {
+              "id": "firefighters",
+              "label": "Card F",
+              "text": "The number of firefighters sent to a fire and the amount of damage the fire causes"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "causationVsAssociation",
+              "label": "Causation or association",
+              "groups": [
+                {
+                  "id": "causation",
+                  "label": "Causation",
+                  "itemIds": [
+                    "gas",
+                    "candle",
+                    "wages"
+                  ]
+                },
+                {
+                  "id": "association",
+                  "label": "Association only",
+                  "itemIds": [
+                    "icecream",
+                    "shoes",
+                    "firefighters"
+                  ]
+                }
+              ]
+            }
+          ],
+          "minGroups": 2,
+          "maxGroups": 2,
+          "hints": [
+            "Causation means changing the first quantity directly makes the second quantity change.",
+            "Two quantities can rise together because a third quantity, a lurking variable, affects both of them.",
+            "For each card, ask: is there something else that could make both quantities change? Hot weather, age and the size of a fire are examples."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Towns with more libraries also report more crimes. What most likely explains both?",
+            "options": [
+              "Libraries cause crime",
+              "Bigger towns have more of both"
+            ],
+            "correct": "Bigger towns have more of both"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "For each card, ask whether changing only the first quantity would make the second quantity change.",
+              "Causation: Card A (each gallon pumped adds to the cost), Card C (burning longer makes the candle shorter) and Card E (each hour Mia works adds $12 to her pay).",
+              "Association only: Card B (hot, sunny weather raises both ice cream sales and sunburns), Card D (older students tend to have bigger feet and to read at higher levels) and Card F (a bigger fire brings more firefighters and causes more damage)."
+            ],
+            "commonError": "Calling a pair causation because the two quantities rise together; ice cream sales and sunburns both rise in hot weather, but buying ice cream does not cause sunburns."
+          }
+        },
+        {
+          "questionId": "dol3-review-q11",
+          "standard": "A.4C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.4C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "fitDataModel",
+            "predictFromModel"
+          ],
+          "points": [
+            {
+              "x": 0.5,
+              "y": 58
+            },
+            {
+              "x": 1,
+              "y": 62
+            },
+            {
+              "x": 1.5,
+              "y": 61
+            },
+            {
+              "x": 2,
+              "y": 70
+            },
+            {
+              "x": 2.5,
+              "y": 68
+            },
+            {
+              "x": 3,
+              "y": 75
+            },
+            {
+              "x": 4,
+              "y": 79
+            },
+            {
+              "x": 4.5,
+              "y": 85
+            },
+            {
+              "x": 5,
+              "y": 83
+            },
+            {
+              "x": 6,
+              "y": 92
+            }
+          ],
+          "predictionX": 3.5,
+          "predictionTolerance": 2,
+          "xAxisLabel": "Hours studied",
+          "yAxisLabel": "Quiz score (points)",
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A teacher asked ten students how many hours they studied for a quiz, x, and recorded each student's quiz score, y. First estimate a line of best fit by moving the slope and the intercept yourself. Then run linear regression to write a linear function that fits the data. Use the regression function to predict the quiz score of a student who studies for 3.5 hours.",
+          "hints": [
+            "Start your estimate by making the line rise the way the points rise, then slide it until about as many points sit above it as below it.",
+            "Run linear regression on all ten data points. Its line replaces your estimate as your model.",
+            "Substitute 3.5 for x in the regression function y = mx + b, then round to the nearest whole point."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To predict the score for 3.5 hours of studying, you substitute 3.5 for…",
+            "options": [
+              "x, the hours studied",
+              "y, the quiz score"
+            ],
+            "correct": "x, the hours studied"
+          },
+          "solutionReview": {
+            "commonError": "Predicting from a line through two of the points, or from the hand-fit estimate; the prediction comes from the regression function, which uses all ten points."
+          }
+        },
+        {
+          "questionId": "dol3-review-q12",
+          "standard": "A.12A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoOwnGroups"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Each card shows a relation in words, in a table, as a graph or as an equation. Sort the cards into exactly two groups: relations that are functions and relations that are not functions. Name each group and explain the rule you used.",
+          "items": [
+            {
+              "id": "birthday",
+              "label": "Card A",
+              "text": "Words: Each student in a class is paired with their birthday."
+            },
+            {
+              "id": "month",
+              "label": "Card B",
+              "text": "Words: Each month of the year is paired with every student in the class born in that month."
+            },
+            {
+              "id": "tableRepeat",
+              "label": "Card C",
+              "table": {
+                "x": [
+                  -2,
+                  0,
+                  3,
+                  3
+                ],
+                "y": [
+                  5,
+                  1,
+                  4,
+                  -4
+                ]
+              }
+            },
+            {
+              "id": "tableConstant",
+              "label": "Card D",
+              "table": {
+                "x": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "y": [
+                  6,
+                  6,
+                  6,
+                  6
+                ]
+              }
+            },
+            {
+              "id": "circle",
+              "label": "Card E",
+              "graphSpec": {
+                "type": "circle",
+                "h": 0,
+                "k": 0,
+                "radius": 4
+              }
+            },
+            {
+              "id": "line",
+              "label": "Card F",
+              "graphSpec": {
+                "type": "linear",
+                "a": -2,
+                "h": 0,
+                "k": 1
+              }
+            },
+            {
+              "id": "quadratic",
+              "label": "Card G",
+              "text": "Equation: y = x² − 3"
+            },
+            {
+              "id": "vertical",
+              "label": "Card H",
+              "text": "Equation: x = 4"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "functionOrNot",
+              "label": "Function or not",
+              "groups": [
+                {
+                  "id": "function",
+                  "label": "Functions",
+                  "itemIds": [
+                    "birthday",
+                    "tableConstant",
+                    "line",
+                    "quadratic"
+                  ]
+                },
+                {
+                  "id": "notFunction",
+                  "label": "Not functions",
+                  "itemIds": [
+                    "month",
+                    "tableRepeat",
+                    "circle",
+                    "vertical"
+                  ]
+                }
+              ]
+            }
+          ],
+          "minGroups": 2,
+          "maxGroups": 2,
+          "hints": [
+            "A relation is a function when every input is paired with exactly one output.",
+            "In a table, look for an x-value that appears twice with different y-values. Two inputs sharing one output is still a function.",
+            "For a graph, use the vertical line test. For an equation, ask whether one x-value can give two different y-values."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A relation is NOT a function when…",
+            "options": [
+              "two different inputs have the same output",
+              "one input has two different outputs"
+            ],
+            "correct": "one input has two different outputs"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "A relation is a function when every input is paired with exactly one output.",
+              "Functions: Card A (each student has one birthday), Card D (each input has one output; outputs may repeat), Card F (the line is not vertical, so each x-value has one y-value) and Card G (each x-value gives one value of x² − 3).",
+              "Not functions: Card B (a month can be paired with several students), Card C (the input 3 has two outputs, 4 and −4), Card E (a vertical line through the circle crosses it twice) and Card H (the input 4 is paired with every y-value)."
+            ],
+            "commonError": "Calling Card D not a function because its outputs repeat; a function may repeat outputs, but it may not give one input two different outputs, as 3 does in Card C."
+          }
+        },
+        {
+          "questionId": "dol3-review-q13",
+          "standard": "A.12C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "buildSequenceTable",
+            "plotSequence",
+            "analyzeSequence"
+          ],
+          "sequence": {
+            "kind": "arithmetic",
+            "first": -7,
+            "difference": 4
+          },
+          "displayCount": 6,
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A sequence is given in function form by f(1) = −7 and f(n) = f(n − 1) + 4 for n ≥ 2. In the tool, the nth term f(n) is written aₙ. Use the recursive rule to find the first six terms, plot them, and identify the common difference.",
+          "hints": [
+            "A recursive rule tells you how to get each term from the term just before it.",
+            "Start with the first term the rule gives you. Apply the rule to it to get the second term, then apply the rule again to get the third.",
+            "Plot each term as the point (n, f(n)). Do not connect the points: n is a whole-number term position."
+          ],
+          "solutionReview": {
+            "commonError": "Adding 4 to the position n instead of to the term before it; each term is the previous term plus 4, so the terms are −7, −3, 1, 5, 9, 13."
+          }
+        }
+      ]
+    }
+  ]
+}

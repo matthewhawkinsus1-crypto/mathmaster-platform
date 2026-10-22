@@ -1,27 +1,8 @@
 name: Path Tool Browser Contract
 
 on:
-  pull_request:
-    paths:
-      - "functions/shared/pathToolContracts.mjs"
-      - "functions/shared/pathDataModelingGrading.mjs"
-      - "functions/shared/pathRegressionCalculatorGrading.mjs"
-      - "src/QuestionEngine.jsx"
-      - "src/components/common/WorkViewShell.css"
-      - "src/components/student/MobileViewportContainer.jsx"
-      - "src/components/student/MathToolMobileLayout.css"
-      - "src/platform/path/pathToolResponses.js"
-      - "src/tools/dataModeling/**"
-      - "src/tools/regressionCalculator/**"
-      - "src/tools/workViewCertificationManifest.js"
-      - "tests/browser/workViewCertification*"
-      - "tests/platform/workViewStage4Certification.test.mjs"
-      - "tests/browser/captureToolResponses*"
-      - "tests/browser/regressionCalculatorPhone.mjs"
-      - "tests/platform/fixtures/pathToolQuestions.mjs"
-      - "tests/platform/fixtures/capturedToolResponses.json"
-      - "tests/platform/toolResponseContracts.test.mjs"
-      - ".github/workflows/path-tool-browser-contract.yml"
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   secured-tool-browser-contract:
@@ -32,19 +13,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install browser driver
-        run: |
-          npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-          npx playwright install --with-deps chromium
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
 
       - name: Start capture app
         run: |
@@ -74,7 +45,7 @@ jobs:
         run: node tests/browser/regressionCalculatorPhone.mjs
 
       - name: Show browser-contract drift
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           git diff -- tests/platform/fixtures/capturedToolResponses.json || true
 

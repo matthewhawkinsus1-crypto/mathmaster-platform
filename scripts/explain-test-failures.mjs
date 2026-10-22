@@ -41,8 +41,16 @@ import {
 
 const PLAYBOOK = 'docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md';
 
+// Node reads a test flag only before the files: `--test-shard=1/4` after the
+// glob is taken for a file pattern, and every shard runs the whole suite. So
+// flags go first, wherever they were given (`npm run test:platform --
+// --test-shard=1/4` puts them last).
+const args = process.argv.slice(2);
+const flags = args.filter((arg) => arg.startsWith('-'));
+const files = args.filter((arg) => !arg.startsWith('-'));
+
 const run = () => new Promise((resolve) => {
-  const child = spawn('node', ['--test', ...process.argv.slice(2).length ? process.argv.slice(2) : ['tests/platform/*.test.mjs']], {
+  const child = spawn('node', ['--test', ...flags, ...(files.length ? files : ['tests/platform/*.test.mjs'])], {
     shell: true,
     encoding: 'utf8',
   });

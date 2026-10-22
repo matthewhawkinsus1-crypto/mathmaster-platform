@@ -52,12 +52,47 @@ for (const [file, why] of [
   ['src/platform/preflight/assignmentAuthoringState.js', 'Home reads only the state names (preflight/authoringStates.js)'],
   ['src/platform/student/questionAlignmentInfo.js', 'the navigator reads only questionAssessmentFramework'],
   ['src/platform/ccmr/assessmentStandardReferences.js', 'the standard references belong to the alignment panel'],
+  // Operations on polynomials: the Recovery families joined the first load,
+  // so more teacher-only modules left it.
+  ['src/services/testCycleService.js', 'only the Action Center lists Test Cycle records (teacher kit)'],
+  ['src/platform/teacher/testCycleActionProjection.js', 'only the Action Center projects Test Cycle actions (teacher kit)'],
+  ['src/platform/teacher/studentSupportStore.js', 'only a teacher reads or records support history (teacher kit)'],
+  ['src/platform/teacher/liveAttendance.js', 'App reads only the event kind (teacher/liveAttendanceEventKind.js)'],
+  ['src/platform/attendance/attendanceHistory.js', 'App reads only the event kind (functions/shared/attendanceDay.mjs)'],
+  ['src/platform/assessment/assessmentRecovery.js', 'the DOL recovery builders are teacher actions (teacher kit); a student reads assessment/studentRecoverySummary.js'],
+  // Dividing polynomials: its Recovery families joined the first load too.
+  ['src/app/teacher/feedbackReleaseHold.js', 'only a teacher releases assessment feedback (teacher kit)'],
+  ['src/app/teacher/feedbackReleaseControls.js', 'only a teacher releases assessment feedback (teacher kit)'],
+  ['src/platform/attendance/absencePolicy.js', 'only the teacher\'s attendance tools read it (attendanceHistory.js, extensionReconciliation.js)'],
+  ['src/platform/classroom/classroomTopicNaming.js', 'only a teacher publishes to Classroom (teacher kit); the Classroom Manager loads its own'],
+  ['src/platform/teacher/studentSupportSignals.js', 'App reads only the event kinds (teacher/supportEventKinds.js) and the live rapid-correct summary (teacher/rapidCorrectness.js)'],
 ]) {
   test(`${path.basename(file)} is not in the first load: ${why}`, () => {
     const key = path.join(repo, file);
     assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
   });
 }
+
+// The names App reads from small modules of their own are the values the full
+// modules (and, for live attendance, the server's day rules) use.
+test('the event kinds and the rapid-correct summary are the same from their own modules', async () => {
+  const [liveKind, attendanceDay, liveAttendance, kinds, rapid, signals] = await Promise.all([
+    import('../../src/platform/teacher/liveAttendanceEventKind.js'),
+    import('../../functions/shared/attendanceDay.mjs'),
+    import('../../src/platform/teacher/liveAttendance.js'),
+    import('../../src/platform/teacher/supportEventKinds.js'),
+    import('../../src/platform/teacher/rapidCorrectness.js'),
+    import('../../src/platform/teacher/studentSupportSignals.js'),
+  ]);
+  assert.equal(liveKind.LIVE_ATTENDANCE_EVENT_KIND, attendanceDay.LIVE_ATTENDANCE_EVENT_KIND, 'the server\'s live-attendance kind');
+  assert.equal(liveKind.LIVE_ATTENDANCE_EVENT_KIND, liveAttendance.LIVE_ATTENDANCE_EVENT_KIND);
+  assert.equal(signals.SUPPORT_EVENT_KIND, kinds.SUPPORT_EVENT_KIND);
+  assert.equal(signals.SUPPORT_EVENT_STAGE, kinds.SUPPORT_EVENT_STAGE);
+  assert.equal(signals.summarizeRapidCorrectness, rapid.summarizeRapidCorrectness);
+  assert.equal(signals.rapidCorrectThresholdSeconds, rapid.rapidCorrectThresholdSeconds);
+  assert.match(app, /^import \{ SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE \} from '\.\/platform\/teacher\/supportEventKinds\.js';$/m);
+  assert.match(app, /^import \{ summarizeRapidCorrectness \} from '\.\/platform\/teacher\/rapidCorrectness\.js';$/m);
+});
 
 // The kit is one request per page; once here, every later reader gets it at
 // once; a failed load is forgotten (a reload is what recovers: the browser
@@ -75,7 +110,8 @@ test('the teacher kit loads once, is handed out at once after that, and exports 
   // (App.jsx is .jsx: no test imports it, and a call with no import is a
   // ReferenceError that passes every other check).
   const used = [...appCode.matchAll(/(?:teacherKit\.|requireTeacherKit\(\)\.)(\w+)\(/g)].map((match) => match[1]);
-  // (a destructure from requireTeacherKit(), or from teacherKit after a handler has checked it loaded)
+  // Every destructuring of the kit, not only the first: from requireTeacherKit(),
+  // or from teacherKit after a handler has checked it loaded.
   const destructured = [...appCode.matchAll(/const \{ ([\w, ]+) \} = (?:requireTeacherKit\(\)|teacherKit);/g)].flatMap((match) => match[1].split(', '));
   const members = [...new Set([...used, ...destructured])].sort();
   assert.deepEqual(members, Object.keys(kit).sort(), 'App uses exactly the kit\'s members, through the kit');

@@ -216,8 +216,12 @@ test('the plane svg is described by the generated (or authored) summary paragrap
   // Kept out of browse mode (no second reading), except inside a card control
   // whose name it forms.
   assert.match(paragraph[0], /aria-hidden=\{insideControl \? undefined : 'true'\}/);
-  // Authored text wins over generated.
-  assert.match(planeCode, /const spokenDescription = authoredDescription \|\| generatedDescription\.description;/);
+  // Authored text wins over generated. What a titled axis measures is said
+  // first: the visible captions are hidden from assistive technology, so the
+  // description is the only place a screen reader hears them.
+  const spoken = region(planeCode, 'const spokenDescription =', ';\n', 'the spoken description');
+  assert.match(spoken, /authoredDescription \|\| generatedDescription\.description/);
+  assert.match(spoken, /^const spokenDescription = \[axisTitleSentence\(axisTitles\), /);
 });
 
 test('the plane states feature values only once the question is closed, or when told', () => {

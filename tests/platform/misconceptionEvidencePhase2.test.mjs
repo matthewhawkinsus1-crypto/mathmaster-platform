@@ -110,7 +110,12 @@ test('Phase 2 is additive under registry v1: new ids only, every existing code a
   // the form of a line, all version 1 under the same registry version.
   const passThree = ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard'];
   passThree.forEach((id) => assert.equal(getMisconceptionCode(id)?.version, 1, id));
-  assert.equal(MISCONCEPTION_REGISTRY.length, 18 + added.length + passThree.length);
+  // Operations on polynomials added one more, additively: a polynomial with
+  // the key's value that is not simplified, on a field that asks for simplest
+  // form. Version 1, emitted by the same ordinary:multiAnswer classifier.
+  const polynomials = ['polynomial-not-simplified'];
+  polynomials.forEach((id) => assert.equal(getMisconceptionCode(id)?.version, 1, id));
+  assert.equal(MISCONCEPTION_REGISTRY.length, 18 + added.length + passThree.length + polynomials.length);
   // No synonym of an existing code was created: every new code names a different concept.
   const concepts = MISCONCEPTION_REGISTRY.map((entry) => entry.concept);
   added.forEach((id) => assert.equal(concepts.filter((concept) => concept === getMisconceptionCode(id).concept).length, 1, `${id} has its own concept`));

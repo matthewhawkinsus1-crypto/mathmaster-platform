@@ -167,6 +167,7 @@ const FUNCTION_MODELING = {
     }),
     domainWords: (question, asked) => ({
       id: 'domainWords',
+      stepLabel: 'Domain in words',
       kind: Array.isArray(question.domainWordsChoices) && question.domainWordsChoices.length
         ? 'multipleChoice'
         : 'shortResponse',
@@ -178,6 +179,7 @@ const FUNCTION_MODELING = {
     }),
     domainInequality: (question, asked) => ({
       id: 'domainInequality',
+      stepLabel: 'Domain as an inequality',
       kind: 'domainInput',
       prompt: question.domainInequalityPrompt || 'Write the domain using inequalities.',
       notation: 'inequality',
@@ -196,6 +198,7 @@ const FUNCTION_MODELING = {
     }),
     rangeWords: (question, asked) => ({
       id: 'rangeWords',
+      stepLabel: 'Range in words',
       kind: Array.isArray(question.rangeWordsChoices) && question.rangeWordsChoices.length
         ? 'multipleChoice'
         : 'shortResponse',
@@ -207,6 +210,7 @@ const FUNCTION_MODELING = {
     }),
     rangeInequality: (question, asked) => ({
       id: 'rangeInequality',
+      stepLabel: 'Range as an inequality',
       kind: 'rangeInput',
       prompt: question.rangeInequalityPrompt || 'Write the range using inequalities.',
       notation: 'inequality',
@@ -214,6 +218,7 @@ const FUNCTION_MODELING = {
     }),
     continuity: (question, asked) => ({
       id: 'continuity',
+      stepLabel: 'Discrete or continuous?',
       kind: 'classification',
       prompt: question.continuityPrompt || 'Should this relationship be represented as discrete points or as a continuous graph?',
       choices: ['discrete', 'continuous'],
@@ -303,6 +308,7 @@ const RELATION_REPRESENTATIONS = {
     }),
     isFunction: (question) => ({
       id: 'isFunction',
+      stepLabel: 'Function?',
       kind: 'classification',
       prompt: question.isFunctionPrompt || 'Is this relation a function?',
       choices: ['Yes', 'No'],
@@ -509,6 +515,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     model: (question, asked) => ({
       id: 'model',
+      stepLabel: 'Function family',
       kind: 'classification',
       prompt: question.modelPrompt || 'What kind of function do these points make?',
       choices: list(question.familyChoices).length ? list(question.familyChoices) : FAMILY_CHOICES,
@@ -530,6 +537,7 @@ const FUNCTION_CHARACTERISTICS = {
      */
     xInterceptExists: (question) => ({
       id: 'xInterceptExists',
+      stepLabel: 'x-intercept?',
       kind: 'classification',
       reveals: ['plot', 'model'],
       prompt: question.xInterceptExistsPrompt || 'Does this graph have an x-intercept?',
@@ -538,6 +546,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     yInterceptExists: (question) => ({
       id: 'yInterceptExists',
+      stepLabel: 'y-intercept?',
       kind: 'classification',
       reveals: ['plot', 'model'],
       prompt: question.yInterceptExistsPrompt || 'Does this graph have a y-intercept?',
@@ -546,6 +555,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     xIntercept: (question, asked) => ({
       id: 'xIntercept',
+      stepLabel: 'Mark x-intercepts',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
       // both the plotted points and the function family. Those two steps close
@@ -563,6 +573,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     yIntercept: (question, asked) => ({
       id: 'yIntercept',
+      stepLabel: 'Mark y-intercept',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
       // both the plotted points and the function family. Those two steps close
@@ -577,12 +588,14 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     extremeKind: (question) => ({
       id: 'extremeKind',
+      stepLabel: 'Max or min?',
       kind: 'classification',
       prompt: question.extremeKindPrompt || 'Does this graph have an extreme maximum, an extreme minimum, or neither?',
       choices: list(question.extremeChoices).length ? list(question.extremeChoices) : EXTREME_CHOICES,
     }),
     extremePoint: (question) => ({
       id: 'extremePoint',
+      stepLabel: 'Mark max/min',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
       // both the plotted points and the function family. Those two steps close
@@ -597,6 +610,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     xInterceptValue: (question, asked) => ({
       id: 'xInterceptValue',
+      stepLabel: 'x-intercepts',
       kind: 'pointInput',
       prompt: question.xInterceptValuePrompt || 'Write the x-intercept(s) as ordered pairs.',
       feature: 'xIntercept',
@@ -614,6 +628,7 @@ const FUNCTION_CHARACTERISTICS = {
      */
     zeros: (question, asked) => ({
       id: 'zeros',
+      stepLabel: 'Zeros',
       kind: 'valueSet',
       prompt: question.zerosPrompt || 'What are the zeros of this function?',
       notation: 'set',
@@ -622,6 +637,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     yInterceptValue: (question, asked) => ({
       id: 'yInterceptValue',
+      stepLabel: 'y-intercept',
       kind: 'pointInput',
       prompt: question.yInterceptValuePrompt || 'Write the y-intercept as an ordered pair.',
       feature: 'yIntercept',
@@ -631,6 +647,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     extremeValue: (question) => ({
       id: 'extremeValue',
+      stepLabel: 'Max/min point',
       kind: 'pointInput',
       prompt: question.extremeValuePrompt || 'Write the location of the maximum or minimum, or say it does not exist.',
       feature: 'extremum',
@@ -645,6 +662,7 @@ const FUNCTION_CHARACTERISTICS = {
      */
     axisOfSymmetry: (question) => ({
       id: 'axisOfSymmetry',
+      stepLabel: 'Axis of symmetry',
       kind: 'equationInput',
       prompt: question.axisOfSymmetryPrompt || 'Write the equation of the axis of symmetry.',
       placeholder: 'x = ',
@@ -656,12 +674,14 @@ const FUNCTION_CHARACTERISTICS = {
      */
     asymptote: (question) => ({
       id: 'asymptote',
+      stepLabel: 'Asymptote',
       kind: 'equationInput',
       prompt: question.asymptotePrompt || 'Write the equation of the horizontal asymptote.',
       placeholder: 'y = ',
     }),
     behavior: (question) => ({
       id: 'behavior',
+      stepLabel: 'Increasing/decreasing',
       kind: 'classification',
       prompt: question.behaviorPrompt || 'Where is this function increasing and where is it decreasing?',
       choices: list(question.behaviorChoices).length ? list(question.behaviorChoices) : BEHAVIOR_CHOICES,
@@ -672,6 +692,7 @@ const FUNCTION_CHARACTERISTICS = {
     // and range has no earlier step still on screen holding the figure.
     domain: (question) => ({
       id: 'domain',
+      stepLabel: 'Domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State the domain.',
       notation: question.notation || 'inequality',
@@ -680,6 +701,7 @@ const FUNCTION_CHARACTERISTICS = {
     }),
     range: (question) => ({
       id: 'range',
+      stepLabel: 'Range',
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range.',
       notation: question.notation || 'inequality',

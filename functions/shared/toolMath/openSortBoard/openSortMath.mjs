@@ -185,12 +185,44 @@ export const openSortProgress = ({ settings, items = [], groups = [] }) => {
   return { unassigned, usedGroups, placedGroups, namesComplete, rationaleComplete, ready };
 };
 
+/*
+ * A CARD THAT IS A TABLE OF VALUES.
+ *
+ * A relation is often given as a table ("is it a function?"), so a card can
+ * carry `table: { x: [...], y: [...] }` — the inputs and their outputs, column
+ * by column. Each entry is a number or a short value as written ("1/2"). The
+ * board draws it as a small two-row table. Null when the card has no table or
+ * the table is not one the board can draw: the validator reports that case.
+ */
+export const SORT_CARD_TABLE_MAX_COLUMNS = 8;
+
+const tableEntry = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value).replace(/^-/, '−') : null;
+  if (typeof value !== 'string') return null;
+  const written = value.trim();
+  return written && written.length <= 12 ? written.replace(/^-/, '−') : null;
+};
+
+export const sortCardTable = (table) => {
+  if (!table || typeof table !== 'object' || Array.isArray(table)) return null;
+  const xs = Array.isArray(table.x) ? table.x.map(tableEntry) : [];
+  const ys = Array.isArray(table.y) ? table.y.map(tableEntry) : [];
+  if (!xs.length || xs.length !== ys.length || xs.length > SORT_CARD_TABLE_MAX_COLUMNS) return null;
+  if ([...xs, ...ys].some((entry) => entry === null)) return null;
+  return { x: xs, y: ys };
+};
+
 export const validateSortQuestion = (question = {}) => {
   const errors = [];
   const items = Array.isArray(question.items) ? question.items : [];
   if (items.length < 3) errors.push('openSortBoard requires at least three items.');
   const ids = items.map((item) => String(item?.id || ''));
   if (ids.some((id) => !id) || new Set(ids).size !== ids.length) errors.push('Every sort item needs a unique id.');
+  items.forEach((item, index) => {
+    if (item?.table != null && !sortCardTable(item.table)) {
+      errors.push(`openSortBoard item ${index + 1} (${item?.id || 'unnamed'}) table must list x and y values of the same length (1–${SORT_CARD_TABLE_MAX_COLUMNS}), each a number or a short value.`);
+    }
+  });
   const schemes = Array.isArray(question.validSchemes) ? question.validSchemes : [];
   if (!schemes.length) errors.push('openSortBoard requires at least one validSchemes entry so the open sort can be self-graded.');
   schemes.forEach((scheme, schemeIndex) => {

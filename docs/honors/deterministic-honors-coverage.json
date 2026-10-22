@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 29,
+  "familyCount": 41,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -453,6 +453,174 @@
           "teacherReason": "MathMaster's reciprocal generator only works with numbers, so it cannot yet build the reciprocal-of-an-expression work a built-in Honors extension needs."
         },
         {
+          "familyId": "polynomials.distributeMonomial",
+          "familyTitle": "Multiply back: a monomial times a polynomial",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Multiplying a polynomial by a monomial is taught in Algebra I too (A.10B), but this family is aligned to Algebra II's A2.7C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on multiplying by a monomial can anchor on it.",
+          "teacherReason": "MathMaster's generator for multiplying by a monomial is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.divideByMonomial",
+          "familyTitle": "Divide a polynomial by a monomial",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Dividing a polynomial by a monomial is taught in Algebra I too (A.11B), but this family is aligned to Algebra II's A2.7C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.11B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on dividing by a monomial can anchor on it.",
+          "teacherReason": "MathMaster's generator for dividing by a monomial is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.divideMonomials",
+          "familyTitle": "Divide monomials",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Dividing monomials is taught in Algebra I too (A.11B), but this family is aligned to Algebra II's A2.7C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.11B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on dividing monomials can anchor on it.",
+          "teacherReason": "MathMaster's generator for dividing monomials is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.likeTermPairs",
+          "familyTitle": "Like terms, or not — and why",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Recognizing like terms is taught in Algebra I too (A.10A), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on like terms can anchor on it.",
+          "teacherReason": "MathMaster's generator for like terms is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.longDivisionLinear",
+          "familyTitle": "Long division of a cubic by x − r (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Long division of a cubic polynomial is Algebra II content (A2.7C); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7C is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Long division of a cubic polynomial is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "polynomials.multiplyMonomials",
+          "familyTitle": "Multiply monomials",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Multiplying monomials is taught in Algebra I too (A.11B), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.11B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on multiplying monomials can anchor on it.",
+          "teacherReason": "MathMaster's generator for multiplying monomials is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.multiplyTrinomialBinomial",
+          "familyTitle": "Multiply a trinomial by a binomial (area model)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Multiplying a trinomial by a binomial is taught in Algebra I too (A.10B), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on multiplying polynomials can anchor on it.",
+          "teacherReason": "MathMaster's generator for multiplying polynomials is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.oppositeAndLikeTerms",
+          "familyTitle": "The opposite of a polynomial, and combining like terms",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Combining like terms and the opposite of a polynomial is taught in Algebra I too (A.10A), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on combining like terms can anchor on it.",
+          "teacherReason": "MathMaster's generator for combining like terms is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.profitModel",
+          "familyTitle": "Profit = revenue − cost with a quadratic cost",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Writing a profit polynomial is taught in Algebra I too (A.10A), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on profit polynomials can anchor on it.",
+          "teacherReason": "MathMaster's generator for profit polynomials is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.subtractForDivision",
+          "familyTitle": "Subtract polynomials, as long division does",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Subtracting polynomials is taught in Algebra I too (A.10A), but this family is aligned to Algebra II's A2.7C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.10A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on subtracting polynomials can anchor on it.",
+          "teacherReason": "MathMaster's generator for subtracting polynomials is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "polynomials.subtractMissingTerm",
+          "familyTitle": "Subtract polynomials (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Subtracting cubic polynomials is Algebra II content (A2.7B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Subtracting cubic polynomials is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "polynomials.syntheticDivision",
+          "familyTitle": "Synthetic division of a quartic by x − r (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Synthetic division is Algebra II content (A2.7C); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7C is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Synthetic division is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "quadratics.identifyVertex",
           "familyTitle": "Vertex of a quadratic function",
           "familyDifficulty": {
@@ -657,8 +825,8 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 5,
-        "BLOCKED": 13,
-        "NOT APPROPRIATE": 7
+        "BLOCKED": 22,
+        "NOT APPROPRIATE": 10
       }
     },
     "algebra2": {
@@ -974,6 +1142,174 @@
           "teacherReason": "Reciprocals and negative reciprocals is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
+          "familyId": "polynomials.distributeMonomial",
+          "familyTitle": "Multiply back: a monomial times a polynomial",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review of multiplying back: a monomial times a trinomial and a negative monomial times x + q. Larger factors are its only remaining lever, which is not rigor.",
+          "missingCapability": "A `divisor` knob that multiplies a quotient term by a quadratic divisor (−4y(y² + y − 5), textbook 5-2 #6), the multiply-back step of dividing by a degree-2 polynomial.",
+          "teacherReason": "MathMaster's multiply-back generator only uses linear divisors, so it cannot yet build the quadratic-divisor work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.divideByMonomial",
+          "familyTitle": "Divide a polynomial by a monomial",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version divides a trinomial by a two-letter monomial, one term of it the divisor itself. A term that does not divide evenly (−w² + 16w + 1000 over w, textbook 5-2 #19) gives a quotient that is not a polynomial, which this family does not write.",
+          "missingCapability": "A `remainderTerm` knob that leaves one term over the monomial (1000/w), answered as the polynomial part plus that term's numerator, with a judgment that the quotient is not a polynomial.",
+          "teacherReason": "MathMaster's divide-by-a-monomial generator only writes terms that divide evenly, so it cannot yet build the not-a-polynomial work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.divideMonomials",
+          "familyTitle": "Divide monomials",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review of the quotient of powers with every exponent left positive. The Honors depth — zero and negative exponents, and a quotient raised to a power — needs an answer that is not a polynomial, which typed answers compare only as text.",
+          "missingCapability": "A quotient-of-monomials answer form graded by value (x³ ÷ x⁵ = x⁻² = 1/x²), so the family can ask zero and negative exponents as well.",
+          "teacherReason": "MathMaster's monomial-division generator only writes quotients with positive exponents, so it cannot yet build the negative-exponent work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.likeTermPairs",
+          "familyTitle": "Like terms, or not — and why",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up vocabulary check — like terms, or not and why — with every term already simplified, so recognizing it never needs any algebra.",
+          "missingCapability": "An `unsimplified` knob that writes like terms in disguise (x · x² beside 4x³, 2x · 3y beside xy), so deciding needs simplifying first.",
+          "teacherReason": "MathMaster's like-terms generator only shows simplified terms, so it cannot yet build the like-terms-in-disguise work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.longDivisionLinear",
+          "familyTitle": "Long division of a cubic by x − r (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version divides a cubic with one missing term by x − r. The Honors depth — a quartic divided by a quadratic (textbook 5-2 #6) or a divisor ax + b — is a knob this family does not have, though the Polynomial Workshop's long division already draws both.",
+          "missingCapability": "A `divisor: quadratic | scaled` knob writing a quadratic or an ax + b divisor, answered in the Workshop's long division round by round.",
+          "teacherReason": "MathMaster's long-division generator only divides by x − r, so it cannot yet build the quadratic-divisor work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.multiplyMonomials",
+          "familyTitle": "Multiply monomials",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review of the product of powers with whole-number exponents. The Honors depth — quotients, negative and zero exponents — needs an answer that is a quotient of monomials, which typed answers compare only as text.",
+          "missingCapability": "A quotient-of-monomials answer form graded by value (y⁴/(81x⁴), negative and zero exponents), so the family can ask the quotient and power-of-a-power rules as well.",
+          "teacherReason": "MathMaster's monomial generator only multiplies with whole-number exponents, so it cannot yet build the quotient and negative-exponent work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.multiplyTrinomialBinomial",
+          "familyTitle": "Multiply a trinomial by a binomial (area model)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is a trinomial times a binomial in one letter. The area model draws up to 16 cells, but this family never asks a product of three factors, a trinomial squared or a binomial cubed.",
+          "missingCapability": "A `shape` knob for a trinomial times a trinomial and for (an + b)³ as two area models in turn (textbook 5-1 #58–60), answered in the Workshop's area model.",
+          "teacherReason": "MathMaster's area-model generator multiplies one trinomial by one binomial, so it cannot yet build the larger-product work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.oppositeAndLikeTerms",
+          "familyTitle": "The opposite of a polynomial, and combining like terms",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review: the opposite of one polynomial and two pairs of like terms. Wider coefficients are its only remaining lever, which is not rigor.",
+          "missingCapability": "A `scaled` knob that subtracts multiples, k·P − m·Q (textbook 5-1 #34), so the opposite is a distribution as well as a sign change.",
+          "teacherReason": "MathMaster's like-terms generator only changes signs and combines pairs, so it cannot yet build the distribute-then-subtract work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.profitModel",
+          "familyTitle": "Profit = revenue − cost with a quadratic cost",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It writes profit = revenue − cost, simplifies it and evaluates it once. The Honors question — how many sales make the most profit, or break even — needs the vertex or zeros of the profit, which this family does not ask.",
+          "missingCapability": "A `question: maximize | breakEven` knob that asks for the vertex or the zeros of the profit polynomial, answered by value.",
+          "teacherReason": "MathMaster's profit generator only evaluates the profit at one number of sales, so it cannot yet build the maximize-the-profit work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.subtractForDivision",
+          "familyTitle": "Subtract polynomials, as long division does",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It is the lesson's Warm-Up review: one two-letter difference with a missing term and one long-division subtraction whose leading terms cancel. Wider coefficients are its only remaining lever, which is not rigor.",
+          "missingCapability": "A `lines: three` knob writing the subtraction of a quadratic divisor's product (three terms, a placeholder brought down), as dividing by a degree-2 polynomial needs.",
+          "teacherReason": "MathMaster's subtraction generator only writes two-term long-division lines, so it cannot yet build the three-term work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.subtractMissingTerm",
+          "familyTitle": "Subtract polynomials (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is two cubics in one letter, one with a missing term. The Polynomial Workshop's add & subtract mode lines up terms in several letters, but this family does not write them.",
+          "missingCapability": "A `letters: two` knob writing both polynomials in two letters (3a²b − 2ab² + …), which the Workshop's add & subtract mode already lines up by kind of term.",
+          "teacherReason": "MathMaster's subtraction generator uses one letter, so it cannot yet build the several-letter work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "polynomials.syntheticDivision",
+          "familyTitle": "Synthetic division of a quartic by x − r (a missing term)",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version divides a quartic with one missing term by x − r. The Honors depth — a divisor ax + b, divided through by a first (the lesson's Example 5) — is a knob this family does not have, though the Polynomial Workshop's synthetic division already draws it.",
+          "missingCapability": "A `leading` knob writing the divisor as ax + b (a = 2 or 3), answered in the Workshop's synthetic division with its remainder-over-ax + b box.",
+          "teacherReason": "MathMaster's synthetic-division generator only divides by x − r, so it cannot yet build the divide-through-first work a built-in Honors extension needs."
+        },
+        {
           "familyId": "quadratics.identifyVertex",
           "familyTitle": "Vertex of a quadratic function",
           "familyDifficulty": {
@@ -1273,7 +1609,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 11,
+        "BLOCKED": 23,
         "NOT APPROPRIATE": 17
       }
     }

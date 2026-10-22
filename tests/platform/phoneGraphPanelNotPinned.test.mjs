@@ -12,6 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runsOnPullRequest } from './helpers/ciWorkflows.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -29,8 +30,8 @@ test('the phone column does not pin a graph tool panel', () => {
 test('the student-runtime gate taps every graph tool control on a phone', () => {
   const workflow = read('.github/workflows/student-runtime-browser-gates.yml');
   assert.match(workflow, /run: node tests\/browser\/phoneToolPanelReach\.mjs/);
-  assert.match(workflow, /- "tests\/browser\/phoneToolPanelReach\*"/);
-  assert.match(workflow, /- "teacher-import-jsons\/algebra1-module2-topic2\/\*\*"/, 'the gate drives these lessons, so a change to them runs it');
+  assert.ok(runsOnPullRequest('student-runtime-browser-gates.yml', 'tests/browser/phoneToolPanelReach.mjs'), 'a change to the gate runs it');
+  assert.ok(runsOnPullRequest('student-runtime-browser-gates.yml', 'teacher-import-jsons/algebra1-module2-topic2/lesson.json'), 'the gate drives these lessons, so a change to them runs it');
   const gate = read('tests/browser/phoneToolPanelReach.mjs');
   assert.match(gate, /width: 390, height: 844/);
   assert.match(gate, /hasTouch: true/);

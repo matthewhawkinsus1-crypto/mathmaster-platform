@@ -9,40 +9,13 @@ name: Question Family Special Cases (Browser)
 # See tests/browser/questionFamilyCases.mjs.
 
 on:
-  pull_request:
-    paths:
-      - "functions/shared/questionFamil*.mjs"
-      - "functions/shared/questionGenerationIdentity.mjs"
-      - "functions/shared/toolMath/algebra-relations/**"
-      - "functions/shared/toolMath/systemsWorkspace/**"
-      - "functions/shared/serverGrading/stepAlgebra*.mjs"
-      - "functions/shared/serverGrading/tools/systemsWorkspace/**"
-      - "functions/shared/serverGrading/questionGraders/stepAlgebra.mjs"
-      - "src/StepByStepAlgebraCore.jsx"
-      - "src/MultiRelationAlgebraCore.jsx"
-      - "src/StepByStepAlgebra.css"
-      - "src/AlgebraTermRow.jsx"
-      - "src/algebraAstEngine.js"
-      - "src/QuestionEngine.jsx"
-      - "src/tools/systemsWorkspace/**"
-      - "src/components/common/EnlargeableFigure.jsx"
-      - "src/components/common/WorkViewShell.css"
-      - "src/platform/generation/**"
-      - "tests/browser/questionFamilyCases*"
-      - "tests/browser/relationWorkspaceDriver.mjs"
-      - "tests/browser/equationWorkspacePlanner.mjs"
-      - "tests/browser/systemsWorkspaceDriver.mjs"
-      - "tests/browser/stepAlgebraDriver.mjs"
-      - ".github/workflows/question-family-cases-browser.yml"
+  workflow_call:
   workflow_dispatch:
 
 # Reads the repository and uploads artifacts; never writes.
+
 permissions:
   contents: read
-
-concurrency:
-  group: question-family-cases-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   journeys:
@@ -53,19 +26,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install Chromium
-        run: |
-          npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-          npx playwright install --with-deps chromium
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
 
       - name: Start browser harness
         run: |

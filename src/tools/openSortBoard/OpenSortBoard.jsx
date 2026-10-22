@@ -7,7 +7,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/openSortBoard.mjs';
-import { openSortProgress, openSortSettings } from './openSortMath';
+import { openSortProgress, openSortSettings, sortCardTable } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -59,7 +59,34 @@ const previewLayers = (spec = {}) => {
   return { functions: [functionFor(spec)], verticalLines: [] };
 };
 
+// A table of values, drawn with spans in a grid rather than a <table>: the
+// card holding it is a button in an open sort, where only phrasing content is
+// valid. It reads in order as "x, −2, 0, 3; y, 5, 1, 4".
+// Each cell draws its right and bottom edge, the grid its top and left: one
+// line between cells, never two.
+const TABLE_CELL = { padding: '3px 8px', borderRight: '1px solid var(--mm-tint-border)', borderBottom: '1px solid var(--mm-tint-border)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' };
+const SortItemTable = ({ table }) => (
+  <span
+    data-sort-card-table="true"
+    style={{ display: 'inline-grid', gridTemplateColumns: `auto repeat(${table.x.length}, auto)`, marginTop: 7, borderTop: '1px solid var(--mm-tint-border)', borderLeft: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)' }}
+  >
+    <span style={{ ...TABLE_CELL, fontWeight: 800, fontStyle: 'italic' }}>x</span>
+    {table.x.map((value, index) => <span key={`x${index}`} style={TABLE_CELL}>{value}</span>)}
+    <span style={{ ...TABLE_CELL, fontWeight: 800, fontStyle: 'italic' }}>y</span>
+    {table.y.map((value, index) => <span key={`y${index}`} style={TABLE_CELL}>{value}</span>)}
+  </span>
+);
+
 const SortItemPreview = ({ item }) => {
+  const table = sortCardTable(item?.table);
+  if (table) {
+    return (
+      <>
+        {item?.text ? <span style={{ display: 'block', marginTop: 7, color: 'var(--mm-text)', lineHeight: 1.45 }}>{item.text}</span> : null}
+        <SortItemTable table={table} />
+      </>
+    );
+  }
   if (item?.graphSpec) {
     const bounds = item.graph || item.graphBounds || { xMin: -6, xMax: 6, yMin: -6, yMax: 6 };
     const layers = previewLayers(item.graphSpec);

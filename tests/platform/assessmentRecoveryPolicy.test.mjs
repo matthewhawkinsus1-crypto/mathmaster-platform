@@ -128,14 +128,21 @@ test('the student is told what changed', () => {
 
 test('the teacher controls and the server are wired to the one model', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8');
-  // The App imports the recovery builders from the one model. (Asserted by
-  // name, not by the exact import line: the list grew when Close / Extend /
-  // Move / Back-to-schedule joined the same audited model.)
-  const recoveryImport = app.match(/import \{([^}]*)\} from '\.\/platform\/assessment\/assessmentRecovery\.js'/);
-  assert.ok(recoveryImport, 'App imports the assessment recovery model');
-  for (const name of ['buildDolAttemptGrant', 'buildDolWindowOpening', 'summarizeStudentRecovery', 'buildDolClose', 'buildDolExtension', 'buildDolDateMove', 'buildDolScheduleRestore']) {
-    assert.match(recoveryImport[1], new RegExp(`\\b${name}\\b`), `${name} comes from the recovery model`);
+  // The App takes the recovery builders from the one model. They are teacher
+  // actions, so they reach App through the teacher kit, which re-exports them
+  // from the model (and keeps them out of a student's first load); the
+  // student's summary comes from the model's student-facing module, which the
+  // model re-exports. (Asserted by name, not by the exact line: the list grew
+  // when Close / Extend / Move / Back-to-schedule joined the same model.)
+  const kit = fs.readFileSync('src/app/teacher/teacherKit.js', 'utf8');
+  const kitExport = kit.match(/export \{([^}]*)\} from '\.\.\/\.\.\/platform\/assessment\/assessmentRecovery\.js'/);
+  assert.ok(kitExport, 'the teacher kit re-exports the assessment recovery model');
+  for (const name of ['buildDolAttemptGrant', 'buildDolWindowOpening', 'buildDolClose', 'buildDolExtension', 'buildDolDateMove', 'buildDolScheduleRestore']) {
+    assert.match(kitExport[1], new RegExp(`\\b${name}\\b`), `${name} comes from the recovery model`);
+    assert.match(app, new RegExp(`requireTeacherKit\\(\\)\\.${name}\\(`), `App calls ${name} through the teacher kit`);
   }
+  assert.match(app, /import \{ summarizeStudentRecovery \} from '\.\/platform\/assessment\/studentRecoverySummary\.js';/);
+  assert.match(fs.readFileSync('src/platform/assessment/assessmentRecovery.js', 'utf8'), /export \{[^}]*\bsummarizeStudentRecovery\b[^}]*\} from '\.\/studentRecoverySummary\.js';/, 'the summary is part of the one model');
   // Close / Extend / Move / Back-to-schedule are built by the model, never hand-written.
   const dolControl = region(app, 'const handleDolControlForClass = async', 'const openAssignmentHub');
   assert.match(dolControl, /buildDolClose\(\{/);

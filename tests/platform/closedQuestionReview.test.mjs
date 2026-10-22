@@ -162,6 +162,17 @@ test('the other card layouts review what the grader marks — including when the
   assert.equal(complete.items[0].value, 'y = 2x + 1');
 });
 
+test('an open sort\'s review names each card as the board shows it, and a card with no name by its id', () => {
+  const question = {
+    type: 'openSortBoard',
+    items: [{ id: 'gas', label: 'Card A', text: 'Gallons pumped and their cost' }, { id: 'icecream', label: 'Card B' }, { id: 'candle' }],
+    validSchemes: [{ label: 'The sort', groups: [{ label: 'Causation', itemIds: ['gas', 'candle'] }, { label: 'Association', itemIds: ['icecream'] }] }],
+  };
+  const review = buildToolSolutionReviewModel(question);
+  assertTextOnly(review, 'openSortBoard');
+  assert.deepEqual(review.items, [{ label: 'The sort', value: 'Causation: Card A, candle · Association: Card B' }]);
+});
+
 test('structure where a sentence belongs is shown as text or "—", never handed to React', () => {
   const cases = [
     { type: 'representationMatch', mode: 'completeSet', sets: [{ id: 's', equation: { latex: 'y=x' }, table: { xValues: [1, 2] }, context: ['a', 'b'] }] },

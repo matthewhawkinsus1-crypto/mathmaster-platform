@@ -33,6 +33,10 @@ const ALGEBRAIC_TERM = /(?:^|[\d)]|(?<![A-Za-z])[A-Za-z])\s*[-−]\s*(?:[\d(]|[A
 
 const looksLikeFiniteCategoryField = (field) => {
   if (!isObject(field) || field.type === 'choice' || field.type === 'text' || field.inputMode === 'text') return false;
+  // A field that names the form of its polynomial (answerForm
+  // 'simplifiedPolynomial') is mathematics, even when its key is a lone
+  // letter: 5a²b ÷ 5ab is a.
+  if (field.answerForm) return false;
   const accepted = nonEmptyArray(field.acceptedAnswers)
     ? field.acceptedAnswers
     : has(field.answer)
