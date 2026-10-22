@@ -10,6 +10,7 @@ import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
+import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -313,13 +314,39 @@ export const validateToolQuestion = (question = {}) => {
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
   }
   if (toolId === 'signSolutionAnalyzer') {
-    const modes = ['polynomial','rational','radicalCheck'];
+    const modes = ['polynomial','rational','radicalCheck','radicalSolve'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported signSolutionAnalyzer mode: ${question.mode}.`);
     if (question.relation && !['>','>=','<','<='].includes(question.relation)) errors.push('Sign analyzer relation must be >, >=, <, or <=.');
     if (question.mode === 'rational' && (!Array.isArray(question.denominatorFactors) || question.denominatorFactors.length < 1)) errors.push('rational mode requires denominatorFactors.');
     if (question.mode === 'radicalCheck') {
       if (!Array.isArray(question.candidates) || question.candidates.length < 1) errors.push('radicalCheck mode requires candidate values.');
       if (!question.radicalEquation?.radicand || !question.radicalEquation?.rhs) errors.push('radicalCheck mode requires radicand and rhs linear specs.');
+    }
+    if (question.mode === 'radicalSolve') {
+      // a·ⁿ√(mx + b) + c = px + q, solved stage by stage (signSolutionMath.js
+      // radicalSolveKey): its own equation, never the demonstration one.
+      const spec = question.radicalEquation;
+      if (!spec || typeof spec !== 'object' || !spec.radicand || !spec.rhs) {
+        errors.push('radicalSolve mode requires radicalEquation with radicand { m, b } and rhs { m, b } (and optional index, coefficient, outside, variable, notation).');
+      } else {
+        // The numbers are shown to the student, so they are exact: a template
+        // that draws √5 into the equation would print 2.2360679….
+        const shown = [spec.index, spec.coefficient, spec.radicand?.m, spec.radicand?.b, spec.outside, spec.rhs?.m, spec.rhs?.b]
+          .filter((value) => value !== undefined && value !== null && value !== '').map(Number);
+        if (shown.some((value) => Number.isFinite(value) && Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-6)) {
+          errors.push('radicalSolve numbers must be exact: whole numbers, or decimals with at most 4 places.');
+        }
+        try {
+          const key = radicalSolveKey(spec);
+          // Every stage is typed, so its numbers should be ones a student writes exactly.
+          const awkward = [...key.candidates, key.isolated.m, key.isolated.b].filter((value) => Math.abs(value * 12 - Math.round(value * 12)) > 1e-9);
+          if (awkward.length) warnings.push(`radicalSolve: ${awkward.join(', ')} is not a whole number or a simple fraction; students type every stage exactly.`);
+        } catch (error) {
+          errors.push(`radicalSolve mode: ${error.message}`);
+        }
+        if (spec.notation !== undefined && !['radical', 'exponent'].includes(spec.notation)) errors.push('radicalSolve notation must be "radical" or "exponent".');
+        if (spec.variable !== undefined && !/^[a-z]$/.test(String(spec.variable))) errors.push('radicalSolve variable must be one lowercase letter.');
+      }
     }
   }
   if (toolId === 'sequenceExplorer') {

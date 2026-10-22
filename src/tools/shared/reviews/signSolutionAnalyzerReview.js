@@ -37,13 +37,19 @@
 //   - the chart is too small or too crowded to work by hand (no critical
 //     point, more than 8 intervals, critical points closer than 0.001).
 import declaration from '../../../../functions/shared/serverGrading/declarations/signSolutionAnalyzer.mjs';
+import signSolutionGrader from '../../../../functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs';
 import { resolveToolMode } from '../../../../functions/shared/serverGrading/toolGraderDefinition.mjs';
+import { gradeWorkWithGrader } from '../../../../functions/shared/serverGrading/toolWorkGrading.mjs';
+import { exactFractionText } from '../../../../functions/shared/toolMath/shared/toolMath.mjs';
 import {
   buildSignIntervals,
   canonicalSignRelation,
   evaluateRadicalEquationCandidate,
+  radicalSolveKey,
+  realNthRoot,
   signOfFactoredExpression,
 } from '../../../../functions/shared/toolMath/signSolutionAnalyzer/signSolutionMath.mjs';
+import { linearReadout, radicalEquationReadout, radicalReadout, raiseBothSidesText } from '../../signSolutionAnalyzer/radicalSolveReadout.js';
 
 export const implemented = true;
 
@@ -432,10 +438,156 @@ const buildRadicalReview = (question) => {
   };
 };
 
+/* ------------------------------------------------------------------ */
+/* radical solve                                                       */
+/* ------------------------------------------------------------------ */
+
+// A value as a student types it: a whole number, a fraction ("7/2"), or a
+// decimal to 4 places when it is neither.
+const typedValue = (value) => exactFractionText(tidy(value));
+const isExact = (value) => /^-?\d+(\/\d+)?$/.test(typedValue(value));
+// The same value on screen, with a true minus sign.
+const shown = (value) => typedValue(value).replace(/^-/, '−');
+const signedTail = (value) => (value === 0 ? '' : ` ${value > 0 ? '+' : '−'} ${shown(Math.abs(value))}`);
+// m·x + b with the value substituted: "−7 + 3", "2(−3) − 1", "5".
+const substitutedLinear = (m, b, x) => {
+  if (m === 0) return shown(b);
+  const wrapped = x < 0 ? `(${shown(x)})` : shown(x);
+  const term = m === 1 ? wrapped : m === -1 ? `−${x < 0 ? wrapped : `(${shown(x)})`}` : `${shown(m)}(${shown(x)})`;
+  return `${term}${signedTail(b)}`;
+};
+// Coefficients in typed expressions are decimals: "0.5x + 3" reads as one polynomial.
+const decimal = (value) => String(tidy(Number(Number(value).toFixed(9))));
+const typedPolynomial = (coefficients, variable) => {
+  const degree = coefficients.length - 1;
+  const terms = coefficients
+    .map((value, index) => ({ value, power: degree - index }))
+    .filter(({ value }) => Math.abs(value) > 1e-12)
+    .map(({ value, power: exponent }) => {
+      const letters = exponent === 0 ? '' : exponent === 1 ? variable : `${variable}^${exponent}`;
+      const size = Math.abs(value);
+      return { sign: value < 0 ? '-' : '+', body: letters && size === 1 ? letters : `${decimal(size)}${letters}` };
+    });
+  if (!terms.length) return '0';
+  return terms.map((term, index) => (index === 0 ? `${term.sign === '-' ? '-' : ''}${term.body}` : ` ${term.sign} ${term.body}`)).join('');
+};
+const shownPolynomial = (coefficients, variable) => typedPolynomial(coefficients, variable).replace(/\^2/g, '²').replace(/-/g, '−');
+const valueList = (values, variable) => listOf(values.map((value) => `${variable} = ${shown(value)}`));
+const ORDINAL_POWERS = Object.freeze({ 2: 'second', 3: 'third' });
+
+const buildRadicalSolveReview = (question) => {
+  // With no equation of its own the view shows its demonstration problem,
+  // which may not be the problem the prompt states.
+  const spec = question.radicalEquation;
+  if (!isPlainObject(spec)) return null;
+  const key = radicalSolveKey(spec);
+  const { equation, isolated, raised, candidates, checks, solutions } = key;
+  const { variable, index, coefficient, outside, rhs } = equation;
+  const notation = spec.notation === 'exponent' ? 'exponent' : 'radical';
+  const values = [isolated.m, isolated.b, ...raised, ...candidates];
+  if (values.some((value) => !Number.isFinite(value) || Math.abs(value) > MAX_MAGNITUDE)) return null;
+
+  const written = radicalEquationReadout(equation, notation);
+  const radical = radicalReadout(equation, notation);
+  const radicand = linearReadout(equation.radicand.m, equation.radicand.b, variable);
+  const isolatedText = linearReadout(isolated.m, isolated.b, variable);
+  const raisedSide = isolated.m === 0 ? shown(raised[0]) : shownPolynomial(raised, variable);
+  // A superscript index right after a number reads as an exponent, so a
+  // coefficient before ⁵√ and up is joined with a dot.
+  const joiner = notation === 'radical' && index > 4 ? '·' : '';
+  const scaled = (text) => (coefficient === 1 ? text : coefficient === -1 ? `−${text}` : `${shown(coefficient)}${joiner}${text}`);
+  const steps = [`Start from ${written}. Solve it in stages: isolate the radical, ${raiseBothSidesText(index).toLowerCase()}, solve, then check every candidate in the original equation.`];
+
+  // Isolate: undo the outside number, then the coefficient.
+  if (outside !== 0) {
+    steps.push(`${outside > 0 ? `Subtract ${shown(outside)} from` : `Add ${shown(-outside)} to`} both sides: ${scaled(radical)} = ${linearReadout(rhs.m, tidy(rhs.b - outside), variable)}.`);
+  }
+  if (coefficient !== 1) steps.push(`Divide both sides by ${shown(coefficient)}: ${radical} = ${isolatedText}.`);
+  if (outside === 0 && coefficient === 1) steps.push(`The radical is already alone: ${radical} = ${isolatedText}.`);
+
+  // Raise both sides to the index.
+  const raisedWork = isolated.m === 0
+    ? `${isolated.b < 0 ? `(${shown(isolated.b)})` : shown(isolated.b)}${power(index)} = ${shown(raised[0])}`
+    : `(${isolatedText})² = ${raisedSide}`;
+  steps.push(`${raiseBothSidesText(index)}. Raising ${radical} to the ${ORDINAL_POWERS[index] || `${index}th`} power leaves ${radicand}, so ${radicand} = ${raisedWork}.`);
+
+  // Solve for the candidates.
+  if (isolated.m === 0) {
+    const moved = tidy(raised[0] - equation.radicand.b);
+    const solved = equation.radicand.m === 1
+      ? `${variable} = ${shown(candidates[0])}`
+      : `${linearReadout(equation.radicand.m, 0, variable)} = ${shown(moved)}, so ${variable} = ${shown(candidates[0])}`;
+    steps.push(`Solve ${radicand} = ${shown(raised[0])}: ${solved}. This is a candidate, not yet a solution.`);
+  } else {
+    const standard = `${shownPolynomial([raised[0], raised[1] - equation.radicand.m, raised[2] - equation.radicand.b], variable)} = 0`;
+    steps.push(candidates.length
+      ? `Move every term to one side: ${standard}. Its solutions are ${valueList(candidates, variable)} (factor, or use the quadratic formula). These are candidates, not yet solutions.`
+      : `Move every term to one side: ${standard}. Its discriminant is negative, so it has no real solutions — there is no candidate to check.`);
+  }
+
+  // Check each candidate in the ORIGINAL equation.
+  checks.forEach((check) => {
+    const at = `${variable} = ${shown(check.x)}`;
+    const inside = tidy(equation.radicand.m * check.x + equation.radicand.b);
+    const right = rhs.m === 0 ? shown(check.right) : `${substitutedLinear(rhs.m, rhs.b, check.x)} = ${shown(check.right)}`;
+    if (check.left === null) {
+      steps.push(`Check ${at} in the original equation. Under the root: ${substitutedLinear(equation.radicand.m, equation.radicand.b, check.x)} = ${shown(inside)}, which is negative, so the left side is not a real number. ${at} is extraneous.`);
+      return;
+    }
+    const root = realNthRoot(inside, index);
+    const exact = isExact(root) && isExact(check.left);
+    const relation = exact ? '=' : '≈';
+    const rootText = radicalReadout({ ...equation, radicand: { m: 0, b: inside } }, notation);
+    const simple = coefficient === 1 && outside === 0;
+    const left = simple
+      ? `${rootText} ${relation} ${shown(check.left)}`
+      : `${scaled(rootText)}${signedTail(outside)} ${relation} ${coefficient === 1 ? shown(root) : `${shown(coefficient)}(${shown(root)})`}${signedTail(outside)} ${relation} ${shown(check.left)}`;
+    steps.push(check.holds
+      ? `Check ${at} in the original equation. Left side: ${left}. Right side: ${right}. They match, so ${at} is a solution.`
+      : `Check ${at} in the original equation. Left side: ${left}. Right side: ${right}. ${shown(check.left)} ≠ ${shown(check.right)}, so ${at} is extraneous.`);
+  });
+  steps.push(solutions.length
+    ? `The solution of ${written} is ${valueList(solutions, variable)}.`
+    : `${candidates.length ? 'No candidate checks' : 'With no candidate'}, so ${written} has no real solution.`);
+
+  const extraneous = checks.filter((check) => !check.holds);
+  const raisedLabel = index === 2 ? 'After squaring both sides' : index === 3 ? 'After cubing both sides' : `After raising both sides to the ${index}th power`;
+  const model = {
+    title: 'Radical-equation solution',
+    items: [
+      { label: 'Radical isolated', value: `${radical} = ${isolatedText}` },
+      { label: raisedLabel, value: `${radicand} = ${raisedSide}` },
+      { label: 'Candidates', value: candidates.length ? valueList(candidates, variable) : 'None' },
+      { label: 'Extraneous', value: extraneous.length ? valueList(extraneous.map((check) => check.x), variable) : 'None' },
+      { label: 'Solution', value: solutions.length ? valueList(solutions, variable) : 'No real solution' },
+    ],
+    steps,
+    why: index % 2 === 0
+      ? 'Isolating the radical uses only steps that can be undone, but raising both sides to an even power cannot: a negative side becomes positive, so values that never solved the original equation can appear. An even root is never negative, and checking every candidate in the original equation is what catches the extraneous ones.'
+      : 'Raising both sides to an odd power keeps the sign of each side, so it can be undone and adds no extraneous values. Checking the candidate in the original equation confirms the arithmetic.',
+    note: null,
+  };
+  if (model.steps.length > 12) return null;
+
+  // The work a student following this review would enter, which the shared
+  // grader must mark right in every stage — otherwise there is no review.
+  const work = {
+    isolated: typedPolynomial([isolated.m, isolated.b], variable),
+    raised: typedPolynomial(raised, variable),
+    candidates: candidates.length ? candidates.map(typedValue).join(', ') : 'none',
+    rows: checks.map((check) => ({ left: check.left === null ? 'not real' : typedValue(check.left), right: typedValue(check.right), decision: check.holds ? 'solution' : 'extraneous' })),
+    finalAnswer: solutions.map(typedValue).join(', '),
+    noRealSolution: solutions.length === 0,
+  };
+  const result = gradeWorkWithGrader({ grader: signSolutionGrader, question, work });
+  return result.graded === true && result.isCorrect === true ? model : null;
+};
+
 const buildReview = (question) => {
   if (!isPlainObject(question)) return null;
   const mode = resolveToolMode(declaration, question);
   if (mode === 'radicalCheck') return buildRadicalReview(question);
+  if (mode === 'radicalSolve') return buildRadicalSolveReview(question);
   if (mode === 'polynomial' || mode === 'rational') return buildSignChartReview(question, mode);
   return null;
 };

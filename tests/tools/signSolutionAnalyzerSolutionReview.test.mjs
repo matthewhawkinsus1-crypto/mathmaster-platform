@@ -9,7 +9,7 @@ import {
 import { TOOL_REVIEW_BUILDERS } from '../../src/tools/shared/reviews/index.js';
 import { buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
-import { buildSignIntervals } from '../../functions/shared/toolMath/signSolutionAnalyzer/signSolutionMath.mjs';
+import { buildSignIntervals, radicalSolveKey } from '../../functions/shared/toolMath/signSolutionAnalyzer/signSolutionMath.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5Core.js';
 
 /*
@@ -345,6 +345,8 @@ test('a question with no sign-chart data of its own is not reviewed (the analyze
     q({ mode: 'radicalCheck' }),
     q({ mode: 'radicalCheck', candidates: [3, -15] }),
     q({ mode: 'radicalCheck', radicalEquation: { radicand: { m: 2, b: 3 }, rhs: { m: 1, b: 0 } } }),
+    // A staged radical solve without its equation draws √(x − 2) − 1 = 5.
+    q({ mode: 'radicalSolve' }),
   ];
   demo.forEach((question) => {
     assert.equal(grade(question, { selected: [] }).graded, true, 'the grader still marks the demo');
@@ -397,4 +399,98 @@ test('shapes the review cannot explain correctly give null', () => {
   const unicode = q({ factors: [{ root: -2 }, { root: 3 }], relation: '≥' });
   assert.equal(grade(unicode, { selected: [0, 2] }).isCorrect, true);
   assert.equal(grade(unicode, { selected: [1] }).isCorrect, false);
+});
+
+/* ------------------------------------------------------------------ */
+/* radicalSolve                                                        */
+/* ------------------------------------------------------------------ */
+
+// What a student following the review types: each stated stage, read back
+// from the review's items in the box's plain spelling. The check rows are
+// worked out here independently, from the equation itself.
+const plain = (text) => text.replace(/−/g, '-').replace(/²/g, '^2');
+const afterEquals = (text) => plain(text.slice(text.indexOf('=') + 1).trim());
+const radicalSolveWork = (question, model) => {
+  const key = radicalSolveKey(question.radicalEquation);
+  const candidates = plain(itemValue(model, 'Candidates'));
+  const solution = itemValue(model, 'Solution');
+  return {
+    isolated: afterEquals(itemValue(model, 'Radical isolated')),
+    raised: afterEquals(model.items[1].value),
+    candidates: candidates === 'None' ? 'none' : candidates,
+    rows: key.checks.map((check) => ({ left: check.left === null ? 'not real' : String(check.left), right: String(check.right), decision: check.holds ? 'solution' : 'extraneous' })),
+    finalAnswer: solution === 'No real solution' ? '' : plain(solution),
+    noRealSolution: solution === 'No real solution',
+  };
+};
+
+const SOLVES = [
+  ['√(y − 2) − 1 = 5', { variable: 'y', radicand: { m: 1, b: -2 }, outside: -1, rhs: { m: 0, b: 5 } }, ['y = 38'], []],
+  ['√(x − 3) − 2 = 6', { radicand: { m: 1, b: -3 }, outside: -2, rhs: { m: 0, b: 6 } }, ['x = 67'], []],
+  ['(3y + 1)^(1/3) + 5 = 0', { variable: 'y', index: 3, radicand: { m: 3, b: 1 }, outside: 5, rhs: { m: 0, b: 0 }, notation: 'exponent' }, ['y = −42'], []],
+  ['(2y + 1)^(1/3) − 3 = 0', { variable: 'y', index: 3, radicand: { m: 2, b: 1 }, outside: -3, rhs: { m: 0, b: 0 }, notation: 'exponent' }, ['y = 13'], []],
+  ['7·⁶√(5m + 4) − 4 = 10', { variable: 'm', index: 6, coefficient: 7, radicand: { m: 5, b: 4 }, outside: -4, rhs: { m: 0, b: 10 } }, ['m = 12'], []],
+  ['9∛(3h + 3) − 4 = 77', { variable: 'h', index: 3, coefficient: 9, radicand: { m: 3, b: 3 }, outside: -4, rhs: { m: 0, b: 77 } }, ['h = 242'], []],
+  ['√(−3x − 5) = x + 3', { radicand: { m: -3, b: -5 }, rhs: { m: 1, b: 3 } }, ['x = −2'], ['x = −7']],
+  ['√(x + 5) = −3', { radicand: { m: 1, b: 5 }, rhs: { m: 0, b: -3 } }, [], ['x = 4']],
+  ['√(x + 1) = x + 5 (no real candidates)', { radicand: { m: 1, b: 1 }, rhs: { m: 1, b: 5 } }, [], []],
+  ['√(2x) = 3 (a fraction)', { radicand: { m: 2, b: 0 }, rhs: { m: 0, b: 3 } }, ['x = 9/2'], []],
+  ['−2√(x) + 10 = 4', { coefficient: -2, radicand: { m: 1, b: 0 }, outside: 10, rhs: { m: 0, b: 4 } }, ['x = 9'], []],
+  ['∜(x + 1) = −2', { index: 4, radicand: { m: 1, b: 1 }, rhs: { m: 0, b: -2 } }, [], ['x = 15']],
+];
+
+test('radicalSolve: every stated stage is graded correct, the extraneous candidates are named, and the steps check each one', () => {
+  for (const [label, radicalEquation, solutions, extraneous] of SOLVES) {
+    const question = q({ mode: 'radicalSolve', radicalEquation });
+    const model = buildSignSolutionAnalyzerReview(question);
+    assert.ok(model, `${label}: a review`);
+    assert.deepEqual(Object.keys(model).sort(), ['items', 'note', 'steps', 'title', 'why'], label);
+    assert.ok(model.steps.length >= 4 && model.steps.length <= 12, `${label}: worked steps the panel keeps`);
+    const result = grade(question, radicalSolveWork(question, model));
+    assert.equal(result.isCorrect, true, `${label}: the shared grader accepts every stated stage ${JSON.stringify(radicalSolveWork(question, model))}`);
+    assert.equal(result.score, 1, label);
+    assert.equal(itemValue(model, 'Solution'), solutions.length ? solutions.join(' and ') : 'No real solution', `${label}: the solution`);
+    assert.equal(itemValue(model, 'Extraneous'), extraneous.length ? extraneous.join(' and ') : 'None', `${label}: the extraneous candidates`);
+    // Each candidate is checked in the original equation, with its verdict.
+    extraneous.forEach((value) => assert.ok(model.steps.some((step) => step.startsWith(`Check ${value}`) && step.endsWith(`${value} is extraneous.`)), `${label}: ${value} is checked and rejected`));
+    solutions.forEach((value) => assert.ok(model.steps.some((step) => step.startsWith(`Check ${value}`) && step.endsWith(`${value} is a solution.`)), `${label}: ${value} is checked and kept`));
+    assert.doesNotMatch(JSON.stringify(model), /undefined|NaN|Infinity|\[object Object\]|\de[+-]?\d/, `${label}: nothing unrendered`);
+    assert.deepEqual(buildToolSolutionReviewModel({ ...question, toolId: TOOL_ID }), model, `${label}: the review index serves this model`);
+  }
+});
+
+test('radicalSolve: an even index explains why checking matters; an odd one why it only confirms', () => {
+  const even = buildSignSolutionAnalyzerReview(q({ mode: 'radicalSolve', radicalEquation: SOLVES[6][1] }));
+  assert.match(even.why, /even power/);
+  const odd = buildSignSolutionAnalyzerReview(q({ mode: 'radicalSolve', radicalEquation: SOLVES[2][1] }));
+  assert.match(odd.why, /odd power/);
+  // The isolating steps undo the outside number first, then the coefficient.
+  const seventh = buildSignSolutionAnalyzerReview(q({ mode: 'radicalSolve', radicalEquation: SOLVES[4][1] }));
+  assert.deepEqual(seventh.steps.slice(1, 3), ['Add 4 to both sides: 7·⁶√(5m + 4) = 14.', 'Divide both sides by 7: ⁶√(5m + 4) = 2.']);
+});
+
+test('radicalSolve: an equation the view cannot solve by hand has no review', () => {
+  for (const radicalEquation of [
+    'sqrt(x)=3',
+    { index: 3, radicand: { m: 1, b: 0 }, rhs: { m: 1, b: 0 } },
+    { radicand: { m: 0, b: 4 }, rhs: { m: 0, b: 2 } },
+    { coefficient: 0, radicand: { m: 1, b: 0 }, rhs: { m: 0, b: 2 } },
+    { radicand: { m: 1, b: 0 }, rhs: { m: 0, b: 1e7 } },
+  ]) {
+    const question = q({ mode: 'radicalSolve', radicalEquation });
+    assert.doesNotThrow(() => buildSignSolutionAnalyzerReview(question));
+    assert.equal(buildSignSolutionAnalyzerReview(question), null, JSON.stringify(radicalEquation));
+  }
+});
+
+test('radicalSolve: a question compiled from V5 authoring is explained and graded correct', () => {
+  const [solve] = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Solving radical equations', courseId: 'algebra2' },
+    sections: [{ role: 'classwork', questions: [{ prompt: 'Solve √(−3x − 5) = x + 3.', studentActions: ['solveRadicalEquation'], radicalEquation: SOLVES[6][1] }] }],
+  }).package.sections[0].questions;
+  assert.equal(solve.type, TOOL_ID);
+  assert.equal(solve.mode, 'radicalSolve');
+  const model = buildSignSolutionAnalyzerReview(solve);
+  assert.equal(grade(solve, radicalSolveWork(solve, model)).isCorrect, true);
 });

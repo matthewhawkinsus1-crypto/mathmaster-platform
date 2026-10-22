@@ -584,6 +584,13 @@ const SURFACE_WORK = Object.freeze({
   },
   signSolutionAnalyzer: (question, mode) => {
     if (mode === 'radicalCheck') return select('Candidate valid?', Math.max(1, list(question?.candidates).length || 2));
+    // Isolate, raise, solve, check each candidate (both sides and a verdict), state the solutions.
+    if (mode === 'radicalSolve') {
+      return [
+        ...respond('Isolated radical'), ...respond('Raised equation'), ...respond('Candidates'),
+        ...respond('Original equation at a candidate', 2), ...select('Solution or extraneous?'), ...respond('Solution'),
+      ];
+    }
     const critical = list(question?.factors).length + list(question?.denominatorFactors).length;
     return select('Sign of each interval', Math.max(2, critical + 1));
   },

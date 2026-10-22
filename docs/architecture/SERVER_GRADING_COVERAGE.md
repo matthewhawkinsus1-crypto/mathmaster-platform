@@ -814,11 +814,11 @@ On `main` the Step Algebra family final-answer path also existed, but only
 Section Recovery and Pre-Flight called it (§2).
 
 <!-- grading-coverage:after:start (generated: node scripts/report-server-grading-coverage.mjs --write) -->
-50 surfaces, 140 surface/mode rows.
+50 surfaces, 141 surface/mode rows.
 
 | After | Surface/mode rows |
 | --- | ---: |
-| shared server grader | 130 |
+| shared server grader | 131 |
 | specialized server subsystem | 1 |
 | client-graded (documented blocker) | 3 |
 | non-graded / read-only | 6 |
@@ -905,6 +905,7 @@ Section Recovery and Pre-Flight called it (§2).
 | `signSolutionAnalyzer` | tool | `polynomial` | shared server grader |  |
 | `signSolutionAnalyzer` | tool | `rational` | shared server grader |  |
 | `signSolutionAnalyzer` | tool | `radicalCheck` | shared server grader |  |
+| `signSolutionAnalyzer` | tool | `radicalSolve` | shared server grader |  |
 | `sequenceExplorer` | tool | `analyze` | shared server grader |  |
 | `sequenceExplorer` | tool | `ruleBridge` | shared server grader |  |
 | `sequenceExplorer` | tool | `fullBridge` | shared server grader |  |

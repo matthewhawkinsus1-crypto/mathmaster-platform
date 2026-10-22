@@ -116,6 +116,7 @@ const ACTION_ALIASES = Object.freeze({
   factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
   syntheticdivision: 'syntheticDivision', syntheticsubstitution: 'syntheticDivision', remaindertheorem: 'syntheticDivision',
   solveinequality: 'solveInequality', signchart: 'solveInequality',
+  solveradicalequation: 'solveRadicalEquation', radicalequation: 'solveRadicalEquation', solveradical: 'solveRadicalEquation',
   complexoperations: 'complexOperations', complexplane: 'analyzeComplex',
   exponentiallog: 'exponentialLogBridge', solveexponential: 'solveExponential', solvelogarithmic: 'solveLogarithmic',
   transformfunction: 'analyzeTransformations', analyzetransformations: 'analyzeTransformations',
@@ -1122,6 +1123,8 @@ const resolveIntentType = (q, actions) => {
   // factors (x + 2)(x − 3) — a different problem from the prompt — so a
   // linear or absolute-value inequality goes to the Step Algebra relation
   // workspace, which also enforces the sign reversal.
+  // A radical equation solved stage by stage: the analyzer's radicalSolve view.
+  if (actions.includes('solveRadicalEquation')) return 'signSolutionAnalyzer';
   if (q.signChart || (actions.includes('solveInequality') && hasSignChartData(q))) return 'signSolutionAnalyzer';
   if (actions.includes('solveInequality') && readableInequalityIntent(q)) return 'stepAlgebra';
   if (actions.includes('solveInequality')) return 'signSolutionAnalyzer';
@@ -2002,7 +2005,7 @@ const compileOne = (q, index, repairs) => {
       // the analyzer's own resolution (declarations/signSolutionAnalyzer.mjs).
       // A 'polynomial' default here made the tool and grader ignore the
       // denominator: (x − 2)/(x + 3) ≥ 0 was graded as x − 2 ≥ 0.
-      out = copyCommon(q, { type, mode: q.mode || s.mode || (denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      out = copyCommon(q, { type, mode: q.mode || s.mode || (actions.includes('solveRadicalEquation') ? 'radicalSolve' : denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
       // The analyzer reads `numeratorFactors` ahead of `factors`, and the
       // router above sends a question to it on numeratorFactors alone;
       // dropping them graded the default numerator (x + 2)(x − 3) instead.
@@ -2296,7 +2299,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
-  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','syntheticDivision','solveInequality','complexOperations','analyzeComplex',
+  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','syntheticDivision','solveInequality','solveRadicalEquation','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
   'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',
