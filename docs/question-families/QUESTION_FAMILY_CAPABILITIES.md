@@ -44,12 +44,18 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `matrices.solveSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,390 — every student unique | — |
 | `numbers.multiplicativeInverse` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,695 — every student unique | — |
 | `numbers.reciprocals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,257,376 — every student unique | — |
+| `polynomials.distributeMonomial` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 36,632,250 — every student unique | — |
+| `polynomials.divideByMonomial` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 44,664 — every student unique | — |
+| `polynomials.divideMonomials` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 259,780,608 — every student unique | — |
 | `polynomials.likeTermPairs` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 96,671,232 — every student unique | — |
+| `polynomials.longDivisionLinear` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (longDivision) | yes — shared server grader | yes | about 70,818 — every student unique | — |
 | `polynomials.multiplyMonomials` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 88,387,200 — every student unique | — |
 | `polynomials.multiplyTrinomialBinomial` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (multiplyArea) | yes — shared server grader | yes | about 301,139 — every student unique | — |
 | `polynomials.oppositeAndLikeTerms` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 95,659,380 — every student unique | — |
 | `polynomials.profitModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 312,375 — every student unique | — |
+| `polynomials.subtractForDivision` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 713,902,410 — every student unique | — |
 | `polynomials.subtractMissingTerm` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (addSubtract) | yes — shared server grader | yes | about 395,259,243 — every student unique | — |
+| `polynomials.syntheticDivision` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (syntheticDivision) | yes — shared server grader | yes | about 1,101,391 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.elimination` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 2,174,110 — every student unique | — |
@@ -593,6 +599,60 @@ Reciprocals and a negative reciprocal.
 | --- | --- | --- |
 | default | about 2,257,376 | — |
 
+### `polynomials.distributeMonomial` v1
+
+Multiply back: a monomial times a polynomial.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 36,632,250 | — |
+
+### `polynomials.divideByMonomial` v1
+
+Divide a polynomial by a monomial.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 44,664 | — |
+
+### `polynomials.divideMonomials` v1
+
+Divide monomials.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 259,780,608 | — |
+
 ### `polynomials.likeTermPairs` v1
 
 Like terms, or not — and why.
@@ -610,6 +670,24 @@ Like terms, or not — and why.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 96,671,232 | — |
+
+### `polynomials.longDivisionLinear` v1
+
+Long division of a cubic by x − r (a missing term).
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `polynomialWorkshop` (longDivision)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 70,818 | — |
 
 ### `polynomials.multiplyMonomials` v1
 
@@ -683,6 +761,24 @@ Profit = revenue − cost with a quadratic cost.
 | --- | --- | --- |
 | default | about 312,375 | — |
 
+### `polynomials.subtractForDivision` v1
+
+Subtract polynomials, as long division does.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 713,902,410 | — |
+
 ### `polynomials.subtractMissingTerm` v1
 
 Subtract polynomials (a missing term).
@@ -700,6 +796,24 @@ Subtract polynomials (a missing term).
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 395,259,243 | — |
+
+### `polynomials.syntheticDivision` v1
+
+Synthetic division of a quartic by x − r (a missing term).
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7C
+- **Answered in:** `polynomialWorkshop` (syntheticDivision)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 1,101,391 | — |
 
 ### `quadratics.identifyVertex` v1
 

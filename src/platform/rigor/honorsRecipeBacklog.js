@@ -48,11 +48,11 @@ const ALGEBRA_II_ONLY = (concept, teks) => ({
   teacherReason: `${concept} is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it.`,
 });
 
-// A skill Algebra I also teaches, in a family aligned to Algebra II's A2.7B: an
-// Algebra I lesson's questions (aligned to A.10/A.11) never bind to it.
-const ALIGNED_TO_ALGEBRA_II = (concept, algebraOneTeks, noun) => ({
+// A skill Algebra I also teaches, in a family aligned to Algebra II's A2.7B (or
+// `teks`): an Algebra I lesson's questions (aligned to A.10/A.11) never bind to it.
+const ALIGNED_TO_ALGEBRA_II = (concept, algebraOneTeks, noun, teks = 'A2.7B') => ({
   status: BLOCKED,
-  reason: `${concept} is taught in Algebra I too (${algebraOneTeks}), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.`,
+  reason: `${concept} is taught in Algebra I too (${algebraOneTeks}), but this family is aligned to Algebra II's ${teks}, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.`,
   missingCapability: `An Algebra I alignment (${algebraOneTeks}) — a sibling family within Algebra I's limits — so an Algebra I Honors task on ${noun} can anchor on it.`,
   teacherReason: `MathMaster's generator for ${noun} is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension.`,
 });
@@ -333,6 +333,63 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s two-point perpendicular generator only passes through a given point, so it cannot yet build the perpendicular-bisector work a built-in Honors extension needs.',
     }),
     algebra2: Object.freeze(ALGEBRA_I_ONLY('The line perpendicular to the line through two points')),
+  }),
+  // Recovery V2 families for Algebra II Honors "Dividing Polynomials"
+  // (questionFamiliesPolynomialDivision.mjs). Each asks exactly its original's
+  // skill at its rigor, aligned to A2.7C.
+  'polynomials.divideMonomials': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Dividing monomials', 'A.11B', 'dividing monomials', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review of the quotient of powers with every exponent left positive. The Honors depth — zero and negative exponents, and a quotient raised to a power — needs an answer that is not a polynomial, which typed answers compare only as text.',
+      missingCapability: 'A quotient-of-monomials answer form graded by value (x³ ÷ x⁵ = x⁻² = 1/x²), so the family can ask zero and negative exponents as well.',
+      teacherReason: 'MathMaster\'s monomial-division generator only writes quotients with positive exponents, so it cannot yet build the negative-exponent work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.distributeMonomial': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Multiplying a polynomial by a monomial', 'A.10B', 'multiplying by a monomial', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review of multiplying back: a monomial times a trinomial and a negative monomial times x + q. Larger factors are its only remaining lever, which is not rigor.',
+      missingCapability: 'A `divisor` knob that multiplies a quotient term by a quadratic divisor (−4y(y² + y − 5), textbook 5-2 #6), the multiply-back step of dividing by a degree-2 polynomial.',
+      teacherReason: 'MathMaster\'s multiply-back generator only uses linear divisors, so it cannot yet build the quadratic-divisor work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.subtractForDivision': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Subtracting polynomials', 'A.10A', 'subtracting polynomials', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review: one two-letter difference with a missing term and one long-division subtraction whose leading terms cancel. Wider coefficients are its only remaining lever, which is not rigor.',
+      missingCapability: 'A `lines: three` knob writing the subtraction of a quadratic divisor\'s product (three terms, a placeholder brought down), as dividing by a degree-2 polynomial needs.',
+      teacherReason: 'MathMaster\'s subtraction generator only writes two-term long-division lines, so it cannot yet build the three-term work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.divideByMonomial': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Dividing a polynomial by a monomial', 'A.11B', 'dividing by a monomial', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version divides a trinomial by a two-letter monomial, one term of it the divisor itself. A term that does not divide evenly (−w² + 16w + 1000 over w, textbook 5-2 #19) gives a quotient that is not a polynomial, which this family does not write.',
+      missingCapability: 'A `remainderTerm` knob that leaves one term over the monomial (1000/w), answered as the polynomial part plus that term\'s numerator, with a judgment that the quotient is not a polynomial.',
+      teacherReason: 'MathMaster\'s divide-by-a-monomial generator only writes terms that divide evenly, so it cannot yet build the not-a-polynomial work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.longDivisionLinear': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Long division of a cubic polynomial', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version divides a cubic with one missing term by x − r. The Honors depth — a quartic divided by a quadratic (textbook 5-2 #6) or a divisor ax + b — is a knob this family does not have, though the Polynomial Workshop\'s long division already draws both.',
+      missingCapability: 'A `divisor: quadratic | scaled` knob writing a quadratic or an ax + b divisor, answered in the Workshop\'s long division round by round.',
+      teacherReason: 'MathMaster\'s long-division generator only divides by x − r, so it cannot yet build the quadratic-divisor work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.syntheticDivision': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Synthetic division', 'A2.7C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version divides a quartic with one missing term by x − r. The Honors depth — a divisor ax + b, divided through by a first (the lesson\'s Example 5) — is a knob this family does not have, though the Polynomial Workshop\'s synthetic division already draws it.',
+      missingCapability: 'A `leading` knob writing the divisor as ax + b (a = 2 or 3), answered in the Workshop\'s synthetic division with its remainder-over-ax + b box.',
+      teacherReason: 'MathMaster\'s synthetic-division generator only divides by x − r, so it cannot yet build the divide-through-first work a built-in Honors extension needs.',
+    }),
   }),
   // Recovery V2 families for Algebra II Honors "Operations on Polynomials"
   // (questionFamiliesPolynomials.mjs). Each asks exactly its original's skill

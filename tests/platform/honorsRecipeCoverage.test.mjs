@@ -140,7 +140,10 @@ test('the committed report is generated from the live registry and audit, never 
   // original's skill: BLOCKED in Algebra II; in Algebra I the cubic
   // subtraction is NOT APPROPRIATE and the five whose skill Algebra I also
   // teaches are BLOCKED (aligned to A2.7B, so an Algebra I lesson never binds
-  // to them).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 35 \| 4 \| 5 \| 18 \| 8 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 35 \| 0 \| 1 \| 17 \| 17 \|/);
+  // to them). The six dividing-polynomials Recovery families likewise: BLOCKED
+  // in Algebra II; in Algebra I the cubic long division and the quartic
+  // synthetic division are NOT APPROPRIATE and the four Warm-Up and
+  // divide-by-a-monomial skills Algebra I also teaches are BLOCKED (A2.7C).
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 41 \| 4 \| 5 \| 22 \| 10 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 41 \| 0 \| 1 \| 23 \| 17 \|/);
 });

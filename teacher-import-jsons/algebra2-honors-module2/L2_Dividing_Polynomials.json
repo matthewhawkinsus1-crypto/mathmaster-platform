@@ -1,0 +1,1694 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Dividing Polynomials",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Module 2/Lesson 2",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "shared",
+      "dol": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Divide, Multiply, Subtract",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dp-wu-1",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — dividing monomials. To divide monomials, divide the coefficients and subtract the exponents of the same letter: $\\frac{x^{a}}{x^{b}} = x^{a-b}$. Write each quotient in simplest form.",
+          "responses": [
+            {
+              "id": "single",
+              "label": "Divide 18x⁵ ÷ 3x²",
+              "answer": "6x^3",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "double",
+              "label": "Divide −20m⁴n³ ÷ 5m²n",
+              "answer": "-4m^2n^2",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Divide the coefficients first: 18 ÷ 3, and −20 ÷ 5 — a negative divided by a positive is negative.",
+            "For the same letter, subtract the exponents: x⁵ ÷ x² leaves x multiplied by itself 5 − 2 times.",
+            "A letter written with no exponent has exponent 1, so n³ ÷ n subtracts 1 from 3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x⁵ ÷ x² cancels two factors of x, so x is left multiplied by itself…",
+            "options": [
+              "5 − 2 = 3 times",
+              "5 ÷ 2 = 2.5 times"
+            ],
+            "correct": "5 − 2 = 3 times"
+          },
+          "solutionReview": {
+            "headline": "Divide the coefficients, and subtract the exponents of each letter.",
+            "reasoning": [
+              "18x⁵ ÷ 3x²: 18 ÷ 3 = 6 and x⁵ ÷ x² = x⁵⁻² = x³, so the quotient is 6x³.",
+              "−20m⁴n³ ÷ 5m²n: −20 ÷ 5 = −4, m⁴ ÷ m² = m⁴⁻² = m² and n³ ÷ n = n³⁻¹ = n², so the quotient is −4m²n²."
+            ],
+            "commonError": "Dividing the exponents instead of subtracting them — the textbook’s choice A on Exercise 49."
+          }
+        },
+        {
+          "questionId": "dp-wu-2",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — multiplying back. Every round of long division multiplies one term of the quotient by the whole divisor. Multiply, and write each product in simplest form.",
+          "responses": [
+            {
+              "id": "trinomial",
+              "label": "Multiply 7w(2w² + 8w − 5)",
+              "answer": "14w^3+56w^2-35w",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "binomial",
+              "label": "Multiply −3x(x + 3)",
+              "answer": "-3x^2-9x",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Multiply the outside term by EVERY term inside the parentheses.",
+            "Multiply the numbers and add the exponents: w · w² = w³.",
+            "Watch the signs: a negative times a positive is negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 7w(2w² + 8w − 5) means multiplying 7w by…",
+            "options": [
+              "each of 2w², 8w and −5",
+              "only the first term, 2w²"
+            ],
+            "correct": "each of 2w², 8w and −5"
+          },
+          "solutionReview": {
+            "headline": "Distribute: the outside term multiplies every term inside.",
+            "reasoning": [
+              "7w(2w² + 8w − 5) = 7w · 2w² + 7w · 8w + 7w · (−5) = 14w³ + 56w² − 35w.",
+              "−3x(x + 3) = −3x · x + (−3x) · 3 = −3x² − 9x."
+            ],
+            "commonError": "Multiplying only the first term inside, or adding where you should multiply: 7w · 8w is 56w², not 15w²."
+          }
+        },
+        {
+          "questionId": "dp-wu-3",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — subtracting. In long division you subtract each product from the line above it, and the leading terms cancel. Subtract, and write each difference in simplest form.",
+          "responses": [
+            {
+              "id": "general",
+              "label": "Subtract (10a² − 6ab + b²) − (5a² − 2b²)",
+              "answer": "5a^2-6ab+3b^2",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "division",
+              "label": "Subtract (−3x² − 4x) − (−3x² − 9x)",
+              "answer": "5x",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Subtracting a polynomial changes the sign of EVERY term in it.",
+            "The second polynomial in the first difference has no ab term, so −6ab has nothing to combine with.",
+            "Subtracting a negative adds: −(−9x) is +9x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Subtracting (5a² − 2b²) means adding…",
+            "options": [
+              "−5a² + 2b²",
+              "−5a² − 2b²"
+            ],
+            "correct": "−5a² + 2b²"
+          },
+          "solutionReview": {
+            "headline": "Change the sign of every term you subtract, then combine like terms.",
+            "reasoning": [
+              "(10a² − 6ab + b²) − (5a² − 2b²) = 10a² − 6ab + b² − 5a² + 2b² = 5a² − 6ab + 3b².",
+              "(−3x² − 4x) − (−3x² − 9x) = −3x² − 4x + 3x² + 9x = 5x."
+            ],
+            "commonError": "Changing the sign of only the first term you subtract: −4x − 9x would give −13x."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Long Division and Synthetic Division",
+      "recommendedMinutes": 32,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dp-cw-1",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Example 1 — divide a polynomial by a monomial. Simplify $\\frac{5a^2b - 15ab^3 + 10a^3b^4}{5ab}$. Write the fraction as a sum of quotients — one for each term of the numerator — and divide each one.",
+          "responses": [
+            {
+              "id": "t1",
+              "label": "5a²b ÷ 5ab",
+              "answer": "a",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "t2",
+              "label": "−15ab³ ÷ 5ab",
+              "answer": "-3b^2",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "t3",
+              "label": "10a³b⁴ ÷ 5ab",
+              "answer": "2a^2b^3",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "quotient",
+              "label": "The quotient in simplest form",
+              "answer": "a-3b^2+2a^2b^3",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Each term of the numerator is divided by 5ab on its own: that is the sum of quotients.",
+            "Divide the coefficients and subtract the exponents of each letter. When one letter has the same exponent above and below, it cancels: b¹ ÷ b¹ = b⁰ = 1.",
+            "Write the three quotients together, each with its own sign."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 5a²b ÷ 5ab, the b’s…",
+            "options": [
+              "cancel: b ÷ b = b⁰ = 1",
+              "leave b²"
+            ],
+            "correct": "cancel: b ÷ b = b⁰ = 1"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Sum of quotients",
+                "instruction": "(5a²b − 15ab³ + 10a³b⁴) ÷ 5ab = 5a²b ÷ 5ab − 15ab³ ÷ 5ab + 10a³b⁴ ÷ 5ab: every term of the numerator is divided by 5ab."
+              },
+              {
+                "title": "Divide",
+                "instruction": "Divide each pair of coefficients and subtract the exponents of each letter: a²⁻¹b¹⁻¹ = a¹b⁰."
+              },
+              {
+                "title": "Simplify",
+                "instruction": "a¹⁻¹ = a⁰ = 1 and b¹⁻¹ = b⁰ = 1: a letter that cancels leaves a factor of 1."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Divide every term of the numerator by the monomial.",
+            "reasoning": [
+              "5a²b ÷ 5ab = a²⁻¹b¹⁻¹ = a.",
+              "−15ab³ ÷ 5ab = −3a¹⁻¹b³⁻¹ = −3b².",
+              "10a³b⁴ ÷ 5ab = 2a³⁻¹b⁴⁻¹ = 2a²b³.",
+              "So the quotient is a − 3b² + 2a²b³."
+            ],
+            "commonError": "Dividing only the first term of the numerator by 5ab."
+          }
+        },
+        {
+          "questionId": "dp-cw-2",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Simplify $\\frac{3x^2y + 6x^5y^2 - 9x^7y^3}{3x^2y}$.",
+          "responses": [
+            {
+              "id": "quotient",
+              "label": "The quotient in simplest form",
+              "answer": "1+2x^3y-3x^5y^2",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "one",
+              "label": "Why does the quotient have a term 1?",
+              "type": "choice",
+              "options": [
+                "3x²y ÷ 3x²y = 1: a term divided by itself is 1",
+                "The 1 holds the place of a missing term",
+                "Every quotient starts with 1",
+                "It does not — 3x²y ÷ 3x²y = 0"
+              ],
+              "answer": "3x²y ÷ 3x²y = 1: a term divided by itself is 1"
+            }
+          ],
+          "hints": [
+            "Divide each term of the numerator by 3x²y.",
+            "A term divided by itself is 1, not 0 — and it does not disappear.",
+            "For 6x⁵y² ÷ 3x²y: 6 ÷ 3, then subtract the exponents of x and of y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 3x²y ÷ 3x²y is…",
+            "options": [
+              "1",
+              "0"
+            ],
+            "correct": "1"
+          },
+          "solutionReview": {
+            "headline": "Every term is divided — including the one that equals the divisor.",
+            "reasoning": [
+              "3x²y ÷ 3x²y = 1.",
+              "6x⁵y² ÷ 3x²y = 2x⁵⁻²y²⁻¹ = 2x³y.",
+              "−9x⁷y³ ÷ 3x²y = −3x⁷⁻²y³⁻¹ = −3x⁵y².",
+              "So the quotient is 1 + 2x³y − 3x⁵y²."
+            ],
+            "commonError": "Dropping the 1: 2x³y − 3x⁵y² (the slide’s choice A) forgets that 3x²y ÷ 3x²y = 1."
+          }
+        },
+        {
+          "questionId": "dp-cw-3",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example 2 — the division algorithm. Use long division to find $(x^2 - 2x - 15) \\div (x - 5)$. Each round: divide the leading terms, multiply back, subtract and bring down the next term.",
+          "polynomial": {
+            "dividend": "x^2-2x-15",
+            "divisor": "x-5"
+          },
+          "hints": [
+            "Start with the leading terms: x² ÷ x gives the first term of the quotient.",
+            "Multiply that term by the whole divisor, x − 5, and subtract: −2x − (−5x) = 3x.",
+            "Repeat with the new leading term. When nothing is left over, the remainder is 0."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Divide",
+                "instruction": "x² ÷ x = x: the first term of the quotient."
+              },
+              {
+                "title": "Multiply back",
+                "instruction": "x(x − 5) = x² − 5x."
+              },
+              {
+                "title": "Subtract and bring down",
+                "instruction": "−2x − (−5x) = 3x; bring down −15 to get 3x − 15."
+              },
+              {
+                "title": "Repeat",
+                "instruction": "3x ÷ x = 3, and 3(x − 5) = 3x − 15. Subtracting leaves 0: the quotient is x + 3 and the remainder is 0."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "dp-cw-4",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Use long division to find $(x^2 + 5x + 6) \\div (x + 3)$.",
+          "polynomial": {
+            "dividend": "x^2+5x+6",
+            "divisor": "x+3"
+          },
+          "hints": [
+            "x² ÷ x gives the first term of the quotient.",
+            "Multiply it by x + 3, subtract from x² + 5x, and bring down 6.",
+            "If the last subtraction leaves nothing, the remainder is 0 — type 0."
+          ]
+        },
+        {
+          "questionId": "dp-cw-5",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "TEKS review — a missing term. Use long division to find $(x^3 - 4x + 2) \\div (x + 3)$. The dividend has no $x^2$ term: write it as $x^3 + 0x^2 - 4x + 2$, so every power keeps its place.",
+          "polynomial": {
+            "dividend": "x^3-4x+2",
+            "divisor": "x+3"
+          },
+          "hints": [
+            "The 0x² holds the x² place: x³ + 0x² − 4x + 2.",
+            "Round 1: x³ ÷ x = x². Subtract x³ + 3x² from x³ + 0x², then bring down −4x.",
+            "Keep going until what is left is only a number: that is the remainder."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Placeholder",
+                "instruction": "x³ − 4x + 2 = x³ + 0x² − 4x + 2: a 0 term holds the place of the missing power."
+              },
+              {
+                "title": "Remainder",
+                "instruction": "When what is left has a lower degree than the divisor, stop: it is the remainder, written over the divisor."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "dp-cw-6",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example 3 — read the test item. Which expression is equal to $(a^2 - 5a + 3)(2 - a)^{-1}$? The exponent −1 makes it a division problem, $\\frac{a^2 - 5a + 3}{2 - a}$. Rewrite $2 - a$ as $-a + 2$ (descending powers) and divide it by long division.",
+          "polynomial": {
+            "dividend": "a^2-5a+3",
+            "divisor": "-a+2"
+          },
+          "hints": [
+            "(2 − a)⁻¹ means 1/(2 − a): multiplying by it divides by 2 − a.",
+            "The divisor is −a + 2, so its leading term is −a: a² ÷ (−a) = −a.",
+            "Multiply −a by −a + 2, subtract, bring down 3, and divide by −a again."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Read the test item",
+                "instruction": "Since the second factor has an exponent of −1, this is a division problem: (a² − 5a + 3)(2 − a)⁻¹ = (a² − 5a + 3) ÷ (2 − a)."
+              },
+              {
+                "title": "Rewrite the divisor",
+                "instruction": "Write 2 − a as −a + 2, so its terms are in descending powers."
+              },
+              {
+                "title": "Divide",
+                "instruction": "−a(−a + 2) = a² − 2a, and 3(−a + 2) = −3a + 6. The last subtraction is 3 − 6 = −3."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "dp-cw-7",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Finish the test items. A quotient with a remainder is written as quotient + remainder ÷ divisor.",
+          "responses": [
+            {
+              "id": "example3",
+              "label": "Example 3: (a² − 5a + 3)(2 − a)⁻¹ equals",
+              "type": "choice",
+              "options": [
+                "a + 3",
+                "−a + 3 + 3/(2 − a)",
+                "−a − 3 + 3/(2 − a)",
+                "−a + 3 − 3/(2 − a)"
+              ],
+              "answer": "−a + 3 − 3/(2 − a)"
+            },
+            {
+              "id": "remainder",
+              "label": "Check Your Progress: the remainder when x² − x − 7 is divided by x − 3",
+              "answer": "-1"
+            },
+            {
+              "id": "cyp",
+              "label": "Check Your Progress: (x² − x − 7)(x − 3)⁻¹ equals",
+              "type": "choice",
+              "options": [
+                "x − 2 − 1/(x − 3)",
+                "x + 2 − 1/(x − 3)",
+                "x + 2",
+                "x + 2 + 1/(x − 3)"
+              ],
+              "answer": "x + 2 − 1/(x − 3)"
+            }
+          ],
+          "hints": [
+            "The remainder goes over the divisor: quotient + remainder/divisor.",
+            "Example 3’s remainder, −3, sits over the divisor −a + 2 — the same number as 2 − a.",
+            "For x² − x − 7: x² ÷ x = x, then subtract x(x − 3) and bring down −7."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In Example 3 the quotient is −a + 3 and the remainder is −3. The remainder is written…",
+            "options": [
+              "over the divisor: −3/(2 − a)",
+              "on its own: −a + 3 − 3"
+            ],
+            "correct": "over the divisor: −3/(2 − a)"
+          },
+          "solutionReview": {
+            "headline": "Divide, then write quotient + remainder/divisor.",
+            "reasoning": [
+              "Example 3: the quotient is −a + 3 and the remainder is −3, so (a² − 5a + 3)(2 − a)⁻¹ = −a + 3 − 3/(2 − a).",
+              "x(x − 3) = x² − 3x, and (x² − x) − (x² − 3x) = 2x; bring down −7 to get 2x − 7.",
+              "2(x − 3) = 2x − 6, and (2x − 7) − (2x − 6) = −1, so the remainder is −1.",
+              "So (x² − x − 7)(x − 3)⁻¹ = x + 2 − 1/(x − 3)."
+            ],
+            "commonError": "Leaving the remainder off (x + 2), or adding it with the wrong sign (x + 2 + 1/(x − 3))."
+          }
+        },
+        {
+          "questionId": "dp-cw-8",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example 4 — synthetic division. Synthetic division is a shortcut for dividing by a linear divisor $x - r$: it works with the coefficients only. Use synthetic division to find $(x^3 - 4x^2 + 6x - 4) \\div (x - 2)$.",
+          "polynomial": {
+            "dividend": "x^3-4x^2+6x-4",
+            "divisor": "x-2"
+          },
+          "hints": [
+            "r is the number that makes the divisor 0: x − 2 = 0 when x = 2.",
+            "Each column: multiply the number below the line by r, write the product in the next column, and add.",
+            "The quotient starts one power lower than the dividend: a cubic divided by x − r gives a quadratic."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Step 1",
+                "instruction": "Write the coefficients of the dividend in descending powers: 1, −4, 6, −4."
+              },
+              {
+                "title": "Step 2",
+                "instruction": "Write the constant r of the divisor x − r in the box — here r = 2 — and bring the first coefficient, 1, down."
+              },
+              {
+                "title": "Step 3",
+                "instruction": "Multiply 1 · 2 = 2, write it under −4, and add: −4 + 2 = −2."
+              },
+              {
+                "title": "Step 4",
+                "instruction": "Multiply −2 · 2 = −4, write it under 6, and add: 6 + (−4) = 2."
+              },
+              {
+                "title": "Step 5",
+                "instruction": "Multiply 2 · 2 = 4, write it under −4, and add: −4 + 4 = 0, the remainder. The bottom row 1, −2, 2 gives the quotient x² − 2x + 2."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "dp-cw-9",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Use synthetic division to find $(x^2 + 8x + 7) \\div (x + 1)$.",
+          "polynomial": {
+            "dividend": "x^2+8x+7",
+            "divisor": "x+1"
+          },
+          "hints": [
+            "x + 1 is x − (−1), so r = −1.",
+            "Bring down 1, multiply it by −1, and add to 8.",
+            "A remainder of 0 means x + 1 divides x² + 8x + 7 evenly."
+          ]
+        },
+        {
+          "questionId": "dp-cw-10",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Example 5 — a divisor whose first coefficient is not 1. Use synthetic division to find $(4y^3 - 6y^2 + 4y - 1) \\div (2y - 1)$. First divide the numerator and the denominator by 2, so the divisor has a leading coefficient of 1.",
+          "polynomial": {
+            "dividend": "4y^3-6y^2+4y-1",
+            "divisor": "2y-1"
+          },
+          "hints": [
+            "Divide every coefficient of the dividend by 2: 4 ÷ 2, −6 ÷ 2, 4 ÷ 2 and −1 ÷ 2.",
+            "2y − 1 divided by 2 is y − 1/2, so r = 1/2.",
+            "Multiply by 1/2 in each column: 2 · 1/2 = 1, then add."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rewrite the divisor",
+                "instruction": "Divide the numerator and the denominator by 2: (4y³ − 6y² + 4y − 1) ÷ (2y − 1) = (2y³ − 3y² + 2y − 1/2) ÷ (y − 1/2)."
+              },
+              {
+                "title": "Find r",
+                "instruction": "y − r = y − 1/2, so r = 1/2."
+              },
+              {
+                "title": "Divide",
+                "instruction": "Synthetic division on 2, −3, 2, −1/2 with r = 1/2 gives the bottom row 2, −2, 1, 0."
+              },
+              {
+                "title": "Check",
+                "instruction": "Long division gives the same result: (4y³ − 6y² + 4y − 1) ÷ (2y − 1) = 2y² − 2y + 1."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "dp-cw-11",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Check Your Progress. Use synthetic division to find $(8y^3 - 12y^2 + 4y + 10) \\div (2y + 1)$.",
+          "responses": [
+            {
+              "id": "r",
+              "label": "Divide the numerator and the denominator by 2. The divisor is then y − r, where r =",
+              "answer": "-1/2"
+            },
+            {
+              "id": "tableRemainder",
+              "label": "The last number in the bottom row of the synthetic division (the remainder over y + 1/2)",
+              "answer": "2"
+            },
+            {
+              "id": "remainder",
+              "label": "Written over the divisor 2y + 1, that remainder is",
+              "answer": "4"
+            },
+            {
+              "id": "answer",
+              "label": "(8y³ − 12y² + 4y + 10) ÷ (2y + 1) equals",
+              "type": "choice",
+              "options": [
+                "4y² − 8y + 6",
+                "4y² − 8y + 6 + 4/(2y + 1)",
+                "4y² − 4y + 5",
+                "4y² − 4y + 5/(2y + 1)"
+              ],
+              "answer": "4y² − 8y + 6 + 4/(2y + 1)"
+            }
+          ],
+          "hints": [
+            "First divide every coefficient of the dividend, and the divisor, by the divisor’s leading coefficient.",
+            "Write the new divisor in the form y − r: adding a number is the same as subtracting its opposite.",
+            "To move the remainder from over the new divisor to over 2y + 1, multiply its numerator and its denominator by the same number."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 2/(y + 1/2) is the same as…",
+            "options": [
+              "4/(2y + 1)",
+              "2/(2y + 1)"
+            ],
+            "correct": "4/(2y + 1)"
+          },
+          "solutionReview": {
+            "headline": "Divide through by 2, divide synthetically, then put the remainder back over 2y + 1.",
+            "reasoning": [
+              "(8y³ − 12y² + 4y + 10)/(2y + 1) = (4y³ − 6y² + 2y + 5)/(y + 1/2), so r = −1/2.",
+              "Bottom row: 4; −6 + (−2) = −8; 2 + 4 = 6; 5 + (−3) = 2. The quotient is 4y² − 8y + 6 and the remainder is 2.",
+              "2/(y + 1/2) = 4/(2y + 1), so the answer is 4y² − 8y + 6 + 4/(2y + 1)."
+            ],
+            "commonError": "Leaving the remainder 2 over 2y + 1: 2/(y + 1/2) is 4/(2y + 1), not 2/(2y + 1)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Dividing Polynomials",
+      "recommendedMinutes": 36,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dp-pr-1",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Simplify (Exercises 12 and 15).",
+          "responses": [
+            {
+              "id": "p12",
+              "label": "(24a³b² − 16a²b³) ÷ 8ab",
+              "answer": "3a^2b-2ab^2",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p15",
+              "label": "(4a³b − 6ab + 2ab²) ÷ 2ab",
+              "answer": "2a^2-3+b",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Divide each term of the numerator by the monomial.",
+            "Divide the coefficients and subtract the exponents: a³ ÷ a = a².",
+            "In Exercise 15, every letter of −6ab cancels against 2ab."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −6ab ÷ 2ab is…",
+            "options": [
+              "−3",
+              "−3ab"
+            ],
+            "correct": "−3"
+          },
+          "solutionReview": {
+            "headline": "Divide every term by the monomial.",
+            "reasoning": [
+              "24a³b² ÷ 8ab = 3a²b and −16a²b³ ÷ 8ab = −2ab², so the quotient is 3a²b − 2ab².",
+              "4a³b ÷ 2ab = 2a², −6ab ÷ 2ab = −3 and 2ab² ÷ 2ab = b, so the quotient is 2a² − 3 + b."
+            ],
+            "commonError": "Keeping letters that cancel: −6ab ÷ 2ab is −3, not −3ab."
+          }
+        },
+        {
+          "questionId": "dp-pr-2",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "ENERGY and BAKING (Exercises 18 and 19). Replacing b light bulbs changes a home’s daily energy use by $-b^2 - 600b$ watt-hours. A cookie factory with w workers bakes $-w^2 + 16w + 1000$ cookies a day.",
+          "responses": [
+            {
+              "id": "energy",
+              "label": "The change per bulb: (−b² − 600b) ÷ b",
+              "answer": "-b-600",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "polynomialPart",
+              "label": "Cookies per worker: (−w² + 16w + 1000) ÷ w = (a polynomial) + 1000/w. The polynomial part is",
+              "answer": "-w+16",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "notPolynomial",
+              "label": "Is (−w² + 16w + 1000) ÷ w a polynomial?",
+              "type": "choice",
+              "options": [
+                "No — 1000/w has the variable in a denominator",
+                "Yes — every term has a whole-number coefficient",
+                "Yes — a polynomial divided by a monomial is always a polynomial",
+                "No — it has a negative coefficient"
+              ],
+              "answer": "No — 1000/w has the variable in a denominator"
+            }
+          ],
+          "hints": [
+            "Divide each term by b, then each term by w.",
+            "−600b ÷ b = −600: the b cancels.",
+            "1000 ÷ w cannot be simplified: w stays in the denominator."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −w² ÷ w is…",
+            "options": [
+              "−w",
+              "−w²"
+            ],
+            "correct": "−w"
+          },
+          "solutionReview": {
+            "headline": "Divide every term by the monomial; a term with nothing to cancel keeps its denominator.",
+            "reasoning": [
+              "−b² ÷ b = −b and −600b ÷ b = −600, so each bulb changes the energy use by −b − 600 watt-hours.",
+              "−w² ÷ w = −w, 16w ÷ w = 16 and 1000 ÷ w = 1000/w, so the cookies per worker are −w + 16 + 1000/w.",
+              "1000/w has the variable in its denominator, so the quotient is not a polynomial."
+            ],
+            "commonError": "Writing 1000 ÷ w as 1000w or leaving it out."
+          }
+        },
+        {
+          "questionId": "dp-pr-3",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use long division to find $(x^2 - 6x - 20) \\div (x + 2)$ (Exercise 3).",
+          "polynomial": {
+            "dividend": "x^2-6x-20",
+            "divisor": "x+2"
+          },
+          "hints": [
+            "x² ÷ x gives the first term of the quotient.",
+            "Subtracting x² + 2x from x² − 6x leaves −8x.",
+            "What is left at the end is a number: the remainder."
+          ]
+        },
+        {
+          "questionId": "dp-pr-4",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic division to find $(g^4 - 3g^2 - 18) \\div (g - 2)$ (Exercise 25).",
+          "polynomial": {
+            "dividend": "g^4-3g^2-18",
+            "divisor": "g-2"
+          },
+          "hints": [
+            "List a coefficient for every power from g⁴ down to the constant — a 0 for each missing one.",
+            "g − 2 = g − r with r = 2.",
+            "The quotient of a degree-4 polynomial by g − 2 has degree 3."
+          ]
+        },
+        {
+          "questionId": "dp-pr-5",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "MULTIPLE CHOICE (Exercise 7). Which expression is equal to $(x^2 + 3x - 9)(4 - x)^{-1}$?",
+          "responses": [
+            {
+              "id": "setup",
+              "label": "The first step",
+              "type": "choice",
+              "options": [
+                "Rewrite (4 − x)⁻¹ as division by −x + 4",
+                "Multiply x² + 3x − 9 by 4 − x",
+                "Divide x² + 3x − 9 by 4",
+                "Rewrite 4 − x as x − 4 and leave everything else as it is"
+              ],
+              "answer": "Rewrite (4 − x)⁻¹ as division by −x + 4"
+            },
+            {
+              "id": "remainder",
+              "label": "The remainder when x² + 3x − 9 is divided by −x + 4",
+              "answer": "19"
+            },
+            {
+              "id": "answer",
+              "label": "The equivalent expression",
+              "type": "choice",
+              "options": [
+                "−x − 7 + 19/(4 − x)",
+                "−x − 7",
+                "x + 7 − 19/(4 − x)",
+                "−x − 7 − 19/(4 − x)"
+              ],
+              "answer": "−x − 7 + 19/(4 − x)"
+            }
+          ],
+          "hints": [
+            "An exponent of −1 means divide: (4 − x)⁻¹ = 1/(4 − x).",
+            "Divide by −x + 4: x² ÷ (−x) = −x.",
+            "The remainder goes over the divisor, −x + 4, which is the same as 4 − x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x² ÷ (−x) is…",
+            "options": [
+              "−x",
+              "x"
+            ],
+            "correct": "−x"
+          },
+          "solutionReview": {
+            "headline": "Divide by −x + 4, then write quotient + remainder/divisor.",
+            "reasoning": [
+              "−x(−x + 4) = x² − 4x, and (x² + 3x) − (x² − 4x) = 7x; bring down −9 to get 7x − 9.",
+              "−7(−x + 4) = 7x − 28, and (7x − 9) − (7x − 28) = 19, the remainder.",
+              "So (x² + 3x − 9)(4 − x)⁻¹ = −x − 7 + 19/(4 − x)."
+            ],
+            "commonError": "Dropping the remainder (choice B), or giving it the wrong sign (choice D)."
+          }
+        },
+        {
+          "questionId": "dp-pr-6",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use long division to find $(12b^2 + 23b + 15) \\div (3b + 8)$ (Exercise 10). The divisor’s leading term is $3b$.",
+          "polynomial": {
+            "dividend": "12b^2+23b+15",
+            "divisor": "3b+8"
+          },
+          "hints": [
+            "12b² ÷ 3b = 4b.",
+            "Multiply 4b by the whole divisor, 3b + 8, before you subtract.",
+            "Divide the next leading term by 3b as well."
+          ]
+        },
+        {
+          "questionId": "dp-pr-7",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Preparing for Assessment (Exercises 49–51).",
+          "responses": [
+            {
+              "id": "p49",
+              "label": "49. Which expression is equivalent to (16m⁴n⁹ + 36m⁸n⁶ + 8m⁶n¹²) ÷ 4m²n³?",
+              "type": "choice",
+              "options": [
+                "4m²n³ + 9m⁴n² + 2m³n⁴",
+                "4m²n⁶ + 9m⁶n³ + 2m⁴n⁹",
+                "12m²n³ + 32m⁴n² + 4m³n⁴",
+                "12m²n⁶ + 32m⁶n³ + 4m⁴n⁹"
+              ],
+              "answer": "4m²n⁶ + 9m⁶n³ + 2m⁴n⁹"
+            },
+            {
+              "id": "p50",
+              "label": "50. GRIDDABLE. What is the remainder when you divide x⁴ + 3x² + x + 6 by x + 3?",
+              "answer": "111"
+            },
+            {
+              "id": "p51",
+              "label": "51. Which expression is equivalent to (m² − 3m + 7)(m − 5)⁻¹?",
+              "type": "choice",
+              "options": [
+                "m − 8 + 47/(m − 5)",
+                "m − 1 + 2/(m − 5)",
+                "m + 2 + 17/(m − 5)",
+                "m + 15 − 525/(m − 5)"
+              ],
+              "answer": "m + 2 + 17/(m − 5)"
+            }
+          ],
+          "hints": [
+            "49: divide the coefficients and SUBTRACT the exponents of each letter.",
+            "50: divide synthetically with r = −3, with a 0 for the missing x³ term; the last number is the remainder.",
+            "51: (m − 5)⁻¹ means divide by m − 5, so r = 5."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. m⁸ ÷ m² is…",
+            "options": [
+              "m⁶ — subtract the exponents",
+              "m⁴ — divide the exponents"
+            ],
+            "correct": "m⁶ — subtract the exponents"
+          },
+          "solutionReview": {
+            "headline": "Subtract exponents; divide synthetically; write the remainder over the divisor.",
+            "reasoning": [
+              "49: 16m⁴n⁹ ÷ 4m²n³ = 4m²n⁶, 36m⁸n⁶ ÷ 4m²n³ = 9m⁶n³ and 8m⁶n¹² ÷ 4m²n³ = 2m⁴n⁹.",
+              "50: synthetic division with r = −3 on 1, 0, 3, 1, 6 gives the bottom row 1, −3, 12, −35, 111, so the remainder is 111.",
+              "51: synthetic division with r = 5 on 1, −3, 7 gives 1, 2, 17, so (m² − 3m + 7)(m − 5)⁻¹ = m + 2 + 17/(m − 5)."
+            ],
+            "commonError": "49 A divides the exponents; 49 D subtracts the coefficients; 51 F makes a sign error subtracting −5m from −3m."
+          }
+        },
+        {
+          "questionId": "dp-pr-8",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "APPLY MATH (Exercise 32). A box is designed so its volume is $6x^3 + 31x^2 + 53x + 30$ and its height is always $x + 2$. Find the width and the length.",
+          "responses": [
+            {
+              "id": "base",
+              "label": "Width × length = volume ÷ height = (6x³ + 31x² + 53x + 30) ÷ (x + 2) =",
+              "answer": "6x^2+19x+15",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "remainder",
+              "label": "The remainder of that division",
+              "answer": "0"
+            },
+            {
+              "id": "other",
+              "label": "One of the two dimensions is 2x + 3. The other one is",
+              "answer": "3x+5",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Volume = width × length × height, so width × length = volume ÷ height.",
+            "Divide synthetically with r = −2: the coefficients are 6, 31, 53, 30.",
+            "Which binomial times 2x + 3 gives the quotient? Check its first and last terms."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x + 2 = x − r, where r is…",
+            "options": [
+              "−2",
+              "2"
+            ],
+            "correct": "−2"
+          },
+          "solutionReview": {
+            "headline": "Divide the volume by the height, then factor the base.",
+            "reasoning": [
+              "Synthetic division with r = −2 on 6, 31, 53, 30: 6; 31 − 12 = 19; 53 − 38 = 15; 30 − 30 = 0.",
+              "So width × length = 6x² + 19x + 15, with remainder 0.",
+              "(2x + 3)(3x + 5) = 6x² + 10x + 9x + 15 = 6x² + 19x + 15, so the other dimension is 3x + 5."
+            ],
+            "commonError": "Using r = 2 for the divisor x + 2."
+          }
+        },
+        {
+          "questionId": "dp-pr-9",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "PHYSICS (Exercise 33). Voltage is $V = \\frac{P}{I}$. A generator’s power is $P(t) = t^3 + 9t^2 + 26t + 24$ and its current is $I = t + 4$. Use synthetic division to find the voltage $V(t)$ — the quotient.",
+          "polynomial": {
+            "dividend": "t^3+9t^2+26t+24",
+            "divisor": "t+4"
+          },
+          "hints": [
+            "t + 4 = t − (−4), so r = −4.",
+            "Bring down 1, multiply by −4, and add to 9.",
+            "A remainder of 0 means V(t) is exactly the quotient."
+          ]
+        },
+        {
+          "questionId": "dp-pr-10",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "ENTERTAINMENT (Exercise 34). A card trick: draw a card (no face cards or aces) and let x be its number. Multiply x by 7. Add the sum of your number and 40. Divide by the sum of your number and 5. Your friend always knows the result.",
+          "responses": [
+            {
+              "id": "expression",
+              "label": "7x plus (x + 40), in simplest form",
+              "answer": "8x+40",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "quotient",
+              "label": "Divide it by x + 5. The quotient is",
+              "answer": "8",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "why",
+              "label": "Why does the trick work for every card?",
+              "type": "choice",
+              "options": [
+                "8x + 40 = 8(x + 5), so dividing by x + 5 always leaves 8",
+                "x + 5 is always 8 more than x",
+                "The remainder is always 8",
+                "It only works for even numbers"
+              ],
+              "answer": "8x + 40 = 8(x + 5), so dividing by x + 5 always leaves 8"
+            }
+          ],
+          "hints": [
+            "Write each instruction as an expression in x.",
+            "7x + (x + 40) combines to one binomial.",
+            "Factor the greatest common factor out of your expression, then compare what is left with x + 5."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 7x + (x + 40) is…",
+            "options": [
+              "8x + 40",
+              "7x + 40"
+            ],
+            "correct": "8x + 40"
+          },
+          "solutionReview": {
+            "headline": "The result does not depend on x.",
+            "reasoning": [
+              "7x + (x + 40) = 8x + 40.",
+              "8x + 40 = 8(x + 5), so (8x + 40) ÷ (x + 5) = 8 with remainder 0.",
+              "Whatever card is drawn, the final quotient is 8."
+            ],
+            "commonError": "Forgetting to add the number itself: 7x + 40 does not divide evenly by x + 5."
+          }
+        },
+        {
+          "questionId": "dp-pr-11",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "ERROR ANALYSIS (Exercise 43). Sharon and Jamal are dividing $2x^3 - 4x^2 + 3x - 1$ by $x - 3$. Sharon claims the remainder is 26. Jamal argues that the remainder is −100.",
+          "responses": [
+            {
+              "id": "who",
+              "label": "Who is correct?",
+              "type": "choice",
+              "options": [
+                "Sharon",
+                "Jamal",
+                "Both of them",
+                "Neither of them"
+              ],
+              "answer": "Sharon"
+            },
+            {
+              "id": "mistake",
+              "label": "What did the other student do?",
+              "type": "choice",
+              "options": [
+                "Used r = −3 instead of r = 3, so divided by x + 3",
+                "Left out a 0 placeholder",
+                "Added the exponents",
+                "Multiplied instead of adding in a column"
+              ],
+              "answer": "Used r = −3 instead of r = 3, so divided by x + 3"
+            },
+            {
+              "id": "remainder",
+              "label": "The remainder when 2x³ − 4x² + 3x − 1 is divided by x − 3",
+              "answer": "26"
+            }
+          ],
+          "hints": [
+            "For the divisor x − 3, r = 3: the number that makes the divisor 0.",
+            "Synthetic division with r = 3: bring down 2, multiply by 3 and add to −4, and keep going.",
+            "Try r = −3 as well: whose remainder do you get?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For x − 3, synthetic division uses…",
+            "options": [
+              "r = 3",
+              "r = −3"
+            ],
+            "correct": "r = 3"
+          },
+          "solutionReview": {
+            "headline": "Sharon used r = 3; Jamal used r = −3, which divides by x + 3.",
+            "reasoning": [
+              "With r = 3: 2; −4 + 6 = 2; 3 + 6 = 9; −1 + 27 = 26. The remainder is 26.",
+              "With r = −3: 2; −4 − 6 = −10; 3 + 30 = 33; −1 − 99 = −100, which is Jamal’s remainder."
+            ],
+            "commonError": "Using the number in the divisor as r: x − 3 has r = 3, and x + 3 has r = −3."
+          }
+        },
+        {
+          "questionId": "dp-pr-12",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "ANALYZE RELATIONSHIPS (Exercises 44–46).",
+          "responses": [
+            {
+              "id": "factor",
+              "label": "44. A polynomial is divided by a binomial and the remainder is 0. Then the binomial is…",
+              "type": "choice",
+              "options": [
+                "a factor of the polynomial",
+                "the quotient",
+                "equal to the polynomial",
+                "a term of the polynomial"
+              ],
+              "answer": "a factor of the polynomial"
+            },
+            {
+              "id": "degree",
+              "label": "45. A polynomial of degree 4 is divided by a polynomial of degree 2. The quotient has degree",
+              "answer": "2"
+            },
+            {
+              "id": "c",
+              "label": "46. Choose c so that (x² + 5x + c) ÷ (x + 2) has a remainder of 3. c =",
+              "answer": "9"
+            }
+          ],
+          "hints": [
+            "A remainder of 0 means divisor × quotient is exactly the polynomial.",
+            "The degrees of the quotient and the divisor add up to the degree of the dividend.",
+            "Divide x² + 5x + c by x + 2 synthetically with r = −2 and write the last number in terms of c."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The quotient’s degree plus the divisor’s degree equals…",
+            "options": [
+              "the dividend’s degree",
+              "the remainder’s degree"
+            ],
+            "correct": "the dividend’s degree"
+          },
+          "solutionReview": {
+            "headline": "Division undoes multiplication.",
+            "reasoning": [
+              "A remainder of 0 means polynomial = divisor × quotient, so the binomial is a factor.",
+              "The degrees add when polynomials multiply, so the quotient has degree 4 − 2 = 2.",
+              "Synthetic division with r = −2 on 1, 5, c gives 1; 5 − 2 = 3; c − 6. A remainder of 3 means c − 6 = 3, so c = 9."
+            ],
+            "commonError": "Subtracting the degrees the other way, or setting the remainder c − 6 equal to 0 instead of 3."
+          }
+        },
+        {
+          "questionId": "dp-pr-13",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "WHICH ONE DOESN’T BELONG (Exercise 47). $3xy + 6x^2$, $\\quad \\frac{5}{x^2}$, $\\quad x + 5$, $\\quad 5b + 11c - 9ad^2$",
+          "responses": [
+            {
+              "id": "odd",
+              "label": "Which expression does not belong?",
+              "type": "choice",
+              "options": [
+                "3xy + 6x²",
+                "5/x²",
+                "x + 5",
+                "5b + 11c − 9ad²"
+              ],
+              "answer": "5/x²"
+            },
+            {
+              "id": "exponent",
+              "label": "Written with a power of x, 5/x² = 5xⁿ. n =",
+              "answer": "-2"
+            },
+            {
+              "id": "why",
+              "label": "Why?",
+              "type": "choice",
+              "options": [
+                "It has a variable in a denominator, so it is not a polynomial",
+                "It has only one term",
+                "Its coefficient is 5",
+                "It has more than one letter"
+              ],
+              "answer": "It has a variable in a denominator, so it is not a polynomial"
+            }
+          ],
+          "hints": [
+            "Three of these share a property the fourth lacks.",
+            "A polynomial never has a variable in a denominator.",
+            "Rewrite each expression with powers of its letters: a polynomial never needs a negative exponent."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 5/x² can be written as…",
+            "options": [
+              "5x⁻², with a negative exponent",
+              "5x², with a positive exponent"
+            ],
+            "correct": "5x⁻², with a negative exponent"
+          },
+          "solutionReview": {
+            "headline": "Polynomials have whole-number exponents only.",
+            "reasoning": [
+              "3xy + 6x², x + 5 and 5b + 11c − 9ad² are polynomials: every exponent is a whole number.",
+              "5/x² = 5x⁻² has a variable in its denominator, so it is not a polynomial."
+            ],
+            "commonError": "Choosing by the number of terms or letters instead of by what makes a polynomial."
+          }
+        },
+        {
+          "questionId": "dp-pr-14",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Honors (Exercise 6). Use long division to find $(y^4 - 3y^3 + 2y^2 - 20) \\div (y^2 + y - 5)$. Synthetic division does not apply: the divisor is not linear.",
+          "polynomial": {
+            "dividend": "y^4-3y^3+2y^2-20",
+            "divisor": "y^2+y-5"
+          },
+          "hints": [
+            "y⁴ ÷ y² gives the first quotient term.",
+            "Multiply it by all three terms of y² + y − 5 before you subtract.",
+            "Stop when what is left has degree less than 2: the remainder can be a binomial."
+          ]
+        },
+        {
+          "questionId": "dp-pr-15",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Name the Math. Use synthetic division to divide $3x^4 - 4x^3 + 5x^2 - 7$ by $x - 2$, then check that the last number in the bottom row is the remainder.",
+          "polynomial": {
+            "dividend": "3x^4-4x^3+5x^2-7",
+            "divisor": "x-2"
+          },
+          "hints": [
+            "Every power from x⁴ to the constant gets a column — a 0 for the missing x term.",
+            "x − 2 = x − r with r = 2.",
+            "Bring down 3, multiply by 2, add to −4, and keep going column by column."
+          ]
+        },
+        {
+          "questionId": "dp-pr-16",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Honors challenge (Exercises 36 and 41, and the textbook’s Extension).",
+          "responses": [
+            {
+              "id": "p36",
+              "label": "(x⁴ − y⁴) ÷ (x − y), in simplest form",
+              "answer": "x^3+x^2y+xy^2+y^3",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p41quotient",
+              "label": "(3z⁵ + 5z⁴ + z + 5) ÷ (z + 2): the quotient",
+              "answer": "3z^4-z^3+2z^2-4z+9",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p41remainder",
+              "label": "(3z⁵ + 5z⁴ + z + 5) ÷ (z + 2): the remainder",
+              "answer": "-13"
+            },
+            {
+              "id": "extension",
+              "label": "Extension: (x⁴ − 6x² + 8) ÷ (x − √2) equals",
+              "type": "choice",
+              "options": [
+                "x³ + √2x² − 4x − 4√2",
+                "x³ − √2x² − 4x + 4√2",
+                "x³ + √2x² + 4x + 4√2",
+                "x³ − 4x"
+              ],
+              "answer": "x³ + √2x² − 4x − 4√2"
+            }
+          ],
+          "hints": [
+            "x⁴ − y⁴: divide by x − y with r = y, using 0 for the missing x³, x² and x terms.",
+            "For 3z⁵ + 5z⁴ + z + 5, the z³ and z² places hold 0: 3, 5, 0, 0, 1, 5 with r = −2.",
+            "With r = √2, use (√2)² = 2 and keep the radicals exact."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For x⁴ − y⁴ ÷ (x − y), synthetic division uses…",
+            "options": [
+              "r = y",
+              "r = −y"
+            ],
+            "correct": "r = y"
+          },
+          "solutionReview": {
+            "headline": "Synthetic division works with any r — even a letter or a radical.",
+            "reasoning": [
+              "Synthetic division by x − y puts y in the box: on 1, 0, 0, 0, −y⁴ the bottom row is 1, y, y², y³ and −y⁴ + y⁴ = 0, so (x⁴ − y⁴) ÷ (x − y) = x³ + x²y + xy² + y³.",
+              "With r = −2 on 3, 5, 0, 0, 1, 5: 3; 5 − 6 = −1; 0 + 2 = 2; 0 − 4 = −4; 1 + 8 = 9; 5 − 18 = −13.",
+              "So (3z⁵ + 5z⁴ + z + 5) ÷ (z + 2) = 3z⁴ − z³ + 2z² − 4z + 9 − 13/(z + 2).",
+              "With r = √2 on 1, 0, −6, 0, 8: 1; √2; 2 − 6 = −4; −4√2; 8 − 8 = 0, so the quotient is x³ + √2x² − 4x − 4√2."
+            ],
+            "commonError": "Leaving out the zero placeholders, which shifts every column."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Dividing Polynomials",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "dp-dol-1",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\frac{12x^4y^2 - 18x^3y + 6x^2y}{6x^2y}$. Write the fraction as a sum of quotients, divide each one, then write the quotient in simplest form.",
+          "responses": [
+            {
+              "id": "t1",
+              "label": "12x⁴y² ÷ 6x²y",
+              "answer": "2x^2y",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "t2",
+              "label": "−18x³y ÷ 6x²y",
+              "answer": "-3x",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "t3",
+              "label": "6x²y ÷ 6x²y",
+              "answer": "1",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "quotient",
+              "label": "The quotient in simplest form",
+              "answer": "2x^2y-3x+1",
+              "inputProfile": "expression",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ]
+        },
+        {
+          "questionId": "dp-dol-2",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "longDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use long division to find $(2x^3 - 5x^2 + 7) \\div (x - 3)$. Show every round, then write the quotient and the remainder.",
+          "polynomial": {
+            "dividend": "2x^3-5x^2+7",
+            "divisor": "x-3"
+          }
+        },
+        {
+          "questionId": "dp-dol-3",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic division to find $(x^4 - 5x^2 + 3x - 4) \\div (x + 2)$. Fill in r and every number of the synthetic division, then write the quotient.",
+          "polynomial": {
+            "dividend": "x^4-5x^2+3x-4",
+            "divisor": "x+2"
+          }
+        }
+      ]
+    }
+  ]
+}

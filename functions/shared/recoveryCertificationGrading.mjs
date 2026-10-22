@@ -84,7 +84,9 @@ export const matrixLabKeyWork = (answer = {}) => {
 export const polynomialWorkshopKeyWork = (answer = {}) => {
   if (answer.kind !== 'polynomialWorkshop' || !answer.value || typeof answer.value !== 'object') return null;
   const right = answer.value;
-  const finalField = typeof right.product === 'string' ? 'product' : 'result';
+  // The answer the work ends in: the area model's product, add & subtract's
+  // result, a division's quotient.
+  const finalField = ['product', 'result', 'quotient'].find((field) => typeof right[field] === 'string') || 'result';
   // 999 has the form of an answer and never its value.
   return { right, wrong: { ...right, [finalField]: '999' } };
 };

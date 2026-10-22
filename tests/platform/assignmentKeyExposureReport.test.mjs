@@ -102,6 +102,14 @@ const AFTER_THE_DESIGN = Object.freeze({
     practice: { questions: 15, withStoredKey: 12, serverGradable: 15, familySlots: 0, deviceOnly: 0, withHints: 15 },
     dol: { questions: 3, withStoredKey: 1, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 0 },
   },
+  // The Workshop's long and synthetic division items keep their key in the
+  // tool's own fields (dividend, divisor), not a stored answer.
+  'L2_Dividing_Polynomials.json': {
+    warmup: { questions: 3, withStoredKey: 3, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 3 },
+    classwork: { questions: 11, withStoredKey: 4, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
+    practice: { questions: 16, withStoredKey: 10, serverGradable: 16, familySlots: 0, deviceOnly: 0, withHints: 16 },
+    dol: { questions: 3, withStoredKey: 1, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 0 },
+  },
 });
 
 const exposureByRole = (files) => {

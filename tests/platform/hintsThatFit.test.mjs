@@ -205,8 +205,9 @@ test('over every real lesson, exactly three hints change to shown, and none of t
     });
   });
   // 200 on the base; Operations on Polynomials (Algebra II Honors, module 2)
-  // added 87, every one shown (none is in BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 287);
+  // added 87 and Dividing Polynomials 90, every one shown (none is in
+  // BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 377);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',

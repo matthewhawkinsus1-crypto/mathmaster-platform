@@ -286,11 +286,12 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.deepEqual(audit.noCommonError, [1]);
   assert.match(audit.warnings[0], /^Question 1 shows only the answer after the last try/);
   assert.match(audit.warnings[1], /solutionReview\.commonError/);
-  // The real lessons: 228 of 294 practice-like items walk through steps —
-  // 199 of 265 before Operations on Polynomials added 29, all with steps.
+  // The real lessons: 258 of 324 practice-like items walk through steps —
+  // 199 of 265 before Operations on Polynomials added 29 and Dividing
+  // Polynomials 30, all with steps.
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 294);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 228);
+  assert.equal(practiceLike.length, 324);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 258);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

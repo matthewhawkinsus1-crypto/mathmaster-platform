@@ -2525,6 +2525,129 @@
       "declared": {}
     },
     {
+      "id": "polynomials.distributeMonomial",
+      "version": 1,
+      "title": "Multiply back: a monomial times a polynomial",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 36632250,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.divideByMonomial",
+      "version": 1,
+      "title": "Divide a polynomial by a monomial",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 44664,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.divideMonomials",
+      "version": 1,
+      "title": "Divide monomials",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 259780608,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "polynomials.likeTermPairs",
       "version": 1,
       "title": "Like terms, or not — and why",
@@ -2558,6 +2681,47 @@
           "label": "default",
           "constraints": {},
           "capacity": 96671232,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.longDivisionLinear",
+      "version": 1,
+      "title": "Long division of a cubic by x − r (a missing term)",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "polynomialWorkshop",
+          "default": true,
+          "mode": "longDivision",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 70818,
           "exact": false
         }
       ],
@@ -2730,6 +2894,47 @@
       "declared": {}
     },
     {
+      "id": "polynomials.subtractForDivision",
+      "version": 1,
+      "title": "Subtract polynomials, as long division does",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 713902410,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "polynomials.subtractMissingTerm",
       "version": 1,
       "title": "Subtract polynomials (a missing term)",
@@ -2763,6 +2968,47 @@
           "label": "default",
           "constraints": {},
           "capacity": 395259243,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.syntheticDivision",
+      "version": 1,
+      "title": "Synthetic division of a quartic by x − r (a missing term)",
+      "alignments": [
+        "A2.7C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "polynomialWorkshop",
+          "default": true,
+          "mode": "syntheticDivision",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1101391,
           "exact": false
         }
       ],
