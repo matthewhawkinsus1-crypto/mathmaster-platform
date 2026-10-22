@@ -814,11 +814,11 @@ On `main` the Step Algebra family final-answer path also existed, but only
 Section Recovery and Pre-Flight called it (§2).
 
 <!-- grading-coverage:after:start (generated: node scripts/report-server-grading-coverage.mjs --write) -->
-50 surfaces, 139 surface/mode rows.
+50 surfaces, 140 surface/mode rows.
 
 | After | Surface/mode rows |
 | --- | ---: |
-| shared server grader | 129 |
+| shared server grader | 130 |
 | specialized server subsystem | 1 |
 | client-graded (documented blocker) | 3 |
 | non-graded / read-only | 6 |
@@ -897,6 +897,7 @@ Section Recovery and Pre-Flight called it (§2).
 | `parabolaGeometryLab` | tool | `equation` | shared server grader |  |
 | `polynomialWorkshop` | tool | `factorZero` | shared server grader |  |
 | `polynomialWorkshop` | tool | `multiplyArea` | shared server grader |  |
+| `polynomialWorkshop` | tool | `addSubtract` | shared server grader |  |
 | `polynomialWorkshop` | tool | `factorQuadratic` | shared server grader |  |
 | `polynomialWorkshop` | tool | `division` | shared server grader |  |
 | `polynomialWorkshop` | tool | `graphConnection` | shared server grader |  |

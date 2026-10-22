@@ -7,6 +7,7 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
+import { POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
@@ -289,10 +290,15 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'polynomialWorkshop') {
-    const modes = ['factorZero','multiplyArea','factorQuadratic','division','graphConnection','rationalFeatures'];
+    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','graphConnection','rationalFeatures'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported polynomialWorkshop mode: ${question.mode}.`);
     if (question.coefficients && (!Array.isArray(question.coefficients) || question.coefficients.length < 2)) errors.push('Polynomial must have degree at least 1.');
-    if (question.mode === 'multiplyArea' && (!Array.isArray(question.leftBinomial) || question.leftBinomial.length !== 2 || !Array.isArray(question.rightBinomial) || question.rightBinomial.length !== 2)) errors.push('multiplyArea mode requires two binomial coefficient arrays of length 2.');
+    // The area model takes two binomial coefficient lists (x only, 2 × 2), or
+    // two factors written as polynomials in any letters (any size).
+    const writesFactors = question.leftFactor !== undefined || question.rightFactor !== undefined;
+    if (question.mode === 'multiplyArea' && writesFactors && !areaModelKey(question)) errors.push(`multiplyArea mode requires leftFactor and rightFactor written as polynomials in simplest form with no zero term, at most ${POLYNOMIAL_TEXT_LIMITS.terms} terms each and at most ${POLYNOMIAL_TEXT_LIMITS.cells} cells (for example leftFactor "a^2+3a-4", rightFactor "a+2").`);
+    if (question.mode === 'multiplyArea' && !writesFactors && (!Array.isArray(question.leftBinomial) || question.leftBinomial.length !== 2 || !Array.isArray(question.rightBinomial) || question.rightBinomial.length !== 2)) errors.push('multiplyArea mode requires two binomial coefficient arrays of length 2.');
+    if (question.mode === 'addSubtract' && !addSubtractKey(question)) errors.push(`addSubtract mode requires operation "add" or "subtract" and firstPolynomial and secondPolynomial written as polynomials in simplest form with no zero term (at most ${POLYNOMIAL_TEXT_LIMITS.terms} terms each, ${POLYNOMIAL_TEXT_LIMITS.columns} kinds of term in all).`);
     if (question.mode === 'division') {
       if (!Array.isArray(question.dividend) || question.dividend.length < 2) errors.push('division mode requires a dividend coefficient array.');
       if (!Array.isArray(question.divisor) || question.divisor.length < 1 || question.divisor.every((value) => Number(value) === 0)) errors.push('division mode requires a nonzero divisor coefficient array.');

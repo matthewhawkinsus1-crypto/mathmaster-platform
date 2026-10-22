@@ -48,6 +48,15 @@ const ALGEBRA_II_ONLY = (concept, teks) => ({
   teacherReason: `${concept} is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it.`,
 });
 
+// A skill Algebra I also teaches, in a family aligned to Algebra II's A2.7B: an
+// Algebra I lesson's questions (aligned to A.10/A.11) never bind to it.
+const ALIGNED_TO_ALGEBRA_II = (concept, algebraOneTeks, noun) => ({
+  status: BLOCKED,
+  reason: `${concept} is taught in Algebra I too (${algebraOneTeks}), but this family is aligned to Algebra II's A2.7B, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.`,
+  missingCapability: `An Algebra I alignment (${algebraOneTeks}) — a sibling family within Algebra I's limits — so an Algebra I Honors task on ${noun} can anchor on it.`,
+  teacherReason: `MathMaster's generator for ${noun} is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension.`,
+});
+
 /**
  * The verdict for every registered family that is not READY, by course.
  * A family id missing here for a course must be READY in the registry; the
@@ -265,6 +274,63 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       reason: 'It already asks the deeper reading (no inverse; no solution or infinitely many; which row is a multiple of which). What remains is reasoning about a parameter, which it cannot generate.',
       missingCapability: 'A `parameter` knob that writes one constant or coefficient as k and asks for the value(s) of k that give no solution or infinitely many, with the answer field the Matrix Lab\'s solve mode would need to mark it.',
       teacherReason: 'MathMaster\'s singular-system generator uses fixed numbers, so it cannot yet build the find-the-parameter work a built-in Honors extension needs.',
+    }),
+  }),
+  // Recovery V2 families for Algebra II Honors "Operations on Polynomials"
+  // (questionFamiliesPolynomials.mjs). Each asks exactly its original's skill
+  // at its rigor.
+  'polynomials.multiplyMonomials': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Multiplying monomials', 'A.11B', 'multiplying monomials')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review of the product of powers with whole-number exponents. The Honors depth — quotients, negative and zero exponents — needs an answer that is a quotient of monomials, which typed answers compare only as text.',
+      missingCapability: 'A quotient-of-monomials answer form graded by value (y⁴/(81x⁴), negative and zero exponents), so the family can ask the quotient and power-of-a-power rules as well.',
+      teacherReason: 'MathMaster\'s monomial generator only multiplies with whole-number exponents, so it cannot yet build the quotient and negative-exponent work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.oppositeAndLikeTerms': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Combining like terms and the opposite of a polynomial', 'A.10A', 'combining like terms')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review: the opposite of one polynomial and two pairs of like terms. Wider coefficients are its only remaining lever, which is not rigor.',
+      missingCapability: 'A `scaled` knob that subtracts multiples, k·P − m·Q (textbook 5-1 #34), so the opposite is a distribution as well as a sign change.',
+      teacherReason: 'MathMaster\'s like-terms generator only changes signs and combines pairs, so it cannot yet build the distribute-then-subtract work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.likeTermPairs': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Recognizing like terms', 'A.10A', 'like terms')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up vocabulary check — like terms, or not and why — with every term already simplified, so recognizing it never needs any algebra.',
+      missingCapability: 'An `unsimplified` knob that writes like terms in disguise (x · x² beside 4x³, 2x · 3y beside xy), so deciding needs simplifying first.',
+      teacherReason: 'MathMaster\'s like-terms generator only shows simplified terms, so it cannot yet build the like-terms-in-disguise work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.subtractMissingTerm': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Subtracting cubic polynomials', 'A2.7B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is two cubics in one letter, one with a missing term. The Polynomial Workshop\'s add & subtract mode lines up terms in several letters, but this family does not write them.',
+      missingCapability: 'A `letters: two` knob writing both polynomials in two letters (3a²b − 2ab² + …), which the Workshop\'s add & subtract mode already lines up by kind of term.',
+      teacherReason: 'MathMaster\'s subtraction generator uses one letter, so it cannot yet build the several-letter work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.multiplyTrinomialBinomial': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Multiplying a trinomial by a binomial', 'A.10B', 'multiplying polynomials')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a trinomial times a binomial in one letter. The area model draws up to 16 cells, but this family never asks a product of three factors, a trinomial squared or a binomial cubed.',
+      missingCapability: 'A `shape` knob for a trinomial times a trinomial and for (an + b)³ as two area models in turn (textbook 5-1 #58–60), answered in the Workshop\'s area model.',
+      teacherReason: 'MathMaster\'s area-model generator multiplies one trinomial by one binomial, so it cannot yet build the larger-product work a built-in Honors extension needs.',
+    }),
+  }),
+  'polynomials.profitModel': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Writing a profit polynomial', 'A.10A', 'profit polynomials')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'It writes profit = revenue − cost, simplifies it and evaluates it once. The Honors question — how many sales make the most profit, or break even — needs the vertex or zeros of the profit, which this family does not ask.',
+      missingCapability: 'A `question: maximize | breakEven` knob that asks for the vertex or the zeros of the profit polynomial, answered by value.',
+      teacherReason: 'MathMaster\'s profit generator only evaluates the profit at one number of sales, so it cannot yet build the maximize-the-profit work a built-in Honors extension needs.',
     }),
   }),
 });

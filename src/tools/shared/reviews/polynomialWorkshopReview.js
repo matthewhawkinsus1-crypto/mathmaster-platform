@@ -11,7 +11,12 @@
 //   factorZero        P(r) = evaluatePolynomial(coefficients, r); (x − r) is a
 //                     factor exactly when |P(r)| < 1e-9.
 //   multiplyArea      the four area-model products and the expanded
-//                     coefficient list (polynomialMultiply).
+//                     coefficient list (polynomialMultiply); for a question
+//                     written with leftFactor / rightFactor, every cell's
+//                     product term and the product in simplest form
+//                     (areaModelKey).
+//   addSubtract       the opposite of each subtracted term, each like-terms
+//                     column combined, and the result (addSubtractKey).
 //   factorQuadratic   the integer pair p, q with x² + bx + c = (x + p)(x + q)
 //                     (integerFactorPairForMonicQuadratic), in either order.
 //   division          the quotient and remainder coefficient lists
@@ -61,6 +66,13 @@ import {
   rationalFeatureTargetValue,
   rationalFeatureTypeAt,
   trimLeadingZeros,
+  addSubtractKey,
+  areaModelKey,
+  columnPlainText,
+  polynomialTermsLatex,
+  polynomialTermsPlainText,
+  termLatex,
+  termPlainText,
 } from '../../../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 export const implemented = true;
@@ -304,6 +316,97 @@ const buildMultiplyArea = (question) => {
 
   const work = { cells: cellText, expanded: w.list(product) };
   return { title: 'Area-model solution', items, steps, why, note: null, work };
+};
+
+/* ------------------------------------------------------------------ */
+/* polynomials written as text: the any-size area model, add & subtract */
+/* ------------------------------------------------------------------ */
+
+// A term after an operator: a negative one in parentheses.
+const termOperand = (term) => (term.coefficient < 0 ? `(${termLatex(term)})` : termLatex(term));
+// The value of a list of terms with each letter replaced by a number.
+const termsValue = (terms, values) => terms.reduce((sum, term) => sum + term.coefficient
+  * Object.entries(term.powers).reduce((product, [letter, power]) => product * values[letter] ** power, 1), 0);
+
+const buildMultiplyFactors = (question) => {
+  const key = areaModelKey(question);
+  if (!key) return null;
+  const { rows, columns, cells, product } = key;
+  const width = columns.length;
+  const L = polynomialTermsLatex(rows);
+  const R = polynomialTermsLatex(columns);
+  const steps = [
+    `Draw a ${rows.length}-by-${width} area model for $(${L})(${R})$: one row for each term of $${L}$ and one column for each term of $${R}$.`,
+    ...rows.map((row, r) => `Row ${r + 1}: ${columns.map((column, c) => `$${termOperand(row)} \\cdot ${termOperand(column)} = ${termLatex(cells[r * width + c])}$`).join(', ')}. Multiply the numbers and add the exponents of the same letter.`),
+  ];
+  // Like terms: the cells that share letters and exponents.
+  const groups = product.map((term) => cells.filter((cell) => cell.signature === term.signature));
+  const combined = groups.filter((group) => group.length > 1);
+  const cancelled = [...new Set(cells.map((cell) => cell.signature))].filter((signature) => !product.some((term) => term.signature === signature));
+  if (combined.length || cancelled.length) {
+    const sums = [
+      ...combined.map((group) => `$${polynomialTermsLatex(group)} = ${termLatex(product.find((term) => term.signature === group[0].signature))}$`),
+      ...cancelled.map((signature) => `$${polynomialTermsLatex(cells.filter((cell) => cell.signature === signature))} = 0$`),
+    ];
+    steps.push(`Combine the like terms in the cells: ${sums.join('; ')}.`);
+  } else {
+    steps.push('No two cells are like terms, so nothing combines.');
+  }
+  steps.push(`Add up the cells: $(${L})(${R}) = ${polynomialTermsLatex(product)}$.`);
+
+  // Check with small whole numbers for the letters.
+  const letters = [...new Set([...rows, ...columns].flatMap((term) => Object.keys(term.powers)))].sort();
+  const values = Object.fromEntries(letters.map((letter, index) => [letter, [2, 3, 5, 7][index] ?? index + 2]));
+  const leftValue = termsValue(rows, values);
+  const rightValue = termsValue(columns, values);
+  const productValue = termsValue(product, values);
+  if (!sameValue(leftValue * rightValue, productValue, Math.abs(productValue))) return null;
+  const at = letters.map((letter) => `${letter} = ${values[letter]}`).join(', ');
+  const w = makeWriter();
+  const why = `Check with $${at}$: $(${L})(${R})$ is $${w.operand(leftValue)} \\cdot ${w.operand(rightValue)} = ${w.num(leftValue * rightValue)}$, and $${polynomialTermsLatex(product)}$ is $${w.num(productValue)}$. Equal polynomials give equal values.`;
+  if (!w.exact()) return null;
+
+  const items = [
+    ...cells.map((cell, index) => ({ label: `Row ${Math.floor(index / width) + 1} × column ${(index % width) + 1}`, value: termPlainText(cell) })),
+    { label: 'Product in simplest form', value: polynomialTermsPlainText(product) },
+  ];
+  const work = { terms: cells.map(termLatex), product: polynomialTermsLatex(product) };
+  return { title: 'Area-model solution', items, steps, why, note: null, work };
+};
+
+const buildAddSubtract = (question) => {
+  const key = addSubtractKey(question);
+  if (!key) return null;
+  const subtracting = key.operation === 'subtract';
+  const first = polynomialTermsLatex(key.first);
+  const second = polynomialTermsLatex(key.second);
+  const steps = [];
+  if (subtracting) {
+    steps.push(`Subtracting $(${second})$ is adding its opposite, so the sign of EVERY term changes: ${key.second.map((term) => `$${termLatex(term)}$ becomes $${termLatex({ ...term, coefficient: -term.coefficient })}$`).join(', ')}.`);
+  }
+  steps.push(`Line up like terms — same letters, same exponents — in columns: ${key.columns.map((column) => columnPlainText(column)).join(', ')}.`);
+  const columnSums = key.columns.map((column, index) => {
+    const pieces = [key.firstByColumn[index], key.added[index]].filter(Boolean);
+    return `$${pieces.map((term, at) => (at === 0 ? termLatex(term) : termOperand(term))).join(' + ')} = ${termLatex(key.sums[index])}$`;
+  });
+  steps.push(`Combine each column: ${columnSums.join('; ')}.`);
+  steps.push(`So $(${first}) ${subtracting ? '-' : '+'} (${second}) = ${polynomialTermsLatex(key.result)}$.`);
+  const items = [
+    ...(subtracting ? key.columns.flatMap((column, index) => (key.secondByColumn[index]
+      ? [{ label: `Opposite of ${termPlainText(key.secondByColumn[index])}`, value: termPlainText(key.added[index]) }]
+      : [])) : []),
+    ...key.columns.map((column, index) => ({ label: `Combined ${columnPlainText(column)} column`, value: termPlainText(key.sums[index]) })),
+    { label: 'Result in simplest form', value: polynomialTermsPlainText(key.result) },
+  ];
+  const why = subtracting
+    ? 'A minus sign in front of parentheses multiplies every term inside by −1. Changing the sign of only the first term is the most common mistake.'
+    : 'Only like terms combine: the numbers add and the letters and exponents stay the same.';
+  const work = {
+    opposites: key.added.map((term, index) => (subtracting && key.secondByColumn[index] ? termLatex(term) : '')),
+    sums: key.sums.map(termLatex),
+    result: polynomialTermsLatex(key.result),
+  };
+  return { title: subtracting ? 'Subtraction solution' : 'Addition solution', items, steps, why, note: null, work };
 };
 
 /* ------------------------------------------------------------------ */
@@ -707,7 +810,11 @@ const buildRationalFeatures = (question) => {
 
 const BUILDERS = Object.freeze({
   factorZero: buildFactorZero,
-  multiplyArea: buildMultiplyArea,
+  // Written as factor text, the area model is any size (buildMultiplyFactors).
+  multiplyArea: (question) => (typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string'
+    ? buildMultiplyFactors(question)
+    : buildMultiplyArea(question)),
+  addSubtract: buildAddSubtract,
   factorQuadratic: buildFactorQuadratic,
   division: buildDivision,
   graphConnection: buildGraphConnection,
@@ -720,6 +827,7 @@ const BUILDERS = Object.freeze({
 const WORKSHOP_FIELDS = Object.freeze([
   'mode', 'coefficients', 'candidateRoot', 'leftBinomial', 'rightBinomial', 'dividend', 'divisor',
   'roots', 'leadingCoefficient', 'targetRoot', 'numeratorRoots', 'denominatorRoots', 'targetValue',
+  'leftFactor', 'rightFactor', 'operation', 'firstPolynomial', 'secondPolynomial',
 ]);
 const namesTheWorkshop = (question) => question.toolId === 'polynomialWorkshop'
   || question.type === 'polynomialWorkshop'

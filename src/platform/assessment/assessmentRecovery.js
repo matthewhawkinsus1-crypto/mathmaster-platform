@@ -26,10 +26,12 @@
  */
 
 import { resolveDolInstructionDateKey } from '../../../functions/shared/sectionDeadline.mjs';
-import { resolveStudentDolExtraAttempts } from '../../../functions/shared/studentAssignmentOverrides.mjs';
+import { MAX_TEACHER_GRANTED_ATTEMPTS } from './studentRecoverySummary.js';
+
+// What a student is told lives on its own (the student's first load reads it).
+export { MAX_TEACHER_GRANTED_ATTEMPTS, summarizeStudentRecovery } from './studentRecoverySummary.js';
 
 export const RECOVERY_AUDIT_LIMIT = 500;
-export const MAX_TEACHER_GRANTED_ATTEMPTS = 20;
 
 export const ASSESSMENT_RECOVERY_ACTIONS = Object.freeze({
   REOPEN_WINDOW: 'reopenWindow',
@@ -295,29 +297,6 @@ export const buildDolScheduleRestore = ({ assignment = {}, classId, todayKey = n
   }
   dol.recoveryAudit = appendRecoveryAudit(assignment?.dol, [auditEntry({ action: ASSESSMENT_RECOVERY_ACTIONS.RETURN_TO_SCHEDULE, scope: { type: 'class', classId: id }, previous: { dateKey: moved }, next: { dateKey: saved.resolvedDateKey || saved.classDateKey || null }, teacherId, reason, at })]);
   return { dol, entry: { dateKey: saved.resolvedDateKey || saved.classDateKey || null } };
-};
-
-/**
- * What a student should be told: is their DOL reopened (and until when), and
- * how many extra attempts have they been given.
- */
-export const summarizeStudentRecovery = ({ assignment = {}, classId = null, studentId = null, now = Date.now(), privateOverride = undefined } = {}) => {
-  // The class grant from the assignment; the student's own from their private
-  // controls (functions/shared/studentAssignmentOverrides.mjs) — the same
-  // resolver ingestion and the deadline finalizer count attempts with.
-  const attempts = resolveStudentDolExtraAttempts({ assignment, classId, studentId, privateOverride });
-  const classExtraAttempts = attempts.classGrant;
-  const studentExtraAttempts = attempts.studentGrant;
-  const recovery = classId ? assignment?.dol?.recoveryByClassId?.[classId] : null;
-  const opened = recovery?.openedAt ? new Date(recovery.openedAt).getTime() : NaN;
-  const closes = recovery?.closesAt ? new Date(recovery.closesAt).getTime() : NaN;
-  const reopenedOpen = Number.isFinite(opened) && Number.isFinite(closes) && now >= opened && now <= closes;
-  return {
-    reopened: reopenedOpen ? { openedAt: recovery.openedAt, closesAt: recovery.closesAt } : null,
-    extraAttempts: Math.min(MAX_TEACHER_GRANTED_ATTEMPTS, classExtraAttempts + studentExtraAttempts),
-    classExtraAttempts,
-    studentExtraAttempts,
-  };
 };
 
 /** The recovery history for a teacher, newest first, optionally for one student. */

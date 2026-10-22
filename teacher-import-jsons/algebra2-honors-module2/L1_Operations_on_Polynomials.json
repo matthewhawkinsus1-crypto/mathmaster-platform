@@ -1,0 +1,1462 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Operations on Polynomials",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Module 2/Lesson 1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "shared",
+      "dol": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Getting Ready to Simplify",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "opp-wu-1",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — multiplying monomials. To multiply monomials, multiply the coefficients and add the exponents of the same letter: $x^{a} \\cdot x^{b} = x^{a+b}$. Write each product in simplest form.",
+          "responses": [
+            {
+              "id": "single",
+              "label": "Multiply (3x²)(−4x⁵)",
+              "answer": "-12x^7",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "double",
+              "label": "Multiply (−2a³b)(5ab²)",
+              "answer": "-10a^4b^3",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Multiply the coefficients first, and watch the sign: a positive times a negative is negative.",
+            "For the same letter, add the exponents: x² · x⁵ has 2 + 5 factors of x.",
+            "In the second product, a letter written with no exponent has exponent 1: a³ · a = a⁴."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x² · x⁵ is x multiplied by itself…",
+            "options": [
+              "2 + 5 = 7 times",
+              "2 · 5 = 10 times"
+            ],
+            "correct": "2 + 5 = 7 times"
+          }
+        },
+        {
+          "questionId": "opp-wu-2",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — the opposite of a polynomial, and like terms. A minus sign in front of parentheses changes the sign of EVERY term inside. Like terms have the same letter raised to the same exponent; combine them by adding their coefficients. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "opposite",
+              "label": "The opposite: −(a³ − 3a + 2)",
+              "answer": "-a^3+3a-2",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "combine",
+              "label": "Combine like terms: 4a² + 3a − a² − 5a",
+              "answer": "3a^2-2a",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "The minus sign in front means −1 times every term: −1 · a³, −1 · (−3a), and −1 · 2.",
+            "Only like terms combine: the a² terms with each other, and the a terms with each other.",
+            "Add the coefficients of like terms and keep the letter and exponent: 4a² − a² has coefficient 4 − 1."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The opposite of −3a is…",
+            "options": [
+              "3a",
+              "−3a"
+            ],
+            "correct": "3a"
+          }
+        },
+        {
+          "questionId": "opp-wu-3",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting ready — like terms. Each box shows two terms. Are they like terms? If they are not, say why.",
+          "responses": [
+            {
+              "id": "pair1",
+              "label": "3x²y and −5yx²",
+              "type": "choice",
+              "options": [
+                "Like terms — same letters, same exponents",
+                "Not like terms — the exponents are different",
+                "Not like terms — the letters are different"
+              ],
+              "answer": "Like terms — same letters, same exponents"
+            },
+            {
+              "id": "pair2",
+              "label": "4a³ and 4a²",
+              "type": "choice",
+              "options": [
+                "Not like terms — the exponents are different",
+                "Not like terms — the letters are different",
+                "Like terms — same letters, same exponents"
+              ],
+              "answer": "Not like terms — the exponents are different"
+            },
+            {
+              "id": "pair3",
+              "label": "6m² and 6n²",
+              "type": "choice",
+              "options": [
+                "Not like terms — the letters are different",
+                "Like terms — same letters, same exponents",
+                "Not like terms — the exponents are different"
+              ],
+              "answer": "Not like terms — the letters are different"
+            }
+          ],
+          "hints": [
+            "Like terms have exactly the same letters, each raised to the same exponent. The coefficients do not matter.",
+            "The order the letters are written in does not matter: yx² is the same as x²y.",
+            "Same coefficient is not enough: check the exponents, then check the letters."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two terms are like terms when they have…",
+            "options": [
+              "the same letters with the same exponents",
+              "the same coefficient"
+            ],
+            "correct": "the same letters with the same exponents"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Add, Subtract and Multiply Polynomials",
+      "recommendedMinutes": 32,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "opp-cw-1",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "New vocabulary. Sort each expression: is it a monomial, a binomial, a trinomial — or not a polynomial at all?",
+          "figures": [
+            {
+              "id": "e1",
+              "text": "5",
+              "category": "monomial"
+            },
+            {
+              "id": "e2",
+              "text": "−4x²y³",
+              "category": "monomial"
+            },
+            {
+              "id": "e3",
+              "text": "5xy",
+              "category": "monomial"
+            },
+            {
+              "id": "e4",
+              "text": "5 + z",
+              "category": "binomial"
+            },
+            {
+              "id": "e5",
+              "text": "x² − 4y",
+              "category": "binomial"
+            },
+            {
+              "id": "e6",
+              "text": "r⁶t⁷ + r⁴t⁸",
+              "category": "binomial"
+            },
+            {
+              "id": "e7",
+              "text": "2x + 3y + 4z",
+              "category": "trinomial"
+            },
+            {
+              "id": "e8",
+              "text": "x² − 3x + 40",
+              "category": "trinomial"
+            },
+            {
+              "id": "e9",
+              "text": "x² + √x",
+              "category": "notPolynomial"
+            },
+            {
+              "id": "e10",
+              "text": "(ab³ − 1)/(az⁴ + 3)",
+              "category": "notPolynomial"
+            },
+            {
+              "id": "e11",
+              "text": "√(m − 7)",
+              "category": "notPolynomial"
+            }
+          ],
+          "categories": [
+            {
+              "id": "monomial",
+              "label": "Monomial"
+            },
+            {
+              "id": "binomial",
+              "label": "Binomial"
+            },
+            {
+              "id": "trinomial",
+              "label": "Trinomial"
+            },
+            {
+              "id": "notPolynomial",
+              "label": "Not a polynomial"
+            }
+          ],
+          "hints": [
+            "Count the terms: the parts joined by + or −. One term is a monomial, two a binomial, three a trinomial.",
+            "A product such as 5xy or −4x²y³ is ONE term, however many letters it has.",
+            "Check for a variable under a radical or in a denominator first: then it is not a polynomial at all."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Monomial",
+                "instruction": "A monomial is a number, a variable, or the product of a number and one or more variables: 5, y, 5xy, −4x²y³."
+              },
+              {
+                "title": "Binomial",
+                "instruction": "A binomial is the sum of two monomials: 5 + z, x² − 4y, r⁶t⁷ + r⁴t⁸."
+              },
+              {
+                "title": "Trinomial",
+                "instruction": "A trinomial is the sum of three monomials: 2x + 3y + 4z, x² − 3x + 40."
+              },
+              {
+                "title": "Not a polynomial",
+                "instruction": "A polynomial never has a variable in a denominator or under a radical: x² + √x and (ab³ − 1)/(az⁴ + 3) are not polynomials."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-2",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "The degree of a monomial is the sum of the exponents of its variables. The degree of a polynomial is the greatest degree of any of its terms. Give the degree of each.",
+          "responses": [
+            {
+              "id": "d1",
+              "label": "Degree of 5xy",
+              "answer": "2"
+            },
+            {
+              "id": "d2",
+              "label": "Degree of −4x²y³",
+              "answer": "5"
+            },
+            {
+              "id": "d3",
+              "label": "Degree of r⁶t⁷ + r⁴t⁸",
+              "answer": "13"
+            },
+            {
+              "id": "d4",
+              "label": "Degree of x² − 3x + 40",
+              "answer": "2"
+            }
+          ],
+          "hints": [
+            "A letter with no exponent written has exponent 1, so 5xy has exponents 1 and 1.",
+            "For one term, ADD the exponents of all its letters.",
+            "For a polynomial, find each term's degree and take the greatest."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The degree of the monomial −4x²y³ is…",
+            "options": [
+              "2 + 3, the sum of the exponents",
+              "3, the largest exponent"
+            ],
+            "correct": "2 + 3, the sum of the exponents"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Degree of a monomial",
+                "instruction": "The sum of the exponents of its variables. A nonzero number alone has degree 0."
+              },
+              {
+                "title": "Degree of a polynomial",
+                "instruction": "The greatest degree of any of its terms."
+              },
+              {
+                "title": "Simplify",
+                "instruction": "A polynomial is simplified when it has no parentheses, every product is multiplied out, and no two terms are like terms."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-3",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "subtractPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example A. Simplify $(2a^3 + 5a - 7) - (a^3 - 3a + 2)$. Subtracting a polynomial means adding its opposite: write the opposite of every term of the second polynomial, then combine like terms column by column.",
+          "polynomial": {
+            "operation": "subtract",
+            "firstPolynomial": "2a^3+5a-7",
+            "secondPolynomial": "a^3-3a+2"
+          },
+          "hints": [
+            "The minus sign in front of (a³ − 3a + 2) changes the sign of EVERY term inside — not just the first.",
+            "The opposite of −3a is +3a, and the opposite of +2 is −2.",
+            "In each column, add the coefficients: the a column holds 5a and the opposite of −3a."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Distribute the −1",
+                "instruction": "(2a³ + 5a − 7) − (a³ − 3a + 2) = 2a³ + 5a − 7 − a³ + 3a − 2: every sign in the second polynomial changes."
+              },
+              {
+                "title": "Group like terms",
+                "instruction": "(2a³ − a³) + (5a + 3a) + (−7 − 2)"
+              },
+              {
+                "title": "Combine like terms",
+                "instruction": "Add the coefficients in each group to write the answer in simplest form."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-4",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "addPolynomials"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Example B. Simplify $(4x^2 - 9x + 3) + (-2x^2 - 5x - 6)$. Align like terms vertically and add.",
+          "polynomial": {
+            "operation": "add",
+            "firstPolynomial": "4x^2-9x+3",
+            "secondPolynomial": "-2x^2-5x-6"
+          },
+          "hints": [
+            "Each column holds one kind of term: the x² terms, the x terms, and the constants.",
+            "Add the coefficients in each column and keep the letter and exponent.",
+            "Watch the signs: −9x + (−5x) is −14x."
+          ]
+        },
+        {
+          "questionId": "opp-cw-5",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Now without the workshop: simplify each difference. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "cypA",
+              "label": "Simplify (3x² + 2x − 3) − (4x² + x − 5)",
+              "answer": "-x^2+x+2",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "cypB",
+              "label": "Simplify (−3x² − 4x + 1) − (4x² + x − 5)",
+              "answer": "-7x^2-5x+6",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "First rewrite each subtraction as adding the opposite of EVERY term in the second polynomial.",
+            "The opposite of 4x² + x − 5 is −4x² − x + 5.",
+            "Then combine the x² terms, the x terms and the constants."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −(4x² + x − 5) equals…",
+            "options": [
+              "−4x² − x + 5",
+              "−4x² + x − 5"
+            ],
+            "correct": "−4x² − x + 5"
+          }
+        },
+        {
+          "questionId": "opp-cw-6",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Jordan simplified $(5y^2 - 2y + 4) - (2y^2 - 6y + 1)$ and wrote: $5y^2 - 2y + 4 - 2y^2 - 6y + 1 = 3y^2 - 8y + 5$.",
+          "responses": [
+            {
+              "id": "mistake",
+              "label": "What did Jordan do wrong?",
+              "type": "choice",
+              "options": [
+                "He changed the sign of only the first term of the second polynomial.",
+                "He added the two polynomials.",
+                "He subtracted the first polynomial from the second.",
+                "Nothing — his answer is correct."
+              ],
+              "answer": "He changed the sign of only the first term of the second polynomial."
+            },
+            {
+              "id": "fixed",
+              "label": "The correct difference in simplest form",
+              "answer": "3y^2+4y+3",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Compare Jordan's second step with the second polynomial: which signs changed, and which did not?",
+            "Subtracting (2y² − 6y + 1) adds −2y² + 6y − 1.",
+            "Now combine like terms: 5y² − 2y², −2y + 6y, and 4 − 1."
+          ]
+        },
+        {
+          "questionId": "opp-cw-7",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example: Simplify by using the Distributive Property. Find $-y(4y^2 + 2y - 3)$. The area model has one row, $-y$, and one column for each term of $4y^2 + 2y - 3$: fill in every cell, then write the product.",
+          "polynomial": {
+            "leftFactor": "-y",
+            "rightFactor": "4y^2+2y-3"
+          },
+          "hints": [
+            "Each cell is −y times the term at the top of its column.",
+            "Multiply the coefficients (watch the signs) and add the exponents of y: −y · 4y² = −4y³.",
+            "No two cells are like terms here, so the product is the three cells added together."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Distributive Property",
+                "instruction": "a(b + c + d) = ab + ac + ad: the monomial outside multiplies EVERY term inside."
+              },
+              {
+                "title": "Multiply the monomials",
+                "instruction": "Multiply the coefficients and add the exponents of the same letter: −y(4y²) = −4y³."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-8",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Distribute and simplify. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "cyp",
+              "label": "Simplify −x(3x³ − 2x + 5)",
+              "answer": "-3x^4+2x^2-5x",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "twoLetters",
+              "label": "Simplify 3x²(2xy − 3xy² + 4x²y³)",
+              "answer": "6x^3y-9x^3y^2+12x^4y^3",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "The monomial outside multiplies every term inside, and its sign goes with it.",
+            "Add the exponents of the same letter: 3x² · 2xy = 6x³y.",
+            "Leave unlike terms separate: x³y and x³y² are not like terms."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −x · 3x³ equals…",
+            "options": [
+              "−3x⁴",
+              "−3x³"
+            ],
+            "correct": "−3x⁴"
+          }
+        },
+        {
+          "questionId": "opp-cw-9",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "E-SALES. A small online retailer estimates that the cost, in dollars, of selling x units of a product is C(x) = 0.001x² + 5x + 500, and the revenue from selling x units is R(x) = 10x. Profit is revenue minus cost.",
+          "responses": [
+            {
+              "id": "setup",
+              "label": "Which expression is the profit P(x) = R(x) − C(x)?",
+              "type": "choice",
+              "options": [
+                "10x − (0.001x² + 5x + 500)",
+                "10x − 0.001x² + 5x + 500",
+                "(0.001x² + 5x + 500) − 10x",
+                "10x + (0.001x² + 5x + 500)"
+              ],
+              "answer": "10x − (0.001x² + 5x + 500)"
+            },
+            {
+              "id": "profit",
+              "label": "The profit P(x) in simplest form",
+              "answer": "-0.001x^2+5x-500",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "value",
+              "label": "The profit, in dollars, when 1000 units are sold",
+              "answer": "3500"
+            }
+          ],
+          "hints": [
+            "The whole cost is subtracted, so it goes in parentheses: every term of the cost changes sign.",
+            "Combine the x terms: 10x − 5x.",
+            "Substitute x = 1000 into your simplified polynomial: −0.001(1000)² + 5(1000) − 500."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Words to an equation",
+                "instruction": "Profit = revenue − cost, so P(x) = 10x − (0.001x² + 5x + 500)."
+              },
+              {
+                "title": "Why simplify?",
+                "instruction": "A simplified polynomial is quicker to evaluate and to compare: one x term instead of two."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-10",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example: Multiply polynomials. Find $(a^2 + 3a - 4)(a + 2)$. The area model has a row for each term of $a^2 + 3a - 4$ and a column for each term of $a + 2$.",
+          "polynomial": {
+            "leftFactor": "a^2+3a-4",
+            "rightFactor": "a+2"
+          },
+          "hints": [
+            "Every term of the first polynomial multiplies every term of the second: 3 rows × 2 columns is 6 products.",
+            "In each cell, multiply the coefficients and add the exponents: a² · a = a³, 3a · 2 = 6a.",
+            "Cells with the same power of a are like terms: 2a² and 3a² combine, and so do 6a and −4a."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Distribute every term",
+                "instruction": "(a² + 3a − 4)(a + 2) = a²(a + 2) + 3a(a + 2) − 4(a + 2): each term of the first polynomial multiplies the whole second polynomial."
+              },
+              {
+                "title": "Multiply the monomials",
+                "instruction": "a³ + 2a² + 3a² + 6a − 4a − 8 — the six cells of the area model."
+              },
+              {
+                "title": "Combine like terms",
+                "instruction": "Add the like terms to write the product in simplest form."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "opp-cw-11",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Check Your Progress. Find $(x^2 + 3x - 2)(x + 4)$ without the area model.",
+          "responses": [
+            {
+              "id": "count",
+              "label": "How many products do you find before combining like terms?",
+              "type": "choice",
+              "options": [
+                "6",
+                "5",
+                "4",
+                "3"
+              ],
+              "answer": "6"
+            },
+            {
+              "id": "product",
+              "label": "Simplify (x² + 3x − 2)(x + 4)",
+              "answer": "x^3+7x^2+10x-8",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Each of the 3 terms of the first polynomial multiplies each of the 2 terms of the second.",
+            "The products are x³, 4x², 3x², 12x, −2x, −8.",
+            "Combine the x² terms and the x terms."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying a trinomial by a binomial makes…",
+            "options": [
+              "3 × 2 = 6 products",
+              "3 + 2 = 5 products"
+            ],
+            "correct": "3 × 2 = 6 products"
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Operations on Polynomials",
+      "recommendedMinutes": 36,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "opp-pr-1",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify each difference. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "p9",
+              "label": "Simplify (x² − 5x + 2) − (3x² + x − 1)",
+              "answer": "-2x^2-6x+3",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p29",
+              "label": "Simplify (7b² + 6b − 7) − (4b² − 2)",
+              "answer": "3b^2+6b-5",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Change the sign of every term of the polynomial you subtract.",
+            "In the second difference there is no b term to subtract: 6b stays as it is.",
+            "Combine the like terms in each difference."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −(3x² + x − 1) equals…",
+            "options": [
+              "−3x² − x + 1",
+              "−3x² + x − 1"
+            ],
+            "correct": "−3x² − x + 1"
+          }
+        },
+        {
+          "questionId": "opp-pr-2",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Simplify $4(a^2 + 5a - 6) - 3(2a^3 + 4a - 5)$. Write the answer in simplest form.",
+          "responses": [
+            {
+              "id": "p34",
+              "label": "Simplified expression",
+              "answer": "-6a^3+4a^2+8a-9",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Distribute 4 to every term of the first polynomial and −3 to every term of the second.",
+            "−3(2a³ + 4a − 5) = −6a³ − 12a + 15.",
+            "Write the like terms together, highest power first, and combine."
+          ]
+        },
+        {
+          "questionId": "opp-pr-3",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Multiply. Write each product in simplest form.",
+          "responses": [
+            {
+              "id": "p13",
+              "label": "Multiply (n − 9)(n + 7)",
+              "answer": "n^2-2n-63",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p11",
+              "label": "Multiply 2a(4b + 5)",
+              "answer": "8ab+10a",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "p30",
+              "label": "Multiply 3p(np − z)",
+              "answer": "3np^2-3pz",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Multiply every term of one factor by every term of the other.",
+            "In (n − 9)(n + 7) the two n terms are like terms: 7n − 9n.",
+            "3p · np = 3np²: the two factors of p multiply to p²."
+          ]
+        },
+        {
+          "questionId": "opp-pr-4",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $5c(2c^2 - 3c + 4) + 2c(7c - 8)$. Write the answer in simplest form.",
+          "responses": [
+            {
+              "id": "p35",
+              "label": "Simplified expression",
+              "answer": "10c^3-c^2+4c",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "Distribute 5c to all three terms of the first polynomial, and 2c to both terms of the second.",
+            "5c(2c² − 3c + 4) = 10c³ − 15c² + 20c.",
+            "Combine the c² terms and the c terms."
+          ]
+        },
+        {
+          "questionId": "opp-pr-5",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "TEKS review. Which expression is equivalent to $(2y^3 - 5y^2 - 4) - (4y^3 + 11y^2 - 3y + 5)$?",
+          "responses": [
+            {
+              "id": "p70",
+              "label": "The equivalent expression",
+              "type": "choice",
+              "options": [
+                "−6y³ − 6y² + 3y − 1",
+                "−2y³ − 16y² + 3y − 9",
+                "−2y³ + 6y² − 3y + 1",
+                "2y³ + 16y² − 3y + 9"
+              ],
+              "answer": "−2y³ − 16y² + 3y − 9"
+            },
+            {
+              "id": "wrongC",
+              "label": "Which mistake gives −2y³ + 6y² − 3y + 1?",
+              "type": "choice",
+              "options": [
+                "Subtracting only the first term of the second polynomial",
+                "Adding the polynomials, then taking the opposite of the sum",
+                "Subtracting the first polynomial from the second"
+              ],
+              "answer": "Subtracting only the first term of the second polynomial"
+            },
+            {
+              "id": "sumBD",
+              "label": "Add the expressions −2y³ − 16y² + 3y − 9 and 2y³ + 16y² − 3y + 9. Their sum is",
+              "answer": "0"
+            }
+          ],
+          "hints": [
+            "Change the sign of every term of 4y³ + 11y² − 3y + 5 before you combine.",
+            "Try the mistake: subtract only 4y³ and leave the other terms of the second polynomial as they are. Which choice do you get?",
+            "P − Q and Q − P are opposites, so what is their sum?"
+          ]
+        },
+        {
+          "questionId": "opp-pr-6",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "subtractPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "TEKS review. Sammy and Luis each threw a ball into the air at the same time. The height, in feet, of Sammy's ball after t seconds is $2 + 40t - 16t^2$, and the height of Luis's ball is $2 + 35t - 16t^2$. Subtract to find how much higher Sammy's ball is than Luis's after t seconds.",
+          "polynomial": {
+            "operation": "subtract",
+            "firstPolynomial": "2+40t-16t^2",
+            "secondPolynomial": "2+35t-16t^2"
+          },
+          "hints": [
+            "Write the opposite of every term of Luis's height.",
+            "The t² column and the constant column cancel: type 0 for a column whose terms add to 0.",
+            "What is left tells you how the gap between the balls grows each second."
+          ]
+        },
+        {
+          "questionId": "opp-pr-7",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "TEKS review. Find $(m^2 - m + 1)(m + 1)$.",
+          "polynomial": {
+            "leftFactor": "m^2-m+1",
+            "rightFactor": "m+1"
+          },
+          "hints": [
+            "Fill in all six cells: each term of m² − m + 1 times m, then times 1.",
+            "Look for like terms that cancel: m² and −m², −m and m.",
+            "A product can have fewer terms than you expect when like terms cancel."
+          ]
+        },
+        {
+          "questionId": "opp-pr-8",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "PAINTING. Connor hired two painters. The first charges $12 per hour and the second charges $11 per hour. The job takes 15 hours of labor in all. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "Total cost if the first painter works x of the 15 hours",
+              "answer": "x+165",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "second",
+              "label": "Total cost if the second painter works y of the 15 hours",
+              "answer": "180-y",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "If the first painter works x hours, the second works the rest: 15 − x hours.",
+            "Cost = 12x + 11(15 − x). Distribute, then combine like terms.",
+            "For the second answer the second painter works y hours and the first works 15 − y."
+          ]
+        },
+        {
+          "questionId": "opp-pr-9",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "INTEREST. Olivia has $1300 to invest in a government bond that pays 2.2% per year and a savings account that pays 1.9% per year. She invests x dollars in the bond and the rest in savings.",
+          "responses": [
+            {
+              "id": "interest",
+              "label": "The interest she earns in one year, in simplest form",
+              "answer": "0.003x+24.7",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "at800",
+              "label": "The interest, in dollars, if she invests $800 in the bond",
+              "answer": "27.1"
+            }
+          ],
+          "hints": [
+            "The rest of the money is 1300 − x dollars.",
+            "Interest = 0.022x + 0.019(1300 − x). Distribute the 0.019.",
+            "Combine the x terms: 0.022x − 0.019x."
+          ]
+        },
+        {
+          "questionId": "opp-pr-10",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "APPLY MATH. The number of bachelor's degrees, in thousands, earned by males and by females x years after 1971 is about $0.108x^2 - 0.876x + 474.1$ and $0.047x^2 + 9.694x + 361.7$. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "total",
+              "label": "Degrees earned by men and women together",
+              "answer": "0.155x^2+8.818x+835.8",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "difference",
+              "label": "How many more degrees men earned than women (men − women)",
+              "answer": "0.061x^2-10.57x+112.4",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "For the total, add like terms: 0.108x² + 0.047x², and so on.",
+            "For the difference, subtract EVERY term of the women's polynomial.",
+            "−0.876x − 9.694x = −10.57x."
+          ]
+        },
+        {
+          "questionId": "opp-pr-11",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Honors. Find $(x - y)(x^2 + 2xy + y^2)$. Two letters: a cell's letters are the letters of its row and column together.",
+          "polynomial": {
+            "leftFactor": "x-y",
+            "rightFactor": "x^2+2xy+y^2"
+          },
+          "hints": [
+            "Each cell multiplies a row term by a column term: x · 2xy = 2x²y.",
+            "Like terms need the same letters with the same exponents: 2x²y and −x²y combine; x²y and xy² do not.",
+            "Two pairs of cells combine. The product has four terms."
+          ]
+        },
+        {
+          "questionId": "opp-pr-12",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Honors. Find $(4n - 5)^3$ in two steps: square $4n - 5$, then multiply the result by $4n - 5$ again. Write each answer in simplest form.",
+          "responses": [
+            {
+              "id": "square",
+              "label": "Step 1: (4n − 5)², in simplest form",
+              "answer": "16n^2-40n+25",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "cube",
+              "label": "Step 2: (4n − 5)³, in simplest form",
+              "answer": "64n^3-240n^2+300n-125",
+              "answerForm": "simplifiedPolynomial"
+            }
+          ],
+          "hints": [
+            "(4n − 5)² = (4n − 5)(4n − 5): four products, and the two middle ones are like terms.",
+            "Now multiply your trinomial by 4n − 5: six products.",
+            "Combine the like terms: two n² terms and two n terms."
+          ]
+        },
+        {
+          "questionId": "opp-pr-13",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "TEKS review. The volume of a rectangular prism is the product of its length, width and height. Adriana's box has length $7p$, width $3p - 4$ and height $2p^2$ units.",
+          "responses": [
+            {
+              "id": "volume",
+              "label": "Which expression is the volume in cubic units?",
+              "type": "choice",
+              "options": [
+                "13p²",
+                "21p² − 28p + 14p³",
+                "p⁴ + 42 + p³ − 56",
+                "42p⁴ − 56p³"
+              ],
+              "answer": "42p⁴ − 56p³"
+            },
+            {
+              "id": "atTwo",
+              "label": "The volume, in cubic units, when p = 2",
+              "answer": "224"
+            }
+          ],
+          "hints": [
+            "Multiply all three: 7p(3p − 4)(2p²).",
+            "7p(3p − 4) = 21p² − 28p; then multiply each term by 2p².",
+            "Substitute p = 2 into your product."
+          ]
+        },
+        {
+          "questionId": "opp-pr-14-ccmr",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "[College-Readiness — SAT style] Answer each question.",
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "responses": [
+            {
+              "id": "k",
+              "label": "If (2x + k)(x − 3) = 2x² + x − 21 for all values of x, what is the value of k?",
+              "answer": "7"
+            },
+            {
+              "id": "abc",
+              "label": "The expression (3x² − 5x + 2) − (x² − 2x − 4) is equivalent to ax² + bx + c. What is a + b + c?",
+              "answer": "5"
+            }
+          ],
+          "hints": [
+            "Multiply out (2x + k)(x − 3) and match the coefficients of x with 2x² + x − 21.",
+            "The x coefficient of the product is −6 + k.",
+            "Simplify the difference first; then add the three coefficients."
+          ]
+        },
+        {
+          "questionId": "opp-pr-15",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Honors — always, sometimes or never? Sort each statement. For \"sometimes\", you should be able to find an example where it is true and one where it is false.",
+          "figures": [
+            {
+              "id": "s1",
+              "text": "The product of two monomials is a monomial.",
+              "category": "always"
+            },
+            {
+              "id": "s2",
+              "text": "The difference of two polynomials is a polynomial.",
+              "category": "always"
+            },
+            {
+              "id": "s3",
+              "text": "Subtracting a polynomial from itself gives 0.",
+              "category": "always"
+            },
+            {
+              "id": "s4",
+              "text": "The sum of two binomials is a binomial.",
+              "category": "sometimes"
+            },
+            {
+              "id": "s5",
+              "text": "A binomial times a trinomial has 6 terms after like terms are combined.",
+              "category": "sometimes"
+            },
+            {
+              "id": "s6",
+              "text": "The sum of two polynomials of degree 3 has degree 3.",
+              "category": "sometimes"
+            },
+            {
+              "id": "s7",
+              "text": "A monomial has a variable in a denominator.",
+              "category": "never"
+            },
+            {
+              "id": "s8",
+              "text": "Multiplying two binomials in x, each of degree 1, gives a polynomial of degree 3.",
+              "category": "never"
+            }
+          ],
+          "categories": [
+            {
+              "id": "always",
+              "label": "Always true"
+            },
+            {
+              "id": "sometimes",
+              "label": "Sometimes true"
+            },
+            {
+              "id": "never",
+              "label": "Never true"
+            }
+          ],
+          "hints": [
+            "Test each statement with examples. One counterexample is enough to rule out \"always\".",
+            "(x + 1)(x² − x + 1) = x³ + 1: like terms can cancel.",
+            "x³ + (−x³ + x) = x: the highest-degree terms can cancel when you add."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Operations on Polynomials",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "opp-dol-1",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "subtractPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Subtract $(5x^3 - 2x^2 + 7) - (2x^3 + 4x^2 - 3x + 1)$. Write the opposite of every term you subtract, combine each column of like terms, and write the result in simplest form.",
+          "polynomial": {
+            "operation": "subtract",
+            "firstPolynomial": "5x^3-2x^2+7",
+            "secondPolynomial": "2x^3+4x^2-3x+1"
+          }
+        },
+        {
+          "questionId": "opp-dol-2",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Multiply $(2x^2 - 3x + 4)(x - 5)$. Fill in every cell of the area model, then write the product in simplest form.",
+          "polynomial": {
+            "leftFactor": "2x^2-3x+4",
+            "rightFactor": "x-5"
+          }
+        },
+        {
+          "questionId": "opp-dol-3",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A company's cost to make x items is C(x) = 0.002x² + 4x + 350 dollars, and its revenue from selling them is R(x) = 12x dollars. Profit is revenue minus cost.",
+          "responses": [
+            {
+              "id": "setup",
+              "label": "Which expression is the profit P(x) = R(x) − C(x)?",
+              "type": "choice",
+              "options": [
+                "12x − 0.002x² + 4x + 350",
+                "(0.002x² + 4x + 350) − 12x",
+                "12x − (0.002x² + 4x + 350)",
+                "12x + (0.002x² + 4x + 350)"
+              ],
+              "answer": "12x − (0.002x² + 4x + 350)"
+            },
+            {
+              "id": "profit",
+              "label": "The profit P(x) in simplest form",
+              "answer": "-0.002x^2+8x-350",
+              "answerForm": "simplifiedPolynomial"
+            },
+            {
+              "id": "value",
+              "label": "The profit, in dollars, when 500 items are sold",
+              "answer": "3150"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

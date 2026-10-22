@@ -2274,6 +2274,252 @@
       "declared": {}
     },
     {
+      "id": "polynomials.likeTermPairs",
+      "version": 1,
+      "title": "Like terms, or not — and why",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 96671232,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.multiplyMonomials",
+      "version": 1,
+      "title": "Multiply monomials",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 88387200,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.multiplyTrinomialBinomial",
+      "version": 1,
+      "title": "Multiply a trinomial by a binomial (area model)",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "polynomialWorkshop",
+          "default": true,
+          "mode": "multiplyArea",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 301139,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.oppositeAndLikeTerms",
+      "version": 1,
+      "title": "The opposite of a polynomial, and combining like terms",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 95659380,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.profitModel",
+      "version": 1,
+      "title": "Profit = revenue − cost with a quadratic cost",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 312375,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "polynomials.subtractMissingTerm",
+      "version": 1,
+      "title": "Subtract polynomials (a missing term)",
+      "alignments": [
+        "A2.7B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "polynomialWorkshop",
+          "default": true,
+          "mode": "addSubtract",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 395259243,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "quadratics.identifyVertex",
       "version": 1,
       "title": "Vertex of a quadratic function",

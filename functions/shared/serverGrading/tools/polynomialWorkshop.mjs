@@ -51,6 +51,12 @@ import {
   rationalFeatureTypeAt,
   sameCoefficientList,
   sameNumberMultiset,
+  addSubtractKey,
+  areaModelKey,
+  columnPlainText,
+  termPlainText,
+  typedPolynomialMatches,
+  typedTermMatches,
 } from '../../toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 // A typed box holds a string (a number reads the same way). Any other type is
@@ -134,7 +140,7 @@ const factorZero = (question, work) => withKey(
 
 const CELL_LABELS = Object.freeze(['Area cell 1 (x² term)', 'Area cell 2 (x term)', 'Area cell 3 (x term)', 'Area cell 4 (constant)']);
 
-const multiplyArea = (question, work) => withKey(
+const multiplyBinomials = (question, work) => withKey(
   () => {
     const left = question.leftBinomial || DEFAULTS.multiplyArea.leftBinomial;
     const right = question.rightBinomial || DEFAULTS.multiplyArea.rightBinomial;
@@ -150,6 +156,95 @@ const multiplyArea = (question, work) => withKey(
         ...key.cells.map((expected, index) => numberPart(`cell-${index + 1}`, CELL_LABELS[index], cells[index], expected)),
         // Highest degree first, term by term: "-12, -5, 2" is not 2x² − 5x − 12.
         listPart('expanded', 'Expanded coefficients', work.expanded, key.product),
+      ],
+    });
+  },
+);
+
+/*
+ * THE AREA MODEL OF ANY SIZE: a question written with `leftFactor` /
+ * `rightFactor` (polynomials as text, any letters). Work:
+ * { terms: [one typed term per cell, row by row], product: 'typed polynomial' }.
+ * Each cell is right when it is the ONE term its row times its column makes,
+ * written in simplest form (−4y³, not −y·4y² and not −4y·y²); the product is
+ * right when it is the full product in simplest form. Every cell is a part, so
+ * an answer typed without the model earns only the product's share.
+ *
+ * A question with no factor text keeps the binomial model above, check for
+ * check: its work is { cells, expanded }, and nothing here reads it.
+ */
+const writesFactors = (question) => typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string';
+
+const termPart = (id, label, value, expected) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && typedTermMatches(entry(value), expected),
+  response: entry(value),
+});
+
+const polynomialPart = (id, label, value, expected) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && typedPolynomialMatches(entry(value), expected),
+  response: entry(value),
+});
+
+const unrenderable = (key) => {
+  if (!key) throw new Error('The workshop cannot draw this question.');
+  return key;
+};
+
+const multiplyFactors = (question, work) => withKey(
+  () => unrenderable(areaModelKey(question)),
+  (key) => {
+    const terms = Array.isArray(work.terms) ? work.terms : [];
+    const width = key.columns.length;
+    return gradedResult({
+      parts: [
+        ...key.cells.map((expected, index) => {
+          const row = Math.floor(index / width);
+          const column = index % width;
+          const label = `Row ${row + 1} × column ${column + 1} (${termPlainText(key.rows[row])} · ${termPlainText(key.columns[column])})`;
+          return termPart(`term-${row + 1}-${column + 1}`, label, terms[index], expected);
+        }),
+        polynomialPart('product', 'Product in simplest form', work.product, key.product),
+      ],
+    });
+  },
+);
+
+const multiplyArea = (question, work) => (writesFactors(question) ? multiplyFactors(question, work) : multiplyBinomials(question, work));
+
+/*
+ * ADD & SUBTRACT: `operation`, `firstPolynomial`, `secondPolynomial`, as text.
+ * One column per kind of term (like terms share a column). Work:
+ *   { opposites: [one typed term per column], sums: [one per column], result }
+ *   opposites   subtracting only: the opposite of the second polynomial's term
+ *               in that column — every term changes sign, not just the first.
+ *               A column the second polynomial has no term in asks nothing.
+ *   sums        each column's like terms combined; a column that cancels is 0,
+ *               typed: cancelling is a step the student shows.
+ *   result      the whole answer in simplest form.
+ * Adding has no opposites: the second polynomial is lined up as written.
+ */
+const addSubtract = (question, work) => withKey(
+  () => unrenderable(addSubtractKey(question)),
+  (key) => {
+    const opposites = Array.isArray(work.opposites) ? work.opposites : [];
+    const sums = Array.isArray(work.sums) ? work.sums : [];
+    const name = (index) => `${columnPlainText(key.columns[index])} column`;
+    const oppositeParts = key.operation === 'subtract'
+      ? key.columns.flatMap((column, index) => (key.secondByColumn[index]
+        ? [termPart(`opposite-${index + 1}`, `Opposite of ${termPlainText(key.secondByColumn[index])} (${name(index)})`, opposites[index], key.added[index])]
+        : []))
+      : [];
+    return gradedResult({
+      parts: [
+        ...oppositeParts,
+        ...key.columns.map((column, index) => termPart(`sum-${index + 1}`, `Combined ${name(index)}`, sums[index], key.sums[index])),
+        polynomialPart('result', 'Result in simplest form', work.result, key.result),
       ],
     });
   },
@@ -212,6 +307,7 @@ const rationalFeatures = (question, work) => withKey(
 export default bindToolGrader(declaration, 'polynomialWorkshop', {
   factorZero,
   multiplyArea,
+  addSubtract,
   factorQuadratic,
   division,
   graphConnection,

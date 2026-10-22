@@ -1,0 +1,46 @@
+/*
+ * The area model of any size (PolynomialWorkshop.jsx MultiplyFactors).
+ *
+ * A grid: the left factor's terms down the side, the right factor's along the
+ * top, one answer box per cell. On a phone a grid of three or more columns
+ * leaves each box too narrow to type in, so the same cells become a list —
+ * one product a line, its row and column terms named beside its box.
+ */
+.mm-area-grid {
+  display: grid;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.mm-area-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mm-area-cell-label {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .mm-area-grid {
+    display: block;
+  }
+
+  .mm-area-head {
+    display: none;
+  }
+
+  .mm-area-cell {
+    margin-bottom: 8px;
+  }
+
+  .mm-area-cell-label {
+    display: inline-block;
+    flex: 0 0 auto;
+    min-width: 92px;
+    font-weight: 800;
+    font-size: calc(18 * var(--mm-px));
+  }
+}

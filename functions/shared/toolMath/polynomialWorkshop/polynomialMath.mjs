@@ -1,5 +1,6 @@
 import { nearlyEqual } from '../shared/toolMath.mjs';
 import { UNANSWERED } from '../shared/judgmentChoices.mjs';
+import { simplifiedPolynomialTerms, readTypedPolynomial, monomialSignature } from '../../simplifiedPolynomialForm.mjs';
 
 export const trimLeadingZeros = (coefficients = []) => {
   const copy = coefficients.map(Number);
@@ -204,3 +205,216 @@ export const rationalFeatureTargetValue = (features = [], targetValue) => Number
 export const rationalFeatureTypeAt = (features = [], targetValue) => (
   features.find((feature) => nearlyEqual(feature.root, targetValue))?.type ?? 'none'
 );
+
+/* ===========================================================================
+ * POLYNOMIALS WRITTEN AS TEXT — the any-size area model and add & subtract.
+ *
+ * The coefficient-list views above are one letter, x. These read a polynomial
+ * the way a teacher writes it — `a^2+3a-4`, `-y`, `4y^2+2y-3`, `x-y` — in any
+ * letters, term by term in the order written, through the same simplest-form
+ * reader the typed-answer grader uses (../../simplifiedPolynomialForm.mjs).
+ * A term is { coefficient, powers: { letter: exponent }, signature }.
+ *
+ *   areaModelKey     multiplyArea with `leftFactor` / `rightFactor`: one row
+ *                    per term of the left factor, one column per term of the
+ *                    right, each cell the product of its row and column, and
+ *                    the product in simplest form.
+ *   addSubtractKey   addSubtract with `operation` ('add' | 'subtract'),
+ *                    `firstPolynomial`, `secondPolynomial`: one column per
+ *                    kind of term (like terms share a column), the second
+ *                    polynomial's term in each column — its OPPOSITE when
+ *                    subtracting — each column's sum, and the result.
+ *
+ * An authored polynomial must itself be in simplest form, with no zero term:
+ * a factor written `2x+3x` would draw a row the student cannot reason about.
+ * ======================================================================== */
+
+// Products of authored decimals (0.022 · 1300) carry binary noise; twelve
+// significant figures is far past any coefficient a lesson shows.
+const tidy = (value) => (Math.abs(value) < 1e-12 ? 0 : Number(value.toPrecision(12)));
+const sameCoefficient = (actual, expected) => Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected));
+
+/** The most terms either factor or polynomial may have, and the most cells. */
+export const POLYNOMIAL_TEXT_LIMITS = Object.freeze({ terms: 6, cells: 16, columns: 8 });
+
+const makeTerm = (coefficient, powers) => {
+  const clean = Object.fromEntries(Object.entries(powers).filter(([, power]) => power !== 0));
+  return { coefficient: tidy(coefficient), powers: clean, signature: monomialSignature(clean) };
+};
+
+/** An authored polynomial's terms in written order, or null when it is not one to draw. */
+export const authoredPolynomialTerms = (value) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const terms = simplifiedPolynomialTerms(value);
+  if (!terms || !terms.length || terms.length > POLYNOMIAL_TEXT_LIMITS.terms) return null;
+  if (terms.some((term) => term.coefficient === 0)) return null;
+  return terms.map((term) => makeTerm(term.coefficient, term.powers));
+};
+
+export const termDegree = (term) => Object.values(term.powers).reduce((sum, power) => sum + power, 0);
+
+export const multiplyTerms = (left, right) => {
+  const powers = { ...left.powers };
+  Object.entries(right.powers).forEach(([name, power]) => { powers[name] = (powers[name] || 0) + power; });
+  return makeTerm(left.coefficient * right.coefficient, powers);
+};
+
+/** Highest degree first; within a degree, the higher power of the earlier letter first: x³, x²y, xy², y³. */
+const byDegree = (a, b) => {
+  const degree = termDegree(b) - termDegree(a);
+  if (degree) return degree;
+  const letters = [...new Set([...Object.keys(a.powers), ...Object.keys(b.powers)])].sort();
+  for (const letter of letters) {
+    const difference = (b.powers[letter] || 0) - (a.powers[letter] || 0);
+    if (difference) return difference;
+  }
+  return 0;
+};
+
+/** Like terms combined, zero terms dropped, highest degree first. */
+export const combineLikeTerms = (terms = []) => {
+  const bySignature = new Map();
+  terms.forEach((term) => {
+    const current = bySignature.get(term.signature);
+    bySignature.set(term.signature, current ? makeTerm(current.coefficient + term.coefficient, term.powers) : makeTerm(term.coefficient, term.powers));
+  });
+  return [...bySignature.values()].filter((term) => term.coefficient !== 0).sort(byDegree);
+};
+
+/** The multiplyArea key for a question written with `leftFactor` / `rightFactor`, or null. */
+export const areaModelKey = (question = {}) => {
+  const rows = authoredPolynomialTerms(question.leftFactor);
+  const columns = authoredPolynomialTerms(question.rightFactor);
+  if (!rows || !columns || rows.length * columns.length > POLYNOMIAL_TEXT_LIMITS.cells) return null;
+  const cells = rows.flatMap((row) => columns.map((column) => multiplyTerms(row, column)));
+  return { rows, columns, cells, product: combineLikeTerms(cells) };
+};
+
+export const ADD_SUBTRACT_OPERATIONS = Object.freeze(['add', 'subtract']);
+
+/** The addSubtract key, or null when the question cannot be drawn. */
+export const addSubtractKey = (question = {}) => {
+  const operation = question.operation;
+  if (!ADD_SUBTRACT_OPERATIONS.includes(operation)) return null;
+  const first = authoredPolynomialTerms(question.firstPolynomial);
+  const second = authoredPolynomialTerms(question.secondPolynomial);
+  if (!first || !second) return null;
+  // Like terms written twice in one polynomial are not authored in simplest
+  // form, so each polynomial has at most one term per column.
+  const columns = combineLikeTerms([...first, ...second].map((term) => makeTerm(1, term.powers)));
+  if (columns.length > POLYNOMIAL_TEXT_LIMITS.columns) return null;
+  const sign = operation === 'subtract' ? -1 : 1;
+  const inColumn = (terms, column) => terms.find((term) => term.signature === column.signature) || null;
+  const firstByColumn = columns.map((column) => inColumn(first, column));
+  const secondByColumn = columns.map((column) => inColumn(second, column));
+  // What is added in each column: the second polynomial's term, or its opposite.
+  const added = secondByColumn.map((term) => (term ? makeTerm(sign * term.coefficient, term.powers) : null));
+  const sums = columns.map((column, index) => makeTerm(
+    (firstByColumn[index]?.coefficient || 0) + (added[index]?.coefficient || 0),
+    column.powers,
+  ));
+  return { operation, first, second, columns, firstByColumn, secondByColumn, added, sums, result: combineLikeTerms(sums) };
+};
+
+/*
+ * What the student typed in one box, read as ONE term in simplest form:
+ * { term } or { problem }. `0` reads as the zero term.
+ */
+export const readTypedTerm = (value) => {
+  const read = readTypedPolynomial(value);
+  if (read.problem) return { problem: read.problem };
+  if (read.terms.length !== 1) return { problem: 'notOneTerm' };
+  return { term: makeTerm(read.terms[0].coefficient, read.terms[0].powers) };
+};
+
+/** A typed box holds exactly the expected term (a zero term when `expected` is null or 0). */
+export const typedTermMatches = (value, expected) => {
+  const { term } = readTypedTerm(value);
+  if (!term) return false;
+  const want = expected && expected.coefficient !== 0 ? expected : null;
+  if (!want) return term.coefficient === 0;
+  return term.signature === want.signature && sameCoefficient(term.coefficient, want.coefficient);
+};
+
+/** A typed polynomial in simplest form with exactly the expected terms. */
+export const typedPolynomialMatches = (value, expectedTerms = []) => {
+  const typed = simplifiedPolynomialTerms(value);
+  if (!typed) return false;
+  const actual = combineLikeTerms(typed.map((term) => makeTerm(term.coefficient, term.powers)));
+  return actual.length === expectedTerms.length
+    && expectedTerms.every((term) => actual.some((other) => other.signature === term.signature && sameCoefficient(other.coefficient, term.coefficient)));
+};
+
+/* ---- writing terms for the student to read ---------------------------- */
+
+const MINUS_SIGN = '−';
+const SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const magnitudeText = (value) => String(Number(Math.abs(value).toPrecision(10)));
+const lettersText = (powers, power) => Object.entries(powers)
+  .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  .map(([name, exponent]) => (exponent === 1 ? name : `${name}${power(exponent)}`))
+  .join('');
+
+const writeTerm = (term, power, minus) => {
+  if (term.coefficient === 0) return '0';
+  const letters = lettersText(term.powers, power);
+  const unit = letters && Math.abs(Math.abs(term.coefficient) - 1) < 1e-12;
+  return `${term.coefficient < 0 ? minus : ''}${unit ? '' : magnitudeText(term.coefficient)}${letters}`;
+};
+
+/** "−4y³": one term as plain text, for labels a screen reader also reads. */
+export const termPlainText = (term) => (term ? writeTerm(term, (exponent) => String(exponent).split('').map((digit) => SUPERSCRIPTS[Number(digit)]).join(''), MINUS_SIGN) : '0');
+
+/** "-4y^{3}": one term as LaTeX. */
+export const termLatex = (term) => (term ? writeTerm(term, (exponent) => `^{${exponent}}`, '-') : '0');
+
+/** "a^{3}+8a-9": a list of terms as LaTeX, signs between them; "0" for none. */
+export const polynomialTermsLatex = (terms = []) => {
+  const shown = terms.filter((term) => term && term.coefficient !== 0);
+  if (!shown.length) return '0';
+  return shown.map((term, index) => {
+    const body = termLatex({ ...term, coefficient: Math.abs(term.coefficient) });
+    if (index === 0) return term.coefficient < 0 ? `-${body}` : body;
+    return term.coefficient < 0 ? `-${body}` : `+${body}`;
+  }).join('');
+};
+
+/** "a³ + 8a − 9": a list of terms as plain text. */
+export const polynomialTermsPlainText = (terms = []) => {
+  const shown = terms.filter((term) => term && term.coefficient !== 0);
+  if (!shown.length) return '0';
+  return shown.map((term, index) => {
+    const body = termPlainText({ ...term, coefficient: Math.abs(term.coefficient) });
+    if (index === 0) return term.coefficient < 0 ? `${MINUS_SIGN}${body}` : body;
+    return `${term.coefficient < 0 ? MINUS_SIGN : '+'} ${body}`;
+  }).join(' ');
+};
+
+/** The name of a like-terms column: its letters ("a³", "xy"), or "constant". */
+export const columnPlainText = (column) => (column.signature ? lettersText(column.powers, (exponent) => String(exponent).split('').map((digit) => SUPERSCRIPTS[Number(digit)]).join('')) : 'constant');
+
+/*
+ * The printed answer key for a polynomial written as text (the teacher's
+ * worksheet export): every step the workshop grades, then the answer. A
+ * question in coefficient lists prints no Workshop lines, as before.
+ */
+export const polynomialWorkshopAnswerLines = (question = {}) => {
+  if (question.mode === 'multiplyArea' && (typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string')) {
+    const key = areaModelKey(question);
+    if (!key) return [];
+    return [
+      `Area model cells: ${key.cells.map(termPlainText).join(', ')}`,
+      `Product: ${polynomialTermsPlainText(key.product)}`,
+    ];
+  }
+  if (question.mode === 'addSubtract') {
+    const key = addSubtractKey(question);
+    if (!key) return [];
+    return [
+      ...(key.operation === 'subtract' ? [`Opposites: ${key.added.filter(Boolean).map(termPlainText).join(', ')}`] : []),
+      `Combined columns: ${key.sums.map(termPlainText).join(', ')}`,
+      `Result: ${polynomialTermsPlainText(key.result)}`,
+    ];
+  }
+  return [];
+};

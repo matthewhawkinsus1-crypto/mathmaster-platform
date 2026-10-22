@@ -74,7 +74,11 @@ const componentRouting = (() => {
   const fallback = body.match(/const mode\s*=\s*questionData\.mode \|\| '(\w+)';/)?.[1];
   const routed = [...body.matchAll(/if\s*\(mode\s*===\s*'(\w+)'\)\s*return </g)].map((match) => match[1]);
   assert.ok(fallback, 'router reads questionData.mode with a default');
-  assert.equal(routed.length, 5, 'router has its five explicit views');
+  // Six: add & subtract joined the five. (The any-size area model is the
+  // multiplyArea view for a question written with factor text — routed on
+  // `mode === 'multiplyArea' && writesFactors(...)` ahead of the binomial one —
+  // so it is not a seventh mode.)
+  assert.equal(routed.length, 6, 'router has its six explicit views');
   return { fallback, routed };
 })();
 const componentMode = (question) => {
@@ -119,6 +123,7 @@ test('declared mode resolution reproduces the screen routing, including padded, 
 const VIEWS = {
   factorZero: 'FactorZero',
   multiplyArea: 'MultiplyArea',
+  addSubtract: 'AddSubtract',
   factorQuadratic: 'FactorQuadratic',
   division: 'DivisionMode',
   graphConnection: 'GraphConnection',
@@ -129,7 +134,8 @@ test('every view grades its Check through the shared grader and reports the same
   assert.match(code, /import polynomialWorkshopGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/polynomialWorkshop\.mjs';/);
   assert.match(code, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
   assert.match(code, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
-  for (const [mode, name] of Object.entries(VIEWS)) {
+  // The any-size area model is graded as multiplyArea, like the binomial view.
+  for (const [mode, name] of [...Object.entries(VIEWS), ['multiplyArea', 'MultiplyFactors']]) {
     const body = region(code, `function ${name}(`, '\n}', name);
     const check = region(body, 'const check=()=>{', '\n  };', `${name} check`);
     assert.match(body, /const work=\{[^}]+\};/, `${name} builds work at render scope`);

@@ -1,6 +1,7 @@
 import { formatStudentName } from '../studentName.js';
+import { LIVE_ATTENDANCE_EVENT_KIND } from './liveAttendanceEventKind.js';
 
-export const LIVE_ATTENDANCE_EVENT_KIND = 'liveAttendance';
+export { LIVE_ATTENDANCE_EVENT_KIND };
 
 export const LIVE_ATTENDANCE_MARK = Object.freeze({
   PRESENT: 'present',

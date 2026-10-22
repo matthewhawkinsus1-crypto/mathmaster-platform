@@ -306,6 +306,16 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     evidenceRequired: 'Vertex instance: the submitted vertex is (−h, k) or (−h, f(−h)) for the authoritative vertex (h, k), with h ≠ 0.',
     teks: ['A.7A'],
   }),
+  // --- Polynomials: simplest form (Algebra II, operations on polynomials) -------------
+  code({
+    id: 'polynomial-not-simplified',
+    concept: 'polynomial-simplest-form',
+    domain: 'nonlinear',
+    label: 'Right value, not simplified',
+    teacherMeaning: 'The polynomial has the key\'s value, but work is left in it: like terms not combined, a product not multiplied out, or brackets not removed (for example, distributing and stopping before combining).',
+    evidenceRequired: 'multiAnswer field that asks for simplest form (answerForm "simplifiedPolynomial"): the field was graded wrong; the submitted polynomial has the same value as the field\'s key; and it is not written in simplest form.',
+    teks: ['A2.7B'],
+  }),
   code({
     id: 'zeros-sign-reversed',
     concept: 'quadratic-zeros',
@@ -360,7 +370,7 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
   // --- Student pass 3 (additive under registry v1) ---
   // An ordinary multiAnswer field: the right line in the wrong form.
-  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard']),
+  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'polynomial-not-simplified']),
   // --- Student pass 3, wave 7 (additive under registry v1) ---
   // A Path item (a secure Test, Retest or Corrections item), read from its
   // Path definition with each mistake's classifier rule

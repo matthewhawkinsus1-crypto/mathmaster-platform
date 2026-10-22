@@ -11,11 +11,21 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import polynomialWorkshopGrader from '../../../functions/shared/serverGrading/tools/polynomialWorkshop.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
+  addSubtractKey,
+  areaModelKey,
   coefficientsFromRoots,
+  columnPlainText,
   graphConnectionTargetEntry,
+  polynomialTermsLatex,
   rationalFeatureMap,
   rationalFeatureTargetValue,
+  termLatex,
+  termPlainText,
 } from './polynomialMath';
+import MathInput from '../../MathInput.jsx';
+import MathDisplay from '../../MathDisplay.jsx';
+import { requiredAnswerToolForSymbol } from '../../platform/interaction/answerEntryTools.js';
+import './PolynomialWorkshop.css';
 import { polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 
@@ -33,7 +43,9 @@ export default function PolynomialWorkshop({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'factorZero';
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
+  if (mode === 'multiplyArea' && writesFactors(questionData)) return <MultiplyFactors questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'multiplyArea') return <MultiplyArea questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
+  if (mode === 'addSubtract') return <AddSubtract questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'factorQuadratic') return <FactorQuadratic questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'division') return <DivisionMode questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'graphConnection') return <GraphConnection questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
@@ -97,6 +109,129 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
       </Panel>
       <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="2, -5, -12"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
+  </ToolShell>;
+}
+
+/*
+ * POLYNOMIALS WRITTEN AS TEXT (any letters, any size): the area model with
+ * `leftFactor` / `rightFactor`, and add & subtract. The student types every
+ * term the work makes — each cell's product, each opposite, each column's
+ * combined term — and then the answer in simplest form, and the shared grader
+ * marks every one of them, so the work on the screen IS the answer: a final
+ * answer typed without it earns only its own share.
+ */
+const writesFactors = (questionData) => typeof questionData.leftFactor === 'string' || typeof questionData.rightFactor === 'string';
+// The keys a box needs on a phone keypad (where the keypad is the keyboard):
+// the problem's letters and the exponent key. Extra keys, not required
+// symbols, so a desktop keypad does not open under every cell.
+const keypadKeys = (terms = []) => [...new Set(terms.flatMap((term) => Object.keys(term.powers))), 'xⁿ']
+  .map(requiredAnswerToolForSymbol)
+  .filter(Boolean);
+// A term as a factor in a product: a negative one in parentheses.
+const factorLatex = (term) => (term.coefficient < 0 ? `\\left(${termLatex(term)}\\right)` : termLatex(term));
+const cardRowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: 'calc(18 * var(--mm-px))' };
+const headerStyle = { padding: '6px 4px', textAlign: 'center', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))', background: 'var(--mm-tint-bg, transparent)', borderRadius: 8 };
+const entryAt = (list, index) => (Array.isArray(list) ? list[index] ?? '' : '');
+const listWith = (length, list, index, value) => Array.from({ length }, (_, i) => (i === index ? value : entryAt(list, i)));
+
+function MissingProblem({ title }) {
+  return <ToolShell title="Polynomial Workshop" subtitle={title} badge="Algebra II · Polynomials"><p>This question is missing its polynomials, so there is nothing to work on yet. Tell your teacher.</p></ToolShell>;
+}
+
+function MultiplyFactors({ questionData, feedback, submit, onAction }) {
+  const model = useMemo(() => areaModelKey(questionData), [questionData]);
+  const width = model ? model.columns.length : 0;
+  const size = model ? model.rows.length * width : 0;
+  const [terms, setTerms] = usePersistentToolState('terms', []);
+  const [product, setProduct] = usePersistentToolState('product', '');
+  const setTerm = (index, value) => setTerms((old) => listWith(size, old, index, value));
+  const keys = useMemo(() => (model ? keypadKeys([...model.rows, ...model.columns]) : []), [model]);
+  useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],product:[product,setProduct]}});
+  const work={terms,product};
+  useReportToolWork(work);
+  const check=()=>{
+    const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'multiplyArea',parts:result.parts});
+  };
+  if (!model) return <MissingProblem title="Multiply polynomials with an area model." />;
+  const factors = `\\left(${polynomialTermsLatex(model.rows)}\\right)\\left(${polynomialTermsLatex(model.columns)}\\right)`;
+  return <ToolShell title="Polynomial Workshop" subtitle="Multiply every term by every term with an area model." badge="Algebra II · Area Model">
+    <TaskCard question={questionData} task={'Fill in every cell of the area model, then write the product in simplest form.'} steps={['Each cell is the term at the start of its row times the term at the top of its column.', 'Type each cell as one term: multiply the numbers and add the exponents of the same letter.', 'Combine the like terms from the cells and type the product in simplest form.']} />
+    <ToolGrid min={330}>
+      <Panel title="Area model">
+        <div style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:800,marginBottom:8}}><MathDisplay value={factors} /></div>
+        {/* A grid wider than its panel scrolls inside its own box, never squeezes a cell. */}
+        <div style={{overflowX:'auto',paddingBottom:4}}>
+        <div role="group" aria-label="Area model" className="mm-area-grid" style={{gridTemplateColumns:`minmax(48px,auto) repeat(${width}, minmax(112px,1fr))`}}>
+          <div aria-hidden="true" className="mm-area-head" style={{textAlign:'center',fontWeight:800}}>×</div>
+          {model.columns.map((column, c) => <div key={`column-${c}`} className="mm-area-head" style={headerStyle}><MathDisplay value={termLatex(column)} /></div>)}
+          {model.rows.map((row, r) => <React.Fragment key={`row-${r}`}>
+            <div className="mm-area-head" style={headerStyle}><MathDisplay value={termLatex(row)} /></div>
+            {model.columns.map((column, c) => <div key={`cell-${r}-${c}`} className="mm-area-cell"><span className="mm-area-cell-label" aria-hidden="true"><MathDisplay value={`${factorLatex(row)}\\cdot ${factorLatex(column)}`} inline /></span><MathInput value={entryAt(terms, r * width + c)} onChange={(value) => setTerm(r * width + c, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term" ariaLabel={`Row ${r + 1}, column ${c + 1}: ${termPlainText(row)} times ${termPlainText(column)}`} /></div>)}
+          </React.Fragment>)}
+        </div>
+        </div>
+      </Panel>
+      <Panel title="Product in simplest form">
+        <p style={{color:'var(--mm-text-muted)',marginTop:0}}>Add up the cells. Combine like terms so each kind of term appears once.</p>
+        <MathInput value={product} onChange={setProduct} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="product" ariaLabel="Product in simplest form" />
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button>
+        <Feedback feedback={feedback} success="Every cell and the product are correct." retry="Check each cell: multiply the numbers, add the exponents of the same letter. Then combine like terms."/>
+        <HintPanel hints={['Every term of the first factor multiplies every term of the second — that is what the area model shows: one cell for each pair.', 'Multiply the numbers and keep the letters: a² · 3a = 3a³, because a² · a = a³ (add the exponents).', 'Cells with the same letters and exponents are like terms. Add them to finish, and leave unlike terms separate.']} onHintUsed={() => onAction?.("HINT_USED")} />
+      </Panel>
+    </ToolGrid>
+  </ToolShell>;
+}
+
+function AddSubtract({ questionData, feedback, submit, onAction }) {
+  const model = useMemo(() => addSubtractKey(questionData), [questionData]);
+  const count = model ? model.columns.length : 0;
+  const subtracting = model?.operation === 'subtract';
+  const [opposites, setOpposites] = usePersistentToolState('opposites', []);
+  const [sums, setSums] = usePersistentToolState('sums', []);
+  const [answer, setAnswer] = usePersistentToolState('result', '');
+  const setOpposite = (index, value) => setOpposites((old) => listWith(count, old, index, value));
+  const setSum = (index, value) => setSums((old) => listWith(count, old, index, value));
+  const keys = useMemo(() => (model ? keypadKeys([...model.first, ...model.second]) : []), [model]);
+  useFieldUndoHistory({questionData,fields:{opposites:[opposites,setOpposites],sums:[sums,setSums],result:[answer,setAnswer]}});
+  const work={opposites,sums,result:answer};
+  useReportToolWork(work);
+  const check=()=>{
+    const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'addSubtract',parts:result.parts});
+  };
+  if (!model) return <MissingProblem title="Add and subtract polynomials." />;
+  const problem = `\\left(${polynomialTermsLatex(model.first)}\\right)${subtracting ? '-' : '+'}\\left(${polynomialTermsLatex(model.second)}\\right)`;
+  const steps = subtracting
+    ? ['Subtracting a polynomial adds its opposite: write the opposite of EVERY term of the second polynomial, not just the first.', 'Each column holds one kind of term. Combine the like terms in each column — type 0 when they cancel.', 'Write the result in simplest form.']
+    : ['Each column holds one kind of term, lined up from both polynomials.', 'Combine the like terms in each column — type 0 when they cancel.', 'Write the result in simplest form.'];
+  return <ToolShell title="Polynomial Workshop" subtitle={subtracting ? 'Subtract by adding the opposite of every term, then combine like terms.' : 'Line up like terms, then combine them.'} badge={subtracting ? 'Algebra II · Subtract Polynomials' : 'Algebra II · Add Polynomials'}>
+    <TaskCard question={questionData} task={subtracting ? 'Write the opposite of each term you subtract, combine each column, then write the result.' : 'Combine each column of like terms, then write the result.'} steps={steps} />
+    <Panel title="Line up like terms">
+      <div style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:800,marginBottom:10}}><MathDisplay value={problem} /></div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',gap:10}}>
+        {model.columns.map((column, index) => {
+          const name = columnPlainText(column);
+          const firstTerm = model.firstByColumn[index];
+          const secondTerm = model.secondByColumn[index];
+          return <div key={`column-${index}`} role="group" aria-label={`${name} column`} style={{border:'1px solid var(--mm-tint-border)',borderRadius:10,padding:10,display:'grid',gap:6,alignContent:'start'}}>
+            <strong style={{textAlign:'center'}}>{name === 'constant' ? 'Constants' : <>{name} terms</>}</strong>
+            <div style={cardRowStyle}><span>First</span>{firstTerm ? <MathDisplay value={termLatex(firstTerm)} inline /> : <span>none</span>}</div>
+            <div style={cardRowStyle}><span>Second</span>{secondTerm ? <MathDisplay value={termLatex(secondTerm)} inline /> : <span>none</span>}</div>
+            {subtracting && secondTerm ? <label style={{display:'grid',gap:4,fontWeight:700}}>Its opposite<MathInput value={entryAt(opposites, index)} onChange={(value) => setOpposite(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="opposite" ariaLabel={`Opposite of ${termPlainText(secondTerm)}`} /></label> : null}
+            <label style={{display:'grid',gap:4,fontWeight:700}}>Combined<MathInput value={entryAt(sums, index)} onChange={(value) => setSum(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term or 0" ariaLabel={`Combined ${name} column`} /></label>
+          </div>;
+        })}
+      </div>
+    </Panel>
+    <Panel title="Result in simplest form">
+      <MathInput value={answer} onChange={setAnswer} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="result" ariaLabel="Result in simplest form" />
+      <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
+      <Feedback feedback={feedback} success="Every step and the result are correct." retry={subtracting ? 'Check the sign of EVERY opposite, then combine each column.' : 'Combine only like terms: same letters, same exponents.'}/>
+      <HintPanel hints={subtracting
+        ? ['Subtracting a polynomial is adding its opposite. The minus sign in front of the parentheses changes the sign of every term inside.', 'The opposite of a³ is −a³, the opposite of −3a is +3a, and the opposite of 2 is −2.', 'Like terms have the same letters with the same exponents. Add their numbers; a column whose terms cancel combines to 0.']
+        : ['Adding polynomials means combining like terms.', 'Like terms have the same letters with the same exponents: 4x² and −2x² are like terms; 4x² and −9x are not.', 'Add the numbers in each column and keep the letters. A column whose terms cancel combines to 0.']} onHintUsed={() => onAction?.("HINT_USED")} />
+    </Panel>
   </ToolShell>;
 }
 
