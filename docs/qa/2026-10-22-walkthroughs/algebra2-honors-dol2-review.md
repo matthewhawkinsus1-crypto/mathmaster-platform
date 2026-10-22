@@ -18,7 +18,7 @@ Screen of all 40 (1366, first screen + contact sheets): no unresolved {{template
 
 ## WU 2 — transformationsLab/pointMap (image of (−2, 2) under g(x) = 2|x − 2| − 4)
 - OK (strong): (−4, 0) → "The y-coordinate is right. The x-coordinate is not: only h moves a point horizontally."; right on try 2.
-- F-BRIDGE-OPEN (P2, content/tool): the "Transformation bridge" panel is open on a Warm-Up retrieval item and states the answer rule: "A parent point (x, y) maps to (x/b + h, ay + k)." (plus the slogan "X's lie; Y's tell the truth.").
+- F-BRIDGE-OPEN (P2, content/tool): the "Transformation bridge" panel is open on a Warm-Up retrieval item and states the answer rule: "A parent point (x, y) maps to (x/b + h, ay + k)." (plus the slogan "X's lie; Y's tell the truth."). **Owner decision 2026-10-22 (option b): on point-map items the bridge lives only in Help. Fixed in #517.**
 - F-SPEECH-ABS (P2, a11y): the task's spoken text reads g(x) = 2|x − 2| − 4 as "g of x equals 2 the absolute value of x minus 2 minus 4" — no "times", and no end of the absolute value. Every |…| prompt is affected.
 - F-A11Y: the Transformed x / Transformed y inputs have no accessible names.
 

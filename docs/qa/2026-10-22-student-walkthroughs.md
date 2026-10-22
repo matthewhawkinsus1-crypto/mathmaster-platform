@@ -9,6 +9,38 @@ These four assignments were done as a student in a real browser, to find what wo
 | Algebra II Honors — Operations on Polynomials (add, subtract, multiply) | `claude/a2h-operations-on-polynomials-20261022` @ `2589df75` (PR #514) | 32 (WU 3 · CW 11 · PR 15 · DOL 3) | [algebra2-operations-on-polynomials.md](2026-10-22-walkthroughs/algebra2-operations-on-polynomials.md) |
 | Algebra II Honors — Dividing Polynomials | `claude/determined-hawking-m81z7h` @ `0ef8b7f0` (no PR) | 33 (WU 3 · CW 11 · PR 16 · DOL 3) | [algebra2-dividing-polynomials.md](2026-10-22-walkthroughs/algebra2-dividing-polynomials.md) |
 
+## Fix status
+
+**Fixed in #517**, in code none of the four branches touch:
+- P1 3, in part: the graph step offers every table row (P1–P6), and the grader asks for all six.
+- P1 5: the side graph gets the wider column and up to 460 px.
+- P2 step counts and tabs:
+  - the count looks ahead ("1 of 7" from the start);
+  - steps have names ("x-intercept?", "Discrete or continuous?");
+  - the strip keeps the current tab in view.
+- P2 sequence feedback: names the add-to-n slip, mentions rules only where the item has them, and never states d.
+- P2 grade-weight banner: now one line that opens to the sentence.
+- P2 Transformation bridge, by owner decision (option b): on point-map items it lives only in Help.
+- P2 speech: |…| coefficient and end marker, f(n − 1) + 4, the hyphens, aₙ.
+
+**Waiting for the lesson branches to merge**, because those branches rewrite the same tools:
+- Data Modeling Lab (P1 2 and its P2 items);
+- Linear Table Workbench misdiagnosis (P1 4);
+- Open Sort;
+- Add & Subtract Workshop phone overflow (P1 1);
+- −1x² reason (P1 6);
+- long-division placeholder;
+- synthetic division.
+
+**Still open, not yet scheduled:**
+- P1 3, the rest: a connected line is credited as the graph under "continuous". After switching to discrete, the graph keeps "✓ Checked correct" with stale screen-reader text.
+- Authored `commonError` text not used during attempts.
+- The first screen being mostly header.
+- Duplicate Undo/Reset in the Linear Table Workbench.
+- Click count on the Multiple Representations board.
+
+**Not an issue:** "Common difference has no accessible name". The input is inside its `<label>`; the harness misread it.
+
 ## How it was run, and its limits
 
 **What ran:**
