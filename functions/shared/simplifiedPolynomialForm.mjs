@@ -364,8 +364,13 @@ export const monomialSignature = (powers = {}) => Object.entries(powers)
  * Read a typed polynomial term by term: { problem, terms }, where each term is
  * { coefficient (signed), powers: { letter: exponent }, signature } in the
  * order written. `problem` is null when it is in simplest form.
+ *
+ * `allowZeroTerms`: a 0x² written to hold a power's place is not a problem.
+ * A line of long division is written that way on paper (x³ + 0x² − 4x + 2,
+ * 2x² + 0x); everything else about the line must still be simplified. Off by
+ * default: an ANSWER with a zero term is not in simplest form.
  */
-export const readTypedPolynomial = (value) => {
+export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
   const unreadable = { problem: P.UNREADABLE, terms: [] };
   const raw = String(value ?? '').trim();
   if (!raw || raw.length > MAX_LENGTH || raw.includes('=')) return unreadable;
@@ -395,7 +400,7 @@ export const readTypedPolynomial = (value) => {
     terms.push({ coefficient: sign * read.coefficient, powers: read.powers, signature: read.signature });
     // A lone 0 is the simplified zero polynomial.
     if (read.problem === P.ZERO_TERM && split.length === 1 && read.signature === '') return { problem: null, terms };
-    if (read.problem) firstProblem = firstProblem || read.problem;
+    if (read.problem && !(allowZeroTerms && read.problem === P.ZERO_TERM)) firstProblem = firstProblem || read.problem;
     if (seen.has(read.signature)) firstProblem = firstProblem || P.LIKE_TERMS;
     seen.add(read.signature);
   }

@@ -74,11 +74,11 @@ const componentRouting = (() => {
   const fallback = body.match(/const mode\s*=\s*questionData\.mode \|\| '(\w+)';/)?.[1];
   const routed = [...body.matchAll(/if\s*\(mode\s*===\s*'(\w+)'\)\s*return </g)].map((match) => match[1]);
   assert.ok(fallback, 'router reads questionData.mode with a default');
-  // Six: add & subtract joined the five. (The any-size area model is the
-  // multiplyArea view for a question written with factor text — routed on
-  // `mode === 'multiplyArea' && writesFactors(...)` ahead of the binomial one —
-  // so it is not a seventh mode.)
-  assert.equal(routed.length, 6, 'router has its six explicit views');
+  // Eight: add & subtract joined the five, then long division and synthetic
+  // division. (The any-size area model is the multiplyArea view for a
+  // question written with factor text — routed on `mode === 'multiplyArea' &&
+  // writesFactors(...)` ahead of the binomial one — so it is not a mode.)
+  assert.equal(routed.length, 8, 'router has its eight explicit views');
   return { fallback, routed };
 })();
 const componentMode = (question) => {

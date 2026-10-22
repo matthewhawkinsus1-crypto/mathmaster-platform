@@ -393,6 +393,313 @@ export const polynomialTermsPlainText = (terms = []) => {
 /** The name of a like-terms column: its letters ("a³", "xy"), or "constant". */
 export const columnPlainText = (column) => (column.signature ? lettersText(column.powers, (exponent) => String(exponent).split('').map((digit) => SUPERSCRIPTS[Number(digit)]).join('')) : 'constant');
 
+/* ===========================================================================
+ * DIVIDING POLYNOMIALS WRITTEN AS TEXT — long division and synthetic division
+ * (Algebra II Honors, "Dividing Polynomials", A2.7C).
+ *
+ * Both modes read `dividend` and `divisor` written as text in ONE letter
+ * ("x^3-4x+2", "x+3", "-a+2", "y^2+y-5"): whole-number coefficients, simplest
+ * form, any term order. (The `division` view above reads coefficient lists in
+ * x and asks only for the quotient and the remainder; it is unchanged.) The
+ * arithmetic is exact — fractions, never floats — so a quotient term of
+ * (1/3)a is a third, and an answer key prints it as one.
+ *
+ *   longDivisionKey      one ROUND per nonzero term of the quotient: the term
+ *                        (the leading term of what is left ÷ the divisor's
+ *                        leading term), the product it makes with the divisor
+ *                        (multiply back), and what is left after subtracting
+ *                        it with the next term brought down. Then the
+ *                        quotient and the remainder.
+ *   syntheticDivisionKey a divisor ax + b. When a ≠ 1 the dividend and the
+ *                        divisor are first divided by a, as the lesson
+ *                        teaches it, so the divisor is x − r with r = −b/a.
+ *                        The table: r, the coefficient row (a 0 for every
+ *                        missing power), the products row, and the bottom row,
+ *                        whose last number is the remainder. Then the
+ *                        quotient and, when a ≠ 1, the remainder over the
+ *                        ORIGINAL divisor (a times that last number, which is
+ *                        the dividend's value at r).
+ * ======================================================================== */
+
+/** The largest dividend and divisor the division views draw. */
+export const DIVISION_LIMITS = Object.freeze({ degree: 6, divisorDegree: 3 });
+export const DIVISION_MODES = Object.freeze(['longDivision', 'syntheticDivision']);
+
+// Exact fractions { n, d }: d > 0, lowest terms, no −0. Classroom numbers stay
+// far below 2^53; a key that would not is refused (exactKey).
+const wholeGcd = (a, b) => {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y) [x, y] = [y, x % y];
+  return x || 1;
+};
+const ratio = (n, d = 1) => {
+  const g = wholeGcd(n, d);
+  const top = (d < 0 ? -n : n) / g;
+  return Object.freeze({ n: top === 0 ? 0 : top, d: Math.abs(d) / g });
+};
+const ZERO_RATIO = ratio(0);
+const plus = (a, b) => ratio(a.n * b.d + b.n * a.d, a.d * b.d);
+const minus = (a, b) => ratio(a.n * b.d - b.n * a.d, a.d * b.d);
+const times = (a, b) => ratio(a.n * b.n, a.d * b.d);
+const over = (a, b) => ratio(a.n * b.d, a.d * b.n);
+const isZeroRatio = (a) => a.n === 0;
+const isOneRatio = (a) => a.n === 1 && a.d === 1;
+export const ratioValue = (a) => a.n / a.d;
+const SAFE_RATIO = 1e12;
+const safeRatio = (a) => Number.isSafeInteger(a.n) && Number.isSafeInteger(a.d) && Math.abs(a.n) <= SAFE_RATIO && a.d <= SAFE_RATIO;
+
+/** An authored polynomial in at most one letter: exact coefficients, highest power first; or null. */
+const authoredOneLetter = (value) => {
+  const terms = authoredPolynomialTerms(value);
+  if (!terms) return null;
+  const letters = [...new Set(terms.flatMap((term) => Object.keys(term.powers)))];
+  if (letters.length > 1 || !terms.every((term) => Number.isSafeInteger(term.coefficient))) return null;
+  const degree = Math.max(...terms.map(termDegree));
+  const coefficients = Array.from({ length: degree + 1 }, (_, index) => {
+    const term = terms.find((entry) => termDegree(entry) === degree - index);
+    return ratio(term ? term.coefficient : 0);
+  });
+  return { letter: letters[0] || null, degree, coefficients };
+};
+
+/** The dividend and divisor a division view draws, or null when it cannot draw them. */
+const divisionOperands = (question = {}) => {
+  const dividend = authoredOneLetter(question.dividend);
+  const divisor = authoredOneLetter(question.divisor);
+  if (!dividend || !divisor || !divisor.letter) return null;
+  if (dividend.letter && dividend.letter !== divisor.letter) return null;
+  if (divisor.degree < 1 || divisor.degree > DIVISION_LIMITS.divisorDegree) return null;
+  if (dividend.degree < divisor.degree || dividend.degree > DIVISION_LIMITS.degree) return null;
+  return { letter: divisor.letter, dividend, divisor };
+};
+
+// [{ coefficient: ratio, power }], highest power first, from coefficients ending at `lowest`.
+const powered = (coefficients, highest) => coefficients.map((coefficient, index) => ({ coefficient, power: highest - index }));
+const exactKey = (key, lists) => (lists.every((entries) => entries.every((entry) => safeRatio(entry.coefficient ?? entry))) ? key : null);
+
+/** The long-division key, or null when the question cannot be drawn. */
+export const longDivisionKey = (question = {}) => {
+  if (question.mode !== undefined && question.mode !== 'longDivision') return null;
+  const operands = divisionOperands(question);
+  if (!operands) return null;
+  const { letter, dividend, divisor } = operands;
+  const n = dividend.degree;
+  const d = divisor.degree;
+  const working = [...dividend.coefficients];
+  const quotient = Array(n - d + 1).fill(ZERO_RATIO);
+  const rounds = [];
+  for (let index = 0; index <= n - d; index += 1) {
+    // A power with nothing left in it adds no term to the quotient: the next
+    // round divides the next nonzero leading term.
+    if (isZeroRatio(working[index])) continue;
+    const power = n - index;
+    const factor = over(working[index], divisor.coefficients[0]);
+    quotient[index] = factor;
+    const product = divisor.coefficients.map((coefficient) => times(coefficient, factor));
+    // What the product is subtracted from, as it stands on paper (a 0 holding
+    // a missing power's place), and the term brought down after it.
+    const top = working.slice(index, index + d + 1);
+    product.forEach((value, offset) => { working[index + offset] = minus(working[index + offset], value); });
+    rounds.push({
+      power,
+      term: { coefficient: factor, power: power - d },
+      top: powered(top, power),
+      broughtDown: power - d - 1 >= 0 ? { coefficient: working[index + d + 1], power: power - d - 1 } : null,
+      product: powered(product, power),
+      // Everything left, every power below this one; on paper the line keeps
+      // what the subtraction made and ONE term brought down (power − d − 1).
+      left: powered(working.slice(index + 1), power - 1),
+      lowestBroughtDown: Math.max(0, power - d - 1),
+    });
+  }
+  const remainder = powered(working.slice(n - d + 1), d - 1);
+  const key = { letter, dividend, divisor, rounds, quotient: powered(quotient, n - d), remainder };
+  return exactKey(key, [
+    dividend.coefficients, divisor.coefficients, quotient, working,
+    ...rounds.flatMap((round) => [round.product, round.left]),
+  ]);
+};
+
+/** The synthetic-division key, or null when the question cannot be drawn (the divisor must be linear). */
+export const syntheticDivisionKey = (question = {}) => {
+  if (question.mode !== undefined && question.mode !== 'syntheticDivision') return null;
+  const operands = divisionOperands(question);
+  if (!operands || operands.divisor.degree !== 1) return null;
+  const { letter, dividend, divisor } = operands;
+  const [leading, constant] = divisor.coefficients;
+  const r = over(ratio(-constant.n, constant.d), leading);
+  const coefficients = dividend.coefficients.map((coefficient) => over(coefficient, leading));
+  const bottom = [coefficients[0]];
+  const products = [];
+  for (let index = 1; index < coefficients.length; index += 1) {
+    products.push(times(r, bottom[index - 1]));
+    bottom.push(plus(coefficients[index], products[index - 1]));
+  }
+  const n = dividend.degree;
+  const last = bottom[n];
+  const key = {
+    letter,
+    dividend,
+    divisor,
+    leading,
+    // Divided through by a first: then the last number of the bottom row is
+    // the remainder over x − r, and a times it is the remainder over ax + b.
+    scaled: !isOneRatio(leading),
+    r,
+    coefficients,
+    products,
+    bottom,
+    quotient: powered(bottom.slice(0, n), n - 1),
+    remainder: last,
+    remainderOverDivisor: times(leading, last),
+  };
+  return exactKey(key, [[r, last, key.remainderOverDivisor], coefficients, products, bottom]);
+};
+
+/** The key of whichever division view the question is, or null. */
+export const divisionKey = (question = {}) => (question.mode === 'syntheticDivision' ? syntheticDivisionKey(question) : longDivisionKey(question));
+
+/* ---- reading and comparing the student's division work ---------------- */
+
+/** An exact term as a grader term ({ coefficient, powers, signature }), or null for a zero one. */
+const gradedTerm = ({ coefficient, power }, letter) => (isZeroRatio(coefficient) ? null : makeTerm(ratioValue(coefficient), power ? { [letter]: power } : {}));
+/** Exact terms as grader terms, zero ones left out. */
+export const gradedTerms = (entries, letter) => entries.map((entry) => gradedTerm(entry, letter)).filter(Boolean);
+
+/*
+ * A line of division work as the student typed it: its nonzero terms, or null
+ * when it is not a polynomial written out. A 0 holding a power's place is
+ * allowed (2x² + 0x, as on paper); anything else left to do is not — a
+ * product left as x²(x + 3) has not been multiplied back.
+ */
+export const readWorkingLine = (value) => {
+  const read = readTypedPolynomial(value, { allowZeroTerms: true });
+  if (read.problem) return null;
+  return read.terms.filter((term) => term.coefficient !== 0).map((term) => makeTerm(term.coefficient, term.powers));
+};
+
+const sameTermSet = (actual, expected) => actual.length === expected.length
+  && expected.every((term) => actual.some((other) => other.signature === term.signature && sameCoefficient(other.coefficient, term.coefficient)));
+
+/** A typed line holds exactly these terms (zero placeholders aside). */
+export const workingLineMatches = (value, expectedTerms) => {
+  const typed = readWorkingLine(value);
+  return Boolean(typed) && sameTermSet(typed, expectedTerms);
+};
+
+/*
+ * What is left after a round, with terms brought down: on paper ONE term is
+ * brought down (the line keeps powers down to `lowest`), but bringing down
+ * more — up to every term that is left — is the same division, so any of
+ * those lines is right. Bringing down none is not: the next round needs it.
+ */
+export const broughtDownLineMatches = (value, left, lowest, letter) => {
+  const typed = readWorkingLine(value);
+  if (!typed) return false;
+  for (let stop = lowest; stop >= 0; stop -= 1) {
+    if (sameTermSet(typed, gradedTerms(left.filter((entry) => entry.power >= stop), letter))) return true;
+  }
+  return false;
+};
+
+/* ---- writing exact numbers and terms ---------------------------------- */
+
+const superscriptOf = (exponent) => String(exponent).split('').map((digit) => SUPERSCRIPTS[Number(digit)]).join('');
+/** −1/2, 29/3, 4: an exact number as plain text. */
+export const ratioPlainText = (value) => `${value.n < 0 ? MINUS_SIGN : ''}${Math.abs(value.n)}${value.d === 1 ? '' : `/${value.d}`}`;
+/** -1/2: an exact number as a student types it. */
+export const ratioTyped = (value) => `${value.n}${value.d === 1 ? '' : `/${value.d}`}`;
+/** -\frac{1}{2}: an exact number as LaTeX. */
+export const ratioLatex = (value) => (value.d === 1 ? `${value.n}` : `${value.n < 0 ? '-' : ''}\\frac{${Math.abs(value.n)}}{${value.d}}`);
+
+// One exact term in a style: its sign, its magnitude (left out as a 1 in
+// front of the letter), and the letter with its power.
+const writeExactTerm = ({ coefficient, power }, letter, style) => {
+  if (isZeroRatio(coefficient)) return '0';
+  const magnitude = ratio(Math.abs(coefficient.n), coefficient.d);
+  const letters = !power ? '' : power === 1 ? letter : style === 'latex' ? `${letter}^{${power}}` : style === 'typed' ? `${letter}^${power}` : `${letter}${superscriptOf(power)}`;
+  const minus = coefficient.n < 0 ? (style === 'plain' ? MINUS_SIGN : '-') : '';
+  if (letters && isOneRatio(magnitude)) return `${minus}${letters}`;
+  if (style === 'latex') return `${minus}${ratioLatex(magnitude)}${letters}`;
+  // A fraction before a letter is bracketed in plain text ((1/3)a); typed, 1/3a
+  // reads the same way and is how it is entered.
+  const number = style === 'typed' ? ratioTyped(magnitude) : ratioPlainText(magnitude);
+  return `${minus}${letters && magnitude.d !== 1 && style === 'plain' ? `(${number})` : number}${letters}`;
+};
+
+const writeExactPolynomial = (entries, letter, style) => {
+  const shown = entries.filter((entry) => !isZeroRatio(entry.coefficient));
+  if (!shown.length) return '0';
+  return shown.map((entry, index) => {
+    const body = writeExactTerm({ ...entry, coefficient: ratio(Math.abs(entry.coefficient.n), entry.coefficient.d) }, letter, style);
+    const negative = entry.coefficient.n < 0;
+    if (style === 'plain') return index === 0 ? `${negative ? MINUS_SIGN : ''}${body}` : `${negative ? MINUS_SIGN : '+'} ${body}`;
+    return index === 0 ? `${negative ? '-' : ''}${body}` : `${negative ? '-' : '+'}${body}`;
+  }).join(style === 'plain' ? ' ' : '');
+};
+
+/** "x² − 3x + 5": exact terms as plain text (zero terms left out; "0" for none). */
+export const exactPolynomialPlainText = (entries, letter) => writeExactPolynomial(entries, letter, 'plain');
+/** "x^{2}-3x+5": exact terms as LaTeX. */
+export const exactPolynomialLatex = (entries, letter) => writeExactPolynomial(entries, letter, 'latex');
+/** "x^2-3x+5": exact terms as a student types them. */
+export const exactPolynomialTyped = (entries, letter) => writeExactPolynomial(entries, letter, 'typed');
+/** "x³ + 0x² − 4x + 2": every power shown, a 0 holding each missing one (plain text). */
+export const placeholderPolynomialPlainText = (coefficients, letter) => {
+  const degree = coefficients.length - 1;
+  return coefficients.map((coefficient, index) => {
+    const power = degree - index;
+    const shown = isZeroRatio(coefficient) ? `0${power === 0 ? '' : power === 1 ? letter : `${letter}${superscriptOf(power)}`}` : writeExactTerm({ coefficient: ratio(Math.abs(coefficient.n), coefficient.d), power }, letter, 'plain');
+    if (index === 0) return `${coefficient.n < 0 ? MINUS_SIGN : ''}${shown}`;
+    return `${coefficient.n < 0 ? MINUS_SIGN : '+'} ${shown}`;
+  }).join(' ');
+};
+/** The same with every power shown, as LaTeX. */
+export const placeholderPolynomialLatex = (coefficients, letter) => {
+  const degree = coefficients.length - 1;
+  return coefficients.map((coefficient, index) => {
+    const power = degree - index;
+    const letters = power === 0 ? '' : power === 1 ? letter : `${letter}^{${power}}`;
+    const shown = isZeroRatio(coefficient) ? `0${letters}` : writeExactTerm({ coefficient: ratio(Math.abs(coefficient.n), coefficient.d), power }, letter, 'latex');
+    if (index === 0) return `${coefficient.n < 0 ? '-' : ''}${shown}`;
+    return `${coefficient.n < 0 ? '-' : '+'}${shown}`;
+  }).join('');
+};
+/** One exact term as plain text, LaTeX, or typed. */
+export const exactTermPlainText = (entry, letter) => writeExactTerm(entry, letter, 'plain');
+export const exactTermLatex = (entry, letter) => writeExactTerm(entry, letter, 'latex');
+export const exactTermTyped = (entry, letter) => writeExactTerm(entry, letter, 'typed');
+/** The power a column of the synthetic table holds: "x³", "x", "constant". */
+export const powerName = (power, letter) => (power === 0 ? 'constant' : power === 1 ? letter : `${letter}${superscriptOf(power)}`);
+
+/*
+ * The work a student who divided correctly sends — what the views' Check
+ * sends, written the way the key is (the solution review, Recovery's key
+ * response and the tests all read it from here, so it is written once).
+ */
+export const divisionKeyWork = (question = {}) => {
+  const key = divisionKey(question);
+  if (!key) return null;
+  if (question.mode === 'syntheticDivision') {
+    return {
+      r: ratioTyped(key.r),
+      coefficients: key.coefficients.map(ratioTyped),
+      products: key.products.map(ratioTyped),
+      sums: key.bottom.map(ratioTyped),
+      quotient: exactPolynomialTyped(key.quotient, key.letter),
+      ...(key.scaled ? { remainder: ratioTyped(key.remainderOverDivisor) } : {}),
+    };
+  }
+  return {
+    terms: key.rounds.map((round) => exactTermTyped(round.term, key.letter)),
+    products: key.rounds.map((round) => exactPolynomialTyped(round.product, key.letter)),
+    differences: key.rounds.map((round) => exactPolynomialTyped(round.left.filter((entry) => entry.power >= round.lowestBroughtDown), key.letter)),
+    quotient: exactPolynomialTyped(key.quotient, key.letter),
+    remainder: exactPolynomialTyped(key.remainder, key.letter),
+  };
+};
+
 /*
  * The printed answer key for a polynomial written as text (the teacher's
  * worksheet export): every step the workshop grades, then the answer. A
@@ -414,6 +721,30 @@ export const polynomialWorkshopAnswerLines = (question = {}) => {
       ...(key.operation === 'subtract' ? [`Opposites: ${key.added.filter(Boolean).map(termPlainText).join(', ')}`] : []),
       `Combined columns: ${key.sums.map(termPlainText).join(', ')}`,
       `Result: ${polynomialTermsPlainText(key.result)}`,
+    ];
+  }
+  if (question.mode === 'longDivision') {
+    const key = longDivisionKey(question);
+    if (!key) return [];
+    const { letter } = key;
+    return [
+      ...key.rounds.map((round, index) => `Round ${index + 1}: ${exactTermPlainText(round.term, letter)}; multiply back ${exactPolynomialPlainText(round.product, letter)}; left ${exactPolynomialPlainText(round.left.filter((entry) => entry.power >= round.lowestBroughtDown), letter)}`),
+      `Quotient: ${exactPolynomialPlainText(key.quotient, letter)}`,
+      `Remainder: ${exactPolynomialPlainText(key.remainder, letter)}`,
+    ];
+  }
+  if (question.mode === 'syntheticDivision') {
+    const key = syntheticDivisionKey(question);
+    if (!key) return [];
+    const { letter } = key;
+    const divisor = exactPolynomialPlainText(key.divisor.coefficients.map((coefficient, index) => ({ coefficient, power: 1 - index })), letter);
+    return [
+      `r = ${ratioPlainText(key.r)}${key.scaled ? ` (dividend and divisor divided by ${ratioPlainText(key.leading)} first)` : ''}`,
+      `Coefficient row: ${key.coefficients.map(ratioPlainText).join(', ')}`,
+      `Products row: ${key.products.map(ratioPlainText).join(', ')}`,
+      `Bottom row: ${key.bottom.map(ratioPlainText).join(', ')} (remainder ${ratioPlainText(key.remainder)})`,
+      `Quotient: ${exactPolynomialPlainText(key.quotient, letter)}`,
+      ...(key.scaled ? [`Remainder over ${divisor}: ${ratioPlainText(key.remainderOverDivisor)}`] : []),
     ];
   }
   return [];

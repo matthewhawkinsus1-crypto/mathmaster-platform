@@ -641,6 +641,9 @@ const polynomialModel = (question) => {
   // otherwise model them as the FactorZero or (2x + 3)(x − 4) default. Their
   // supports are the question's own.
   if (question?.mode === 'addSubtract') return null;
+  // Long and synthetic division too: the dividend and divisor are text, and
+  // the steps are the question's own.
+  if (question?.mode === 'longDivision' || question?.mode === 'syntheticDivision') return null;
   if (question?.mode === 'multiplyArea' && (typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string')) return null;
   const mode = polynomialMode(question);
   const D = POLYNOMIAL_WORKSHOP_DEFAULTS[mode];

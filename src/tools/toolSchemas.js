@@ -7,7 +7,7 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
-import { POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey } from './polynomialWorkshop/polynomialMath.js';
+import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
@@ -290,7 +290,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'polynomialWorkshop') {
-    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','graphConnection','rationalFeatures'];
+    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','longDivision','syntheticDivision','graphConnection','rationalFeatures'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported polynomialWorkshop mode: ${question.mode}.`);
     if (question.coefficients && (!Array.isArray(question.coefficients) || question.coefficients.length < 2)) errors.push('Polynomial must have degree at least 1.');
     // The area model takes two binomial coefficient lists (x only, 2 × 2), or
@@ -303,6 +303,10 @@ export const validateToolQuestion = (question = {}) => {
       if (!Array.isArray(question.dividend) || question.dividend.length < 2) errors.push('division mode requires a dividend coefficient array.');
       if (!Array.isArray(question.divisor) || question.divisor.length < 1 || question.divisor.every((value) => Number(value) === 0)) errors.push('division mode requires a nonzero divisor coefficient array.');
     }
+    // Long and synthetic division read the dividend and divisor written as
+    // polynomials in one letter with whole-number coefficients.
+    if (question.mode === 'longDivision' && !longDivisionKey(question)) errors.push(`longDivision mode requires dividend and divisor written as polynomials in one letter, in simplest form with whole-number coefficients: a divisor of degree 1 to ${DIVISION_LIMITS.divisorDegree} and a dividend of at least its degree and at most degree ${DIVISION_LIMITS.degree} (for example dividend "x^3-4x+2", divisor "x+3").`);
+    if (question.mode === 'syntheticDivision' && !syntheticDivisionKey(question)) errors.push(`syntheticDivision mode requires a linear divisor (ax + b) and a dividend of degree 1 to ${DIVISION_LIMITS.degree}, written as polynomials in one letter in simplest form with whole-number coefficients (for example dividend "x^3-4x^2+6x-4", divisor "x-2").`);
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
   }

@@ -15,10 +15,18 @@ import {
   areaModelKey,
   coefficientsFromRoots,
   columnPlainText,
+  exactPolynomialLatex,
+  exactPolynomialPlainText,
+  exactTermLatex,
   graphConnectionTargetEntry,
+  longDivisionKey,
   polynomialTermsLatex,
+  powerName,
+  ratioLatex,
   rationalFeatureMap,
   rationalFeatureTargetValue,
+  readWorkingLine,
+  syntheticDivisionKey,
   termLatex,
   termPlainText,
 } from './polynomialMath';
@@ -48,6 +56,8 @@ export default function PolynomialWorkshop({ questionData = {}, onAction }) {
   if (mode === 'addSubtract') return <AddSubtract questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'factorQuadratic') return <FactorQuadratic questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'division') return <DivisionMode questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
+  if (mode === 'longDivision') return <LongDivision questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
+  if (mode === 'syntheticDivision') return <SyntheticDivision questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
   if (mode === 'graphConnection') return <GraphConnection questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'rationalFeatures') return <RationalFeatures questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   return <FactorZero questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
@@ -267,6 +277,261 @@ function DivisionMode({ questionData, feedback, submit, onAction }) {
   };
   return <ToolShell title="Polynomial Workshop" subtitle="Divide polynomials and verify quotient + remainder structure." badge="Algebra II · Division">
     <TaskCard question={questionData} task={'Divide the polynomials and give the quotient and remainder.'} steps={['Divide the leading terms to get the first quotient term.', 'Multiply back, subtract, and bring down the next term.', 'Repeat until the remainder has a lower degree than the divisor.']} /><ToolGrid min={320}><Panel title="Divide"><p style={{fontWeight:800}}>{polynomialText(dividend)}</p><p>÷</p><p style={{fontWeight:800}}>{polynomialText(divisor)}</p><p style={{color:'var(--mm-text-muted)'}}>Enter coefficient lists from highest degree downward.</p></Panel><Panel title="Your result"><label>Quotient coefficients<input value={quotient} onChange={e=>setQuotient(e.target.value)} style={inputStyle} placeholder="1, -2, -11"/></label><label style={{display:'block',marginTop:10}}>Remainder coefficients<input value={remainder} onChange={e=>setRemainder(e.target.value)} style={inputStyle} placeholder="-12"/></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check division</SubmitText></button><Feedback feedback={feedback} success="Quotient and remainder reconstruct the dividend." retry="Use leading terms first, subtract, then bring down the next term."/><HintPanel hints={['Polynomial long division works exactly like numeric long division — leading term first, then subtract.', 'After subtracting, the leading term should cancel. If it does not, the multiplication step was wrong.', 'Stop when what is left has a lower degree than the divisor; that leftover is the remainder.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
+}
+
+/*
+ * DIVIDING POLYNOMIALS WRITTEN AS TEXT: long division and synthetic division
+ * (polynomialMath.mjs longDivisionKey / syntheticDivisionKey). The student
+ * types every step the method makes — each round's term, product and line, or
+ * every number of the synthetic table — and the shared grader marks each one,
+ * so the work on the screen is the answer: a quotient and remainder copied
+ * from a solver earn only their own share. A visible verdict marks the boxes
+ * that are wrong (none on an exit ticket, where no verdict is shown), and any
+ * edit clears it.
+ */
+const wrongPartIds = (feedback) => new Set(feedback && !feedback.isCorrect
+  ? (feedback.metadata?.parts || []).filter((part) => !part.isCorrect).map((part) => part.id)
+  : []);
+const statusOf = (wrong, id) => (wrong.has(id) ? 'incorrect' : 'neutral');
+const letterKeys = (letter) => keypadKeys([{ powers: { [letter]: 1 } }]);
+const entriesOf = (coefficients) => coefficients.map((coefficient, index) => ({ coefficient, power: coefficients.length - 1 - index }));
+// A typed coefficient shown as a fraction when it is one (1/3, not 0.3333).
+const niceNumberLatex = (value) => {
+  const magnitude = Math.abs(value);
+  for (let d = 1; d <= 1000; d += 1) {
+    const n = Math.round(magnitude * d);
+    if (Math.abs(magnitude * d - n) < 1e-7) return d === 1 ? `${n}` : `\\frac{${n}}{${d}}`;
+  }
+  return String(Number(magnitude.toPrecision(6)));
+};
+// One typed term, signed, as LaTeX: −3x², +5, +\frac{1}{3}a.
+const typedTermLatex = (term, letter, first) => {
+  const power = term.powers[letter] || 0;
+  const letters = power === 0 ? '' : power === 1 ? letter : `${letter}^{${power}}`;
+  const magnitude = Math.abs(term.coefficient);
+  const number = letters && Math.abs(magnitude - 1) < 1e-12 ? '' : niceNumberLatex(magnitude);
+  const sign = term.coefficient < 0 ? '-' : first ? '' : '+';
+  return `${sign}${number}${letters}`;
+};
+// quotient + remainder / divisor, as far as the student has typed it.
+const answerLatex = (quotient, remainder, divisorLatex) => {
+  const q = String(quotient ?? '').trim();
+  const r = String(remainder ?? '').trim().replace(/[−–]/g, '-');
+  if (!q) return '';
+  if (!r || r === '0') return q;
+  const simpleNegative = r.startsWith('-') && !/[+-]/.test(r.slice(1));
+  const numerator = /^-?\d+\/\d+$/.test(r) ? `\\frac{${r.replace('-', '').split('/')[0]}}{${r.split('/')[1]}}` : (simpleNegative ? r.slice(1) : r);
+  return `${q}${simpleNegative ? '-' : '+'}\\frac{${numerator}}{${divisorLatex}}`;
+};
+
+/*
+ * The long division as it looks on paper, built live from what the student
+ * has typed: the quotient above the bracket, the dividend with a 0 holding
+ * every missing power, and each round's product (to subtract) and line, every
+ * term in its power's column. It shows the work; it grades nothing.
+ */
+function LongDivisionLayout({ divisionKey, terms, products, differences }) {
+  const { letter, dividend, divisor } = divisionKey;
+  const n = dividend.degree;
+  const columnOf = (power) => n - power + 2;
+  const powerOf = (term) => term.powers[letter] || 0;
+  // A typed line's terms, highest power first; null while it is not a line in this letter.
+  const typedTerms = (value) => {
+    const read = readWorkingLine(value);
+    if (!read || !read.length) return null;
+    if (read.some((term) => Object.keys(term.powers).some((name) => name !== letter) || powerOf(term) > n)) return null;
+    return [...read].sort((a, b) => powerOf(b) - powerOf(a));
+  };
+  const cellsOf = (list) => list.map((term, index) => ({ power: powerOf(term), latex: typedTermLatex(term, letter, index === 0) }));
+  const quotientTerms = terms.map(typedTerms).filter((list) => list && list.length === 1).map(([term]) => term);
+  const quotientCells = cellsOf([...quotientTerms].sort((a, b) => powerOf(b) - powerOf(a)));
+  const rows = [];
+  divisionKey.rounds.forEach((round, index) => {
+    const product = typedTerms(products[index]);
+    const left = typedTerms(differences[index]);
+    if (product) rows.push({ kind: 'product', cells: cellsOf(product), key: `p${index}` });
+    if (left) rows.push({ kind: 'left', cells: cellsOf(left), key: `l${index}` });
+  });
+  const lettersOf = (power) => (power === 0 ? '' : power === 1 ? letter : `${letter}^{${power}}`);
+  const dividendCells = entriesOf(dividend.coefficients).map((entry, index) => {
+    const magnitude = { n: Math.abs(entry.coefficient.n), d: entry.coefficient.d };
+    const body = entry.coefficient.n === 0 ? `0${lettersOf(entry.power)}` : exactTermLatex({ coefficient: magnitude, power: entry.power }, letter);
+    const sign = entry.coefficient.n < 0 ? '-' : index === 0 ? '' : '+';
+    return { power: entry.power, latex: `${sign}${body}` };
+  });
+  const divisorLatex = exactPolynomialLatex(entriesOf(divisor.coefficients), letter);
+  const label = `Your long division so far: ${exactPolynomialPlainText(entriesOf(dividend.coefficients), letter)} divided by ${exactPolynomialPlainText(entriesOf(divisor.coefficients), letter)}`;
+  return (
+    <div className="mm-long-division-scroll">
+      <div className="mm-long-division" role="img" aria-label={label} style={{ gridTemplateColumns: `auto repeat(${n + 1}, minmax(2.8em, auto))` }}>
+        {quotientCells.map((cell) => <span key={`q${cell.power}`} className="mm-ld-cell mm-ld-quotient" style={{ gridRow: 1, gridColumn: columnOf(cell.power) }}><MathDisplay value={cell.latex} inline /></span>)}
+        <span className="mm-ld-divisor" style={{ gridRow: 2, gridColumn: 1 }}><MathDisplay value={divisorLatex} inline /></span>
+        {dividendCells.map((cell) => <span key={`d${cell.power}`} className="mm-ld-cell mm-ld-dividend" style={{ gridRow: 2, gridColumn: columnOf(cell.power) }}><MathDisplay value={cell.latex} inline /></span>)}
+        {rows.map((row, rowIndex) => {
+          const highest = row.cells[0].power;
+          const lowest = row.cells[row.cells.length - 1].power;
+          const gridRow = rowIndex + 3;
+          return <React.Fragment key={row.key}>
+            {row.kind === 'product' ? <span aria-hidden="true" className="mm-ld-minus" style={{ gridRow, gridColumn: columnOf(highest) - 1 }}>−</span> : null}
+            {row.cells.map((cell) => <span key={`${row.key}-${cell.power}`} className={`mm-ld-cell ${row.kind === 'product' ? 'mm-ld-product' : 'mm-ld-left'}`} style={{ gridRow, gridColumn: columnOf(cell.power) }}><MathDisplay value={cell.latex} inline /></span>)}
+            {row.kind === 'product' ? <span aria-hidden="true" className="mm-ld-rule" style={{ gridRow, gridColumn: `${columnOf(highest)} / ${columnOf(lowest) + 1}` }} /> : null}
+          </React.Fragment>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function LongDivision({ questionData, feedback, submit, clearFeedback, onAction }) {
+  const key = useMemo(() => longDivisionKey(questionData), [questionData]);
+  const count = key ? key.rounds.length : 0;
+  const [terms, setTerms] = usePersistentToolState('terms', []);
+  const [products, setProducts] = usePersistentToolState('products', []);
+  const [differences, setDifferences] = usePersistentToolState('differences', []);
+  const [quotient, setQuotient] = usePersistentToolState('quotient', '');
+  const [remainder, setRemainder] = usePersistentToolState('remainder', '');
+  const at = (setter) => (index, value) => { clearFeedback(); setter((old) => listWith(count, old, index, value)); };
+  const setTerm = at(setTerms);
+  const setProduct = at(setProducts);
+  const setDifference = at(setDifferences);
+  const keys = useMemo(() => (key ? letterKeys(key.letter) : []), [key]);
+  useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],products:[products,setProducts],differences:[differences,setDifferences],quotient:[quotient,setQuotient],remainder:[remainder,setRemainder]}});
+  const work={terms,products,differences,quotient,remainder};
+  useReportToolWork(work);
+  const check=()=>{
+    const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'longDivision',parts:result.parts});
+  };
+  const wrong = wrongPartIds(feedback);
+  if (!key) return <MissingProblem title="Divide polynomials by long division." />;
+  const { letter } = key;
+  const dividendLatex = exactPolynomialLatex(entriesOf(key.dividend.coefficients), letter);
+  const divisorLatex = exactPolynomialLatex(entriesOf(key.divisor.coefficients), letter);
+  const leadLatex = exactTermLatex({ coefficient: key.divisor.coefficients[0], power: key.divisor.degree }, letter);
+  const hasGap = key.dividend.coefficients.some((coefficient) => coefficient.n === 0);
+  const preview = answerLatex(quotient, remainder, divisorLatex);
+  return <ToolShell title="Polynomial Workshop" subtitle="Long division: divide, multiply back, subtract, bring down — then repeat." badge="Algebra II · Long Division">
+    <TaskCard question={questionData} task={'Divide by long division. Each round: divide the leading terms, multiply back, subtract and bring down the next term. Then write the quotient and the remainder.'} steps={[
+      'Write the dividend in descending powers, with a 0 holding the place of any missing power.',
+      'Divide the leading term of what is left by the divisor’s leading term. That is the next term of the quotient.',
+      'Multiply that term by the whole divisor, subtract the product, and bring down the next term.',
+      'Stop when what is left has a lower degree than the divisor: that is the remainder.',
+    ]} />
+    <Panel title="Long division">
+      <div className="mm-division-problem"><MathDisplay value={`\\left(${dividendLatex}\\right)\\div\\left(${divisorLatex}\\right)`} /></div>
+      {hasGap ? <p style={{margin:'0 0 8px',color:'var(--mm-text-muted)'}}>A 0 holds the place of each missing power, as on paper.</p> : null}
+      <LongDivisionLayout divisionKey={key} terms={terms} products={products} differences={differences} />
+    </Panel>
+    <div className="mm-division-rounds">
+      {key.rounds.map((round, index) => {
+        const name = `Round ${index + 1}`;
+        return <div key={name} role="group" aria-label={name} className="mm-division-round">
+          <strong>{name}</strong>
+          <label className="mm-division-step"><span>Divide: the leading term of {index === 0 ? 'the dividend' : 'the last line'} ÷ <MathDisplay value={leadLatex} inline /></span>
+            <MathInput value={entryAt(terms, index)} onChange={(value) => setTerm(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="next quotient term" ariaLabel={`${name}: divide the leading terms`} inputStatus={statusOf(wrong, `round-${index + 1}-term`)} /></label>
+          <label className="mm-division-step"><span>Multiply back: that term times <MathDisplay value={`\\left(${divisorLatex}\\right)`} inline /></span>
+            <MathInput value={entryAt(products, index)} onChange={(value) => setProduct(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={320} placeholder="product" ariaLabel={`${name}: multiply back`} inputStatus={statusOf(wrong, `round-${index + 1}-product`)} /></label>
+          <label className="mm-division-step"><span>{index === count - 1 ? 'Subtract (bring down anything still left)' : 'Subtract, then bring down the next term'}</span>
+            <MathInput value={entryAt(differences, index)} onChange={(value) => setDifference(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={320} placeholder="what is left" ariaLabel={`${name}: subtract and bring down`} inputStatus={statusOf(wrong, `round-${index + 1}-difference`)} /></label>
+        </div>;
+      })}
+    </div>
+    <Panel title="Quotient and remainder">
+      <div style={{display:'grid',gap:10}}>
+        <label style={{display:'grid',gap:4,fontWeight:700}}>Quotient (simplest form)<MathInput value={quotient} onChange={(value) => { clearFeedback(); setQuotient(value); }} toolProfile="expression" extraKeys={keys} maxWidth={420} placeholder="quotient" ariaLabel="Quotient in simplest form" inputStatus={statusOf(wrong, 'quotient')} /></label>
+        <label style={{display:'grid',gap:4,fontWeight:700}}>Remainder (0 if it divides evenly)<MathInput value={remainder} onChange={(value) => { clearFeedback(); setRemainder(value); }} toolProfile="expression" extraKeys={keys} maxWidth={320} placeholder="remainder" ariaLabel="Remainder in simplest form" inputStatus={statusOf(wrong, 'remainder')} /></label>
+        {preview ? <div className="mm-division-answer"><span>Your answer:</span> <MathDisplay value={preview} inline /></div> : null}
+      </div>
+      <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my division</SubmitText></button>
+      <Feedback feedback={feedback} success="Every round, the quotient and the remainder are right." retry="The boxes marked in red are not right yet. Start with the first one: every later step depends on it."/>
+      <HintPanel hints={[
+        'Each round only looks at the leading terms: what is left’s first term ÷ the divisor’s first term gives the next quotient term.',
+        'Multiply that term by EVERY term of the divisor, then subtract the whole product — subtracting a negative term adds.',
+        'After subtracting, the leading term must cancel. If it does not, the quotient term or the product is off.',
+      ]} onHintUsed={() => onAction?.("HINT_USED")} />
+    </Panel>
+  </ToolShell>;
+}
+
+function SyntheticDivision({ questionData, feedback, submit, clearFeedback, onAction }) {
+  const key = useMemo(() => syntheticDivisionKey(questionData), [questionData]);
+  const columns = key ? key.coefficients.length : 0;
+  const [r, setR] = usePersistentToolState('r', '');
+  const [coefficients, setCoefficients] = usePersistentToolState('coefficients', []);
+  const [products, setProducts] = usePersistentToolState('products', []);
+  const [sums, setSums] = usePersistentToolState('sums', []);
+  const [quotient, setQuotient] = usePersistentToolState('quotient', '');
+  const [remainder, setRemainder] = usePersistentToolState('remainder', '');
+  const at = (setter, length) => (index, value) => { clearFeedback(); setter((old) => listWith(length, old, index, value)); };
+  const setCoefficient = at(setCoefficients, columns);
+  const setProduct = at(setProducts, Math.max(0, columns - 1));
+  const setSum = at(setSums, columns);
+  const keys = useMemo(() => (key ? letterKeys(key.letter) : []), [key]);
+  useFieldUndoHistory({questionData,fields:{r:[r,setR],coefficients:[coefficients,setCoefficients],products:[products,setProducts],sums:[sums,setSums],quotient:[quotient,setQuotient],remainder:[remainder,setRemainder]}});
+  const scaled = Boolean(key?.scaled);
+  // A divisor ax + b with a = 1 has no separate remainder box: the table's
+  // last number is the remainder.
+  const work = scaled ? {r,coefficients,products,sums,quotient,remainder} : {r,coefficients,products,sums,quotient};
+  useReportToolWork(work);
+  const check=()=>{
+    const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'syntheticDivision',parts:result.parts});
+  };
+  const wrong = wrongPartIds(feedback);
+  if (!key) return <MissingProblem title="Divide polynomials by synthetic division." />;
+  const { letter } = key;
+  const n = key.dividend.degree;
+  const dividendLatex = exactPolynomialLatex(entriesOf(key.dividend.coefficients), letter);
+  const divisorLatex = exactPolynomialLatex(entriesOf(key.divisor.coefficients), letter);
+  const leading = key.leading;
+  const reducedDivisor = `${letter} - r`;
+  const lastSum = entryAt(sums, n);
+  const preview = scaled
+    ? answerLatex(quotient, remainder, divisorLatex)
+    : answerLatex(quotient, lastSum, divisorLatex);
+  const cell = (id, value, onChange, label, extra = {}) => <input
+    type="text" inputMode="text" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+    className={`mm-synthetic-input${wrong.has(id) ? ' mm-synthetic-wrong' : ''}`}
+    value={value ?? ''} onChange={(event) => onChange(event.target.value)}
+    aria-label={label} aria-invalid={wrong.has(id) || undefined} {...extra} />;
+  return <ToolShell title="Polynomial Workshop" subtitle="Synthetic division: bring down, multiply by r, add — column by column." badge="Algebra II · Synthetic Division">
+    <TaskCard question={questionData} task={'Divide by synthetic division. Fill in r and every number of the table, then write the quotient.'} steps={[
+      scaled ? 'The divisor’s leading coefficient is not 1, so first divide the dividend and the divisor by it. Then the divisor is x − r.' : 'Write the divisor as x − r to find r: x + 3 is x − (−3), so r = −3.',
+      'Write the dividend’s coefficients in descending powers, with a 0 for every missing power.',
+      'Bring down the first coefficient. Multiply it by r, write the product under the next coefficient, and add. Repeat to the last column.',
+      'The bottom row (except the last number) gives the quotient, one degree lower than the dividend. The last number is the remainder.',
+    ]} />
+    <Panel title="Synthetic division">
+      <div className="mm-division-problem"><MathDisplay value={`\\left(${dividendLatex}\\right)\\div\\left(${divisorLatex}\\right)`} /></div>
+      {scaled ? <p style={{margin:'0 0 8px'}}>The leading coefficient of <MathDisplay value={divisorLatex} inline /> is <MathDisplay value={ratioLatex(leading)} inline />: divide every coefficient of the dividend by <MathDisplay value={ratioLatex(leading)} inline /> before it goes in the table, and write the divisor as <MathDisplay value={reducedDivisor} inline />.</p> : null}
+      <div className="mm-synthetic-scroll">
+        <div className="mm-synthetic" role="group" aria-label="Synthetic division table" style={{gridTemplateColumns:`minmax(var(--mm-synthetic-column), auto) repeat(${columns}, minmax(var(--mm-synthetic-column), 1fr))`}}>
+          <span aria-hidden="true" className="mm-synthetic-head" style={{gridRow:1,gridColumn:1}}>r</span>
+          {key.coefficients.map((_, index) => <span key={`h${index}`} aria-hidden="true" className="mm-synthetic-head" style={{gridRow:1,gridColumn:index + 2}}><MathDisplay value={n - index === 0 ? '1' : n - index === 1 ? letter : `${letter}^{${n - index}}`} inline /></span>)}
+          <span aria-hidden="true" className="mm-synthetic-bar" style={{gridRow:'2 / 5',gridColumn:1}} />
+          <span className="mm-synthetic-r" style={{gridRow:2,gridColumn:1}}>{cell('r', r, (value) => { clearFeedback(); setR(value); }, `r: the divisor is ${letter} minus r`)}</span>
+          {key.coefficients.map((_, index) => <span key={`c${index}`} className="mm-synthetic-top" style={{gridRow:2,gridColumn:index + 2}}>{cell(`coefficient-${index + 1}`, entryAt(coefficients, index), (value) => setCoefficient(index, value), `Coefficient row, column ${index + 1}: ${powerName(n - index, letter)}`)}</span>)}
+          {key.products.map((_, index) => <span key={`p${index}`} className="mm-synthetic-middle" style={{gridRow:3,gridColumn:index + 3}}>{cell(`product-${index + 2}`, entryAt(products, index), (value) => setProduct(index, value), `Products row, column ${index + 2}`)}</span>)}
+          {key.bottom.map((_, index) => <span key={`s${index}`} className={`mm-synthetic-bottom${index === n ? ' mm-synthetic-remainder' : ''}`} style={{gridRow:4,gridColumn:index + 2}}>{cell(`sum-${index + 1}`, entryAt(sums, index), (value) => setSum(index, value), index === 0 ? 'Bottom row, column 1: bring down' : index === n ? `Bottom row, column ${index + 1}: the remainder` : `Bottom row, column ${index + 1}`)}</span>)}
+        </div>
+      </div>
+      <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)'}}>Top row: the coefficients. Middle row: r times the number below the line in the column before. Bottom row: each column added. The boxed number is the remainder.</p>
+    </Panel>
+    <Panel title="Read the answer">
+      <div style={{display:'grid',gap:10}}>
+        <label style={{display:'grid',gap:4,fontWeight:700}}>Quotient (simplest form, one degree lower)<MathInput value={quotient} onChange={(value) => { clearFeedback(); setQuotient(value); }} toolProfile="expression" extraKeys={keys} maxWidth={420} placeholder="quotient" ariaLabel="Quotient in simplest form" inputStatus={statusOf(wrong, 'quotient')} /></label>
+        {scaled ? <label style={{display:'grid',gap:4,fontWeight:700}}><span>Remainder over the divisor <MathDisplay value={divisorLatex} inline /> (the table’s remainder is over <MathDisplay value={reducedDivisor} inline />)</span><input type="text" inputMode="text" autoComplete="off" spellCheck={false} className={`mm-synthetic-input mm-synthetic-wide${wrong.has('remainder') ? ' mm-synthetic-wrong' : ''}`} value={remainder} onChange={(event) => { clearFeedback(); setRemainder(event.target.value); }} aria-label={`Remainder over the divisor ${exactPolynomialPlainText(entriesOf(key.divisor.coefficients), letter)}`} aria-invalid={wrong.has('remainder') || undefined} /></label> : null}
+        {preview ? <div className="mm-division-answer"><span>Your answer:</span> <MathDisplay value={preview} inline /></div> : null}
+      </div>
+      <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my division</SubmitText></button>
+      <Feedback feedback={feedback} success="r, every number in the table and the quotient are right." retry="The boxes marked in red are not right yet. Start with the first one: every later column depends on it."/>
+      <HintPanel hints={[
+        'Synthetic division needs the divisor in the form x − r: the number in the corner is the value that makes the divisor 0.',
+        'Every power of the dividend gets a column, from the highest down to the constant. A missing power still gets its column, with a 0 in it.',
+        'Each column: multiply the bottom number on the left by r, write it under the next coefficient, and add down. The last sum is the remainder.',
+      ]} onHintUsed={() => onAction?.("HINT_USED")} />
+    </Panel>
+  </ToolShell>;
 }
 
 function GraphConnection({ questionData, feedback, submit, onAction }) {

@@ -73,6 +73,16 @@ import {
   polynomialTermsPlainText,
   termLatex,
   termPlainText,
+  divisionKeyWork,
+  exactPolynomialLatex,
+  exactPolynomialPlainText,
+  exactTermLatex,
+  exactTermPlainText,
+  longDivisionKey,
+  placeholderPolynomialLatex,
+  ratioLatex,
+  ratioPlainText,
+  syntheticDivisionKey,
 } from '../../../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 export const implemented = true;
@@ -582,6 +592,135 @@ const buildDivision = (question) => {
 };
 
 /* ------------------------------------------------------------------ */
+/* longDivision and syntheticDivision (polynomials written as text)     */
+/* ------------------------------------------------------------------ */
+
+// Exact coefficients (highest power first) as terms with their powers.
+const exactEntries = (coefficients) => coefficients.map((coefficient, index) => ({ coefficient, power: coefficients.length - 1 - index }));
+// A term or number after an operator: a negative one in parentheses.
+const exactOperand = (latex) => (latex.startsWith('-') ? `(${latex})` : latex);
+// quotient + remainder / divisor, a negative remainder written with a minus.
+const quotientPlusRemainder = (quotientLatex, remainderEntries, letter, divisorLatex) => {
+  const shown = remainderEntries.filter((entry) => entry.coefficient.n !== 0);
+  if (!shown.length) return quotientLatex;
+  if (shown.length === 1 && shown[0].coefficient.n < 0) {
+    return `${quotientLatex} - \\frac{${exactPolynomialLatex([{ ...shown[0], coefficient: { n: -shown[0].coefficient.n, d: shown[0].coefficient.d } }], letter)}}{${divisorLatex}}`;
+  }
+  return `${quotientLatex} + \\frac{${exactPolynomialLatex(shown, letter)}}{${divisorLatex}}`;
+};
+
+// A line of long division as it stands on paper: from its first nonzero term
+// down, a 0 holding the place of any power in between ("x^{3}+0x^{2}").
+const paperLineLatex = (entries, letter, { signed = false } = {}) => {
+  const first = signed ? 0 : entries.findIndex((entry) => entry.coefficient.n !== 0);
+  if (first < 0) return '0';
+  return entries.slice(first).map((entry, index) => {
+    const letters = entry.power === 0 ? '' : entry.power === 1 ? letter : `${letter}^{${entry.power}}`;
+    const magnitude = { n: Math.abs(entry.coefficient.n), d: entry.coefficient.d };
+    const body = entry.coefficient.n === 0 ? `0${letters}` : exactTermLatex({ coefficient: magnitude, power: entry.power }, letter);
+    if (index === 0 && !signed) return `${entry.coefficient.n < 0 ? '-' : ''}${body}`;
+    return `${entry.coefficient.n < 0 ? '-' : '+'}${body}`;
+  }).join('');
+};
+
+const buildLongDivision = (question) => {
+  const key = longDivisionKey(question);
+  if (!key || key.rounds.length + 2 > MAX_STEPS) return null;
+  const { letter } = key;
+  const N = exactPolynomialLatex(exactEntries(key.dividend.coefficients), letter);
+  const D = exactPolynomialLatex(exactEntries(key.divisor.coefficients), letter);
+  const lead = exactTermLatex({ coefficient: key.divisor.coefficients[0], power: key.divisor.degree }, letter);
+  const Q = exactPolynomialLatex(key.quotient, letter);
+  const R = exactPolynomialLatex(key.remainder, letter);
+  const missing = key.dividend.coefficients.some((coefficient) => coefficient.n === 0);
+  const steps = [missing
+    ? `Write the dividend with a 0 holding each missing power, $${placeholderPolynomialLatex(key.dividend.coefficients, letter)}$, and divide by $${D}$ from the highest power down: each round divides the leading terms, multiplies back, subtracts and brings down the next term.`
+    : `Divide $${N}$ by $${D}$ from the highest power down: each round divides the leading terms, multiplies back, subtracts and brings down the next term.`];
+  key.rounds.forEach((round, index) => {
+    const leading = exactTermLatex(round.top[0], letter);
+    const term = exactTermLatex(round.term, letter);
+    const product = exactPolynomialLatex(round.product, letter);
+    const top = paperLineLatex(round.top, letter);
+    const subtracted = paperLineLatex(round.left.filter((entry) => entry.power > round.power - key.divisor.degree - 1), letter);
+    const factor = term === '1' ? '' : term === '-1' ? '-' : exactOperand(term);
+    const broughtDown = round.broughtDown ? ` Bring down $${paperLineLatex([round.broughtDown], letter, { signed: true })}$: $${paperLineLatex(round.left.filter((entry) => entry.power >= round.lowestBroughtDown), letter)}$.` : '';
+    steps.push(`Round ${index + 1}: $${leading} \\div ${exactOperand(lead)} = ${term}$. Multiply back: $${factor}(${D}) = ${product}$. Subtract: $(${top}) - (${product}) = ${subtracted}$.${broughtDown}`);
+  });
+  const exact = key.remainder.every((entry) => entry.coefficient.n === 0);
+  steps.push(exact
+    ? `Nothing is left, so the remainder is 0 and $${D}$ divides evenly: the quotient is $${Q}$.`
+    : `What is left, $${R}$, has a lower degree than the divisor, so it is the remainder: $\\frac{${N}}{${D}} = ${quotientPlusRemainder(Q, key.remainder, letter, D)}$.`);
+  const items = [
+    ...key.rounds.flatMap((round, index) => [
+      { label: `Round ${index + 1}: divide`, value: exactTermPlainText(round.term, letter) },
+      { label: `Round ${index + 1}: multiply back`, value: exactPolynomialPlainText(round.product, letter) },
+      { label: `Round ${index + 1}: subtract and bring down`, value: exactPolynomialPlainText(round.left.filter((entry) => entry.power >= round.lowestBroughtDown), letter) },
+    ]),
+    { label: 'Quotient', value: exactPolynomialPlainText(key.quotient, letter) },
+    { label: 'Remainder', value: exactPolynomialPlainText(key.remainder, letter) },
+  ];
+  let why = exact
+    ? `Check: divisor × quotient gives back the dividend, $(${D})(${Q}) = ${N}$.`
+    : `Check: divisor × quotient + remainder gives back the dividend, $(${D})(${Q}) + ${exactOperand(R.includes('+') || R.slice(1).includes('-') ? `(${R})` : R)} = ${N}$.`;
+  if (key.divisor.degree === 1) {
+    const zero = { n: -key.divisor.coefficients[1].n * key.divisor.coefficients[0].d, d: key.divisor.coefficients[1].d * key.divisor.coefficients[0].n };
+    const sign = zero.d < 0 ? -1 : 1;
+    const shownZero = { n: sign * zero.n, d: sign * zero.d };
+    why += ` The divisor is 0 at $${letter} = ${simplestRatioLatex(shownZero)}$, and the remainder is the dividend's value there (the Remainder Theorem).`;
+  }
+  return { title: 'Long-division solution', items, steps, why, note: null, work: divisionKeyWork(question) };
+};
+
+// A fraction { n, d } in lowest terms, as LaTeX.
+const simplestRatioLatex = ({ n, d }) => {
+  const divisor = wholeGcd(Math.abs(n), Math.abs(d)) || 1;
+  return ratioLatex({ n: n / divisor, d: d / divisor });
+};
+
+const buildSyntheticDivision = (question) => {
+  const key = syntheticDivisionKey(question);
+  if (!key) return null;
+  const { letter } = key;
+  const n = key.dividend.degree;
+  const N = exactPolynomialLatex(exactEntries(key.dividend.coefficients), letter);
+  const D = exactPolynomialLatex(exactEntries(key.divisor.coefficients), letter);
+  const r = ratioLatex(key.r);
+  const reduced = exactPolynomialLatex([{ coefficient: { n: 1, d: 1 }, power: 1 }, { coefficient: { n: -key.r.n, d: key.r.d }, power: 0 }], letter);
+  const steps = [];
+  if (key.scaled) {
+    steps.push(`The divisor's leading coefficient is ${ratioPlainText(key.leading)}, so divide the dividend and the divisor by ${ratioPlainText(key.leading)} first: the dividend becomes $${exactPolynomialLatex(exactEntries(key.coefficients), letter)}$ and the divisor $${reduced}$, so $r = ${r}$.`);
+  } else if (key.r.n < 0) {
+    steps.push(`Write the divisor as $${letter} - r$: $${D} = ${letter} - ${exactOperand(r)}$, so $r = ${r}$.`);
+  } else {
+    steps.push(`The divisor $${D}$ is $${letter} - r$ with $r = ${r}$.`);
+  }
+  steps.push(`Write the coefficients in descending powers, a 0 for each missing power: ${key.coefficients.map((value) => `$${ratioLatex(value)}$`).join(', ')}.`);
+  steps.push(`Bring down the first coefficient, $${ratioLatex(key.bottom[0])}$.`);
+  key.products.forEach((product, index) => {
+    steps.push(`Column ${index + 2}: multiply $${exactOperand(r)} \\cdot ${exactOperand(ratioLatex(key.bottom[index]))} = ${ratioLatex(product)}$ and add: $${ratioLatex(key.coefficients[index + 1])} + ${exactOperand(ratioLatex(product))} = ${ratioLatex(key.bottom[index + 1])}$.`);
+  });
+  const Q = exactPolynomialLatex(key.quotient, letter);
+  const bottomQuotient = key.bottom.slice(0, n).map((value) => `$${ratioLatex(value)}$`).join(', ');
+  steps.push(`The bottom row ${bottomQuotient} is the quotient, one degree lower than the dividend: $${Q}$. The last number, $${ratioLatex(key.remainder)}$, is the remainder${key.scaled ? ` over $${reduced}$` : ''}.`);
+  if (key.scaled) {
+    steps.push(`Over the original divisor: $\\frac{${ratioLatex(key.remainder)}}{${reduced}} = \\frac{${ratioLatex(key.remainderOverDivisor)}}{${D}}$ (multiply the top and bottom by ${ratioPlainText(key.leading)}), so $\\frac{${N}}{${D}} = ${quotientPlusRemainder(Q, [{ coefficient: key.remainderOverDivisor, power: 0 }], letter, D)}$.`);
+  } else {
+    steps.push(`So $\\frac{${N}}{${D}} = ${quotientPlusRemainder(Q, [{ coefficient: key.remainder, power: 0 }], letter, D)}$.`);
+  }
+  if (steps.length > MAX_STEPS) return null;
+  const items = [
+    { label: 'r', value: ratioPlainText(key.r) },
+    { label: 'Coefficient row', value: key.coefficients.map(ratioPlainText).join(', ') },
+    { label: 'Products row', value: key.products.map(ratioPlainText).join(', ') },
+    { label: 'Bottom row', value: key.bottom.map(ratioPlainText).join(', ') },
+    { label: 'Quotient', value: exactPolynomialPlainText(key.quotient, letter) },
+    ...(key.scaled ? [{ label: `Remainder over ${exactPolynomialPlainText(exactEntries(key.divisor.coefficients), letter)}`, value: ratioPlainText(key.remainderOverDivisor) }] : []),
+  ];
+  const why = `Check with the Remainder Theorem: the dividend's value at $${letter} = ${r}$ is $${ratioLatex(key.remainderOverDivisor)}$${key.scaled ? `, ${ratioPlainText(key.leading)} times the table's last number` : ', the table\'s last number'} — the remainder of dividing by $${D}$.`;
+  return { title: 'Synthetic-division solution', items, steps, why, note: null, work: divisionKeyWork(question) };
+};
+
+/* ------------------------------------------------------------------ */
 /* graphConnection                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -817,6 +956,8 @@ const BUILDERS = Object.freeze({
   addSubtract: buildAddSubtract,
   factorQuadratic: buildFactorQuadratic,
   division: buildDivision,
+  longDivision: buildLongDivision,
+  syntheticDivision: buildSyntheticDivision,
   graphConnection: buildGraphConnection,
   rationalFeatures: buildRationalFeatures,
 });

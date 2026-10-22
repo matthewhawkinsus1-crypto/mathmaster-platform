@@ -130,6 +130,14 @@ const work = (kind, label, count = 1) => {
 // opens a term, not one in an exponent or after a bracket. A count for the
 // workload, never a reading of the mathematics.
 const writtenTermCount = (value) => String(value ?? '').trim().replace(/^[+-]/, '').split(/(?<=[^^(*/])[+-]/).length;
+// The degree of a one-letter polynomial written as text ("x^3-4x+2" is 3): its
+// largest exponent, 1 for a bare letter, 0 for a number. A count for the
+// workload, never a reading of the mathematics.
+const writtenDegree = (value) => {
+  const text = String(value ?? '');
+  const exponents = [...text.matchAll(/[a-z]\^\{?(\d+)/gi)].map((match) => Number(match[1]));
+  return Math.max(/[a-z]/i.test(text) ? 1 : 0, ...exponents);
+};
 
 const select = (label, count = 1) => work(WORK_KIND.SELECT, label, count);
 const respond = (label, count = 1) => work(WORK_KIND.RESPOND, label, count);
@@ -583,6 +591,14 @@ const SURFACE_WORK = Object.freeze({
     if (mode === 'addSubtract') return [...respond(question?.operation === 'subtract' ? 'Opposite and combined terms' : 'Combined terms', 2), ...respond('Result')];
     if (mode === 'factorQuadratic') return respond('Factor', 2);
     if (mode === 'division') return respond('Quotient and remainder', 2);
+    // Long division: three typed steps a round, a round per degree the
+    // quotient can have; synthetic division: the table, about four columns a
+    // unit of construction. Then the answer.
+    if (mode === 'longDivision') {
+      const rounds = Math.max(1, writtenDegree(question?.dividend) - writtenDegree(question?.divisor) + 1);
+      return [...construct('Long division rounds', Math.ceil(rounds / 2)), ...respond('Quotient and remainder', 2)];
+    }
+    if (mode === 'syntheticDivision') return [...construct('Synthetic division table', Math.max(1, Math.ceil((writtenDegree(question?.dividend) + 1) / 4))), ...respond('Quotient')];
     if (mode === 'graphConnection') return select('Graph feature', 2);
     return select('Feature');
   },

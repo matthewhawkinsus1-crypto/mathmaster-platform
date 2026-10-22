@@ -44,3 +44,206 @@
     font-size: calc(18 * var(--mm-px));
   }
 }
+
+/*
+ * Long division and synthetic division (PolynomialWorkshop.jsx LongDivision,
+ * SyntheticDivision).
+ *
+ * Long division: a card per round (divide, multiply back, subtract), and above
+ * them the division as it looks on paper, built from what the student typed —
+ * every term in its power's column. Synthetic division: the table itself is
+ * the answer form — r in the corner, the coefficient row, the products row and
+ * the bottom row under its line, the remainder boxed. Either one wider than
+ * its panel scrolls inside its own box; nothing squeezes a box below a width a
+ * phone can type in.
+ */
+.mm-division-rounds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.mm-division-round {
+  border: 1px solid var(--mm-tint-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  background: var(--mm-surface);
+}
+
+.mm-division-step {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.mm-division-answer {
+  font-size: calc(18 * var(--mm-px));
+  font-weight: 700;
+  contain: inline-size;
+  overflow-x: auto;
+}
+
+/* The problem itself, (dividend) ÷ (divisor): display math does not wrap, so a
+   long one scrolls in its own box on a phone. */
+.mm-division-problem {
+  font-size: calc(20 * var(--mm-px));
+  font-weight: 800;
+  margin-bottom: 8px;
+  contain: inline-size;
+  overflow-x: auto;
+}
+
+/* Inline-size containment: the box takes the width it is given and scrolls
+   what does not fit, instead of widening every box around it (and the page)
+   to the table's own width. */
+.mm-long-division-scroll,
+.mm-synthetic-scroll {
+  contain: inline-size;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.mm-long-division {
+  display: inline-grid;
+  column-gap: 0;
+  row-gap: 4px;
+  align-items: end;
+  font-size: calc(19 * var(--mm-px));
+  padding: 4px 4px 8px;
+}
+
+.mm-ld-cell {
+  padding: 2px 6px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mm-ld-quotient {
+  color: var(--mm-primary-text);
+  font-weight: 800;
+}
+
+.mm-ld-divisor {
+  padding: 2px 8px 2px 4px;
+  border-right: 2px solid currentColor;
+  white-space: nowrap;
+}
+
+.mm-ld-dividend {
+  border-top: 2px solid currentColor;
+}
+
+.mm-ld-product {
+  color: var(--mm-text-muted);
+}
+
+.mm-ld-minus {
+  text-align: right;
+  padding: 2px 0 2px 6px;
+  color: var(--mm-text-muted);
+  font-weight: 800;
+}
+
+.mm-ld-rule {
+  align-self: end;
+  border-bottom: 2px solid currentColor;
+  pointer-events: none;
+}
+
+.mm-synthetic {
+  --mm-synthetic-column: 3.6em;
+  display: inline-grid;
+  column-gap: 0;
+  row-gap: 6px;
+  align-items: center;
+  position: relative;
+}
+
+.mm-synthetic-head {
+  text-align: center;
+  font-size: calc(14 * var(--mm-px));
+  color: var(--mm-text-muted);
+  padding: 0 4px;
+}
+
+.mm-synthetic-bar {
+  align-self: stretch;
+  border-right: 2px solid currentColor;
+  pointer-events: none;
+}
+
+.mm-synthetic-r,
+.mm-synthetic-top,
+.mm-synthetic-middle,
+.mm-synthetic-bottom {
+  padding: 0 4px;
+}
+
+.mm-synthetic-r {
+  padding-right: 8px;
+}
+
+.mm-synthetic-bottom {
+  border-top: 2px solid currentColor;
+  padding-top: 6px;
+}
+
+.mm-synthetic-input {
+  width: 100%;
+  min-width: 3.2em;
+  max-width: 6em;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  border: 1px solid var(--mm-tint-border);
+  border-radius: 8px;
+  text-align: center;
+  font-size: calc(18 * var(--mm-px));
+  background: var(--mm-surface);
+  color: var(--mm-text-strong);
+}
+
+.mm-synthetic-wide {
+  max-width: 10em;
+  justify-self: center;
+}
+
+.mm-synthetic-remainder .mm-synthetic-input {
+  border: 2px solid currentColor;
+}
+
+.mm-synthetic-wrong,
+.mm-synthetic-remainder .mm-synthetic-wrong {
+  border-color: var(--mm-error-border);
+  background: var(--mm-error-subtle);
+}
+
+@media (max-width: 560px) {
+  .mm-long-division {
+    font-size: calc(16 * var(--mm-px));
+  }
+
+  .mm-ld-cell {
+    padding: 2px 3px;
+  }
+
+  .mm-synthetic {
+    --mm-synthetic-column: 2.9em;
+  }
+
+  .mm-synthetic-r,
+  .mm-synthetic-top,
+  .mm-synthetic-middle,
+  .mm-synthetic-bottom {
+    padding: 0 2px;
+  }
+
+  .mm-synthetic-input {
+    min-width: 2.6em;
+    padding: 8px 2px;
+    font-size: calc(16 * var(--mm-px));
+  }
+}

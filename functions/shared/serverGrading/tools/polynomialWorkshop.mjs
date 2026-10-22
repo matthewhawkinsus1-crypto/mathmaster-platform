@@ -57,6 +57,14 @@ import {
   termPlainText,
   typedPolynomialMatches,
   typedTermMatches,
+  broughtDownLineMatches,
+  exactPolynomialPlainText,
+  gradedTerms,
+  longDivisionKey,
+  powerName,
+  ratioValue,
+  syntheticDivisionKey,
+  workingLineMatches,
 } from '../../toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 // A typed box holds a string (a number reads the same way). Any other type is
@@ -276,6 +284,96 @@ const division = (question, work) => withKey(
   }),
 );
 
+/*
+ * LONG DIVISION, written as text (`dividend`, `divisor`; polynomialMath.mjs
+ * longDivisionKey). Work:
+ *   { terms: [one typed term per round], products: [one per round],
+ *     differences: [one per round], quotient, remainder }
+ *   terms        the round's quotient term: the leading term of what is left
+ *                divided by the divisor's leading term, as ONE term.
+ *   products     that term times the divisor, multiplied out.
+ *   differences  what is left after subtracting the product, with the next
+ *                term brought down (or more of them: any line from one term
+ *                brought down to all of them is the same division).
+ *   quotient, remainder   in simplest form; a remainder of 0 is a typed 0.
+ * A 0 holding a power's place is allowed in a working line (2x² + 0x), never
+ * in the answer. Every box is a part: the quotient and remainder typed from a
+ * solver earn 2 of the 3·rounds + 2 parts.
+ */
+const workingPart = (id, label, value, isCorrect) => ({
+  id,
+  label,
+  isComplete: filled(value),
+  isCorrect: filled(value) && isCorrect(entry(value)),
+  response: entry(value),
+});
+
+const longDivision = (question, work) => withKey(
+  () => unrenderable(longDivisionKey(question)),
+  (key) => {
+    const terms = Array.isArray(work.terms) ? work.terms : [];
+    const products = Array.isArray(work.products) ? work.products : [];
+    const differences = Array.isArray(work.differences) ? work.differences : [];
+    const { letter } = key;
+    return gradedResult({
+      parts: [
+        ...key.rounds.flatMap((round, index) => {
+          const name = `Round ${index + 1}`;
+          const [term] = gradedTerms([round.term], letter);
+          return [
+            termPart(`round-${index + 1}-term`, `${name}: divide the leading terms`, terms[index], term),
+            workingPart(`round-${index + 1}-product`, `${name}: multiply back`, products[index], (value) => workingLineMatches(value, gradedTerms(round.product, letter))),
+            workingPart(`round-${index + 1}-difference`, `${name}: subtract and bring down`, differences[index], (value) => broughtDownLineMatches(value, round.left, round.lowestBroughtDown, letter)),
+          ];
+        }),
+        polynomialPart('quotient', 'Quotient in simplest form', work.quotient, gradedTerms(key.quotient, letter)),
+        polynomialPart('remainder', 'Remainder in simplest form', work.remainder, gradedTerms(key.remainder, letter)),
+      ],
+    });
+  },
+);
+
+/*
+ * SYNTHETIC DIVISION, written as text: a divisor ax + b
+ * (polynomialMath.mjs syntheticDivisionKey). Work:
+ *   { r, coefficients: [one per column], products: [one per column after the
+ *     first], sums: [one per column], quotient, remainder }
+ *   r             the number in the corner: the divisor is x − r (after
+ *                 dividing through by a when a ≠ 1).
+ *   coefficients  the dividend's, highest power first, a 0 for every missing
+ *                 power (divided by a when a ≠ 1).
+ *   products      r times the bottom number of the column before.
+ *   sums          the bottom row: the first coefficient brought down, then
+ *                 each column added; the last is the remainder.
+ *   quotient      in simplest form, one degree lower than the dividend.
+ *   remainder     only when a ≠ 1: the remainder over the ORIGINAL divisor
+ *                 (a times the last bottom number) — when a = 1 the last
+ *                 bottom number already is it.
+ * Numbers are read as the workshop reads every number (fractions, the U+2212
+ * minus; within 0.01).
+ */
+const syntheticDivision = (question, work) => withKey(
+  () => unrenderable(syntheticDivisionKey(question)),
+  (key) => {
+    const coefficients = Array.isArray(work.coefficients) ? work.coefficients : [];
+    const products = Array.isArray(work.products) ? work.products : [];
+    const sums = Array.isArray(work.sums) ? work.sums : [];
+    const { letter } = key;
+    const n = key.dividend.degree;
+    const divisorText = exactPolynomialPlainText(key.divisor.coefficients.map((coefficient, index) => ({ coefficient, power: 1 - index })), letter);
+    return gradedResult({
+      parts: [
+        numberPart('r', key.scaled ? `r (divide by ${ratioValue(key.leading)} first; then the divisor is ${letter} − r)` : `r (the divisor is ${letter} − r)`, work.r, ratioValue(key.r)),
+        ...key.coefficients.map((coefficient, index) => numberPart(`coefficient-${index + 1}`, `Coefficient row, column ${index + 1} (${powerName(n - index, letter)})`, coefficients[index], ratioValue(coefficient))),
+        ...key.products.map((product, index) => numberPart(`product-${index + 2}`, `Multiply r into column ${index + 2}`, products[index], ratioValue(product))),
+        ...key.bottom.map((sum, index) => numberPart(`sum-${index + 1}`, index === 0 ? 'Bottom row, column 1: bring down' : index === n ? `Bottom row, column ${index + 1}: the remainder` : `Bottom row, column ${index + 1}: add`, sums[index], ratioValue(sum))),
+        polynomialPart('quotient', 'Quotient in simplest form', work.quotient, gradedTerms(key.quotient, letter)),
+        ...(key.scaled ? [numberPart('remainder', `Remainder over the divisor ${divisorText}`, work.remainder, ratioValue(key.remainderOverDivisor))] : []),
+      ],
+    });
+  },
+);
+
 const graphConnection = (question, work) => withKey(
   () => {
     const roots = question.roots || DEFAULTS.graphConnection.roots;
@@ -310,6 +408,8 @@ export default bindToolGrader(declaration, 'polynomialWorkshop', {
   addSubtract,
   factorQuadratic,
   division,
+  longDivision,
+  syntheticDivision,
   graphConnection,
   rationalFeatures,
 });

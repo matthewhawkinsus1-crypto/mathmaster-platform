@@ -14,7 +14,7 @@ import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 // The views PolynomialWorkshop.jsx routes to by exact `mode` match; anything
 // else (missing, unknown, mis-cased, padded, not a string) renders FactorZero.
-const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'addSubtract', 'factorQuadratic', 'division', 'graphConnection', 'rationalFeatures']);
+const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'addSubtract', 'factorQuadratic', 'division', 'longDivision', 'syntheticDivision', 'graphConnection', 'rationalFeatures']);
 
 export default declareTool({
   // Work shape v1 — per mode, exactly the state the workshop's inputs hold:
@@ -27,6 +27,12 @@ export default declareTool({
   //                     only), sums: [one per column], result }
   //   factorQuadratic   { p, q }
   //   division          { quotient: 'a, b, …', remainder: 'r, …' }
+  //   longDivision      { terms: [one typed term per round], products: [one
+  //                     typed polynomial per round], differences: [one per
+  //                     round], quotient, remainder }
+  //   syntheticDivision { r, coefficients: [one per column], products: [one
+  //                     per column after the first], sums: [one per column],
+  //                     quotient, remainder (a divisor ax + b with a ≠ 1 only) }
   //   graphConnection   { behavior: 'crosses'|'touches', end: <one of four end-behaviour labels> }
   //   rationalFeatures  { choice: 'hole'|'verticalAsymptote'|'zero'|'none' }
   //   (both also carry choicesOpenUnanswered: true from a workshop whose
@@ -49,6 +55,8 @@ export default declareTool({
     addSubtract: SHARED,
     factorQuadratic: SHARED,
     division: SHARED,
+    longDivision: SHARED,
+    syntheticDivision: SHARED,
     graphConnection: SHARED,
     rationalFeatures: SHARED,
   },
