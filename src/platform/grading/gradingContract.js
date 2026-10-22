@@ -1,4 +1,9 @@
 import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import { parseFactoredProduct, sameFactoredPolynomialExpression } from '../../../functions/shared/factoredPolynomialExpressionEquivalence.mjs';
+import { isSimplestRadicalForm, sameSimplestRadicalForm } from '../../../functions/shared/simplestRadicalFormEquivalence.mjs';
+// Pre-Flight's self-grade check runs the shared field grader, which reads the
+// form-specific comparators from this registration (answerUtils.mjs).
+import '../../../functions/shared/formSpecificFieldGrading.mjs';
 import { sameEquivalentExpression } from '../../equivalentExpression.js';
 import { matchesFieldAnswer } from '../../answerUtils.js';
 import { gradeResponseField } from '../../grading/fieldGrader.js';
@@ -16,6 +21,10 @@ const FIELD_COLLECTIONS = Object.freeze([
 const FORM_SPECIFIC = /\b(factored\s+form|factor\s+completely|vertex\s+form|standard\s+form|slope[- ]intercept\s+form|point[- ]slope\s+form|simplest\s+radical\s+form|fully\s+factored)\b/i;
 
 const isPresent = (value) => value !== undefined && value !== null && clean(value) !== '';
+
+// The opt-in field grading modes (functions/shared/answerUtils.mjs
+// matchesFieldAnswer), as lower-case tokens.
+const SUPPORTED_GRADING_MODES = Object.freeze(['equivalentexpression', 'factoredform', 'simplestradicalform']);
 
 const gradingMode = (field = {}) => clean(field.gradingMode || field.grading?.mode);
 
@@ -46,6 +55,12 @@ const comparatorForField = (field = {}) => {
   const modeToken = gradingMode(field).toLowerCase();
   if (modeToken === 'equivalentexpression') {
     return (left, right) => sameEquivalentExpression(left, right);
+  }
+  if (modeToken === 'factoredform') {
+    return (left, right) => sameFactoredPolynomialExpression(left, right) || sameValue(left, right);
+  }
+  if (modeToken === 'simplestradicalform') {
+    return (left, right) => sameSimplestRadicalForm(left, right) || sameValue(left, right);
   }
   return (left, right) => sameValue(left, right);
 };
@@ -170,10 +185,31 @@ const validateField = (field, {
   validateTolerance(field, 'numericTolerance', display, errors);
   validateTolerance(field, 'relativeTolerance', display, errors);
 
-  if (mode && modeToken !== 'equivalentexpression') {
+  if (mode && !SUPPORTED_GRADING_MODES.includes(modeToken)) {
     errors.push(
-      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader or "equivalentExpression" for expression fields. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
+      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader, "equivalentExpression" for expression fields, "factoredForm" for factoring answers and "simplestRadicalForm" for simplified radical or rational-exponent answers. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
     );
+  }
+
+  // A form-specific mode grades against its key's form, so the key must be in
+  // that form: a factoredForm key written expanded, or a simplestRadicalForm
+  // key that still needs simplifying, would make the mode accept or refuse
+  // the wrong answers.
+  if (modeToken === 'factoredform') {
+    const unfactored = [primary, ...accepted].filter(isPresent).filter((value) => !parseFactoredProduct(value));
+    if (unfactored.length) {
+      errors.push(
+        `${display} uses gradingMode "factoredForm" but its key "${clean(unfactored[0])}" is not written as a product of factors. Write the key in completely factored form, or remove the grading mode.`,
+      );
+    }
+  }
+  if (modeToken === 'simplestradicalform') {
+    const unsimplified = [primary, ...accepted].filter(isPresent).filter((value) => !isSimplestRadicalForm(String(value)));
+    if (unsimplified.length) {
+      errors.push(
+        `${display} uses gradingMode "simplestRadicalForm" but its key "${clean(unsimplified[0])}" is not in simplest form (a perfect-power factor under a root, a root in a denominator, a negative exponent, like terms not combined, or an expression MathMaster cannot read). Simplify the key, or remove the grading mode.`,
+      );
+    }
   }
 
   if (autoGraded && !runtimeHasGradingKey({ collection, field, primary, accepted })) {

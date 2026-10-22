@@ -24,6 +24,8 @@ import graphChoicePreview from './questionGraders/graphChoicePreview.mjs';
 import literalWorkspace from './questionGraders/literalWorkspace.mjs';
 import numberLine from './questionGraders/numberLine.mjs';
 import stepAlgebra from './questionGraders/stepAlgebra.mjs';
+// The factoredForm / simplestRadicalForm field comparators (answerUtils.mjs).
+import '../formSpecificFieldGrading.mjs';
 
 
 /*

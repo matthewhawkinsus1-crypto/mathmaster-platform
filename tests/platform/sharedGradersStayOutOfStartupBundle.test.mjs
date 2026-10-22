@@ -38,6 +38,12 @@ const HEAVY = [
   'functions/shared/serverGrading/questionGraders/composedWorkflow.mjs',
   'functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs',
   'functions/shared/serverGrading/stepAlgebraStepVerification.mjs',
+  // The form-specific field comparators (factoredForm, simplestRadicalForm).
+  // answerUtils.mjs is on the startup path; they register into it from the
+  // surfaces that grade (formSpecificFieldGrading.mjs) instead.
+  'functions/shared/factoredPolynomialExpressionEquivalence.mjs',
+  'functions/shared/simplestRadicalFormEquivalence.mjs',
+  'functions/shared/formSpecificFieldGrading.mjs',
 ];
 
 const RESOLVE_EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];

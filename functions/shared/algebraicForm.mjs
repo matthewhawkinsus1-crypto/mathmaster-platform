@@ -147,10 +147,18 @@ export const expandLatexShorthand = (value, { keepNegativeExponentGroups = false
   // is often written with; `\sqrt` is the one with a body. All three mean the
   // same root, so they are spelled the same way before anything compares them.
   .replace(/(?:\\surd|√)\s*(\{[^{}]*\}|\([^()]*\)|[A-Za-z0-9]+)/g, (match, body) => `\\sqrt{${body.replace(/^[({]|[)}]$/g, '')}}`)
+  // The other roots, the same way: `∛x` and `∜(…)` are the characters a key is
+  // written with, `cbrt(…)` and ASCIIMath's `root(n)(…)` the typed spellings,
+  // and `\sqrt[n]{…}` what MathLive produces. A key written `cbrt(2x+1)=3`
+  // used to refuse the student's `\sqrt[3]{2x+1}=3`.
+  .replace(/([∛∜])\s*(\{[^{}]*\}|\([^()]*\)|[A-Za-z0-9]+)/g, (match, glyph, body) => `\\sqrt[${glyph === '∛' ? 3 : 4}]{${body.replace(/^[({]|[)}]$/g, '')}}`)
+  .replace(/(?<![A-Za-z])cbrt\s*\(([^()]*)\)/g, '\\sqrt[3]{$1}')
+  // (`root(2)(…)` is the square root, spelled \sqrt{…} as everywhere else.)
+  .replace(/(?<![A-Za-z])root\s*\(\s*(\d+)\s*\)\s*\(([^()]*)\)/g, (match, index, body) => (index === '2' ? `\\sqrt{${body}}` : `\\sqrt[${index}]{${body}}`))
   // ASCIIMath `sqrt(2)` is the same root as `\sqrt{2}`, and answer keys are
   // written both ways. So are the redundant brackets the editor leaves behind
   // when a student types `sqrt(` and MathLive closes the fence for them.
-  .replace(/\bsqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
+  .replace(/(?<![A-Za-z])sqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
   .replace(/\\sqrt\{\(([^()]*)\)\}/g, '\\sqrt{$1}')
   // `^{(n-1)}` is the same power as `^(n-1)`: the braces are the editor's
   // bookkeeping around a group that already has its own brackets.

@@ -80,7 +80,10 @@ const normalizedMathText = (value) => String(value ?? '')
   .replace(/\\operatorname\{[^}]+\}/g, '')
   .replace(/\\text\{[^}]*\}/g, '')
   .replace(/\\(?:frac|sqrt|infty|cup|varnothing|emptyset|leq?|geq?|neq?|pi|lbrace|rbrace)\b/g, ' ')
-  .replace(/\b(?:sqrt|infinity|inf|pi)\b/gi, ' ');
+  .replace(/\b(?:sqrt|infinity|inf|pi)\b/gi, ' ')
+  // `cbrt(…)` and `root(n)(…)` spell roots in a key (algebraicForm.mjs reads
+  // them as \sqrt[n]{…}); their letters are not variables.
+  .replace(/(?<![A-Za-z])(?:sqrt|cbrt|root)(?=\s*\()/gi, ' ');
 
 // Infer only the keys needed to TYPE the already-resolved mathematical answer.
 // This never changes grading and never exposes an answer to the student.
@@ -118,8 +121,8 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/(^|[^>])>([^=]|$)/.test(text)) add('>');
   if (/=/.test(text)) add('=');
   if (/π|\\pi\b|\bpi\b/i.test(text)) add('π');
-  if (/√|\\sqrt|\bsqrt\b/i.test(text)) add('√');
-  if (/\\sqrt\s*\[/.test(text)) add('ⁿ√');
+  if (/√|\\sqrt|(?<![A-Za-z])sqrt\b/i.test(text)) add('√');
+  if (/\\sqrt\s*\[|[∛∜]|(?<![A-Za-z])(?:cbrt|root)\s*\(/.test(text)) add('ⁿ√');
   if (/\\frac|\d\s*\/\s*\d|[A-Za-z)]\s*\/\s*[A-Za-z0-9(]/.test(text)) add('a⁄b');
   if (/\^|[⁰¹²³⁴⁵⁶⁷⁸⁹]|⁻¹/.test(text)) add('xⁿ');
   if (/\|/.test(text)) add('|');
