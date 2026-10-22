@@ -28,6 +28,7 @@ import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 import { answerLinesFromResolvedQuestion } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
+import { workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json');
@@ -248,6 +249,77 @@ test('DOL Q2: every cell of the area model is graded, so a pasted product earns 
   const pasted = workshop(question, { terms: [], product: full.product });
   assert.equal(pasted.isCorrect, false);
   assert.ok(pasted.score <= 1 / 7 + 1e-9, `the product alone scores ${pasted.score}`);
+});
+
+/* ------------------------------------------- the worked solutions */
+
+// A worked step is Unicode text ("x² · x⁵ = x²⁺⁵ = x⁷, so …"). Each clause
+// with "=" is a chain of sides claimed equal; a side is checked when it reads
+// as mathematics in the lesson's letters (the first side may start with
+// words, the last may end with them). "With x = 800" and "so k = 7" fix a
+// letter for the rest of the line; "a + b + c = 2 + (−3) + 6" names a value,
+// so where some sides are bare numbers, a side with a free letter is not an
+// identity and is left out.
+const SUPERSCRIPT = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁺': '+', 'ⁿ': 'n' };
+const STEP_LETTERS = 'abcknmprtxyz';
+const stepSide = (side) => {
+  const text = side.trim().replace(/[−–]/g, '-').replace(/·/g, '*')
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺ⁿ]+/g, (run) => `^(${[...run].map((character) => SUPERSCRIPT[character]).join('')})`)
+    .replace(/\s+/g, '');
+  if (!text || /[^-+*().\d^a-z]/.test(text) || [...text].some((character) => /[a-z]/.test(character) && !STEP_LETTERS.includes(character))) return null;
+  // A power is parenthesized: JavaScript refuses -x**2.
+  return text.replace(/([a-z]|\d+(?:\.\d+)?|\([^()]*\))\^\(([^()]*)\)/g, '($1**($2))')
+    .replace(/(\d|\))(?=[a-z(])/g, '$1*').replace(/([a-z])(?=[a-z(\d])/g, '$1*');
+};
+const longestSide = (words, fromEnd) => {
+  for (let count = words.length; count > 0; count -= 1) {
+    const side = stepSide((fromEnd ? words.slice(-count) : words.slice(0, count)).join(' '));
+    if (side) return side;
+  }
+  return null;
+};
+const stepChains = (line) => {
+  const clauses = line.replace(/\.$/, '').split(/: |; |, so |, and |, then | and |, (?=\S)/)
+    .map((clause) => clause.replace(/\s(dollars|cubic units)$/, ''));
+  const bound = {};
+  clauses.forEach((clause) => {
+    const binding = clause.match(/^(?:With |so )?([a-z]) = (-?[\d.]+)$/);
+    if (binding) bound[binding[1]] = Number(binding[2]);
+  });
+  const hasFreeLetter = (side) => [...side].some((character) => /[a-z]/.test(character) && !(character in bound));
+  return clauses.filter((clause) => clause.includes(' = ') && !/^(?:With |so )?[a-z] = -?[\d.]+$/.test(clause)).map((clause) => {
+    const parts = clause.split(' = ');
+    const sides = parts.map((part, index) => {
+      const words = part.trim().split(/\s+/);
+      if (index === 0) return longestSide(words, true);
+      if (index === parts.length - 1) return longestSide(words, false);
+      return stepSide(part);
+    }).filter(Boolean);
+    return { fixed: bound, sides: sides.some((side) => !hasFreeLetter(side)) ? sides.filter((side) => !hasFreeLetter(side)) : sides };
+  }).filter(({ sides }) => sides.length >= 2);
+};
+const holdsEverywhere = ({ fixed, sides }) => POINTS.every((point) => {
+  const values = sides.map((side) => Function(...STEP_LETTERS, `return ${side};`)(...STEP_LETTERS.split('').map((letter) => fixed[letter] ?? point[letter] ?? 0.7)));
+  return values.every((value) => Math.abs(value - values[0]) <= 1e-9 * Math.max(1, Math.abs(values[0])));
+});
+
+test('every practice-like item walks through steps after the last try, and every equation in those steps is true', () => {
+  const practiceLike = LESSON.raw.sections.filter((section) => section.role !== 'dol').flatMap((section) => section.questions);
+  assert.equal(practiceLike.length, 29);
+  let checked = 0;
+  for (const raw of practiceLike) {
+    assert.equal(workedSolutionDepth(compiled(raw.questionId)), 'steps', `${raw.questionId} shows worked steps, not only the answer`);
+    const review = raw.solutionReview;
+    if (!review) continue;
+    assert.ok(review.headline && review.commonError && review.reasoning.length >= 2, `${raw.questionId} has a headline, steps and the mistake it catches`);
+    const chains = review.reasoning.flatMap(stepChains);
+    // Like terms or not is read, not computed: its steps are reasons.
+    if (raw.questionId === 'opp-wu-3') assert.equal(chains.length, 0);
+    else assert.ok(chains.length >= 1, `${raw.questionId}: its steps are checked (${chains.length} equations read)`);
+    chains.forEach((chain) => assert.ok(holdsEverywhere(chain), `${raw.questionId}: ${chain.sides.join(' = ')} holds`));
+    checked += chains.length;
+  }
+  assert.ok(checked >= 60, `${checked} equations checked`);
 });
 
 test('the DOL prompts do not print what they grade', () => {

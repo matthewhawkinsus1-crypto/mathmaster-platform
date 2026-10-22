@@ -68,6 +68,14 @@
               "2 · 5 = 10 times"
             ],
             "correct": "2 + 5 = 7 times"
+          },
+          "solutionReview": {
+            "headline": "Multiply the coefficients, add the exponents of each letter.",
+            "reasoning": [
+              "(3x²)(−4x⁵): 3 · (−4) = −12 and x² · x⁵ = x²⁺⁵ = x⁷, so the product is −12x⁷.",
+              "(−2a³b)(5ab²): −2 · 5 = −10, a³ · a = a⁴ and b · b² = b³, so the product is −10a⁴b³."
+            ],
+            "commonError": "Multiplying the exponents: x² · x⁵ is x⁷, not x¹⁰."
           }
         },
         {
@@ -112,6 +120,14 @@
               "−3a"
             ],
             "correct": "3a"
+          },
+          "solutionReview": {
+            "headline": "The minus sign changes every term; like terms add their coefficients.",
+            "reasoning": [
+              "−(a³ − 3a + 2) = −1 · a³ − 1 · (−3a) − 1 · 2 = −a³ + 3a − 2.",
+              "4a² − a² = 3a² and 3a − 5a = −2a, so 4a² + 3a − a² − 5a = 3a² − 2a."
+            ],
+            "commonError": "Changing only the first sign: −(a³ − 3a + 2) is not −a³ − 3a + 2."
           }
         },
         {
@@ -177,6 +193,15 @@
               "the same coefficient"
             ],
             "correct": "the same letters with the same exponents"
+          },
+          "solutionReview": {
+            "headline": "Like terms: the same letters, each with the same exponent.",
+            "reasoning": [
+              "3x²y and −5yx²: both are x² times y — the order of the letters does not matter, so they are like terms.",
+              "4a³ and 4a²: the same letter, but the exponents 3 and 2 differ, so they are not like terms.",
+              "6m² and 6n²: the same exponent, but the letters m and n differ, so they are not like terms."
+            ],
+            "commonError": "Matching the coefficients instead of the letters and exponents: 4a³ and 4a² are not like terms."
           }
         }
       ]
@@ -346,7 +371,7 @@
             }
           ],
           "hints": [
-            "A letter with no exponent written has exponent 1, so 5xy has exponents 1 and 1.",
+            "A letter with no exponent written has exponent 1: x means x¹, so in xy each letter has exponent 1.",
             "For one term, ADD the exponents of all its letters.",
             "For a polynomial, find each term's degree and take the greatest."
           ],
@@ -373,6 +398,16 @@
                 "instruction": "A polynomial is simplified when it has no parentheses, every product is multiplied out, and no two terms are like terms."
               }
             ]
+          },
+          "solutionReview": {
+            "headline": "Add the exponents in a term; take the greatest over the terms.",
+            "reasoning": [
+              "5xy = 5x¹y¹: 1 + 1 = 2.",
+              "−4x²y³: 2 + 3 = 5.",
+              "r⁶t⁷ + r⁴t⁸: the terms have degree 6 + 7 = 13 and 4 + 8 = 12; the greater is 13.",
+              "x² − 3x + 40: the terms have degree 2, 1 and 0; the greatest is 2."
+            ],
+            "commonError": "Taking a monomial's largest exponent instead of the sum: −4x²y³ has degree 5, not 3."
           }
         },
         {
@@ -487,6 +522,14 @@
               "−4x² + x − 5"
             ],
             "correct": "−4x² − x + 5"
+          },
+          "solutionReview": {
+            "headline": "Add the opposite of every term, then combine like terms.",
+            "reasoning": [
+              "(3x² + 2x − 3) − (4x² + x − 5) = 3x² + 2x − 3 − 4x² − x + 5 = −x² + x + 2.",
+              "(−3x² − 4x + 1) − (4x² + x − 5) = −3x² − 4x + 1 − 4x² − x + 5 = −7x² − 5x + 6."
+            ],
+            "commonError": "Changing only the first sign: 3x² + 2x − 3 − 4x² + x − 5 gives −x² + 3x − 8."
           }
         },
         {
@@ -529,7 +572,23 @@
             "Compare Jordan's second step with the second polynomial: which signs changed, and which did not?",
             "Subtracting (2y² − 6y + 1) adds −2y² + 6y − 1.",
             "Now combine like terms: 5y² − 2y², −2y + 6y, and 4 − 1."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Subtracting (2y² − 6y + 1) means adding…",
+            "options": [
+              "−2y² + 6y − 1",
+              "−2y² − 6y + 1"
+            ],
+            "correct": "−2y² + 6y − 1"
+          },
+          "solutionReview": {
+            "headline": "Jordan changed the sign of 2y² but not of −6y and +1.",
+            "reasoning": [
+              "Subtracting (2y² − 6y + 1) adds its opposite, −2y² + 6y − 1.",
+              "5y² − 2y + 4 − 2y² + 6y − 1 = (5y² − 2y²) + (−2y + 6y) + (4 − 1) = 3y² + 4y + 3."
+            ],
+            "commonError": "Jordan's mistake: writing − 6y + 1 where the opposite is + 6y − 1."
+          }
         },
         {
           "questionId": "opp-cw-7",
@@ -611,6 +670,15 @@
               "−3x³"
             ],
             "correct": "−3x⁴"
+          },
+          "solutionReview": {
+            "headline": "The monomial outside multiplies every term inside, sign and all.",
+            "reasoning": [
+              "−x(3x³ − 2x + 5) = −x · 3x³ − x · (−2x) − x · 5 = −3x⁴ + 2x² − 5x.",
+              "3x²(2xy − 3xy² + 4x²y³) = 6x³y − 9x³y² + 12x⁴y³: add the exponents of x in each term.",
+              "No two of these terms are like terms, so each answer is already simplified."
+            ],
+            "commonError": "Losing the sign on a later term: −x · (−2x) is +2x², not −2x²."
           }
         },
         {
@@ -670,6 +738,23 @@
                 "instruction": "A simplified polynomial is quicker to evaluate and to compare: one x term instead of two."
               }
             ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Profit is…",
+            "options": [
+              "cost − revenue",
+              "revenue − cost"
+            ],
+            "correct": "revenue − cost"
+          },
+          "solutionReview": {
+            "headline": "Profit = revenue − cost, with the whole cost in parentheses.",
+            "reasoning": [
+              "P(x) = 10x − (0.001x² + 5x + 500) = 10x − 0.001x² − 5x − 500.",
+              "Combine the x terms: 10x − 0.001x² − 5x − 500 = −0.001x² + 5x − 500.",
+              "P(1000) = −0.001(1000)² + 5(1000) − 500 = −1000 + 5000 − 500 = 3500 dollars."
+            ],
+            "commonError": "Leaving out the parentheses: 10x − 0.001x² + 5x + 500 subtracts only the first term of the cost."
           }
         },
         {
@@ -762,6 +847,15 @@
               "3 + 2 = 5 products"
             ],
             "correct": "3 × 2 = 6 products"
+          },
+          "solutionReview": {
+            "headline": "Each of 3 terms times each of 2 terms: 6 products.",
+            "reasoning": [
+              "x² · x = x³, x² · 4 = 4x², 3x · x = 3x², 3x · 4 = 12x, −2 · x = −2x, −2 · 4 = −8.",
+              "Combine like terms: 4x² + 3x² = 7x² and 12x − 2x = 10x.",
+              "(x² + 3x − 2)(x + 4) = x³ + 7x² + 10x − 8."
+            ],
+            "commonError": "Multiplying only first by first and last by last: x³ − 8 misses four of the six products."
           }
         }
       ]
@@ -817,6 +911,14 @@
               "−3x² + x − 1"
             ],
             "correct": "−3x² − x + 1"
+          },
+          "solutionReview": {
+            "headline": "Add the opposite of every term, then combine like terms.",
+            "reasoning": [
+              "(x² − 5x + 2) − (3x² + x − 1) = x² − 5x + 2 − 3x² − x + 1 = −2x² − 6x + 3.",
+              "(7b² + 6b − 7) − (4b² − 2) = 7b² + 6b − 7 − 4b² + 2 = 3b² + 6b − 5."
+            ],
+            "commonError": "Keeping the sign of the last term: −(4b² − 2) is −4b² + 2, so the constant is −7 + 2."
           }
         },
         {
@@ -847,7 +949,24 @@
             "Distribute 4 to every term of the first polynomial and −3 to every term of the second.",
             "−3(2a³ + 4a − 5) = −6a³ − 12a + 15.",
             "Write the like terms together, highest power first, and combine."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −3(2a³ + 4a − 5) equals…",
+            "options": [
+              "−6a³ − 12a − 5",
+              "−6a³ − 12a + 15"
+            ],
+            "correct": "−6a³ − 12a + 15"
+          },
+          "solutionReview": {
+            "headline": "Distribute each number to every term, then combine.",
+            "reasoning": [
+              "4(a² + 5a − 6) = 4a² + 20a − 24.",
+              "−3(2a³ + 4a − 5) = −6a³ − 12a + 15.",
+              "Together: −6a³ + 4a² + (20a − 12a) + (−24 + 15) = −6a³ + 4a² + 8a − 9."
+            ],
+            "commonError": "Distributing −3 to the first term only: −3(2a³ + 4a − 5) is not −6a³ + 4a − 5."
+          }
         },
         {
           "questionId": "opp-pr-3",
@@ -889,7 +1008,24 @@
             "Multiply every term of one factor by every term of the other.",
             "In (n − 9)(n + 7) the two n terms are like terms: 7n − 9n.",
             "3p · np = 3np²: the two factors of p multiply to p²."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. How many products does (n − 9)(n + 7) make before like terms combine?",
+            "options": [
+              "4",
+              "2"
+            ],
+            "correct": "4"
+          },
+          "solutionReview": {
+            "headline": "Every term of one factor times every term of the other.",
+            "reasoning": [
+              "(n − 9)(n + 7) = n² + 7n − 9n − 63 = n² − 2n − 63.",
+              "2a(4b + 5) = 8ab + 10a.",
+              "3p(np − z) = 3np² − 3pz."
+            ],
+            "commonError": "Multiplying only firsts and lasts: (n − 9)(n + 7) is not n² − 63."
+          }
         },
         {
           "questionId": "opp-pr-4",
@@ -919,7 +1055,24 @@
             "Distribute 5c to all three terms of the first polynomial, and 2c to both terms of the second.",
             "5c(2c² − 3c + 4) = 10c³ − 15c² + 20c.",
             "Combine the c² terms and the c terms."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 5c(2c² − 3c + 4) equals…",
+            "options": [
+              "10c³ − 15c² + 20c",
+              "10c³ − 3c + 4"
+            ],
+            "correct": "10c³ − 15c² + 20c"
+          },
+          "solutionReview": {
+            "headline": "Distribute each monomial, then combine like terms.",
+            "reasoning": [
+              "5c(2c² − 3c + 4) = 10c³ − 15c² + 20c.",
+              "2c(7c − 8) = 14c² − 16c.",
+              "Together: 10c³ + (−15c² + 14c²) + (20c − 16c) = 10c³ − c² + 4c."
+            ],
+            "commonError": "Distributing 5c to the first term only: 5c(2c² − 3c + 4) is not 10c³ − 3c + 4."
+          }
         },
         {
           "questionId": "opp-pr-5",
@@ -971,7 +1124,25 @@
             "Change the sign of every term of 4y³ + 11y² − 3y + 5 before you combine.",
             "Try the mistake: subtract only 4y³ and leave the other terms of the second polynomial as they are. Which choice do you get?",
             "P − Q and Q − P are opposites, so what is their sum?"
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To subtract 4y³ + 11y² − 3y + 5, change the sign of…",
+            "options": [
+              "only its first term",
+              "every term"
+            ],
+            "correct": "every term"
+          },
+          "solutionReview": {
+            "headline": "Add the opposite of every term of the second polynomial.",
+            "reasoning": [
+              "(2y³ − 5y² − 4) − (4y³ + 11y² − 3y + 5) = 2y³ − 5y² − 4 − 4y³ − 11y² + 3y − 5.",
+              "Combine each kind of term: 2y³ − 4y³ = −2y³, −5y² − 11y² = −16y², and −4 − 5 = −9, so the difference is −2y³ − 16y² + 3y − 9.",
+              "Changing only the sign of 4y³ gives 2y³ − 5y² − 4 − 4y³ + 11y² − 3y + 5 = −2y³ + 6y² − 3y + 1.",
+              "P − Q and Q − P are opposites, so −2y³ − 16y² + 3y − 9 and 2y³ + 16y² − 3y + 9 add to 0."
+            ],
+            "commonError": "Subtracting only the first term of the second polynomial, which gives −2y³ + 6y² − 3y + 1."
+          }
         },
         {
           "questionId": "opp-pr-6",
@@ -1060,7 +1231,23 @@
             "If the first painter works x hours, the second works the rest: 15 − x hours.",
             "Cost = 12x + 11(15 − x). Distribute, then combine like terms.",
             "For the second answer the second painter works y hours and the first works 15 − y."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If the first painter works x of the 15 hours, the second painter works…",
+            "options": [
+              "15 − x hours",
+              "x − 15 hours"
+            ],
+            "correct": "15 − x hours"
+          },
+          "solutionReview": {
+            "headline": "Hours for one painter, the rest of the 15 for the other.",
+            "reasoning": [
+              "First painter x hours, second 15 − x: 12x + 11(15 − x) = 12x + 165 − 11x = x + 165.",
+              "Second painter y hours, first 15 − y: 11y + 12(15 − y) = 11y + 180 − 12y = 180 − y."
+            ],
+            "commonError": "Paying both painters for all 15 hours: the second painter works only the hours the first does not."
+          }
         },
         {
           "questionId": "opp-pr-9",
@@ -1095,7 +1282,23 @@
             "The rest of the money is 1300 − x dollars.",
             "Interest = 0.022x + 0.019(1300 − x). Distribute the 0.019.",
             "Combine the x terms: 0.022x − 0.019x."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If x dollars go into the bond, the savings account gets…",
+            "options": [
+              "x − 1300 dollars",
+              "1300 − x dollars"
+            ],
+            "correct": "1300 − x dollars"
+          },
+          "solutionReview": {
+            "headline": "x dollars in the bond, 1300 − x in savings.",
+            "reasoning": [
+              "Interest = 0.022x + 0.019(1300 − x) = 0.022x + 24.7 − 0.019x = 0.003x + 24.7.",
+              "With x = 800: 0.003x + 24.7 = 0.003(800) + 24.7 = 2.4 + 24.7 = 27.1 dollars."
+            ],
+            "commonError": "Distributing 0.019 to 1300 only: 0.019(1300 − x) is 24.7 − 0.019x."
+          }
         },
         {
           "questionId": "opp-pr-10",
@@ -1131,7 +1334,23 @@
             "For the total, add like terms: 0.108x² + 0.047x², and so on.",
             "For the difference, subtract EVERY term of the women's polynomial.",
             "−0.876x − 9.694x = −10.57x."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Men minus women subtracts the women’s polynomial…",
+            "options": [
+              "term by term, every sign changed",
+              "only at its first term"
+            ],
+            "correct": "term by term, every sign changed"
+          },
+          "solutionReview": {
+            "headline": "Add like terms for the total; add the opposite of every term for the difference.",
+            "reasoning": [
+              "Total: (0.108 + 0.047)x² + (−0.876 + 9.694)x + (474.1 + 361.7) = 0.155x² + 8.818x + 835.8.",
+              "Men − women: (0.108 − 0.047)x² + (−0.876 − 9.694)x + (474.1 − 361.7) = 0.061x² − 10.57x + 112.4."
+            ],
+            "commonError": "Changing the sign of the x² term only: the women's 9.694x and 361.7 are subtracted too."
+          }
         },
         {
           "questionId": "opp-pr-11",
@@ -1193,7 +1412,24 @@
             "(4n − 5)² = (4n − 5)(4n − 5): four products, and the two middle ones are like terms.",
             "Now multiply your trinomial by 4n − 5: six products.",
             "Combine the like terms: two n² terms and two n terms."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (4n − 5)² means…",
+            "options": [
+              "16n² + 25",
+              "(4n − 5)(4n − 5)"
+            ],
+            "correct": "(4n − 5)(4n − 5)"
+          },
+          "solutionReview": {
+            "headline": "Square first, then multiply by 4n − 5 again.",
+            "reasoning": [
+              "(4n − 5)(4n − 5) = 16n² − 20n − 20n + 25 = 16n² − 40n + 25.",
+              "(16n² − 40n + 25)(4n − 5) = 64n³ − 80n² − 160n² + 200n + 100n − 125.",
+              "Combine: −80n² − 160n² = −240n² and 200n + 100n = 300n, so (4n − 5)³ = 64n³ − 240n² + 300n − 125."
+            ],
+            "commonError": "Squaring each term: (4n − 5)² is not 16n² + 25 — the middle term −40n is missing."
+          }
         },
         {
           "questionId": "opp-pr-13",
@@ -1234,7 +1470,24 @@
             "Multiply all three: 7p(3p − 4)(2p²).",
             "7p(3p − 4) = 21p² − 28p; then multiply each term by 2p².",
             "Substitute p = 2 into your product."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The volume of a box is…",
+            "options": [
+              "length × width × height",
+              "length + width + height"
+            ],
+            "correct": "length × width × height"
+          },
+          "solutionReview": {
+            "headline": "Volume = length × width × height: multiply all three.",
+            "reasoning": [
+              "7p(3p − 4) = 21p² − 28p.",
+              "(21p² − 28p)(2p²) = 42p⁴ − 56p³.",
+              "With p = 2: 42p⁴ − 56p³ = 42(16) − 56(8) = 672 − 448 = 224 cubic units."
+            ],
+            "commonError": "Adding the dimensions, or adding exponents where coefficients multiply: volume multiplies length, width and height."
+          }
         },
         {
           "questionId": "opp-pr-14-ccmr",
@@ -1280,7 +1533,25 @@
             "Multiply out (2x + k)(x − 3) and match the coefficients of x with 2x² + x − 21.",
             "The x coefficient of the product is −6 + k.",
             "Simplify the difference first; then add the three coefficients."
-          ]
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In (2x + k)(x − 3), the x terms come from…",
+            "options": [
+              "2x · (−3) and k · x",
+              "2x · x and k · (−3)"
+            ],
+            "correct": "2x · (−3) and k · x"
+          },
+          "solutionReview": {
+            "headline": "Multiply out, then match coefficients; simplify, then add.",
+            "reasoning": [
+              "(2x + k)(x − 3) = 2x² − 6x + kx − 3k = 2x² + (k − 6)x − 3k.",
+              "Matching the x terms: k − 6 = 1, so k = 7; check −3k = −21.",
+              "(3x² − 5x + 2) − (x² − 2x − 4) = 3x² − 5x + 2 − x² + 2x + 4 = 2x² − 3x + 6.",
+              "a + b + c = 2 + (−3) + 6 = 5."
+            ],
+            "commonError": "Changing only the first sign of x² − 2x − 4, which gives 2x² − 7x − 2."
+          }
         },
         {
           "questionId": "opp-pr-15",

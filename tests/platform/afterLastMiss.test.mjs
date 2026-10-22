@@ -286,14 +286,15 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.deepEqual(audit.noCommonError, [1]);
   assert.match(audit.warnings[0], /^Question 1 shows only the answer after the last try/);
   assert.match(audit.warnings[1], /solutionReview\.commonError/);
-  // The real lessons: 199 of 265 practice-like items walk through steps.
+  // The real lessons: 228 of 294 practice-like items walk through steps —
+  // 199 of 265 before Operations on Polynomials added 29, all with steps.
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 199);
+  assert.equal(practiceLike.length, 294);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 228);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
-  // Review", which students never see (isUnpublishedDraft) — and no real
-  // lesson authors a commonError yet.
+  // Review", which students never see (isUnpublishedDraft) — and most real
+  // lessons author no commonError.
   const { buildAssignmentV5PreflightModel } = await import('../../src/platform/preflight/assignmentV5PreflightModel.js');
   const source = JSON.parse(read('teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json'));
   const model = buildAssignmentV5PreflightModel(compileAuthoringIntentV5(source).package);

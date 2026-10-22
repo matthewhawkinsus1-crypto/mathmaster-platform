@@ -23,6 +23,14 @@ item is not from the audited CCMR bank; every item is A2.7B).
 The tools carry each worked example; the Check Your Progress right after it is
 typed with no tool. The DOL is one try, no hints, feedback after submit.
 
+After the last try, every Warm-Up, Classwork and Practice item walks through
+its steps: the tools review their own work, and each typed item has a
+`solutionReview` (headline, steps, and the mistake it is built to catch).
+Every equation in those steps is checked by evaluating both sides
+(`algebra2OperationsOnPolynomialsLesson.test.mjs`). The DOL has no worked
+solution, as in every other lesson. Each multi-part item has a "Let's back
+up" step, and no hint states an answer (all 87 are shown).
+
 Every Warm-Up and DOL question is bound to a new Recovery family, so both
 sections are Recovery-ready on the Standard and the Honors copy from creation.
 
