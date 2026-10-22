@@ -267,6 +267,64 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s singular-system generator uses fixed numbers, so it cannot yet build the find-the-parameter work a built-in Honors extension needs.',
     }),
   }),
+  // Recovery V2 families for Algebra I "Slopes of Perpendicular Lines and
+  // Horizontal & Vertical Lines" (questionFamiliesPerpendicular.mjs). Like the
+  // other Algebra I ones above, each asks exactly its original's skill at its
+  // rigor: BLOCKED in Algebra I, NOT APPROPRIATE in Algebra II.
+  'lines.rotationImages': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version rotates one point about the origin through a quarter, half or three-quarter turn, counterclockwise; the remaining levers are other points, which are not rigor.',
+      missingCapability: 'A `center` knob that rotates about a point other than the origin, and a `direction` knob for clockwise turns, answered as the same ordered pairs.',
+      teacherReason: 'MathMaster\'s rotation generator only turns a point about the origin, so it cannot yet build the rotate-about-another-point work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Rotating a point to see perpendicular slopes')),
+  }),
+  'lines.rotationSlopes': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It asks the slopes of one segment and its three rotations and the pattern between them, with whole-number coordinates; the remaining levers are bigger coordinates, which are not rigor.',
+      missingCapability: 'A `symbolic` knob that gives B as (a, b) and answers each slope as an expression, so the student shows the quarter-turn slope is −a/b in general.',
+      teacherReason: 'MathMaster\'s rotated-slopes generator only uses numbers, so it cannot yet build the prove-it-for-any-point work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Slopes of a rotated segment')),
+  }),
+  'numbers.reciprocals': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It is the lesson\'s Warm-Up review: reciprocals of whole numbers and fractions and one negative reciprocal. Its Honors depth is the negative reciprocal of an expression, which this family does not generate.',
+      missingCapability: 'A `form` knob that writes the values as variable fractions (a/b, −2/3x), graded as expressions in the answer fields.',
+      teacherReason: 'MathMaster\'s reciprocal generator only works with numbers, so it cannot yet build the reciprocal-of-an-expression work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Reciprocals and negative reciprocals')),
+  }),
+  'lines.perpendicularFromEquation': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'The given line is always in slope-intercept form with a whole-number slope, and the answer\'s y-intercept is always whole; the remaining levers are other numbers, which are not rigor.',
+      missingCapability: 'A `form` knob that gives the line in standard form (Ax + By = C), allows fractional intercepts, and accepts the answer in standard form.',
+      teacherReason: 'MathMaster\'s perpendicular-line generator only starts from slope-intercept form with whole answers, so it cannot yet build the standard-form work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('The line perpendicular to a given line through a point')),
+  }),
+  'lines.horizontalVertical': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It writes the horizontal and the vertical line through one named point and the vertical line\'s slope; there is no deeper reading of the same skill to ask.',
+      missingCapability: 'A `given` knob that names two points (which may share an x or a y) and asks the student to classify the line they determine and write it, answered with the same equation fields.',
+      teacherReason: 'MathMaster\'s horizontal-and-vertical generator only names one point, so it cannot yet build the classify-the-line-through-two-points work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Horizontal and vertical lines')),
+  }),
+  'lines.perpendicularFromPoints': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'The line through two points always has a unit-fraction slope and the perpendicular passes through one of those points; the next depth is the perpendicular bisector, which needs a midpoint.',
+      missingCapability: 'A `bisector` knob that asks for the perpendicular bisector of the segment (through the midpoint, with fractional midpoints and intercepts), answered in the same equation field.',
+      teacherReason: 'MathMaster\'s two-point perpendicular generator only passes through a given point, so it cannot yet build the perpendicular-bisector work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('The line perpendicular to the line through two points')),
+  }),
 });
 
 /**
