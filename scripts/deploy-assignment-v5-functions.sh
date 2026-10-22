@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -u
 
+# Only a clean checkout of current main that has passed CI is deployed
+# (scripts/check-deploy-provenance.mjs; its report names the override for a
+# deliberate hotfix).
+node scripts/check-deploy-provenance.mjs || exit 5
+
 PROJECT="${FIREBASE_PROJECT:-mathmaster-aleks}"
 TIMEOUT_SECONDS="${FUNCTION_DEPLOY_TIMEOUT_SECONDS:-900}"
 PAUSE_SECONDS="${PAUSE_SECONDS:-75}"

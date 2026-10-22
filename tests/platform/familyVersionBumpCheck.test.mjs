@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { familyVersionViolations, fieldKind } from '../../scripts/check-family-version-bumps.mjs';
+import { runsOnPullRequest } from './helpers/ciWorkflows.mjs';
 
 const item = ({ id = 'mm_A_2A_v2_bounded-range', familyVersion = 3, fields }) => ({ id, familyVersion, responseFields: fields });
 const field = (overrides = {}) => ({ id: 'answer', expected: '[2, 5]', inputProfile: 'interval', ...overrides });
@@ -58,9 +59,8 @@ test('the kind is read from the stored document the compiler makes', () => {
 
 test('CI runs the check against the pull request\'s base on every change to a bank', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/answer-acceptance-audit.yml', import.meta.url), 'utf8');
-  const pullRequestPaths = workflow.slice(workflow.indexOf('pull_request:'), workflow.indexOf('jobs:'));
-  for (const watched of ["'functions/seeds/pathQuestionBank/**'", "'functions/seeds/secureAssessments/**'", "'scripts/check-family-version-bumps.mjs'"]) {
-    assert.ok(pullRequestPaths.includes(watched), `pull requests touching ${watched} run it`);
+  for (const changed of ['functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json', 'functions/seeds/secureAssessments/unit3.json', 'scripts/check-family-version-bumps.mjs']) {
+    assert.ok(runsOnPullRequest('answer-acceptance-audit.yml', changed), `a pull request changing ${changed} runs it`);
   }
   assert.match(workflow, /fetch-depth: 2/);
   assert.match(workflow, /if: github\.event_name == 'pull_request'\s*\n\s+env:\s*\n\s+BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);

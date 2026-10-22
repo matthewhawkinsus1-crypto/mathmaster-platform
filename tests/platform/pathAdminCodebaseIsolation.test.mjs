@@ -173,8 +173,10 @@ test('a Path release deploys without touching the default backend', () => {
   // release identity, and a Hosting bundle from an older build is exactly the
   // deployment mismatch the admin page reports. Rules ship with it so the first
   // rollout is not a documented command plus an undocumented one.
+  // It first proves the checkout is current main and passed CI, as every deploy
+  // path does (scripts/check-deploy-provenance.mjs).
   const command = packageJson.scripts['deploy:path-admin'];
-  assert.equal(command, 'npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin,firestore:rules && npm run deploy:hosting');
+  assert.equal(command, 'node scripts/check-deploy-provenance.mjs && npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin,firestore:rules && npm run deploy:hosting');
   assert.match(command, /functions:path-admin/);
   assert.match(command, /npm run deploy:hosting/);
   assert.doesNotMatch(command, /functions:default|--only functions\b(?!:)/, 'the mature backend is never redeployed by a content release');

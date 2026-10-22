@@ -7,6 +7,11 @@ export FUNCTIONS_DISCOVERY_TIMEOUT="${FUNCTIONS_DISCOVERY_TIMEOUT:-60}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Only a clean checkout of current main that has passed CI is deployed
+# (scripts/check-deploy-provenance.mjs; its report names the override for a
+# deliberate hotfix).
+node scripts/check-deploy-provenance.mjs || exit 5
+
 echo "Deploying only syncGradeToClassroom + MathMaster Hosting"
 echo "Firebase function discovery timeout: ${FUNCTIONS_DISCOVERY_TIMEOUT}s"
 

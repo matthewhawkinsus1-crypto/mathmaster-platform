@@ -5,6 +5,11 @@ PROJECT="${FIREBASE_PROJECT:-mathmaster-aleks}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Only a clean checkout of current main that has passed CI is deployed
+# (scripts/check-deploy-provenance.mjs; its report names the override for a
+# deliberate hotfix).
+node scripts/check-deploy-provenance.mjs || exit 5
+
 if ! command -v firebase >/dev/null 2>&1; then
   echo "Missing required command: firebase" >&2
   exit 1

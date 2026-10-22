@@ -1,19 +1,21 @@
 #!/usr/bin/env node
-// Do the emulator journeys' `paths` reach every file their drivers load?
+// Does the emulator journeys' area reach every file their drivers load?
 //
 //   node scripts/check-emulator-journey-paths.mjs          # report; exit 1 on a miss
 //   node scripts/check-emulator-journey-paths.mjs --list   # also print every file loaded
 //
 // .github/workflows/student-pass3-emulator-journeys.yml runs testCycleRichToolQa
-// and liveChallengeShellQa only on pull requests whose files match its `paths`
-// (and nightly). A file a driver loads that no pattern reaches is a change that
-// skips both journeys, and its break shows up at the nightly run, after merge
-// (wave 7 review, F1).
+// and liveChallengeShellQa on a pull request only when its files are in the
+// workflow's area (scripts/lib/ciAreas.mjs, which ci.yml reads), and nightly. A
+// file a driver loads that no pattern reaches is a change that skips both
+// journeys, and its break shows up at the nightly run, after merge (wave 7
+// review, F1).
 //
 // It rebuilds each driver's client import graph with Vite itself, under the
 // driver's own bridge config, from the harness pages the driver opens; adds what
 // the drivers load in node (read from their source); and matches every file
-// with GitHub's rules: patterns in order, the last match wins, `!` excludes.
+// with GitHub's rules: patterns in order, the last match wins, `!` excludes
+// (the same matcher ci.yml uses).
 //
 // Slow (Vite transforms some 800 modules per graph), so it is not part of
 // test:platform. tests/platform/pass3BrowserDriversInCi.test.mjs pins the
@@ -21,9 +23,15 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CI_AREAS, reachedBy } from './lib/ciAreas.mjs';
+
+export { reachedBy };
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const WORKFLOW = '.github/workflows/student-pass3-emulator-journeys.yml';
+const AREA = 'student-pass3-emulator-journeys';
+
+/** The emulator journeys' area: the patterns a pull request's files must reach, in order. */
+export const emulatorJourneyPaths = () => CI_AREAS[AREA];
 
 const DRIVERS = [
   {
@@ -37,25 +45,6 @@ const DRIVERS = [
     entries: ['/tests/browser/graphFeatureRushStudentMain.jsx', '/tests/browser/graphFeatureRushTeacherMain.jsx'],
   },
 ];
-
-/** The workflow's pull_request paths, in order. */
-export const workflowPaths = (text) => {
-  const block = text.split('\n  pull_request:\n')[1]?.split(/\n {2}[a-z_]+:\n/)[0] || '';
-  const paths = block.split('\n    paths:\n')[1] || '';
-  return paths.split('\n')
-    .map((line) => line.match(/^ {6}- "([^"]+)"/)?.[1])
-    .filter(Boolean);
-};
-
-/** GitHub's rule: patterns in order, the last one that matches decides. */
-export const reachedBy = (file, patterns) => {
-  let reached = false;
-  for (const pattern of patterns) {
-    const negated = pattern.startsWith('!');
-    if (path.matchesGlob(file, negated ? pattern.slice(1) : pattern)) reached = !negated;
-  }
-  return reached;
-};
 
 /** Files a driver loads in node, read from its own imports. */
 const nodeImports = (driver) => {
@@ -94,13 +83,13 @@ const clientGraph = async ({ config, entries }) => {
 };
 
 const main = async () => {
-  const patterns = workflowPaths(readFileSync(path.join(repo, WORKFLOW), 'utf8'));
-  if (!patterns.length) throw new Error(`no pull_request paths read from ${WORKFLOW}`);
+  const patterns = emulatorJourneyPaths();
+  if (!patterns?.length) throw new Error(`no area named ${AREA} in scripts/lib/ciAreas.mjs`);
   let missing = 0;
   for (const spec of DRIVERS) {
     const files = [...new Set([...(await clientGraph(spec)), ...nodeImports(spec.driver), spec.config])].sort();
     const missed = files.filter((file) => !reachedBy(file, patterns));
-    console.log(`${spec.driver}: ${files.length} files loaded, ${missed.length} outside the workflow's paths`);
+    console.log(`${spec.driver}: ${files.length} files loaded, ${missed.length} outside the workflow's area`);
     missed.forEach((file) => console.log(`  MISSED ${file}`));
     if (process.argv.includes('--list')) files.forEach((file) => console.log(`  ${file}`));
     missing += missed.length;
@@ -109,7 +98,7 @@ const main = async () => {
     console.log(`\n${missing} file(s) a driver loads would not run the emulator journeys on a pull request.`);
     process.exitCode = 1;
   } else {
-    console.log('\nEvery file the two drivers load is inside the workflow\'s paths.');
+    console.log('\nEvery file the two drivers load is inside the workflow\'s area.');
   }
 };
 

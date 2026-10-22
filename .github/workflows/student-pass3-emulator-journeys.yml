@@ -13,73 +13,20 @@ name: Student Pass 3 Emulator Journeys
 #                                 students), a class of 40 launching, five
 #                                 games in a row
 #
-# Their own workflow, so that only a change that can reach them runs them on a
-# pull request (about 15 runner-minutes together); every night, and on demand,
+# Their own workflow and area (scripts/lib/ciAreas.mjs, which ci.yml reads), so
+# that only a change that can reach them runs them on a pull request (about 15
+# runner-minutes together); every push to main, every night, and on demand,
 # they run whatever changed. Read-only: this workflow writes nothing back and
 # uses no secrets.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "functions/**"
-      # All of src/, then the directories neither driver loads. GitHub reads
-      # the patterns in order and the last match wins, so the exclusions come
-      # after src/**. scripts/check-emulator-journey-paths.mjs rebuilds both
-      # drivers' import graphs with Vite and checks every file is reached
-      # (platform/context and platform/curriculum ARE loaded: not excluded).
-      - "src/**"
-      - "!src/app/routes/**"
-      - "!src/app/shell/**"
-      - "!src/app/student/**"
-      - "!src/app/teacher/**"
-      - "!src/components/admin/**"
-      - "!src/components/analytics/**"
-      - "!src/components/demo/**"
-      - "!src/components/rewards/**"
-      - "!src/platform/admin/**"
-      - "!src/platform/analytics/**"
-      - "!src/platform/assignment/**"
-      - "!src/platform/attendance/**"
-      - "!src/platform/authoring/**"
-      - "!src/platform/caseReview/**"
-      - "!src/platform/certification/**"
-      - "!src/platform/classroom/**"
-      - "!src/platform/gradeTransfer/**"
-      - "!src/platform/history/**"
-      - "!src/platform/mastery/**"
-      - "!src/platform/preflight/**"
-      - "!src/platform/profile/**"
-      - "!src/platform/publishing/**"
-      - "!src/platform/quality/**"
-      - "!src/platform/recovery/**"
-      - "!src/platform/resources/**"
-      - "!src/platform/retention/**"
-      - "!src/platform/rigor/**"
-      - "!src/platform/simulation/**"
-      - "!src/platform/supportEvidence/**"
-      - "tests/browser/emulator/**"
-      - "tests/browser/support/**"
-      - "tests/browser/testCycleRichToolQa*"
-      - "tests/browser/testCycleLifecycleQa*"
-      - "tests/browser/liveChallengeShellQa*"
-      - "tests/browser/graphFeatureRushStudent*"
-      - "tests/browser/graphFeatureRushTeacher*"
-      - "tests/fixtures/secureRichToolAnswers.mjs"
-      - "scripts/check-emulator-journey-paths.mjs"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/student-pass3-emulator-journeys.yml"
+  workflow_call:
   schedule:
     - cron: "41 6 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: student-pass3-emulator-journeys-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   # The secure Rich Tool runtime on Chromebook, iPad and phone, light and dark,
@@ -90,13 +37,10 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       # The bridge runs the real handlers, and firebase-admin lives in functions/.
       - run: npm --prefix functions ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
       - name: Every certified Rich Tool on a secure Test, on every device
         env:
           PLAYWRIGHT_MODULE: playwright
@@ -111,12 +55,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm }
-      - run: npm ci
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
       - run: npm --prefix functions ci
-      - run: npm install --no-save playwright@1.55.0 && node scripts/check-lockfile-install.mjs
-      - run: npx playwright install --with-deps chromium
       - name: Live Challenge played whole, on every screen
         env:
           PLAYWRIGHT_MODULE: playwright

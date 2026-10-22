@@ -443,9 +443,14 @@
   display: block;
 }
 
+/* The graph gets the wider column. The steps beside it are a Yes/No, a choice
+   or one typed value, while the graph is what the student reads values from:
+   at .9fr a 1366px Chromebook drew it ~350px wide with ~6px tick labels, and
+   "48 gallons" had to be read between labels at 40 and 50 (walkthrough
+   2026-10-22, DOL #3 PR 8). */
 .workflow-focus__workspace-body--with-graph {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(min(100%, 320px), .9fr);
+  grid-template-columns: minmax(0, .75fr) minmax(min(100%, 360px), 1.25fr);
   gap: 18px;
   align-items: start;
 }
@@ -486,7 +491,7 @@
 }
 
 .workflow-focus__graph-reference .mathmaster-responsive-canvas {
-  max-height: 360px;
+  max-height: 460px;
 }
 
 .workflow-focus__workspace-heading {

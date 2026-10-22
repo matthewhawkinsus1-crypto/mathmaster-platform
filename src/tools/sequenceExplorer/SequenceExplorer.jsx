@@ -24,6 +24,7 @@ import {
 } from './sequenceMath';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
+import { fullBridgeMissMessage } from './fullBridgeFeedback.js';
 
 /*
  * Every Check is marked by the shared grader
@@ -133,6 +134,13 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
 }
 
 
+/** "table, discrete graph, and rules" — only the parts this item asks for. */
+const listParts = (names) => {
+  const shown = names.filter(Boolean);
+  if (shown.length <= 2) return shown.join(' and ') || 'answers';
+  return `${shown.slice(0, -1).join(', ')}, and ${shown[shown.length - 1]}`;
+};
+
 function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
   const actions = sequenceStudentActions(questionData);
@@ -158,6 +166,8 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const [recursiveFirst, setRecursiveFirst] = usePersistentToolState('recursiveFirst', '');
   const [recursiveRule, setRecursiveRule] = usePersistentToolState('recursiveRule', '');
   const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
+  // What the last wrong check was missing, worked out when it was checked.
+  const [missMessage, setMissMessage] = useState('');
 
   const mathState = useMemo(() => ({
     tableValues, plottedPoints, kindAnswer, changeAnswer, explicitRule,
@@ -207,6 +217,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
 
   const check = () => {
     const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
+    setMissMessage(result.isCorrect ? '' : fullBridgeMissMessage({ parts: result.parts, work, spec, targetN: requireTarget ? targetN : 0 }));
     submit(
       { isCorrect: result.isCorrect, score: result.score },
       work,
@@ -319,7 +330,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
         {plotMessage && <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700 }}>{plotMessage}</p>}
       </Panel>
 
-      <Panel title="2. Analyze and write the rules">
+      <Panel title={requireExplicit || requireRecursive ? '2. Analyze and write the rules' : '2. Analyze the pattern'}>
         {requireAnalyze && <>
           <label>
             Sequence family
@@ -382,8 +393,8 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
         {feedback ? <div style={{ marginTop: 12 }}>
           <ResultPill ok={feedback.isCorrect}>
             {feedback.isCorrect
-              ? 'Your table, discrete graph, pattern, formulas, and requested term all describe the same sequence.'
-              : 'Keep every representation consistent: n is the table/graph input, the plotted points must match the table, and both rules must generate those same outputs.'}
+              ? `Your ${listParts([requireTable && 'table', requirePlot && 'discrete graph', requireAnalyze && 'pattern', (requireExplicit || requireRecursive) && 'rules', requireTarget && 'requested term'])} all describe the same sequence.`
+              : (missMessage || 'Not quite yet. Check each part against the sequence.')}
           </ResultPill>
         </div> : null}
         <HintPanel

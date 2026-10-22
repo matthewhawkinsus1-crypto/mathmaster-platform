@@ -1,50 +1,8 @@
 name: Correct Answer Acceptance Audit
 
 on:
-  push:
-    paths:
-      - 'functions/shared/**'
-      - 'functions/lib/mathPath.js'
-      - 'src/MathInput.jsx'
-      - 'src/platform/interaction/mobileKeypadPolicy.js'
-      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
-      - 'tests/platform/mathInputMobileBackspace.test.mjs'
-      - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
-      - 'src/InteractiveGraphWorkspace.jsx'
-      - 'functions/seeds/pathQuestionBank/**'
-      - 'functions/seeds/secureAssessments/**'
-      - 'scripts/check-family-version-bumps.mjs'
-      - 'tests/platform/familyVersionBumpCheck.test.mjs'
-      - 'seed/pathQuestionBank/**'
-      - 'src/grading/**'
-      - 'teacher-import-jsons/**'
-      - 'scripts/audit-correct-answer-acceptance.mjs'
-      - 'tests/platform/correctAnswerAcceptance.test.mjs'
-      - 'tests/platform/pathPassCompletion.test.mjs'
-      - '.github/workflows/answer-acceptance-audit.yml'
-      - 'package.json'
-  pull_request:
-    paths:
-      - 'functions/shared/**'
-      - 'functions/lib/mathPath.js'
-      - 'src/MathInput.jsx'
-      - 'src/platform/interaction/mobileKeypadPolicy.js'
-      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
-      - 'tests/platform/mathInputMobileBackspace.test.mjs'
-      - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
-      - 'src/InteractiveGraphWorkspace.jsx'
-      - 'functions/seeds/pathQuestionBank/**'
-      - 'functions/seeds/secureAssessments/**'
-      - 'scripts/check-family-version-bumps.mjs'
-      - 'tests/platform/familyVersionBumpCheck.test.mjs'
-      - 'seed/pathQuestionBank/**'
-      - 'src/grading/**'
-      - 'teacher-import-jsons/**'
-      - 'scripts/audit-correct-answer-acceptance.mjs'
-      - 'tests/platform/correctAnswerAcceptance.test.mjs'
-      - 'tests/platform/pathPassCompletion.test.mjs'
-      - '.github/workflows/answer-acceptance-audit.yml'
-      - 'package.json'
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   answer-acceptance:
@@ -56,11 +14,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup
       - run: npm --prefix functions ci
       - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/mobileEquationKeypadPolicy.test.mjs tests/platform/mathInputMobileBackspace.test.mjs tests/platform/functionInvestigationIntervalGrading.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
       - run: npm run audit:answer-acceptance

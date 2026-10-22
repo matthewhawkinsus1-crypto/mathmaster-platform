@@ -2719,9 +2719,15 @@ function QuestionEngineBody({
           grading vocabulary ("records the daily DOL grade during the active
           class window"), louder than the task it sat under. */}
       {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 800 }}>Exit ticket · this question counts toward today&apos;s exit ticket grade.</div>}
+      {/* One short line that opens to the sentence: the full sentence sat above
+          the work on nearly every weighted item and wrapped to four lines on a
+          phone (walkthrough 2026-10-22). */}
       {questionGradeWeight !== 1 && (
-        <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>
-          Grade weight ×{questionGradeWeight} · this question counts {questionGradeWeight} times a standard-weight question in this section&apos;s grade and in the assignment grade.
+        <div data-grade-weight="" style={{ margin: '0 auto 12px', maxWidth: '860px' }}>
+          <details style={{ display: 'inline-block', maxWidth: '100%', padding: '5px 11px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 'calc(14 * var(--mm-px))' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Grade weight ×{questionGradeWeight}</summary>
+            <span style={{ display: 'block', marginTop: '4px', fontWeight: 600 }}>This question counts {questionGradeWeight} times a standard-weight question in this section&apos;s grade and in the assignment grade.</span>
+          </details>
         </div>
       )}
 

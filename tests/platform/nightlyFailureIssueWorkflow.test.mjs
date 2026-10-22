@@ -56,10 +56,16 @@ test('the watcher reports only scheduled runs, with issue rights and nothing mor
   assert.doesNotMatch(watcher, /actions\/checkout|actions\/download-artifact/, 'never runs or reads the run\'s code');
 });
 
-test('a failure opens or comments on one issue per workflow; a pass closes it; a cancelled run does nothing', () => {
+// A cancelled run is reported as a failure. A job that reaches its
+// timeout-minutes ends `cancelled`; the journeys' teacher job did so every
+// night from at least Oct 13 to Oct 22, and while "cancelled does nothing" was
+// the rule, no issue was ever opened.
+test('a failure, a timeout or a cancelled run opens or comments on one issue per workflow; a pass closes it', () => {
   const script = watcher.slice(watcher.indexOf('run: |'));
   assert.match(script, /title="Nightly failed: \$\{WORKFLOW\}"/);
-  assert.match(script, /failure\|timed_out\|startup_failure\)/);
+  const reported = (script.match(/^\s+([a-z_|]+)\)\s*\n\s+failed_jobs=/m) || [])[1] || '';
+  assert.deepEqual(reported.split('|').sort(), ['cancelled', 'failure', 'startup_failure', 'timed_out']);
+  assert.match(script, /select\([^)]*\.conclusion == "cancelled"/, 'a cancelled job is named in the issue');
   assert.match(script, /gh issue comment "\$number"/);
   assert.match(script, /gh issue create --repo "\$REPO" --title "\$title" --label "\$label"/);
   assert.match(script, /success\)\s*\n\s*number="\$\(open_issue\)"[\s\S]*gh issue close "\$number"/);
