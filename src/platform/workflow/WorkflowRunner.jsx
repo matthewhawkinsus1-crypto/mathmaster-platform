@@ -19,7 +19,7 @@ import { choicePreviewLabel, previewFigures, previewGivenEvaluators } from './ch
 import { evaluateStaticGraphFunction } from '../../graphSpecUtils';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
+import { activeStages, hasStageResponse, lockedStageIds, projectedStageCount, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
 import { buildWorkflowAnswerState, workflowStageWorkResponses } from './workflowAnswerState.js';
 import { workflowTableLayout } from '../../../functions/shared/toolMath/workflow/workflowStageWork.mjs';
 import { composedWorkflowSupport } from '../../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
@@ -59,6 +59,13 @@ import './WorkflowFocusMode.css';
 // so a stage is a few lines rather than a special case.
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+// A step's name: the recipe's own short name where it gives one, else the kind's.
+// Function Characteristics read "1. Classify, 2. Classify, 3. Classify"
+// (walkthrough 2026-10-22).
+const stepName = (stage) => stage?.stepLabel || getStage(stage?.kind)?.label || stage?.kind || '';
+// The same name before a colon ("Discrete or continuous: discrete").
+const stepSummaryName = (stage) => String(stepName(stage)).replace(/\?$/, '');
 
 const panel = {
   border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)',
@@ -1109,6 +1116,10 @@ export default function WorkflowRunner({
   useEffect(() => { onProgressChangeRef.current = onProgressChange; }, [onProgressChange]);
 
   const progress = summarizeWorkflowProgress(workflow, responses);
+  // What the student is told the length is: the steps shown now plus the
+  // longest branch of a choice not yet made, so "N of M" never grows
+  // (projectedStageCount). Grading still reads `progress`, the steps asked.
+  const stepsToShow = Math.max(workflow.length, projectedStageCount(authoredWorkflow, responses));
   const reviewState = useMemo(
     () => buildWorkflowReviewState({ stages: workflow, responses, review: submissionReview }),
     [workflow, responses, submissionReview],
@@ -1230,6 +1241,22 @@ export default function WorkflowRunner({
     stageNavigationRequestedRef.current = false;
     bringActiveStageIntoView(focusRootRef.current);
   }, [activeStageIndex]);
+  // The step strip scrolls sideways on a phone; keep the current step's tab in
+  // it. Only the strip moves: a step that opened past the right edge left the
+  // student with no tab showing where they were.
+  const navigatorRef = useRef(null);
+  useEffect(() => {
+    const strip = navigatorRef.current;
+    const tab = strip?.querySelector('[aria-current="step"]');
+    if (!strip || !tab || strip.scrollWidth <= strip.clientWidth) return;
+    const stripBox = strip.getBoundingClientRect();
+    const tabBox = tab.getBoundingClientRect();
+    if (tabBox.left >= stripBox.left && tabBox.right <= stripBox.right) return;
+    const left = tabBox.left - stripBox.left + strip.scrollLeft;
+    const target = Math.max(0, left - (strip.clientWidth - tabBox.width) / 2);
+    if (typeof strip.scrollTo === 'function') strip.scrollTo({ left: target, behavior: 'smooth' });
+    else strip.scrollLeft = target;
+  }, [activeStageIndex, workflow.length]);
 
   if (!workflow.length) return null;
 
@@ -1242,11 +1269,10 @@ export default function WorkflowRunner({
   const locked = lockedStageIds(workflow, furthestReachableIndex);
   const safeActiveIndex = Math.min(activeStageIndex, Math.max(0, workflow.length - 1));
   const activeStage = workflow[safeActiveIndex] || workflow[0];
-  const activeDefinition = getStage(activeStage?.kind);
   const activeAnswered = activeStage ? hasStageResponse(responses[activeStage.id]) : false;
   const summaryStages = workflow.slice(0, safeActiveIndex).map((stage) => ({
     ...stage,
-    label: getStage(stage.kind)?.label || stage.kind,
+    label: stepSummaryName(stage),
   }));
   const summaryItems = buildWorkflowSummaryItems(summaryStages, responses);
   const checkedGraph = checkedGraphReference({
@@ -1270,7 +1296,6 @@ export default function WorkflowRunner({
     : 'Keep this graph in view while you answer each analysis step.';
 
   const renderStage = (stage, index, { focused = false } = {}) => {
-    const definition = getStage(stage.kind);
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
     const stageReason = reviewByStageId.get(stage.id)?.reason || '';
     // A sort marked wrong names its wrong figures (P2-4). Only from a review,
@@ -1329,7 +1354,7 @@ export default function WorkflowRunner({
         <section key={stage.id} className={shellClass} style={focusMode ? undefined : waitingPanel}>
           <div style={focusMode ? waitingPanel : undefined}>
             <h4 style={{ ...stageHeading, color: 'var(--mm-text-muted)' }}>
-              Step {index + 1}. {definition?.label || stage.kind}
+              Step {index + 1}. {stepName(stage)}
             </h4>
             <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55 }}>
               Finish <strong>{getStage(upstream?.kind)?.label || waitingStageId}</strong> first — this step is built
@@ -1342,7 +1367,7 @@ export default function WorkflowRunner({
 
     return (
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : stagePanelStyle}>
-        {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
+        {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {stepName(stage)}</h4>}
         {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 'calc(16 * var(--mm-px))', margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
         {/* WHY THIS STEP IS RED (student pass 3, wave 7). The grader's own
             reason for this stage ("Check the x-axis unit.", "2 of 5 values do
@@ -1365,7 +1390,7 @@ export default function WorkflowRunner({
               This step is closed — a later step showed you the graph. Your answer is kept as you left it.
             </p>
             <p className="workflow-focus__locked-answer">
-              {summarizeStageResponse({ ...stage, label: getStage(stage.kind)?.label || stage.kind }, responses[stage.id])?.text
+              {summarizeStageResponse({ ...stage, label: stepSummaryName(stage) }, responses[stage.id])?.text
                 || 'Answered.'}
             </p>
           </div>
@@ -1418,7 +1443,7 @@ export default function WorkflowRunner({
         {promptAndScenario}
         {workflow.map((stage, index) => renderStage(stage, index))}
         <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', margin: '4px 2px 0' }}>
-          {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
+          {progress.answered} of {stepsToShow} steps answered. Each step is marked on its own.
         </p>
       </div>
     );
@@ -1440,21 +1465,21 @@ export default function WorkflowRunner({
     .filter(({ stage, index }) => stage.id !== activeStage?.id && index <= furthestReachableIndex);
   // Answered steps rather than position, so the rail measures work done, not
   // how far the student has clicked.
-  const railPercent = workflow.length
-    ? Math.round((progress.answered / workflow.length) * 100)
+  const railPercent = stepsToShow
+    ? Math.round((progress.answered / stepsToShow) * 100)
     : 0;
 
   // Above the work, or — in a short Work View — in the Previous/Next row.
   const stepHeading = (
     <div className="workflow-focus__workspace-heading">
       <div className="workflow-focus__workspace-heading-left">
-        <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+        <h4>Step {safeActiveIndex + 1}. {stepName(activeStage)}</h4>
         <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
         {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
         {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
         {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
       </div>
-      <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
+      <span className="workflow-focus__counter">{safeActiveIndex + 1} of {stepsToShow}</span>
     </div>
   );
 
@@ -1466,16 +1491,15 @@ export default function WorkflowRunner({
         className="workflow-focus__rail"
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={workflow.length}
+        aria-valuemax={stepsToShow}
         aria-valuenow={progress.answered}
-        aria-label={`${progress.answered} of ${workflow.length} steps answered`}
+        aria-label={`${progress.answered} of ${stepsToShow} steps answered`}
       >
         <div className="workflow-focus__rail-fill" style={{ width: `${railPercent}%` }} />
       </div>
 
-      <nav className="workflow-focus__navigator" aria-label="Question steps">
+      <nav className="workflow-focus__navigator" aria-label="Question steps" ref={navigatorRef}>
         {workflow.map((stage, index) => {
-          const definition = getStage(stage.kind);
           const answered = hasStageResponse(responses[stage.id]);
           const active = index === safeActiveIndex;
           const reachable = index <= furthestReachableIndex;
@@ -1504,14 +1528,14 @@ export default function WorkflowRunner({
               data-family={stageFamily(stage.kind)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${reviewAria}${isLocked ? ', closed' : ''}`}
+              aria-label={`Step ${index + 1}: ${stepName(stage)}${reviewAria}${isLocked ? ', closed' : ''}`}
               onClick={() => goToStage(index)}
             >
               {reviewStatus === 'correct' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--correct" aria-hidden="true">✓ </span> : null}
               {reviewStatus === 'incorrect' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--incorrect" aria-hidden="true">! </span> : null}
               {reviewStatus === 'changed' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--changed" aria-hidden="true">↻ </span> : null}
               {['draft', 'reviewed'].includes(reviewStatus) ? <span className="workflow-focus__step-icon workflow-focus__step-icon--draft" aria-hidden="true">• </span> : null}
-              {index + 1}. {definition?.label || stage.kind}
+              {index + 1}. {stepName(stage)}
             </button>
           );
         })}
@@ -1568,7 +1592,7 @@ export default function WorkflowRunner({
                 className="workflow-focus__restored-link"
                 onClick={() => goToStage(index)}
               >
-                Open Step {index + 1}: {getStage(stage.kind)?.label || stage.kind}
+                Open Step {index + 1}: {stepName(stage)}
               </button>
             ))}
           </div>
@@ -1653,7 +1677,7 @@ export default function WorkflowRunner({
           </button>
         </div>
         <p className="workflow-focus__progress-text">
-          {progress.answered} of {progress.total} steps answered{activeAnswered ? ' · current step has a response' : ''}.
+          {progress.answered} of {stepsToShow} steps answered{activeAnswered ? ' · current step has a response' : ''}.
         </p>
       </footer>
     </div>
