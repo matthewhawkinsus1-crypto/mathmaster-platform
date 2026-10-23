@@ -458,13 +458,19 @@
           "id": "line",
           "label": "Linear equation",
           "inputProfile": "equation",
-          "expected": "y={{m}}x{{b|signed}}"
+          "expected": "y={{m|coef}}x{{b|term}}",
+          "accepted": [
+            "y={{m}}x{{b|signed}}"
+          ]
         },
         {
           "id": "quadratic",
           "label": "Quadratic equation",
           "inputProfile": "equation",
-          "expected": "y=(x-({{h}}))^2{{k|signed}}"
+          "expected": "y={{h|xshift}}^2{{k|term}}",
+          "accepted": [
+            "y=(x-({{h}}))^2{{k|signed}}"
+          ]
         }
       ],
       "solutionReview": {

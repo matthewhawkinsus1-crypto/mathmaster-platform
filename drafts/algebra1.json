@@ -24374,7 +24374,10 @@
           "id": "answer",
           "label": "Complete expression",
           "inputProfile": "expression",
-          "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+          "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+          "accepted": [
+            "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+          ]
         }
       ],
       "solutionReview": {
@@ -24456,7 +24459,10 @@
               "id": "answer",
               "label": "Factored expression",
               "inputProfile": "expression",
-              "expected": "{{g}}*x*({{a}}*x+({{b}}))"
+              "expected": "{{g}}x({{a|coef}}x{{b|term}})",
+              "accepted": [
+                "{{g}}*x*({{a}}*x+({{b}}))"
+              ]
             }
           ],
           "solutionReview": {
@@ -24534,7 +24540,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "{{g}}*x*({{a}}*x^2+({{b}})*x+({{c}}))"
+              "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+              "accepted": [
+                "{{g}}*x*({{a}}*x^2+({{b}})*x+({{c}}))"
+              ]
             },
             {
               "id": "verify",
@@ -24635,7 +24644,10 @@
               "id": "answer",
               "label": "Correct complete factored expression",
               "inputProfile": "expression",
-              "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+              "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+              "accepted": [
+                "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+              ]
             }
           ],
           "solutionReview": {

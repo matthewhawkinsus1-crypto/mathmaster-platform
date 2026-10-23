@@ -45,7 +45,10 @@
           "id": "answer",
           "label": "Equivalent simplified radical expression",
           "inputProfile": "expression",
-          "expected": "{{k}}*x^{{m}}*sqrt(x)"
+          "expected": "{{k}}x{{m|pow}}\\sqrt{x}",
+          "accepted": [
+            "{{k}}*x^{{m}}*sqrt(x)"
+          ]
         }
       ],
       "solutionReview": {
@@ -238,7 +241,10 @@
           "id": "answer",
           "label": "Equivalent simplified cube-root expression",
           "inputProfile": "expression",
-          "expected": "{{k}}*x^{{m}}*\\sqrt[3]{x^{{r}}}"
+          "expected": "{{k}}x{{m|pow}}\\sqrt[3]{x{{r|pow}}}",
+          "accepted": [
+            "{{k}}*x^{{m}}*\\sqrt[3]{x^{{r}}}"
+          ]
         }
       ],
       "solutionReview": {

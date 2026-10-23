@@ -363,6 +363,16 @@ const applyFilter = (value, filter) => {
     case 'xterm': return Number.isFinite(numeric)
       ? (numeric === 0 ? '' : `${numeric < 0 ? '-' : '+'} ${Math.abs(numeric) === 1 ? '' : Math.abs(numeric)}x`)
       : String(value);
+    // Keys a student can write as they are taught (GR10): `pow` is an
+    // exponent that vanishes at 1 ("x{{m|pow}}": 1 → "x", 3 → "x^3", 12 →
+    // "x^{12}"), and `xshift` is x shifted by a value, bare at 0
+    // ("{{h|xshift}}^2": 0 → "x^2", 3 → "(x - 3)^2", -3 → "(x + 3)^2").
+    case 'pow': return Number.isFinite(numeric)
+      ? (numeric === 1 ? '' : `^${String(numeric).length > 1 ? `{${numeric}}` : numeric}`)
+      : String(value);
+    case 'xshift': return Number.isFinite(numeric)
+      ? (numeric === 0 ? 'x' : `(x ${numeric < 0 ? '+' : '-'} ${Math.abs(numeric)})`)
+      : String(value);
     default: return String(value);
   }
 };
