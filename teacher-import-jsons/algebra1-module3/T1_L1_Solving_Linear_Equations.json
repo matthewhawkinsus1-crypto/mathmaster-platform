@@ -1199,13 +1199,15 @@
               "id": "areaA",
               "label": "The area of rectangle A, as an expression in x",
               "answer": "6(5+2x)",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
             },
             {
               "id": "areaB",
               "label": "The area of rectangle B, as an expression in x",
               "answer": "8(x+5)",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
             },
             {
               "id": "step",

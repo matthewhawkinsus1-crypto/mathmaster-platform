@@ -181,3 +181,23 @@ test('a direct exam-style claim is offered as its own place, from its own framew
     assert.equal(intent.ccmrSource.domainId, 'algebra');
   });
 });
+
+test('a graphing question whose `standard` is its line, not a code, offers only real TEKS codes', () => {
+  // graphing2 standard form keeps the line it graphs in `standard` ({A, B, C});
+  // read as text it became the code "[OBJECT OBJECT]" on every such place.
+  const line = {
+    questionId: 'graph-intercepts',
+    type: 'graphing2',
+    mode: 'standardForm',
+    standard: { A: 3, B: 4, C: 12 },
+    alignments: [{ framework: 'teks', code: 'A.3C', role: 'primary' }],
+  };
+  assert.deepEqual(bank.questionTeksCodes(line), ['A.3C']);
+  assert.deepEqual(bank.questionTeksCodes({ ...line, alignments: [], standard: 'a.3c' }), ['A.3C'], 'a code written in `standard` still counts');
+
+  const graphing = lesson('teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json');
+  const { plan } = bank.replaceDirectCcmrQuestionsWithAuditedBank(clone(graphing), { ensurePracticeTarget: true, includeCandidates: true }).audit;
+  const codes = plan.slots.flatMap((slot) => slot.teksCodes);
+  assert.ok(plan.slots.some((slot) => slot.questionId === 'm3t2l1-pr-6'), 'the lesson\'s intercept-graphing place is in the plan');
+  assert.deepEqual(codes.filter((code) => !/^A\.\d+[A-Z]$/.test(code)), [], 'every place names TEKS codes only');
+});
