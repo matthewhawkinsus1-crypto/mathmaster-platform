@@ -69,7 +69,7 @@ export const buildWorkflowReviewState = ({
       .map((part) => [String(part.id), part]),
   );
 
-  return (Array.isArray(stages) ? stages : []).map((stage, index) => {
+  const states = (Array.isArray(stages) ? stages : []).map((stage, index) => {
     const id = String(stage?.id || '');
     const answered = Boolean(id) && hasStageResponse(responses?.[id]);
     if (!answered) {
@@ -102,6 +102,37 @@ export const buildWorkflowReviewState = ({
       part,
       ...(reason ? { reason } : {}),
     };
+  });
+  return withUpstreamChanges(Array.isArray(stages) ? stages : [], states);
+};
+
+/*
+ * A VERDICT RESTS ON THE STEPS IT WAS BUILT FROM.
+ *
+ * A graph is checked against the student's own table and their own "discrete or
+ * continuous"; a table against their own equation. When one of those changes
+ * after a check, the later verdict was for a different question, so it is
+ * "changed" too: "✓ Checked correct" stood on a connected graph after the
+ * student switched to discrete (walkthrough 2026-10-22, DOL #3 PR 2). The chain
+ * is followed in step order, so a changed equation reaches the graph through
+ * its table. `upstreamChanged` names the step that changed.
+ */
+const upstreamStageIds = (stage) => [stage?.sourceStageId || stage?.source?.fromStage, stage?.continuityStageId]
+  .map((value) => String(value || '').trim())
+  .filter(Boolean);
+
+const withUpstreamChanges = (stages, states) => {
+  const changed = new Set();
+  return states.map((state, index) => {
+    if (state.status === 'changed') {
+      changed.add(state.id);
+      return state;
+    }
+    if (!['correct', 'incorrect', 'reviewed'].includes(state.status)) return state;
+    const upstream = upstreamStageIds(stages[index]).find((id) => changed.has(id));
+    if (!upstream) return state;
+    changed.add(state.id);
+    return { id: state.id, index: state.index, status: 'changed', part: state.part, upstreamChanged: upstream };
   });
 };
 
