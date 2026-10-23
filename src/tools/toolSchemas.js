@@ -14,6 +14,7 @@ import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspace
 import { axisLabelProblems } from './shared/planeAxisTitles.js';
 import { GRAPHING2_DEFAULT_BOUNDS, targetLineFromQuestion } from './graphing2/graphingMath.js';
 import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
+import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -370,7 +371,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'polynomialWorkshop') {
-    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','longDivision','syntheticDivision','graphConnection','rationalFeatures'];
+    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','longDivision','syntheticDivision','graphConnection','rationalFeatures','synthetic'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported polynomialWorkshop mode: ${question.mode}.`);
     if (question.coefficients && (!Array.isArray(question.coefficients) || question.coefficients.length < 2)) errors.push('Polynomial must have degree at least 1.');
     // The area model takes two binomial coefficient lists (x only, 2 × 2), or
@@ -388,16 +389,54 @@ export const validateToolQuestion = (question = {}) => {
     if (question.mode === 'longDivision' && !longDivisionKey(question)) errors.push(`longDivision mode requires dividend and divisor written as polynomials in one letter, in simplest form with whole-number coefficients: a divisor of degree 1 to ${DIVISION_LIMITS.divisorDegree} and a dividend of at least its degree and at most degree ${DIVISION_LIMITS.degree} (for example dividend "x^3-4x+2", divisor "x+3").`);
     if (question.mode === 'syntheticDivision' && !syntheticDivisionKey(question)) errors.push(`syntheticDivision mode requires a linear divisor (ax + b) and a dividend of degree 1 to ${DIVISION_LIMITS.degree}, written as polynomials in one letter in simplest form with whole-number coefficients (for example dividend "x^3-4x^2+6x-4", divisor "x-2").`);
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
+    if (question.mode === 'synthetic') {
+      // Synthetic division divides by x − r: the dividend's full coefficient
+      // list (a 0 for each missing power) and r, as candidateRoot or a monic
+      // linear divisor [1, −r].
+      const dividend = Array.isArray(question.dividend) ? question.dividend.map(Number) : null;
+      if (!dividend || dividend.length < 2 || !dividend.every(Number.isFinite) || dividend[0] === 0) errors.push('synthetic mode requires a dividend coefficient array of degree at least 1 with a nonzero leading coefficient.');
+      const rootGiven = question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '';
+      const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
+      if (rootGiven && !Number.isFinite(Number(question.candidateRoot))) errors.push('synthetic mode candidateRoot must be a number.');
+      if (!rootGiven && !(divisor && divisor.length === 2 && divisor[0] === 1 && Number.isFinite(divisor[1]))) errors.push('synthetic mode divides by x − r: give candidateRoot r or a divisor [1, -r].');
+      if (question.ask !== undefined && (!Array.isArray(question.ask) || !question.ask.length || question.ask.some((entry) => !['value', 'quotient', 'factor'].includes(entry)))) errors.push('synthetic mode ask must list one or more of "value", "quotient", "factor".');
+    }
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
   }
   if (toolId === 'signSolutionAnalyzer') {
-    const modes = ['polynomial','rational','radicalCheck'];
+    const modes = ['polynomial','rational','radicalCheck','radicalSolve'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported signSolutionAnalyzer mode: ${question.mode}.`);
     if (question.relation && !['>','>=','<','<='].includes(question.relation)) errors.push('Sign analyzer relation must be >, >=, <, or <=.');
     if (question.mode === 'rational' && (!Array.isArray(question.denominatorFactors) || question.denominatorFactors.length < 1)) errors.push('rational mode requires denominatorFactors.');
     if (question.mode === 'radicalCheck') {
       if (!Array.isArray(question.candidates) || question.candidates.length < 1) errors.push('radicalCheck mode requires candidate values.');
       if (!question.radicalEquation?.radicand || !question.radicalEquation?.rhs) errors.push('radicalCheck mode requires radicand and rhs linear specs.');
+    }
+    if (question.mode === 'radicalSolve') {
+      // a·ⁿ√(mx + b) + c = px + q, solved stage by stage (signSolutionMath.js
+      // radicalSolveKey): its own equation, never the demonstration one.
+      const spec = question.radicalEquation;
+      if (!spec || typeof spec !== 'object' || !spec.radicand || !spec.rhs) {
+        errors.push('radicalSolve mode requires radicalEquation with radicand { m, b } and rhs { m, b } (and optional index, coefficient, outside, variable, notation).');
+      } else {
+        // The numbers are shown to the student, so they are exact: a template
+        // that draws √5 into the equation would print 2.2360679….
+        const shown = [spec.index, spec.coefficient, spec.radicand?.m, spec.radicand?.b, spec.outside, spec.rhs?.m, spec.rhs?.b]
+          .filter((value) => value !== undefined && value !== null && value !== '').map(Number);
+        if (shown.some((value) => Number.isFinite(value) && Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-6)) {
+          errors.push('radicalSolve numbers must be exact: whole numbers, or decimals with at most 4 places.');
+        }
+        try {
+          const key = radicalSolveKey(spec);
+          // Every stage is typed, so its numbers should be ones a student writes exactly.
+          const awkward = [...key.candidates, key.isolated.m, key.isolated.b].filter((value) => Math.abs(value * 12 - Math.round(value * 12)) > 1e-9);
+          if (awkward.length) warnings.push(`radicalSolve: ${awkward.join(', ')} is not a whole number or a simple fraction; students type every stage exactly.`);
+        } catch (error) {
+          errors.push(`radicalSolve mode: ${error.message}`);
+        }
+        if (spec.notation !== undefined && !['radical', 'exponent'].includes(spec.notation)) errors.push('radicalSolve notation must be "radical" or "exponent".');
+        if (spec.variable !== undefined && !/^[a-z]$/.test(String(spec.variable))) errors.push('radicalSolve variable must be one lowercase letter.');
+      }
     }
   }
   if (toolId === 'sequenceExplorer') {

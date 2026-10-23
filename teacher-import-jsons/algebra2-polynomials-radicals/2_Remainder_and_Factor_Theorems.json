@@ -1,0 +1,1849 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Remainder & Factor Theorems",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Polynomials",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "What relationships exist between the factors of polynomial expressions and the zeros of their associated polynomial functions?",
+    "teacherNotes": "Bluebonnet Algebra II — Polynomials, Lesson 2 (Factoring Using the Remainder, Factor, and Rational Zero Theorems), TEKS A2.7D/A2.7E. Synthetic division happens in the Polynomial Workshop: students write every row of the table (0 placeholders included), then P(r), the quotient, and the factor decision, each marked separately. Rational-zero lists are sets and may use ± ({±1, ±1/3}). Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Evaluate and Factor",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "rf-wu-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Evaluate by direct substitution: if $f(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$, find $f({{r}})$.",
+          "responses": [
+            {
+              "id": "value",
+              "label": "f({{r}}) =",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Replace every x with ({{r}}). Work out the powers first.",
+            "Keep the signs: a negative number squared is positive, cubed is negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find f({{r}}), you replace x with…",
+            "options": [
+              "the constant term",
+              "{{r}}"
+            ],
+            "correct": "{{r}}"
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "v": "r^3 + b*r^2 + c*r + d",
+              "r2": "r * r",
+              "r3": "r * r * r"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Substitute {{r}} for every x.",
+            "reasoning": [
+              "f({{r}}) = ({{r}})³ {{b|signed}}({{r}})² {{c|signed}}({{r}}) {{d|signed}}.",
+              "Powers first: ({{r}})³ = {{r3}} and ({{r}})² = {{r2}}.",
+              "Then multiply and add: f({{r}}) = {{v}}."
+            ],
+            "answerSummary": "f({{r}}) = {{v}}",
+            "commonError": "Dropping the parentheses around a negative input changes the sign of its even powers."
+          }
+        },
+        {
+          "questionId": "rf-wu-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "factorPolynomial"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor $x^2 {{s|xterm}} {{p|signed}}$. (Today you will factor the quotient that synthetic division leaves behind.)",
+          "polynomial": {
+            "coefficients": [
+              1,
+              "{{s}}",
+              "{{p}}"
+            ]
+          },
+          "hints": [
+            "Two numbers multiply to {{p}} and add to {{s}}."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "s": "m + n",
+              "p": "m * n"
+            },
+            "constraints": [
+              "m < n",
+              "m + n != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rf-wu-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{a3}}c^3 {{sigma|sign}} {{k3|coef}}g^3$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "({{a}}c{{sigma|sign}}{{k|coef}}g)({{a2}}c^2{{nsigma|sign}}{{ak}}cg+{{k2|coef}}g^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Write each term as a cube: {{a3}}c³ = ({{a}}c)³.",
+            "SOAP: Same sign, Opposite sign, Always Positive."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. {{a3}}c³ is the cube of…",
+            "options": [
+              "{{a}}c",
+              "{{a3}}c"
+            ],
+            "correct": "{{a}}c"
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "sigma": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "a2": "a * a",
+              "a3": "a * a * a",
+              "k2": "k * k",
+              "k3": "k * k * k",
+              "ak": "a * k",
+              "nsigma": "-sigma"
+            },
+            "constraints": [
+              "gcd(a, k) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Write both terms as cubes, then use the pattern.",
+            "reasoning": [
+              "{{a3}}c³ = ({{a}}c)³ and {{k3|coef}}g³ = ({{k|coef}}g)³.",
+              "a³ ± b³ = (a ± b)(a² ∓ ab + b²): the binomial keeps the sign, the middle term of the trinomial takes the opposite sign, and the last term is always positive."
+            ],
+            "answerSummary": "({{a}}c {{sigma|sign}} {{k|coef}}g)({{a2}}c² {{nsigma|sign}} {{ak}}cg + {{k2|coef}}g²)",
+            "commonError": "The middle sign of the trinomial is the opposite of the binomial’s sign, and the trinomial does not factor any further."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Remainders, Factors, and Rational Zeros",
+      "recommendedMinutes": 50,
+      "questions": [
+        {
+          "questionId": "rf-cw-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The Remainder Theorem. Divide $x^2 + 6x + 2$ by $x - 4$ with synthetic division. Then read the bottom row: the quotient and remainder give $x^2 + 6x + 2 = (x - 4)(\\text{quotient}) + \\text{remainder}$, and the remainder is $P(4)$.",
+          "polynomial": {
+            "dividend": [
+              1,
+              6,
+              2
+            ],
+            "candidateRoot": 4,
+            "ask": [
+              "value",
+              "quotient"
+            ]
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Remainder Theorem",
+                "instruction": "When P(x) is divided by x − r, the remainder is P(r): P(x) = Q(x)(x − r) + P(r)."
+              },
+              {
+                "title": "Synthetic division",
+                "instruction": "Write r in the box and every coefficient of P(x) from the highest power down — a 0 for each missing power. Bring down the first coefficient, multiply by r, write the product under the next coefficient, and add. Repeat."
+              },
+              {
+                "title": "Reading the bottom row",
+                "instruction": "The last number is the remainder, P(r). The other numbers are the coefficients of the quotient, one degree lower — the depressed polynomial."
+              },
+              {
+                "title": "Synthetic substitution",
+                "instruction": "Using synthetic division to find P(r) is called synthetic substitution."
+              }
+            ]
+          },
+          "hints": [
+            "The box holds 4, because x − 4 is 0 when x = 4.",
+            "Bring down the 1. Then 1 · 4 = 4 and 6 + 4 = 10. Then 10 · 4 = 40 and 2 + 40 = 42."
+          ]
+        },
+        {
+          "questionId": "rf-cw-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Synthetic substitution. If $f(x) = 2x^4 - 5x^2 + 8x - 7$, find $f(6)$. There is no $x^3$ term, so a 0 holds its place.",
+          "polynomial": {
+            "dividend": [
+              2,
+              0,
+              -5,
+              8,
+              -7
+            ],
+            "candidateRoot": 6,
+            "ask": [
+              "value"
+            ]
+          },
+          "hints": [
+            "The coefficients are 2, 0, −5, 8, −7 — five numbers for a fourth-degree polynomial.",
+            "By the Remainder Theorem, f(6) is the last number in the bottom row."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 2x⁴ − 5x² + 8x − 7, the coefficient of x³ is…",
+            "options": [
+              "0",
+              "−5"
+            ],
+            "correct": "0"
+          }
+        },
+        {
+          "questionId": "rf-cw-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The Factor Theorem. Determine whether $x - 3$ is a factor of $x^3 + 4x^2 - 15x - 18$, and find the depressed polynomial (the quotient).",
+          "polynomial": {
+            "dividend": [
+              1,
+              4,
+              -15,
+              -18
+            ],
+            "candidateRoot": 3,
+            "ask": [
+              "quotient",
+              "factor"
+            ]
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Factor Theorem",
+                "instruction": "x − r is a factor of P(x) exactly when P(r) = 0 — when the remainder is 0."
+              },
+              {
+                "title": "Depressed polynomial",
+                "instruction": "When the remainder is 0, P(x) = (x − r)·Q(x). The quotient Q(x) is the depressed polynomial; factor it to finish."
+              }
+            ]
+          },
+          "hints": [
+            "A remainder of 0 means x − 3 is a factor.",
+            "The quotient has degree 2: read its coefficients from the bottom row."
+          ]
+        },
+        {
+          "questionId": "rf-cw-4",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "From the last problem: $x^3 + 4x^2 - 15x - 18 = (x - 3)(x^2 + 7x + 6)$. Factor the depressed polynomial, write the polynomial completely factored, and list its zeros.",
+          "responses": [
+            {
+              "id": "depressed",
+              "label": "x² + 7x + 6 =",
+              "answer": "(x+6)(x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "x³ + 4x² − 15x − 18 =",
+              "answer": "(x-3)(x+6)(x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros of f(x) = x³ + 4x² − 15x − 18, as a set",
+              "answer": "{3, -6, -1}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Find two numbers with product 6 and sum 7.",
+            "Each factor x − c gives the zero x = c, so a factor x + a gives the zero x = −a."
+          ],
+          "solutionReview": {
+            "headline": "Factor the depressed polynomial, then read the zeros from the factors.",
+            "reasoning": [
+              "x² + 7x + 6 = (x + 6)(x + 1)",
+              "x³ + 4x² − 15x − 18 = (x − 3)(x + 6)(x + 1)",
+              "Each factor is 0 at one value: x = 3, x = −6, x = −1."
+            ],
+            "answerSummary": "(x − 3)(x + 6)(x + 1); zeros {3, −6, −1}",
+            "commonError": "Listing the zeros as 6 and 1: the zero of x + 6 is −6.",
+            "connection": "The graph of f(x) = x³ + 4x² − 15x − 18 crosses the x-axis at 3, −6 and −1."
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. A factor x − c of a polynomial gives which zero?",
+            "options": [
+              "x = c",
+              "x = −c"
+            ],
+            "correct": "x = c"
+          }
+        },
+        {
+          "questionId": "rf-cw-5",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine whether $x + 2$ is a factor of $x^3 + 8x^2 + 17x + 10$. If it is, the bottom row gives the depressed polynomial.",
+          "polynomial": {
+            "dividend": [
+              1,
+              8,
+              17,
+              10
+            ],
+            "divisor": [
+              1,
+              2
+            ]
+          },
+          "hints": [
+            "x + 2 = x − (−2), so −2 goes in the box.",
+            "Multiply by −2 each time, then add."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing by x + 2, the number in the box is…",
+            "options": [
+              "−2",
+              "2"
+            ],
+            "correct": "−2"
+          }
+        },
+        {
+          "questionId": "rf-cw-6",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The Rational Zero Theorem. List all of the possible rational zeros of $f(x) = 3x^4 - x^3 + 4$. Write each list as a set; $\\pm$ is allowed, for example $\\{\\pm 1, \\pm 2\\}$.",
+          "responses": [
+            {
+              "id": "p",
+              "label": "Factors p of the constant term 4",
+              "answer": "{±1, ±2, ±4}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "q",
+              "label": "Factors q of the leading coefficient 3",
+              "answer": "{±1, ±3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "zeros",
+              "label": "All possible rational zeros p/q",
+              "answer": "{±1, ±2, ±4, ±1/3, ±2/3, ±4/3}",
+              "inputProfile": "set"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rational Zero Theorem",
+                "instruction": "If P(x) has integer coefficients, every rational zero has the form p/q, where p is a factor of the constant term and q is a factor of the leading coefficient."
+              },
+              {
+                "title": "List them",
+                "instruction": "Write every p, every q, then every p/q. Remove repeats: 2/2 is the same candidate as 1/1."
+              },
+              {
+                "title": "Candidates, not zeros",
+                "instruction": "The list is only the POSSIBLE rational zeros. Test them with synthetic substitution to find the real ones."
+              }
+            ]
+          },
+          "hints": [
+            "List every whole number that divides the constant term, then give each one both signs.",
+            "Divide each p by each q, and cross out any value that repeats."
+          ],
+          "solutionReview": {
+            "headline": "Every p/q, with p | 4 and q | 3.",
+            "reasoning": [
+              "p: ±1, ±2, ±4",
+              "q: ±1, ±3",
+              "p/q: ±1, ±2, ±4, ±1/3, ±2/3, ±4/3"
+            ],
+            "answerSummary": "{±1, ±2, ±4, ±1/3, ±2/3, ±4/3}",
+            "commonError": "Dividing the leading coefficient by the constant (q/p) instead of p/q."
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In the Rational Zero Theorem, p is a factor of which number?",
+            "options": [
+              "The leading coefficient",
+              "The constant term"
+            ],
+            "correct": "The constant term"
+          }
+        },
+        {
+          "questionId": "rf-cw-7",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "List all of the possible rational zeros of $g(x) = x^4 + 7x^3 - 15$ and of $h(x) = 2x^3 + x + 6$.",
+          "responses": [
+            {
+              "id": "g",
+              "label": "Possible rational zeros of g",
+              "answer": "{±1, ±3, ±5, ±15}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "why",
+              "label": "Why does g have no fractions in its list?",
+              "type": "choice",
+              "options": [
+                "Its leading coefficient is 1, so q = ±1.",
+                "Its constant term is negative.",
+                "It has no x² or x term.",
+                "Fourth-degree polynomials never have fraction zeros."
+              ],
+              "answer": "Its leading coefficient is 1, so q = ±1."
+            },
+            {
+              "id": "h",
+              "label": "Possible rational zeros of h",
+              "answer": "{±1, ±2, ±3, ±6, ±1/2, ±3/2}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "For g: p is a factor of −15 and q a factor of 1.",
+            "For h: p is a factor of 6 and q a factor of 2. 2/2 and 6/2 repeat candidates you already have."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. For h(x) = 2x³ + x + 6, q must divide which number?",
+            "options": [
+              "2",
+              "6"
+            ],
+            "correct": "2"
+          },
+          "solutionReview": {
+            "headline": "p divides the constant term; q divides the leading coefficient.",
+            "reasoning": [
+              "g(x) = x⁴ + 7x³ − 15: p is ±1, ±3, ±5 or ±15 and q = ±1, so the list is ±1, ±3, ±5, ±15 — no fractions, because the leading coefficient is 1.",
+              "h(x) = 2x³ + x + 6: p is ±1, ±2, ±3 or ±6 and q is ±1 or ±2, so p/q is ±1, ±2, ±3, ±6, ±1/2, ±3/2 (2/2 and 6/2 repeat ±1 and ±3)."
+            ],
+            "answerSummary": "g: {±1, ±3, ±5, ±15}; h: {±1, ±2, ±3, ±6, ±1/2, ±3/2}",
+            "commonError": "Dividing q by p instead of p by q gives values such as 2/3 that are not candidates."
+          }
+        },
+        {
+          "questionId": "rf-cw-8",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Factor $x^3 - 2x^2 - 5x + 6$ completely. Step 1: list the possible rational zeros. Step 2: test $x = 1$. Step 3: divide by the factor you found. Step 4: factor the quotient.",
+          "responses": [
+            {
+              "id": "candidates",
+              "label": "Step 1 — possible rational zeros",
+              "answer": "{±1, ±2, ±3, ±6}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "test",
+              "label": "Step 2 — f(1) =",
+              "answer": "0",
+              "inputProfile": "number"
+            },
+            {
+              "id": "quotient",
+              "label": "Step 3 — (x³ − 2x² − 5x + 6) ÷ (x − 1) =",
+              "answer": "x^2-x-6",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "factored",
+              "label": "Step 4 — completely factored form",
+              "answer": "(x-1)(x-3)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Factoring a cubic",
+                "instruction": "1. List the possible rational zeros. 2. Test candidates until P(r) = 0. 3. Divide by x − r with synthetic division. 4. Factor the quadratic quotient."
+              }
+            ]
+          },
+          "hints": [
+            "The leading coefficient is 1, so the candidates are the factors of 6.",
+            "f(1) = 1 − 2 − 5 + 6.",
+            "Divide by x − 1 with synthetic division; the bottom row, without its last entry, holds the quotient’s coefficients."
+          ],
+          "solutionReview": {
+            "headline": "Test a candidate, divide, factor the quotient.",
+            "reasoning": [
+              "Candidates: ±1, ±2, ±3, ±6.",
+              "f(1) = 0, so x − 1 is a factor.",
+              "1 | 1 −2 −5 6 gives 1 −1 −6 | 0: the quotient is x² − x − 6.",
+              "x² − x − 6 = (x − 3)(x + 2)."
+            ],
+            "answerSummary": "(x − 1)(x − 3)(x + 2)"
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. The Factor Theorem says x − r is a factor of f(x) exactly when…",
+            "options": [
+              "f(0) = r",
+              "f(r) = 0"
+            ],
+            "correct": "f(r) = 0"
+          }
+        },
+        {
+          "questionId": "rf-cw-9",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factoring a quartic, step 1. For $P(x) = x^4 - 2x^3 - 7x^2 + 8x + 12$, the possible rational zeros are $\\pm1, \\pm2, \\pm3, \\pm4, \\pm6, \\pm12$. Divide by $x - 2$ with synthetic division: is $x - 2$ a factor, and what cubic is left?",
+          "polynomial": {
+            "dividend": [
+              1,
+              -2,
+              -7,
+              8,
+              12
+            ],
+            "candidateRoot": 2,
+            "ask": [
+              "quotient",
+              "factor"
+            ]
+          },
+          "hints": [
+            "A middle-row 0 is fine: 2 · 0 = 0.",
+            "The quotient is a cubic. Its x² coefficient is 0."
+          ]
+        },
+        {
+          "questionId": "rf-cw-10",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factoring a quartic, step 2. The depressed polynomial is $x^3 - 7x - 6$. Test $x = 3$ with synthetic division — and remember the missing $x^2$ term.",
+          "polynomial": {
+            "dividend": [
+              1,
+              0,
+              -7,
+              -6
+            ],
+            "candidateRoot": 3,
+            "ask": [
+              "quotient",
+              "factor"
+            ]
+          },
+          "hints": [
+            "The coefficients are 1, 0, −7, −6.",
+            "If the remainder is 0, x − 3 is a factor and the quotient is a quadratic."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The coefficients of x³ − 7x − 6 are…",
+            "options": [
+              "1, 0, −7, −6",
+              "1, −7, −6"
+            ],
+            "correct": "1, 0, −7, −6"
+          }
+        },
+        {
+          "questionId": "rf-cw-11",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Factoring a quartic, step 3. You found $x^4 - 2x^3 - 7x^2 + 8x + 12 = (x - 2)(x - 3)(x^2 + 3x + 2)$. Finish the factoring and connect the factors to the $x$-intercepts of $y = P(x)$.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-2)(x-3)(x+1)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{2, 3, -1, -2}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "graph",
+              "label": "Where does y = P(x) cross the x-axis?",
+              "type": "choice",
+              "options": [
+                "At x = −2, −1, 2 and 3",
+                "At x = 2 and 3 only",
+                "At x = −3, −2, 1 and 2",
+                "At y = 12"
+              ],
+              "answer": "At x = −2, −1, 2 and 3"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Zeros, factors, roots, intercepts",
+                "instruction": "For a polynomial P: c is a zero of P ⇔ x − c is a factor ⇔ c is a root (solution) of P(x) = 0 ⇔ (c, 0) is an x-intercept of the graph — when c is real."
+              }
+            ]
+          },
+          "hints": [
+            "The last factor is a quadratic with leading coefficient 1: find two numbers with the right product and sum."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. A real zero c of P(x) shows on the graph of y = P(x) as…",
+            "options": [
+              "an x-intercept at (c, 0)",
+              "a y-intercept at (0, c)"
+            ],
+            "correct": "an x-intercept at (c, 0)"
+          },
+          "solutionReview": {
+            "headline": "Factor the quadratic, then read the zeros.",
+            "reasoning": [
+              "x² + 3x + 2 = (x + 1)(x + 2), so P(x) = (x − 2)(x − 3)(x + 1)(x + 2).",
+              "Each factor x − c gives a zero c: 2, 3, −1 and −2.",
+              "Each real zero c is an x-intercept (c, 0) of y = P(x), so the graph crosses the x-axis at x = −2, −1, 2 and 3."
+            ],
+            "answerSummary": "(x − 2)(x − 3)(x + 1)(x + 2); zeros {2, 3, −1, −2}",
+            "commonError": "The factor x + 1 gives the zero −1, not 1."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Divide, Test, Factor",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "rf-p-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic substitution to find $P({{r}})$ for $P(x) = {{a|coef}}x^4 {{b|signed}}x^3 {{c|xterm}} {{d|signed}}$. (There is no $x^2$ term.)",
+          "polynomial": {
+            "dividend": [
+              "{{a}}",
+              "{{b}}",
+              0,
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}",
+            "ask": [
+              "value"
+            ]
+          },
+          "hints": [
+            "A 0 holds the place of the missing x² term."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0,
+                  1
+                ]
+              }
+            },
+            "derived": {},
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rf-p-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "If $f(x) = 2x^3 - 3x^2 + 7$, find $f(3)$ with synthetic substitution.",
+          "polynomial": {
+            "dividend": [
+              2,
+              -3,
+              0,
+              7
+            ],
+            "candidateRoot": 3,
+            "ask": [
+              "value"
+            ]
+          },
+          "hints": [
+            "There is no x term: a 0 holds its place in the top row."
+          ]
+        },
+        {
+          "questionId": "rf-p-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "factorPolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Evaluate $P({{r}})$ for $P(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$, then use the Factor Theorem: is $x {{nr|signed}}$ a factor of $P(x)$?",
+          "polynomial": {
+            "coefficients": [
+              1,
+              "{{b}}",
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}"
+          },
+          "mode": "factorZero",
+          "hints": [
+            "x − r is a factor exactly when P(r) = 0."
+          ],
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rf-p-4",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Show that $x {{nr|signed}}$ is a factor of $P(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$, and find the depressed polynomial.",
+          "polynomial": {
+            "dividend": [
+              1,
+              "{{b}}",
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}",
+            "ask": [
+              "quotient",
+              "factor"
+            ]
+          },
+          "hints": [
+            "x − r is a factor exactly when the remainder is 0; the rest of the bottom row is the depressed polynomial, one degree lower."
+          ],
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "u": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "v": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "b": "u - r",
+              "c": "v - r * u",
+              "d": "-r * v",
+              "nr": "-r"
+            },
+            "constraints": [
+              "abs(u - r) >= 2",
+              "v - r * u != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rf-p-5",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Given that $x - 5$ is a factor of $x^3 - 7x^2 + 7x + 15$, find the depressed polynomial. Then write the polynomial as a product of linear factors.",
+          "responses": [
+            {
+              "id": "quotient",
+              "label": "(x³ − 7x² + 7x + 15) ÷ (x − 5) =",
+              "answer": "x^2-2x-3",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-5)(x-3)(x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Divide by x − 5 with synthetic division; the bottom row gives the depressed polynomial."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In synthetic division by x − 5, which number goes in the box?",
+            "options": [
+              "−5",
+              "5"
+            ],
+            "correct": "5"
+          },
+          "solutionReview": {
+            "headline": "Divide by x − 5, then factor the quotient.",
+            "reasoning": [
+              "Synthetic division by 5: 1, −7, 7, 15 → bottom row 1, −2, −3 | 0, so the depressed polynomial is x² − 2x − 3.",
+              "x² − 2x − 3 = (x − 3)(x + 1), so the polynomial is (x − 5)(x − 3)(x + 1)."
+            ],
+            "answerSummary": "x² − 2x − 3; (x − 5)(x − 3)(x + 1)",
+            "commonError": "Putting −5 in the box divides by x + 5, not x − 5: the remainder is not 0."
+          }
+        },
+        {
+          "questionId": "rf-p-6",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "List all of the possible rational zeros of $f(x) = x^3 + 3x + 24$.",
+          "responses": [
+            {
+              "id": "zeros",
+              "label": "Possible rational zeros, as a set",
+              "answer": "{±1, ±2, ±3, ±4, ±6, ±8, ±12, ±24}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "The leading coefficient is 1, so list the factors of 24 with both signs."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When the leading coefficient is 1, the possible rational zeros are…",
+            "options": [
+              "the factors of the constant term, with both signs",
+              "the factors of the leading coefficient"
+            ],
+            "correct": "the factors of the constant term, with both signs"
+          },
+          "solutionReview": {
+            "headline": "With leading coefficient 1, the candidates are the factors of the constant term.",
+            "reasoning": [
+              "The constant term is 24, whose factors are 1, 2, 3, 4, 6, 8, 12 and 24.",
+              "q = ±1, so each p/q is just ±p."
+            ],
+            "answerSummary": "{±1, ±2, ±3, ±4, ±6, ±8, ±12, ±24}",
+            "commonError": "Leaving out the negatives: every factor counts with both signs."
+          }
+        },
+        {
+          "questionId": "rf-p-7",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "List all of the possible rational zeros of $f(x) = 4x^3 - 2x^2 + x - 3$.",
+          "responses": [
+            {
+              "id": "p",
+              "label": "Factors p of the constant term",
+              "answer": "{±1, ±3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "q",
+              "label": "Factors q of the leading coefficient",
+              "answer": "{±1, ±2, ±4}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "zeros",
+              "label": "All possible rational zeros p/q",
+              "answer": "{±1, ±3, ±1/2, ±3/2, ±1/4, ±3/4}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "p divides −3 and q divides 4."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In p/q, q is a factor of which number?",
+            "options": [
+              "The constant term",
+              "The leading coefficient"
+            ],
+            "correct": "The leading coefficient"
+          },
+          "solutionReview": {
+            "headline": "p divides −3, and q divides 4.",
+            "reasoning": [
+              "p is ±1 or ±3, and q is ±1, ±2 or ±4.",
+              "p/q is ±1, ±3, ±1/2, ±3/2, ±1/4 or ±3/4."
+            ],
+            "answerSummary": "{±1, ±3, ±1/2, ±3/2, ±1/4, ±3/4}",
+            "commonError": "Taking p from 4 and q from 3 turns every fraction upside down."
+          }
+        },
+        {
+          "questionId": "rf-p-8",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Factor $x^3 + x^2 - 4x - 4$ completely and list its zeros.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-2)(x+1)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{2, -1, -2}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Test the candidates ±1, ±2, ±4 until P(r) = 0.",
+            "Grouping also works: group the first two terms and the last two."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Once you find one zero r of a cubic, what do you do next?",
+            "options": [
+              "Divide by x − r and factor the quadratic that is left",
+              "Test the same r again"
+            ],
+            "correct": "Divide by x − r and factor the quadratic that is left"
+          },
+          "solutionReview": {
+            "headline": "Find a zero, divide, factor what is left.",
+            "reasoning": [
+              "The candidates are ±1, ±2 and ±4. P(−1) = −1 + 1 + 4 − 4 = 0, so x + 1 is a factor.",
+              "Dividing by x + 1 leaves x² − 4 = (x − 2)(x + 2). Grouping gives the same: x²(x + 1) − 4(x + 1).",
+              "So P(x) = (x − 2)(x + 1)(x + 2), with zeros 2, −1 and −2."
+            ],
+            "answerSummary": "(x − 2)(x + 1)(x + 2); zeros {2, −1, −2}",
+            "commonError": "x² − 4 is a difference of squares; leaving it unfactored misses two zeros."
+          }
+        },
+        {
+          "questionId": "rf-p-9",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "$x {{nr|signed}}$ is a factor of $P(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$. Factor $P(x)$ completely.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-{{r}})(x-{{s}})(x-{{t}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Divide by x − ({{r}}) with synthetic division, then factor the quadratic quotient."
+          ],
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "b": "-(r + s + t)",
+              "c": "r*s + r*t + s*t",
+              "d": "-r*s*t",
+              "nr": "-r",
+              "ns": "-s",
+              "nt": "-t",
+              "qb": "-(s + t)",
+              "qc": "s * t"
+            },
+            "constraints": [
+              "s < t",
+              "r != s",
+              "r != t",
+              "abs(r + s + t) >= 2",
+              "r*s + r*t + s*t != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. You know one factor, x − r. How do you find the rest?",
+            "options": [
+              "Expand the polynomial",
+              "Divide by it with synthetic division, then factor the quotient"
+            ],
+            "correct": "Divide by it with synthetic division, then factor the quotient"
+          },
+          "solutionReview": {
+            "headline": "Divide by the factor you know, then factor the quotient.",
+            "reasoning": [
+              "Synthetic division by {{r}} leaves the quotient x² {{qb|xterm}} {{qc|signed}}, with remainder 0.",
+              "That quotient factors as (x {{ns|signed}})(x {{nt|signed}}).",
+              "So P(x) = (x {{nr|signed}})(x {{ns|signed}})(x {{nt|signed}})."
+            ],
+            "answerSummary": "(x {{nr|signed}})(x {{ns|signed}})(x {{nt|signed}})",
+            "commonError": "Each zero c gives the factor x − c, so the zero {{s}} gives the factor x {{ns|signed}}."
+          }
+        },
+        {
+          "questionId": "rf-p-10",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor the quartic $x^4 + x^3 - 7x^2 - x + 6$ completely.",
+          "responses": [
+            {
+              "id": "candidates",
+              "label": "Possible rational zeros",
+              "answer": "{±1, ±2, ±3, ±6}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-1)(x+1)(x-2)(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{1, -1, 2, -3}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Find one zero, divide, and repeat on the cubic that is left.",
+            "Try the smallest candidates first: substitute ±1 into P(x)."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing a quartic by one factor x − r leaves a polynomial of what degree?",
+            "options": [
+              "Three",
+              "Two"
+            ],
+            "correct": "Three"
+          },
+          "solutionReview": {
+            "headline": "Find one zero, divide, and repeat.",
+            "reasoning": [
+              "The candidates are ±1, ±2, ±3 and ±6. P(1) = 1 + 1 − 7 − 1 + 6 = 0, so divide by x − 1: the quotient is x³ + 2x² − 5x − 6.",
+              "For that cubic, −1 is a zero: dividing by x + 1 leaves x² + x − 6 = (x − 2)(x + 3).",
+              "So P(x) = (x − 1)(x + 1)(x − 2)(x + 3), with zeros 1, −1, 2 and −3."
+            ],
+            "answerSummary": "(x − 1)(x + 1)(x − 2)(x + 3); zeros {1, −1, 2, −3}",
+            "commonError": "After one division the quotient is a cubic, and it still has to be factored."
+          }
+        },
+        {
+          "questionId": "rf-p-11",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the Remainder and Factor Theorems. (a) When $P(x)$ is divided by $x - 2$, the remainder is $5$. (b) Find $k$ so that $x - 2$ is a factor of $x^3 + kx - 6$.",
+          "responses": [
+            {
+              "id": "p2",
+              "label": "(a) P(2) =",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factor",
+              "label": "(a) Is x − 2 a factor of P(x)?",
+              "type": "choice",
+              "options": [
+                "No — the remainder is not 0",
+                "Yes — the remainder is positive",
+                "Yes — 2 is a factor of 5",
+                "It cannot be decided without P(x)"
+              ],
+              "answer": "No — the remainder is not 0"
+            },
+            {
+              "id": "k",
+              "label": "(b) k =",
+              "answer": "-1",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "The Remainder Theorem: the remainder of P(x) ÷ (x − r) is P(r).",
+            "For (b), x − 2 is a factor when P(2) = 0: 8 + 2k − 6 = 0."
+          ],
+          "misconceptions": [
+            {
+              "match": [
+                "1"
+              ],
+              "message": "Check the sign: 8 + 2k − 6 = 0 gives 2k = −2."
+            }
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. By the Remainder Theorem, the remainder of P(x) ÷ (x − r) equals…",
+            "options": [
+              "P(0)",
+              "P(r)"
+            ],
+            "correct": "P(r)"
+          },
+          "solutionReview": {
+            "headline": "The remainder of P(x) ÷ (x − r) is P(r).",
+            "reasoning": [
+              "(a) The remainder is 5, so P(2) = 5. It is not 0, so x − 2 is not a factor.",
+              "(b) x − 2 is a factor exactly when the value at 2 is 0: 2³ + 2k − 6 = 0, so 2 + 2k = 0 and k = −1."
+            ],
+            "answerSummary": "P(2) = 5; not a factor; k = −1",
+            "commonError": "A remainder of 5 does not make 2 a zero: a zero needs a remainder of 0."
+          }
+        },
+        {
+          "questionId": "rf-p-12",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Is $x - 2$ a factor of $x^4 - 16$? Use synthetic division — three powers are missing.",
+          "polynomial": {
+            "dividend": [
+              1,
+              0,
+              0,
+              0,
+              -16
+            ],
+            "candidateRoot": 2,
+            "ask": [
+              "quotient",
+              "factor"
+            ]
+          },
+          "hints": [
+            "The coefficients are 1, 0, 0, 0, −16."
+          ]
+        },
+        {
+          "questionId": "rf-p-13",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Write a polynomial function with leading coefficient 1 and zeros $-2$, $1$ and $5$, in factored form. Then give its $y$-intercept.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "f(x) =",
+              "answer": "(x+2)(x-1)(x-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "yint",
+              "label": "y-intercept: f(0) =",
+              "answer": "10",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "A zero c gives the factor x − c.",
+            "For f(0), substitute 0 into each factor and multiply."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which factor does a zero c give?",
+            "options": [
+              "x − c",
+              "x + c"
+            ],
+            "correct": "x − c"
+          },
+          "solutionReview": {
+            "headline": "Each zero c gives the factor x − c.",
+            "reasoning": [
+              "The zeros −2, 1 and 5 give the factors x + 2, x − 1 and x − 5.",
+              "f(0) = (0 + 2)(0 − 1)(0 − 5) = 10."
+            ],
+            "answerSummary": "f(x) = (x + 2)(x − 1)(x − 5); y-intercept 10",
+            "commonError": "The zero −2 gives the factor x + 2, not x − 2."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Remainder & Factor Theorems",
+      "recommendedMinutes": 7,
+      "questions": [
+        {
+          "questionId": "rf-dol-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic division to find $P({{r}})$ for $P(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$, and decide whether $x {{nr|signed}}$ is a factor.",
+          "polynomial": {
+            "dividend": [
+              1,
+              "{{b}}",
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}",
+            "ask": [
+              "value",
+              "factor"
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rf-dol-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "$x {{nr|signed}}$ is a factor of $P(x) = x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$. Factor $P(x)$ completely.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-{{r}})(x-{{s}})(x-{{t}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "b": "-(r + s + t)",
+              "c": "r*s + r*t + s*t",
+              "d": "-r*s*t",
+              "nr": "-r",
+              "ns": "-s",
+              "nt": "-t",
+              "qb": "-(s + t)",
+              "qc": "s * t"
+            },
+            "constraints": [
+              "s < t",
+              "r != s",
+              "r != t",
+              "abs(r + s + t) >= 2",
+              "r*s + r*t + s*t != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Divide by the factor you know, then factor the quotient.",
+            "reasoning": [
+              "Synthetic division by {{r}} leaves the quotient x² {{qb|xterm}} {{qc|signed}}, with remainder 0.",
+              "That quotient factors as (x {{ns|signed}})(x {{nt|signed}}).",
+              "So P(x) = (x {{nr|signed}})(x {{ns|signed}})(x {{nt|signed}})."
+            ],
+            "answerSummary": "(x {{nr|signed}})(x {{ns|signed}})(x {{nt|signed}})",
+            "commonError": "Each zero c gives the factor x − c, so the zero {{s}} gives the factor x {{ns|signed}}."
+          }
+        }
+      ]
+    }
+  ]
+}

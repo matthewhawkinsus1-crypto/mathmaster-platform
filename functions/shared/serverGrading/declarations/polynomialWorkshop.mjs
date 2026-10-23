@@ -14,7 +14,7 @@ import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 // The views PolynomialWorkshop.jsx routes to by exact `mode` match; anything
 // else (missing, unknown, mis-cased, padded, not a string) renders FactorZero.
-const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'addSubtract', 'factorQuadratic', 'division', 'longDivision', 'syntheticDivision', 'graphConnection', 'rationalFeatures']);
+const ROUTED_VIEWS = Object.freeze(['multiplyArea', 'addSubtract', 'factorQuadratic', 'division', 'longDivision', 'syntheticDivision', 'graphConnection', 'rationalFeatures', 'synthetic']);
 
 export default declareTool({
   // Work shape v1 — per mode, exactly the state the workshop's inputs hold:
@@ -35,6 +35,8 @@ export default declareTool({
   //                     quotient, remainder (a divisor ax + b with a ≠ 1 only) }
   //   graphConnection   { behavior: 'crosses'|'touches', end: <one of four end-behaviour labels> }
   //   rationalFeatures  { choice: 'hole'|'verticalAsymptote'|'zero'|'none' }
+  //   synthetic         { root, top: [typed], middle: [typed], bottom: [typed],
+  //                       value, quotient: 'x^2+7x+6', factorChoice: 'yes'|'no' }
   //   (both also carry choicesOpenUnanswered: true from a workshop whose
   //   selects open unanswered — judgmentChoices.mjs OWN_CHOICES; older work
   //   has none)
@@ -59,5 +61,6 @@ export default declareTool({
     syntheticDivision: SHARED,
     graphConnection: SHARED,
     rationalFeatures: SHARED,
+    synthetic: SHARED,
   },
 });

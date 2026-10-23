@@ -607,10 +607,26 @@ const SURFACE_WORK = Object.freeze({
     }
     if (mode === 'syntheticDivision') return [...construct('Synthetic division table', Math.max(1, Math.ceil((writtenDegree(question?.dividend) + 1) / 4))), ...respond('Quotient')];
     if (mode === 'graphConnection') return select('Graph feature', 2);
+    if (mode === 'synthetic') {
+      const asks = Array.isArray(question?.ask) && question.ask.length ? question.ask : ['value', 'quotient', 'factor'];
+      return [
+        ...construct('Synthetic division table'),
+        ...(asks.includes('value') ? respond('Remainder as P(r)') : []),
+        ...(asks.includes('quotient') ? respond('Quotient') : []),
+        ...(asks.includes('factor') ? select('Is it a factor?') : []),
+      ];
+    }
     return select('Feature');
   },
   signSolutionAnalyzer: (question, mode) => {
     if (mode === 'radicalCheck') return select('Candidate valid?', Math.max(1, list(question?.candidates).length || 2));
+    // Isolate, raise, solve, check each candidate (both sides and a verdict), state the solutions.
+    if (mode === 'radicalSolve') {
+      return [
+        ...respond('Isolated radical'), ...respond('Raised equation'), ...respond('Candidates'),
+        ...respond('Original equation at a candidate', 2), ...select('Solution or extraneous?'), ...respond('Solution'),
+      ];
+    }
     const critical = list(question?.factors).length + list(question?.denominatorFactors).length;
     return select('Sign of each interval', Math.max(2, critical + 1));
   },

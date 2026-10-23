@@ -70,6 +70,11 @@ test('grading outcome: what ingestion can grade as stored, Question Family slots
   assert.equal(gradingOutcomeFor({ type: 'numberLine', target: 3 }).outcome, GRADING_OUTCOME.DEVICE_ONLY);
   assert.match(gradingOutcomeFor({ type: 'numberLine', target: 3 }).reason, /numberLine/);
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', generator: { kind: 'x' } }), { outcome: GRADING_OUTCOME.DEVICE_ONLY, reason: 'generated-question' });
+  // An assignment's own template carries a generator too, but it is a family
+  // slot: ingestion rebuilds the instance from the delivery pin.
+  const template = { type: 'multiAnswer', prompt: '{{a}} + 1 = ?', answerFields: [{ id: 'v', answer: '{{v}}' }], generator: { parameters: { a: { type: 'int', min: 1, max: 9 } }, derived: { v: 'a + 1' } }, questionFamily: { scope: 'assignment' } };
+  assert.deepEqual(gradingOutcomeFor(template), { outcome: GRADING_OUTCOME.FAMILY_SLOT, reason: 'family-template' });
+  assert.deepEqual(gradingOutcomeFor({ ...template, teacherExcluded: true }), { outcome: GRADING_OUTCOME.EXCLUDED, reason: 'teacher-excluded' });
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', variants: [{}] }), { outcome: GRADING_OUTCOME.DEVICE_ONLY, reason: 'variant-selection' });
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', teacherExcluded: true }), { outcome: GRADING_OUTCOME.EXCLUDED, reason: 'teacher-excluded' });
 });
@@ -125,17 +130,22 @@ const AFTER_THE_DESIGN = Object.freeze({
   },
   // The Algebra II Honors DOL #2 review's Warm-Up, Practice and DOL items are
   // assignment-local Question Families. The stored template carries its
-  // `generator`, which this report counts as device-only (generated-question);
-  // ingestion marks each student's instance, rebuilt from its delivery pin
-  // (questionFamilyGrading.mjs). Its two family slots are the platform-family
+  // `generator` and is family-backed, so the report counts it as a family slot:
+  // ingestion grades each student's instance, rebuilt from its delivery pin
+  // (questionFamilyGrading.mjs). Two of the slots are the platform-family
   // Matrix Lab systems items.
   'District_DOL2_Absolute_Value_and_3x3_Systems_Review.json': {
-    warmup: { questions: 4, withStoredKey: 4, serverGradable: 0, familySlots: 0, deviceOnly: 4, withHints: 4 },
+    warmup: { questions: 4, withStoredKey: 4, serverGradable: 0, familySlots: 4, deviceOnly: 0, withHints: 4 },
     classwork: { questions: 11, withStoredKey: 8, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
-    practice: { questions: 18, withStoredKey: 17, serverGradable: 0, familySlots: 1, deviceOnly: 17, withHints: 18 },
-    dol: { questions: 7, withStoredKey: 6, serverGradable: 0, familySlots: 1, deviceOnly: 6, withHints: 0 },
+    practice: { questions: 18, withStoredKey: 17, serverGradable: 0, familySlots: 18, deviceOnly: 0, withHints: 18 },
+    dol: { questions: 7, withStoredKey: 6, serverGradable: 0, familySlots: 7, deviceOnly: 0, withHints: 0 },
   },
 });
+
+// The Algebra II Polynomials and Radicals lessons and their Honors versions
+// have their own tables below.
+const LATER_LESSONS = path.join(repo, 'teacher-import-jsons', 'algebra2-polynomials-radicals') + path.sep;
+const LATER_HONORS = path.join(repo, 'teacher-import-jsons', 'algebra2-polynomials-radicals-honors') + path.sep;
 
 const exposureByRole = (files) => {
   const byRole = {};
@@ -149,16 +159,18 @@ const exposureByRole = (files) => {
   return byRole;
 };
 
-test('lessons added after the design: each has its own expected rows, and every Warm-Up and DOL item is server-gradable', () => {
+test('lessons added after the design: each has its own expected rows, and every Warm-Up and DOL item is graded on the server', () => {
   const files = lessonFiles().filter((file) => path.basename(file) in AFTER_THE_DESIGN);
   assert.deepEqual(files.map((file) => path.basename(file)).sort(), Object.keys(AFTER_THE_DESIGN).sort());
   files.forEach((file) => {
     const byRole = exposureByRole([file]);
     assert.deepEqual(byRole, AFTER_THE_DESIGN[path.basename(file)], path.basename(file));
-    // A generated Question Family is graded per student from its delivery pin
-    // at ingestion, not as stored, so the report counts it device-only.
-    ['warmup', 'dol'].filter((role) => byRole[role].deviceOnly === 0)
-      .forEach((role) => assert.equal(byRole[role].serverGradable, byRole[role].questions, `${path.basename(file)} ${role}`));
+    // Graded as stored, or a Question Family slot graded per student from its
+    // delivery pin at ingestion: never device-only.
+    ['warmup', 'dol'].forEach((role) => {
+      assert.equal(byRole[role].serverGradable + byRole[role].familySlots, byRole[role].questions, `${path.basename(file)} ${role}`);
+      assert.equal(byRole[role].deviceOnly, 0, `${path.basename(file)} ${role}: nothing device-only`);
+    });
   });
 });
 
@@ -171,11 +183,41 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
   // Design §1.2: Q / stored key / has hints / server can grade as stored.
   // Hints are one higher in Practice: the report also counts `supportHints`
   // (design §1.1 lists both), and one Absolute Value item has only those.
+  // The design's one `generated-question` (footnote ¹) is the Absolute Value
+  // bridge's own template, q_practice-absolute-value-focus_3_8: ingestion
+  // grades it from its delivery pin, so the report counts a family slot.
   assert.deepEqual(byRole, {
     warmup: { questions: 44, withStoredKey: 27, serverGradable: 42, familySlots: 2, deviceOnly: 0, withHints: 8 },
     classwork: { questions: 108, withStoredKey: 51, serverGradable: 105, familySlots: 3, deviceOnly: 0, withHints: 27 },
-    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 2, deviceOnly: 1, withHints: 37 },
+    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 3, deviceOnly: 0, withHints: 37 },
     dol: { questions: 45, withStoredKey: 30, serverGradable: 44, familySlots: 1, deviceOnly: 0, withHints: 0 },
+  });
+});
+
+test('the five Algebra II Polynomials and Radicals lessons: every template is a family slot, and nothing is device-only', () => {
+  const files = lessonFiles().filter((file) => file.startsWith(LATER_LESSONS));
+  assert.equal(files.length, 5);
+  // Warm-Up and DOL are the assignment's own templates throughout, and so are
+  // 17 Practice items; every other question is graded by the server as stored.
+  assert.deepEqual(exposureByRole(files), {
+    warmup: { questions: 15, withStoredKey: 14, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 15 },
+    classwork: { questions: 50, withStoredKey: 37, serverGradable: 50, familySlots: 0, deviceOnly: 0, withHints: 50 },
+    practice: { questions: 67, withStoredKey: 54, serverGradable: 50, familySlots: 17, deviceOnly: 0, withHints: 67 },
+    dol: { questions: 10, withStoredKey: 10, serverGradable: 0, familySlots: 10, deviceOnly: 0, withHints: 0 },
+  });
+});
+
+test('their five Honors versions: the audited SAT items are family slots too, and nothing is device-only', () => {
+  const files = lessonFiles().filter((file) => file.startsWith(LATER_HONORS));
+  assert.equal(files.length, 5);
+  // Warm-Up and DOL are the assignment's own templates, as in the regular
+  // lessons. In Practice, 20 more templates and the 10 audited SAT items (two
+  // per lesson) are family slots, which ingestion rebuilds from the delivery pin.
+  assert.deepEqual(exposureByRole(files), {
+    warmup: { questions: 15, withStoredKey: 15, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 15 },
+    classwork: { questions: 53, withStoredKey: 43, serverGradable: 53, familySlots: 0, deviceOnly: 0, withHints: 53 },
+    practice: { questions: 69, withStoredKey: 65, serverGradable: 39, familySlots: 30, deviceOnly: 0, withHints: 69 },
+    dol: { questions: 15, withStoredKey: 15, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 0 },
   });
 });
 

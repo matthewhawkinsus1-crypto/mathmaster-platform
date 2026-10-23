@@ -30,6 +30,8 @@ import {
   rationalFeatureTargetValue,
   rationalFeatureTypeAt,
   sameCoefficientList,
+  syntheticDivision,
+  syntheticDivisionRoot,
 } from '../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
@@ -75,9 +77,11 @@ const SCREEN_OPTIONS = {
   factorZero: optionsIn('FactorZero'),
   graphConnection: optionsIn('GraphConnection'),
   rationalFeatures: optionsIn('RationalFeatures'),
+  synthetic: optionsIn('SyntheticDivision'),
 };
 test('the screen options this test reads are the workshop\'s own', () => {
   assert.deepEqual([...SCREEN_OPTIONS.factorZero.entries()], [['Yes', 'yes'], ['No', 'no']]);
+  assert.deepEqual([...SCREEN_OPTIONS.synthetic.entries()], [['Yes', 'yes'], ['No', 'no']]);
   assert.deepEqual([...SCREEN_OPTIONS.rationalFeatures.values()].sort(), ['hole', 'none', 'verticalAsymptote', 'zero']);
   assert.deepEqual([...SCREEN_OPTIONS.graphConnection.values()].sort(), [
     'both ends fall', 'both ends rise', 'crosses', 'left falls, right rises', 'left rises, right falls', 'touches',
@@ -124,6 +128,21 @@ const WORK_FROM_REVIEW = {
     choice: pick('rationalFeatures', itemValue(model, /^Feature at x = /)),
     ...OWN_CHOICES,
   }),
+  // Each stated row typed cell by cell; the stated quotient typed as written.
+  synthetic: (model) => {
+    const row = (label) => itemValue(model, label).split(',').map((cell) => cell.trim());
+    const stated = (label) => model.items.find((entry) => label.test(entry.label))?.value;
+    const factor = stated(/^Is it a factor\?$/);
+    return {
+      root: itemValue(model, 'Number in the box'),
+      top: row('Coefficient row'),
+      middle: row('Middle row'),
+      bottom: row('Bottom row'),
+      value: stated(/^P\(/) ?? '',
+      quotient: (stated(/^Quotient$/) ?? '').replace(/^\$|\$$/g, ''),
+      factorChoice: factor ? pick('synthetic', factor) : '',
+    };
+  },
 };
 
 /*
@@ -154,6 +173,11 @@ const KEY = {
     });
     return { choice: rationalFeatureTypeAt(features, rationalFeatureTargetValue(features, question.targetValue)) };
   },
+  synthetic: (question) => {
+    const authoredRoot = syntheticDivisionRoot(question);
+    const root = question.dividend ? authoredRoot : (authoredRoot ?? DEFAULTS.synthetic.candidateRoot);
+    return syntheticDivision(question.dividend || DEFAULTS.synthetic.dividend, root);
+  },
 };
 
 const assertKeyMatches = (mode, question, work, label) => {
@@ -172,6 +196,13 @@ const assertKeyMatches = (mode, question, work, label) => {
   } else if (mode === 'graphConnection') {
     assert.equal(work.behavior, key.behavior, `${label}: behavior at the target zero`);
     assert.equal(work.end, key.end, `${label}: end behavior`);
+  } else if (mode === 'synthetic') {
+    assert.equal(Number(work.root), key.root, `${label}: the number in the box`);
+    for (const row of ['top', 'middle', 'bottom']) {
+      assert.deepEqual(work[row].map(Number), key[row], `${label}: the ${row} row`);
+    }
+    if (work.value !== '') assert.equal(Number(work.value), key.remainder, `${label}: P(r) is the remainder`);
+    if (work.factorChoice !== '') assert.equal(work.factorChoice, Math.abs(key.remainder) < 1e-9 ? 'yes' : 'no', `${label}: the factor verdict`);
   } else {
     assert.equal(work.choice, key.choice, `${label}: the feature`);
   }
@@ -536,6 +567,51 @@ test('rationalFeatures: the steps cancel THIS function\'s common factors and the
 });
 
 /* ------------------------------------------------------------------ */
+/* synthetic                                                           */
+/* ------------------------------------------------------------------ */
+
+test('synthetic: the box, every row, P(r), the quotient and the Factor Theorem verdict', () => {
+  const { model } = assertReviewGradesCorrect(q({ mode: 'synthetic' }), 'unauthored');
+  assert.deepEqual(model.items.map((item) => [item.label, item.value]), [
+    ['Number in the box', '3'], ['Coefficient row', '1, 4, -15, -18'], ['Middle row', '3, 21, 18'], ['Bottom row', '1, 7, 6, 0'],
+    ['P(3)', '0'], ['Quotient', '$x^{2} + 7x + 6$'], ['Is it a factor?', 'Yes'],
+  ]);
+  assert.ok(model.steps.some((step) => step.includes('Remainder Theorem')), 'the remainder is named P(r)');
+  assert.ok(model.steps.some((step) => step.includes('(x - 3)(x^{2} + 7x + 6)')), 'the factor is shown as a product');
+  assert.equal(model.note, null);
+});
+
+test('synthetic: x + 3 puts −3 in the box, and a missing power keeps its 0', () => {
+  const { model } = assertReviewGradesCorrect(q({ mode: 'synthetic', dividend: [1, 0, -7, 6], divisor: [1, 3] }), 'x + 3');
+  assert.equal(itemValue(model, 'Number in the box'), '-3');
+  assert.equal(itemValue(model, 'Coefficient row'), '1, 0, -7, 6');
+  assert.match(model.steps[1], /with a 0 holding each missing power/);
+  assert.match(model.note, /missing power still needs its column/);
+});
+
+test('synthetic: a nonzero remainder is P(r) and the verdict is "not a factor"; the review states only what is asked', () => {
+  const question = q({ mode: 'synthetic', dividend: [2, -3, 0, 4], candidateRoot: 2, ask: ['value', 'factor'] });
+  const { model } = assertReviewGradesCorrect(question, 'nonzero remainder');
+  assert.deepEqual(model.items.map((item) => item.label), ['Number in the box', 'Coefficient row', 'Middle row', 'Bottom row', 'P(2)', 'Is it a factor?']);
+  assert.equal(itemValue(model, 'P(2)'), '8');
+  assert.equal(itemValue(model, 'Is it a factor?'), 'No');
+  assert.ok(model.steps.some((step) => /is not a factor/.test(step)));
+  assert.ok(!model.steps.some((step) => step.includes('Q(x)')), 'no quotient step when the quotient is not asked');
+});
+
+test('synthetic: questions the grader cannot key have no review', () => {
+  for (const question of [
+    q({ mode: 'synthetic', dividend: '1,4,-15,-18', candidateRoot: 3 }),
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18] }),
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [2, -3] }),
+    q({ mode: 'synthetic', dividend: [5], candidateRoot: 1 }),
+  ]) {
+    assert.equal(grade(question, {}).reason, 'invalid-question', JSON.stringify(question));
+    assert.equal(buildPolynomialWorkshopReview(question), null, `${JSON.stringify(question)}: no review`);
+  }
+});
+
+/* ------------------------------------------------------------------ */
 /* a compiled V5 question                                              */
 /* ------------------------------------------------------------------ */
 
@@ -552,6 +628,16 @@ test('questions compiled from V5 authoring are explained and graded correct', ()
   assert.deepEqual(assertReviewGradesCorrect(multiply, 'compiled area model').work, { cells: ['6', '15', '-2', '-5'], expanded: '6, 13, -5' });
   const factor = compile({ prompt: 'Factor.', studentActions: ['factorPolynomial'], polynomial: { coefficients: [1, 3, -10] } });
   assert.deepEqual(assertReviewGradesCorrect(factor, 'compiled factoring').work, { p: '-2', q: '5' });
+  // Synthetic division, named any of the ways a teacher says it.
+  for (const action of ['syntheticDivision', 'synthetic division', 'remainderTheorem']) {
+    const synthetic = compile({ prompt: 'Use synthetic division.', studentActions: [action], polynomial: { dividend: [1, 0, -7, 6], divisor: [1, 3], ask: ['value', 'factor'] } });
+    assert.equal(synthetic.type, TOOL_ID, action);
+    assert.equal(synthetic.mode, 'synthetic', action);
+    assert.deepEqual(synthetic.ask, ['value', 'factor'], `${action}: the ask rides along`);
+    assert.deepEqual(assertReviewGradesCorrect(synthetic, `compiled ${action}`).work, {
+      root: '-3', top: ['1', '0', '-7', '6'], middle: ['-3', '9', '-6'], bottom: ['1', '-3', '2', '0'], value: '0', quotient: '', factorChoice: 'yes',
+    });
+  }
 });
 
 /* ------------------------------------------------------------------ */
@@ -587,6 +673,12 @@ test('a seeded sweep of integer questions in every view: each review states an a
       numeratorRoots: Array.from({ length: int(0, 3) }, () => int(-4, 4)),
       denominatorRoots: Array.from({ length: int(1, 3) }, () => int(-4, 4)),
       targetValue: int(-5, 5),
+    }),
+    synthetic: () => q({
+      mode: 'synthetic',
+      dividend: list(int(2, 6), -9, 9),
+      ...(random() < 0.5 ? { candidateRoot: int(-4, 4) } : { divisor: [1, int(-5, 5)] }),
+      ...(random() < 0.3 ? { ask: [['value'], ['quotient'], ['factor'], ['value', 'factor']][int(0, 3)] } : {}),
     }),
   };
   const stated = {};

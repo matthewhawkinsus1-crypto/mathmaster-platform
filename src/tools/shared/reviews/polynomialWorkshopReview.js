@@ -25,6 +25,11 @@
 //                     and the end behavior (degree parity, leading sign).
 //   rationalFeatures  hole / vertical asymptote / zero / none at the target
 //                     value, after cancelling common factors.
+//   synthetic         the synthetic division table by x − r (the box number,
+//                     the coefficient row with its 0 placeholders, the
+//                     products and the sums), then what it says: P(r) is the
+//                     remainder, the quotient one degree lower, and whether
+//                     x − r is a factor — as many as the question asks.
 //
 // Before a review is returned, the work it states is graded by that grader
 // through the bytes the server reads (gradeWorkWithGrader): if it is not
@@ -65,6 +70,9 @@ import {
   rationalFeatureMap,
   rationalFeatureTargetValue,
   rationalFeatureTypeAt,
+  syntheticAsks,
+  syntheticDivision,
+  syntheticDivisionRoot,
   trimLeadingZeros,
   addSubtractKey,
   areaModelKey,
@@ -947,6 +955,75 @@ const buildRationalFeatures = (question) => {
 
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* synthetic                                                           */
+/* ------------------------------------------------------------------ */
+
+const buildSynthetic = (question) => {
+  const dividend = question.dividend || DEFAULTS.synthetic.dividend;
+  if (!numericList(dividend)) return null;
+  const authoredRoot = syntheticDivisionRoot(question);
+  const root = question.dividend ? authoredRoot : (authoredRoot ?? DEFAULTS.synthetic.candidateRoot);
+  if (root === null || !Number.isFinite(root)) return null;
+  const table = syntheticDivision(dividend.map(Number), root);
+  if (table.top.length < 2 || table.top.length - 1 > MAX_DEGREE) return null;
+  const asks = syntheticAsks(question);
+
+  const w = makeWriter();
+  const r = w.num(root);
+  const P = w.poly(table.top);
+  const divisor = w.factorPower(root, 1);
+  const missing = table.top.some(isZero);
+  const columns = table.middle.map((product, index) => `$${w.num(table.bottom[index])} \\cdot ${w.operand(root)} = ${w.num(product)}$, then $${w.num(table.top[index + 1])} + ${w.operand(product)} = ${w.num(table.bottom[index + 1])}$`);
+  const steps = [
+    `Divide $${P}$ by $${divisor}$. The divisor is 0 at $x = ${r}$, so $${r}$ goes in the box.`,
+    `Write every coefficient from the highest power down${missing ? ', with a 0 holding each missing power' : ''}: ${w.list(table.top)}.`,
+    `Bring down the first coefficient, $${w.num(table.bottom[0])}$.`,
+  ];
+  // One step per column while the panel has room; a long table in one step.
+  if (columns.length + steps.length + 3 <= MAX_STEPS) columns.forEach((column) => steps.push(`Multiply and add: ${column}.`));
+  else steps.push(`Multiply and add down every column: ${columns.join('; ')}.`);
+  const remainder = table.remainder;
+  const isFactor = isZero(remainder);
+  const quotientDegree = table.quotient.length - 1;
+  const Q = w.poly(table.quotient);
+  steps.push(`The last number, $${w.num(remainder)}$, is the remainder. By the Remainder Theorem the remainder of dividing by $(x - r)$ is $P(r)$, so $P(${r}) = ${w.num(remainder)}$.`);
+  if (asks.includes('quotient')) {
+    steps.push(`The other numbers, ${w.list(table.quotient)}, are the coefficients of the quotient${quotientDegree > 0 ? `, one degree lower than $P(x)$` : ''}: $Q(x) = ${Q}$.`);
+  }
+  if (asks.includes('factor')) {
+    steps.push(isFactor
+      ? `The remainder is 0, so by the Factor Theorem $${divisor}$ is a factor: $${P} = ${divisor}(${Q})$.`
+      : `The remainder is not 0, so by the Factor Theorem $${divisor}$ is not a factor of $P(x)$.`);
+  }
+  const items = [
+    { label: 'Number in the box', value: r },
+    { label: 'Coefficient row', value: w.list(table.top) },
+    { label: 'Middle row', value: w.list(table.middle) },
+    { label: 'Bottom row', value: w.list(table.bottom) },
+    ...(asks.includes('value') ? [{ label: `P(${w.plain(root)})`, value: w.num(remainder) }] : []),
+    ...(asks.includes('quotient') ? [{ label: 'Quotient', value: `$${Q}$` }] : []),
+    ...(asks.includes('factor') ? [{ label: 'Is it a factor?', value: isFactor ? 'Yes' : 'No' }] : []),
+  ];
+  const why = 'Synthetic division is long division by $(x - r)$ with only the numbers kept: each sum is the next coefficient of the quotient, and what is left at the end is the remainder, $P(r)$.';
+  const note = missing ? 'A missing power still needs its column: without the 0 every later coefficient lands under the wrong power.' : null;
+  if (!w.exact()) return null;
+
+  const quotientText = w.poly(table.quotient).replace(/\{(\d+)\}/g, '$1');
+  const work = {
+    root: r,
+    top: table.top.map(w.num),
+    middle: table.middle.map(w.num),
+    bottom: table.bottom.map(w.num),
+    value: w.num(remainder),
+    quotient: quotientText,
+    factorChoice: isFactor ? 'yes' : 'no',
+  };
+  return { title: 'Synthetic division solution', items, steps, why, note, work };
+};
+
+/* ------------------------------------------------------------------ */
+
 const BUILDERS = Object.freeze({
   factorZero: buildFactorZero,
   // Written as factor text, the area model is any size (buildMultiplyFactors).
@@ -960,6 +1037,7 @@ const BUILDERS = Object.freeze({
   syntheticDivision: buildSyntheticDivision,
   graphConnection: buildGraphConnection,
   rationalFeatures: buildRationalFeatures,
+  synthetic: buildSynthetic,
 });
 
 // The fields the workshop reads. A question that names neither the tool nor
@@ -967,7 +1045,7 @@ const BUILDERS = Object.freeze({
 // fall back to its demonstration problem.
 const WORKSHOP_FIELDS = Object.freeze([
   'mode', 'coefficients', 'candidateRoot', 'leftBinomial', 'rightBinomial', 'dividend', 'divisor',
-  'roots', 'leadingCoefficient', 'targetRoot', 'numeratorRoots', 'denominatorRoots', 'targetValue',
+  'roots', 'leadingCoefficient', 'targetRoot', 'numeratorRoots', 'denominatorRoots', 'targetValue', 'ask',
   'leftFactor', 'rightFactor', 'operation', 'firstPolynomial', 'secondPolynomial',
 ]);
 const namesTheWorkshop = (question) => question.toolId === 'polynomialWorkshop'

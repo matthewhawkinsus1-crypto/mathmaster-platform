@@ -26,21 +26,30 @@ export default declareTool({
   //   rational      { selected: number[] }  the same, with denominator zeros
   //   radicalCheck  { selected: (number|string)[] }  the toggled candidate
   //                                          values, exactly as authored
+  //   radicalSolve  { isolated: string, raised: string, candidates: string,
+  //                   rows: { left: string, right: string,
+  //                           decision: 'solution'|'extraneous'|'' }[],
+  //                   finalAnswer: string, noRealSolution: boolean }
+  //                   the typed stages; rows[i] checks the i-th value
+  //                   typed in `candidates`
   contractVersion: 1,
   // SignSolutionAnalyzer.jsx: `questionData.mode || (denominatorFactors?.length
-  // ? 'rational' : 'polynomial')`; 'radicalCheck' renders RadicalCheck and every
-  // other value renders the sign chart, which reads denominator factors only
-  // when the mode is exactly 'rational'. So an unknown, padded or mis-cased
-  // mode is the polynomial chart — not the manifest's generic default.
+  // ? 'rational' : 'polynomial')`; 'radicalCheck' renders RadicalCheck,
+  // 'radicalSolve' renders RadicalSolve, and every other value renders the
+  // sign chart, which reads denominator factors only when the mode is exactly
+  // 'rational'. So an unknown, padded or mis-cased mode is the polynomial
+  // chart — not the manifest's generic default.
   defaultMode: 'polynomial',
   resolveMode: (question) => {
     const mode = question?.mode || (question?.denominatorFactors?.length ? 'rational' : 'polynomial');
     if (mode === 'radicalCheck') return 'radicalCheck';
+    if (mode === 'radicalSolve') return 'radicalSolve';
     return mode === 'rational' ? 'rational' : 'polynomial';
   },
   modes: {
     polynomial: SHARED,
     rational: SHARED,
     radicalCheck: SHARED,
+    radicalSolve: SHARED,
   },
 });

@@ -321,12 +321,16 @@ test('what is not a point, a number line or a one-variable inequality is not cla
     .flatMap((file) => compileAuthoringIntentV5(readJson(path.join('teacher-import-jsons', file))).package.sections.flatMap((section) => section.questions));
   // A one-variable inequality solved in Step Algebra is this family's
   // (linearInequality): the Module 3 inequality lesson has real ones, and each
-  // is claimed. Everything else in the corpus is not.
+  // is claimed. So is the radical candidate check (kind 'radical'): the
+  // corpus's radicalCheck items are claimed. Everything else in the corpus is not.
   const oneVariableInequality = (question) => question.type === 'stepAlgebra' && /[<>≤≥]/.test(String(question.equation || ''));
   const inequalities = corpus.filter(oneVariableInequality);
   assert.ok(inequalities.length >= 5, `${inequalities.length} corpus inequalities`);
   inequalities.forEach((question) => assert.equal(pointsAndIntervals.matches(question), true, `corpus inequality: ${String(question.prompt).slice(0, 70)}`));
-  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine' && !oneVariableInequality(question));
+  const radicalChecks = corpus.filter((question) => question.type === 'signSolutionAnalyzer' && question.mode === 'radicalCheck');
+  assert.ok(radicalChecks.length >= 1);
+  radicalChecks.forEach((question) => assert.equal(pointsAndIntervals.matches(question), true, `corpus radical check: ${String(question.prompt).slice(0, 70)}`));
+  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine' && !oneVariableInequality(question) && !radicalChecks.includes(question));
   assert.ok(notOurs.length > 150);
   notOurs.forEach((question) => assert.equal(pointsAndIntervals.matches(question), false, `corpus ${question.type}: ${String(question.prompt).slice(0, 70)}`));
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)

@@ -9,6 +9,9 @@ import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx'
 import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
 import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
+// Registers the factoredForm / simplestRadicalForm comparators the shared
+// field grader reads (kept out of the first load: answerUtils.mjs).
+import '../functions/shared/formSpecificFieldGrading.mjs';
 import { labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
