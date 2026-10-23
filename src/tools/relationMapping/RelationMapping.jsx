@@ -148,12 +148,14 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         aria-describedby={helpId}
         style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
       >
-        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
-        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
-        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#445" strokeWidth="2" /> : null}
-        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} stroke="#445" strokeWidth="2" /> : null}
-        {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
-        {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
+        {/* The shared graph tokens (src/theme/tokens.css), as the coordinate
+            plane uses: fixed colours failed dark-mode contrast (TL33, VH-27). */}
+        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{x}</text>))}
+        {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{y}</text>))}
 
         {guidePoint ? (
           <g pointerEvents="none" data-relation-crosshair={keyboardCursor && !hoverPoint ? 'keyboard' : 'pointer'}>
